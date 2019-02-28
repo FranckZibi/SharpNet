@@ -1,0 +1,78 @@
+﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using SharpNet.Data;
+using SharpNet.GPU;
+
+namespace SharpNet
+{
+    public class PoolingLayer : Layer
+    {
+        // x     (batchSize, x.C, x.H, x.W)
+        //
+        // y     (batchSize, x.C, y.H, y.W)
+        //          y.H = (x.H−poolingSize) / poolingStride + 1
+        //          y.W = (x.W−poolingSize) / poolingStride + 1
+        #region Fields
+        private readonly cudnnPoolingMode_t _poolingMode;
+        private readonly int _poolingSize;
+        private readonly int _poolingStride;
+        public override Tensor y { get; protected set; }
+        public override Tensor dy { get; protected set; }
+        #endregion
+
+        //No need to configure the number of channels by filter: it is always the same as in previous layer
+        public PoolingLayer(cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride, Network network) : base(network)
+        {
+            _poolingMode = poolingMode;
+            _poolingSize = poolingSize;
+            _poolingStride = poolingStride;
+        }
+        public override void ForwardPropagation(bool isTraining)
+        {
+            Allocate_y_dy_if_necessary();
+            var x = PrevLayer.y;
+            x.Pooling(y, _poolingMode, _poolingSize, _poolingSize);
+        }
+        public override void BackwardPropagation()
+        {
+            //At this stage, we already know dy (after pooling)
+            //we want to compute dx by backward propagation
+            Debug.Assert(y.SameShape(dy));
+            //we compute dx
+            var x = PrevLayer.y;
+            var dx = PrevLayer.dy;
+            dy.PoolingGradient(y, x, dx, _poolingMode, _poolingSize, _poolingStride);
+        }
+        public override string Serialize()
+        {
+            return RootSerializer()
+                .Add(nameof(_poolingSize), _poolingSize).Add(nameof(_poolingStride), _poolingStride)
+                .Add(nameof(_poolingMode), (int)_poolingMode)
+                .ToString();
+        }
+        public static PoolingLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        {
+            return new PoolingLayer((cudnnPoolingMode_t)(int)serialized[nameof(_poolingMode)], (int)serialized[nameof(_poolingSize)], (int)serialized[nameof(_poolingStride)], network);
+        }
+        public override string SummaryName() {return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AvgPooling";}
+        public static bool IsMaxPooling(cudnnPoolingMode_t poolingMode)
+        {
+            return poolingMode == cudnnPoolingMode_t.CUDNN_POOLING_MAX ||
+                   poolingMode == cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC;
+        }
+        public override string ToString()
+        {
+            var result = SummaryName()+": " + ShapeChangeDescription() + " size="+_poolingSize+" stride="+_poolingStride;
+            result += " (" + MemoryDescription() + ")";
+            return result;
+        }
+        public override int[] OutputShape(int batchSize)
+        {
+            var xShape = PrevLayer.OutputShape(batchSize);
+            var yShape = Tensor.PoolingOutputShape(xShape, _poolingSize, _poolingStride);
+            Debug.Assert(yShape.Min() >= 1);
+            return yShape;
+        }
+    }
+}

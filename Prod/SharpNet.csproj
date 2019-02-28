@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{2562D66B-9583-4034-A01E-809E33D08310}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>SharpNet</RootNamespace>
+    <AssemblyName>SharpNet</AssemblyName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="JetBrains.Annotations, Version=2018.3.0.0, Culture=neutral, PublicKeyToken=1010a0d8d6380325, processorArchitecture=MSIL">
+      <HintPath>..\packages\JetBrains.Annotations.2018.3.0\lib\net20\JetBrains.Annotations.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="CPU\CpuTensor.cs" />
+    <Compile Include="CPU\CpuTensorExtensions.cs" />
+    <Compile Include="Data\BlasServices.cs" />
+    <Compile Include="Data\Serializer.cs" />
+    <Compile Include="Data\size_t.cs" />
+    <Compile Include="Data\Tensor.cs" />
+    <Compile Include="Data\TensorExtensions.cs" />
+    <Compile Include="GPU\CublasWrapper.cs" />
+    <Compile Include="GPU\CudaDeviceMemory.cs" />
+    <Compile Include="GPU\CudaRuntimeCompiler.cs" />
+    <Compile Include="GPU\CudnnWrapper.cs" />
+    <Compile Include="GPU\GpuTensor.cs" />
+    <Compile Include="GPU\GPUWrapper.cs" />
+    <Compile Include="GPU\KernelManager.cs" />
+    <Compile Include="GPU\NVCudaWrapper.cs" />
+    <Compile Include="GPU\NVRTCWrapper.cs" />
+    <Compile Include="GPU\StreamWrapper.cs" />
+    <Compile Include="Layers\ActivationLayer.cs" />
+    <Compile Include="Layers\BatchNormalizationLayer.cs" />
+    <Compile Include="Layers\ConvolutionLayer.cs" />
+    <Compile Include="Layers\DenseLayer.cs" />
+    <Compile Include="Layers\DropoutLayer.cs" />
+    <Compile Include="Layers\FlattenLayer.cs" />
+    <Compile Include="Layers\InputLayer.cs" />
+    <Compile Include="Layers\Layer.cs" />
+    <Compile Include="Layers\PoolingLayer.cs" />
+    <Compile Include="Layers\SumLayer.cs" />
+    <Compile Include="LearningRateScheduler.cs" />
+    <Compile Include="Network.cs" />
+    <Compile Include="NetworkConfig.cs" />
+    <Compile Include="obj\Debug\TemporaryGeneratedFile_036C0B5B-1481-4323-8D20-8F5ADCB23D92.cs" />
+    <Compile Include="obj\Debug\TemporaryGeneratedFile_5937a670-0e60-4077-877b-f7221da3dda1.cs" />
+    <Compile Include="obj\Debug\TemporaryGeneratedFile_E7A71F73-0F8D-4B9B-B56E-8E70B10BC5D3.cs" />
+    <Compile Include="obj\Release\TemporaryGeneratedFile_036C0B5B-1481-4323-8D20-8F5ADCB23D92.cs" />
+    <Compile Include="obj\Release\TemporaryGeneratedFile_5937a670-0e60-4077-877b-f7221da3dda1.cs" />
+    <Compile Include="obj\Release\TemporaryGeneratedFile_E7A71F73-0F8D-4B9B-B56E-8E70B10BC5D3.cs" />
+    <Compile Include="Optimizers\Adam.cs" />
+    <Compile Include="Optimizers\Optimizer.cs" />
+    <Compile Include="Optimizers\VanillaSgd.cs" />
+    <Compile Include="Pictures\ImageDataGenerator.cs" />
+    <Compile Include="Pictures\PictureTools.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utils.cs" />
+    <Compile Include="Optimizers\Sgd.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
