@@ -440,7 +440,7 @@ namespace SharpNet.CPU
                     x.Elu(y, 1.0);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_TANH:
-                    x.TanSigmoid(y);
+                    x.Tanh(y);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID:
                     x.Sigmoid(y);
@@ -1144,11 +1144,11 @@ namespace SharpNet.CPU
             Debug.Assert(Count == b.Count);
             if (UseDoublePrecision)
             {
-                BlasServices.Copy_Mkl(AsDoubleCpuContent, b.AsDoubleCpuContent);
+                MKL_BLAS.cblas_dcopy(AsDoubleCpuContent.Length, AsDoubleCpuContent, 1, b.AsDoubleCpuContent, 1);
             }
             else
             {
-                BlasServices.Copy_Mkl(AsFloatCpuContent, b.AsFloatCpuContent);
+                MKL_BLAS.cblas_scopy(AsFloatCpuContent.Length, AsFloatCpuContent, 1, b.AsFloatCpuContent, 1);
             }
         }
         public override void CopyTo(int startElement, Tensor other, int bStartElement, int elementCount)
@@ -1203,14 +1203,6 @@ namespace SharpNet.CPU
             Debug.Assert(a.Dimension >= 2);
             Debug.Assert(b.Dimension >= 2);
             Debug.Assert(Dimension >= 2);
-
-
-            //re activate tests
-            /*
-            Debug.Assert(a.Width == b.Height);
-            Debug.Assert(a.Height == y.Height);
-            Debug.Assert(b.Width == y.Width);
-            */
             if (a.UseDoublePrecision)
             {
                 BlasServices.DotMkl(a.AsDoubleCpuContent, a.Height, a.MultDim0, transposeA, b.AsDoubleCpuContent,
@@ -1221,8 +1213,6 @@ namespace SharpNet.CPU
                 BlasServices.DotMkl(a.AsFloatCpuContent, a.Height, a.MultDim0, transposeA, b.AsFloatCpuContent,
                     b.Height, b.MultDim0, transposeB, AsFloatCpuContent, (float)alpha, (float)beta);
             }
-
-
             //MathServices.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
             //var tmpTranspose = new double[b.Count];
             //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);

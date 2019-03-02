@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
-using Math = System.Math;
 
 namespace SharpNet.GPU
 {
@@ -47,7 +46,7 @@ namespace SharpNet.GPU
         }
         public void CopyToDevice()
         {
-            //copy from CPU (Host) to GPU (Devise) memory
+            //copy from CPU (Host) to GPU (Device) memory
             Wrapper.LogCopyToDeviceCall(ReallyNeededMemoryInBytes);
             var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, _hostStart, ReallyNeededMemoryInBytes);
             GPUWrapper.CheckStatus(res);

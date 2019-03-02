@@ -30,13 +30,14 @@ namespace SharpNet.GPU
         private ulong _bytesCopiedToHost;
         private CudaDeviceMemory _lazyStorageBuffer;
         #endregion
+        public static readonly GPUWrapper Default = new GPUWrapper(0);
         #region readonly properties
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
         #endregion
 
-        private GPUWrapper(int deviceId = 0)
+        private GPUWrapper(int deviceId)
         {
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
@@ -153,7 +154,7 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        //returns a buffer storage (in Device memory with at least 'sizeInBytes' size
+        //returns a buffer storage (in Device memory) with at least 'sizeInBytes' size
         public CudaDeviceMemory StorageBuffer(size_t sizeInBytes)
         {
             if (_lazyStorageBuffer == null || _lazyStorageBuffer.SizeInBytes < sizeInBytes)
@@ -209,7 +210,6 @@ namespace SharpNet.GPU
         }
 
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
-        public static GPUWrapper Default => new GPUWrapper();
         public StreamWrapper DefaultStream
         {
             get => _defaultStream;

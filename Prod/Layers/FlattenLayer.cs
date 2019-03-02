@@ -4,7 +4,6 @@ using SharpNet.Data;
 
 namespace SharpNet
 {
-    //!D TODO Add tests
     public class FlattenLayer : Layer
     {
         public override Tensor y { get; protected set; }

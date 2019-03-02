@@ -4,7 +4,6 @@ using SharpNet.Data;
 
 namespace SharpNet
 {
-    //!D TODO Add tests
     //used for Residual Network
     //Layer that is the sum of the Previous Layer and the Shortcut Layer
     public class SumLayer : Layer
@@ -47,7 +46,7 @@ namespace SharpNet
             dy.CopyTo(PreviousResidualLayer.dy);
             if (PreviousIdentityLayer.NextLayers.Count == 1)
             {
-                //previous layer is an identity layer used to change dimension
+                //previous layer is a convolution layer used to change dimension
                 dy.CopyTo(PreviousIdentityLayer.dy);
             }
             else

@@ -139,11 +139,9 @@ namespace SharpNetTests
                 resultSaveMean.ZeroMemory();
                 var resultSaveVariance = RandomTensor(scaleAndBiasShape, "resultSaveVariance");
                 resultSaveVariance.ZeroMemory();
-                var exponentialAverageFactor = 1.0;
-                var epsilon = 1e-5;
-
+                const double exponentialAverageFactor = 1.0;
+                const double epsilon = 1e-5;
                 x.BatchNormalization(y, bnScale, bnBias, exponentialAverageFactor, resultRunningMean, resultRunningVariance, mode, epsilon, resultSaveMean, resultSaveVariance, false);
-
                 var dx = RandomTensor(xShape, "dx");
                 var dy = RandomTensor(xShape, "dy");
                 var resultBnScaleDiff = RandomTensor(scaleAndBiasShape, "resultBnScaleDiff");
@@ -151,7 +149,6 @@ namespace SharpNetTests
                 TestAll(new[] { x, dy, dx, bnScale, resultBnScaleDiff, resultBnBiasDiff, resultSaveMean, resultSaveVariance }, tensors => tensors[0].BatchNormalizationBackward(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7]));
             } 
         }
-
         [Test]
 	    public void TestZeroMemory()
 	    {
@@ -329,7 +326,7 @@ namespace SharpNetTests
             return result;
         }
 
-    private static void AreEquals(CpuTensor<double> doubleCpu, CpuTensor<float> floatCpu, GPUTensor<double> doubleGpu, GPUTensor<float> floatGpu)
+        private static void AreEquals(CpuTensor<double> doubleCpu, CpuTensor<float> floatCpu, GPUTensor<double> doubleGpu, GPUTensor<float> floatGpu)
 	    {
 	        Assert.IsTrue(doubleCpu.SameShape(floatCpu, doubleGpu, floatGpu));
 	        Assert.IsTrue(TestTensor.SameContent(doubleCpu, doubleGpu, 1e-9), doubleCpu+Environment.NewLine+doubleGpu);
@@ -357,7 +354,6 @@ namespace SharpNetTests
 	        }
 	    }
 
-        [SuppressMessage("ReSharper", "CoVariantArrayConversion")]
         private void TestAllForReturnValue(CpuTensor<double>[] data, Func<Tensor[], double> work)
         {
             var cpuDoubles = new List<CpuTensor<double>>();
@@ -368,10 +364,10 @@ namespace SharpNetTests
             gpuDouble.AddRange(data.Select(x => CloneToGPU(x, _gpuWrapper)));
             var gpuFloat = new List<GPUTensor<float>>();
             gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, _gpuWrapper)));
-            var resultCpuDoubles = work(cpuDoubles.ToArray());
-            var resultCpuFloat = work(cpuFloat.ToArray());
-            var resultGPUDoubles = work(gpuDouble.ToArray());
-            var resultGPUFloat = work(gpuFloat.ToArray());
+            var resultCpuDoubles = work(cpuDoubles.Select(x=>(Tensor)x).ToArray());
+            var resultCpuFloat = work(cpuFloat.Select(x => (Tensor)x).ToArray());
+            var resultGPUDoubles = work(gpuDouble.Select(x => (Tensor)x).ToArray());
+            var resultGPUFloat = work(gpuFloat.Select(x => (Tensor)x).ToArray());
             Assert.AreEqual(resultCpuDoubles, resultGPUDoubles, 1e-9);
             Assert.AreEqual(resultCpuDoubles, resultCpuFloat, 1e-5);
             Assert.AreEqual(resultCpuDoubles, resultGPUFloat, 1e-5);

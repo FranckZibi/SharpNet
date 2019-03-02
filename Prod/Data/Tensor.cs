@@ -45,10 +45,9 @@ namespace SharpNet.Data
 
             return result;
         }
-        public int Idx(int rowIndex) { return MultDim0 * rowIndex; }
-        public int Idx(int rowIndex, int colIndex) { return MultDim0 * rowIndex + colIndex; }
-        public int Idx(int N, int C, int H, int W) { return MultDim0 * N + MultDim1 * C + _multDim2 * H + W; }
-        public int Idx(int index0, int colIndex, int depth) { return MultDim0 * index0 + MultDim1 * colIndex + depth; }
+        public int Idx(int n) { return MultDim0 * n; }
+        public int Idx(int n, int c) { return MultDim0 * n + c; }
+        public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1.0, 0.0); }
         public int Height => Shape[0];
@@ -192,13 +191,10 @@ namespace SharpNet.Data
         //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction);
-
         public double[] ExtractContentAsDoubleArray()
         {
             return UseDoublePrecision ? ToCpu<double>().Content.ToArray() : ToCpu<float>().Content.Select(x => (double)x).ToArray();
         }
-
-
         public string ContentStats()
         {
             int naNCount = 0;
@@ -248,8 +244,6 @@ namespace SharpNet.Data
             }
             return result;
         }
-
-
 
         protected Tensor(int[] shape, int typeSize, bool useGpu, string description)
         {

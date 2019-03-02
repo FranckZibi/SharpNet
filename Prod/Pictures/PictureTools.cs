@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.CPU;
 
@@ -55,8 +54,6 @@ namespace SharpNet.Pictures
         {
             Save(AsBitmap(xTrain, toByte, pictureIndex), Path.Combine(directory, filePrefix + "_" + pictureIndex.ToString("D3") + "_" + fileSuffix));
         }
-
-
         private static Bitmap AsBitmap<T>(CpuTensor<T> xTrain, Func<T, byte> toByte, int pictureIndex) where T: struct
         {
             if (xTrain == null)
@@ -88,38 +85,12 @@ namespace SharpNet.Pictures
             bmp.UnlockBits(bmpData);
             return bmp;
         }
-        /*public static void SaveToDisk(Bitmap originalBitmap, string fileName, int outputFormat)
-        {
-            var tmpBitmap = originalBitmap;
-
-            switch (outputFormat)
-            {
-                case 0:
-                    Save(tmpBitmap, fileName);
-                    break;
-                case 2:
-                    SaveJpeg(tmpBitmap, fileName, 90);
-                    break;
-                case 3:
-                    SaveJpeg(tmpBitmap, fileName, 70);
-                    break;
-                //case 1:
-                default:
-                    SaveJpeg(tmpBitmap, fileName, 100);
-                    break;
-            }
-            if (tmpBitmap != originalBitmap)
-            {
-                tmpBitmap.Dispose();
-            }
-        }*/
         private static void Save(Bitmap a, string filePath)
         {
             if (string.IsNullOrEmpty(filePath) || a == null)
             {
                 return;
             }
-            //if (FileServices.FileExist(filePath)) File.Delete(filePath);
             var dir = new FileInfo(filePath).Directory;
             if ((dir != null) && (!dir.Exists))
             {
@@ -127,25 +98,6 @@ namespace SharpNet.Pictures
             }
             a.Save(Utils.UpdateFilePathChangingExtension(filePath, "", "", ".png"));
         }
-        //private static void SaveJpeg(Bitmap a, string originalFileName, int jpegQuality)
-        //{
-        //    if (string.IsNullOrEmpty(originalFileName))
-        //    {
-        //        return;
-        //    }
-        //    new FileInfo(originalFileName).Directory?.Create();
-        //    var codecInfo = ImageCodecInfo.GetImageEncoders().ToList().Find(codec => codec.FormatID == ImageFormat.Jpeg.Guid);
-        //    jpegQuality = Math.Max(jpegQuality, 0);
-        //    jpegQuality = Math.Min(jpegQuality, 100);
-
-        //    var parameters = new EncoderParameters(1);
-        //    parameters.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, jpegQuality);
-
-        //    var jpegFileName = Utils.UpdateFilePathChangingExtension(originalFileName, "", "", ".jpg");
-        //    a.Save(jpegFileName, codecInfo, parameters);
-        //}
-
-
         private static int ToInt32(byte[] fileDataBytes, int startIndex)
         {
             byte[] buffer = new byte[4];
@@ -167,6 +119,5 @@ namespace SharpNet.Pictures
             }
             return matrix;
         }
-
     }
 }

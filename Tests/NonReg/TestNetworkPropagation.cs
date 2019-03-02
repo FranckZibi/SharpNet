@@ -264,7 +264,7 @@ namespace SharpNetTests.NonReg
                 .AddInput(X.Shape[1], X.Shape[2], X.Shape[3])
                 .AddConvolution(1, 1, 1, 0, 0.0)
                 .AddConvolution(1, 1, 1, 0, 0.0); //left
-            network.AddConvolution(1, 1, 1, 0, 0.0, 1); //right (idnetity shortcut)
+            network.AddConvolution(1, 1, 1, 0, 0.0, 1); //right (identity shortcut)
             network.AddSumLayer(3, 2)
                 .AddOutput(Y.Shape[1], cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
                 ;

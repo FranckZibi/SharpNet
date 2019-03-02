@@ -17,11 +17,8 @@ namespace SharpNetTests
     public class TestGradient
     {
 	    private readonly Random _rand = new Random(0);
-
         private static readonly string logFileName = Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "TestGradient" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
         private static readonly Logger logger = new Logger(logFileName, true);
-
-        //private static readonly ILogger logger = new MultiLogger(new[] { ConsoleLogger.Value});
 
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -44,17 +41,6 @@ namespace SharpNetTests
                 CompareExpectedVsObservedGradients(n, denseLayer.Bias as CpuTensor<double>,denseLayer.BiasGradients as CpuTensor<double>, X, Y, _rand);
             }
         }
-
-        private static CpuTensor<double> FromNumpyArray(string s, string description)
-        {
-            var X0 = TensorExtensions.FromNumpyArray(s, description);
-            if (X0.UseSinglePrecision)
-            {
-                return X0.AsFloatCpu.ToDoublePrecision();
-            }
-            return X0 as CpuTensor<double>;
-        }
-
 
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -81,10 +67,6 @@ namespace SharpNetTests
             }
         }
 
-
-        //public const string X_1_1_2_2 = @"numpy.array([[[[0.0, 0.33],[0.66, 1.0]]]], numpy.float)";
-        //public const string Y_1_1_2_2 = @"numpy.array([[1,0,0]], numpy.float)";
-
         [TestCase(true, false), Ignore]
         [TestCase(false, true)]
         public void TestGradientForBatchNormLayer(bool testWeights, bool testBias)
@@ -109,7 +91,15 @@ namespace SharpNetTests
             }
         }
 
-
+        private static CpuTensor<double> FromNumpyArray(string s, string description)
+        {
+            var X0 = TensorExtensions.FromNumpyArray(s, description);
+            if (X0.UseSinglePrecision)
+            {
+                return X0.AsFloatCpu.ToDoublePrecision();
+            }
+            return X0 as CpuTensor<double>;
+        }
         private static double ComputeGradientAndReturnLoss(Network n, CpuTensor<double> X, CpuTensor<double> yExpected, bool isTraining)
         {
             var yPredicted = n.Predict(X, isTraining) as CpuTensor<double>;
@@ -122,7 +112,6 @@ namespace SharpNetTests
             }
             return result;
         }
-
         private static void AbsWeigthsWithMinimum(Network n, double min)
         {
             foreach (var l in n.TensorsIndependantOfBatchSize.OfType<CpuTensor<double>>())
@@ -133,7 +122,6 @@ namespace SharpNetTests
                 }
             }
         }
-
         private static void CompareExpectedVsObservedGradients(Network n, CpuTensor<double> w, CpuTensor<double> dW, CpuTensor<double> X, CpuTensor<double> Y, Random r, int nbTests = 100)
         {
             AbsWeigthsWithMinimum(n, 0.0);
@@ -173,11 +161,10 @@ namespace SharpNetTests
             if (observedDifferences.Count != 0)
             {
                 var errorMsg = "found "+observedDifferences.Count+" differences, max = "+observedDifferences.Max();
-                logger.Error(errorMsg);
+                logger.Info(errorMsg);
                 throw new Exception(errorMsg);
             }
         }
-
         private static Network GetNetwork()
         {
             return new Network(new NetworkConfig(false) { Logger = logger, UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy });

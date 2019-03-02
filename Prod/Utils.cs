@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using SharpNet.Data;
 
@@ -10,42 +9,30 @@ namespace SharpNet
 {
     public class Logger
     {
+        #region fields
         private readonly string _logFileName;
         private readonly bool _logInConsole;
-        public Logger(string logFileName, bool logInConsole)
-        {
-            _logFileName = logFileName??"";
-            _logInConsole = logInConsole;
-        }
-
         public static readonly Logger ConsoleLogger = new Logger("", true);
         public static readonly Logger NullLogger = new Logger("", false);
+        #endregion
 
+        public Logger(string logFileName, bool logInConsole)
+        {
+            _logFileName = logFileName ?? "";
+            _logInConsole = logInConsole;
+        }
         public void Info(string msg)
         {
             if (_logInConsole)
             {
                 Console.WriteLine(msg);
             }
-            if (!string.IsNullOrEmpty(_logFileName))
-            {
-                lock (_logFileName)
-                {
-                    Utils.AddLineToFile(_logFileName, GetLinePrefix() + msg);
-                }
-            }
+            LogInFile(msg);
         }
         public void Debug(string msg)
         {
-            if (!string.IsNullOrEmpty(_logFileName))
-            {
-                lock (_logFileName)
-                {
-                    Utils.AddLineToFile(_logFileName, GetLinePrefix() + msg);
-                }
-            }
+            LogInFile(msg);
         }
-        public void Error(string msg) { Info(msg); }
         public string Serialize()
         {
             return new Serializer()
@@ -59,19 +46,25 @@ namespace SharpNet
             var logInConsole = (bool)serialized[nameof(_logInConsole)];
             return new Logger(logFileName, logInConsole);
         }
-        
         private static string GetLinePrefix()
         {
             return DateTime.Now.ToString("HH:mm:ss.ff") + " ";
         }
+        private void LogInFile(string msg)
+        {
+            if (string.IsNullOrEmpty(_logFileName))
+            {
+                return;
+            }
+            lock (_logFileName)
+            {
+                Utils.AddLineToFile(_logFileName, GetLinePrefix() + msg);
+            }
+        }
     }
-
 
     public static class Utils
     {
-        [DllImport("Kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
-        public static extern void ZeroMemory(IntPtr dest, size_t sizeInBytes);
-
         public static void AddLineToFile(string filePath, string s)
         {
             var f = new FileInfo(filePath);
@@ -84,9 +77,6 @@ namespace SharpNet
                 writer.WriteLine(s);
             }
         }
-
-     
-        //TODO add tests
         public static int Product(int[] data)
         {
             if ((data == null) || (data.Length == 0))
@@ -100,7 +90,6 @@ namespace SharpNet
             }
             return result;
         }
-
         public static string ShapeToStringWithBacthSize(int[] shape)
         {
             if (shape == null)
@@ -117,8 +106,6 @@ namespace SharpNet
             }
             return "(" + string.Join(", ", shape) + ")";
         }
-
-
         public static ulong Sum(this IEnumerable<ulong> vector)
         {
             ulong result = 0;
@@ -128,7 +115,6 @@ namespace SharpNet
             }
             return result;
         }
-
         public static string MemoryBytesToString(ulong bytes)
         {
             if (bytes > 3000000)
@@ -169,14 +155,6 @@ namespace SharpNet
                 toRandomize[j] = (float)NextDoubleNormalDistribution(rand, mean, stdDev);
             }
         }
-        private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
-        {
-            double u1 = rand.NextDouble(); //these are uniform(0,1) random doubles
-            double u2 = rand.NextDouble();
-            double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) *
-                                   Math.Sin(2.0 * Math.PI * u2); //random normal(0,1)
-            return mean + stdDev * randStdNormal; //random normal(mean,stdDev^2)
-        }
         public static void Shuffle<T>(IList<T> list, Random rand)
         {
             int n = list.Count;
@@ -189,7 +167,6 @@ namespace SharpNet
                 list[n] = value;
             }
         }
-
         public static int FirstMultipleOfAtomicValueAboveOrEqualToMinimum(int minimum, int atomicValue)
         {
             if (minimum % atomicValue != 0)
@@ -198,8 +175,7 @@ namespace SharpNet
             }
             return minimum;
         }
-
-        public static String UpdateFilePathChangingExtension(string filePath, string prefix, string suffix, string newExtension)
+        public static string UpdateFilePathChangingExtension(string filePath, string prefix, string suffix, string newExtension)
         {
             string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
             if (!newExtension.StartsWith("."))
@@ -208,6 +184,27 @@ namespace SharpNet
             }
             string path = GetDirectoryName(filePath);
             return ConcatenatePathWithFileName(path, prefix + fileNameWithoutExtension + suffix + newExtension);
+        }
+        public static string ConcatenatePathWithFileName(string path, params string[] subPaths)
+        {
+            string result = path;
+            foreach (var t in subPaths)
+            {
+                result = Path.Combine(result, t);
+            }
+            return result;
+        }
+
+        private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
+        {
+            //uniform(0,1) random double
+            var u1 = rand.NextDouble();
+            //uniform(0,1) random double
+            var u2 = rand.NextDouble();
+            //random normal(0,1)
+            var randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) *Math.Sin(2.0 * Math.PI * u2);
+            //random normal(mean,stdDev^2)
+            return mean + stdDev * randStdNormal;
         }
         private static string GetDirectoryName(string path)
         {
@@ -223,15 +220,6 @@ namespace SharpNet
             {
                 return "";
             }
-        }
-        public static string ConcatenatePathWithFileName(string path, params string[] subPaths)
-        {
-            string result = path;
-            foreach (var t in subPaths)
-            {
-                result = Path.Combine(result, t);
-            }
-            return result;
         }
     }
 }

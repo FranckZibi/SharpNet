@@ -65,7 +65,7 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public static void TanSigmoid<T>(this CpuTensor<T> x, Tensor y) where T : struct
+        public static void Tanh<T>(this CpuTensor<T> x, Tensor y) where T : struct
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {x, y}));
             if (x.UseDoublePrecision)

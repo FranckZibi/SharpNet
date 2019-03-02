@@ -76,8 +76,9 @@ namespace SharpNet
         public virtual void UpdateWeights(double learningRate) { }
         public abstract Tensor y { get; protected set; } //output of layer 
         // ReSharper disable once InconsistentNaming
-        public abstract Tensor dy { get; protected set; } //gradient of output of layer , null if and only if it is the input layer
-        //by default (if not overriden) output shape is same as previous layer output shape
+        //gradient of layer output (= null if it is the input layer)
+        public abstract Tensor dy { get; protected set; } 
+        //by default (if not overriden) output shape is the same as the previous layer
         public virtual int[] OutputShape(int batchSize) { return PrevLayer.OutputShape(batchSize); }
         public virtual int TotalParams => 0;
         public virtual void Dispose()
@@ -133,7 +134,6 @@ namespace SharpNet
             _previousLayerIndexes = ((int[])serialized[nameof(_previousLayerIndexes)]).ToList();
             _nextLayerIndexes = ((int[])serialized[nameof(_nextLayerIndexes)]).ToList();
         }
-        //!D TODO add tests for serialization / deserialization
         public static Layer ValueOf(IDictionary<string, object> serialized, Network network)
         {
             var layerType = (string)serialized[nameof(Layer)];

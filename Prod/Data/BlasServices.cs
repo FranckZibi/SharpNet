@@ -1,21 +1,10 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Security;
 
 namespace SharpNet.Data
 {
     public static class BlasServices
     {
-        public static void Copy_Mkl(double[] x, double[] y)
-        {
-            Debug.Assert(x.Length == y.Length);
-            MKL_BLAS.cblas_dcopy(x.Length, x, 1, y, 1);
-        }
-        public static void Copy_Mkl(float[] x, float[] y)
-        {
-            Debug.Assert(x.Length == y.Length);
-            MKL_BLAS.cblas_scopy(x.Length, x, 1, y, 1);
-        }
         #region Matrix multiplication
         public static void DotMkl(double[] A, int aH, int aW, bool transposeA, double[] B, int bH, int bW, bool transposeB, double[] C, double alpha, double beta)
         {

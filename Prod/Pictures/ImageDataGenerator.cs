@@ -9,7 +9,6 @@ using SharpNet.Data;
 
 namespace SharpNet.Pictures
 {
-    //!D TODO add tests
     public class ImageDataGenerator
     {
         public enum FillModeEnum {Nearest,Reflect};
