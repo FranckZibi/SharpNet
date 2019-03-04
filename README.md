@@ -14,7 +14,7 @@ It is targeted to make a good use of the GPU (even if it is not currently as fas
 
 It requires:
 - Visual Studio 2017 (https://visualstudio.microsoft.com/downloads/)
-- CuDNN 10.0 (https://developer.nvidia.com/rdp/cudnn-download)
+- CuDNN 7.5 (https://developer.nvidia.com/rdp/cudnn-download)
 - Intel MKL (https://software.intel.com/en-us/mkl)
 
 Next Targets:
