@@ -20,9 +20,11 @@ namespace SharpNet
         private readonly ImageDataGenerator _imageDataGenerator;
         public NetworkConfig Config { get; }
         public List<Layer> Layers { get; } = new List<Layer>();
+        public string Description { get; set; } = "";
         private readonly Stopwatch spInternalFit = new Stopwatch();
         private readonly Stopwatch swUpdateWeights;
-        private readonly Stopwatch swPredict;
+        private readonly Stopwatch swPredictTraining;
+        private readonly Stopwatch swPredictNotTraining;
         private readonly Stopwatch swBackwardPropagation;
         private readonly Stopwatch swCreateInputForEpoch;
         private readonly Stopwatch swComputeLossAndAccuracy;
@@ -40,7 +42,8 @@ namespace SharpNet
             if (config.ProfileApplication)
             {
                 swUpdateWeights = new Stopwatch();
-                swPredict = new Stopwatch();
+                swPredictTraining = new Stopwatch();
+                swPredictNotTraining = new Stopwatch();
                 swBackwardPropagation = new Stopwatch();
                 swCreateInputForEpoch = new Stopwatch();
                 swComputeLossAndAccuracy = new Stopwatch();
@@ -147,6 +150,16 @@ namespace SharpNet
                 poolingStride, this));
             return this;
         }
+        public Network AddGlobalAvgPooling()
+        {
+            var lastLayerShape = Layers.Last().OutputShape(1);
+            var lastLayerShapeHeight = lastLayerShape[2];
+            //We ensure that weight and height are the same
+            Debug.Assert(lastLayerShapeHeight == lastLayerShape[3]);
+            int poolingSize = lastLayerShapeHeight;
+            int poolingStride = lastLayerShapeHeight;
+            return AddAvgPooling(poolingSize, poolingStride);
+        }
         public Network AddBatchNorm(double momentum = 0.99, double epsilon = 1e-5)
         {
             Debug.Assert(Layers.Count >= 1);
@@ -190,7 +203,7 @@ namespace SharpNet
         //= ForwardPropagation
         public Tensor Predict(Tensor X, bool isTraining)
         {
-            swPredict?.Start();
+            (isTraining ? swPredictTraining : swPredictNotTraining)?.Start();
             X = ReformatToCorrectType(X);
             ((InputLayer)Layers[0]).Set_y(X);
             foreach (var l in Layers.Skip(1))
@@ -198,7 +211,7 @@ namespace SharpNet
                 l.ForwardPropagation(isTraining);
                 //Info(Environment.NewLine+"Epoch:" + _indexCurrentEpochs + "; Layer:" + l.SummaryName() + "_" + l.LayerIndex + "; After ForwardPropagation:" + Environment.NewLine + l.ContentStats());
             }
-            swPredict?.Stop();
+            (isTraining ? swPredictTraining : swPredictNotTraining)?.Stop();
             return Layers.Last().y;
         }
         public void BackwardPropagation(Tensor yExpected)
@@ -382,8 +395,8 @@ namespace SharpNet
             var yInputCpu = yCpu.Clone();
             var X = ReformatToCorrectDevice_GPU_or_CPU(xCpu);
             var Y = ReformatToCorrectDevice_GPU_or_CPU(yCpu);
-            var X_test = ReformatToCorrectDevice_GPU_or_CPU(xTestCpu);
-            var Y_test = ReformatToCorrectDevice_GPU_or_CPU(yTestCpu);
+            var xTest = ReformatToCorrectDevice_GPU_or_CPU(xTestCpu);
+            var yTest = ReformatToCorrectDevice_GPU_or_CPU(yTestCpu);
             Info(ToString());
             if (Config.UseGPU)
             {
@@ -411,9 +424,9 @@ namespace SharpNet
                 if (_indexCurrentEpochs == 1)
                 {
                     LogDebug("Training Set: " + X + " => " + Y);
-                    if (X_test != null)
+                    if (xTest != null)
                     {
-                        LogDebug("Test Set: " + X_test + " => " + Y_test);
+                        LogDebug("Test Set: " + xTest + " => " + yTest);
                     }
                     Info("LearningRate=" + learningRate + " #Epochs=" + numEpochs + " BathSize=" + batchSize);
                 }
@@ -422,16 +435,15 @@ namespace SharpNet
                 //We display stats about the just finished epoch
                 swComputeLossAndAccuracy?.Start();
                 var computeLossAndAccuracy = LossAndAccuracyToString(ComputeLossAndAccuracy_From_Expected_vs_Predicted(Y, yPredicted, Config.LossFunction), "");
-                if (X_test != null)
+                if (xTest != null)
                 {
-                    computeLossAndAccuracy += " - "+LossAndAccuracyToString(ComputeLossAndAccuracy(batchSize, X_test, Y_test), "val_");
+                    computeLossAndAccuracy += " - "+LossAndAccuracyToString(ComputeLossAndAccuracy(batchSize, xTest, yTest), "val_");
                 }
                 swComputeLossAndAccuracy?.Stop();
-
                 var secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                 double nbStepsByEpoch = ((double)X.Shape[0]) / batchSize;
                 var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
-                Info("Epoch " + _indexCurrentEpochs + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - " +computeLossAndAccuracy);
+                Info("Epoch " + _indexCurrentEpochs + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRate, 5)+" - "+computeLossAndAccuracy);
                 if (Config.UseGPU)
                 {
                     LogDebug(Config.GpuWrapper.MemoryInfo());
@@ -440,7 +452,9 @@ namespace SharpNet
                 {
                     LogDebug(ProfilingComments());
                 }
-                if (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts)
+
+                if (  (_indexCurrentEpochs == numEpochs)
+                    || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts) )
                 {
                     Info("Saving network in directory '"+Config.AutoSavePath+"' ...");
                     var swSaveTime = Stopwatch.StartNew();
@@ -450,6 +464,10 @@ namespace SharpNet
                 }
             }
             Info("Training for " + numEpochs + " epochs took: " + spInternalFit.Elapsed.TotalSeconds + "s");
+            if (!string.IsNullOrEmpty(Description))
+            {
+                LogDebug("Network Name: "+Description);
+            }
             _indexCurrentEpochs = 1;
             if (X.UseGPU)
             {
@@ -520,7 +538,7 @@ namespace SharpNet
             if (Config.ProfileApplication)
             {
                 result += " (";
-                result += "ForwardPropagation:" + Math.Round(100 * swPredict.ElapsedMilliseconds / totalMs, 0) + "%";
+                result += "ForwardPropagation [Training:" + Math.Round(100 * swPredictTraining.ElapsedMilliseconds / totalMs, 0) + "% / not Training:" + Math.Round(100 * swPredictNotTraining.ElapsedMilliseconds / totalMs, 0) + "%] ";
                 result += ", BackwardPropagation:" + Math.Round(100 * swBackwardPropagation.ElapsedMilliseconds / totalMs, 0) + "%";
                 result += ", UpdateWeights:" + Math.Round(100 * swUpdateWeights.ElapsedMilliseconds / totalMs, 0) + "%";
                 result += ", CreateInputForEpoch:" + Math.Round(100 * swCreateInputForEpoch.ElapsedMilliseconds / totalMs, 0) + "%";
