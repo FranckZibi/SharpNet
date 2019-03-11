@@ -40,13 +40,15 @@ namespace SharpNet
             _resultSaveMean = Network.NewTensor(scaleAndBiasShape, nameof(_resultSaveMean));
             _resultSaveVariance = Network.NewTensor(scaleAndBiasShape, 1.0, nameof(_resultSaveVariance));
             _optimizer = Network.GetOptimizer(_bnScale.Shape, _bnBias.Shape);
+
+            //We disable bias for the previous layers
+            PreviousLayers.ForEach(l=>l.DisableBias());
         }
 
         public Tensor Weights => _bnScale;
         public Tensor WeightGradients => _resultBnScaleDiff;
         public Tensor Bias => _bnBias;
         public Tensor BiasGradients => _resultBnBiasDiff;
-
 
         public override string Serialize()
         {

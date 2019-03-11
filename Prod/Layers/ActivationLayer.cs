@@ -58,9 +58,7 @@ namespace SharpNet
             {
                 y.ActivationBackward(dy, x, ActivationFunction, dx);
             }
-            Debug.Assert(dy.SameShape(dy));
         }
-
         public override void Dispose()
         {
             EmbeddedTensors.ForEach(x => x?.Dispose());

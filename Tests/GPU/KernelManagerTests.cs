@@ -61,7 +61,7 @@ namespace SharpNetTests.GPU
             Assert.AreEqual(expectedThreadsPerBlock, observedBlocksPerGridThreadsPerBlock.Item2);
         }
 
-        [Test,Ignore]
+        [Test, Explicit]
         public void BenchmarkTest()
         {
             var km = new KernelManager(_gpuWrapper);

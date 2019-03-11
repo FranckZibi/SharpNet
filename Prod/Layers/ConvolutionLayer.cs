@@ -20,30 +20,32 @@ namespace SharpNet
         #region Private fields
         public override Tensor y { get; protected set; }        // (batchSize, FiltersCount, y.H, y.W)
         public override Tensor dy { get; protected set; }       // same as 'y'
-        private int FiltersCount { get; }
+        private readonly int _filtersCount;
         private readonly int _f;
         private readonly int _stride;
         private readonly int _padding;
         private readonly double _lambdaL2Regularization;
+        private readonly Optimizer _optimizer;        //Adam optimization or SGD optimization or null
+        private bool _useBias;
         public Tensor Convolution { get; }                    // (FiltersCount, x.C, F, F)
         public Tensor ConvolutionGradients { get; }            // same as 'Convolution'
-        public Tensor ConvolutionBias { get; }                // (1, FiltersCount, 1, 1)
-        public Tensor ConvolutionBiasGradients { get; }        // same as 'ConvolutionBias'
-        private readonly Optimizer _optimizer;        //Adam optimization or SGD optimization or null
+        public Tensor ConvolutionBias { get; private set; }                // (1, FiltersCount, 1, 1) or null is _useBias=false
+        public Tensor ConvolutionBiasGradients { get; private set; }        // same as 'ConvolutionBias'  or null is _useBias=false
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
         public ConvolutionLayer(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, int previousLayerIndex, Network network)
             : base(network, previousLayerIndex)
         {
-            this.FiltersCount = filtersCount;
+            this._filtersCount = filtersCount;
             this._f = f;
             this._stride = stride;
             this._padding = padding;
             _lambdaL2Regularization = lambdaL2Regularization;
+            _useBias = true;
             Convolution = Initialize_Convolution();
             ConvolutionGradients = Network.NewTensor(Convolution.Shape, nameof(ConvolutionGradients));
-            var convolutionBiasShape = new[] { 1, FiltersCount, 1, 1 };
+            var convolutionBiasShape = new[] { 1, _filtersCount, 1, 1 };
             ConvolutionBias = Network.NewTensor(convolutionBiasShape, nameof(ConvolutionBias));
             ConvolutionBiasGradients = Network.NewTensor(ConvolutionBias.Shape, nameof(ConvolutionBiasGradients));
             _optimizer = Network.GetOptimizer(Convolution.Shape, ConvolutionBias.Shape);
@@ -51,29 +53,46 @@ namespace SharpNet
 
         public override string Serialize()
         {
-            return RootSerializer()
-                .Add(nameof(FiltersCount), FiltersCount).Add(nameof(_f), _f).Add(nameof(_stride), _stride).Add(nameof(_padding), _padding)
+            var serializer = RootSerializer();
+            serializer.Add(nameof(_filtersCount), _filtersCount).Add(nameof(_f), _f).Add(nameof(_stride), _stride)
+                .Add(nameof(_padding), _padding)
+                .Add(nameof(_useBias), _useBias)
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
-                .Add(Convolution).Add(ConvolutionGradients).Add(ConvolutionBias).Add(ConvolutionBiasGradients)
-                .Add(_optimizer?.Serialize())
-                .ToString();
+                .Add(Convolution).Add(ConvolutionGradients)
+                .Add(_optimizer.Serialize());
+            if (_useBias)
+            {
+                serializer.Add(ConvolutionBias).Add(ConvolutionBiasGradients);
+            }
+            return serializer.ToString();
         }
         public static ConvolutionLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new ConvolutionLayer(serialized, network);
         }
-
+        public override void DisableBias()
+        {
+            _useBias = false;
+            ConvolutionBias?.Dispose();
+            ConvolutionBias = null;
+            ConvolutionBiasGradients?.Dispose();
+            ConvolutionBiasGradients = null;
+        }
         private ConvolutionLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
-            FiltersCount = (int)serialized[nameof(FiltersCount)];
+            _filtersCount = (int)serialized[nameof(_filtersCount)];
             _f = (int)serialized[nameof(_f)];
             _stride = (int)serialized[nameof(_stride)];
             _padding = (int)serialized[nameof(_padding)];
             _lambdaL2Regularization = (int)serialized[nameof(_lambdaL2Regularization)];
+            _useBias = (bool)serialized[nameof(_useBias)];
             Convolution = (Tensor)serialized[nameof(Convolution)];
             ConvolutionGradients = (Tensor)serialized[nameof(ConvolutionGradients)];
-            ConvolutionBias = (Tensor)serialized[nameof(ConvolutionBias)];
-            ConvolutionBiasGradients = (Tensor)serialized[nameof(ConvolutionBiasGradients)];
+            if (_useBias)
+            {
+                ConvolutionBias = (Tensor) serialized[nameof(ConvolutionBias)];
+                ConvolutionBiasGradients = (Tensor) serialized[nameof(ConvolutionBiasGradients)];
+            }
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
         }
 
@@ -83,7 +102,10 @@ namespace SharpNet
             var x = PrevLayer.y;
             //We compute y = x (conv) Convolution + ConvolutionBias
             x.Convolution(Convolution, _padding, _stride, y);
-            ConvolutionBias.BroadcastConvolutionBiasToOutput(y);
+            if (_useBias)
+            {
+                ConvolutionBias.BroadcastConvolutionBiasToOutput(y);
+            }
         }
 
         // dy => ConvolutionGradient & dx
@@ -91,13 +113,16 @@ namespace SharpNet
         {
             //At this stage, we already know dy, we want to compute dx by backward propagation
             Debug.Assert(y.SameShape(dy));
-            Debug.Assert(ConvolutionBiasGradients.SameShape(ConvolutionBias));
+            Debug.Assert(ConvolutionBias == null || ConvolutionBias.SameShape(ConvolutionBiasGradients));
 
             //we update dy if necessary (shortcut connection to a futur layer)
-            Update_dy_With_GradientFromShortcutIdentityConnection(); 
+            Update_dy_With_GradientFromShortcutIdentityConnection();
 
-            // we compute _convolutionBiasGradient
-            dy.ConvolutionBackwardBias(ConvolutionBiasGradients);
+            // we compute ConvolutionBiasGradients
+            if (_useBias)
+            {
+                dy.ConvolutionBackwardBias(ConvolutionBiasGradients);
+            }
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
             var x = PrevLayer.y;
@@ -114,7 +139,8 @@ namespace SharpNet
             if (UseL2Regularization)
             {
                 var batchSize = y.Shape[0];
-                var alpha = _lambdaL2Regularization / batchSize;
+                //?D var alpha = 2*_lambdaL2Regularization / batchSize;
+                var alpha = 2 * batchSize * _lambdaL2Regularization;
                 ConvolutionGradients.Update_Adding_Alpha_X(alpha, Convolution);
             }
         }
@@ -123,17 +149,8 @@ namespace SharpNet
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Convolution, ConvolutionGradients, ConvolutionBias, ConvolutionBiasGradients);
         }
-        public override int TotalParams
-        {
-            get
-            {
-                if (Convolution == null)
-                {
-                    return 0;
-                }
-                return Convolution.Count + ConvolutionBias.Count;
-            }
-        }
+        public override int TotalParams => Convolution.Count + (ConvolutionBias?.Count??0);
+
         public override void Dispose()
         {
             base.Dispose();
@@ -145,6 +162,7 @@ namespace SharpNet
             var result = SummaryName()+": " + ShapeChangeDescription();
             result += " padding=" + _padding + " stride=" + _stride;
             result += " Filter"+ Utils.ShapeToString(Convolution?.Shape);
+            result += (_useBias)?" with Bias":" no Bias";
             result += " ("+ MemoryDescription()+")";
             return result;
         }
@@ -171,13 +189,12 @@ namespace SharpNet
         }
         private Tensor Initialize_Convolution()
         {
-            var fanIn = ChannelCountByFilter * _f * _f;
-            var fanOut = FiltersCount;
+            var channelCountByFilter = PrevLayer.OutputShape(1)[1];
+            var fanIn = channelCountByFilter * _f * _f;
+            var fanOut = _filtersCount;
             var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
-            var convolutionShape = new[] { FiltersCount, ChannelCountByFilter, _f, _f };
+            var convolutionShape = new[] { _filtersCount, channelCountByFilter, _f, _f };
             return Network.RandomMatrixNormalDistribution(convolutionShape, 0.0 /* mean */, stdDev, nameof(Convolution));
         }
-        private int ChannelCountByFilter => PrevLayer.OutputShape(1)[1];
-
     }
 }

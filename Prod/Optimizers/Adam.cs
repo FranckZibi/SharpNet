@@ -31,14 +31,14 @@ namespace SharpNet.Optimizers
         public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)
         {
             Debug.Assert(weights.SameShape(weightGradients));
-            Debug.Assert(bias.SameShape(biasGradient));
+            Debug.Assert(bias == null || bias.SameShape(biasGradient));
             ++_timestep;
             var beta1 = _networkConfig.Adam_beta1;
             var beta2 = _networkConfig.Adam_beta2;
             var epsilon = _networkConfig.Adam_epsilon;
             var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
             weights.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, weightGradients, adam_vW, adam_sW, _timestep);
-            bias.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, biasGradient, adam_vB, adam_sB, _timestep);
+            bias?.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, biasGradient, adam_vB, adam_sB, _timestep);
         }
 
         #region serialization

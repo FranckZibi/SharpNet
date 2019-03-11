@@ -386,42 +386,40 @@ namespace SharpNet.CPU
                 dx.AsCpu<float>().BuildEntirelyFromInput(dy, usedDropoutMask, (dOutput, prob) => prob < _dropProbabilityFloat ? 0.0f : dOutput / (1 - _dropProbabilityFloat));
             }
         }
-        // this = alpha a*b + beta*this
-        //dx :                      [batchSize x FiltersCount x H x  Weights]
-        //convolutionBiasVector:    [1 x FiltersCount x 1 x 1]
+        //this = dy
         public override void ConvolutionBackwardBias(Tensor convolutionBackwardBias)
         {
-            var dx = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {dx, convolutionBackwardBias}));
+            var dy = this;
+            Debug.Assert(AreCompatible(new List<Tensor> {dy, convolutionBackwardBias}));
             Debug.Assert(convolutionBackwardBias.Dimension == 4);
             Debug.Assert(convolutionBackwardBias.Shape[1] == convolutionBackwardBias.Count);
-            Debug.Assert(dx.Shape[1] == convolutionBackwardBias.Shape[1]); // number of distinct filters
-            Debug.Assert(dx.Dimension == 4);
+            Debug.Assert(dy.Shape[1] == convolutionBackwardBias.Shape[1]); // number of distinct filters
+            Debug.Assert(dy.Dimension == 4);
 
             convolutionBackwardBias.ZeroMemory();
-            var batchSize = dx.Shape[0];
+            var batchSize = dy.Shape[0];
             for (int n = 0; n < batchSize; ++n)
             {
-                for (int filterId = 0; filterId < dx.Shape[1]; ++filterId)
+                for (int filterId = 0; filterId < dy.Shape[1]; ++filterId)
                 {
-                    int startIndex = n * dx.MultDim0 + filterId * dx.MultDim1;
-                    var endIndex = startIndex + dx.MultDim1;
+                    int startIndex = n * dy.MultDim0 + filterId * dy.MultDim1;
+                    var endIndex = startIndex + dy.MultDim1;
                     if (UseDoublePrecision)
                     {
                         var convolutionBackwardBiasContent = convolutionBackwardBias.AsDoubleCpuContent;
-                        var dxContent = dx.AsDoubleCpuContent;
+                        var dyContent = dy.AsDoubleCpuContent;
                         for (int i = startIndex; i < endIndex; ++i)
                         {
-                            convolutionBackwardBiasContent[filterId] += dxContent[i];
+                            convolutionBackwardBiasContent[filterId] += dyContent[i];
                         }
                     }
                     else
                     {
                         var convolutionBackwardBiasContent = convolutionBackwardBias.AsFloatCpuContent;
-                        var dxContent = dx.AsFloatCpuContent;
+                        var dyContent = dy.AsFloatCpuContent;
                         for (int i = startIndex; i < endIndex; ++i)
                         {
-                            convolutionBackwardBiasContent[filterId] += dxContent[i];
+                            convolutionBackwardBiasContent[filterId] += dyContent[i];
                         }
                     }
                 }

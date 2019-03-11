@@ -78,6 +78,7 @@
     <Compile Include="Pictures\PictureTools.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ResNetUtils.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Optimizers\Sgd.cs" />
   </ItemGroup>

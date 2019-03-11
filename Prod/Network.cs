@@ -55,11 +55,16 @@ namespace SharpNet
         #region network construction: adding layers
         public Network AddInput(int channelCount, int h, int w)
         {
+            ClearMemory();
+            Layers.Add(new InputLayer(channelCount, h, w, this));
+            return this;
+        }
+
+        public void ClearMemory()
+        {
             Config.GpuWrapper?.ClearMemory();
             Layers.ForEach(x => x?.Dispose());
             Layers.Clear();
-            Layers.Add(new InputLayer(channelCount, h, w, this));
-            return this;
         }
         public Network AddDense(int n_x, double _lambdaL2Regularization)
         {
@@ -72,11 +77,6 @@ namespace SharpNet
         {
             return AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization)
                 .AddBatchNorm();
-        }
-        public Network AddConvolution_Activation(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
-        {
-            return AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization)
-                .AddActivation(activationFunction);
         }
         public Network AddConvolution_BatchNorm_Activation(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
         {
@@ -111,7 +111,8 @@ namespace SharpNet
         }
         public Network AddConvolution_Activation_Pooling(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction, int poolingSize, int poolingStride)
         {
-            return AddConvolution_Activation(filtersCount, f, stride, padding, lambdaL2Regularization, activationFunction)
+            return AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization)
+                .AddActivation(activationFunction)
                 .AddMaxPooling(poolingSize, poolingStride);
         }
         public Network AddConvolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
@@ -245,7 +246,12 @@ namespace SharpNet
         {
             const string line0 = "_________________________________________________________________";
             const string line1 = "=================================================================";
-            var result = line0 + Environment.NewLine;
+            string result = "";
+            if (!string.IsNullOrEmpty(Description))
+            {
+                result += "Network Name: " + Description+ Environment.NewLine;
+            }
+            result += line0 + Environment.NewLine;
             result += "Layer (C#)                   Output Shape              Param #" + Environment.NewLine;
             result += line1 + Environment.NewLine;
             foreach (var l in Layers)
@@ -453,7 +459,7 @@ namespace SharpNet
                     LogDebug(ProfilingComments());
                 }
 
-                if (  (_indexCurrentEpochs == numEpochs)
+                if (  ((_indexCurrentEpochs == numEpochs)&&(numEpochs>=10))
                     || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts) )
                 {
                     Info("Saving network in directory '"+Config.AutoSavePath+"' ...");
@@ -485,6 +491,8 @@ namespace SharpNet
         private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
         {
             swComputeAccuracy?.Start();
+            yExpected = ReformatToCorrectType(yExpected);
+            yPredicted = ReformatToCorrectType(yPredicted);
             var countOk = yExpected.ComputeAccuracy(yPredicted);
             swComputeAccuracy?.Stop();
             swComputeLoss?.Start();

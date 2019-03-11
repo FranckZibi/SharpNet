@@ -144,7 +144,7 @@ namespace SharpNet.Data
         public abstract ulong CapacityInBytes { get; }
         public abstract void ZeroMemory();
         public abstract void Reshape(int[] newShape);
-        //this = dx
+        //this = dy
         public abstract void ConvolutionBackwardBias(Tensor convolutionBackwardBias);
         // this = alpha a*b + beta*this
         public abstract void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, double alpha, double beta);

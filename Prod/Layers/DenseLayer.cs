@@ -11,12 +11,13 @@ namespace SharpNet
         #region Private fields
         public Tensor Weights { get; }                      // (prevLayer.n_x, n_x)
         public Tensor WeightGradients { get; }              // same as 'Weights'
-        public Tensor Bias { get; }                         // (1, n_x)
-        public Tensor BiasGradients { get; }                  // same as '_bias'
+        public Tensor Bias { get; private set; }            // (1, n_x) 
+        public Tensor BiasGradients { get; private set; }   // same as '_bias'
         public override Tensor y { get; protected set; }    // (batchSize, n_x)
         public override Tensor dy { get; protected set; }   // same as 'y'
         private readonly int _n_x;
         private readonly double _lambdaL2Regularization;              //regularization hyperparameter. 0 if no L2 regularization
+        private bool _useBias;
         private readonly Optimizer _optimizer;              //Adam or SGD optimizer or Vanilla SGF
         #endregion
 
@@ -26,20 +27,27 @@ namespace SharpNet
         {
             _n_x = n_x;
             _lambdaL2Regularization = lambdaL2Regularization;
+            _useBias = true;
             Weights = Network.RandomMatrixNormalDistribution(new[] { PrevLayer.n_x, _n_x }, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/, nameof(Weights));
             WeightGradients = Network.NewTensor(Weights.Shape, nameof(WeightGradients));
+            Debug.Assert(WeightGradients.SameShape(Weights));
             Bias = Network.NewTensor(new[] {1,  _n_x }, nameof(Bias));
             BiasGradients = Network.NewTensor(Bias.Shape, nameof(BiasGradients));
+            Debug.Assert(Bias.SameShape(BiasGradients));
             _optimizer = Network.GetOptimizer(Weights.Shape, Bias.Shape);
         }
         public override string Serialize()
         {
-            return RootSerializer()
-                .Add(nameof(_n_x), _n_x)
+            var serializer = RootSerializer();
+            serializer.Add(nameof(_n_x), _n_x)
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
-                .Add(Weights).Add(WeightGradients).Add(Bias).Add(BiasGradients)
-                .Add(_optimizer?.Serialize())
-                .ToString();
+                .Add(Weights).Add(WeightGradients)
+                .Add(_optimizer.Serialize());
+            if (_useBias)
+            {
+                serializer.Add(Bias).Add(BiasGradients);
+            }
+            return serializer.ToString();
         }
         public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
@@ -51,9 +59,12 @@ namespace SharpNet
             _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
             Weights = (Tensor)serialized[nameof(Weights)];
             WeightGradients = (Tensor)serialized[nameof(WeightGradients)];
-            Bias = (Tensor)serialized[nameof(Bias)];
-            BiasGradients = (Tensor)serialized[nameof(BiasGradients)];
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
+            if (_useBias)
+            {
+                Bias = (Tensor) serialized[nameof(Bias)];
+                BiasGradients = (Tensor) serialized[nameof(BiasGradients)];
+            }
         }
 
         public override void ForwardPropagation(bool isTraining)
@@ -62,7 +73,10 @@ namespace SharpNet
             var x = PrevLayer.y;
             //We compute y = x*Weights+B
             y.Dot(x, Weights);
-            Bias.BroadcastAddVectorToOutput(y);
+            if (_useBias)
+            {
+                Bias.BroadcastAddVectorToOutput(y);
+            }
         }
 
         public override void BackwardPropagation()
@@ -75,7 +89,7 @@ namespace SharpNet
             //we update dy if necessary (shortcut connection to a futur layer)
             Update_dy_With_GradientFromShortcutIdentityConnection(); 
 
-            //we compute dW:  prevLayer.n_x * n_x
+            //we compute dW
             var multiplier = 1.0; //!D var multiplier = 1.0 / batchSize;
             var x = PrevLayer.y;
             WeightGradients.Dot(x, true, dy, false, multiplier, 0.0);
@@ -85,11 +99,11 @@ namespace SharpNet
                 var alpha = _lambdaL2Regularization / batchSize;
                 WeightGradients.Update_Adding_Alpha_X(alpha, Weights);
             }
-            Debug.Assert(WeightGradients.SameShape(Weights));
 
-            dy.Compute_BiasGradient_from_dy(BiasGradients);
-
-            Debug.Assert(BiasGradients.SameShape(Bias));
+            if (_useBias)
+            {
+                dy.Compute_BiasGradient_from_dy(BiasGradients);
+            }
 
             //no need to compute dx (= PrevLayer.dy) if previous Layer it is the input layer
             if (PrevLayer.IsInputLayer)
@@ -103,8 +117,6 @@ namespace SharpNet
         }
         public override void UpdateWeights(double learningRate)
         {
-            Debug.Assert(Weights.SameShape(WeightGradients));
-            Debug.Assert(Bias.SameShape(BiasGradients));
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Weights, WeightGradients, Bias, BiasGradients);
         }
@@ -112,12 +124,14 @@ namespace SharpNet
         {
             return new[] { batchSize, _n_x };
         }
-
-        public override string SummaryName()
+        public override void DisableBias()
         {
-            return (NextLayer!=null&&NextLayer.IsOutputLayer) ? "OutputLayer" : "Dense";
-}
-
+            _useBias = false;
+            Bias?.Dispose();
+            Bias = null;
+            BiasGradients?.Dispose();
+            BiasGradients = null;
+        }
         public override string ToString()
         {
             string layerName = SummaryName();

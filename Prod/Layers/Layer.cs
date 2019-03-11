@@ -81,6 +81,7 @@ namespace SharpNet
         //by default (if not overriden) output shape is the same as the previous layer
         public virtual int[] OutputShape(int batchSize) { return PrevLayer.OutputShape(batchSize); }
         public virtual int TotalParams => 0;
+        public virtual void DisableBias() {}
         public virtual void Dispose()
         {
             EmbeddedTensors.ForEach(x => x?.Dispose());

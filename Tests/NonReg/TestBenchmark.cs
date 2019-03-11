@@ -12,7 +12,7 @@ namespace SharpNetTests.NonReg
     {
         private static string LogFileName => Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "GPUBenchmark" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
 
-        [Test, Ignore]
+        [Test, Explicit]
         public void TestGPUBenchmark_Memory()
         {
             var logger = new Logger(LogFileName, true);
@@ -56,7 +56,7 @@ namespace SharpNetTests.NonReg
         }
 
 
-        [Test, Ignore]
+        [Test, Explicit]
         public void TestGPUBenchmark_Speed()
 
         {

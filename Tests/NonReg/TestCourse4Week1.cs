@@ -13,8 +13,7 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class TestCourse4Week1
     {
-        //[Ignore]
-        [Test, Ignore]
+        [Test, Explicit]
         [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalse")]
         public void Test()
         {

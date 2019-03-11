@@ -22,7 +22,7 @@ namespace SharpNet.Optimizers
         public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)
         {
             Debug.Assert(weights.SameShape(weightGradients));
-            Debug.Assert(bias.SameShape(biasGradient));
+            Debug.Assert(bias == null || bias.SameShape(biasGradient));
             var momentum = _networkConfig.SGD_momentum;
             var decay = _networkConfig.SGD_decay;
             var useNesterov = _networkConfig.SGD_usenesterov;
@@ -33,7 +33,7 @@ namespace SharpNet.Optimizers
             }
             var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
             weights.UpdateSGDOptimizer(ponderedLearningRate, momentum, decay, useNesterov, weightGradients, _velocityWeight);
-            bias.UpdateSGDOptimizer(ponderedLearningRate, momentum, decay, useNesterov, biasGradient, _velocityBias);
+            bias?.UpdateSGDOptimizer(ponderedLearningRate, momentum, decay, useNesterov, biasGradient, _velocityBias);
         }
         public static Optimizer DeserializeSGD(NetworkConfig networkConfig, IDictionary<string, object> serialized)
         {
