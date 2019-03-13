@@ -93,10 +93,11 @@ namespace SharpNet
             var multiplier = 1.0; //!D var multiplier = 1.0 / batchSize;
             var x = PrevLayer.y;
             WeightGradients.Dot(x, true, dy, false, multiplier, 0.0);
+
             //L2 regularization on dW
             if (UseL2Regularization)
             {
-                var alpha = _lambdaL2Regularization / batchSize;
+                var alpha = 2 * batchSize * _lambdaL2Regularization;
                 WeightGradients.Update_Adding_Alpha_X(alpha, Weights);
             }
 

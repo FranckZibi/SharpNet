@@ -29,7 +29,7 @@ namespace SharpNetTests
             var n = GetNetwork();
             n
                 .AddInput(X.Shape[1], X.Shape[2], X.Shape[3])
-                .AddOutput(Y.Shape[1], cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                .AddOutput(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             n.Predict(X, false);
             var denseLayer = (DenseLayer)n.Layers[1];
             if (testWeights)
@@ -53,7 +53,7 @@ namespace SharpNetTests
             n
                 .AddInput(X.Shape[1], X.Shape[2], X.Shape[3])
                 .AddConvolution(3, 3,1,1, 0.0)
-                .AddOutput(Y.Shape[1], cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                .AddOutput(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             n.Predict(X, false);
             var convLayer = (ConvolutionLayer)n.Layers[1];
             if (testWeights)
@@ -77,7 +77,7 @@ namespace SharpNetTests
             n
                 .AddInput(X.Shape[1], X.Shape[2], X.Shape[3])
                 .AddBatchNorm(1.0)
-                .AddOutput(Y.Shape[1], cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
+                .AddOutput(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
             n.Predict(X, false);
             //n.SaveLayers();
             var batchNormLayer = (BatchNormalizationLayer)n.Layers[1];

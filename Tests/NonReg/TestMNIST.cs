@@ -86,7 +86,7 @@ namespace SharpNetTests.NonReg
                 .AddDropout(0.5)
                 //.AddBatchNorm()
 
-                .AddOutput(Y_train.Shape[1], cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .AddOutput(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
                 var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
                 //var learningRate = 0.1;
 

@@ -172,9 +172,9 @@ namespace SharpNet
             return AddDense(n_x, lambdaL2Regularization)
                 .AddActivation(activationFunction);
         }
-        public Network AddOutput(int n_x, cudnnActivationMode_t activationFunctionType)
+        public Network AddOutput(int n_x, double _lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
         {
-            return AddDense(n_x, 0.0)
+            return AddDense(n_x, _lambdaL2Regularization)
                 .AddActivation(activationFunctionType);
         }
         public Network Flatten()

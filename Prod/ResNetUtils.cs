@@ -48,6 +48,10 @@ namespace SharpNet
         {
             return GetResNetV1_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet110V1_CIFAR10), logger);
         }
+        public static Network ResNet164V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV1_CIFAR10(27, useGPU, useDoublePrecision, nameof(ResNet164V1_CIFAR10), logger);
+        }
         public static Network ResNet1202V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
             return GetResNetV1_CIFAR10(200, useGPU, useDoublePrecision, nameof(ResNet1202V1_CIFAR10), logger);
@@ -117,7 +121,7 @@ namespace SharpNet
                 stageC *= 2;
             }
             network.AddGlobalAvgPooling();
-            network.AddOutput(nbCategories, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.AddOutput(nbCategories, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
         private static ImageDataGenerator ResNetImageDataGenerator()
@@ -155,7 +159,7 @@ namespace SharpNet
                 stageC *= 2;
             }
             network.AddAvgPooling(8, 8);
-            network.AddOutput(CategoriesCifar10, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.AddOutput(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             network.Description = description;
             return network;
         }
