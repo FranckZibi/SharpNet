@@ -81,6 +81,11 @@ namespace SharpNet
             return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
 
+        public static LearningRateScheduler ResNet110LearningRateScheduler()
+        {
+            var initialLearningRate = 0.1;
+            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+        }
 
         private static Network ResNetV1(int[] nbResBlocks, bool useBottleNeck, int[] xShape, int nbCategories, bool useGPU, bool useDoublePrecision, Logger logger)
         {

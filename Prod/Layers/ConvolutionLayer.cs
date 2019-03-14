@@ -139,7 +139,6 @@ namespace SharpNet
             if (UseL2Regularization)
             {
                 var batchSize = y.Shape[0];
-                //?D var alpha = 2*_lambdaL2Regularization / batchSize;
                 var alpha = 2 * batchSize * _lambdaL2Regularization;
                 ConvolutionGradients.Update_Adding_Alpha_X(alpha, Convolution);
             }
