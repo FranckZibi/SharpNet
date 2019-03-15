@@ -108,7 +108,7 @@ namespace SharpNet
         public static LearningRateScheduler UpdatedCifar10LearningRateScheduler()
         {
             var initialLearningRate = 0.1;
-            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10.0, 80, initialLearningRate, 120, initialLearningRate / 10, 160, initialLearningRate / 100, 180, initialLearningRate / 1000, 1000000, initialLearningRate / 2000);
+            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10.0, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 160, initialLearningRate / 1000, 180, initialLearningRate / 2000);
         }
         public static LearningRateScheduler ResNet110LearningRateScheduler()
         {
