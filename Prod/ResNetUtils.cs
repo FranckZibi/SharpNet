@@ -56,6 +56,29 @@ namespace SharpNet
         {
             return GetResNetV1_CIFAR10(200, useGPU, useDoublePrecision, nameof(ResNet1202V1_CIFAR10), logger);
         }
+
+
+
+        public static Network ResNet20V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV2_CIFAR10(2, useGPU, useDoublePrecision, nameof(ResNet20V2_CIFAR10), logger);
+        }
+        public static Network ResNet56V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV2_CIFAR10(6, useGPU, useDoublePrecision, nameof(ResNet56V2_CIFAR10), logger);
+        }
+        public static Network ResNet110V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV2_CIFAR10(12, useGPU, useDoublePrecision, nameof(ResNet110V2_CIFAR10), logger);
+        }
+        public static Network ResNet164V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV2_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet164V2_CIFAR10), logger);
+        }
+        public static Network ResNet1001V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV2_CIFAR10(111, useGPU, useDoublePrecision, nameof(ResNet1001V2_CIFAR10), logger);
+        }
         public static void Load(out CpuTensor<byte> xTrainingSet, out CpuTensor<byte> yTrainingSet, out CpuTensor<byte> xTestSet, out CpuTensor<byte> yTestSet)
         {
             var path = @"C:\Projects\SharpNet\Tests\Data\cifar-10-batches-bin\";
@@ -77,14 +100,21 @@ namespace SharpNet
 
         public static LearningRateScheduler Cifar10LearningRateScheduler()
         {
-            var initialLearningRate = 0.1;
-            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+            return UpdatedCifar10LearningRateScheduler();
+            //var initialLearningRate = 0.1;
+            //return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
 
-        public static LearningRateScheduler ResNet110LearningRateScheduler()
+        public static LearningRateScheduler UpdatedCifar10LearningRateScheduler()
         {
             var initialLearningRate = 0.1;
-            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10.0, 80, initialLearningRate, 120, initialLearningRate / 10, 160, initialLearningRate / 100, 180, initialLearningRate / 1000, 1000000, initialLearningRate / 2000);
+        }
+        public static LearningRateScheduler ResNet110LearningRateScheduler()
+        {
+            return UpdatedCifar10LearningRateScheduler();
+            //var initialLearningRate = 0.1;
+            //return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
 
         private static Network ResNetV1(int[] nbResBlocks, bool useBottleNeck, int[] xShape, int nbCategories, bool useGPU, bool useDoublePrecision, Logger logger)
@@ -137,9 +167,11 @@ namespace SharpNet
         private const int HeightCifar10 = 32;
         private const int WidthCifar10 = HeightCifar10;
         private const int CategoriesCifar10 = 10;
-        private static Network GetResNetV1_CIFAR10(int num_res_blocks, bool useGPU, bool useDoublePrecision, string description, Logger logger)
+
+        //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
+        private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, string description, Logger logger)
         {
-            var networkConfig = new NetworkConfig(useGPU) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
+            var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
 
             const double lambdaL2Regularization = 1e-4;
             const bool useNesterov = false;
@@ -152,7 +184,7 @@ namespace SharpNet
             int stageC = 16; //number of channels for current stage
             for (int stageId = 0; stageId < 3; ++stageId)
             {
-                for (int res_block = 0; res_block < num_res_blocks; res_block += 1)
+                for (int res_block = 0; res_block < numResBlocks; res_block += 1)
                 {
                     int stride = (res_block == 0 && stageId != 0) ? 2 : 1;
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
@@ -168,6 +200,43 @@ namespace SharpNet
             network.Description = description;
             return network;
         }
+
+        //implementation described in: https://arxiv.org/pdf/1603.05027.pdf
+        private static Network GetResNetV2_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, string description, Logger logger)
+        {
+            var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
+
+            const double lambdaL2Regularization = 1e-4;
+            const bool useNesterov = false;
+
+            var network = new Network(networkConfig.WithSGD(0.9, 0, useNesterov), ResNetImageDataGenerator());
+            network.AddInput(ChannelsCifar10, HeightCifar10, WidthCifar10);
+            network.AddConvolution(16, 3, 1, 1, lambdaL2Regularization);
+
+            int stageCIn = 16; //number of channels for current stage
+            int stageCOut = 4 * stageCIn;
+
+            for (int stageId = 0; stageId < 3; ++stageId)
+            {
+                for (int resBlock = 0; resBlock < numResBlocks; resBlock += 1)
+                {
+                    int stride = (resBlock == 0 && stageId != 0) ? 2 : 1;
+                    var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
+                    network.AddBatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, lambdaL2Regularization);
+                    network.AddBatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, 1, lambdaL2Regularization);
+                    network.AddBatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, 0, lambdaL2Regularization);
+                    network.AddShortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, lambdaL2Regularization);
+                }
+                stageCIn = stageCOut;
+                stageCOut = 2 * stageCIn;
+            }
+            network.AddBatchNorm().AddActivation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.AddAvgPooling(8, 8);
+            network.AddOutput(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Description = description;
+            return network;
+        }
+
         private static void LoadAt(string path, CpuTensor<byte> x, CpuTensor<byte> y, int indexFirst)
         {
             var b = File.ReadAllBytes(path);

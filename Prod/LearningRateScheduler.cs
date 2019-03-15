@@ -57,6 +57,14 @@ namespace SharpNet
         {
             return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, epoch4, learningRate4, true);
         }
+        public static LearningRateScheduler ConstantByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4, int epoch5, double learningRate5)
+        {
+            return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, epoch4, learningRate4, epoch5, learningRate5, true);
+        }
+        public static LearningRateScheduler ConstantByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4, int epoch5, double learningRate5, int epoch6, double learningRate6)
+        {
+            return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, epoch4, learningRate4, epoch5, learningRate5, epoch6, learningRate6, true);
+        }
         public static LearningRateScheduler InterpolateByInterval(List<KeyValuePair<int, double>> values)
         {
             return new LearningRateScheduler(values, false);
@@ -128,6 +136,29 @@ namespace SharpNet
             {
                 new KeyValuePair<int, double>(epoch1, learningRate1),
                 new KeyValuePair<int, double>(epoch2, learningRate2)
+            }, constantByInterval);
+        }
+        private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4, int epoch5, double learningRate5, int epoch6, double learningRate6, bool constantByInterval)
+        {
+            return new LearningRateScheduler(new List<KeyValuePair<int, double>>
+            {
+                new KeyValuePair<int, double>(epoch1, learningRate1),
+                new KeyValuePair<int, double>(epoch2, learningRate2),
+                new KeyValuePair<int, double>(epoch3, learningRate3),
+                new KeyValuePair<int, double>(epoch4, learningRate4),
+                new KeyValuePair<int, double>(epoch5, learningRate5),
+                new KeyValuePair<int, double>(epoch6, learningRate6)
+            }, constantByInterval);
+        }
+        private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4, int epoch5, double learningRate5, bool constantByInterval)
+        {
+            return new LearningRateScheduler(new List<KeyValuePair<int, double>>
+            {
+                new KeyValuePair<int, double>(epoch1, learningRate1),
+                new KeyValuePair<int, double>(epoch2, learningRate2),
+                new KeyValuePair<int, double>(epoch3, learningRate3),
+                new KeyValuePair<int, double>(epoch4, learningRate4),
+                new KeyValuePair<int, double>(epoch5, learningRate5)
             }, constantByInterval);
         }
         private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4, bool constantByInterval)

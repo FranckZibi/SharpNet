@@ -83,6 +83,16 @@ namespace SharpNet
             return AddConvolution_BatchNorm(filtersCount, f, stride, padding, lambdaL2Regularization)
                 .AddActivation(activationFunction);
         }
+
+        public Network AddBatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
+        {
+            return 
+                AddBatchNorm()
+                .AddActivation(activationFunction)
+                .AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization);
+        }
+        
+
         public Network AddSumLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
         {
             Layers.Add(new SumLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this));
