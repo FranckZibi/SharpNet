@@ -11,15 +11,15 @@ BatchSize = 128
 EpochCount = 160
 SGD with momentum = 0.9 & L2 = 1-e4
 # ----------------------------------------------------------------------------
-#           |      | 160-epoch | Orig Paper| 200-epoch | Orig Paper| sec/epoch
+#           |      | 160-epoch | Orig Paper| 160-epoch | Orig Paper| sec/epoch
 # Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080
 #           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)  
 # ---------------------------------------------------------------------------
-# ResNet20  | 3 (2)| 90.99     | 91.25     | -----     | -----     | 10 (---) 
-# ResNet32  | 5(NA)| 92.25     | 92.49     | -----     | NA        | 15 (---) 
-# ResNet44  | 7(NA)| 91.62     | 92.83     | -----     | NA        | 20 (---) 
-# ResNet56  | 9 (6)| 90.17     | 93.03     | -----     | NA        | 27 (---) 
-# ResNet110 |18(12)| 92.97     | 93.39+-.16| -----     | 93.63     | 50 (---)
+# ResNet20  | 3 (2)| 91.50     | 91.25     | 89.39     | -----     | 10 (17) 
+# ResNet32  | 5(NA)| 92.21     | 92.49     | -----     | NA        | 15 (NA) 
+# ResNet44  | 7(NA)| 91.83     | 92.83     | -----     | NA        | 21 (NA) 
+# ResNet56  | 9 (6)| 90.78     | 93.03     | error     | -----     | 26 (45) 
+# ResNet110 |18(12)| 93.31     | 93.39+-.16| -----     | 93.63     | 50 (---)
 # ResNet164 |27(18)| 91.48     | 94.07     | -----     | 94.54     | 91 (---)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
@@ -161,7 +161,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet110V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet110V2_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, BatchSize, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, 64 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         [Test, Explicit]

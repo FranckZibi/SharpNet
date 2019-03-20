@@ -12,7 +12,6 @@ namespace SharpNet.Optimizers
         public double FactorForReduceLrOnPlateau { get; }
         private readonly int _patienceForReduceLrOnPlateau;
         private readonly int _cooldownForReduceLrOnPlateau;
-        private const double MinDeltaForReduceLrOnPlateau = 0.0001;
         #endregion
 
 
@@ -26,19 +25,19 @@ namespace SharpNet.Optimizers
 
         public static int NbConsecutiveEpochsWithoutProgress(List<EpochData> epochData)
         {
-            if (epochData.Count == 0)
+            if (epochData.Count <= 1)
             {
                 return 0;
             }
-            var maxAccuracy = epochData.Select(x => x.TrainingAccuracy).Max();
+            var minLoss = epochData.Select(x => x.TrainingLoss).Min();
             for (int i = epochData.Count - 1; i >= 0; --i)
             {
-                if (epochData[i].TrainingAccuracy >= (maxAccuracy - MinDeltaForReduceLrOnPlateau))
+                if (epochData[i].TrainingLoss <= minLoss+1e-8)
                 {
                     return epochData.Count - 1 - i;
                 }
             }
-            return epochData.Count;
+            return 0;
         }
 
         public static int NbConsecutiveEpochsWithSameMultiplicativeFactor(List<EpochData> epochData)
@@ -60,6 +59,8 @@ namespace SharpNet.Optimizers
             {
                 return false;
             }
+
+            //we are about to reduce the learning rate. We must make sure that it has not been reduced recently (cooldown factor)
             var nbConsecutiveEpochsWithoutReducingLrOnPlateau = NbConsecutiveEpochsWithSameMultiplicativeFactor(previousEpochData);
             //TODO Add tests
             if (_cooldownForReduceLrOnPlateau >= 1 && nbConsecutiveEpochsWithoutReducingLrOnPlateau <= _cooldownForReduceLrOnPlateau)

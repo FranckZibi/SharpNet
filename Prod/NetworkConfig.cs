@@ -20,7 +20,7 @@ namespace SharpNet
         /// <summary>
         /// minimum value for the learning rate
         /// </summary>
-        public double MinimumLearningRate { get; } = 1e-8;
+        public double MinimumLearningRate { get; } = 0.5*1e-6;
         public bool SGD_usenesterov { get; private set; }
         public Random Rand { get; }
         public Logger Logger { get; set; } = Logger.ConsoleLogger;

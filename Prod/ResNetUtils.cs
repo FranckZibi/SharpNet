@@ -108,7 +108,7 @@ namespace SharpNet
         }
         public static ReduceLROnPlateau Cifar10ReduceLROnPlateau()
         {
-            return new ReduceLROnPlateau(Math.Sqrt(0.1), 5, 0);
+            return new ReduceLROnPlateau(Math.Sqrt(0.1), 5, 5);
         }
         /*public static LearningRateScheduler UpdatedCifar10LearningRateScheduler()
         {

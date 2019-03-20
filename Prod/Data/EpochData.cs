@@ -55,9 +55,8 @@ namespace SharpNet.Data
 
         public override string ToString()
         {
-            return "Epoch "+Index+" : learningRate:"+LearningRate;
+            return "Epoch "+Index+" : learningRate:"+LearningRate+ "; TrainingLoss:"+TrainingLoss+ "; TrainingAccuracy:" + TrainingAccuracy + "; ValidationLoss:" + ValidationLoss + "; ValidationAccuracy:" + ValidationAccuracy;
         }
-
         public bool Equals(EpochData other, double epsilon)
         {
             return Index == other.Index
@@ -70,7 +69,6 @@ namespace SharpNet.Data
                    && Math.Abs(SecondsForEpoch - other.SecondsForEpoch) <= epsilon
                 ;
         }
-
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj))
