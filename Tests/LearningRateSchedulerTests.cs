@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
-using NUnit.Framework;
-using SharpNet;
+﻿using NUnit.Framework;
 using SharpNet.Data;
+using SharpNet.Optimizers;
 
 
 namespace SharpNetTests

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using SharpNet.CPU;
 using SharpNet.GPU;
@@ -41,6 +42,43 @@ namespace SharpNet.Data
             _sb.Append("string;" + description + ";" + value + ";");
             return this;
         }
+        public Serializer Add(string description, EpochData[] data)
+        {
+            return Add<EpochData>(description, data, x => Split(x.Serialize()));
+        }
+
+        private static string[] Split(string s)
+        {
+            return s.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        private Serializer Add<T>(string description, T[] array, Func<T, string[]> serializer)
+        {
+            _sb.Append(typeof(T).Name+ "Vector;" + description + ";" + array.Length + ";");
+            foreach (var t in array)
+            {
+                var strArray = serializer(t);
+                _sb.Append(strArray.Length + ";" + string.Join(";", strArray)+";");
+            }
+            return this;
+        }
+        private static T[] DeserializeArray<T>(string[] splitted, int count, ref int startIndex, Func<string, T> convert)
+        {
+            var data = new T[count];
+            for (int i = 0; i < count; ++i)
+            {
+                var elementCount = int.Parse(splitted[startIndex++]);
+                var elementValue = "";
+                for (int j = startIndex; j < startIndex + elementCount; ++j)
+                {
+                    elementValue += splitted[j] + ";";
+                }
+                startIndex += elementCount; 
+                data[i] = convert(elementValue);
+            }
+            return data;
+        }
+
 
         public Serializer Add(string value)
         {
@@ -75,6 +113,8 @@ namespace SharpNet.Data
             return _sb.ToString();
         }
 
+     
+
         private static T[] Deserialize<T>(string[] splitted, int count, int startIndex, Func<string, T> convert)
         {
             var data = new T[count];
@@ -92,7 +132,7 @@ namespace SharpNet.Data
         public static IDictionary<string, object> Deserialize(string serialized, GPUWrapper gpuWrapper)
         {
             var result = new Dictionary<string, object>();
-            var splitted = serialized.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries);
+            var splitted = Split(serialized);
             int startIndex = 0;
             while (startIndex < splitted.Length)
             {
@@ -155,6 +195,13 @@ namespace SharpNet.Data
                     var count = ParseInt(splitted[startIndex++]);
                     result[desc] = Deserialize(splitted, count, startIndex, ParseInt);
                     startIndex += count;
+                }
+                else if (string.Equals(type, typeof(EpochData).Name + "Vector", StringComparison.OrdinalIgnoreCase))
+                {
+                    ++startIndex;
+                    var desc = splitted[startIndex++];
+                    var count = ParseInt(splitted[startIndex++]);
+                    result[desc] = DeserializeArray(splitted, count, ref startIndex, x=>new EpochData(Deserialize(x, gpuWrapper)));
                 }
                 else if (string.Equals(type, "Type", StringComparison.OrdinalIgnoreCase))
                 {

@@ -6,6 +6,7 @@ using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.GPU;
+using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
 namespace SharpNetTests.NonReg
@@ -91,7 +92,7 @@ namespace SharpNetTests.NonReg
                 //var learningRate = 0.1;
 
 
-            network.Fit(X_train, Y_train, learningRate, numEpochs, batchSize, X_test, Y_test);
+            network.Fit(X_train, Y_train, learningRate, null, numEpochs, batchSize, X_test, Y_test);
             
         }
 

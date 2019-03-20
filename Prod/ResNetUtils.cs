@@ -1,7 +1,9 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.GPU;
+using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
 namespace SharpNet
@@ -100,21 +102,24 @@ namespace SharpNet
 
         public static LearningRateScheduler Cifar10LearningRateScheduler()
         {
-            return UpdatedCifar10LearningRateScheduler();
-            //var initialLearningRate = 0.1;
-            //return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+            //return UpdatedCifar10LearningRateScheduler();
+            var initialLearningRate = 0.1;
+            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
-
-        public static LearningRateScheduler UpdatedCifar10LearningRateScheduler()
+        public static ReduceLROnPlateau Cifar10ReduceLROnPlateau()
+        {
+            return new ReduceLROnPlateau(Math.Sqrt(0.1), 5, 0);
+        }
+        /*public static LearningRateScheduler UpdatedCifar10LearningRateScheduler()
         {
             var initialLearningRate = 0.1;
             return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10.0, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 160, initialLearningRate / 1000, 180, initialLearningRate / 2000);
-        }
+        }*/
         public static LearningRateScheduler ResNet110LearningRateScheduler()
         {
-            return UpdatedCifar10LearningRateScheduler();
-            //var initialLearningRate = 0.1;
-            //return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+            //return UpdatedCifar10LearningRateScheduler();
+            var initialLearningRate = 0.1;
+            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
 
         private static Network ResNetV1(int[] nbResBlocks, bool useBottleNeck, int[] xShape, int nbCategories, bool useGPU, bool useDoublePrecision, Logger logger)

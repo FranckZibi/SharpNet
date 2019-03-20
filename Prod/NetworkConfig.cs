@@ -17,14 +17,19 @@ namespace SharpNet
         public double Adam_epsilon { get; private set; }
         public double SGD_momentum { get; private set; }
         public double SGD_decay { get; private set; }
+        /// <summary>
+        /// minimum value for the learning rate
+        /// </summary>
+        public double MinimumLearningRate { get; } = 1e-8;
         public bool SGD_usenesterov { get; private set; }
         public Random Rand { get; }
         public Logger Logger { get; set; } = Logger.ConsoleLogger;
         public bool UseDoublePrecision { get; set; }
         public bool RandomizeOrder { get; set; } = true;
-        public bool ProfileApplication { get; set; } = true;
+        public bool ProfileApplication { get; } = true;
         public string AutoSavePath { get; set; } = System.IO.Path.GetTempPath();
-        public int AutoSaveIntervalInMinuts { get; set; } = 10;
+        public int AutoSaveIntervalInMinuts { get; set; } = 15;
+
         #endregion
 
         public NetworkConfig(bool useGPU = true)
@@ -46,6 +51,7 @@ namespace SharpNet
             OptimizerType = Optimizer.OptimizationEnum.Adam;
             return this;
         }
+
         public NetworkConfig WithSGD(double momentum= 0.9, double decay = 0.0, bool useNesterov = true)
         {
             Debug.Assert(momentum >= 0);
@@ -77,6 +83,7 @@ namespace SharpNet
                 .Add(nameof(ProfileApplication), ProfileApplication)
                 .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts).Add(nameof(AutoSavePath), AutoSavePath)
                 .Add(nameof(UseGPU), UseGPU)
+                .Add(nameof(MinimumLearningRate), MinimumLearningRate)
                 .Add(Logger.Serialize())
                 .ToString();
         }
@@ -100,6 +107,7 @@ namespace SharpNet
             AutoSaveIntervalInMinuts = (int)serialized[nameof(AutoSaveIntervalInMinuts)];
             AutoSavePath = (string)serialized[nameof(AutoSavePath)];
             var useGPU = (bool)serialized[nameof(UseGPU)];
+            MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
             GpuWrapper = useGPU ? GPUWrapper.Default : null;
             Logger = Logger.ValueOf(serialized);
             Rand = new Random(0);

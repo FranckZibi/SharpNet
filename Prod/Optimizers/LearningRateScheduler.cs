@@ -1,10 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using SharpNet.Data;
 
-namespace SharpNet
+namespace SharpNet.Optimizers
 {
     public class LearningRateScheduler
     {
@@ -12,6 +11,8 @@ namespace SharpNet
         private readonly List<KeyValuePair<int,double>> _values;
         private readonly bool _constantByInterval;
         #endregion
+
+
 
         #region Constructors
         private LearningRateScheduler(List<KeyValuePair<int, double>> values, bool constantByInterval)
@@ -50,9 +51,6 @@ namespace SharpNet
             }
             return new LearningRateScheduler(values, isConstantByInterval);
         }
-
-
-
         public static LearningRateScheduler ConstantByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4)
         {
             return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, epoch4, learningRate4, true);
@@ -82,6 +80,8 @@ namespace SharpNet
             return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, epoch4, learningRate4, false);
         }
         #endregion
+
+
 
         public double LearningRate(int epoch)
         {
@@ -127,7 +127,8 @@ namespace SharpNet
             var epochs = (int[]) serialized[nameof(_values) + "Key"];
             var learningRates = (double[]) serialized[nameof(_values) + "Value"];
             var values  = epochs.Zip(learningRates, (x, y) => new KeyValuePair<int, double>(x, y)).ToList();
-            return new LearningRateScheduler(values, constantByInterval);
+            var result = new LearningRateScheduler(values, constantByInterval);
+            return result;
         }
 
         private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, bool constantByInterval)

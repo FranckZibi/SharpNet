@@ -55,6 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CPU\TestCpuTensor.cs" />
+    <Compile Include="Data\EpochDataTests.cs" />
     <Compile Include="Data\TestTensor.cs" />
     <Compile Include="GPU\KernelManagerTests.cs" />
     <Compile Include="GPU\TestGpuTensor.cs" />
@@ -64,6 +65,7 @@
     <Compile Include="NonReg\TestMNIST.cs" />
     <Compile Include="NonReg\TestNetworkPropagation.cs" />
     <Compile Include="NonReg\TestResNetCIFAR10.cs" />
+    <Compile Include="Optimizers\ReduceLROnPlateauTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestCpuVersusGpu.cs" />

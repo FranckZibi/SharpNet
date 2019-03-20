@@ -44,6 +44,7 @@
     <Compile Include="CPU\CpuTensor.cs" />
     <Compile Include="CPU\CpuTensorExtensions.cs" />
     <Compile Include="Data\BlasServices.cs" />
+    <Compile Include="Data\EpochData.cs" />
     <Compile Include="Data\Serializer.cs" />
     <Compile Include="Data\size_t.cs" />
     <Compile Include="Data\Tensor.cs" />
@@ -68,11 +69,12 @@
     <Compile Include="Layers\Layer.cs" />
     <Compile Include="Layers\PoolingLayer.cs" />
     <Compile Include="Layers\SumLayer.cs" />
-    <Compile Include="LearningRateScheduler.cs" />
     <Compile Include="Network.cs" />
     <Compile Include="NetworkConfig.cs" />
     <Compile Include="Optimizers\Adam.cs" />
+    <Compile Include="Optimizers\LearningRateScheduler.cs" />
     <Compile Include="Optimizers\Optimizer.cs" />
+    <Compile Include="Optimizers\ReduceLROnPlateau.cs" />
     <Compile Include="Optimizers\VanillaSgd.cs" />
     <Compile Include="Pictures\ImageDataGenerator.cs" />
     <Compile Include="Pictures\PictureTools.cs" />
