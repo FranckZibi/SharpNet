@@ -60,17 +60,17 @@ namespace SharpNetTests.NonReg
             double lambdaL2Regularization = 0.0;
 
             network
-                .AddInput(X_train.Shape[1], X_train.Shape[2], X_train.Shape[3])
+                .Input(X_train.Shape[1], X_train.Shape[2], X_train.Shape[3])
 
-                .AddConvolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .AddMaxPooling(2,2)
+                .Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .MaxPooling(2,2)
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)
 
                 //.AddDropout(0.2)
 
-                .AddConvolution_BatchNorm_Activation(32, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .AddMaxPooling(2, 2)
+                .Convolution_BatchNorm_Activation(32, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .MaxPooling(2, 2)
 
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)
@@ -83,11 +83,11 @@ namespace SharpNetTests.NonReg
                 //.AddConvolution_BatchNorm_Activation_Pooling(16, 5, 1, 2, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 2, 2)
                 //.AddConvolution_BatchNorm_Activation_Pooling(32, 5, 1, 2, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 2, 2)
 
-                .AddDense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .AddDropout(0.5)
+                .Dense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dropout(0.5)
                 //.AddBatchNorm()
 
-                .AddOutput(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Output(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
                 var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
                 //var learningRate = 0.1;
 

@@ -38,12 +38,12 @@ namespace SharpNetTests.NonReg
             var relu = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
             double lambdaL2Regularization = 0.0;
             network
-                .AddInput(train_set_x.Shape[1], train_set_x.Shape[2], train_set_x.Shape[3])
-                .AddConvolution_Activation_Pooling(8, 3, 1, 1, lambdaL2Regularization, relu, 2, 2)
-                .AddConvolution_Activation_Pooling(16, 3, 1, 1, lambdaL2Regularization, relu, 2, 2)
-                .AddConvolution_Activation_Pooling(32, 3, 1, 1, lambdaL2Regularization, relu, 2, 2)
-                .AddDense_Activation(100, 0, relu)
-                .AddOutput(train_set_y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Input(train_set_x.Shape[1], train_set_x.Shape[2], train_set_x.Shape[3])
+                .Convolution_Activation_Pooling(8, 3, 1, 1, lambdaL2Regularization, relu, 2, 2)
+                .Convolution_Activation_Pooling(16, 3, 1, 1, lambdaL2Regularization, relu, 2, 2)
+                .Convolution_Activation_Pooling(32, 3, 1, 1, lambdaL2Regularization, relu, 2, 2)
+                .Dense_Activation(100, 0, relu)
+                .Output(train_set_y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
             network.Fit(train_set_x, train_set_y, 0.009, 100, 10, test_set_x, test_set_y);
         }
 

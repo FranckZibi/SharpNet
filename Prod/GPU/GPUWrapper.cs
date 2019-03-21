@@ -99,13 +99,13 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr ConvDesc(cudnnDataType_t cudaType, int pad, int stride)
+        public IntPtr ConvDesc(cudnnDataType_t cudaType, int padding, int stride)
         {
-            var key = Tuple.Create(cudaType, pad, stride);
+            var key = Tuple.Create(cudaType, padding, stride);
             if (!cacheConvolutionDesc.TryGetValue(key, out var desc))
             {
                 CudnnWrapper.cudnnCreateConvolutionDescriptor(out desc);
-                CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, pad, pad, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
+                CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, padding, padding, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
                 cacheConvolutionDesc[key] = desc;
             }
             return desc;

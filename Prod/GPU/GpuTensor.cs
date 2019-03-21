@@ -263,11 +263,11 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, biasGradient);
             CheckStatus(res);
         }
-        public override void Convolution(Tensor filters, int pad, int stride, Tensor y)
+        public override void Convolution(Tensor filters, int padding, int stride, Tensor y)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, filters, y }));
-            var convDesc = ConvDesc(pad, stride);
+            var convDesc = ConvDesc(padding, stride);
             var filterDesc = FilterDesc(filters);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
@@ -304,14 +304,14 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, convolutionBackwardBias);
             CheckStatus(res);
         }
-        public override void ConvolutionGradient(Tensor conv, Tensor dy, int pad, int stride, Tensor dx, Tensor convGradient)
+        public override void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> {x, conv, dy, dx, convGradient}));
             var xDesc = TensorDesc(x);
             var dyDesc = TensorDesc(dy);
             var dwDesc = FilterDesc(convGradient);
-            var convDesc = ConvDesc(pad, stride);
+            var convDesc = ConvDesc(padding, stride);
             var res = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc,
                 dwDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0,
                 out cudnnConvolutionBwdFilterAlgo_t filterAlgo);
@@ -549,7 +549,7 @@ namespace SharpNet.GPU
         {
             return Wrapper.PoolingDesc(poolingMode, poolingSize, poolingStride);
         }
-        private IntPtr ConvDesc(int pad, int stride) { return Wrapper.ConvDesc(CudaType, pad, stride); }
+        private IntPtr ConvDesc(int padding, int stride) { return Wrapper.ConvDesc(CudaType, padding, stride); }
         private cudnnDataType_t CudaType => UseDoublePrecision ? cudnnDataType_t.CUDNN_DATA_DOUBLE : cudnnDataType_t.CUDNN_DATA_FLOAT;
         private IntPtr CudnnHandle => Wrapper.CudnnHandle;
         private IntPtr CublasHandle => Wrapper.CudaBlasHandle;

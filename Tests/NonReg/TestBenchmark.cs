@@ -68,21 +68,21 @@ namespace SharpNetTests.NonReg
                 .WithAdam()
             );
             network
-                .AddInput(X_train.Shape[1], X_train.Shape[2], X_train.Shape[3])
+                .Input(X_train.Shape[1], X_train.Shape[2], X_train.Shape[3])
 
-                .AddConvolution(16, 3, 1, 1, 0.0)
-                .AddBatchNorm()
-                .AddActivation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .AddDropout(0.2)
-                .AddMaxPooling(2, 2)
+                .Convolution(16, 3, 1, 1, 0.0)
+                .BatchNorm()
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dropout(0.2)
+                .MaxPooling(2, 2)
 
-                .AddConvolution(32, 3, 1, 1, 0.0)
-                .AddActivation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Convolution(32, 3, 1, 1, 0.0)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
 
-                .AddDense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .AddDropout(0.2)
+                .Dense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dropout(0.2)
 
-                .AddOutput(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Output(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
             var learningRate = 0.0001;

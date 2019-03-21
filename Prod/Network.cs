@@ -50,15 +50,6 @@ namespace SharpNet
                 _swComputeAccuracy = new Stopwatch();
             }
         }
-
-        #region network construction: adding layers
-        public Network AddInput(int channelCount, int h, int w)
-        {
-            ClearMemory();
-            Layers.Add(new InputLayer(channelCount, h, w, this));
-            return this;
-        }
-
         public void ClearMemory()
         {
             Config.GpuWrapper?.ClearMemory();
@@ -66,41 +57,46 @@ namespace SharpNet
             Layers.Clear();
             _epochsData.Clear();
         }
-        public Network AddDense(int n_x, double _lambdaL2Regularization)
+
+        #region network construction: adding layers
+        public Network Input(int channelCount, int h, int w)
+        {
+            ClearMemory();
+            Layers.Add(new InputLayer(channelCount, h, w, this));
+            return this;
+        }
+        public Network Dense(int n_x, double _lambdaL2Regularization)
         {
             Debug.Assert(Layers.Count >= 1);
             var fullyConnectedLayer = new DenseLayer(n_x, _lambdaL2Regularization, this);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
-        public Network AddConvolution_BatchNorm(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
+        public Network Convolution_BatchNorm(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
         {
-            return AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization)
-                .AddBatchNorm();
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization)
+                .BatchNorm();
         }
-        public Network AddConvolution_BatchNorm_Activation(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
+        public Network Convolution_BatchNorm_Activation(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
         {
-            return AddConvolution_BatchNorm(filtersCount, f, stride, padding, lambdaL2Regularization)
-                .AddActivation(activationFunction);
+            return Convolution_BatchNorm(filtersCount, f, stride, padding, lambdaL2Regularization)
+                .Activation(activationFunction);
         }
-
-        public Network AddBatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
+        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
         {
             return 
-                AddBatchNorm()
-                .AddActivation(activationFunction)
-                .AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization);
+                BatchNorm()
+                .Activation(activationFunction)
+                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization);
         }
-        
-
-        public Network AddSumLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
+        public Network SumLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
         {
             Layers.Add(new SumLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this));
             Debug.Assert(Layers[previousIdentityLayerIndex].SameOutputShape(Layers[previousResidualLayerIndex]));
             return this;
         }
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
-        public Network AddShortcut_IdentityConnection(int startOfBlockLayerIndex, int filtersCount, int stride, double lambdaL2Regularization)
+        public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int filtersCount, int stride, double lambdaL2Regularization)
         {
             int previousResidualLayerIndex = Layers.Last().LayerIndex;
 
@@ -112,56 +108,56 @@ namespace SharpNet
             else
             {
                 //we need to add a convolution layer to make correct output format
-                AddConvolution(filtersCount, 1, stride, 0, lambdaL2Regularization, startOfBlockLayerIndex);
+                Convolution(filtersCount, 1, stride, 0, lambdaL2Regularization, startOfBlockLayerIndex);
                 int convLayerIdInIdentityBlock = Layers.Last().LayerIndex;
                 Layers.Add(new SumLayer(convLayerIdInIdentityBlock, previousResidualLayerIndex, this));
                 Debug.Assert(Layers[convLayerIdInIdentityBlock].SameOutputShape(Layers[previousResidualLayerIndex]));
             }
             return this;
         }
-        public Network AddConvolution_Activation_Pooling(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction, int poolingSize, int poolingStride)
+        public Network Convolution_Activation_Pooling(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction, int poolingSize, int poolingStride)
         {
-            return AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization)
-                .AddActivation(activationFunction)
-                .AddMaxPooling(poolingSize, poolingStride);
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization)
+                .Activation(activationFunction)
+                .MaxPooling(poolingSize, poolingStride);
         }
-        public Network AddConvolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
+        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
         {
-            return AddConvolution(filtersCount, f, stride, padding, lambdaL2Regularization, Layers.Count - 1);
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, Layers.Count - 1);
         }
-        public Network AddConvolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, int previousLayerIndex)
+        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, int previousLayerIndex)
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new ConvolutionLayer(filtersCount, f, stride, padding, lambdaL2Regularization, previousLayerIndex, this));
             return this;
         }
-        public Network AddDropout(double dropProbability)
+        public Network Dropout(double dropProbability)
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new DropoutLayer(dropProbability, this));
             return this;
         }
-        public Network AddActivation(cudnnActivationMode_t activationFunction)
+        public Network Activation(cudnnActivationMode_t activationFunction)
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new ActivationLayer(activationFunction, this));
             return this;
         }
-        public Network AddMaxPooling(int poolingSize, int poolingStride)
+        public Network MaxPooling(int poolingSize, int poolingStride)
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingStride,
                 this));
             return this;
         }
-        public Network AddAvgPooling(int poolingSize, int poolingStride)
+        public Network AvgPooling(int poolingSize, int poolingStride)
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingSize,
                 poolingStride, this));
             return this;
         }
-        public Network AddGlobalAvgPooling()
+        public Network GlobalAvgPooling()
         {
             var lastLayerShape = Layers.Last().OutputShape(1);
             var lastLayerShapeHeight = lastLayerShape[2];
@@ -169,23 +165,23 @@ namespace SharpNet
             Debug.Assert(lastLayerShapeHeight == lastLayerShape[3]);
             int poolingSize = lastLayerShapeHeight;
             int poolingStride = lastLayerShapeHeight;
-            return AddAvgPooling(poolingSize, poolingStride);
+            return AvgPooling(poolingSize, poolingStride);
         }
-        public Network AddBatchNorm(double momentum = 0.99, double epsilon = 1e-5)
+        public Network BatchNorm(double momentum = 0.99, double epsilon = 1e-5)
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new BatchNormalizationLayer(momentum, epsilon, this));
             return this;
         }
-        public Network AddDense_Activation(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
+        public Network Dense_Activation(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
         {
-            return AddDense(n_x, lambdaL2Regularization)
-                .AddActivation(activationFunction);
+            return Dense(n_x, lambdaL2Regularization)
+                .Activation(activationFunction);
         }
-        public Network AddOutput(int n_x, double _lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
+        public Network Output(int n_x, double _lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
         {
-            return AddDense(n_x, _lambdaL2Regularization)
-                .AddActivation(activationFunctionType);
+            return Dense(n_x, _lambdaL2Regularization)
+                .Activation(activationFunctionType);
         }
         public Network Flatten()
         {

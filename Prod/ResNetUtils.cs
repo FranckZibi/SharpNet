@@ -128,11 +128,11 @@ namespace SharpNet
 
             var networkConfig = new NetworkConfig(useGPU) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
             var network = new Network(networkConfig.WithSGD(0.9, 0.0001, true), ResNetImageDataGenerator());
-            network.AddInput(xShape[1], xShape[2], xShape[3]);
+            network.Input(xShape[1], xShape[2], xShape[3]);
 
             const double lambdaL2Regularization = 1e-4;
-            network.AddConvolution(64, 7, 2, 3, lambdaL2Regularization);
-            network.AddMaxPooling(2, 2);
+            network.Convolution(64, 7, 2, 3, lambdaL2Regularization);
+            network.MaxPooling(2, 2);
 
             int stageC = 64; //number of channels for current stage
             for (int stageId = 0; stageId < nbResBlocks.Length; ++stageId)
@@ -144,24 +144,24 @@ namespace SharpNet
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
                     if (useBottleNeck)
                     {
-                        network.AddConvolution_BatchNorm_Activation(stageC, 1, stride, 0, lambdaL2Regularization, activationFunction);
-                        network.AddConvolution_BatchNorm_Activation(stageC, 3, 1, 1, lambdaL2Regularization, activationFunction);
-                        network.AddConvolution_BatchNorm(4 * stageC, 1, 1, 0, lambdaL2Regularization);
-                        network.AddShortcut_IdentityConnection(startOfBlockLayerIndex, 4 * stageC, stride, lambdaL2Regularization);
-                        network.AddActivation(activationFunction);
+                        network.Convolution_BatchNorm_Activation(stageC, 1, stride, 0, lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm_Activation(stageC, 3, 1, 1, lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm(4 * stageC, 1, 1, 0, lambdaL2Regularization);
+                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, 4 * stageC, stride, lambdaL2Regularization);
+                        network.Activation(activationFunction);
                     }
                     else
                     {
-                        network.AddConvolution_BatchNorm_Activation(stageC, 3, stride, 1, lambdaL2Regularization, activationFunction);
-                        network.AddConvolution_BatchNorm(stageC, 3, 1, 1, lambdaL2Regularization);
-                        network.AddShortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, lambdaL2Regularization);
-                        network.AddActivation(activationFunction);
+                        network.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm(stageC, 3, 1, 1, lambdaL2Regularization);
+                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, lambdaL2Regularization);
+                        network.Activation(activationFunction);
                     }
                 }
                 stageC *= 2;
             }
-            network.AddGlobalAvgPooling();
-            network.AddOutput(nbCategories, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.GlobalAvgPooling();
+            network.Output(nbCategories, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
         private static ImageDataGenerator ResNetImageDataGenerator()
@@ -182,9 +182,9 @@ namespace SharpNet
             const bool useNesterov = false;
 
             var network = new Network(networkConfig.WithSGD(0.9, 0, useNesterov), ResNetImageDataGenerator());
-            network.AddInput(ChannelsCifar10, HeightCifar10, WidthCifar10);
+            network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
 
-            network.AddConvolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageC = 16; //number of channels for current stage
             for (int stageId = 0; stageId < 3; ++stageId)
@@ -193,15 +193,15 @@ namespace SharpNet
                 {
                     int stride = (res_block == 0 && stageId != 0) ? 2 : 1;
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
-                    network.AddConvolution_BatchNorm_Activation(stageC, 3, stride, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                    network.AddConvolution_BatchNorm(stageC, 3, 1, 1, lambdaL2Regularization);
-                    network.AddShortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, lambdaL2Regularization);
-                    network.AddActivation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    network.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    network.Convolution_BatchNorm(stageC, 3, 1, 1, lambdaL2Regularization);
+                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, lambdaL2Regularization);
+                    network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 }
                 stageC *= 2;
             }
-            network.AddAvgPooling(8, 8);
-            network.AddOutput(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.AvgPooling(8, 8);
+            network.Output(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             network.Description = description;
             return network;
         }
@@ -215,8 +215,8 @@ namespace SharpNet
             const bool useNesterov = false;
 
             var network = new Network(networkConfig.WithSGD(0.9, 0, useNesterov), ResNetImageDataGenerator());
-            network.AddInput(ChannelsCifar10, HeightCifar10, WidthCifar10);
-            network.AddConvolution(16, 3, 1, 1, lambdaL2Regularization);
+            network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
+            network.Convolution(16, 3, 1, 1, lambdaL2Regularization);
 
             int stageCIn = 16; //number of channels for current stage
             int stageCOut = 4 * stageCIn;
@@ -227,17 +227,17 @@ namespace SharpNet
                 {
                     int stride = (resBlock == 0 && stageId != 0) ? 2 : 1;
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
-                    network.AddBatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, lambdaL2Regularization);
-                    network.AddBatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, 1, lambdaL2Regularization);
-                    network.AddBatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, 0, lambdaL2Regularization);
-                    network.AddShortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, lambdaL2Regularization);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, lambdaL2Regularization);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, 1, lambdaL2Regularization);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, 0, lambdaL2Regularization);
+                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, lambdaL2Regularization);
                 }
                 stageCIn = stageCOut;
                 stageCOut = 2 * stageCIn;
             }
-            network.AddBatchNorm().AddActivation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-            network.AddAvgPooling(8, 8);
-            network.AddOutput(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.BatchNorm().Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.AvgPooling(8, 8);
+            network.Output(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             network.Description = description;
             return network;
         }
