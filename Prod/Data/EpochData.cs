@@ -6,34 +6,33 @@ namespace SharpNet.Data
     public class EpochData
     {
         #region properties
-        public int Index { get; }
-        public double LearningRateFromScheduler { get; }
+        private readonly int _index;
         public double LearningRateMultiplicativeFactorFromReduceLrOnPlateau { get; }
-        public double TrainingLoss { get; set; }
-        public double TrainingAccuracy { get; set; }
-        public double ValidationLoss { get; set; }
-        public double ValidationAccuracy { get; set; }
-        public double SecondsForEpoch { get; set; }
+        private double LearningRateAtEpochStart { get; }
+        public double TrainingLoss { get; }
+        private double TrainingAccuracy { get; }
+        private double ValidationLoss { get; }
+        private double ValidationAccuracy { get; }
+        private double SecondsForEpoch { get; }
         #endregion
 
-        public EpochData(int index, double learningRateFromScheduler, double learningRateMultiplicativeFactorFromReduceLROnPlateau, double trainingLoss, double trainingAccuracy, double validationLoss, double validationAccuracy)
+        public EpochData(int index, double learningRateAtEpochStart, double learningRateMultiplicativeFactorFromReduceLROnPlateau, double trainingLoss, double trainingAccuracy, double validationLoss, double validationAccuracy, double secondsForEpoch)
         {
-            Index = index;
-            LearningRateFromScheduler = learningRateFromScheduler;
+            _index = index;
+            LearningRateAtEpochStart = learningRateAtEpochStart;
             LearningRateMultiplicativeFactorFromReduceLrOnPlateau = learningRateMultiplicativeFactorFromReduceLROnPlateau;
             TrainingLoss = trainingLoss;
             TrainingAccuracy = trainingAccuracy;
             ValidationLoss = validationLoss;
             ValidationAccuracy = validationAccuracy;
+            SecondsForEpoch = secondsForEpoch;
         }
-        public double LearningRate => LearningRateFromScheduler * LearningRateMultiplicativeFactorFromReduceLrOnPlateau;
-
         #region serialization
         public string Serialize()
         {
             return new Serializer()
-                .Add(nameof(Index), Index)
-                .Add(nameof(LearningRateFromScheduler), LearningRateFromScheduler)
+                .Add(nameof(_index), _index)
+                .Add(nameof(LearningRateAtEpochStart), LearningRateAtEpochStart)
                 .Add(nameof(LearningRateMultiplicativeFactorFromReduceLrOnPlateau), LearningRateMultiplicativeFactorFromReduceLrOnPlateau)
                 .Add(nameof(TrainingLoss), TrainingLoss).Add(nameof(TrainingAccuracy), TrainingAccuracy)
                 .Add(nameof(ValidationLoss), ValidationLoss).Add(nameof(ValidationAccuracy), ValidationAccuracy)
@@ -42,8 +41,8 @@ namespace SharpNet.Data
         }
         public EpochData(IDictionary<string, object> serialized)
         {
-            Index = (int)serialized[nameof(Index)];
-            LearningRateFromScheduler = (double)serialized[nameof(LearningRateFromScheduler)];
+            _index = (int)serialized[nameof(_index)];
+            LearningRateAtEpochStart = (double)serialized[nameof(LearningRateAtEpochStart)];
             LearningRateMultiplicativeFactorFromReduceLrOnPlateau = (double)serialized[nameof(LearningRateMultiplicativeFactorFromReduceLrOnPlateau)];
             TrainingLoss = (double)serialized[nameof(TrainingLoss)];
             TrainingAccuracy = (double)serialized[nameof(TrainingAccuracy)];
@@ -55,12 +54,12 @@ namespace SharpNet.Data
 
         public override string ToString()
         {
-            return "Epoch "+Index+" : learningRate:"+LearningRate+ "; TrainingLoss:"+TrainingLoss+ "; TrainingAccuracy:" + TrainingAccuracy + "; ValidationLoss:" + ValidationLoss + "; ValidationAccuracy:" + ValidationAccuracy;
+            return "Epoch "+_index+" : learningRate:"+LearningRateAtEpochStart+ "; TrainingLoss:"+TrainingLoss+ "; TrainingAccuracy:" + TrainingAccuracy + "; ValidationLoss:" + ValidationLoss + "; ValidationAccuracy:" + ValidationAccuracy;
         }
         public bool Equals(EpochData other, double epsilon)
         {
-            return Index == other.Index
-                   && Math.Abs(LearningRateFromScheduler - other.LearningRateFromScheduler) <= epsilon
+            return _index == other._index
+                   && Math.Abs(LearningRateAtEpochStart - other.LearningRateAtEpochStart) <= epsilon
                    && Math.Abs(LearningRateMultiplicativeFactorFromReduceLrOnPlateau - other.LearningRateMultiplicativeFactorFromReduceLrOnPlateau) <= epsilon
                    && Math.Abs(TrainingLoss - other.TrainingLoss) <= epsilon
                    && Math.Abs(TrainingAccuracy - other.TrainingAccuracy) <= epsilon
@@ -83,11 +82,11 @@ namespace SharpNet.Data
             {
                 return false;
             }
-            return Index == ((EpochData)obj).Index;
+            return _index == ((EpochData)obj)._index;
         }
         public override int GetHashCode()
         {
-            return Index;
+            return _index;
         }
     }
 }

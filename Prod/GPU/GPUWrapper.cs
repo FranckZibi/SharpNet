@@ -28,7 +28,7 @@ namespace SharpNet.GPU
         private ulong _bytesCopiedToDevice;
         private int _copyToHostCalls;
         private ulong _bytesCopiedToHost;
-        private CudaDeviceMemory _lazyStorageBuffer;
+        private DeviceMemory _lazyStorageBuffer;
         #endregion
         public static readonly GPUWrapper Default = new GPUWrapper(0);
         #region readonly properties
@@ -36,6 +36,11 @@ namespace SharpNet.GPU
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
         #endregion
+
+
+        public Stopwatch SwCopyToDevice { get; } = new Stopwatch();
+        public Stopwatch SwCopyToHost { get; } = new Stopwatch();
+
 
         private GPUWrapper(int deviceId)
         {
@@ -155,12 +160,12 @@ namespace SharpNet.GPU
             return desc;
         }
         //returns a buffer storage (in Device memory) with at least 'sizeInBytes' size
-        public CudaDeviceMemory StorageBuffer(size_t sizeInBytes)
+        public DeviceMemory StorageBuffer(size_t sizeInBytes)
         {
             if (_lazyStorageBuffer == null || _lazyStorageBuffer.SizeInBytes < sizeInBytes)
             {
                 _lazyStorageBuffer?.Dispose();
-                _lazyStorageBuffer = new CudaDeviceMemory(Math.Max(sizeInBytes,10*1024*1024));
+                _lazyStorageBuffer = new DeviceMemory(Math.Max(sizeInBytes,10*1024*1024));
             }
             return _lazyStorageBuffer;
         }

@@ -29,7 +29,7 @@ namespace SharpNetTests.NonReg
 
             var logger = new Logger(LogFileName, true);
 
-            Load(out var X_train, out var Y_train, out var X_test, out var Y_test);
+            Load(out var xTrain, out var yTrain, out var xTest, out var yTest);
 
             var useGpu = true;
             int batchSize = 32;
@@ -60,7 +60,7 @@ namespace SharpNetTests.NonReg
             double lambdaL2Regularization = 0.0;
 
             network
-                .Input(X_train.Shape[1], X_train.Shape[2], X_train.Shape[3])
+                .Input(xTrain.Shape[1], xTrain.Shape[2], xTrain.Shape[3])
 
                 .Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .MaxPooling(2,2)
@@ -87,13 +87,15 @@ namespace SharpNetTests.NonReg
                 .Dropout(0.5)
                 //.AddBatchNorm()
 
-                .Output(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
-                var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
-                //var learningRate = 0.1;
+                .Output(yTrain.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
-
-            network.Fit(X_train, Y_train, learningRate, null, numEpochs, batchSize, X_test, Y_test);
+            var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
             
+            //learningRate = LearningRateScheduler.Constant(network.FindBestLearningRate(xTrain, yTrain, 128));
+            //learningRate = LearningRateScheduler.Constant(0.00774263682681115);
+
+
+            network.Fit(xTrain, yTrain, learningRate, null, numEpochs, batchSize, xTest, yTest);
         }
 
         public static void Load(out CpuTensor<double> X_train, out CpuTensor<double> Y_train, out CpuTensor<double> X_test, out CpuTensor<double> Y_test)

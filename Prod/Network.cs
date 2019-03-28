@@ -196,15 +196,21 @@ namespace SharpNet
         {
             Fit(xCpu, yCpu, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, X_test, Y_test);
         }
-        public void Fit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, LearningRateScheduler learningRateScheduler, ReduceLROnPlateau reduceLROnPlateau, int numEpochs, int batchSize, CpuTensor<T> X_testCpu = null, CpuTensor<T> Y_testCpu = null) where T : struct
+
+        public void Fit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateScheduler lrScheduler, ReduceLROnPlateau reduceLROnPlateau, int numEpochs, int batchSize, CpuTensor<T> xTestCpu = null,CpuTensor<T> yTestCpu = null) where T : struct
+        {
+            var learningRateComputer = new LearningRateComputer(lrScheduler, reduceLROnPlateau, Config.MinimumLearningRate);
+            Fit(xCpu, yCpu, learningRateComputer, numEpochs, batchSize, xTestCpu, yTestCpu);
+        }
+        private void Fit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateComputer learningRateComputer, int numEpochs, int batchSize, CpuTensor<T> xTestCpu = null, CpuTensor<T> yTestCpu = null) where T : struct
         {
             if (Config.UseDoublePrecision)
             {
-                InternalFit(xCpu.ToDoublePrecision(), yCpu.ToDoublePrecision(), learningRateScheduler, reduceLROnPlateau, numEpochs, batchSize, X_testCpu.ToDoublePrecision(), Y_testCpu.ToDoublePrecision());
+                InternalFit(xCpu.ToDoublePrecision(), yCpu.ToDoublePrecision(), learningRateComputer, numEpochs, batchSize, xTestCpu?.ToDoublePrecision(), yTestCpu?.ToDoublePrecision());
             }
             else
             {
-                InternalFit(xCpu.ToSinglePrecision(), yCpu.ToSinglePrecision(), learningRateScheduler, reduceLROnPlateau, numEpochs, batchSize, X_testCpu.ToSinglePrecision(), Y_testCpu.ToSinglePrecision());
+                InternalFit(xCpu.ToSinglePrecision(), yCpu.ToSinglePrecision(), learningRateComputer, numEpochs, batchSize, xTestCpu?.ToSinglePrecision(), yTestCpu?.ToSinglePrecision());
             }
         }
         //= ForwardPropagation
@@ -348,7 +354,7 @@ namespace SharpNet
         }
 
 
-        private void Save(string path)
+        private string Save(string path)
         {
             int indexLastCompletedEpoch = _epochsData.Count;
             var fileName = Path.Combine(path, "Network_" + Process.GetCurrentProcess().Id + "_" + indexLastCompletedEpoch + ".txt");
@@ -362,6 +368,7 @@ namespace SharpNet
             {
                 File.AppendAllLines(fileName, new[] { l.Serialize() });
             }
+            return fileName;
         }
         public void LogContent()
         {
@@ -373,7 +380,7 @@ namespace SharpNet
         #endregion
 
         [SuppressMessage("ReSharper", "UnusedParameter.Local")]
-        private void CheckInput<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, LearningRateScheduler learningRateScheduler, ReduceLROnPlateau reduceLROnPlateau, int numEpochs, int batchSize, CpuTensor<T> X_testCpu, CpuTensor<T> Y_testCpu) where T : struct
+        private void CheckInput<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateComputer learningRateComputer, int numEpochs, int batchSize, CpuTensor<T> X_testCpu, CpuTensor<T> Y_testCpu) where T : struct
         {
             Debug.Assert(xCpu.Shape[0] == yCpu.Shape[0]); //same number of tests
             if (!Layer.IsValidYSet(yCpu))
@@ -398,100 +405,137 @@ namespace SharpNet
             {
                 l.CheckConsistency();
             }
+            
         }
 
 
 
-        private EpochData NewEpochData(LearningRateScheduler learningRateScheduler, ReduceLROnPlateau reduceLROnPlateau)
+
+        /*
+        private double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch, ILearningRateScheduler lrScheduler, double learningRateMultiplicativeFactorFromReduceLrOnPlateau)
         {
-            int indexNewEpoch = _epochsData.Count + 1;
-            var learningRateFromScheduler = learningRateScheduler.LearningRate(indexNewEpoch);
-            var learningRateMultiplicativeFactorFromReduceLrOnPlateau = _epochsData.Count >=1 ?_epochsData.Last().LearningRateMultiplicativeFactorFromReduceLrOnPlateau:1.0;
-            if (reduceLROnPlateau != null && reduceLROnPlateau.ShouldReduceLrOnPlateau(_epochsData))
-            {
-                learningRateMultiplicativeFactorFromReduceLrOnPlateau *= reduceLROnPlateau.FactorForReduceLrOnPlateau;
-                Info("Reducing learningRate because of plateau at epoch " + indexNewEpoch + " (new multiplicative coeff:"+ learningRateMultiplicativeFactorFromReduceLrOnPlateau);
-            }
-            return new EpochData(indexNewEpoch, learningRateFromScheduler, learningRateMultiplicativeFactorFromReduceLrOnPlateau, double.NaN, double.NaN, double.NaN, double.NaN );
+            var learningRateFromScheduler = lrScheduler.LearningRate(epoch, blockIdInEpoch, nbBlocksInEpoch);
+            var learningRateWithPlateauReduction = learningRateFromScheduler * learningRateMultiplicativeFactorFromReduceLrOnPlateau;
+            learningRateWithPlateauReduction = Math.Max(learningRateWithPlateauReduction, Config.MinimumLearningRate);
+            return learningRateWithPlateauReduction;
         }
+        */
+
+        public double FindBestLearningRate(Tensor x, Tensor y, int miniBatchSize)
+        {
+            _spInternalFit.Start();
+        
+            Info("Looking for best learning rate...");
+            var learningRateFinder = new LearningRateFinder(miniBatchSize, x.Shape[0]);
+            bool CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockId)
+            {
+                _swComputeLoss?.Start();
+                var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction);
+                _swComputeLoss?.Stop();
+                return learningRateFinder.AddLossForLastBlockId(blockLoss);
+            }
+
+            MiniBatchGradientDescent(miniBatchSize, x, y, learningRateFinder, CallBackAfterEachMiniBatch);
+            //TODO : restore weights at there original values
+            //File.WriteAllText("c:/temp/ml/toto_"+DateTime.Now.Ticks+".csv", learningRateFinder.AsCsv());
+            var bestLearningRate = learningRateFinder.BestLearningRate();
+            Info("Best learning rate: "+ bestLearningRate);
+            _spInternalFit.Stop();
+            return bestLearningRate;
+        }
+
+
+
 
         //here T is already of the target precision (double or float)
-        private void InternalFit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, LearningRateScheduler learningRateScheduler, ReduceLROnPlateau reduceLrOnPlateau, int numEpochs, int batchSize, CpuTensor<T> xTestCpu, CpuTensor<T> yTestCpu) where T : struct
+        private void InternalFit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize, CpuTensor<T> xTestCpu, CpuTensor<T> yTestCpu) where T : struct
         {
             Debug.Assert(Config.TypeSize == xCpu.TypeSize);
             Debug.Assert(Config.TypeSize == yCpu.TypeSize);
-            _spInternalFit.Restart();
+            Debug.Assert(learningRateComputer != null);
+            _spInternalFit.Start();
 
-            CheckInput(xCpu, yCpu, learningRateScheduler, reduceLrOnPlateau, numEpochs, batchSize, xTestCpu, yTestCpu);
+            CheckInput(xCpu, yCpu, learningRateComputer, numEpochs, miniBatchSize, xTestCpu, yTestCpu);
             var yInputCpu = yCpu.Clone();
-            var X = ReformatToCorrectDevice_GPU_or_CPU(xCpu);
-            var Y = ReformatToCorrectDevice_GPU_or_CPU(yCpu);
+            var x = ReformatToCorrectDevice_GPU_or_CPU(xCpu);
+            var y = ReformatToCorrectDevice_GPU_or_CPU(yCpu);
             var xTest = ReformatToCorrectDevice_GPU_or_CPU(xTestCpu);
             var yTest = ReformatToCorrectDevice_GPU_or_CPU(yTestCpu);
             Info(ToString());
+            var blocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
             if (Config.UseGPU)
             {
                 LogDebug(Config.GpuWrapper.ToString());
             }
+            LogDebug("Training Set: " + x + " => " + y);
+            if (xTest != null)
+            {
+                LogDebug("Test Set: " + xTest + " => " + yTest);
+            }
+            Info("#Epochs=" + numEpochs + " BathSize=" + miniBatchSize);
+
 
             var enlargedXCpu = _imageDataGenerator.EnlargePictures(xCpu);
             var lastAutoSaveTime = DateTime.Now; //last time we saved the network
             for (;;)
             {
-                int indexNewEpoch = _epochsData.Count + 1;
-                if (indexNewEpoch > numEpochs)
+                int epoch = _epochsData.Count + 1;
+                if (epoch > numEpochs)
                 {
                     break;
                 }
 
                 var swEpoch = Stopwatch.StartNew();
 
-                var currentEpochData = NewEpochData(learningRateScheduler, reduceLrOnPlateau);
-                var epochLearningRate = Math.Max(currentEpochData.LearningRate, Config.MinimumLearningRate);
 
-                if (indexNewEpoch != 1) //for the very fist epoch we use exactly the same input, with no shuffling or data augmentation
+
+
+                var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(_epochsData);
+                if (learningRateComputer.ShouldReduceLrOnPlateau(_epochsData))
+                {
+                    Info("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
+                }
+
+
+                #region Data augmentation
+                if (epoch == 1)
+                {
+                    //for the very fist epoch we use exactly the same input, with no shuffling or data augmentation
+                }
+                else
                 {
                     _swCreateInputForEpoch?.Start();
                     _imageDataGenerator.CreateInputForEpoch(enlargedXCpu, yInputCpu, xCpu, yCpu, Config.RandomizeOrder);
                     _swCreateInputForEpoch?.Stop();
                 }
-                if (X.UseGPU)
+                if (x.UseGPU)
                 {
-                    ((GPUTensor<T>)X).CopyToDevice();
-                    ((GPUTensor<T>)Y).CopyToDevice();
+                    ((GPUTensor<T>)x).CopyToDevice();
+                    ((GPUTensor<T>)y).CopyToDevice();
                 }
+                #endregion
 
-                if (indexNewEpoch == 1)
-                {
-                    LogDebug("Training Set: " + X + " => " + Y);
-                    if (xTest != null)
-                    {
-                        LogDebug("Test Set: " + xTest + " => " + yTest);
-                    }
-                    Info("LearningRate=" + epochLearningRate + " #Epochs=" + numEpochs + " BathSize=" + batchSize);
-                }
-                var yPredicted = MiniBatchGradientDescent(batchSize, true, epochLearningRate, X, Y);
+                #region Mini Batch gradient descent
+                var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, blocksInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau);
+                var yPredicted = MiniBatchGradientDescent(miniBatchSize, x, y, learningRateComputer);
+                #endregion
 
                 //We display stats about the just finished epoch
                 _swComputeLossAndAccuracy?.Start();
-                var trainLossAndAccuracy = ComputeLossAndAccuracy_From_Expected_vs_Predicted(Y, yPredicted, Config.LossFunction);
-                currentEpochData.TrainingLoss = trainLossAndAccuracy.Item1;
-                currentEpochData.TrainingAccuracy = trainLossAndAccuracy.Item2;
-                var computeLossAndAccuracy = LossAndAccuracyToString(trainLossAndAccuracy, "");
-
+                var trainLossAndAccuracy = ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
+                var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracy, "");
+                Tuple<double, double> validationLossAndAccuracy = null;
                 if (xTest != null)
                 {
                     //We compute the validation (= test) loss&accuracy
-                    var validationLossAndAccuracy = ComputeLossAndAccuracy(batchSize, xTest, yTest);
-                    currentEpochData.ValidationLoss = validationLossAndAccuracy.Item1;
-                    currentEpochData.ValidationAccuracy = validationLossAndAccuracy.Item2;
-                    computeLossAndAccuracy += " - "+LossAndAccuracyToString(validationLossAndAccuracy, "val_");
+                    validationLossAndAccuracy = ComputeLossAndAccuracy(miniBatchSize, xTest, yTest);
+                    lossAndAccuracyMsg += " - "+LossAndAccuracyToString(validationLossAndAccuracy, "val_");
                 }
                 _swComputeLossAndAccuracy?.Stop();
-                currentEpochData.SecondsForEpoch = swEpoch.Elapsed.TotalSeconds;
-                double nbStepsByEpoch = ((double)X.Shape[0]) / batchSize;
-                var msByStep = (1000 * currentEpochData.SecondsForEpoch) / nbStepsByEpoch;
-                Info("Epoch " + indexNewEpoch + "/" + numEpochs + " - " + Math.Round(currentEpochData.SecondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(epochLearningRate, 8)+" - "+computeLossAndAccuracy);
+                double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
+                double nbStepsByEpoch = ((double)x.Shape[0]) / miniBatchSize;
+                var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
+                Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg);
                 if (Config.UseGPU)
                 {
                     LogDebug(Config.GpuWrapper.MemoryInfo());
@@ -501,35 +545,42 @@ namespace SharpNet
                     LogDebug(ProfilingComments());
                 }
 
-                if (  ((indexNewEpoch == numEpochs)&&(numEpochs>=10))
+                #region we save the network in a file if necessary
+                if (  ((epoch == numEpochs)&&(numEpochs>=10))
                     || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts) )
                 {
-                    Info("Saving network in directory '"+Config.AutoSavePath+"' ...");
                     var swSaveTime = Stopwatch.StartNew();
-                    Save(Config.AutoSavePath);
-                    Info("Network saved in directory '" + Config.AutoSavePath + "' in "+ Math.Round(swSaveTime.Elapsed.TotalSeconds,1)+ "s");
+                    Info("Saving network in directory '"+Config.AutoSavePath+"' ...");
+                    var fileName = Save(Config.AutoSavePath);
+                    Info("Network saved in file '" + fileName + "' in "+ Math.Round(swSaveTime.Elapsed.TotalSeconds,1)+ "s");
                     lastAutoSaveTime = DateTime.Now;
                 }
-                _epochsData.Add(currentEpochData);
+                #endregion
 
+                #region we save stats about the just finished epoch
+                var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracy.Item1, trainLossAndAccuracy.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
+                _epochsData.Add(currentEpochData);
+                #endregion
             }
             Info("Training for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
             if (!string.IsNullOrEmpty(Description))
             {
                 LogDebug("Network Name: "+Description);
             }
-            if (X.UseGPU)
+            if (x.UseGPU)
             {
-                X.Dispose();
+                x.Dispose();
             }
+            _spInternalFit.Stop();
         }
+
 
         #region compute Loss and Accuracy
         //returns : Tuple<loss, accuracy>
-        public Tuple<double, double> ComputeLossAndAccuracy(int miniBatchSize, Tensor X, Tensor yExpected)
+        public Tuple<double, double> ComputeLossAndAccuracy(int miniBatchSize, Tensor x, Tensor y)
         {
-            var yPredicted = MiniBatchGradientDescent(miniBatchSize, false, 0.0, X, yExpected);
-            return ComputeLossAndAccuracy_From_Expected_vs_Predicted(yExpected, yPredicted, Config.LossFunction);
+            var yPredicted = MiniBatchGradientDescent(miniBatchSize, x, y);
+            return ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
         }
         private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
         {
@@ -549,11 +600,11 @@ namespace SharpNet
         }
         #endregion
 
-        private Tensor ReformatToCorrectType(Tensor X)
+        private Tensor ReformatToCorrectType(Tensor x)
         {
-            X = ReformatToCorrectPrecision_float_or_double(X);
-            X = ReformatToCorrectDevice_GPU_or_CPU(X);
-            return X;
+            x = ReformatToCorrectPrecision_float_or_double(x);
+            x = ReformatToCorrectDevice_GPU_or_CPU(x);
+            return x;
         }
         //private ulong OccupiedMemoryInBytes => _layers.Select(x => x.OccupiedMemoryInBytes).Sum();
         private ulong BytesByBatchSize => Layers.Select(x => x.BytesByBatchSize).Sum();
@@ -595,6 +646,11 @@ namespace SharpNet
                 result += ", CreateInputForEpoch:" + Math.Round(100 * _swCreateInputForEpoch.ElapsedMilliseconds / totalMs, 0) + "%";
                 result += ", ComputeLossAndAccuracy:" + Math.Round(100 * _swComputeLossAndAccuracy.ElapsedMilliseconds / totalMs, 0) + "%";
                 result += " [Loss:" + Math.Round(100 * _swComputeLoss.ElapsedMilliseconds / totalMs, 0) + "%+Accuracy:"+ Math.Round(100 * _swComputeAccuracy.ElapsedMilliseconds / totalMs, 0) +"%]";
+                if (Config.UseGPU)
+                { 
+                    result += ", CopyToDevice:" + Math.Round(100 * Config.GpuWrapper.SwCopyToDevice.ElapsedMilliseconds / totalMs, 0) + "%";
+                    result += ", CopyToHost:" + Math.Round(100 * Config.GpuWrapper.SwCopyToHost.ElapsedMilliseconds / totalMs, 0) + "%";
+                }
                 result += ")";
             }
             return result;
@@ -611,47 +667,72 @@ namespace SharpNet
         }
         private void Info(string msg) { Config.Logger.Info(msg); }
         private void LogDebug(string msg) { Config.Logger.Debug(msg); }
-        private Tensor MiniBatchGradientDescent(int miniBatchSize, bool isTraining, double learningRateIfTraining, Tensor X, Tensor yExpected)
+
+        /// <summary>
+        /// Perform a mini batch gradient descent for an entire epoch, each mini batch will have 'miniBatchSize' elements
+        /// </summary>
+        /// <param name="miniBatchSize"></param>
+        /// <param name="x">The input</param>
+        /// <param name="y">Expected (target) output</param>
+        /// <param name="learningRateComputerIfTraining">null if we are just using the network to predict the results (without updating weights)
+        ///     not null if we need to update the weights between each mini batch</param>
+        /// <param name="callBackToStop">Optional callback to be called at the end of each mini batch,
+        ///     parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
+        ///     If the callback returns true we should stop the computation</param>
+        /// <returns>observed output associated with the input 'x'</returns>
+        private Tensor MiniBatchGradientDescent(int miniBatchSize, Tensor x, Tensor y, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, bool> callBackToStop = null)
         {
-            X = ReformatToCorrectType(X);
-            yExpected = ReformatToCorrectType(yExpected);
-            var entireBatchSize = X.Shape[0];
-            Debug.Assert(entireBatchSize == yExpected.Shape[0]);
+            x = ReformatToCorrectType(x);
+            y = ReformatToCorrectType(y);
+            bool isTraining = learningRateComputerIfTraining != null;
+            var entireBatchSize = x.Shape[0];
+            Debug.Assert(entireBatchSize == y.Shape[0]);
             if (miniBatchSize <= 0)
             {
                 throw new Exception("invalid miniBatchSize size (" + miniBatchSize + ")");
             }
-            int nbBatchBlock = (entireBatchSize + miniBatchSize - 1) / miniBatchSize;
+            int nbBatchBlock = NbBlocksInEpoch(miniBatchSize, entireBatchSize);
             var lastBlockSize = (nbBatchBlock==1)? entireBatchSize : (entireBatchSize % miniBatchSize);
+            int epoch = _epochsData.Count + 1;
+            var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(_epochsData) ?? 1.0;
             if (lastBlockSize == 0)
             {
                 lastBlockSize = miniBatchSize;
             }
-            _yPredictedBufferForMiniBatchGradientDescent = NewTensor(yExpected.Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
+            _yPredictedBufferForMiniBatchGradientDescent = NewTensor(y.Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
             int nbProcessed = 0;
+
             for (var blockId = 0; blockId < nbBatchBlock; blockId++)
             {
                 var blockSize = (blockId == nbBatchBlock - 1) ? lastBlockSize : miniBatchSize;
-                var xMiniBatch = X.ExtractSubTensor(blockId * miniBatchSize, blockSize);
-                var yExpectedMiniBatch = yExpected.ExtractSubTensor(blockId * miniBatchSize, blockSize);
+                var xMiniBatch = x.ExtractSubTensor(blockId * miniBatchSize, blockSize);
+                var yExpectedMiniBatch = y.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 var yPredictedMiniBatch = _yPredictedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);
-                
                 Layers.Last().Set_y(yPredictedMiniBatch);
-                var yPredictedMiniBatchV2 = Predict(xMiniBatch, isTraining);
-                Debug.Assert(ReferenceEquals(yPredictedMiniBatch, yPredictedMiniBatchV2));
+                Predict(xMiniBatch, isTraining);
                 if (isTraining)
                 {
                     BackwardPropagation(yExpectedMiniBatch);
-                    UpdateWeights(learningRateIfTraining);
+                    UpdateWeights(learningRateComputerIfTraining.LearningRate(epoch, blockId, nbBatchBlock, lrMultiplicativeFactorFromReduceLrOnPlateau));
                 }
                 if (!yPredictedMiniBatch.UseGPU)
                 {
                     yPredictedMiniBatch.CopyTo(0, _yPredictedBufferForMiniBatchGradientDescent, _yPredictedBufferForMiniBatchGradientDescent.Idx(nbProcessed), yPredictedMiniBatch.Count);
                 }
                 nbProcessed += xMiniBatch.Shape[0];
+                if (callBackToStop != null && callBackToStop(yExpectedMiniBatch, yPredictedMiniBatch, blockId))
+                {
+                    break;
+                }
             }
             return _yPredictedBufferForMiniBatchGradientDescent;
         }
+
+        private static int NbBlocksInEpoch(int miniBatchSize, int entireBatchSize)
+        {
+            return (entireBatchSize + miniBatchSize - 1) / miniBatchSize;
+        }
+
         private Tensor NewTensorOfSameValue<T>(int[] shape, T sameValue, string description) where T: struct
         {
             var data = new T[Utils.Product(shape)];

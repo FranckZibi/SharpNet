@@ -389,7 +389,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.475850999355316,0.251384913921356,0.27276411652565],[0.506687998771667,0.285933136940002,0.207378879189491]]");
             TestLossAccuracy(network, X, Y, null  /*  1.4464839696884155 */, 0.5);
 
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            var batchSize = X.Shape[0];
+            network.Fit(X, Y, learningRate* batchSize, numEpochs, batchSize);
 
             //predictions after training
             TestPredict(network, X, "[[0.894426345825195,0.00220351060852408,0.103370226919651],[0.0549939684569836,0.00156258791685104,0.943443357944489]]");

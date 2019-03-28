@@ -100,7 +100,7 @@ namespace SharpNet
             yWorkingSet = y.ToCategorical(1.0f, out _);
         }
 
-        public static LearningRateScheduler Cifar10LearningRateScheduler()
+        public static ILearningRateScheduler Cifar10LearningRateScheduler()
         {
             //return UpdatedCifar10LearningRateScheduler();
             var initialLearningRate = 0.1;
@@ -110,12 +110,12 @@ namespace SharpNet
         {
             return new ReduceLROnPlateau(Math.Sqrt(0.1), 5, 5);
         }
-        /*public static LearningRateScheduler UpdatedCifar10LearningRateScheduler()
+        /*public static ILearningRateScheduler UpdatedCifar10LearningRateScheduler()
         {
             var initialLearningRate = 0.1;
             return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10.0, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 160, initialLearningRate / 1000, 180, initialLearningRate / 2000);
         }*/
-        public static LearningRateScheduler ResNet110LearningRateScheduler()
+        public static ILearningRateScheduler ResNet110LearningRateScheduler()
         {
             //return UpdatedCifar10LearningRateScheduler();
             var initialLearningRate = 0.1;

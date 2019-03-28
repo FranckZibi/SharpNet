@@ -13,7 +13,7 @@ using SharpNetTests.Data;
 namespace SharpNetTests
 {
     [TestFixture]
-    public class TestCpuVersusGpu
+    public class TestParallelRunCpuVersusGpu
     {
         private const int BatchSize = 9;
         private const int FiltersCount = 8;

@@ -85,7 +85,7 @@ namespace SharpNetTests.NonReg
                 .Output(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
-            var learningRate = 0.0001;
+            var learningRate = 0.01;
             network.Fit(X_train, Y_train, learningRate, numEpochs, batchSize, X_test, Y_test);
             var elapsedMs = sw.Elapsed.TotalSeconds;
             var lossAndAccuracy = network.ComputeLossAndAccuracy(batchSize, X_test, Y_test);

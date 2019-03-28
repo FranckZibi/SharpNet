@@ -5,14 +5,18 @@ using SharpNet.Data;
 
 namespace SharpNet.Optimizers
 {
-    public class LearningRateScheduler
+    public interface ILearningRateScheduler
+    {
+        double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch);
+    }
+
+
+    public class LearningRateScheduler : ILearningRateScheduler
     {
         #region private fields
         private readonly List<KeyValuePair<int,double>> _values;
         private readonly bool _constantByInterval;
         #endregion
-
-
 
         #region Constructors
         private LearningRateScheduler(List<KeyValuePair<int, double>> values, bool constantByInterval)
@@ -81,9 +85,7 @@ namespace SharpNet.Optimizers
         }
         #endregion
 
-
-
-        public double LearningRate(int epoch)
+        public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
         {
             if (_values.Count == 1)
             {

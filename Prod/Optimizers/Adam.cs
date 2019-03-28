@@ -36,8 +36,9 @@ namespace SharpNet.Optimizers
             var beta1 = _networkConfig.Adam_beta1;
             var beta2 = _networkConfig.Adam_beta2;
             var epsilon = _networkConfig.Adam_epsilon;
-            weights.UpdateAdamOptimizer(learningRate, beta1, beta2, epsilon, weightGradients, adam_vW, adam_sW, _timestep);
-            bias?.UpdateAdamOptimizer(learningRate, beta1, beta2, epsilon, biasGradient, adam_vB, adam_sB, _timestep);
+            var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
+            weights.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, weightGradients, adam_vW, adam_sW, _timestep);
+            bias?.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, biasGradient, adam_vB, adam_sB, _timestep);
         }
 
         #region serialization

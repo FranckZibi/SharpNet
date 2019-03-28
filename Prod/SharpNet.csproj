@@ -50,7 +50,7 @@
     <Compile Include="Data\Tensor.cs" />
     <Compile Include="Data\TensorExtensions.cs" />
     <Compile Include="GPU\CublasWrapper.cs" />
-    <Compile Include="GPU\CudaDeviceMemory.cs" />
+    <Compile Include="GPU\DeviceMemory.cs" />
     <Compile Include="GPU\CudaRuntimeCompiler.cs" />
     <Compile Include="GPU\CudnnWrapper.cs" />
     <Compile Include="GPU\GpuTensor.cs" />
@@ -72,6 +72,9 @@
     <Compile Include="Network.cs" />
     <Compile Include="NetworkConfig.cs" />
     <Compile Include="Optimizers\Adam.cs" />
+    <Compile Include="Optimizers\ILearningRateComputer.cs" />
+    <Compile Include="Optimizers\LearningRateComputer.cs" />
+    <Compile Include="Optimizers\LearningRateFinder.cs" />
     <Compile Include="Optimizers\LearningRateScheduler.cs" />
     <Compile Include="Optimizers\Optimizer.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateau.cs" />

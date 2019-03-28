@@ -65,10 +65,11 @@
     <Compile Include="NonReg\TestMNIST.cs" />
     <Compile Include="NonReg\TestNetworkPropagation.cs" />
     <Compile Include="NonReg\TestResNetCIFAR10.cs" />
+    <Compile Include="Optimizers\LearningRateFinderTests.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateauTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TestCpuVersusGpu.cs" />
+    <Compile Include="TestParallelRunCpuVersusGpu.cs" />
     <Compile Include="TestGradient.cs" />
     <Compile Include="TestUtils.cs" />
   </ItemGroup>

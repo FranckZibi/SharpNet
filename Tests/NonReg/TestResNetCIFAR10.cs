@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Optimizers;
 
 
 /*
@@ -23,6 +24,24 @@ SGD with momentum = 0.9 & L2 = 1-e4
 # ResNet164 |27(18)| 91.48     | 94.07     | -----     | 94.54     | 91 (---)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
 # ---------------------------------------------------------------------------
+
+BatchSize = 128
+EpochCount = 160
+Adam & L2 = 1-e4
+# ----------------------------------------------------------------------------
+#           |      | 160-epoch | Orig Paper| 160-epoch | Orig Paper| sec/epoch
+# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080
+#           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)  
+# ---------------------------------------------------------------------------
+# ResNet20  | 3 (2)| 90.14     | 91.25     | 89.44     | -----     | 10 (17) 
+# ResNet32  | 5(NA)| 91.46     | 92.49     | -----     | NA        | 15 (NA) 
+# ResNet44  | 7(NA)| 91.70     | 92.83     | -----     | NA        | 20 (NA) 
+# ResNet56  | 9 (6)| 92.38     | 93.03     | error     | -----     | 26 (45) 
+# ResNet110 |18(12)| 92.43     | 93.39+-.16| -----     | 93.63     | 50 (---)
+# ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | 91 (---)
+# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
+# ---------------------------------------------------------------------------
+
 
 TensorFlow results: (see https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py)
 BatchSize = 32
@@ -161,7 +180,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet110V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet110V2_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, 64 /*BatchSize*/, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, 32 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         [Test, Explicit]
@@ -188,7 +207,7 @@ namespace SharpNetTests.NonReg
                 System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             return new Logger(logFileName, true);
         }
-        private static void LoadCifar10(out CpuTensor<float> xTrain, out CpuTensor<float> yTrain, out CpuTensor<float> xTest, out CpuTensor<float> yTest)
+        public static void LoadCifar10(out CpuTensor<float> xTrain, out CpuTensor<float> yTrain, out CpuTensor<float> xTest, out CpuTensor<float> yTest)
         {
             ResNetUtils.Load(out CpuTensor<byte> xTrainingSet, out var yTrainingSet, out var xTestSet, out var yTestSet);
             ResNetUtils.ToWorkingSet(xTrainingSet, yTrainingSet, out xTrain, out yTrain);
