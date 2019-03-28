@@ -26,7 +26,7 @@ namespace SharpNetTests.NonReg
 
             LoadDataSet(@"C:\Projects\SharpNet\Tests\Data\Course4Week1\test_signs.h5", "test_set_x", "test_set_y",
                 "list_classes", out var test_set_x_orig, out var test_set_y_orig, out _);
-            var test_set_x = test_set_x_orig.From_NHWC_to_NCHW(x => x / 255.0).ToCpu<double>();
+            var test_set_x = test_set_x_orig.From_NHWC_to_NCHW(x => x / 255.0);
             var test_set_y = test_set_y_orig.ToCategorical(1.0, out _);
 
             var logger = new Logger(LogFileName, true);

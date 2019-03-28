@@ -91,7 +91,7 @@ namespace SharpNet.Data
                 sb.Append(t.UseSinglePrecision ? ", numpy.float)" : ", numpy.double)");
             }
         }
-
+        /*
         public static bool HasNan(this Tensor t)
         {
             if (t.UseDoublePrecision)
@@ -112,6 +112,6 @@ namespace SharpNet.Data
                 }
                 return false;
             }
-        }
+        }*/
     }
 }

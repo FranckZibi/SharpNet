@@ -12,22 +12,24 @@ namespace SharpNet.Optimizers
     //The argument beta2 of Adam and the argument decay of RMSProp are the same
     public class Adam : Optimizer
     {
+     
         #region private fields
         private int _timestep = 1;
-        private readonly Tensor adam_vW;                      // same as 'Weights'
-        private readonly Tensor adam_sW;                      // same as 'Weights'
-        private readonly Tensor adam_vB;                      // same as 'Weights Bias'
-        private readonly Tensor adam_sB;                      // same as 'Weight Bias'
+        private readonly Tensor _adam_VW;                      // same as 'Weights'
+        private readonly Tensor _adam_SW;                      // same as 'Weights'
+        private readonly Tensor _adam_VB;                      // same as 'Weights Bias'
+        private readonly Tensor _adam_SB;                      // same as 'Weight Bias'
         #endregion
 
         public Adam(Network network, int[] weightShape, int[] biasShape) : base(network.Config)
         {
-            adam_vW = network.NewTensor(weightShape, nameof(adam_vW));
-            adam_sW = network.NewTensor(weightShape, nameof(adam_sW));
-            adam_vB = network.NewTensor(biasShape, nameof(adam_vB));
-            adam_sB = network.NewTensor(biasShape, nameof(adam_sB));
+            _adam_VW = network.NewNotInitializedTensor(weightShape, _adam_VW, nameof(_adam_VW));
+            _adam_SW = network.NewNotInitializedTensor(weightShape, _adam_SW, nameof(_adam_SW));
+            _adam_VB = network.NewNotInitializedTensor(biasShape, _adam_VB, nameof(_adam_VB));
+            _adam_SB = network.NewNotInitializedTensor(biasShape, _adam_SB, nameof(_adam_SB));
+            ResetWeights();
         }
-        public override List<Tensor> EmbeddedTensors => new List<Tensor> { adam_vW, adam_sW, adam_sB, adam_vB };
+        public override List<Tensor> EmbeddedTensors => new List<Tensor> { _adam_VW, _adam_SW, _adam_SB, _adam_VB };
         public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)
         {
             Debug.Assert(weights.SameShape(weightGradients));
@@ -37,8 +39,8 @@ namespace SharpNet.Optimizers
             var beta2 = _networkConfig.Adam_beta2;
             var epsilon = _networkConfig.Adam_epsilon;
             var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
-            weights.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, weightGradients, adam_vW, adam_sW, _timestep);
-            bias?.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, biasGradient, adam_vB, adam_sB, _timestep);
+            weights.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, weightGradients, _adam_VW, _adam_SW, _timestep);
+            bias?.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, biasGradient, _adam_VB, _adam_SB, _timestep);
         }
 
         #region serialization
@@ -46,20 +48,20 @@ namespace SharpNet.Optimizers
         {
             return new Serializer()
                 .Add(nameof(_timestep), _timestep)
-                .Add(adam_vW).Add(adam_sW).Add(adam_vB).Add(adam_sB)
+                .Add(_adam_VW).Add(_adam_SW).Add(_adam_VB).Add(_adam_SB)
                 .ToString();
         }
         public static Optimizer DeserializeAdam(NetworkConfig networkConfig, IDictionary<string, object> serialized)
         {
-            return serialized.ContainsKey(nameof(adam_vW)) ? new Adam(networkConfig, serialized) : null;
+            return serialized.ContainsKey(nameof(_adam_VW)) ? new Adam(networkConfig, serialized) : null;
         }
         private Adam(NetworkConfig networkConfig, IDictionary<string, object> serialized) : base(networkConfig)
         {
             _timestep = (int)serialized[nameof(_timestep)];
-            adam_vW = (Tensor)serialized[nameof(adam_vW)];
-            adam_sW = (Tensor)serialized[nameof(adam_sW)];
-            adam_vB = (Tensor)serialized[nameof(adam_vB)];
-            adam_sB = (Tensor)serialized[nameof(adam_sB)];
+            _adam_VW = (Tensor)serialized[nameof(_adam_VW)];
+            _adam_SW = (Tensor)serialized[nameof(_adam_SW)];
+            _adam_VB = (Tensor)serialized[nameof(_adam_VB)];
+            _adam_SB = (Tensor)serialized[nameof(_adam_SB)];
         }
         #endregion
 

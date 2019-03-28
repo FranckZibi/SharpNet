@@ -275,6 +275,11 @@ namespace SharpNet
             result += "Total params: " + TotalParams;
             return result;
         }
+
+        public void ResetWeights()
+        {
+            Layers.ForEach(l=>l?.ResetWeights());
+        }
         public override string ToString()
         {
             var result = Summary() + Environment.NewLine;
@@ -294,18 +299,10 @@ namespace SharpNet
         {
             get { return Layers.SelectMany(x => x.TensorsIndependantOfBatchSize).Where(x => x != null).ToList(); }
         }
-        public Tensor RandomMatrixNormalDistribution(int[] shape, double mean, double stdDev, string description)
-        {
-            if (Config.UseDoublePrecision)
-            {
-                var doubleCpuTensor = CpuTensor<double>.RandomDoubleNormalDistribution(shape, Config.Rand, mean, stdDev, description);
-                return Config.UseGPU ? (Tensor)doubleCpuTensor.ToGPU<double>(Config.GpuWrapper) : doubleCpuTensor;
-            }
-            var floatCpuTensor = CpuTensor<float>.RandomFloatNormalDistribution(shape, Config.Rand, mean, stdDev, description);
-            return Config.UseGPU ? (Tensor)floatCpuTensor.ToGPU<float>(Config.GpuWrapper) : floatCpuTensor;
-        }
         public int TotalParams => Layers.Select(x => x.TotalParams).Sum();
-        public Tensor NewTensor(int[] shape, Tensor bufferIfAny, string description)
+      
+
+        public Tensor NewNotInitializedTensor(int[] shape, Tensor bufferIfAny, string description)
         {
             //we check if we can re use the buffer 'bufferIfAny'
             if (bufferIfAny != null && bufferIfAny.CapacityInBytes >= bufferIfAny.ReallyNeededMemoryInBytesForShape(shape))
@@ -313,30 +310,19 @@ namespace SharpNet
                 bufferIfAny.Reshape(shape);
                 return bufferIfAny;
             }
-            return NewTensor(shape, description);
-        }
-        public Tensor NewTensor(int[] shape, string description)
-        {
             if (Config.UseDoublePrecision)
             {
                 return Config.UseGPU
-                    ? (Tensor)new GPUTensor<double>(shape, null, description, Config.GpuWrapper)
+                    ? (Tensor)new GPUTensor<double>(shape, IntPtr.Zero, description, Config.GpuWrapper)
                     : new CpuTensor<double>(shape, null, description);
             }
             else
             {
                 return Config.UseGPU
-                    ? (Tensor)new GPUTensor<float>(shape, null, description, Config.GpuWrapper)
+                    ? (Tensor)new GPUTensor<float>(shape, IntPtr.Zero, description, Config.GpuWrapper)
                     : new CpuTensor<float>(shape, null, description);
             }
         }
-        public Tensor NewTensor(int[] shape, double sameValue, string description)
-        {
-            return Config.UseDoublePrecision
-                ? NewTensorOfSameValue(shape, sameValue, description)
-                : NewTensorOfSameValue(shape, (float)sameValue, description);
-        }
-
         #region serialization
         public static Network ValueOf(string path)
         {
@@ -408,19 +394,6 @@ namespace SharpNet
             
         }
 
-
-
-
-        /*
-        private double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch, ILearningRateScheduler lrScheduler, double learningRateMultiplicativeFactorFromReduceLrOnPlateau)
-        {
-            var learningRateFromScheduler = lrScheduler.LearningRate(epoch, blockIdInEpoch, nbBlocksInEpoch);
-            var learningRateWithPlateauReduction = learningRateFromScheduler * learningRateMultiplicativeFactorFromReduceLrOnPlateau;
-            learningRateWithPlateauReduction = Math.Max(learningRateWithPlateauReduction, Config.MinimumLearningRate);
-            return learningRateWithPlateauReduction;
-        }
-        */
-
         public double FindBestLearningRate(Tensor x, Tensor y, int miniBatchSize)
         {
             _spInternalFit.Start();
@@ -436,10 +409,10 @@ namespace SharpNet
             }
 
             MiniBatchGradientDescent(miniBatchSize, x, y, learningRateFinder, CallBackAfterEachMiniBatch);
-            //TODO : restore weights at there original values
             //File.WriteAllText("c:/temp/ml/toto_"+DateTime.Now.Ticks+".csv", learningRateFinder.AsCsv());
             var bestLearningRate = learningRateFinder.BestLearningRate();
             Info("Best learning rate: "+ bestLearningRate);
+            ResetWeights(); //restore weights to there original values
             _spInternalFit.Stop();
             return bestLearningRate;
         }
@@ -487,9 +460,6 @@ namespace SharpNet
 
                 var swEpoch = Stopwatch.StartNew();
 
-
-
-
                 var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(_epochsData);
                 if (learningRateComputer.ShouldReduceLrOnPlateau(_epochsData))
                 {
@@ -510,8 +480,8 @@ namespace SharpNet
                 }
                 if (x.UseGPU)
                 {
-                    ((GPUTensor<T>)x).CopyToDevice();
-                    ((GPUTensor<T>)y).CopyToDevice();
+                    ((GPUTensor<T>)x).CopyToDevice(xCpu.HostPointer);
+                    ((GPUTensor<T>)y).CopyToDevice(yCpu.HostPointer);
                 }
                 #endregion
 
@@ -546,7 +516,7 @@ namespace SharpNet
                 }
 
                 #region we save the network in a file if necessary
-                if (  ((epoch == numEpochs)&&(numEpochs>=10))
+                if (  ((epoch == numEpochs)&&(numEpochs>10))
                     || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts) )
                 {
                     var swSaveTime = Stopwatch.StartNew();
@@ -699,7 +669,7 @@ namespace SharpNet
             {
                 lastBlockSize = miniBatchSize;
             }
-            _yPredictedBufferForMiniBatchGradientDescent = NewTensor(y.Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
+            _yPredictedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(y.Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
             int nbProcessed = 0;
 
             for (var blockId = 0; blockId < nbBatchBlock; blockId++)
@@ -731,27 +701,6 @@ namespace SharpNet
         private static int NbBlocksInEpoch(int miniBatchSize, int entireBatchSize)
         {
             return (entireBatchSize + miniBatchSize - 1) / miniBatchSize;
-        }
-
-        private Tensor NewTensorOfSameValue<T>(int[] shape, T sameValue, string description) where T: struct
-        {
-            var data = new T[Utils.Product(shape)];
-            for (int i = 0; i < data.Length; ++i)
-            {
-                data[i] = sameValue;
-            }
-            if (Config.UseDoublePrecision)
-            {
-                return Config.UseGPU
-                    ? new GPUTensor<T>(shape, data, description, Config.GpuWrapper)
-                    : (Tensor) new CpuTensor<T>(shape, data, description);
-            }
-            else
-            {
-                return Config.UseGPU
-                    ? (Tensor) new GPUTensor<T>(shape, data, description, Config.GpuWrapper)
-                    : new CpuTensor<T>(shape, data, description);
-            }
         }
     }
 }

@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="CPU\CpuTensor.cs" />
     <Compile Include="CPU\CpuTensorExtensions.cs" />
+    <Compile Include="CPU\HostPinnedMemory.cs" />
     <Compile Include="Data\BlasServices.cs" />
     <Compile Include="Data\EpochData.cs" />
     <Compile Include="Data\Serializer.cs" />

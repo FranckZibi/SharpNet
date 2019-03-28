@@ -6,7 +6,7 @@ using SharpNet.Optimizers;
 
 namespace SharpNet
 {
-    public class BatchNormalizationLayer : Layer
+    public sealed class BatchNormalizationLayer : Layer
     {
         #region Private fields
 
@@ -31,15 +31,16 @@ namespace SharpNet
             _momentum = momentum;
             _epsilon = epsilon;
             var scaleAndBiasShape = ScaleAndBiasShape();
-            _bnScale = Network.NewTensor(scaleAndBiasShape, 1.0, nameof(_bnScale));
-            _resultBnScaleDiff = Network.NewTensor(scaleAndBiasShape, nameof(_resultBnScaleDiff));
-            _bnBias = Network.NewTensor(scaleAndBiasShape, nameof(_bnBias));
-            _resultBnBiasDiff = Network.NewTensor(scaleAndBiasShape, nameof(_resultBnBiasDiff));
-            _resultRunningMean = Network.NewTensor(scaleAndBiasShape, nameof(_resultRunningMean));
-            _resultRunningVariance = Network.NewTensor(scaleAndBiasShape, 1.0, nameof(_resultRunningVariance));
-            _resultSaveMean = Network.NewTensor(scaleAndBiasShape, nameof(_resultSaveMean));
-            _resultSaveVariance = Network.NewTensor(scaleAndBiasShape, 1.0, nameof(_resultSaveVariance));
+            _bnScale = Network.NewNotInitializedTensor(scaleAndBiasShape, _bnScale, nameof(_bnScale));
+            _resultBnScaleDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultBnScaleDiff, nameof(_resultBnScaleDiff));
+            _bnBias = Network.NewNotInitializedTensor(scaleAndBiasShape, _bnBias, nameof(_bnBias));
+            _resultBnBiasDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultBnBiasDiff, nameof(_resultBnBiasDiff));
+            _resultRunningMean = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultRunningMean, nameof(_resultRunningMean));
+            _resultRunningVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultRunningVariance, nameof(_resultRunningVariance));
+            _resultSaveMean = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultSaveMean, nameof(_resultSaveMean));
+            _resultSaveVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultSaveVariance, nameof(_resultSaveVariance));
             _optimizer = Network.GetOptimizer(_bnScale.Shape, _bnBias.Shape);
+            ResetWeights(false);
 
             //We disable bias for the previous layers
             PreviousLayers.ForEach(l=>l.DisableBias());
@@ -112,6 +113,21 @@ namespace SharpNet
             Debug.Assert(_bnBias.SameShape(_resultBnBiasDiff));
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, _bnScale, _resultBnScaleDiff, _bnBias, _resultBnBiasDiff);
+        }
+        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        {
+            _bnScale.NewSameValueTensor(1.0);
+            _resultBnScaleDiff.ZeroMemory();
+            _bnBias.ZeroMemory();
+            _resultBnBiasDiff.ZeroMemory();
+            _resultRunningMean.ZeroMemory();
+            _resultRunningVariance.NewSameValueTensor(1.0);
+            _resultSaveMean.ZeroMemory();
+            _resultSaveVariance.NewSameValueTensor(1.0);
+            if (resetAlsoOptimizerWeights)
+            {
+                _optimizer.ResetWeights();
+            }
         }
         public override int TotalParams => _bnScale.Count + _resultBnScaleDiff.Count + _bnBias.Count + _resultBnBiasDiff.Count;
         public override string SummaryName() {return "BatchNorm";}

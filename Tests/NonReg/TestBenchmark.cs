@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using NUnit.Framework;
 using SharpNet;
+using SharpNet.CPU;
 using SharpNet.GPU;
 
 namespace SharpNetTests.NonReg
@@ -19,6 +20,8 @@ namespace SharpNetTests.NonReg
 
             //check RAM => GPU Copy perf
             var tmp_2GB = new double[250 * 1000000];
+            var hostPinnedMemory = new HostPinnedMemory<double>(tmp_2GB);
+
             var gpuContext = GPUWrapper.Default;
             logger.Info(gpuContext.ToString());
             double maxSpeed = 0;
@@ -29,7 +32,7 @@ namespace SharpNetTests.NonReg
                 var tensors = new GPUTensor<double>[1];
                 for(int t=0;t<tensors.Length;++t)
                 {
-                    tensors[t] = new GPUTensor<double>(new[] { tmp_2GB.Length}, tmp_2GB, "test", gpuContext);
+                    tensors[t] = new GPUTensor<double>(new[] { tmp_2GB.Length}, hostPinnedMemory.Pointer, "test", gpuContext);
                 }
                 logger.Info(gpuContext.ToString());
                 for (int t = 0; t < tensors.Length; ++t)
@@ -53,6 +56,7 @@ namespace SharpNetTests.NonReg
                 + maxSpeed + ";"
                 + Environment.NewLine
                 );
+            hostPinnedMemory.Dispose();
         }
 
 

@@ -6,7 +6,7 @@ using SharpNet.Optimizers;
 
 namespace SharpNet
 {
-    public class DenseLayer : Layer
+    public sealed class DenseLayer : Layer
     {
         #region Private fields
         public Tensor Weights { get; }                      // (prevLayer.n_x, n_x)
@@ -28,13 +28,14 @@ namespace SharpNet
             _n_x = n_x;
             _lambdaL2Regularization = lambdaL2Regularization;
             _useBias = true;
-            Weights = Network.RandomMatrixNormalDistribution(new[] { PrevLayer.n_x, _n_x }, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/, nameof(Weights));
-            WeightGradients = Network.NewTensor(Weights.Shape, nameof(WeightGradients));
-            Debug.Assert(WeightGradients.SameShape(Weights));
-            Bias = Network.NewTensor(new[] {1,  _n_x }, nameof(Bias));
-            BiasGradients = Network.NewTensor(Bias.Shape, nameof(BiasGradients));
-            Debug.Assert(Bias.SameShape(BiasGradients));
+            Weights = Network.NewNotInitializedTensor(new[] { PrevLayer.n_x, _n_x }, Weights, nameof(Weights));
+            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, WeightGradients, nameof(WeightGradients));
+            Bias = Network.NewNotInitializedTensor(new[] {1,  _n_x }, Bias, nameof(Bias));
+            BiasGradients = Network.NewNotInitializedTensor(Bias.Shape, BiasGradients, nameof(BiasGradients));
             _optimizer = Network.GetOptimizer(Weights.Shape, Bias.Shape);
+            ResetWeights(false);
+            Debug.Assert(WeightGradients.SameShape(Weights));
+            Debug.Assert(Bias.SameShape(BiasGradients));
         }
 
 
@@ -125,6 +126,17 @@ namespace SharpNet
         {
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Weights, WeightGradients, Bias, BiasGradients);
+        }
+        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        {
+            Weights.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+            WeightGradients.ZeroMemory();
+            Bias.ZeroMemory();
+            BiasGradients.ZeroMemory();
+            if (resetAlsoOptimizerWeights)
+            {
+                _optimizer.ResetWeights();
+            }
         }
         public override int[] OutputShape(int batchSize)
         {

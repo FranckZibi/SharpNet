@@ -110,53 +110,19 @@ namespace SharpNetTests.Data
 	        Assert.AreEqual(1, t.Width);
         }
 
-        public static bool SameContent(Tensor a, Tensor other, double epsilon)
+        public static bool SameContent(Tensor a, Tensor b, double epsilon)
         {
-            if (!a.SameShape(other))
+            if (!a.SameShape(b))
             {
                 return false;
             }
-            if (a.UseDoublePrecision != other.UseDoublePrecision)
+            var aDoubleContent = a.ExtractContentAsDoubleArray();
+            var bDoubleContent = b.ExtractContentAsDoubleArray();
+            for (int i = 0; i < a.Count; ++i)
             {
-                if (other.UseDoublePrecision)
+                if (Math.Abs(aDoubleContent[i] - bDoubleContent[i]) > epsilon)
                 {
-                    return SameContent(other, a, epsilon);
-                }
-                Debug.Assert(a.UseDoublePrecision);
-                var thisDoubleContent = a.UseGPU ? a.AsGPU<double>().DeviceContent() : a.ToCpu<double>().Content;
-                var otherFloatContent = other.UseGPU ? other.AsGPU<float>().DeviceContent() : other.ToCpu<float>().Content;
-                for (int i = 0; i < a.Count; ++i)
-                {
-                    if (Math.Abs(thisDoubleContent[i] - otherFloatContent[i]) > epsilon)
-                    {
-                        return false;
-                    }
-                }
-            }
-            else if (a.UseDoublePrecision)
-            {
-                Debug.Assert(other.UseDoublePrecision);
-                var thisContent = a.UseGPU ? a.AsGPU<double>().DeviceContent() : a.ToCpu<double>().Content;
-                var otherContent = other.UseGPU ? other.AsGPU<double>().DeviceContent() : other.ToCpu<double>().Content;
-                for (int i = 0; i < a.Count; ++i)
-                {
-                    if (Math.Abs(thisContent[i] - otherContent[i]) > epsilon)
-                    {
-                        return false;
-                    }
-                }
-            }
-            else
-            {
-                Debug.Assert(other.UseSinglePrecision);
-                var thisContent = a.UseGPU ? a.AsGPU<float>().DeviceContent() : a.ToCpu<float>().Content;
-                var otherContent = other.UseGPU ? other.AsGPU<float>().DeviceContent() : other.ToCpu<float>().Content;
-                for (int i = 0; i < a.Count; ++i)
-                {
-                    if (Math.Abs(thisContent[i] - otherContent[i]) > epsilon)
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
             return true;

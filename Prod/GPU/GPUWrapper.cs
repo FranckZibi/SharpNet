@@ -208,7 +208,9 @@ namespace SharpNet.GPU
         {
             var res = NVCudaWrapper.cuMemGetInfo_v2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes);
             CheckStatus(res);
-            var result = "FreeMemory: " + Utils.MemoryBytesToString(freeMemoryInBytes)  + "/" + Utils.MemoryBytesToString(totalMemoryInBytes);
+            var result = "Free Gpu Memory: " + Utils.MemoryBytesToString(freeMemoryInBytes)  + "/" + Utils.MemoryBytesToString(totalMemoryInBytes);
+            result += " - GetTotalMemory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false)) ;
+
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice)+" CopiedToDevice (" + _copyToDeviceCalls + "calls)";
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls)";
             return result;

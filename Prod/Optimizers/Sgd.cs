@@ -14,8 +14,9 @@ namespace SharpNet.Optimizers
 
         public Sgd(Network network, int[] weightShape, int[] biasShape): base(network.Config)
         {
-            _velocityWeight = network.NewTensor(weightShape, nameof(_velocityWeight));
-            _velocityBias = network.NewTensor(biasShape, nameof(_velocityBias));
+            _velocityWeight = network.NewNotInitializedTensor(weightShape, _velocityWeight, nameof(_velocityWeight));
+            _velocityBias = network.NewNotInitializedTensor(biasShape, _velocityBias, nameof(_velocityBias));
+            ResetWeights();
             _iterations = 0;
         }
         public override List<Tensor> EmbeddedTensors => new List<Tensor> { _velocityWeight, _velocityBias};

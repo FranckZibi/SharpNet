@@ -226,13 +226,11 @@ namespace SharpNet.Data
         {
             if (t.UseDoublePrecision)
             {
-                var data = t.UseGPU?t.AsGPU<double>().DeviceContent():t.AsDoubleCpuContent;
-                return Serialize(t.UseGPU, t.Description, typeof(double),t.Shape, ToString(data));
+                return Serialize(t.UseGPU, t.Description, typeof(double),t.Shape, ToString(t.ExtractContentAsDoubleArray()));
             }
             else
             {
-                var data = t.UseGPU ? t.AsGPU<float>().DeviceContent() : t.AsFloatCpuContent;
-                return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(data));
+                return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(t.ExtractContentAsFloatArray()));
             }
         }
 
@@ -271,13 +269,27 @@ namespace SharpNet.Data
             {
                 var data = Deserialize(splitted, count, startIndex, ParseDouble);
                 startIndex += count;
-                return isGpu ? (Tensor)new GPUTensor<double>(shape, data, description, gpuWrapper) : new CpuTensor<double>(shape, data, description);
+                if (!isGpu)
+                {
+                    return new CpuTensor<double>(shape, data, description);
+                }
+                using (var m = new HostPinnedMemory<double>(data))
+                {
+                    return new GPUTensor<double>(shape, m.Pointer, description, gpuWrapper);
+                }
             }
             if (string.Equals(typeAsString, "single", StringComparison.OrdinalIgnoreCase))
             {
                 var data = Deserialize(splitted, count, startIndex, ParseFloat);
                 startIndex += count;
-                return isGpu ? (Tensor)new GPUTensor<float>(shape, data, description, gpuWrapper) : new CpuTensor<float>(shape, data, description);
+                if (!isGpu)
+                {
+                    return new CpuTensor<float>(shape, data, description);
+                }
+                using (var m = new HostPinnedMemory<float>(data))
+                {
+                    return new GPUTensor<float>(shape, m.Pointer, description, gpuWrapper);
+                }
             }
             throw new NotImplementedException("do not know how to parse type " + typeAsString);
         }

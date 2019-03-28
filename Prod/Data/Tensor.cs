@@ -87,7 +87,7 @@ namespace SharpNet.Data
         }
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper) where T : struct
         {
-            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().Content, Description, gpuWrapper);
+            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
         }
         public static ulong OccupiedMemoryInBytes(IEnumerable<Tensor> tensors)
         {
@@ -191,9 +191,27 @@ namespace SharpNet.Data
         //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction);
-        public double[] ExtractContentAsDoubleArray()
+        public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
+        public abstract void NewSameValueTensor(double sameValue);
+        public abstract double[] ExtractContentAsDoubleArray();
+        public abstract float[] ExtractContentAsFloatArray();
+        protected static double[] ToDoubleArray(float[] data)
         {
-            return UseDoublePrecision ? ToCpu<double>().Content.ToArray() : ToCpu<float>().Content.Select(x => (double)x).ToArray();
+            var result = new double[data.Length];
+            for (int i = 0; i < data.Length; ++i)
+            {
+                result[i] = data[i];
+            }
+            return result;
+        }
+        protected static float[] ToFloatArray(double[] data)
+        {
+            var result = new float[data.Length];
+            for (int i = 0; i < data.Length; ++i)
+            {
+                result[i] = (float)data[i];
+            }
+            return result;
         }
         public string ContentStats()
         {
@@ -268,5 +286,6 @@ namespace SharpNet.Data
         {
             return (a != null && UseDoublePrecision == a.UseDoublePrecision && UseGPU == a.UseGPU);
         }
+
     }
 }

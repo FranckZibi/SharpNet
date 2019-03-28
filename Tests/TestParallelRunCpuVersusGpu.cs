@@ -341,9 +341,9 @@ namespace SharpNetTests
 	        var cpuFloat = new List<CpuTensor<float>>();
 	        cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
 	        var gpuDouble = new List<GPUTensor<double>>();
-	        gpuDouble.AddRange(data.Select(x => CloneToGPU(x, _gpuWrapper)));
+	        gpuDouble.AddRange(data.Select(x => x.ToGPU<double>(_gpuWrapper)));
 	        var gpuFloat = new List<GPUTensor<float>>();
-	        gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, _gpuWrapper)));
+	        gpuFloat.AddRange(cpuFloat.Select(x => x.ToGPU<float>(_gpuWrapper)));
 	        work(cpuDoubles.ToArray());
 	        work(cpuFloat.ToArray());
 	        work(gpuDouble.ToArray());
@@ -361,9 +361,9 @@ namespace SharpNetTests
             var cpuFloat = new List<CpuTensor<float>>();
             cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
             var gpuDouble = new List<GPUTensor<double>>();
-            gpuDouble.AddRange(data.Select(x => CloneToGPU(x, _gpuWrapper)));
+            gpuDouble.AddRange(data.Select(x => x.ToGPU<double>(_gpuWrapper)));
             var gpuFloat = new List<GPUTensor<float>>();
-            gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, _gpuWrapper)));
+            gpuFloat.AddRange(cpuFloat.Select(x => x.ToGPU<float>(_gpuWrapper)));
             var resultCpuDoubles = work(cpuDoubles.Select(x=>(Tensor)x).ToArray());
             var resultCpuFloat = work(cpuFloat.Select(x => (Tensor)x).ToArray());
             var resultGPUDoubles = work(gpuDouble.Select(x => (Tensor)x).ToArray());
@@ -375,11 +375,6 @@ namespace SharpNetTests
             {
                 AreEquals(cpuDoubles[i], cpuFloat[i], gpuDouble[i], gpuFloat[i]);
             }
-        }
-
-        private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper) where T : struct
-        {
-            return new GPUTensor<T>(cpuTensor.Shape, (T[])cpuTensor.Content.Clone(), cpuTensor.Description, gpuWrapper);
         }
     }
 }

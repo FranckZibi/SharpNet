@@ -74,6 +74,7 @@ namespace SharpNet
         public abstract void ForwardPropagation(bool isTraining);
         public abstract void BackwardPropagation();
         public virtual void UpdateWeights(double learningRate) { }
+        public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
         public abstract Tensor y { get; protected set; } //output of layer 
         // ReSharper disable once InconsistentNaming
         //gradient of layer output (= null if it is the input layer)
@@ -184,14 +185,14 @@ namespace SharpNet
             var outputShape = OutputShape(batchSize);
             if (y == null || !y.Shape.SequenceEqual(outputShape))
             {
-                y = Network.NewTensor(outputShape, y, nameof(y));
+                y = Network.NewNotInitializedTensor(outputShape, y, nameof(y));
             }
             if (dy == null || !dy.Shape.SequenceEqual(outputShape))
             {
-                dy = Network.NewTensor(outputShape, dy, nameof(dy));
+                dy = Network.NewNotInitializedTensor(outputShape, dy, nameof(dy));
                 if (NextLayers.Count >= 2)
                 {
-                    dyIdentityConnection = Network.NewTensor(outputShape, dyIdentityConnection, nameof(dyIdentityConnection));
+                    dyIdentityConnection = Network.NewNotInitializedTensor(outputShape, dyIdentityConnection, nameof(dyIdentityConnection));
                 }
             }
         }

@@ -15,7 +15,7 @@ namespace SharpNet
                         y.H = (x.H−F+2×pads) /Stride + 1
                         y.W = (x.W−F+2×pads) /Stride + 1
 */
-    public class ConvolutionLayer : Layer
+    public sealed class ConvolutionLayer : Layer
     {
         #region Private fields
         public override Tensor y { get; protected set; }        // (batchSize, FiltersCount, y.H, y.W)
@@ -43,12 +43,12 @@ namespace SharpNet
             this._padding = padding;
             _lambdaL2Regularization = lambdaL2Regularization;
             _useBias = true;
-            Convolution = Initialize_Convolution();
-            ConvolutionGradients = Network.NewTensor(Convolution.Shape, nameof(ConvolutionGradients));
-            var convolutionBiasShape = new[] { 1, _filtersCount, 1, 1 };
-            ConvolutionBias = Network.NewTensor(convolutionBiasShape, nameof(ConvolutionBias));
-            ConvolutionBiasGradients = Network.NewTensor(ConvolutionBias.Shape, nameof(ConvolutionBiasGradients));
+            Convolution = Network.NewNotInitializedTensor(ConvolutionShape, Convolution, nameof(Convolution));
+            ConvolutionGradients = Network.NewNotInitializedTensor(Convolution.Shape, ConvolutionGradients, nameof(ConvolutionGradients));
+            ConvolutionBias = Network.NewNotInitializedTensor(ConvolutionBiasShape, ConvolutionBias, nameof(ConvolutionBias));
+            ConvolutionBiasGradients = Network.NewNotInitializedTensor(ConvolutionBias.Shape, ConvolutionBiasGradients, nameof(ConvolutionBiasGradients));
             _optimizer = Network.GetOptimizer(Convolution.Shape, ConvolutionBias.Shape);
+            ResetWeights(false);
         }
 
         public override string Serialize()
@@ -148,6 +148,20 @@ namespace SharpNet
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Convolution, ConvolutionGradients, ConvolutionBias, ConvolutionBiasGradients);
         }
+        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        {
+            var fanIn = Convolution.MultDim0;
+            var fanOut = Convolution.Shape[0];
+            var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
+            Convolution.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, stdDev);
+            ConvolutionGradients .ZeroMemory();
+            ConvolutionBias.ZeroMemory();
+            ConvolutionBiasGradients.ZeroMemory();
+            if (resetAlsoOptimizerWeights)
+            {
+                _optimizer.ResetWeights();
+            }
+        }
         public override int TotalParams => Convolution.Count + (ConvolutionBias?.Count??0);
 
         public override void Dispose()
@@ -186,14 +200,16 @@ namespace SharpNet
                 return result;
             }
         }
-        private Tensor Initialize_Convolution()
+
+        private int[] ConvolutionShape
         {
-            var channelCountByFilter = PrevLayer.OutputShape(1)[1];
-            var fanIn = channelCountByFilter * _f * _f;
-            var fanOut = _filtersCount;
-            var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
-            var convolutionShape = new[] { _filtersCount, channelCountByFilter, _f, _f };
-            return Network.RandomMatrixNormalDistribution(convolutionShape, 0.0 /* mean */, stdDev, nameof(Convolution));
+            get
+            {
+                var channelCountByFilter = PrevLayer.OutputShape(1)[1];
+                return new[] { _filtersCount, channelCountByFilter, _f, _f };
+
+            }
         }
+        private int[] ConvolutionBiasShape => new[] { 1, _filtersCount, 1, 1 };
     }
 }

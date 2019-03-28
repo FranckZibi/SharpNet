@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
+using SharpNet.CPU;
 using SharpNet.Data;
 
 namespace SharpNet.GPU
@@ -14,54 +15,60 @@ namespace SharpNet.GPU
         public override ulong CapacityInBytes { get; }
         private GPUWrapper Wrapper { get; }
         private readonly DeviceMemory _deviceMemory;
-        private T[] _hostMemory;
         /// <summary>
         /// pointer to the memory area located in the host (= CPU)
         /// </summary>
-        private readonly IntPtr _hostMemoryPointer;
-        private GCHandle _handle;
+        private IntPtr _hostMemoryPointer;
         #endregion
 
         public GPUTensor(GPUTensor<T> memoryOwner, int[] shape, int offsetInBytes, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
         {
+            Debug.Assert(memoryOwner.DevicePointer != IntPtr.Zero);
+            Debug.Assert(memoryOwner._hostMemoryPointer != IntPtr.Zero);
             Wrapper = memoryOwner.Wrapper;
             CapacityInBytes = ReallyNeededMemoryInBytes;
-            _deviceMemory = new DeviceMemory(memoryOwner.DevicePointer+offsetInBytes, CapacityInBytes);         
-            _hostMemory = null;
+            _deviceMemory = new DeviceMemory(memoryOwner.DevicePointer+offsetInBytes, CapacityInBytes);
             _hostMemoryPointer = memoryOwner._hostMemoryPointer + offsetInBytes;
         }
-        public GPUTensor(int[] shape, T[] data, string description, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
+        public GPUTensor(int[] shape, IntPtr hostMemoryPointer, string description, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
         {
             Wrapper = wrapper;
             CapacityInBytes = ReallyNeededMemoryInBytes;
             _deviceMemory = new DeviceMemory(CapacityInBytes);
-            _hostMemory = data ?? new T[Count];
-            _handle = GCHandle.Alloc(_hostMemory, GCHandleType.Pinned);
-            _hostMemoryPointer = _handle.AddrOfPinnedObject();
-            if (data == null)
+            _hostMemoryPointer = hostMemoryPointer;
+            if (hostMemoryPointer != IntPtr.Zero)
             {
-                ZeroMemory();
-            }
-            else
-            {
-                CopyToDevice();
+                CopyToDevice(hostMemoryPointer);
             }
         }
-        public void CopyToDevice()
+
+        /// <summary>
+        /// copy from CPU (Host) to GPU (Device) memory
+        /// </summary>
+        /// <param name="hostPinnedPointer">point to host (pinned) memory (in CPU) </param>
+        public void CopyToDevice(IntPtr hostPinnedPointer)
         {
             Wrapper.SwCopyToDevice.Start();
-            //copy from CPU (Host) to GPU (Device) memory
             Wrapper.LogCopyToDeviceCall(ReallyNeededMemoryInBytes);
-            var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, _hostMemoryPointer, ReallyNeededMemoryInBytes);
+            var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, hostPinnedPointer, ReallyNeededMemoryInBytes);
             GPUWrapper.CheckStatus(res);
             Wrapper.SwCopyToDevice.Stop();
         }
         [SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
         public T[] DeviceContent()
         {
-            Wrapper.SwCopyToHost.Start();
             Debug.Assert(!_disposed);
+            Wrapper.SwCopyToHost.Start();
             Wrapper.LogCopyToHostCall(ReallyNeededMemoryInBytes);
+            T[] _hostMemory = null;
+            
+            var handle = new GCHandle();
+            if (_hostMemoryPointer == IntPtr.Zero)
+            {
+                _hostMemory = new T[Count];
+                handle = GCHandle.Alloc(_hostMemory, GCHandleType.Pinned);
+                _hostMemoryPointer = handle.AddrOfPinnedObject();
+            }
             var res = NVCudaWrapper.cuMemcpyDtoH_v2(_hostMemoryPointer, DevicePointer, ReallyNeededMemoryInBytes);
             GPUWrapper.CheckStatus(res);
             if (_hostMemory == null)
@@ -75,6 +82,10 @@ namespace SharpNet.GPU
                 {
                     Marshal.Copy(_hostMemoryPointer, _hostMemory as float[], 0, Count);
                 }
+            }
+            if (handle.IsAllocated)
+            {
+                handle.Free();
             }
             Wrapper.SwCopyToHost.Stop();
             return _hostMemory;
@@ -369,6 +380,67 @@ namespace SharpNet.GPU
                 ? yExpectedOneHot.ToCpu<double>().ComputeLoss(yPredicted.ToCpu<double>(), lossFunction)
                 : yExpectedOneHot.ToCpu<float>().ComputeLoss(yPredicted.ToCpu<float>(), lossFunction);
         }
+
+        public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
+        {
+            if (UseDoublePrecision)
+            {
+                var array = new double[Count];
+                Utils.RandomizeNormalDistribution(array, rand, mean, stdDev);
+                using (var f = new HostPinnedMemory<T>(array as T[]))
+                {
+                    CopyToDevice(f.Pointer);
+                }
+            }
+            else
+            {
+                var array = new float[Count];
+                Utils.RandomizeNormalDistribution(array, rand, mean, stdDev);
+                using (var f = new HostPinnedMemory<T>(array as T[]))
+                {
+                    CopyToDevice(f.Pointer);
+                }
+            }
+        }
+
+        public override void NewSameValueTensor(double sameValue)
+        {
+            if (UseDoublePrecision)
+            {
+                var array = new double[Count];
+                for (int i = 0; i < array.Length; ++i)
+                {
+                    array[i] = sameValue;
+                }
+                using (var f = new HostPinnedMemory<T>(array as T[]))
+                {
+                    CopyToDevice(f.Pointer);
+                }
+            }
+            else
+            {
+                var array = new float[Count];
+                var sameValueAsFloat = (float) sameValue;
+                for (int i = 0; i < array.Length; ++i)
+                {
+                    array[i] = sameValueAsFloat;
+                }
+                using (var f = new HostPinnedMemory<T>(array as T[]))
+                {
+                    CopyToDevice(f.Pointer);
+                }
+            }
+        }
+        public override double[] ExtractContentAsDoubleArray()
+        {
+            var deviceContent = DeviceContent();
+            return UseDoublePrecision ? (deviceContent as double[]) : ToDoubleArray(deviceContent as float[]);
+        }
+        public override float[] ExtractContentAsFloatArray()
+        {
+            var deviceContent = DeviceContent();
+            return UseDoublePrecision ? ToFloatArray(deviceContent as double[]) : (deviceContent as float[]);
+        }
         //this = yExpectedOneHot
         //TODO use a CUDA implementation of Compute Accuracy
         public override int ComputeAccuracy(Tensor yPredicted)
@@ -526,10 +598,6 @@ namespace SharpNet.GPU
                 GC.SuppressFinalize(this);
                 _randomNumberGeneratorStatesBuffer?.Dispose();
                 _dropoutReserveSpace?.Dispose();
-                if (_handle.IsAllocated)
-                {
-                    _handle.Free();
-                }
                 CudnnWrapper.cudnnDestroyDropoutDescriptor(_dropoutDescriptor);
             }
             _deviceMemory.Dispose();

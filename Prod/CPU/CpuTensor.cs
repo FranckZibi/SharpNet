@@ -13,6 +13,23 @@ namespace SharpNet.CPU
         #region fields
         public T[] Content { get; private set; }
         public override ulong CapacityInBytes { get; }
+        private HostPinnedMemory<T> _hostPinnedMemory;
+
+        /// <summary>
+        /// pointer to (pinned) host memory (in CPU)
+        /// </summary>
+        public IntPtr HostPointer
+        {
+            get
+            {
+                if (_hostPinnedMemory == null)
+                {
+                    _hostPinnedMemory = new HostPinnedMemory<T>(Content);
+                }
+                return _hostPinnedMemory.Pointer;
+            }
+        }
+
         #endregion
 
         public CpuTensor(int[] shape, T[] data, string description) : base(shape, Marshal.SizeOf(typeof(T)), false, description)
@@ -99,6 +116,7 @@ namespace SharpNet.CPU
                 }
             }
         }
+
         public void Map(Func<T, T> func, CpuTensor<T> result)
         {
             Debug.Assert(SameShape(result));
@@ -628,8 +646,9 @@ namespace SharpNet.CPU
         }
         public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
         {
-            var dy = this;
             int batchSize = x.Shape[0];
+#if DEBUG
+            var dy = this;
             Debug.Assert(AreCompatible(new List<Tensor> { dy, y, x, dx }));
             Debug.Assert(x.Dimension == 4);
             Debug.Assert(x.Shape[0] == dy.Shape[0]); //same batchSize
@@ -639,8 +658,8 @@ namespace SharpNet.CPU
             int wOutput = dy.Shape[3];
             Debug.Assert(hOutput == ((x.Shape[2] - poolingSize) / poolingStride + 1));
             Debug.Assert(wOutput == ((x.Shape[3] - poolingSize) / poolingStride + 1));
+#endif
             dx.ZeroMemory();
-
             if (PoolingLayer.IsMaxPooling(poolingMode))
             {
                 System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => MaxPoolingGradientForSingleElement(x, dx, poolingSize, poolingStride, elementIndex));
@@ -738,7 +757,7 @@ namespace SharpNet.CPU
                 }
             }
         }
-        #endregion
+#endregion
         public override void BroadcastAddVectorToOutput(Tensor y)
         {
             var bias = this;
@@ -1105,6 +1124,46 @@ namespace SharpNet.CPU
 
             return cost;
         }
+
+        public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
+        {
+            if (UseDoublePrecision)
+            {
+                Utils.RandomizeNormalDistribution(AsDoubleCpuContent, rand, mean, stdDev);
+            }
+            else
+            {
+                Utils.RandomizeNormalDistribution(AsFloatCpuContent, rand, mean, stdDev);
+            }
+        }
+        public override void NewSameValueTensor(double sameValue)
+        {
+            if (UseDoublePrecision)
+            {
+                var array = AsDoubleCpuContent;
+                for (int i = 0; i < array.Length; ++i)
+                {
+                    array[i] = sameValue;
+                }
+            }
+            else
+            {
+                var array = AsFloatCpuContent;
+                var sameValueAsFloat = (float)sameValue;
+                for (int i = 0; i < array.Length; ++i)
+                {
+                    array[i] = sameValueAsFloat;
+                }
+            }
+        }
+        public override double[] ExtractContentAsDoubleArray()
+        {
+            return UseDoublePrecision ? AsDoubleCpuContent : ToDoubleArray(AsFloatCpuContent);
+        }
+        public override float[] ExtractContentAsFloatArray()
+        {
+            return UseDoublePrecision ? ToFloatArray(AsDoubleCpuContent) : AsFloatCpuContent;
+        }
         //this method is only called for display / logging testing
         //this = yExpected
         public override int ComputeAccuracy(Tensor yPredicted)
@@ -1215,14 +1274,16 @@ namespace SharpNet.CPU
             //var tmpTranspose = new double[b.Count];
             //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
         }
-        #endregion
+#endregion
 
-        #region Dispose pattern
+#region Dispose pattern
         public override void Dispose()
         {
+            _hostPinnedMemory?.Dispose();
+            _hostPinnedMemory = null;
             Content = null;
         }
-        #endregion
+#endregion
 
         private CpuTensor<T> Merge(CpuTensor<T> b, Func<T, T, T> func, string description)
         {

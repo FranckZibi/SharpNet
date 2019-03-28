@@ -72,7 +72,8 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class TestResNetCIFAR10
     {
-        private const int NumEpochs = 160; //64k iterations
+        private const int NumEpochs = 5;
+        //?D private const int NumEpochs = 160; //64k iterations
         //private const int NumEpochs = 200;
         private const int BatchSize = 128;
         //private const int BatchSize = 32;

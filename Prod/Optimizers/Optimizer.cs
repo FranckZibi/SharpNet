@@ -33,6 +33,10 @@ namespace SharpNet.Optimizers
         }
         public abstract List<Tensor> EmbeddedTensors { get; }
         public abstract void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient);
+        public void ResetWeights()
+        {
+            EmbeddedTensors.ForEach(t => t?.ZeroMemory());
+        }
         public abstract string Serialize();
         public void Dispose()
         {
