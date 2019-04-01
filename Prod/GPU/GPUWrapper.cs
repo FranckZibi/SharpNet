@@ -210,9 +210,8 @@ namespace SharpNet.GPU
             CheckStatus(res);
             var result = "Free Gpu Memory: " + Utils.MemoryBytesToString(freeMemoryInBytes)  + "/" + Utils.MemoryBytesToString(totalMemoryInBytes);
             result += " - GetTotalMemory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false)) ;
-
-            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice)+" CopiedToDevice (" + _copyToDeviceCalls + "calls)";
-            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls)";
+            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice)+" CopiedToDevice (" + _copyToDeviceCalls + "calls, "+ SwCopyToDevice.ElapsedMilliseconds+"ms)";
+            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
             return result;
         }
 

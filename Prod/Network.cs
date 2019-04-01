@@ -30,6 +30,8 @@ namespace SharpNet
         private readonly Stopwatch _swComputeLoss;
         private readonly Stopwatch _swComputeAccuracy;
         private Tensor _yPredictedBufferForMiniBatchGradientDescent;
+        private Tensor bufferComputeAccuracy;
+        private Tensor bufferComputeLoss;
         private readonly List<EpochData> _epochsData;
         #endregion
 
@@ -56,10 +58,14 @@ namespace SharpNet
             Layers.ForEach(x => x?.Dispose());
             Layers.Clear();
             _epochsData.Clear();
+            bufferComputeAccuracy?.Dispose();
+            bufferComputeLoss?.Dispose();
+            _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
+
         }
 
-        #region network construction: adding layers
-        public Network Input(int channelCount, int h, int w)
+    #region network construction: adding layers
+    public Network Input(int channelCount, int h, int w)
         {
             ClearMemory();
             Layers.Add(new InputLayer(channelCount, h, w, this));
@@ -313,13 +319,13 @@ namespace SharpNet
             if (Config.UseDoublePrecision)
             {
                 return Config.UseGPU
-                    ? (Tensor)new GPUTensor<double>(shape, IntPtr.Zero, description, Config.GpuWrapper)
+                    ? (Tensor)new GPUTensor<double>(shape, description, Config.GpuWrapper)
                     : new CpuTensor<double>(shape, null, description);
             }
             else
             {
                 return Config.UseGPU
-                    ? (Tensor)new GPUTensor<float>(shape, IntPtr.Zero, description, Config.GpuWrapper)
+                    ? (Tensor)new GPUTensor<float>(shape, description, Config.GpuWrapper)
                     : new CpuTensor<float>(shape, null, description);
             }
         }
@@ -403,7 +409,8 @@ namespace SharpNet
             bool CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockId)
             {
                 _swComputeLoss?.Start();
-                var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction);
+                bufferComputeLoss = NewNotInitializedTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
+                var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, bufferComputeLoss);
                 _swComputeLoss?.Stop();
                 return learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
@@ -552,15 +559,19 @@ namespace SharpNet
             var yPredicted = MiniBatchGradientDescent(miniBatchSize, x, y);
             return ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
         }
+
+
         private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
         {
             _swComputeAccuracy?.Start();
             yExpected = ReformatToCorrectType(yExpected);
             yPredicted = ReformatToCorrectType(yPredicted);
-            var countOk = yExpected.ComputeAccuracy(yPredicted);
+            bufferComputeAccuracy = NewNotInitializedTensor(new []{ yExpected.Shape[0]}, bufferComputeAccuracy, nameof(bufferComputeAccuracy));
+            var countOk = yExpected.ComputeAccuracy(yPredicted, bufferComputeAccuracy);
             _swComputeAccuracy?.Stop();
             _swComputeLoss?.Start();
-            var totalLoss = yExpected.ComputeLoss(yPredicted, lossFunction);
+            bufferComputeLoss = NewNotInitializedTensor(new[] { yExpected.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
+            var totalLoss = yExpected.ComputeLoss(yPredicted, lossFunction, bufferComputeLoss);
             _swComputeLoss?.Stop();
             return Tuple.Create(totalLoss, countOk / ((double)yExpected.Shape[0]));
         }
@@ -616,11 +627,6 @@ namespace SharpNet
                 result += ", CreateInputForEpoch:" + Math.Round(100 * _swCreateInputForEpoch.ElapsedMilliseconds / totalMs, 0) + "%";
                 result += ", ComputeLossAndAccuracy:" + Math.Round(100 * _swComputeLossAndAccuracy.ElapsedMilliseconds / totalMs, 0) + "%";
                 result += " [Loss:" + Math.Round(100 * _swComputeLoss.ElapsedMilliseconds / totalMs, 0) + "%+Accuracy:"+ Math.Round(100 * _swComputeAccuracy.ElapsedMilliseconds / totalMs, 0) +"%]";
-                if (Config.UseGPU)
-                { 
-                    result += ", CopyToDevice:" + Math.Round(100 * Config.GpuWrapper.SwCopyToDevice.ElapsedMilliseconds / totalMs, 0) + "%";
-                    result += ", CopyToHost:" + Math.Round(100 * Config.GpuWrapper.SwCopyToHost.ElapsedMilliseconds / totalMs, 0) + "%";
-                }
                 result += ")";
             }
             return result;

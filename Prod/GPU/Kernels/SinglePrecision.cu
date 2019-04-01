@@ -33,4 +33,67 @@
 		}
 	}
 
+	__global__ void ComputeAccuracy(int N, int categoryCount, float *countOk, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted) 
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			if (categoryCount == 1)
+			{
+				float error = fabsf(yExpectedOneHot[i] - yPredicted[i]);
+				countOk[i] = (error < 0.5f) ? 1.0f : 0.0f;
+				return;
+			}
+
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			int maxIndex = startIndex;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				if (yPredicted[j] > yPredicted[maxIndex])
+					maxIndex = j;
+			}
+			countOk[i] = (yExpectedOneHot[maxIndex] > 0.9f) ? 1.0f : 0.0f;
+		}
+	}
+
+	__global__ void ComputeCategoricalCrossentropyLoss(int N, int categoryCount, float *losses, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			float loss = 0.0f;
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			int maxIndex = startIndex;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float predicted = yPredicted[j];
+				float expected = yExpectedOneHot[j];
+				if (predicted > 0)
+					loss -= expected * logf(predicted);
+			}
+			losses[i] = loss;
+		}
+	}
+
+	__global__ void ComputeBinaryCrossentropyLoss(int N, int categoryCount, float *losses, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			float loss = 0.0f;
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			int maxIndex = startIndex;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float predicted = yPredicted[j];
+				float expected = yExpectedOneHot[j];
+				//if ((predicted>0.01)&&(predicted<0.99f))
+				if ((predicted>0.0f)&&(predicted<1.0f))
+					loss -= (expected*logf(predicted) + (1.0f-expected)*logf(1.0f-predicted))/ categoryCount;
+			}
+			losses[i] = loss;
+		}
+	}
+
+
 }

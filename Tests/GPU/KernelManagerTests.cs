@@ -32,14 +32,14 @@ namespace SharpNetTests.GPU
             //GPU double precision test
             Tensor a = aCpu.ToGPU<double>(_gpuWrapper);
             Tensor b = bCpu.ToGPU<double>(_gpuWrapper);
-            Tensor resultGpu = new GPUTensor<double>(shape, IntPtr.Zero, "resultGpu", _gpuWrapper);
+            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", _gpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
             Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-9));
 
             //GPU single precision test
             a = aCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
             b = bCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
-            resultGpu = new GPUTensor<float>(shape, IntPtr.Zero, "resultGpu", _gpuWrapper);
+            resultGpu = new GPUTensor<float>(shape, "resultGpu", _gpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
             Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-2));
         }
@@ -86,7 +86,7 @@ namespace SharpNetTests.GPU
             Console.WriteLine("8 CPU Double Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu * 8)) + "ms");
             Tensor a = aCpu.ToGPU<double>(_gpuWrapper);
             Tensor b = bCpu.ToGPU<double>(_gpuWrapper);
-            Tensor resultGpu = new GPUTensor<double>(shape, IntPtr.Zero, "resultGpu", _gpuWrapper);
+            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", _gpuWrapper);
             sw = Stopwatch.StartNew();
             for (int batchid = 0; batchid < nbBatchGPU; ++batchid)
             {
@@ -95,7 +95,7 @@ namespace SharpNetTests.GPU
             Console.WriteLine("1 GPU Double Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
             a = aCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
             b = bCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
-            resultGpu = new GPUTensor<float>(shape, IntPtr.Zero, "resultGpu", _gpuWrapper);
+            resultGpu = new GPUTensor<float>(shape, "resultGpu", _gpuWrapper);
             sw = Stopwatch.StartNew();
             for (int batchid = 0; batchid < nbBatchGPU; ++batchid)
             {

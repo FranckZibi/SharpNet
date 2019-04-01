@@ -116,8 +116,8 @@ namespace SharpNetTests.Data
             {
                 return false;
             }
-            var aDoubleContent = a.ExtractContentAsDoubleArray();
-            var bDoubleContent = b.ExtractContentAsDoubleArray();
+            var aDoubleContent = a.ContentAsDoubleArray();
+            var bDoubleContent = b.ContentAsDoubleArray();
             for (int i = 0; i < a.Count; ++i)
             {
                 if (Math.Abs(aDoubleContent[i] - bDoubleContent[i]) > epsilon)

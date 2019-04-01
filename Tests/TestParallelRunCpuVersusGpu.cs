@@ -288,6 +288,7 @@ namespace SharpNetTests
             TestAll(new[] { W, dW, velocity }, tensors => tensors[0].UpdateSGDOptimizer(learningRate, momentum, decay, usenesterov, tensors[1], tensors[2]));
         }
 
+        
         [TestCase(1, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(1, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
         [TestCase(2, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
@@ -296,10 +297,11 @@ namespace SharpNetTests
         [TestCase(10, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
         public void TestComputeLoss(int nbCategories, NetworkConfig.LossFunctionEnum lossFunction)
         {
-            var nbRows = 10000;
+            var nbRows = 1000;
             var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
             var yExpectedOneHot = RandomOneHotTensor(yPredicted.Shape, "yExpectedOneHot");
-            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted }, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction));
+            var buffer = RandomTensor(new[] { nbRows }, "buffer");
+            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
         }
 
         [TestCase(10)]
@@ -309,8 +311,10 @@ namespace SharpNetTests
             var nbRows = 10000;
             var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
             var yExpectedOneHot = RandomOneHotTensor(yPredicted.Shape, "yExpectedOneHot");
-            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted}, tensors => tensors[0].ComputeAccuracy(tensors[1]));
+            var buffer = RandomTensor(new[] { nbRows}, "buffer");
+            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
+        
 
         private CpuTensor<double> RandomTensor(int[] shape, string description)
 	    {
@@ -341,9 +345,9 @@ namespace SharpNetTests
 	        var cpuFloat = new List<CpuTensor<float>>();
 	        cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
 	        var gpuDouble = new List<GPUTensor<double>>();
-	        gpuDouble.AddRange(data.Select(x => x.ToGPU<double>(_gpuWrapper)));
+	        gpuDouble.AddRange(data.Select(x => CloneToGPU(x,_gpuWrapper)));
 	        var gpuFloat = new List<GPUTensor<float>>();
-	        gpuFloat.AddRange(cpuFloat.Select(x => x.ToGPU<float>(_gpuWrapper)));
+	        gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, _gpuWrapper)));
 	        work(cpuDoubles.ToArray());
 	        work(cpuFloat.ToArray());
 	        work(gpuDouble.ToArray());
@@ -354,27 +358,38 @@ namespace SharpNetTests
 	        }
 	    }
 
-        private void TestAllForReturnValue(CpuTensor<double>[] data, Func<Tensor[], double> work)
+        private void TestAllForReturnValue(CpuTensor<double>[] data, Func<Tensor[], double> work, List<int> tensorIdsToIgnore = null)
         {
             var cpuDoubles = new List<CpuTensor<double>>();
             cpuDoubles.AddRange(data);
             var cpuFloat = new List<CpuTensor<float>>();
             cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
             var gpuDouble = new List<GPUTensor<double>>();
-            gpuDouble.AddRange(data.Select(x => x.ToGPU<double>(_gpuWrapper)));
+            gpuDouble.AddRange(data.Select(x => CloneToGPU(x, _gpuWrapper)));
             var gpuFloat = new List<GPUTensor<float>>();
-            gpuFloat.AddRange(cpuFloat.Select(x => x.ToGPU<float>(_gpuWrapper)));
+            gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, _gpuWrapper)));
             var resultCpuDoubles = work(cpuDoubles.Select(x=>(Tensor)x).ToArray());
             var resultCpuFloat = work(cpuFloat.Select(x => (Tensor)x).ToArray());
             var resultGPUDoubles = work(gpuDouble.Select(x => (Tensor)x).ToArray());
             var resultGPUFloat = work(gpuFloat.Select(x => (Tensor)x).ToArray());
-            Assert.AreEqual(resultCpuDoubles, resultGPUDoubles, 1e-9);
-            Assert.AreEqual(resultCpuDoubles, resultCpuFloat, 1e-5);
-            Assert.AreEqual(resultCpuDoubles, resultGPUFloat, 1e-5);
+            Assert.AreEqual(resultCpuDoubles, resultGPUDoubles, 1e-7);
+            Assert.AreEqual(resultCpuDoubles, resultCpuFloat, 1e-5, cpuDoubles.Last().Content.Min() + " vs " + cpuFloat.Last().Content.Min());
+            Assert.AreEqual(resultCpuDoubles, resultGPUFloat, 1e-5, cpuDoubles.Last().Content.Min() + " vs "+gpuFloat.Last().ContentAsDoubleArray().Min());
             for (var i = 0; i < cpuDoubles.Count; ++i)
             {
+                if (tensorIdsToIgnore != null && tensorIdsToIgnore.Contains(i))
+                {
+                    continue;
+                }
                 AreEquals(cpuDoubles[i], cpuFloat[i], gpuDouble[i], gpuFloat[i]);
             }
+        }
+
+        private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper) where T : struct
+        {
+            var result =  new GPUTensor<T>(cpuTensor.Shape, cpuTensor.Description, gpuWrapper);
+            result.CopyToDevice(cpuTensor.Content);
+            return result;
         }
     }
 }

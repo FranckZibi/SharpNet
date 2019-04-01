@@ -2,7 +2,6 @@
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
-using SharpNet.Optimizers;
 
 
 /*
@@ -67,14 +66,12 @@ n = 5
 namespace SharpNetTests.NonReg
 {
     /// <summary>
-    /// Train a ResNet Network (V1&V2) on Cifar10 dataset has described in https://arxiv.org/pdf/1512.03385.pdf & https://arxiv.org/pdf/1603.05027.pdf
+    /// Train a ResNet Network (V1 & V2) on Cifar10 dataset has described in https://arxiv.org/pdf/1512.03385.pdf & https://arxiv.org/pdf/1603.05027.pdf
     /// </summary>
     [TestFixture]
     public class TestResNetCIFAR10
     {
-        private const int NumEpochs = 5;
-        //?D private const int NumEpochs = 160; //64k iterations
-        //private const int NumEpochs = 200;
+        private const int NumEpochs = 160; //64k iterations
         private const int BatchSize = 128;
         //private const int BatchSize = 32;
 

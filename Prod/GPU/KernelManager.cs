@@ -41,7 +41,10 @@ namespace SharpNet.GPU
                 {
                     "Sum",
                     "UpdateAdamOptimizer",
-                    "UpdateSGDOptimizer"
+                    "UpdateSGDOptimizer",
+                    "ComputeAccuracy",
+                    "ComputeCategoricalCrossentropyLoss",
+                    "ComputeBinaryCrossentropyLoss"
                 },
                 @"C:\Projects\SharpNet\Prod\GPU\Kernels\DoublePrecision.cu",
                 @"C:\Projects\SharpNet\Prod\GPU\Kernels\SinglePrecision.cu",

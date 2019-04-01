@@ -226,11 +226,11 @@ namespace SharpNet.Data
         {
             if (t.UseDoublePrecision)
             {
-                return Serialize(t.UseGPU, t.Description, typeof(double),t.Shape, ToString(t.ExtractContentAsDoubleArray()));
+                return Serialize(t.UseGPU, t.Description, typeof(double),t.Shape, ToString(t.ContentAsDoubleArray()));
             }
             else
             {
-                return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(t.ExtractContentAsFloatArray()));
+                return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(t.ContentAsFloatArray()));
             }
         }
 

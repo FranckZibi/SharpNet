@@ -32,5 +32,66 @@
 
 		}
 	}
+
+	__global__ void ComputeAccuracy(int N, int categoryCount, double *countOk, const double* __restrict yExpectedOneHot, const double* __restrict yPredicted) 	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x; 
+		if (i < N) {
+			if (categoryCount == 1)
+			{
+				float error = fabsf(yExpectedOneHot[i] - yPredicted[i]);
+				countOk[i] = (error < 0.5) ? 1.0 : 0.0;
+				return;
+			}
+
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			int maxIndex = startIndex;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				if (yPredicted[j] > yPredicted[maxIndex])
+					maxIndex = j;
+			}
+			countOk[i] = (yExpectedOneHot[maxIndex] > 0.9) ? 1.0 : 0.0;
+		}
+	}
+
+	__global__ void ComputeCategoricalCrossentropyLoss(int N, int categoryCount, double *losses, const double* __restrict yExpectedOneHot, const double* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			double loss = 0.0;
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			int maxIndex = startIndex;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				double predicted = yPredicted[j];
+				double expected = yExpectedOneHot[j];
+				if (predicted > 0)
+					loss -= expected * logf(predicted);
+			}
+			losses[i] = loss;
+		}
+	}
+
+	__global__ void ComputeBinaryCrossentropyLoss(int N, int categoryCount, double *losses, const double* __restrict yExpectedOneHot, const double* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			double loss = 0.0;
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			int maxIndex = startIndex;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				double predicted = yPredicted[j];
+				double expected = yExpectedOneHot[j];
+				if ((predicted > 0.0)&&(predicted<1.0))
+					loss -= (expected*logf(predicted) + (1.0-expected)*logf(1.0-predicted))/ categoryCount;
+			}
+			losses[i] = loss;
+		}
+	}
+
 	
 }

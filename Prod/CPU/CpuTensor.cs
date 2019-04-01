@@ -139,18 +139,6 @@ namespace SharpNet.CPU
         {
             return new CpuTensor<T>(Shape, (T[])Content.Clone(), Description+" cloned");
         }
-        public static CpuTensor<double> RandomDoubleNormalDistribution(int[] shape, Random rand, double mean, double stdDev, string description)
-        {
-            var result = new CpuTensor<double>(shape, description);
-            Utils.RandomizeNormalDistribution(result.Content, rand, mean, stdDev);
-            return result;
-        }
-        public static CpuTensor<float> RandomFloatNormalDistribution(int[] shape, Random rand, double mean, double stdDev, string description)
-        {
-            var result = new CpuTensor<float>(shape, description);
-            Utils.RandomizeNormalDistribution(result.Content, rand, mean, stdDev);
-            return result;
-        }
 
         #region Tensor implementation
         public override void UpdateSGDOptimizer(double learningRate, double momentum, double decay, bool usenesterov, Tensor dW, Tensor velocity)
@@ -1069,7 +1057,7 @@ namespace SharpNet.CPU
             }
         }
         //this = yExpected
-        public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
+        public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(yPredicted != null);
@@ -1156,17 +1144,17 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override double[] ExtractContentAsDoubleArray()
+        public override double[] ContentAsDoubleArray()
         {
             return UseDoublePrecision ? AsDoubleCpuContent : ToDoubleArray(AsFloatCpuContent);
         }
-        public override float[] ExtractContentAsFloatArray()
+        public override float[] ContentAsFloatArray()
         {
             return UseDoublePrecision ? ToFloatArray(AsDoubleCpuContent) : AsFloatCpuContent;
         }
         //this method is only called for display / logging testing
         //this = yExpected
-        public override int ComputeAccuracy(Tensor yPredicted)
+        public override int ComputeAccuracy(Tensor yPredicted, Tensor buffer)
         {
             var yExpectedOneHot = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpectedOneHot, yPredicted }));
@@ -1218,17 +1206,6 @@ namespace SharpNet.CPU
             {
                 Array.Copy(AsFloatCpuContent, startElement, other.AsFloatCpuContent, bStartElement, elementCount);
             }
-        }
-        public override double SumSquare()
-        {
-            var current = AsDoubleCpu;
-            double result = 0;
-            for (var i = 0; i < Count; i++)
-            {
-                var d = current[i];
-                result += d * d;
-            }
-            return result;
         }
         public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
         {

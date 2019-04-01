@@ -81,10 +81,6 @@ namespace SharpNet.Data
             }
             throw new Exception("fail to convert " + this + " this to a GPUTensor<" + typeof(T)+">");
         }
-        public CpuTensor<T> ToCpu<T>() where T : struct
-        {
-            return UseGPU ? new CpuTensor<T>(Shape, AsGPU<T>().DeviceContent(), Description) : AsCpu<T>();
-        }
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper) where T : struct
         {
             return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
@@ -140,7 +136,6 @@ namespace SharpNet.Data
             }
             return true;
         }
-        public virtual double SumSquare() { throw new NotImplementedException(); }
         public abstract ulong CapacityInBytes { get; }
         public abstract void ZeroMemory();
         public abstract void Reshape(int[] newShape);
@@ -187,14 +182,14 @@ namespace SharpNet.Data
         public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask);
         //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
-        public abstract int ComputeAccuracy(Tensor yPredicted);
+        public abstract int ComputeAccuracy(Tensor yPredicted, Tensor buffer);
         //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
-        public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction);
+        public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
         public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
         public abstract void NewSameValueTensor(double sameValue);
-        public abstract double[] ExtractContentAsDoubleArray();
-        public abstract float[] ExtractContentAsFloatArray();
+        public abstract double[] ContentAsDoubleArray();
+        public abstract float[] ContentAsFloatArray();
         protected static double[] ToDoubleArray(float[] data)
         {
             var result = new double[data.Length];
@@ -222,7 +217,7 @@ namespace SharpNet.Data
             double sumSquare = 0;
             double minValue = double.MaxValue;
             double maxValue = double.MinValue;
-            foreach (var d in ExtractContentAsDoubleArray())
+            foreach (var d in ContentAsDoubleArray())
             {
                 if (double.IsNaN(d))
                 {

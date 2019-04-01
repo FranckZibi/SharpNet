@@ -11,7 +11,7 @@ namespace SharpNet.Data
         {
             var sb = new StringBuilder();
             int idx = 0;
-            var tContent = t.ExtractContentAsDoubleArray();
+            var tContent = t.ContentAsDoubleArray();
 
             NumpyArrayHelper(t, tContent, 0, ref idx, sb);
             return sb.ToString();
