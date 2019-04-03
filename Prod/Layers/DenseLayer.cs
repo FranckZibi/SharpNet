@@ -93,12 +93,8 @@ namespace SharpNet
             Update_dy_With_GradientFromShortcutIdentityConnection(); 
 
             //we compute dW
-            var multiplier = 1.0; 
-            //TODO var multiplier = 1.0 / batchSize;
-
-
             var x = PrevLayer.y;
-            WeightGradients.Dot(x, true, dy, false, multiplier, 0.0);
+            WeightGradients.Dot(x, true, dy, false, 1.0 / batchSize, 0.0);
 
             //L2 regularization on dW
             if (UseL2Regularization)
@@ -131,8 +127,8 @@ namespace SharpNet
         {
             Weights.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
             WeightGradients.ZeroMemory();
-            Bias.ZeroMemory();
-            BiasGradients.ZeroMemory();
+            Bias?.ZeroMemory();
+            BiasGradients?.ZeroMemory();
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ResetWeights();

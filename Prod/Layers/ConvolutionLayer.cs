@@ -155,8 +155,8 @@ namespace SharpNet
             var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
             Convolution.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, stdDev);
             ConvolutionGradients .ZeroMemory();
-            ConvolutionBias.ZeroMemory();
-            ConvolutionBiasGradients.ZeroMemory();
+            ConvolutionBias?.ZeroMemory();
+            ConvolutionBiasGradients?.ZeroMemory();
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ResetWeights();
