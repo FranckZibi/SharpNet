@@ -6,6 +6,8 @@ using SharpNet.Data;
 
 namespace SharpNet.GPU
 {
+    public enum CUDA_Versions { CUDA_10_0, CUDA_10_1 };
+
     public class GPUWrapper : IDisposable
     {
         #region Private fields
@@ -209,6 +211,8 @@ namespace SharpNet.GPU
             var res = NVCudaWrapper.cuMemGetInfo_v2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes);
             CheckStatus(res);
             var result = "Free Gpu Memory: " + Utils.MemoryBytesToString(freeMemoryInBytes)  + "/" + Utils.MemoryBytesToString(totalMemoryInBytes);
+            var cudaVersion = CudaVersionFromCudaPath();
+            result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - with CUDA " + cudaVersion);
             result += " - GetTotalMemory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false)) ;
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice)+" CopiedToDevice (" + _copyToDeviceCalls + "calls, "+ SwCopyToDevice.ElapsedMilliseconds+"ms)";
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
@@ -251,8 +255,35 @@ namespace SharpNet.GPU
             }
         }
 
+
+        public static string CudaVersionFromCudaPath()
+        {
+            try
+            {
+                var cudaPath = Environment.GetEnvironmentVariable("CUDA_PATH");
+                return string.IsNullOrEmpty(cudaPath) ? "" : cudaPath.Split(new []{'/', '\\'}, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        public static CUDA_Versions GetInstalledCudaVersion()
+        {
+            var cudaPath = (Environment.GetEnvironmentVariable("CUDA_PATH") ?? "").ToLowerInvariant();
+            if (cudaPath.ToLowerInvariant().Contains("v10.0"))
+            {
+                return CUDA_Versions.CUDA_10_0;
+            }
+            if (cudaPath.ToLowerInvariant().Contains("v10.1"))
+            {
+                return CUDA_Versions.CUDA_10_1;
+            }
+            return CUDA_Versions.CUDA_10_0;
+        }
+
         #region Dispose pattern
-        public void Dispose()
+    public void Dispose()
         {
             Dispose(true);
         }

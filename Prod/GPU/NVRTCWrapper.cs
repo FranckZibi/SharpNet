@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.GPU
 {
@@ -22,47 +23,119 @@ namespace SharpNet.GPU
 
     public static class NVRTCWrapper
     {
-        internal const string NVRTC_API_DLL_NAME = "nvrtc64_100_0";
+        private static readonly CUDA_Versions InstalledCudaVersion;
 
+        static NVRTCWrapper()
+        {
+            InstalledCudaVersion = GPUWrapper.GetInstalledCudaVersion();
+        }
+
+        public static nvrtcResult nvrtcCreateProgram(out IntPtr programHandle, [MarshalAs(UnmanagedType.LPStr)] string src, [MarshalAs(UnmanagedType.LPStr)] string name, int numHeaders, IntPtr[] headers, IntPtr[] includeNames)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return NVRTCWrapper_nvrtc64_101_0.nvrtcCreateProgram(out programHandle, src, name, numHeaders, headers, includeNames);
+                default:
+                    return NVRTCWrapper_nvrtc64_100_0.nvrtcCreateProgram(out programHandle, src, name, numHeaders, headers, includeNames);
+            }
+        }
+        public static nvrtcResult nvrtcCompileProgram(IntPtr programHandle, int numOptions, IntPtr[] options)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return NVRTCWrapper_nvrtc64_101_0.nvrtcCompileProgram(programHandle, numOptions, options);
+                default:
+                    return NVRTCWrapper_nvrtc64_100_0.nvrtcCompileProgram(programHandle, numOptions, options);
+            }
+        }
+        public static nvrtcResult nvrtcGetPTXSize(IntPtr programHandle, out size_t ptxSizeRet)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return NVRTCWrapper_nvrtc64_101_0.nvrtcGetPTXSize(programHandle, out ptxSizeRet);
+                default:
+                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetPTXSize(programHandle, out ptxSizeRet);
+            }
+        }
+        public static nvrtcResult nvrtcDestroyProgram(ref IntPtr programHandle)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return NVRTCWrapper_nvrtc64_101_0.nvrtcDestroyProgram(ref programHandle);
+                default:
+                    return NVRTCWrapper_nvrtc64_100_0.nvrtcDestroyProgram(ref programHandle);
+            }
+        }
+        public static nvrtcResult nvrtcGetPTX(IntPtr programHandle, byte[] ptx)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return NVRTCWrapper_nvrtc64_101_0.nvrtcGetPTX(programHandle, ptx);
+                default:
+                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetPTX(programHandle, ptx);
+            }
+        }
+        public static nvrtcResult nvrtcGetProgramLogSize(IntPtr prog, out size_t logSizeRet)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return NVRTCWrapper_nvrtc64_101_0.nvrtcGetProgramLogSize(prog, out logSizeRet);
+                default:
+                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetProgramLogSize(prog, out logSizeRet);
+            }
+        }
+        public static nvrtcResult nvrtcGetProgramLog(IntPtr programHandle, byte[] log)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return NVRTCWrapper_nvrtc64_101_0.nvrtcGetProgramLog(programHandle, log);
+                default:
+                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetProgramLog(programHandle, log);
+            }
+        }
+    }
+
+    public static class NVRTCWrapper_nvrtc64_100_0
+    {
+        private const string NVRTC_API_DLL_NAME = "nvrtc64_100_0";
         [DllImport(NVRTC_API_DLL_NAME)]
-        public static extern nvrtcResult nvrtcCreateProgram(
-            out IntPtr programHandle,
-            [MarshalAs(UnmanagedType.LPStr)] string src, //!D
-            [MarshalAs(UnmanagedType.LPStr)] string name, 
-            int numHeaders,
-            IntPtr[] headers,
-            IntPtr[] includeNames);
-
-
+        public static extern nvrtcResult nvrtcCreateProgram(out IntPtr programHandle, [MarshalAs(UnmanagedType.LPStr)] string src, [MarshalAs(UnmanagedType.LPStr)] string name,  int numHeaders, IntPtr[] headers, IntPtr[] includeNames);
         [DllImport(NVRTC_API_DLL_NAME)]
-        public static extern nvrtcResult nvrtcCompileProgram(
-            IntPtr programHandle,
-            int numOptions,
-            IntPtr[] options);
-
-
+        public static extern nvrtcResult nvrtcCompileProgram(IntPtr programHandle, int numOptions, IntPtr[] options);
         [DllImport(NVRTC_API_DLL_NAME)]
-        public static extern nvrtcResult nvrtcGetPTXSize(
-            IntPtr programHandle,
-            out size_t ptxSizeRet);
-
+        public static extern nvrtcResult nvrtcGetPTXSize(IntPtr programHandle, out size_t ptxSizeRet);
         [DllImport(NVRTC_API_DLL_NAME)]
-        public static extern nvrtcResult nvrtcDestroyProgram(
-            ref IntPtr programHandle);
-
+        public static extern nvrtcResult nvrtcDestroyProgram(ref IntPtr programHandle);
         [DllImport(NVRTC_API_DLL_NAME)]
-        public static extern nvrtcResult nvrtcGetPTX(
-            IntPtr programHandle,
-            byte[] ptx);
-
+        public static extern nvrtcResult nvrtcGetPTX(IntPtr programHandle, byte[] ptx);
         [DllImport(NVRTC_API_DLL_NAME)]
-        public static extern nvrtcResult nvrtcGetProgramLogSize(
-            IntPtr prog,
-            out size_t logSizeRet);
-
+        public static extern nvrtcResult nvrtcGetProgramLogSize(IntPtr prog, out size_t logSizeRet);
         [DllImport(NVRTC_API_DLL_NAME)]
-        public static extern nvrtcResult nvrtcGetProgramLog(
-            IntPtr programHandle,
-            byte[] log);
+        public static extern nvrtcResult nvrtcGetProgramLog(IntPtr programHandle, byte[] log);
+    }
+    public static class NVRTCWrapper_nvrtc64_101_0
+    {
+        private const string NVRTC_API_DLL_NAME = "nvrtc64_101_0";
+        [DllImport(NVRTC_API_DLL_NAME)]
+        public static extern nvrtcResult nvrtcCreateProgram(out IntPtr programHandle, [MarshalAs(UnmanagedType.LPStr)] string src, [MarshalAs(UnmanagedType.LPStr)] string name, int numHeaders, IntPtr[] headers, IntPtr[] includeNames);
+        [DllImport(NVRTC_API_DLL_NAME)]
+        public static extern nvrtcResult nvrtcCompileProgram(IntPtr programHandle, int numOptions, IntPtr[] options);
+        [DllImport(NVRTC_API_DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetPTXSize(IntPtr programHandle, out size_t ptxSizeRet);
+        [DllImport(NVRTC_API_DLL_NAME)]
+        public static extern nvrtcResult nvrtcDestroyProgram(ref IntPtr programHandle);
+        [DllImport(NVRTC_API_DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetPTX(IntPtr programHandle, byte[] ptx);
+        [DllImport(NVRTC_API_DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetProgramLogSize(IntPtr prog, out size_t logSizeRet);
+        [DllImport(NVRTC_API_DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetProgramLog(IntPtr programHandle, byte[] log);
     }
 }

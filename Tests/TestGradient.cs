@@ -167,7 +167,7 @@ namespace SharpNetTests
         }
         private static Network GetNetwork()
         {
-            return new Network(new NetworkConfig(false) { Logger = logger, UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy });
+            return new Network(new NetworkConfig(false) { Logger = logger, UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true});
         }
     }
 }

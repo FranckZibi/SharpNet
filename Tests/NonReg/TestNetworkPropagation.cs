@@ -484,7 +484,7 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction)
         {
-            return new Network(new NetworkConfig(false) { Logger = Logger.NullLogger, UseDoublePrecision = false, LossFunction = lossFunction, RandomizeOrder = false});
+            return new Network(new NetworkConfig(false) { Logger = Logger.NullLogger, UseDoublePrecision = false, LossFunction = lossFunction, RandomizeOrder = false, ForceTensorflowCompatibilityMode = true});
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {

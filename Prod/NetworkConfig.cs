@@ -26,6 +26,11 @@ namespace SharpNet
         public Logger Logger { get; set; } = Logger.ConsoleLogger;
         public bool UseDoublePrecision { get; set; }
         public bool RandomizeOrder { get; set; } = true;
+        /// <summary>
+        /// true if we should use exactly the same conventions then Tensorflow
+        /// used only for // run and testing
+        /// </summary>
+        public bool ForceTensorflowCompatibilityMode { get; set; } = false;
         public bool ProfileApplication { get; } = true;
         public string AutoSavePath { get; set; } = System.IO.Path.GetTempPath();
         public int AutoSaveIntervalInMinuts { get; set; } = 15;
@@ -80,6 +85,7 @@ namespace SharpNet
                 .Add(nameof(SGD_momentum), SGD_momentum).Add(nameof(SGD_decay), SGD_decay).Add(nameof(SGD_usenesterov), SGD_usenesterov)
                 .Add(nameof(UseDoublePrecision), UseDoublePrecision)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
+                .Add(nameof(ForceTensorflowCompatibilityMode), ForceTensorflowCompatibilityMode)
                 .Add(nameof(ProfileApplication), ProfileApplication)
                 .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts).Add(nameof(AutoSavePath), AutoSavePath)
                 .Add(nameof(UseGPU), UseGPU)
@@ -103,6 +109,7 @@ namespace SharpNet
             SGD_usenesterov = (bool)serialized[nameof(SGD_usenesterov)];
             UseDoublePrecision = (bool)serialized[nameof(UseDoublePrecision)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
+            ForceTensorflowCompatibilityMode = (bool)serialized[nameof(ForceTensorflowCompatibilityMode)];
             ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
             AutoSaveIntervalInMinuts = (int)serialized[nameof(AutoSaveIntervalInMinuts)];
             AutoSavePath = (string)serialized[nameof(AutoSavePath)];

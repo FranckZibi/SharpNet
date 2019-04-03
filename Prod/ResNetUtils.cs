@@ -10,6 +10,12 @@ namespace SharpNet
 {
     public static class ResNetUtils
     {
+        private static string ExtraDescription()
+        {
+            return "";
+        }
+
+
         public static Network ResNet18_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
             return ResNetV1(new[] { 2, 2, 2, 2 }, false, xShape, nbCategories, useGPU, useDoublePrecision, logger);
@@ -32,54 +38,54 @@ namespace SharpNet
         }
         public static Network ResNet20V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(3, useGPU, useDoublePrecision, nameof(ResNet20V1_CIFAR10), logger);
+            return GetResNetV1_CIFAR10(3, useGPU, useDoublePrecision, nameof(ResNet20V1_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet32V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(5, useGPU, useDoublePrecision, nameof(ResNet32V1_CIFAR10), logger);
+            return GetResNetV1_CIFAR10(5, useGPU, useDoublePrecision, nameof(ResNet32V1_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet44V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(7, useGPU, useDoublePrecision, nameof(ResNet44V1_CIFAR10), logger);
+            return GetResNetV1_CIFAR10(7, useGPU, useDoublePrecision, nameof(ResNet44V1_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet56V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(9, useGPU, useDoublePrecision, nameof(ResNet56V1_CIFAR10), logger);
+            return GetResNetV1_CIFAR10(9, useGPU, useDoublePrecision, nameof(ResNet56V1_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet110V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet110V1_CIFAR10), logger);
+            return GetResNetV1_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet110V1_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet164V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(27, useGPU, useDoublePrecision, nameof(ResNet164V1_CIFAR10), logger);
+            return GetResNetV1_CIFAR10(27, useGPU, useDoublePrecision, nameof(ResNet164V1_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet1202V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(200, useGPU, useDoublePrecision, nameof(ResNet1202V1_CIFAR10), logger);
+            return GetResNetV1_CIFAR10(200, useGPU, useDoublePrecision, nameof(ResNet1202V1_CIFAR10)+ExtraDescription(), logger);
         }
 
 
 
         public static Network ResNet20V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(2, useGPU, useDoublePrecision, nameof(ResNet20V2_CIFAR10), logger);
+            return GetResNetV2_CIFAR10(2, useGPU, useDoublePrecision, nameof(ResNet20V2_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet56V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(6, useGPU, useDoublePrecision, nameof(ResNet56V2_CIFAR10), logger);
+            return GetResNetV2_CIFAR10(6, useGPU, useDoublePrecision, nameof(ResNet56V2_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet110V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(12, useGPU, useDoublePrecision, nameof(ResNet110V2_CIFAR10), logger);
+            return GetResNetV2_CIFAR10(12, useGPU, useDoublePrecision, nameof(ResNet110V2_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet164V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet164V2_CIFAR10), logger);
+            return GetResNetV2_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet164V2_CIFAR10)+ExtraDescription(), logger);
         }
         public static Network ResNet1001V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(111, useGPU, useDoublePrecision, nameof(ResNet1001V2_CIFAR10), logger);
+            return GetResNetV2_CIFAR10(111, useGPU, useDoublePrecision, nameof(ResNet1001V2_CIFAR10)+ExtraDescription(), logger);
         }
         public static void Load(out CpuTensor<byte> xTrainingSet, out CpuTensor<byte> yTrainingSet, out CpuTensor<byte> xTestSet, out CpuTensor<byte> yTestSet)
         {
@@ -103,7 +109,10 @@ namespace SharpNet
         public static ILearningRateScheduler Cifar10LearningRateScheduler()
         {
             //return UpdatedCifar10LearningRateScheduler();
-            var initialLearningRate = 0.1;
+            return Cifar10LearningRateScheduler(0.1);
+        }
+        public static ILearningRateScheduler Cifar10LearningRateScheduler(double initialLearningRate)
+        {
             return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
         public static ReduceLROnPlateau Cifar10ReduceLROnPlateau()

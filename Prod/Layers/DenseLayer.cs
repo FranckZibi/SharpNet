@@ -94,7 +94,12 @@ namespace SharpNet
 
             //we compute dW
             var x = PrevLayer.y;
-            WeightGradients.Dot(x, true, dy, false, 1.0 / batchSize, 0.0);
+            var multiplier = 1.0 / batchSize;
+            if (Network.Config.ForceTensorflowCompatibilityMode)
+            {
+                multiplier = 1.0; //used only for tests and parallel run
+            }
+            WeightGradients.Dot(x, true, dy, false, multiplier, 0.0);
 
             //L2 regularization on dW
             if (UseL2Regularization)
