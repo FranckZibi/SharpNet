@@ -410,7 +410,6 @@ namespace SharpNet.GPU
             return UseDoublePrecision ? ToFloatArray(deviceContent as double[]) : (deviceContent as float[]);
         }
         //this = yExpectedOneHot
-        //TODO use a CUDA implementation of Compute Accuracy
         public override int ComputeAccuracy(Tensor yPredicted, Tensor buffer)
         {
             var yExpectedOneHot = this;
@@ -424,9 +423,7 @@ namespace SharpNet.GPU
             Wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
             return UseDoublePrecision? ((int) buffer.ContentAsDoubleArray().Sum()): ((int) buffer.ContentAsFloatArray().Sum());
         }
-
         //this = yExpectedOneHot
-        //TODO use a CUDA implementation of Compute Loss
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
              var yExpectedOneHot = this;

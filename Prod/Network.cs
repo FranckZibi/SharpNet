@@ -581,21 +581,21 @@ namespace SharpNet
                     LogDebug(ProfilingComments());
                 }
 
-                #region we save the network in a file if necessary
-                if (  ((epoch == numEpochs)&&(numEpochs>10))
-                    || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts) )
-                {
-                    var swSaveTime = Stopwatch.StartNew();
-                    Info("Saving network in directory '"+Config.AutoSavePath+"' ...");
-                    var fileName = Save(Config.AutoSavePath);
-                    Info("Network saved in file '" + fileName + "' in "+ Math.Round(swSaveTime.Elapsed.TotalSeconds,1)+ "s");
-                    lastAutoSaveTime = DateTime.Now;
-                }
-                #endregion
-
                 #region we save stats about the just finished epoch
                 var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracy.Item1, trainLossAndAccuracy.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
                 _epochsData.Add(currentEpochData);
+                #endregion
+
+                #region we save the network in a file if necessary
+                if (((epoch == numEpochs) && (numEpochs > 10))
+                    || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts))
+                {
+                    var swSaveTime = Stopwatch.StartNew();
+                    Info("Saving network in directory '" + Config.AutoSavePath + "' ...");
+                    var fileName = Save(Config.AutoSavePath);
+                    Info("Network saved in file '" + fileName + "' in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
+                    lastAutoSaveTime = DateTime.Now;
+                }
                 #endregion
             }
             Info("Training for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
