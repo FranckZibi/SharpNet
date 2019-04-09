@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using SharpNet.CPU;
 using SharpNet.GPU;
@@ -44,7 +43,7 @@ namespace SharpNet.Data
         }
         public Serializer Add(string description, EpochData[] data)
         {
-            return Add<EpochData>(description, data, x => Split(x.Serialize()));
+            return Add(description, data, x => Split(x.Serialize()));
         }
 
         private static string[] Split(string s)

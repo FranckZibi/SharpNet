@@ -33,7 +33,10 @@ namespace SharpNet.Optimizers
         }
         public abstract List<Tensor> EmbeddedTensors { get; }
         public abstract void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient);
-        public void ResetWeights()
+        /// <summary>
+        /// reset( by setting to 0) all embedded tensors in the current optimizer
+        /// </summary>
+        public void ZeroMemory()
         {
             EmbeddedTensors.ForEach(t => t?.ZeroMemory());
         }

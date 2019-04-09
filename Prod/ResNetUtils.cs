@@ -38,54 +38,62 @@ namespace SharpNet
         }
         public static Network ResNet20V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(3, useGPU, useDoublePrecision, nameof(ResNet20V1_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV1_CIFAR10(3, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet32V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(5, useGPU, useDoublePrecision, nameof(ResNet32V1_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV1_CIFAR10(5, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet44V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(7, useGPU, useDoublePrecision, nameof(ResNet44V1_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV1_CIFAR10(7, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet56V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(9, useGPU, useDoublePrecision, nameof(ResNet56V1_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV1_CIFAR10(9, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet110V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet110V1_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV1_CIFAR10(18, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet164V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(27, useGPU, useDoublePrecision, nameof(ResNet164V1_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV1_CIFAR10(27, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet1202V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(200, useGPU, useDoublePrecision, nameof(ResNet1202V1_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV1_CIFAR10(200, useGPU, useDoublePrecision, logger);
         }
 
 
 
+        public static Network ResNet11V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV2_CIFAR10(1, useGPU, useDoublePrecision, logger);
+        }
         public static Network ResNet20V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(2, useGPU, useDoublePrecision, nameof(ResNet20V2_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV2_CIFAR10(2, useGPU, useDoublePrecision, logger);
+        }
+        public static Network ResNet29V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        {
+            return GetResNetV2_CIFAR10(3, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet56V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(6, useGPU, useDoublePrecision, nameof(ResNet56V2_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV2_CIFAR10(6, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet110V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(12, useGPU, useDoublePrecision, nameof(ResNet110V2_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV2_CIFAR10(12, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet164V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(18, useGPU, useDoublePrecision, nameof(ResNet164V2_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV2_CIFAR10(18, useGPU, useDoublePrecision, logger);
         }
         public static Network ResNet1001V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(111, useGPU, useDoublePrecision, nameof(ResNet1001V2_CIFAR10)+ExtraDescription(), logger);
+            return GetResNetV2_CIFAR10(111, useGPU, useDoublePrecision, logger);
         }
         public static void Load(out CpuTensor<byte> xTrainingSet, out CpuTensor<byte> yTrainingSet, out CpuTensor<byte> xTestSet, out CpuTensor<byte> yTestSet)
         {
@@ -183,10 +191,10 @@ namespace SharpNet
         private const int CategoriesCifar10 = 10;
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
-        private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, string description, Logger logger)
+        private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
         {
+            var description = "ResNet" + (6*numResBlocks+2) + "V1_CIFAR10" + ExtraDescription();
             var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
-
             const double lambdaL2Regularization = 1e-4;
             const bool useNesterov = false;
 
@@ -216,16 +224,21 @@ namespace SharpNet
         }
 
         //implementation described in: https://arxiv.org/pdf/1603.05027.pdf
-        private static Network GetResNetV2_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, string description, Logger logger)
+        private static Network GetResNetV2_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
         {
+            string description = "ResNet"+(9* numResBlocks +2)+ "V2_CIFAR10" + ExtraDescription();
             var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
+
+            //networkConfig.ForceTensorflowCompatibilityMode = true;
+            //networkConfig.DisplayTensorContentStats= true;
 
             const double lambdaL2Regularization = 1e-4;
             const bool useNesterov = false;
 
             var network = new Network(networkConfig.WithSGD(0.9, 0, useNesterov), ResNetImageDataGenerator());
+
             network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
-            network.Convolution(16, 3, 1, 1, lambdaL2Regularization);
+            network.Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageCIn = 16; //number of channels for current stage
             int stageCOut = 4 * stageCIn;
@@ -236,7 +249,14 @@ namespace SharpNet
                 {
                     int stride = (resBlock == 0 && stageId != 0) ? 2 : 1;
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
-                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, lambdaL2Regularization);
+                    if (stageId == 0 && resBlock == 0)
+                    {
+                        network.Convolution(stageCIn, 1, stride, 0, lambdaL2Regularization);
+                    }
+                    else
+                    {
+                        network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, lambdaL2Regularization);
+                    }
                     network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, 1, lambdaL2Regularization);
                     network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, 0, lambdaL2Regularization);
                     network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, lambdaL2Regularization);

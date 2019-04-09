@@ -30,7 +30,12 @@ namespace SharpNet
         /// true if we should use exactly the same conventions then Tensorflow
         /// used only for // run and testing
         /// </summary>
-        public bool ForceTensorflowCompatibilityMode { get; set; } = false;
+        public bool ForceTensorflowCompatibilityMode { get; set; }
+        /// <summary>
+        /// true if we want t display statiistics about the wieghts tensors.
+        /// Used only for debugging 
+        /// </summary>
+        public bool DisplayTensorContentStats{ get; set; }
         public bool ProfileApplication { get; } = true;
         public string AutoSavePath { get; set; } = System.IO.Path.GetTempPath();
         public int AutoSaveIntervalInMinuts { get; set; } = 15;
@@ -86,6 +91,7 @@ namespace SharpNet
                 .Add(nameof(UseDoublePrecision), UseDoublePrecision)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
                 .Add(nameof(ForceTensorflowCompatibilityMode), ForceTensorflowCompatibilityMode)
+                .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
                 .Add(nameof(ProfileApplication), ProfileApplication)
                 .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts).Add(nameof(AutoSavePath), AutoSavePath)
                 .Add(nameof(UseGPU), UseGPU)
@@ -110,6 +116,7 @@ namespace SharpNet
             UseDoublePrecision = (bool)serialized[nameof(UseDoublePrecision)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
             ForceTensorflowCompatibilityMode = (bool)serialized[nameof(ForceTensorflowCompatibilityMode)];
+            DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
             ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
             AutoSaveIntervalInMinuts = (int)serialized[nameof(AutoSaveIntervalInMinuts)];
             AutoSavePath = (string)serialized[nameof(AutoSavePath)];

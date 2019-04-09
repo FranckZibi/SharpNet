@@ -240,7 +240,15 @@ namespace SharpNet.Data
             {
                 var mean = (sum / count);
                 var variance = (sumSquare / count) - mean * mean;
-                result = "Min: " + Math.Round(minValue,1) + "; Max: " + Math.Round(maxValue,1) + "; Avg: " + Math.Round(mean,1) + "; Vol: " + Math.Round(Math.Sqrt(variance),1)+"; Count: "+Count;
+                if (Math.Abs(maxValue - minValue) < 1e-4)
+                {
+                    result = "Const: " + Math.Round(minValue, 4);
+                }
+                else
+                {
+                    result = "Min: " + Math.Round(minValue, 4) + "; Max: " + Math.Round(maxValue, 4) + "; Avg: " + Math.Round(mean, 4) + "; Vol: " + Math.Round(Math.Sqrt(variance), 4);
+                }
+                result += "; Count: "+Count;
             }
             if ((naNCount != 0)|| (infinityCount != 0))
             {

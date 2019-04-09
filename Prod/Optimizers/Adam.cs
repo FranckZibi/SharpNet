@@ -27,7 +27,7 @@ namespace SharpNet.Optimizers
             _adam_SW = network.NewNotInitializedTensor(weightShape, _adam_SW, nameof(_adam_SW));
             _adam_VB = network.NewNotInitializedTensor(biasShape, _adam_VB, nameof(_adam_VB));
             _adam_SB = network.NewNotInitializedTensor(biasShape, _adam_SB, nameof(_adam_SB));
-            ResetWeights();
+            ZeroMemory();
         }
         public override List<Tensor> EmbeddedTensors => new List<Tensor> { _adam_VW, _adam_SW, _adam_SB, _adam_VB };
         public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)

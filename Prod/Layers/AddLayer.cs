@@ -6,12 +6,12 @@ namespace SharpNet
 {
     //used for Residual Network
     //Layer that is the sum of the Previous Layer and the Shortcut Layer
-    public class SumLayer : Layer
+    public class AddLayer : Layer
     {
         public override Tensor y { get; protected set; }
         public override Tensor dy { get; protected set; }
 
-        public SumLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network) : base(network, previousResidualLayerIndex)
+        public AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network) : base(network, previousResidualLayerIndex)
         {
             Debug.Assert(LayerIndex>=2);
             Debug.Assert(previousIdentityLayerIndex >= 0);
@@ -26,7 +26,7 @@ namespace SharpNet
             return RootSerializer()
                 .ToString();
         }
-        public SumLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public AddLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
         }
         #endregion

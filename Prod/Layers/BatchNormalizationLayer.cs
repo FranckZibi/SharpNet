@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Optimizers;
@@ -43,7 +44,11 @@ namespace SharpNet
             ResetWeights(false);
 
             //We disable bias for the previous layers
-            PreviousLayers.ForEach(l=>l.DisableBias());
+            var nbDisabledWeights = PreviousLayers.Select(l=>l.DisableBias()).Sum();
+            if (nbDisabledWeights != 0)
+            {
+                Network.LogDebug(nbDisabledWeights + " weights (bias) disabled thanks to batchNorm layer " + SummaryName());
+            }
         }
 
         public Tensor Weights => _bnScale;
@@ -126,11 +131,12 @@ namespace SharpNet
             _resultSaveVariance.NewSameValueTensor(1.0);
             if (resetAlsoOptimizerWeights)
             {
-                _optimizer.ResetWeights();
+                _optimizer.ZeroMemory();
             }
         }
         public override int TotalParams => _bnScale.Count + _resultBnScaleDiff.Count + _bnBias.Count + _resultBnBiasDiff.Count;
-        public override string SummaryName() {return "BatchNorm";}
+        public override string SummaryName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
+        public override string Type() {return "BatchNorm";}
         public override List<Tensor> TensorsIndependantOfBatchSize
         {
             get

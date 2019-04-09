@@ -136,20 +136,22 @@ namespace SharpNet
             BiasGradients?.ZeroMemory();
             if (resetAlsoOptimizerWeights)
             {
-                _optimizer.ResetWeights();
+                _optimizer.ZeroMemory();
             }
         }
         public override int[] OutputShape(int batchSize)
         {
             return new[] { batchSize, _n_x };
         }
-        public override void DisableBias()
+        public override int DisableBias()
         {
             _useBias = false;
+            int nbDisabledWeights = (Bias?.Count ?? 0) + (BiasGradients?.Count ?? 0);
             Bias?.Dispose();
             Bias = null;
             BiasGradients?.Dispose();
             BiasGradients = null;
+            return nbDisabledWeights;
         }
         public override string ToString()
         {

@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
@@ -95,9 +96,9 @@ namespace SharpNet
                 .Activation(activationFunction)
                 .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization);
         }
-        public Network SumLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
+        public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
         {
-            Layers.Add(new SumLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this));
+            Layers.Add(new AddLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this));
             Debug.Assert(Layers[previousIdentityLayerIndex].SameOutputShape(Layers[previousResidualLayerIndex]));
             return this;
         }
@@ -109,14 +110,14 @@ namespace SharpNet
             var sameInputAndOutputShapeInBlock = Layers.Last().SameOutputShape(Layers[startOfBlockLayerIndex]);
             if (sameInputAndOutputShapeInBlock)
             {
-                Layers.Add(new SumLayer(startOfBlockLayerIndex, previousResidualLayerIndex, this));
+                Layers.Add(new AddLayer(startOfBlockLayerIndex, previousResidualLayerIndex, this));
             }
             else
             {
                 //we need to add a convolution layer to make correct output format
                 Convolution(filtersCount, 1, stride, 0, lambdaL2Regularization, startOfBlockLayerIndex);
                 int convLayerIdInIdentityBlock = Layers.Last().LayerIndex;
-                Layers.Add(new SumLayer(convLayerIdInIdentityBlock, previousResidualLayerIndex, this));
+                Layers.Add(new AddLayer(convLayerIdInIdentityBlock, previousResidualLayerIndex, this));
                 Debug.Assert(Layers[convLayerIdInIdentityBlock].SameOutputShape(Layers[previousResidualLayerIndex]));
             }
             return this;
@@ -228,7 +229,10 @@ namespace SharpNet
             foreach (var l in Layers.Skip(1))
             {
                 l.ForwardPropagation(isTraining);
-                //Info(Environment.NewLine+"Epoch:" + _indexCurrentEpochs + "; Layer:" + l.SummaryName() + "_" + l.LayerIndex + "; After ForwardPropagation:" + Environment.NewLine + l.ContentStats());
+                //if (Config.DisplayTensorContentStats)
+                //{
+                //    LogDebug(Environment.NewLine + "Epoch:" + (_epochsData.Count + 1) + "; Layer:" + l.SummaryName() + "_" + l.LayerIndex + "; After ForwardPropagation:" + Environment.NewLine + l.ContentStats());
+                //}
             }
             (isTraining ? _swPredictTraining : _swPredictNotTraining)?.Stop();
             return Layers.Last().y;
@@ -256,33 +260,84 @@ namespace SharpNet
             for (int i = Layers.Count - 1; i >= 1; --i)
             {
                 Layers[i].BackwardPropagation();
-                //Info(Environment.NewLine + "Epoch:" + _indexCurrentEpochs + "; Layer:" + Layers[i].SummaryName() + "_" + Layers[i].LayerIndex + "; After BackwardPropagation:" + Environment.NewLine + Layers[i].ContentStats());
+                //if (Config.DisplayTensorContentStats)
+                //{
+                //    LogDebug(Environment.NewLine + "Epoch:" + (_epochsData.Count + 1) + "; Layer:" + Layers[i].SummaryName() + "_" + Layers[i].LayerIndex + "; After BackwardPropagation:" + Environment.NewLine + Layers[i].ContentStats());
+                //}
             }
             _swBackwardPropagation?.Stop();
         }
+
         public string Summary()
         {
-            const string line0 = "_________________________________________________________________";
-            const string line1 = "=================================================================";
+            return Layers.Any(x => x.PreviousLayers.Count >= 2) ? SummaryWithConnectedTo() : SummaryWithoutConnectedTo();
+        }
+        private string SummaryWithoutConnectedTo()
+        {
+            const int firstColumnWidth = 29;
+            const int secondColumnWidth = 26;
+            const int thirdColumnWidth = 10;
+            var line0 = new string('_', firstColumnWidth+ secondColumnWidth+ thirdColumnWidth);
+            var line1 = new string('=', line0.Length);
             string result = "";
             if (!string.IsNullOrEmpty(Description))
             {
                 result += "Network Name: " + Description+ Environment.NewLine;
             }
             result += line0 + Environment.NewLine;
-            result += "Layer (C#)                   Output Shape              Param #" + Environment.NewLine;
+            result += "Layer (Type)                 Output Shape              Param #" + Environment.NewLine;
             result += line1 + Environment.NewLine;
             foreach (var l in Layers)
             {
                 var outputShape = Utils.ShapeToStringWithBacthSize(l.OutputShape(1));
-                result += $"{l.SummaryName(),-29}{outputShape,-26}{l.TotalParams}" + Environment.NewLine;
+                var firstColumn = l.SummaryName()+" ("+l.Type()+")";
+                if (firstColumn.Length > firstColumnWidth - 1)
+                {
+                    firstColumn = firstColumn.Substring(0, firstColumnWidth-1);
+                }
+                result += $"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}" + Environment.NewLine;
                 result += (l.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
             result += "Total params: " + TotalParams;
             return result;
         }
-
-        public void ResetWeights()
+        private string SummaryWithConnectedTo()
+        {
+            const int firstColumnWidth = 32;
+            const int secondColumnWidth = 21;
+            const int thirdColumnWidth = 12;
+            const int forthColumnWidth = 33;
+            var line0 = new string('_', firstColumnWidth + secondColumnWidth + thirdColumnWidth+ forthColumnWidth);
+            var line1 = new string('=', line0.Length);
+            string result = "";
+            if (!string.IsNullOrEmpty(Description))
+            {
+                result += "Network Name: " + Description + Environment.NewLine;
+            }
+            result += line0 + Environment.NewLine;
+            result += "Layer (type)                    Output Shape         Param #     Connected to" + Environment.NewLine;
+            result += line1 + Environment.NewLine;
+            foreach (var l in Layers)
+            {
+                var outputShape = Utils.ShapeToStringWithBacthSize(l.OutputShape(1));
+                var firstColumn = l.SummaryName() + " (" + l.Type() + ")";
+                if (firstColumn.Length > firstColumnWidth - 1)
+                {
+                    firstColumn = firstColumn.Substring(0, firstColumnWidth - 1);
+                }
+                var previousLayers = l.PreviousLayers.OrderBy(x=>x.LayerIndex).ToList();
+                var firstPreviousLayer = (previousLayers.Count == 0 ? "" : previousLayers[0].SummaryName()+"[0][0]");
+                result += $"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}{firstPreviousLayer,-forthColumnWidth}" + Environment.NewLine;
+                for (int i = 1; i < previousLayers.Count; ++i)
+                {
+                    result += $"{"",-(firstColumnWidth+secondColumnWidth+thirdColumnWidth)}{previousLayers[i].SummaryName() + "[0][0]",-forthColumnWidth}" + Environment.NewLine;
+                }
+                result += (l.IsOutputLayer ? line1 : line0) + Environment.NewLine;
+            }
+            result += "Total params: " + TotalParams;
+            return result;
+        }
+        private void ResetWeights()
         {
             Layers.ForEach(l=>l?.ResetWeights());
         }
@@ -330,6 +385,7 @@ namespace SharpNet
             }
         }
         #region serialization
+        // ReSharper disable once UnusedMember.Global
         public static Network ValueOf(string path)
         {
             var content = File.ReadAllLines(path);
@@ -472,8 +528,6 @@ namespace SharpNet
                 {
                     Info("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
                 }
-
-
                 #region Data augmentation
                 if (epoch == 1)
                 {
@@ -498,6 +552,11 @@ namespace SharpNet
                 #endregion
 
                 //We display stats about the just finished epoch
+                if (Config.DisplayTensorContentStats)
+                {
+                    LogDebug("End of Epoch:" + epoch + " Tensor Content stats" + Environment.NewLine+ContentStats()+Environment.NewLine);
+                }
+
                 _swComputeLossAndAccuracy?.Start();
                 var trainLossAndAccuracy = ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
                 var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracy, "");
@@ -549,6 +608,17 @@ namespace SharpNet
                 x.Dispose();
             }
             _spInternalFit.Stop();
+        }
+
+        private string ContentStats()
+        {
+            var sb = new StringBuilder();
+            sb.Append(Environment.NewLine + "End of Epoch:" + (_epochsData.Count+1) + " Tensor Content stats" + Environment.NewLine);
+            foreach (var l in Layers.Skip(1))
+            {
+                sb.Append("Layer:" + l.SummaryName() + Environment.NewLine + l.ContentStats() + Environment.NewLine);
+            }
+            return sb.ToString();
         }
 
 
@@ -637,12 +707,15 @@ namespace SharpNet
             foreach (var l in Layers.Skip(1)) //we skip the input layer
             {
                 l.UpdateWeights(learningRate);
-                //Info(Environment.NewLine + "Epoch:" + _indexCurrentEpochs + "; Layer:" + l.SummaryName() + "_" + l.LayerIndex + "; After UpdateWeights:" + Environment.NewLine+l.ContentStats());
+                //if (Config.DisplayTensorContentStats)
+                //{
+                //    LogDebug(Environment.NewLine + "Epoch:" + (_epochsData.Count + 1) + "; Layer:" + l.SummaryName() + "_" + l.LayerIndex + "; After UpdateWeights:" + Environment.NewLine + l.ContentStats());
+                //}
             }
             _swUpdateWeights?.Stop();
         }
         private void Info(string msg) { Config.Logger.Info(msg); }
-        private void LogDebug(string msg) { Config.Logger.Debug(msg); }
+        public void LogDebug(string msg) { Config.Logger.Debug(msg); }
 
         /// <summary>
         /// Perform a mini batch gradient descent for an entire epoch, each mini batch will have 'miniBatchSize' elements

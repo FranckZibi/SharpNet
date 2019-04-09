@@ -231,7 +231,7 @@ namespace SharpNetTests.NonReg
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, 0, 0.0)
                 .Convolution(1, 1, 1, 0, 0.0)
-                .SumLayer(1, 2)
+                .AddLayer(1, 2)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             Tensor w = FromNumpyArray("[[[[-0.7714059]]]]", "Convolution0");
@@ -267,7 +267,7 @@ namespace SharpNetTests.NonReg
                 .Convolution(1, 1, 1, 0, 0.0)
                 .Convolution(1, 1, 1, 0, 0.0); //left
             network.Convolution(1, 1, 1, 0, 0.0, 1); //right (identity shortcut)
-            network.SumLayer(3, 2)
+            network.AddLayer(3, 2)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
                 ;
             Tensor w = FromNumpyArray("[[[[-0.7714059]]]]", "Convolution0");

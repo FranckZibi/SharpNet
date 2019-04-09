@@ -55,7 +55,12 @@ namespace SharpNet
         {
             return new PoolingLayer((cudnnPoolingMode_t)(int)serialized[nameof(_poolingMode)], (int)serialized[nameof(_poolingSize)], (int)serialized[nameof(_poolingStride)], network);
         }
-        public override string SummaryName() {return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AvgPooling";}
+
+        public override string SummaryName()
+        {
+            return (IsMaxPooling(_poolingMode) ? "max_pooling2d_" : "average_pooling2d_") + (1 + NbLayerOfSameTypeBefore());
+        }
+        public override string Type() { return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AveragePooling"; }
         public static bool IsMaxPooling(cudnnPoolingMode_t poolingMode)
         {
             return poolingMode == cudnnPoolingMode_t.CUDNN_POOLING_MAX ||

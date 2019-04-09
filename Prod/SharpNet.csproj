@@ -69,7 +69,7 @@
     <Compile Include="Layers\InputLayer.cs" />
     <Compile Include="Layers\Layer.cs" />
     <Compile Include="Layers\PoolingLayer.cs" />
-    <Compile Include="Layers\SumLayer.cs" />
+    <Compile Include="Layers\AddLayer.cs" />
     <Compile Include="Network.cs" />
     <Compile Include="NetworkConfig.cs" />
     <Compile Include="Optimizers\Adam.cs" />

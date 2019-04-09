@@ -27,6 +27,19 @@ namespace SharpNet
             AddPreviousLayer(previousLayerIndex);
         }
 
+        protected int NbLayerOfSameTypeBefore()
+        {
+            int result = 0;
+            for (var layerIndex = 0; layerIndex < LayerIndex; ++layerIndex)
+            {
+                if (Network.Layers[layerIndex].GetType() == GetType())
+                {
+                    ++result;
+                }
+            }
+            return result;
+        }
+
         public int n_x
         {
             get
@@ -69,7 +82,8 @@ namespace SharpNet
             return data.AsFloatCpuContent.All(x=> IsValidY(x));
         }
         public virtual ulong BytesByBatchSize => (ulong)(2 * Utils.Product(OutputShape(1)) * Network.Config.TypeSize); //y dy
-        public virtual string SummaryName() { return GetType().Name.Replace("Layer","");}
+        public virtual string SummaryName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
+        public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
         public ulong BytesIndependantOfBatchSize => Tensor.OccupiedMemoryInBytes(TensorsIndependantOfBatchSize);
         public abstract void ForwardPropagation(bool isTraining);
         public abstract void BackwardPropagation();
@@ -82,7 +96,11 @@ namespace SharpNet
         //by default (if not overriden) output shape is the same as the previous layer
         public virtual int[] OutputShape(int batchSize) { return PrevLayer.OutputShape(batchSize); }
         public virtual int TotalParams => 0;
-        public virtual void DisableBias() {}
+
+        public virtual int DisableBias()
+        {
+            return PreviousLayers.Select(l => l.DisableBias()).Sum();
+        }
         public virtual void Dispose()
         {
             EmbeddedTensors.ForEach(x => x?.Dispose());
@@ -149,7 +167,7 @@ namespace SharpNet
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(FlattenLayer): return FlattenLayer.Deserialize(network);
-                case nameof(SumLayer): return new SumLayer(serialized, network);
+                case nameof(AddLayer): return new AddLayer(serialized, network);
                 default: throw new NotImplementedException("don't know how to deserialize " + layerType);
             }
         }
@@ -222,8 +240,7 @@ namespace SharpNet
             }
         }
         protected Layer PrevLayer => (_previousLayerIndexes.Count == 0) ? null : Network.Layers[_previousLayerIndexes[0]];
-        protected List<Layer> PreviousLayers => _previousLayerIndexes.Select(idx => Network.Layers[idx]).ToList();
-        protected Layer NextLayer => (_nextLayerIndexes.Count == 0) ? null : Network.Layers[_nextLayerIndexes[0]];
+        public List<Layer> PreviousLayers => _previousLayerIndexes.Select(idx => Network.Layers[idx]).ToList();
         protected void AddPreviousLayer(int previousLayerIndex)
         {
             if (previousLayerIndex >= 0)

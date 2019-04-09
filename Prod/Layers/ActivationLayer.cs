@@ -63,10 +63,9 @@ namespace SharpNet
         {
             EmbeddedTensors.ForEach(x => x?.Dispose());
         }
-        public override string SummaryName()
-        {
-            return "Activation("+ ToString(ActivationFunction)+ ")";
-        }
+
+        public override string SummaryName() { return "activation_" + (1 + NbLayerOfSameTypeBefore()); }
+        public override string Type() { return ToString(ActivationFunction); }
         private static string ToString(cudnnActivationMode_t activationFunction)
         {
             return activationFunction.ToString().Replace("CUDNN_ACTIVATION_", "");

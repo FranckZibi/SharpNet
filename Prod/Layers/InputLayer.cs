@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using SharpNet.Data;
 
 namespace SharpNet
@@ -23,7 +22,7 @@ namespace SharpNet
         }
         public override void ForwardPropagation(bool isTraining)
         {
-            throw new Exception("should never call"+nameof(ForwardPropagation)+" in "+nameof(InputLayer)); ;
+            throw new Exception("should never call "+nameof(ForwardPropagation)+" in "+nameof(InputLayer));
         }
 
         public override string Serialize()
@@ -46,6 +45,9 @@ namespace SharpNet
             result += " ("+MemoryDescription()+")";
             return result;
         }
+
+        public override string SummaryName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
+        public override string Type() { return "InputLayer"; }
         public override void Dispose()
         {
             //do not dipose y

@@ -16,7 +16,7 @@ namespace SharpNet.Optimizers
         {
             _velocityWeight = network.NewNotInitializedTensor(weightShape, _velocityWeight, nameof(_velocityWeight));
             _velocityBias = network.NewNotInitializedTensor(biasShape, _velocityBias, nameof(_velocityBias));
-            ResetWeights();
+            ZeroMemory();
             _iterations = 0;
         }
         public override List<Tensor> EmbeddedTensors => new List<Tensor> { _velocityWeight, _velocityBias};

@@ -70,13 +70,15 @@ namespace SharpNet
         {
             return new ConvolutionLayer(serialized, network);
         }
-        public override void DisableBias()
+        public override int DisableBias()
         {
             _useBias = false;
+            int nbDisabledWeights = (ConvolutionBias?.Count ?? 0) + (ConvolutionBiasGradients?.Count ?? 0);
             ConvolutionBias?.Dispose();
             ConvolutionBias = null;
             ConvolutionBiasGradients?.Dispose();
             ConvolutionBiasGradients = null;
+            return nbDisabledWeights;
         }
         private ConvolutionLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
@@ -159,7 +161,7 @@ namespace SharpNet
             ConvolutionBiasGradients?.ZeroMemory();
             if (resetAlsoOptimizerWeights)
             {
-                _optimizer.ResetWeights();
+                _optimizer.ZeroMemory();
             }
         }
         public override int TotalParams => Convolution.Count + (ConvolutionBias?.Count??0);
@@ -169,7 +171,8 @@ namespace SharpNet
             base.Dispose();
             _optimizer?.Dispose();
         }
-        public override string SummaryName() {return "Conv2D";}
+        public override string Type() { return "Conv2D"; }
+
         public override string ToString()
         {
             var result = SummaryName()+": " + ShapeChangeDescription();

@@ -158,10 +158,27 @@ namespace SharpNetTests.NonReg
             TestResNet1001V2_CIFAR10();
         }
         [Test, Explicit]
+        public void TestResNet11V2_CIFAR10()
+        {
+            LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            var network = ResNetUtils.ResNet11V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet11V2_CIFAR10)));
+            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, BatchSize, xTest, yTest);
+            network.ClearMemory();
+        }
+
+        [Test, Explicit]
         public void TestResNet20V2_CIFAR10()
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet20V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet20V2_CIFAR10)));
+            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, BatchSize, xTest, yTest);
+            network.ClearMemory();
+        }
+        [Test, Explicit]
+        public void TestResNet29V2_CIFAR10()
+        {
+            LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            var network = ResNetUtils.ResNet29V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet29V2_CIFAR10)));
             network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, BatchSize, xTest, yTest);
             network.ClearMemory();
         }

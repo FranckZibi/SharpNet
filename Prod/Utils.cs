@@ -96,7 +96,7 @@ namespace SharpNet
             {
                 return "(?)";
             }
-            return "(batchSize, " + string.Join(", ", shape.Skip(1)) + ")";
+            return "(None, " + string.Join(", ", shape.Skip(1)) + ")";
         }
         public static string ShapeToString(int[] shape)
         {
