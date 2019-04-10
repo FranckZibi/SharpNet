@@ -126,7 +126,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet110V1_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet110V1_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, BatchSize, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), NumEpochs, 32 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         [Test, Explicit]
@@ -151,6 +151,7 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void TestAllResNetV2_CIFAR10()
         {
+            TestResNet11V2_CIFAR10();
             TestResNet20V2_CIFAR10();
             TestResNet56V2_CIFAR10();
             TestResNet110V2_CIFAR10();

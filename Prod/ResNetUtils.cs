@@ -10,10 +10,7 @@ namespace SharpNet
 {
     public static class ResNetUtils
     {
-        private static string ExtraDescription()
-        {
-            return "";
-        }
+        private static string ExtraDescription { get; set; } = "";
 
 
         public static Network ResNet18_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
@@ -193,7 +190,7 @@ namespace SharpNet
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
         {
-            var description = "ResNet" + (6*numResBlocks+2) + "V1_CIFAR10" + ExtraDescription();
+            var description = "ResNet" + (6*numResBlocks+2) + "V1_CIFAR10" + ExtraDescription;
             var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
             const double lambdaL2Regularization = 1e-4;
             const bool useNesterov = false;
@@ -226,7 +223,7 @@ namespace SharpNet
         //implementation described in: https://arxiv.org/pdf/1603.05027.pdf
         private static Network GetResNetV2_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
         {
-            string description = "ResNet"+(9* numResBlocks +2)+ "V2_CIFAR10" + ExtraDescription();
+            var description = "ResNet"+(9* numResBlocks +2)+ "V2_CIFAR10" + ExtraDescription;
             var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
 
             //networkConfig.ForceTensorflowCompatibilityMode = true;
