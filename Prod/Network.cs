@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -55,6 +56,7 @@ namespace SharpNet
         }
         public void ClearMemory()
         {
+            Info("Before clearing memory: " + Config.GpuWrapper?.MemoryInfo());
             Config.GpuWrapper?.ClearMemory();
             Layers.ForEach(x => x?.Dispose());
             Layers.Clear();
@@ -62,11 +64,11 @@ namespace SharpNet
             bufferComputeAccuracy?.Dispose();
             bufferComputeLoss?.Dispose();
             _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
-
+            Info("After clearing memory: " + Config.GpuWrapper?.MemoryInfo());
         }
 
-    #region network construction: adding layers
-    public Network Input(int channelCount, int h, int w)
+        #region network construction: adding layers
+        public Network Input(int channelCount, int h, int w)
         {
             ClearMemory();
             Layers.Add(new InputLayer(channelCount, h, w, this));
@@ -513,6 +515,7 @@ namespace SharpNet
 
             var enlargedXCpu = _imageDataGenerator.EnlargePictures(xCpu);
             var lastAutoSaveTime = DateTime.Now; //last time we saved the network
+            Tuple<double, double> validationLossAndAccuracy = null;
             for (;;)
             {
                 int epoch = _epochsData.Count + 1;
@@ -560,7 +563,6 @@ namespace SharpNet
                 _swComputeLossAndAccuracy?.Start();
                 var trainLossAndAccuracy = ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
                 var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracy, "");
-                Tuple<double, double> validationLossAndAccuracy = null;
                 if (xTest != null)
                 {
                     //We compute the validation (= test) loss&accuracy
@@ -591,14 +593,41 @@ namespace SharpNet
                     || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts))
                 {
                     var swSaveTime = Stopwatch.StartNew();
-                    Info("Saving network in directory '" + Config.AutoSavePath + "' ...");
+                    Info("Saving network '"+ Description+"' in directory '" + Config.AutoSavePath + "' ...");
                     var fileName = Save(Config.AutoSavePath);
-                    Info("Network saved in file '" + fileName + "' in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
+                    Info("Network '" + Description + "' saved in file '" + fileName + "' in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
                     lastAutoSaveTime = DateTime.Now;
                 }
+
+                
+
                 #endregion
             }
-            Info("Training for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
+
+            try
+            {
+                //We save the results of the net
+                File.AppendAllText(Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "Tests.csv"),
+                    DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
+                    + Description.Replace(';', '_') + ";"
+                    + Config.GpuWrapper.DeviceName() + ";"
+                    + TotalParams + ";"
+                    + numEpochs + ";"
+                    + miniBatchSize + ";"
+                    + learningRateComputer.LearningRate(1, 0, blocksInEpoch, 1.0) + ";"
+                    + _spInternalFit.Elapsed.TotalSeconds + ";"
+                    + (_spInternalFit.Elapsed.TotalSeconds / numEpochs) + ";"
+                    + validationLossAndAccuracy?.Item1 + ";"
+                    + validationLossAndAccuracy?.Item2
+                    + Environment.NewLine
+                );
+            }
+            catch (Exception)
+            {
+                // ignored
+            }
+
+            Info("Training '"+ Description+"' for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
             if (!string.IsNullOrEmpty(Description))
             {
                 LogDebug("Network Name: "+Description);

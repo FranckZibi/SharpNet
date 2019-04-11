@@ -10,7 +10,7 @@ namespace SharpNet
 {
     public static class ResNetUtils
     {
-        private static string ExtraDescription { get; set; } = "";
+        public static string ExtraDescription { get; set; } = "";
 
 
         public static Network ResNet18_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
@@ -120,9 +120,12 @@ namespace SharpNet
         {
             return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
+
+
         public static ReduceLROnPlateau Cifar10ReduceLROnPlateau()
         {
-            return new ReduceLROnPlateau(Math.Sqrt(0.1), 5, 5);
+            var factorForReduceLrOnPlateau = DivideBy10OnPlateau?0.1:Math.Sqrt(0.1);
+            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
         }
         /*public static ILearningRateScheduler UpdatedCifar10LearningRateScheduler()
         {
@@ -187,15 +190,19 @@ namespace SharpNet
         private const int WidthCifar10 = HeightCifar10;
         private const int CategoriesCifar10 = 10;
 
+        public static bool DivideBy10OnPlateau = false;
+        public static bool UseAdam = false;
+        public static bool UseNesterov = false;
+
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
         {
             var description = "ResNet" + (6*numResBlocks+2) + "V1_CIFAR10" + ExtraDescription;
             var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
             const double lambdaL2Regularization = 1e-4;
-            const bool useNesterov = false;
-
-            var network = new Network(networkConfig.WithSGD(0.9, 0, useNesterov), ResNetImageDataGenerator());
+        
+            networkConfig = UseAdam? networkConfig.WithAdam() :  networkConfig.WithSGD(0.9, 0, UseNesterov);
+            var network = new Network(networkConfig, ResNetImageDataGenerator());
             network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
 
             network.Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
@@ -230,9 +237,9 @@ namespace SharpNet
             //networkConfig.DisplayTensorContentStats= true;
 
             const double lambdaL2Regularization = 1e-4;
-            const bool useNesterov = false;
 
-            var network = new Network(networkConfig.WithSGD(0.9, 0, useNesterov), ResNetImageDataGenerator());
+            networkConfig = UseAdam ? networkConfig.WithAdam() : networkConfig.WithSGD(0.9, 0, UseNesterov);
+            var network = new Network(networkConfig, ResNetImageDataGenerator());
 
             network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
             network.Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);

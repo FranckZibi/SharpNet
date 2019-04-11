@@ -173,6 +173,13 @@ namespace SharpNet.GPU
         }
         public void ClearMemory()
         {
+            _copyToDeviceCalls = 0;
+            _bytesCopiedToDevice = 0;
+            _copyToHostCalls = 0;
+            _bytesCopiedToHost = 0;
+            SwCopyToDevice.Reset();
+            SwCopyToHost.Reset();
+
             cacheTensorDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyTensorDescriptor(x));
             cacheTensorDesc.Clear();
             cacheFilterDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyFilterDescriptor(x));

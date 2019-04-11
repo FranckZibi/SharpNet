@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SharpNet;
 
 namespace SharpNetTests
 {
@@ -24,7 +25,29 @@ namespace SharpNetTests
 
             var modifiers = new List<Action>
             {
-                ()=>{}
+                //() => {ResNetUtils.ExtraDescription = "";}, 
+
+                () =>
+                {
+                    ResNetUtils.UseAdam = false;
+                    ResNetUtils.UseNesterov = false;
+                    ResNetUtils.DivideBy10OnPlateau = true;
+                    ResNetUtils.ExtraDescription = "_DivideBy10OnPlateau";
+                },
+                () =>
+                {
+                    ResNetUtils.UseAdam = true;
+                    ResNetUtils.UseNesterov = false;
+                    ResNetUtils.DivideBy10OnPlateau = false;
+                    ResNetUtils.ExtraDescription = "_UseAdam";
+                },
+                () =>
+                {
+                    ResNetUtils.UseAdam = false;
+                    ResNetUtils.UseNesterov = true;
+                    ResNetUtils.DivideBy10OnPlateau = false;
+                    ResNetUtils.ExtraDescription = "_UseNesterov";
+                }
             };
 
 
