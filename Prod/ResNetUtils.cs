@@ -193,15 +193,18 @@ namespace SharpNet
         public static bool DivideBy10OnPlateau = false;
         public static bool UseAdam = false;
         public static bool UseNesterov = false;
+        public static bool AlwaysMaxMiniBatchSize = false;
+        public static double lambdaL2Regularization = 1e-4;
+
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
         {
             var description = "ResNet" + (6*numResBlocks+2) + "V1_CIFAR10" + ExtraDescription;
             var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
-            const double lambdaL2Regularization = 1e-4;
         
             networkConfig = UseAdam? networkConfig.WithAdam() :  networkConfig.WithSGD(0.9, 0, UseNesterov);
+
             var network = new Network(networkConfig, ResNetImageDataGenerator());
             network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
 
@@ -232,11 +235,6 @@ namespace SharpNet
         {
             var description = "ResNet"+(9* numResBlocks +2)+ "V2_CIFAR10" + ExtraDescription;
             var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
-
-            //networkConfig.ForceTensorflowCompatibilityMode = true;
-            //networkConfig.DisplayTensorContentStats= true;
-
-            const double lambdaL2Regularization = 1e-4;
 
             networkConfig = UseAdam ? networkConfig.WithAdam() : networkConfig.WithSGD(0.9, 0, UseNesterov);
             var network = new Network(networkConfig, ResNetImageDataGenerator());

@@ -215,15 +215,30 @@ namespace SharpNet.GPU
         }
         public string MemoryInfo()
         {
-            var res = NVCudaWrapper.cuMemGetInfo_v2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes);
-            CheckStatus(res);
-            var result = "Free Gpu Memory: " + Utils.MemoryBytesToString(freeMemoryInBytes)  + "/" + Utils.MemoryBytesToString(totalMemoryInBytes);
+            var result = "Free Gpu Memory: " + Utils.MemoryBytesToString(FreeMemoryInBytes())  + "/" + Utils.MemoryBytesToString(TotalMemoryInBytes());
             var cudaVersion = CudaVersionFromCudaPath();
             result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - with CUDA " + cudaVersion);
             result += " - GetTotalMemory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false)) ;
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice)+" CopiedToDevice (" + _copyToDeviceCalls + "calls, "+ SwCopyToDevice.ElapsedMilliseconds+"ms)";
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
             return result;
+        }
+
+        private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
+        {
+            var res = NVCudaWrapper.cuMemGetInfo_v2(out freeMemoryInBytes, out totalMemoryInBytes);
+            CheckStatus(res);
+        }
+        public ulong FreeMemoryInBytes()
+        {
+            CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
+            return freeMemoryInBytes;
+        }
+        public ulong TotalMemoryInBytes()
+        {
+            CuMemGetInfoV2(out size_t _, out size_t totalMemoryInBytes);
+            return totalMemoryInBytes;
+
         }
 
         public IntPtr CudaBlasHandle => _cudaBlasHandle;

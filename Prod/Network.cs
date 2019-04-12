@@ -349,6 +349,22 @@ namespace SharpNet
             result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependantOfBatchSize);
             return result;
         }
+
+        //TODO add tests
+        public static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
+        {
+            freeMemoryInBytes -= bytesIndependantOfBatchSize;
+            freeMemoryInBytes = (9* freeMemoryInBytes)/10;
+
+            //return (int) Math.Max(1, freeMemoryInBytes / bytesByBatchSize);
+            ulong miniBatchSize = 1;
+            while ( (2UL * miniBatchSize * bytesByBatchSize) < freeMemoryInBytes)
+            {
+                miniBatchSize *= 2;
+            }
+            return (int)miniBatchSize;
+        }
+
         public Optimizer GetOptimizer(int[] weightShape, int[] biasShape)
         {
             switch (Config.OptimizerType)
@@ -430,7 +446,7 @@ namespace SharpNet
         #endregion
 
         [SuppressMessage("ReSharper", "UnusedParameter.Local")]
-        private void CheckInput<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateComputer learningRateComputer, int numEpochs, int batchSize, CpuTensor<T> X_testCpu, CpuTensor<T> Y_testCpu) where T : struct
+        private void CheckInput<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize, CpuTensor<T> X_testCpu, CpuTensor<T> Y_testCpu) where T : struct
         {
             Debug.Assert(xCpu.Shape[0] == yCpu.Shape[0]); //same number of tests
             if (!Layer.IsValidYSet(yCpu))
@@ -500,6 +516,14 @@ namespace SharpNet
             var xTest = ReformatToCorrectDevice_GPU_or_CPU(xTestCpu);
             var yTest = ReformatToCorrectDevice_GPU_or_CPU(yTestCpu);
             Info(ToString());
+            if ((miniBatchSize < 1)||
+                ResNetUtils.AlwaysMaxMiniBatchSize //?D
+                )
+            {
+                var freeMemoryInBytes = Config.GpuWrapper?.FreeMemoryInBytes() ?? (ulong)GC.GetTotalMemory(false);
+                miniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
+                Info("Target MiniBatchSize=" + miniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
+            }
             var blocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
             if (Config.UseGPU)
             {
@@ -510,7 +534,7 @@ namespace SharpNet
             {
                 LogDebug("Test Set: " + xTest + " => " + yTest);
             }
-            Info("#Epochs=" + numEpochs + " BathSize=" + miniBatchSize);
+            Info("#Epochs=" + numEpochs + " BathSize=" + miniBatchSize+" Name="+Description);
 
 
             var enlargedXCpu = _imageDataGenerator.EnlargePictures(xCpu);

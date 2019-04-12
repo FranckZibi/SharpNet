@@ -15,14 +15,14 @@ SGD with momentum = 0.9 & L2 = 1-e4
 # Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080
 #           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)  
 # ---------------------------------------------------------------------------
-# ResNet11  | - (1)| NA        | NA        | 88.73     | -----     | NA (09) 
-# ResNet20  | 3 (2)| 91.59     | 91.25     | 89.76     | -----     | 10 (16) 
-# ResNet32  | 5(NA)| 92.47     | 92.49     | NA        | NA        | 15 (NA) 
-# ResNet44  | 7(NA)| 92.08     | 92.83     | NA        | NA        | 21 (NA) 
-# ResNet56  | 9 (6)| 92.67     | 93.03     | 75.75     | -----     | 26 (42) 
-# ResNet110 |18(12)| 93.31     | 93.39+-.16| -----     | 93.63     | 50 (---)
-# ResNet164 |27(18)| 91.48     | 94.07     | -----     | 94.54     | 91 (---)
-# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
+# ResNet11  | - (1)| NA        | NA        | 88.73     | -----     | NA   (8.8) 
+# ResNet20  | 3 (2)| 91.59     | 91.25     | 89.76     | -----     | 9.5  (15.4) 
+# ResNet32  | 5(NA)| 92.47     | 92.49     | NA        | NA        | 15.0 ( NA) 
+# ResNet44  | 7(NA)| 92.08     | 92.83     | NA        | NA        | 20.4 ( NA) 
+# ResNet56  | 9 (6)| 92.67     | 93.03     | 75.75     | -----     | 25.8 (41.9) 
+# ResNet110 |18(12)| 93.31     | 93.39+-.16| -----     | 93.63     | 50  (---)
+# ResNet164 |27(18)| 91.48     | 94.07     | -----     | 94.54     | 91  (---)
+# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| --- (---)
 # ---------------------------------------------------------------------------
 
 BatchSize = 128
@@ -74,7 +74,6 @@ namespace SharpNetTests.NonReg
     {
         private const int NumEpochs = 160; //64k iterations
         private const int BatchSize = 128;
-        //private const int BatchSize = 32;
 
         /// <summary>
         /// Train a ResNet V1 network on Cifar10 dataset has described in https://arxiv.org/pdf/1512.03385.pdf
