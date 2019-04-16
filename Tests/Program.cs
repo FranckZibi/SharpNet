@@ -25,11 +25,12 @@ namespace SharpNetTests
 
             var modifiers = new List<Action>
             {
-                () => {ResNetUtils.ExtraDescription = "";}, 
-                //() =>{ResNetUtils.lambdaL2Regularization = 3*1e-3;ResNetUtils.ForceTensorflowCompatibilityMode = false;ResNetUtils.ExtraDescription = "_L2_0_003";},
-                //() =>{ResNetUtils.lambdaL2Regularization = 1e-4;ResNetUtils.ForceTensorflowCompatibilityMode = true;ResNetUtils.ExtraDescription = "_ForceTensorflowCompatibilityMode";},
+                () => {}, 
+                //() =>{ResNetUtils.lambdaL2Regularization = 3*1e-4;;ResNetUtils.ExtraDescription = "_L2_0_004";},
+                //() =>{;ResNetUtils.LinearLearningRate = true;ResNetUtils.ExtraDescription = "_LinearLearningRate";},
+                //() =>{ResNetUtils.AlwaysMaxMiniBatchSize = true;ResNetUtils.ExtraDescription = "_AlwaysMaxMiniBatchSize";},
             };
-
+            
 
             var totalTest = modifiers.Count * todo.Count;
             var nbPerformedtests = 0;
@@ -37,6 +38,13 @@ namespace SharpNetTests
             {
                 for (int modifierIndex = 0; modifierIndex < modifiers.Count; ++modifierIndex)
                 {
+                    ResNetUtils.lambdaL2Regularization = 1e-4;
+                    ResNetUtils.LinearLearningRate = false;
+                    ResNetUtils.ExtraDescription = "";
+                    ResNetUtils.NumEpochs = 160;
+                    ResNetUtils.BatchSize = 128;
+                    ResNetUtils.OneCycleLearningRate = false;
+
                     modifiers[modifierIndex]();
                     todo[testIndex]();
                     ++nbPerformedtests;

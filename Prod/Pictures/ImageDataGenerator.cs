@@ -161,7 +161,6 @@ namespace SharpNet.Pictures
                 var pictureOutputIdx = outputBufferPictures.Idx(outputPictureIndex);
                 Buffer.BlockCopy(inputEnlargedPictures.Content, pictureInputIdx * typeSize, outputBufferPictures.Content, pictureOutputIdx * typeSize, outputBufferPictures.MultDim0 * typeSize);
                 return;
-                //!D TO TEST
             }
 
             var hOutput = outputBufferPictures.Shape[2];

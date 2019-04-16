@@ -5,12 +5,6 @@ using SharpNet.Data;
 
 namespace SharpNet.Optimizers
 {
-    public interface ILearningRateScheduler
-    {
-        double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch);
-    }
-
-
     public class LearningRateScheduler : ILearningRateScheduler
     {
         #region private fields
@@ -93,27 +87,30 @@ namespace SharpNet.Optimizers
             }
             for (int i = 0; i < _values.Count; ++i)
             {
-                if (epoch > _values[i].Key)
+                var x2 = _values[i].Key;
+                if (epoch > x2)
                 {
                     continue;
                 }
-                if (_values[i].Key == epoch || i == 0)
+                var y2 = _values[i].Value;
+                if (x2 == epoch || i == 0)
                 {
-                    return _values[i].Value;
+                    return y2;
                 }
-                Debug.Assert(epoch < _values[i].Key);
-                Debug.Assert(epoch > _values[i-1].Key);
+                Debug.Assert(epoch < x2);
+                var x1 = _values[i - 1].Key;
+                Debug.Assert(epoch > x1);
+                var y1 = _values[i - 1].Value;
                 if (_constantByInterval)
                 {
-                    return _values[i - 1].Value;
+                    return y1;
                 }
-
-                double dEpoch = ((double)epoch- _values[i-1].Key)/(_values[i].Key-_values[i - 1].Key);
-                double deltaLearningRate = (_values[i].Value - _values[i - 1].Value);
-                return _values[i - 1].Value + dEpoch * deltaLearningRate;
+                return Utils.Interpolate(x1, y1, x2, y2, epoch);
             }
             return _values.Last().Value;
         }
+
+    
 
         public string Serialize()
         {

@@ -127,6 +127,12 @@ namespace SharpNet
             }
             return bytes + "B";
         }
+        public static double Interpolate(double x1, double y1, double x2, double y2, double xToInterpolate)
+        {
+            double dEpoch = (xToInterpolate - x1) / (x2 - x1);
+            double deltaLearningRate = (y2 - y1);
+            return y1 + dEpoch * deltaLearningRate;
+        }
         public static void Randomize(double[] toRandomize, Random rand, double minValue, double maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)

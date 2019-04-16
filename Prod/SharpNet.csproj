@@ -74,9 +74,11 @@
     <Compile Include="NetworkConfig.cs" />
     <Compile Include="Optimizers\Adam.cs" />
     <Compile Include="Optimizers\ILearningRateComputer.cs" />
+    <Compile Include="Optimizers\ILearningRateScheduler.cs" />
     <Compile Include="Optimizers\LearningRateComputer.cs" />
     <Compile Include="Optimizers\LearningRateFinder.cs" />
     <Compile Include="Optimizers\LearningRateScheduler.cs" />
+    <Compile Include="Optimizers\OneCycleLearningRateScheduler.cs" />
     <Compile Include="Optimizers\Optimizer.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateau.cs" />
     <Compile Include="Optimizers\VanillaSgd.cs" />

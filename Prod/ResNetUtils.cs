@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom;
 using System.IO;
 using System.Linq;
 using SharpNet.CPU;
@@ -10,6 +11,14 @@ namespace SharpNet
 {
     public static class ResNetUtils
     {
+        public static bool DivideBy10OnPlateau = false;
+        public static bool UseAdam = false;
+        public static bool UseNesterov = false;
+        public static bool OneCycleLearningRate = false;
+        public static double lambdaL2Regularization = 1e-4;
+        public static bool LinearLearningRate = false;
+        public static int NumEpochs = 160; //64k iterations
+        public static int BatchSize = 128;
         public static string ExtraDescription { get; set; } = "";
 
 
@@ -111,19 +120,33 @@ namespace SharpNet
             yWorkingSet = y.ToCategorical(1.0f, out _);
         }
 
+
         public static ILearningRateScheduler Cifar10LearningRateScheduler()
         {
+            const double initialLearningRate = 0.1;
+            if (OneCycleLearningRate)
+            {
+                return new OneCycleLearningRateScheduler(initialLearningRate, 10, 0.2, NumEpochs);
+            }
             //return UpdatedCifar10LearningRateScheduler();
-            return Cifar10LearningRateScheduler(0.1);
+            return Cifar10LearningRateScheduler(initialLearningRate);
         }
-        public static ILearningRateScheduler Cifar10LearningRateScheduler(double initialLearningRate)
+        private static ILearningRateScheduler Cifar10LearningRateScheduler(double initialLearningRate)
         {
+            if (LinearLearningRate)
+            {
+                return LearningRateScheduler.InterpolateByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+            }
             return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
         }
 
 
         public static ReduceLROnPlateau Cifar10ReduceLROnPlateau()
         {
+            if (OneCycleLearningRate)
+            {
+                return null;
+            }
             var factorForReduceLrOnPlateau = DivideBy10OnPlateau?0.1:Math.Sqrt(0.1);
             return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
         }
@@ -190,11 +213,7 @@ namespace SharpNet
         private const int WidthCifar10 = HeightCifar10;
         private const int CategoriesCifar10 = 10;
 
-        public static bool DivideBy10OnPlateau = false;
-        public static bool UseAdam = false;
-        public static bool UseNesterov = false;
-        public static bool AlwaysMaxMiniBatchSize = false;
-        public static double lambdaL2Regularization = 1e-4;
+
 
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf

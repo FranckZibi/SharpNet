@@ -516,9 +516,7 @@ namespace SharpNet
             var xTest = ReformatToCorrectDevice_GPU_or_CPU(xTestCpu);
             var yTest = ReformatToCorrectDevice_GPU_or_CPU(yTestCpu);
             Info(ToString());
-            if ((miniBatchSize < 1)||
-                ResNetUtils.AlwaysMaxMiniBatchSize //?D
-                )
+            if (miniBatchSize < 1)
             {
                 var freeMemoryInBytes = Config.GpuWrapper?.FreeMemoryInBytes() ?? (ulong)GC.GetTotalMemory(false);
                 miniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
