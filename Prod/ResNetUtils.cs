@@ -22,7 +22,12 @@ namespace SharpNet
         public static int NumEpochs = 160; //64k iterations
         public static int BatchSize = 128;
         public static double InitialLearningRate = 0.1;
-
+        public static int CutoutPatchlength = 0;
+        public static double WidthShiftRange = 0.1;
+        public static double HeightShiftRange = 0.1;
+        public static bool HorizontalFlip = true;
+        public static bool VerticalFlip = false;
+        public static ImageDataGenerator.FillModeEnum FillMode = ImageDataGenerator.FillModeEnum.Nearest;
         public static string ExtraDescription { get; set; } = "";
 
 
@@ -206,15 +211,12 @@ namespace SharpNet
         }
         private static ImageDataGenerator ResNetImageDataGenerator()
         {
-            return new ImageDataGenerator(0.1, 0.1, true, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0);
+            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchlength);
         }
         private const int ChannelsCifar10 = 3;
         private const int HeightCifar10 = 32;
         private const int WidthCifar10 = HeightCifar10;
         private const int CategoriesCifar10 = 10;
-
-
-
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)

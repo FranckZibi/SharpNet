@@ -2,7 +2,6 @@
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
-using SharpNet.Optimizers;
 
 
 /*

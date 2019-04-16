@@ -28,6 +28,15 @@ namespace SharpNet.Pictures
         private readonly bool _horizontalFlip;
         //randomly flip images
         private readonly bool _verticalFlip;
+        //see https://arxiv.org/pdf/1708.04552.pdf
+        /// <summary>
+        /// width and height of the zero mask to apply to the input picture (see  https://arxiv.org/pdf/1708.04552.pdf)
+        /// recommanded size : 16 (x16) for CIFAR10 / 8 (x8) for CIFAR100 / 20 (x20) for SVHN / 32 (x32) for STL-10
+        /// 0 means no cutout
+        /// </summary>
+        private readonly int _cutoutPatchlength;
+
+
         //set input mean to 0 over the dataset
         //public bool FeaturewiseCenter { get; set; } = false;
         //set each sample mean to 0
@@ -57,9 +66,9 @@ namespace SharpNet.Pictures
         //fraction of images reserved for validation (strictly between 0 and 1)
         //public double ValidationSplit { get; set; } = 0.0;
         #endregion
-        public static readonly ImageDataGenerator NoDataAugmentation = new ImageDataGenerator(0, 0, false, false, FillModeEnum.Nearest, 0.0);
+        public static readonly ImageDataGenerator NoDataAugmentation = new ImageDataGenerator(0, 0, false, false, FillModeEnum.Nearest, 0.0, 0);
 
-        public ImageDataGenerator(double widthShiftRange, double heightShiftRange, bool horizontalFlip, bool verticalFlip, FillModeEnum fillMode, double fillModeConsantVal)
+        public ImageDataGenerator(double widthShiftRange, double heightShiftRange, bool horizontalFlip, bool verticalFlip, FillModeEnum fillMode, double fillModeConsantVal, int cutoutPatchlength)
         {
             _widthShiftRange = widthShiftRange;
             _heightShiftRange = heightShiftRange;
@@ -67,6 +76,7 @@ namespace SharpNet.Pictures
             _verticalFlip = verticalFlip;
             _fillMode = fillMode;
             _fillModeConsantVal = fillModeConsantVal;
+            _cutoutPatchlength = cutoutPatchlength;
             _randForShuffle = new Random(0);
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
@@ -129,6 +139,7 @@ namespace SharpNet.Pictures
                 .Add(nameof(_verticalFlip), _verticalFlip)
                 .Add(nameof(_fillMode), (int)_fillMode)
                 .Add(nameof(_fillModeConsantVal), _fillModeConsantVal)
+                .Add(nameof(_cutoutPatchlength), _cutoutPatchlength)
                 .ToString();
         }
         public static ImageDataGenerator ValueOf(IDictionary<string, object> serialized)
@@ -143,11 +154,24 @@ namespace SharpNet.Pictures
                 (bool) serialized[nameof(_horizontalFlip)],
                 (bool) serialized[nameof(_verticalFlip)],
                 (FillModeEnum) serialized[nameof(_fillMode)],
-                (double) serialized[nameof(_fillModeConsantVal)]
+                (double) serialized[nameof(_fillModeConsantVal)],
+                (int) serialized[nameof(_cutoutPatchlength)]
                 );
         }
         #endregion
 
+        /// <summary>
+        /// takes the input (enlarged) picture at index 'inputPictureIndex' in 'inputEnlargedPictures'&'yInputOneHot'
+        /// and stores a data augmented version of it at index 'outputPictureIndex' of 'outputBufferPictures'&'yOutputOneHot'
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="inputEnlargedPictures"></param>
+        /// <param name="yInputOneHot"></param>
+        /// <param name="outputBufferPictures"></param>
+        /// <param name="yOutputOneHot"></param>
+        /// <param name="inputPictureIndex"></param>
+        /// <param name="outputPictureIndex"></param>
+        /// <param name="typeSize"></param>
         private void CreateSingleInputForEpoch<T>(CpuTensor<T> inputEnlargedPictures, CpuTensor<T> yInputOneHot, CpuTensor<T> outputBufferPictures, CpuTensor<T> yOutputOneHot, int inputPictureIndex, int outputPictureIndex, int typeSize) where T : struct
         {
             var yInputIdx = yInputOneHot.Idx(inputPictureIndex);
@@ -163,30 +187,53 @@ namespace SharpNet.Pictures
                 return;
             }
 
-            var hOutput = outputBufferPictures.Shape[2];
-            var wOutput = outputBufferPictures.Shape[3];
-            var wSizeInBytes = wOutput * typeSize;
-            var paddingForTopAndBottom = (inputEnlargedPictures.Shape[2] - hOutput) / 2;
-            var paddingForLeftAndRight = (inputEnlargedPictures.Shape[3] - wOutput) / 2;
+            var nbRowsOutput = outputBufferPictures.Shape[2];
+            var nbColsOutput = outputBufferPictures.Shape[3];
+            var wOutputSizeInBytes = nbColsOutput * typeSize;
+            var paddingForTopAndBottom = (inputEnlargedPictures.Shape[2] - nbRowsOutput) / 2;
+            var paddingForLeftAndRight = (inputEnlargedPictures.Shape[3] - nbColsOutput) / 2;
             var rand = _rands[inputPictureIndex % _rands.Length];
             var rowInEnlargedPictures = rand.Next(2 * paddingForTopAndBottom);
             var colInEnlargedPictures = rand.Next(2 * paddingForLeftAndRight);
             var horizontalFlip = _horizontalFlip && rand.Next(2) == 0;
             var verticalFlip = _verticalFlip && rand.Next(2) == 0;
+            Cutout(nbRowsOutput, nbColsOutput, rand, out var cutoutOutputRowStart, out var cutoutOutputRowEnd, out var cutoutOutputColStart, out var cutoutOutputColEnd);
             for (int channel = 0; channel < outputBufferPictures.Shape[1]; ++channel)
             {
-                for (int rowOutput = 0; rowOutput < hOutput; ++rowOutput)
+                for (int rowOutput = 0; rowOutput < nbRowsOutput; ++rowOutput)
                 {
-                    var rowInput = verticalFlip ? (rowInEnlargedPictures + hOutput - 1 - rowOutput) : (rowOutput + rowInEnlargedPictures);
+                    var rowInput = verticalFlip ? (rowInEnlargedPictures + nbRowsOutput - 1 - rowOutput) : (rowOutput + rowInEnlargedPictures);
                     var inputPictureIdx = inputEnlargedPictures.Idx(inputPictureIndex, channel, rowInput, colInEnlargedPictures);
                     var outputPictureIdx = outputBufferPictures.Idx(outputPictureIndex, channel, rowOutput, 0);
-                    Buffer.BlockCopy(inputEnlargedPictures.Content, inputPictureIdx * typeSize, outputBufferPictures.Content, outputPictureIdx * typeSize, wSizeInBytes);
+                    Buffer.BlockCopy(inputEnlargedPictures.Content, inputPictureIdx * typeSize, outputBufferPictures.Content, outputPictureIdx * typeSize, wOutputSizeInBytes);
                     if (horizontalFlip)
                     {
-                        Array.Reverse(outputBufferPictures.Content, outputPictureIdx, wOutput);
+                        Array.Reverse(outputBufferPictures.Content, outputPictureIdx, nbColsOutput);
+                    }
+                    //we check if we should apply cutout to row
+                    if (rowOutput >= cutoutOutputRowStart && rowOutput <= cutoutOutputRowEnd)
+                    {
+                        Array.Clear(outputBufferPictures.Content, outputPictureIdx+cutoutOutputColStart, cutoutOutputColEnd- cutoutOutputColStart+1);
                     }
                 }
             }
+        }
+
+        private void Cutout(int nbRows, int nbCols, Random rand, out int rowStart, out int rowEnd, out int colStart, out int colEnd)
+        {
+            if (_cutoutPatchlength <= 0)
+            {
+                rowStart = rowEnd = colStart = colEnd = -1;
+                return;
+            }
+            //the cutout patch will be centered at (rowMiddle,colMiddle)
+            //its size will be between '1x1' (minimum patch size if the center is a corner) to '_cutoutPatchlength x _cutoutPatchlength' (maximum size)
+            var rowMiddle = rand.Next(nbRows);
+            var colMiddle = rand.Next(nbCols);
+            rowStart = Math.Max(0, rowMiddle - _cutoutPatchlength / 2);
+            rowEnd = Math.Min(nbRows-1, rowStart+ _cutoutPatchlength-1);
+            colStart = Math.Max(0, colMiddle - _cutoutPatchlength / 2);
+            colEnd = Math.Min(nbCols- 1, colStart + _cutoutPatchlength - 1);
         }
         private bool UseDataAugmentation => !ReferenceEquals(this, NoDataAugmentation);
         private void GetPadding(int pictureHeight, int pictureWidth, out int paddingForTopAndBottom, out int paddingForLeftAndRight)

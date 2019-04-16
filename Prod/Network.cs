@@ -508,7 +508,6 @@ namespace SharpNet
             Debug.Assert(Config.TypeSize == yCpu.TypeSize);
             Debug.Assert(learningRateComputer != null);
             _spInternalFit.Start();
-
             CheckInput(xCpu, yCpu, learningRateComputer, numEpochs, miniBatchSize, xTestCpu, yTestCpu);
             var yInputCpu = yCpu.Clone();
             var x = ReformatToCorrectDevice_GPU_or_CPU(xCpu);
@@ -562,8 +561,10 @@ namespace SharpNet
                 {
                     _swCreateInputForEpoch?.Start();
                     _imageDataGenerator.CreateInputForEpoch(enlargedXCpu, yInputCpu, xCpu, yCpu, Config.RandomizeOrder);
-                    _swCreateInputForEpoch?.Stop();
+                    _swCreateInputForEpoch?.Stop();              
                 }
+                //for (int i = 0; i < 10; ++i) {PictureTools.SaveBitmap(xCpu, i, "c:/temp/ML/Train/", i.ToString("D5")+"_epoch_" + epoch, "");}
+
                 if (x.UseGPU)
                 {
                     ((GPUTensor<T>)x).CopyToDevice(xCpu.HostPointer);

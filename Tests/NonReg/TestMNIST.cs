@@ -48,7 +48,7 @@ namespace SharpNetTests.NonReg
             //var network = Network.ValueOf("c:/temp/ml/save_2632_2.txt");network.Config.Logger = logger;
 
 
-            var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0);
+            var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0);
             var network = new Network(
                 new NetworkConfig(useGpu) { Logger = logger, UseDoublePrecision = false }
                 //.WithAdam()
