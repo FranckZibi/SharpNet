@@ -27,14 +27,14 @@ namespace SharpNetTests
             var modifiers = new List<Action>
             {
                 () =>{ResNetUtils.CutoutPatchlength=16;ResNetUtils.ExtraDescription = "_Cutout16";},
-                () => {},
-                () =>{ResNetUtils.BatchSize=-1;ResNetUtils.ExtraDescription = "_Auto_BatchSize";},
-                () =>{ResNetUtils.CutoutPatchlength=16;ResNetUtils.ExtraDescription = "_Cutout16";},
                 () =>{ResNetUtils.CutoutPatchlength=8;ResNetUtils.ExtraDescription = "_Cutout8";},
+                () => {},
                 () =>{ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_HorizontalFlip";},
                 () =>{ResNetUtils.WidthShiftRange=0.0;ResNetUtils.HeightShiftRange=0.0;ResNetUtils.ExtraDescription = "_no_ShiftRange";},
                 () =>{ResNetUtils.WidthShiftRange=0.0;ResNetUtils.HeightShiftRange=0.0;ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_DataAugmentation_onlyShuffling";},
                 () =>{ResNetUtils.FillMode=ImageDataGenerator.FillModeEnum.Reflect;ResNetUtils.ExtraDescription = "_FillMode_Reflect";},
+                () =>{ResNetUtils.BatchSize=-1;ResNetUtils.ExtraDescription = "_Auto_BatchSize";},
+
 
             //https://sgugger.github.io/the-1cycle-policy.html
             //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 50;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 3.0;ResNetUtils.OneCycleDividerForMinLearningRate = 20;ResNetUtils.ExtraDescription = "_OneCycle_300_015_50Epochs";},
@@ -44,14 +44,15 @@ namespace SharpNetTests
             //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 100;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_100Epochs";},
 
         };
-            
 
             var totalTest = modifiers.Count * todo.Count;
             var nbPerformedtests = 0;
             for (int modifierIndex = 0; modifierIndex < modifiers.Count; ++modifierIndex)
             {
+                Console.WriteLine("Starting all tests of family " + (modifierIndex + 1) + ".*");
                 for (int testIndex = 0; testIndex < todo.Count; ++testIndex)
                 {
+
                     ResNetUtils.lambdaL2Regularization = 1e-4;
                     ResNetUtils.LinearLearningRate = false;
                     ResNetUtils.ExtraDescription = "";
@@ -74,7 +75,7 @@ namespace SharpNetTests
 
 
                     modifiers[modifierIndex]();
-                    if (modifierIndex == 0)
+                    Console.WriteLine("Starting test " + (modifierIndex + 1) + "." + (testIndex + 1) + " ('" + ResNetUtils.ExtraDescription + "'), last one will be " + modifiers.Count + "." + todo.Count);
                     {
                         Console.WriteLine("Starting test: '" + ResNetUtils.ExtraDescription+"' (this test includes "+ todo.Count+" networks)");
                     }
