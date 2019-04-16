@@ -1,5 +1,4 @@
 ﻿using System;
-using System.CodeDom;
 using System.IO;
 using System.Linq;
 using SharpNet.CPU;
@@ -14,11 +13,16 @@ namespace SharpNet
         public static bool DivideBy10OnPlateau = false;
         public static bool UseAdam = false;
         public static bool UseNesterov = false;
+        //for one cycle policy: by how much we hasve to divide the max learning rate to reacht he min learning rate
+        public static int OneCycleDividerForMinLearningRate = 10; 
+        public static double OneCyclePercentInAnnealing = 0.2; 
         public static bool OneCycleLearningRate = false;
         public static double lambdaL2Regularization = 1e-4;
         public static bool LinearLearningRate = false;
         public static int NumEpochs = 160; //64k iterations
         public static int BatchSize = 128;
+        public static double InitialLearningRate = 0.1;
+
         public static string ExtraDescription { get; set; } = "";
 
 
@@ -123,21 +127,15 @@ namespace SharpNet
 
         public static ILearningRateScheduler Cifar10LearningRateScheduler()
         {
-            const double initialLearningRate = 0.1;
             if (OneCycleLearningRate)
             {
-                return new OneCycleLearningRateScheduler(initialLearningRate, 10, 0.2, NumEpochs);
+                return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycleDividerForMinLearningRate, OneCyclePercentInAnnealing, NumEpochs);
             }
-            //return UpdatedCifar10LearningRateScheduler();
-            return Cifar10LearningRateScheduler(initialLearningRate);
-        }
-        private static ILearningRateScheduler Cifar10LearningRateScheduler(double initialLearningRate)
-        {
             if (LinearLearningRate)
             {
-                return LearningRateScheduler.InterpolateByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+                return LearningRateScheduler.InterpolateByInterval(1, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
             }
-            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+            return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
         }
 
 
@@ -157,9 +155,11 @@ namespace SharpNet
         }*/
         public static ILearningRateScheduler ResNet110LearningRateScheduler()
         {
-            //return UpdatedCifar10LearningRateScheduler();
-            var initialLearningRate = 0.1;
-            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100);
+            if (OneCycleLearningRate)
+            {
+                return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycleDividerForMinLearningRate, OneCyclePercentInAnnealing, NumEpochs);
+            }
+            return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate/10, 2, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
         }
 
         private static Network ResNetV1(int[] nbResBlocks, bool useBottleNeck, int[] xShape, int nbCategories, bool useGPU, bool useDoublePrecision, Logger logger)

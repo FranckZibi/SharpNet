@@ -1,4 +1,6 @@
-﻿namespace SharpNet.Optimizers
+﻿using System.Diagnostics;
+
+namespace SharpNet.Optimizers
 {
     public class OneCycleLearningRateScheduler : ILearningRateScheduler
     {
@@ -7,14 +9,13 @@
         private readonly int _div;
         private readonly double _pct;
         private readonly int _nbEpochs;
-
         #endregion
 
         private double MinLearningRate() {return _maxLearningRate/ _div;}
         private double MaxLearningRate() {return _maxLearningRate ;}
-        private double LearningRateForLastEpoch() {return MinLearningRate()/1000;}
-        private double EpochForMaxLearningRate(int nbEpochs) {return 1.0+ nbEpochs * (1.0 - _pct) / 2;}
-        private double EpochForMinLearningRate(int nbEpochs) {return 1.0 + nbEpochs * (1.0 - _pct);}
+        private double LearningRateForLastEpoch() {return MinLearningRate()/100;}
+        private double EpochForMaxLearningRate() {return 1.0+ _nbEpochs * (1.0 - _pct) / 2;}
+        private double EpochForMinLearningRate() {return 1.0 + _nbEpochs * (1.0 - _pct);}
 
         /// <summary>
         /// see https://github.com/sgugger/Deep-Learning/blob/master/Cyclical%20LR%20and%20momentums.ipynb
@@ -27,6 +28,7 @@
         /// <param name="nbEpochs">total number of epochs</param>
         public OneCycleLearningRateScheduler(double maxLearningRate, int div, double pct, int nbEpochs)
         {
+            Debug.Assert(div >= 1);
             _maxLearningRate = maxLearningRate;
             _div = div;
             _pct = pct;
@@ -35,15 +37,18 @@
         public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
         {
             double currentEpoch = epoch + ((double) blockIdInEpoch) / nbBlocksInEpoch;
-            if (currentEpoch <= EpochForMaxLearningRate(_nbEpochs))
+            if (currentEpoch <= EpochForMaxLearningRate())
             {
-                return Utils.Interpolate(1.0, MinLearningRate(), EpochForMaxLearningRate(_nbEpochs), MaxLearningRate(), currentEpoch);
+                //first part of the cycle: increasing the learning rate from 'MinLearningRate()' to 'MaxLearningRate()'
+                return Utils.Interpolate(1.0, MinLearningRate(), EpochForMaxLearningRate(), MaxLearningRate(), currentEpoch);
             }
-            if (currentEpoch <= EpochForMinLearningRate(_nbEpochs))
+            if (currentEpoch <= EpochForMinLearningRate())
             {
-                return Utils.Interpolate(EpochForMaxLearningRate(_nbEpochs), MaxLearningRate(), EpochForMinLearningRate(_nbEpochs), MinLearningRate(), currentEpoch);
+                //second part of the cycle: decreasing the learning rate from 'MaxLearningRate()' to 'MinLearningRate()'
+                return Utils.Interpolate(EpochForMaxLearningRate(), MaxLearningRate(), EpochForMinLearningRate(), MinLearningRate(), currentEpoch);
             }
-            return Utils.Interpolate(EpochForMinLearningRate(_nbEpochs), MinLearningRate(), _nbEpochs, LearningRateForLastEpoch(), currentEpoch);
+            //last part: annihilating the learning rate from 'MinLearningRate()' to 'LearningRateForLastEpoch()'
+            return Utils.Interpolate(EpochForMinLearningRate(), MinLearningRate(), _nbEpochs, LearningRateForLastEpoch(), currentEpoch);
         }
     }
 }
