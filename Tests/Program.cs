@@ -11,8 +11,8 @@ namespace SharpNetTests
         {
             var todo = new List<Action>
             {
-                ()=> new NonReg.TestResNetCIFAR10().TestResNet11V2_CIFAR10(),
-                ()=> new NonReg.TestResNetCIFAR10().TestResNet20V1_CIFAR10(),
+                //()=> new NonReg.TestResNetCIFAR10().TestResNet11V2_CIFAR10(),
+                //()=> new NonReg.TestResNetCIFAR10().TestResNet20V1_CIFAR10(),
                 ()=> new NonReg.TestResNetCIFAR10().TestResNet20V2_CIFAR10(),
                 ()=> new NonReg.TestResNetCIFAR10().TestResNet32V1_CIFAR10(),
                 () => new NonReg.TestResNetCIFAR10().TestResNet44V1_CIFAR10(),
@@ -26,22 +26,24 @@ namespace SharpNetTests
 
             var modifiers = new List<Action>
             {
-                () =>{ResNetUtils.CutoutPatchlength=16;ResNetUtils.ExtraDescription = "_Cutout16";},
-                () =>{ResNetUtils.CutoutPatchlength=8;ResNetUtils.ExtraDescription = "_Cutout8";},
+                //https://sgugger.github.io/the-1cycle-policy.html
+                () =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 70;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_70Epochs";},
+                () =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 100;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_100Epochs";},
+                () =>{ResNetUtils.BatchSize=-1;ResNetUtils.ExtraDescription = "_Auto_BatchSize";},
                 () => {},
+                () =>{ResNetUtils.FillMode=ImageDataGenerator.FillModeEnum.Reflect;ResNetUtils.ExtraDescription = "_FillMode_Reflect";},
                 () =>{ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_HorizontalFlip";},
+                () =>{ResNetUtils.lambdaL2Regularization=0.0005;ResNetUtils.ExtraDescription = "_lambdaL2Regularization_0_0005";},
+
+                /*
                 () =>{ResNetUtils.WidthShiftRange=0.0;ResNetUtils.HeightShiftRange=0.0;ResNetUtils.ExtraDescription = "_no_ShiftRange";},
                 () =>{ResNetUtils.WidthShiftRange=0.0;ResNetUtils.HeightShiftRange=0.0;ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_DataAugmentation_onlyShuffling";},
-                () =>{ResNetUtils.FillMode=ImageDataGenerator.FillModeEnum.Reflect;ResNetUtils.ExtraDescription = "_FillMode_Reflect";},
-                () =>{ResNetUtils.BatchSize=-1;ResNetUtils.ExtraDescription = "_Auto_BatchSize";},
-
+                */
 
             //https://sgugger.github.io/the-1cycle-policy.html
             //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 50;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 3.0;ResNetUtils.OneCycleDividerForMinLearningRate = 20;ResNetUtils.ExtraDescription = "_OneCycle_300_015_50Epochs";},
             //https://sgugger.github.io/the-1cycle-policy.html
             //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 70;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 3.0;ResNetUtils.OneCycleDividerForMinLearningRate = 20;ResNetUtils.ExtraDescription = "_OneCycle_300_015_70Epochs";},
-            //https://sgugger.github.io/the-1cycle-policy.html
-            //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 100;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_100Epochs";},
 
         };
 
@@ -62,17 +64,12 @@ namespace SharpNetTests
                     ResNetUtils.InitialLearningRate = 0.1;
                     ResNetUtils.OneCycleDividerForMinLearningRate = 10;
                     ResNetUtils.OneCyclePercentInAnnealing = 0.2;
-                    ResNetUtils.CutoutPatchlength = 0;
+                    ResNetUtils.CutoutPatchlength = 16;
                     ResNetUtils.WidthShiftRange = 0.1;
                     ResNetUtils.HeightShiftRange = 0.1;
                     ResNetUtils.HorizontalFlip = true;
                     ResNetUtils.VerticalFlip = false;
                     ResNetUtils.FillMode = ImageDataGenerator.FillModeEnum.Nearest;
-
-                    //?D
-                    ResNetUtils.NumEpochs = 50;
-                    ResNetUtils.BatchSize = -1;
-
 
                     modifiers[modifierIndex]();
                     Console.WriteLine("Starting test " + (modifierIndex + 1) + "." + (testIndex + 1) + " ('" + ResNetUtils.ExtraDescription + "'), last one will be " + modifiers.Count + "." + todo.Count);

@@ -22,7 +22,10 @@ namespace SharpNet
         public static int NumEpochs = 160; //64k iterations
         public static int BatchSize = 128;
         public static double InitialLearningRate = 0.1;
-        public static int CutoutPatchlength = 0;
+        /// <summary>
+        /// validated on 17-apr-2019:  clearly improves ResNet results
+        /// </summary>
+        public static int CutoutPatchlength = 16;
         public static double WidthShiftRange = 0.1;
         public static double HeightShiftRange = 0.1;
         public static bool HorizontalFlip = true;

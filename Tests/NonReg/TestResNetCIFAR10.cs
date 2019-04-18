@@ -10,37 +10,22 @@ LearningRate = LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 
 BatchSize = 128
 EpochCount = 160
 SGD with momentum = 0.9 & L2 = 1-e4
+Cutout
 # ----------------------------------------------------------------------------
 #           |      | 160-epoch | Orig Paper| 160-epoch | Orig Paper| sec/epoch
 # Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080
 #           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)  
 # ---------------------------------------------------------------------------
-# ResNet11  | - (1)| NA        | NA        | 88.73     | -----     | NA   (8.8) 
-# ResNet20  | 3 (2)| 91.59     | 91.25     | 89.76     | -----     | 9.5  (15.4) 
-# ResNet32  | 5(NA)| 92.47     | 92.49     | NA        | NA        | 15.0 ( NA) 
-# ResNet44  | 7(NA)| 92.08     | 92.83     | NA        | NA        | 20.4 ( NA) 
-# ResNet56  | 9 (6)| 92.67     | 93.03     | 75.75     | -----     | 25.8 (41.9) 
+# ResNet11  | - (1)| NA        | NA        | 88.26     | -----     | NA   (8.8) 
+# ResNet20  | 3 (2)| 91.69     | 91.25     | 89.97     | -----     | 9.5  (15.4) 
+# ResNet32  | 5(NA)| 93.03     | 92.49     | NA        | NA        | 15.0 ( NA) 
+# ResNet44  | 7(NA)| 93.27     | 92.83     | NA        | NA        | 20.4 ( NA) 
+# ResNet56  | 9 (6)| 93.44     | 93.03     | 75.75     | -----     | 25.8 (41.9) 
 # ResNet110 |18(12)| 93.31     | 93.39+-.16| -----     | 93.63     | 50  (---)
 # ResNet164 |27(18)| 91.48     | 94.07     | -----     | 94.54     | 91  (---)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| --- (---)
 # ---------------------------------------------------------------------------
 
-BatchSize = 128
-EpochCount = 160
-Adam & L2 = 1-e4
-# ----------------------------------------------------------------------------
-#           |      | 160-epoch | Orig Paper| 160-epoch | Orig Paper| sec/epoch
-# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080
-#           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)  
-# ---------------------------------------------------------------------------
-# ResNet20  | 3 (2)| 90.14     | 91.25     | 89.44     | -----     | 10 (17) 
-# ResNet32  | 5(NA)| 91.46     | 92.49     | -----     | NA        | 15 (NA) 
-# ResNet44  | 7(NA)| 91.70     | 92.83     | -----     | NA        | 20 (NA) 
-# ResNet56  | 9 (6)| 92.38     | 93.03     | error     | -----     | 26 (45) 
-# ResNet110 |18(12)| 92.43     | 93.39+-.16| -----     | 93.63     | 50 (---)
-# ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | 91 (---)
-# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
-# ---------------------------------------------------------------------------
 
 
 TensorFlow results: (see https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py)
