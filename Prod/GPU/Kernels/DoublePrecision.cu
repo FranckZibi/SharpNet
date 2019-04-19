@@ -16,6 +16,7 @@
 		}
 	}
 
+	//TODO remove this function
 	__global__ void UpdateSGDOptimizer(int N, double learningRate, double momentum, double decay, bool usenesterov,
 		const double* __restrict dW, double* __restrict W, double* __restrict velocity) {
 		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {

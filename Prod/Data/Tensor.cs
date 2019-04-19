@@ -146,7 +146,9 @@ namespace SharpNet.Data
         //this = singleLineMatrix to add to y
         public abstract void BroadcastAddVectorToOutput(Tensor y);
         // compute: this = alpha * x + this
-        public abstract void Update_Adding_Alpha_X(double alpha, Tensor bias);
+        public abstract void Update_Adding_Alpha_X(double alpha, Tensor x);
+        // compute: this = alpha * x + beta * this
+        public abstract void AddTensor(double alpha, Tensor x, double beta);
         // compute: this = alpha * this
         public abstract void Update_Multiplying_By_Alpha(double alpha);
         //this = Tensor<T> convolutionBiasVector

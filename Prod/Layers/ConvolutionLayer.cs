@@ -25,11 +25,11 @@ namespace SharpNet
         private readonly int _stride;
         private readonly int _padding;
         private readonly double _lambdaL2Regularization;
-        private readonly Optimizer _optimizer;        //Adam optimization or SGD optimization or null
+        private readonly Optimizer _optimizer;                  //Adam optimization or SGD optimization or null
         private bool _useBias;
-        public Tensor Convolution { get; }                    // (FiltersCount, x.C, F, F)
+        public Tensor Convolution { get; }                      // (FiltersCount, x.C, F, F)
         public Tensor ConvolutionGradients { get; }            // same as 'Convolution'
-        public Tensor ConvolutionBias { get; private set; }                // (1, FiltersCount, 1, 1) or null is _useBias=false
+        public Tensor ConvolutionBias { get; private set; }    // (1, FiltersCount, 1, 1) or null is _useBias=false
         public Tensor ConvolutionBiasGradients { get; private set; }        // same as 'ConvolutionBias'  or null is _useBias=false
         #endregion
 

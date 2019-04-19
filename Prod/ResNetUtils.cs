@@ -29,6 +29,7 @@ namespace SharpNet
         
         public static bool HorizontalFlip = true; //validated on 18-apr-2019: +70 bps
         public static bool VerticalFlip = false;
+        public static bool TakesIntoAccountIterationInOneCycleLearningRate = true;
         public static ImageDataGenerator.FillModeEnum FillMode = ImageDataGenerator.FillModeEnum.Reflect;  //validated on 18-apr-2019: +50 bps
         public static string ExtraDescription { get; set; } = "";
 

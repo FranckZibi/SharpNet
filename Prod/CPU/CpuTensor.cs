@@ -478,22 +478,31 @@ namespace SharpNet.CPU
                     throw new ArgumentException("invalid activation mode " + activationType);
             }
         }
-        // compute:
-        //      this += alpha * bias
-        public override void Update_Adding_Alpha_X(double alpha, Tensor bias)
+        // compute:  this += alpha * x
+        public override void Update_Adding_Alpha_X(double alpha, Tensor x)
         {
             var y = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {y, bias}));
-            Debug.Assert(bias.Count == y.Count);
+            Debug.Assert(AreCompatible(new List<Tensor> {y, x}));
+            Debug.Assert(x.Count == y.Count);
             if (UseDoublePrecision)
             {
-                MKL_BLAS.cblas_daxpy(bias.Count, alpha, bias.AsDoubleCpuContent, 1, y.AsDoubleCpuContent, 1);
+                MKL_BLAS.cblas_daxpy(x.Count, alpha, x.AsDoubleCpuContent, 1, y.AsDoubleCpuContent, 1);
             }
             else
             {
-                MKL_BLAS.cblas_saxpy(bias.Count, (float) alpha, bias.AsFloatCpuContent, 1, y.AsFloatCpuContent, 1);
+                MKL_BLAS.cblas_saxpy(x.Count, (float) alpha, x.AsFloatCpuContent, 1, y.AsFloatCpuContent, 1);
             }
         }
+
+        // compute: this = alpha * x + beta * this
+        public override void AddTensor(double alpha, Tensor x, double beta)
+        {
+            // this = beta * this
+            Update_Multiplying_By_Alpha(beta);
+            // this = alpha * x + beta * this
+            Update_Adding_Alpha_X(alpha, x);
+        }
+
         // compute:     this = alpha * this
         public override void Update_Multiplying_By_Alpha(double alpha)
         {

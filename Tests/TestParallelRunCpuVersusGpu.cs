@@ -179,6 +179,13 @@ namespace SharpNetTests
 	        TestAll(new[] { y, x}, tensors => tensors[0].Update_Adding_Alpha_X(0.5, tensors[1]));
 	    }
         [Test]
+        public void TestAddTensor()
+        {
+            var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "y");
+            var x = RandomTensor(y.Shape, "x");
+            TestAll(new[] { y, x }, tensors => tensors[0].AddTensor(0.5, tensors[1], 0.75));
+        }
+        [Test]
         public void TestUpdate_Multiplying_By_Alpha()
         {
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");

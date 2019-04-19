@@ -26,23 +26,32 @@ namespace SharpNetTests
 
             var modifiers = new List<Action>
             {
-                () => {},
+                () => {}, //used to check new speed
+                () => {ResNetUtils.UseNesterov=true;ResNetUtils.ExtraDescription = "_UseNesterov";},
+                () => {ResNetUtils.UseAdam=true;ResNetUtils.ExtraDescription = "_UseAdam";},
+                () => {ResNetUtils.WidthShiftRange=ResNetUtils.HeightShiftRange=0.2;ResNetUtils.ExtraDescription = "_ShiftRange_0_20";},
+                () => {ResNetUtils.DivideBy10OnPlateau=true;ResNetUtils.ExtraDescription = "_DivideBy10OnPlateau";},
+                () => {ResNetUtils.TakesIntoAccountIterationInOneCycleLearningRate=false;ResNetUtils.ExtraDescription = "_IgnoreIterationInOneCycleLearningRate";},
 
+                #region already performed tests
+                /*
                 //https://sgugger.github.io/the-1cycle-policy.html
-                //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 70;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_70Epochs";},
-                //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 100;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_100Epochs";},
-                //() =>{ResNetUtils.BatchSize=-1;ResNetUtils.ExtraDescription = "_Auto_BatchSize";},
-                //() =>{ResNetUtils.FillMode=ImageDataGenerator.FillModeEnum.Reflect;ResNetUtils.ExtraDescription = "_FillMode_Reflect";},
-                //() =>{ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_HorizontalFlip";},
-                //() =>{ResNetUtils.lambdaL2Regularization=0.0005;ResNetUtils.ExtraDescription = "_lambdaL2Regularization_0_0005";},
-                //() =>{ResNetUtils.WidthShiftRange=0.0;ResNetUtils.HeightShiftRange=0.0;ResNetUtils.ExtraDescription = "_no_ShiftRange";},
-                //() =>{ResNetUtils.WidthShiftRange=0.0;ResNetUtils.HeightShiftRange=0.0;ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_DataAugmentation_onlyShuffling";},
+                () =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 70;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_70Epochs";},
+                () =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 100;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 0.8;ResNetUtils.OneCycleDividerForMinLearningRate = 10;ResNetUtils.ExtraDescription = "_OneCycle_080_008_100Epochs";},
+                () =>{ResNetUtils.BatchSize=-1;ResNetUtils.ExtraDescription = "_Auto_BatchSize";},
+                () =>{ResNetUtils.FillMode=ImageDataGenerator.FillModeEnum.Reflect;ResNetUtils.ExtraDescription = "_FillMode_Reflect";},
+                () =>{ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_HorizontalFlip";},
+                () =>{ResNetUtils.lambdaL2Regularization=0.0005;ResNetUtils.ExtraDescription = "_lambdaL2Regularization_0_0005";},
+                () =>{ResNetUtils.WidthShiftRange=0.0;ResNetUtils.HeightShiftRange=0.0;ResNetUtils.HorizontalFlip=false;ResNetUtils.ExtraDescription = "_no_DataAugmentation_onlyShuffling";},
                 //https://sgugger.github.io/the-1cycle-policy.html
-                //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 50;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 3.0;ResNetUtils.OneCycleDividerForMinLearningRate = 20;ResNetUtils.ExtraDescription = "_OneCycle_300_015_50Epochs";},
+                () =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 50;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 3.0;ResNetUtils.OneCycleDividerForMinLearningRate = 20;ResNetUtils.ExtraDescription = "_OneCycle_300_015_50Epochs";},
                 //https://sgugger.github.io/the-1cycle-policy.html
-                //() =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 70;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 3.0;ResNetUtils.OneCycleDividerForMinLearningRate = 20;ResNetUtils.ExtraDescription = "_OneCycle_300_015_70Epochs";},
-
+                () =>{ResNetUtils.OneCycleLearningRate =true;ResNetUtils.NumEpochs = 70;ResNetUtils.BatchSize = -1;ResNetUtils.InitialLearningRate = 3.0;ResNetUtils.OneCycleDividerForMinLearningRate = 20;ResNetUtils.ExtraDescription = "_OneCycle_300_015_70Epochs";},
+                */
+                #endregion
             };
+
+
 
             var totalTest = modifiers.Count * todo.Count;
             var nbPerformedtests = 0;
@@ -66,6 +75,7 @@ namespace SharpNetTests
                     ResNetUtils.HeightShiftRange = 0.1;
                     ResNetUtils.HorizontalFlip = true;
                     ResNetUtils.VerticalFlip = false;
+                    ResNetUtils.TakesIntoAccountIterationInOneCycleLearningRate = true;
                     ResNetUtils.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
 
                     modifiers[modifierIndex]();
@@ -85,31 +95,6 @@ namespace SharpNetTests
                 }
             }
 
-            /*
-            new NonReg.TestResNetCIFAR10().TestResNet56V1_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet11V2_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet20V2_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet29V2_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet56V2_CIFAR10();
-            */
-            /*
-            new NonReg.TestResNetCIFAR10().TestResNet20V1_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet20V2_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet32V1_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet44V1_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet56V1_CIFAR10();
-            new NonReg.TestResNetCIFAR10().TestResNet56V2_CIFAR10();
-            */
-            /*
-            new NonReg.TestResNetCIFAR10().TestResNet110V1_CIFAR10(),
-            new NonReg.TestResNetCIFAR10().TestResNet110V2_CIFAR10(),
-            new NonReg.TestResNetCIFAR10().TestResNet164V1_CIFAR10(),
-            new NonReg.TestResNetCIFAR10().TestResNet164V2_CIFAR10(),
-            */
-            //new NonReg.TestResNetCIFAR10().TestResNet1202V1_CIFAR10();
-            //new NonReg.TestResNetCIFAR10().TestResNet1001V2_CIFAR10();
-            //new NonReg.TestResNetCIFAR10().TestAllResNetV1_CIFAR10();
-            //new NonReg.TestResNetCIFAR10().TestResNet20V1_CIFAR10();
             //new TestGradient().TestGradientForDenseLayer(true, true);
             //new NonReg.TestMNIST().Test();
             //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow();

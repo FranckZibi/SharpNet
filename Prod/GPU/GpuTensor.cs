@@ -224,22 +224,27 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
         // compute: this += alpha * bias
-        public override void Update_Adding_Alpha_X(double alphaDouble, Tensor bias)
+        public override void Update_Adding_Alpha_X(double alphaDouble, Tensor x)
+        {
+            AddTensor(alphaDouble, x, 1.0);
+        }
+
+        // compute: this = alpha * x + beta * this
+        public override void AddTensor(double alphaDouble, Tensor x, double betaDouble)
         {
             var c = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { c, bias }));
+            Debug.Assert(AreCompatible(new List<Tensor> { c, x }));
             var cDesc = TensorDesc(c);
-            var biasDesc = TensorDesc(bias);
-
+            var xDesc = TensorDesc(x);
             var alphaFloat = (float)alphaDouble;
-            float oneFloat = 1.0f; double oneDouble = 1.0d;
-
+            var betaFloat = (float)betaDouble;
             var alpha = (UseDoublePrecision) ? (void*)&alphaDouble : &alphaFloat;
-            var one = (UseDoublePrecision) ? (void*)&oneDouble : &oneFloat;
-
-            var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, alpha, biasDesc, bias, one, cDesc, c);
+            var beta = (UseDoublePrecision) ? (void*)&betaDouble : &betaFloat;
+            var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, alpha, xDesc, x, beta, cDesc, c);
             CheckStatus(res);
         }
+
+        // compute: this = alpha * this
         public override void Update_Multiplying_By_Alpha(double alphaDouble)
         {
             var y = this;
@@ -497,7 +502,23 @@ namespace SharpNet.GPU
         public override void UpdateSGDOptimizer(double learningRate, double momentum, double decay, bool usenesterov, Tensor dW, Tensor velocity)
         {
             var W = this;
-            Wrapper.RunKernel("UpdateSGDOptimizer", Count, new object[] { learningRate, momentum, decay, usenesterov, dW, W, velocity });
+            //Wrapper.RunKernel("UpdateSGDOptimizer", Count, new object[] { learningRate, momentum, decay, usenesterov, dW, W, velocity });
+            
+            //velocity[i] = (momentum * velocity[i]) - (dW[i] * learningRate);
+            velocity.AddTensor(-learningRate, dW, momentum);
+            if (usenesterov)
+            {
+                //W[i] += momentum * velocity[i] - (dW[i] * learningRate);
+                W.Update_Adding_Alpha_X(momentum, velocity);
+                W.Update_Adding_Alpha_X(-learningRate, dW);
+            }
+            else
+            {
+                //W[i] += velocity[i];
+                W.Update_Adding_Alpha_X(1.0, velocity);
+            }
+
+
         }
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, double alpha, double beta)
         {
