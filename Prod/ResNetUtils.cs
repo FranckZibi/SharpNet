@@ -13,7 +13,7 @@ namespace SharpNet
         public static bool DivideBy10OnPlateau = false;
         public static bool UseAdam = false;
         public static bool UseNesterov = false;
-        //for one cycle policy: by how much we hasve to divide the max learning rate to reacht he min learning rate
+        //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
         public static int OneCycleDividerForMinLearningRate = 10; 
         public static double OneCyclePercentInAnnealing = 0.2; 
         public static bool OneCycleLearningRate = false;
@@ -22,15 +22,14 @@ namespace SharpNet
         public static int NumEpochs = 160; //64k iterations
         public static int BatchSize = 128;
         public static double InitialLearningRate = 0.1;
-        /// <summary>
-        /// validated on 17-apr-2019:  clearly improves ResNet results
-        /// </summary>
-        public static int CutoutPatchlength = 16;
+        public static int CutoutPatchlength = 16; //validated on 17-apr-2019: +70 bps
+        //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
         public static double WidthShiftRange = 0.1;
         public static double HeightShiftRange = 0.1;
-        public static bool HorizontalFlip = true;
+        
+        public static bool HorizontalFlip = true; //validated on 18-apr-2019: +70 bps
         public static bool VerticalFlip = false;
-        public static ImageDataGenerator.FillModeEnum FillMode = ImageDataGenerator.FillModeEnum.Nearest;
+        public static ImageDataGenerator.FillModeEnum FillMode = ImageDataGenerator.FillModeEnum.Reflect;  //validated on 18-apr-2019: +50 bps
         public static string ExtraDescription { get; set; } = "";
 
 
