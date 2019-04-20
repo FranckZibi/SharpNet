@@ -36,11 +36,6 @@ namespace SharpNet.Optimizers
         }
         public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
         {
-            if (!ResNetUtils.TakesIntoAccountIterationInOneCycleLearningRate)
-            {
-                blockIdInEpoch = 0;
-            }
-
             double currentEpoch = epoch + ((double) blockIdInEpoch) / nbBlocksInEpoch;
             if (currentEpoch <= EpochForMaxLearningRate())
             {

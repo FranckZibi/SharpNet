@@ -29,10 +29,10 @@ namespace SharpNetTests
                 () => {}, //used to check new speed
                 () => {ResNetUtils.UseNesterov=true;ResNetUtils.ExtraDescription = "_UseNesterov";},
                 () => {ResNetUtils.UseAdam=true;ResNetUtils.ExtraDescription = "_UseAdam";},
+                /*
                 () => {ResNetUtils.WidthShiftRange=ResNetUtils.HeightShiftRange=0.2;ResNetUtils.ExtraDescription = "_ShiftRange_0_20";},
                 () => {ResNetUtils.DivideBy10OnPlateau=true;ResNetUtils.ExtraDescription = "_DivideBy10OnPlateau";},
-                () => {ResNetUtils.TakesIntoAccountIterationInOneCycleLearningRate=false;ResNetUtils.ExtraDescription = "_IgnoreIterationInOneCycleLearningRate";},
-
+                */
                 #region already performed tests
                 /*
                 //https://sgugger.github.io/the-1cycle-policy.html
@@ -74,8 +74,7 @@ namespace SharpNetTests
                     ResNetUtils.WidthShiftRange = 0.1;
                     ResNetUtils.HeightShiftRange = 0.1;
                     ResNetUtils.HorizontalFlip = true;
-                    ResNetUtils.VerticalFlip = false;
-                    ResNetUtils.TakesIntoAccountIterationInOneCycleLearningRate = true;
+                    ResNetUtils.DivideBy10OnPlateau = true;
                     ResNetUtils.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
 
                     modifiers[modifierIndex]();
