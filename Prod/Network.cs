@@ -354,7 +354,7 @@ namespace SharpNet
         public static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
         {
             freeMemoryInBytes -= bytesIndependantOfBatchSize;
-            freeMemoryInBytes = (9* freeMemoryInBytes)/10;
+            freeMemoryInBytes = (8* freeMemoryInBytes)/10;
 
             //return (int) Math.Max(1, freeMemoryInBytes / bytesByBatchSize);
             ulong miniBatchSize = 1;

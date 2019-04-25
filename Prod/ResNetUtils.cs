@@ -177,7 +177,6 @@ namespace SharpNet
             var network = new Network(networkConfig.WithSGD(0.9, 0.0001, true), ResNetImageDataGenerator());
             network.Input(xShape[1], xShape[2], xShape[3]);
 
-            const double lambdaL2Regularization = 1e-4;
             network.Convolution(64, 7, 2, 3, lambdaL2Regularization);
             network.MaxPooling(2, 2);
 

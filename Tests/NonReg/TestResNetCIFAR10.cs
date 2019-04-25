@@ -21,33 +21,10 @@ Cutout 16 / FillMode = Reflect / DivideBy10OnPlateau
 # ResNet32  | 5(NA)| 93.52     | 92.49     | NA        | NA        | 13.8 ( NA) 
 # ResNet44  | 7(NA)| 93.99     | 92.83     | NA        | NA        | 18.8 ( NA) 
 # ResNet56  | 9 (6)| 93.82     | 93.03     | 75.75     | -----     | 23.8 (41.9) 
-# ResNet110 |18(12)| 93.31     | 93.39+-.16| -----     | 93.63     | 50  (---)
-# ResNet164 |27(18)| 91.48     | 94.07     | -----     | 94.54     | 91  (---)
+# ResNet110 |18(12)| 94.57     | 93.39+-.16| 44.17     | 93.63     | 47.1 (85.5)
+# ResNet164 |27(18)| 93.01     | 94.07     | -----     | 94.54     | 78.9 (141)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| --- (---)
 # ---------------------------------------------------------------------------
-
-
-
-TensorFlow results: (see https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py)
-BatchSize = 32
-EpochCount = 200
-Adam with L2 = 1-e4
-# Model parameter
-# ----------------------------------------------------------------------------
-#           |      | 200-epoch | Orig Paper| 200-epoch | Orig Paper| sec/epoch
-# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080Ti
-#           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)
-# ----------------------------------------------------------------------------
-# ResNet20  | 3 (2)| 92.16     | 91.25     | -----     | -----     | 35 (---)
-# ResNet32  | 5(NA)| 92.46     | 92.49     | NA        | NA        | 50 ( NA)
-# ResNet44  | 7(NA)| 92.50     | 92.83     | NA        | NA        | 70 ( NA)
-# ResNet56  | 9 (6)| 92.71     | 93.03     | 93.01     | NA        | 90 (100)
-# ResNet110 |18(12)| 92.65     | 93.39+-.16| 93.15     | 93.63     | 165(180)
-# ResNet164 |27(18)| -----     | 94.07     | -----     | 94.54     | ---(---)
-# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| ---(---)
-# ---------------------------------------------------------------------------
-n = 5
-
 */
 namespace SharpNetTests.NonReg
 {
@@ -108,7 +85,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet110V1_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet110V1_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, 32 /*BatchSize*/, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, -1 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         [Test, Explicit]
@@ -116,7 +93,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet164V1_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet164V1_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, 32 /*BatchSize*/, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, -1 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         [Test, Explicit]
@@ -124,7 +101,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet1202V1_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet1202V1_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, 16 /*BatchSize*/, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.ResNet110LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, -1 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         /// <summary>
@@ -178,7 +155,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet110V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet110V2_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, 32 /*BatchSize*/, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, -1 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         [Test, Explicit]
@@ -186,7 +163,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet164V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet164V2_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, 32 /*BatchSize*/, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, -1 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
         [Test, Explicit]
@@ -194,7 +171,7 @@ namespace SharpNetTests.NonReg
         {
             LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
             var network = ResNetUtils.ResNet1001V2_CIFAR10(true, false, Logger(nameof(ResNetUtils.ResNet1001V2_CIFAR10)));
-            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, 32 /*BatchSize*/, xTest, yTest);
+            network.Fit(xTrain, yTrain, ResNetUtils.Cifar10LearningRateScheduler(), ResNetUtils.Cifar10ReduceLROnPlateau(), ResNetUtils.NumEpochs, -1 /*BatchSize*/, xTest, yTest);
             network.ClearMemory();
         }
 

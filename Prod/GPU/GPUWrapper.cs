@@ -234,13 +234,6 @@ namespace SharpNet.GPU
             CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
             return freeMemoryInBytes;
         }
-        public ulong TotalMemoryInBytes()
-        {
-            CuMemGetInfoV2(out size_t _, out size_t totalMemoryInBytes);
-            return totalMemoryInBytes;
-
-        }
-
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
         public StreamWrapper DefaultStream
         {
@@ -305,7 +298,7 @@ namespace SharpNet.GPU
         }
 
         #region Dispose pattern
-    public void Dispose()
+        public void Dispose()
         {
             Dispose(true);
         }
@@ -383,6 +376,12 @@ namespace SharpNet.GPU
             var res = NVCudaWrapper.cuDeviceGet(out IntPtr deviceHandle, deviceId);
             CheckStatus(res);
             return deviceHandle;
+        }
+        private ulong TotalMemoryInBytes()
+        {
+            CuMemGetInfoV2(out size_t _, out size_t totalMemoryInBytes);
+            return totalMemoryInBytes;
+
         }
     }
 }

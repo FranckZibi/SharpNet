@@ -11,6 +11,7 @@ namespace SharpNet.Pictures
 {
     public class ImageDataGenerator
     {
+        //TODO: add FillModeEnum: Constant
         public enum FillModeEnum {Nearest,Reflect};
 
         #region private fields
