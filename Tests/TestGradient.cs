@@ -52,7 +52,7 @@ namespace SharpNetTests
             var n = GetNetwork();
             n
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3,1,1, 0.0)
+                .Convolution(3, 3,1,1, 0.0, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             n.Predict(X, false);
             var convLayer = (ConvolutionLayer)n.Layers[1];

@@ -244,6 +244,41 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
 
+        public override void Concatenate(Tensor a, Tensor b)
+        {
+#if DEBUG
+            CheckConcatenate(a, b);
+#endif
+            /*
+             v1: 1.05ms
+            for (int m = 0; m < Shape[0]; ++m)
+            {
+                a.CopyTo(a.Idx(m), this, Idx(m), a.MultDim0);
+                b.CopyTo(b.Idx(m), this, Idx(m) + a.MultDim0, b.MultDim0);
+            }
+            */
+            var concat = this;
+            Wrapper.RunKernel("Concatenate", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0});
+        }
+        public override void Split(Tensor a, Tensor b)
+        {
+#if DEBUG
+            CheckConcatenate(a, b);
+#endif
+            /*
+             v1 : = 1.1ms
+            for (int m = 0; m < Shape[0]; ++m)
+            {
+                CopyTo(Idx(m), a, a.Idx(m), a.MultDim0);
+                CopyTo(Idx(m) + a.MultDim0, b, b.Idx(m), b.MultDim0);
+            } */
+
+            var concat = this;
+            Wrapper.RunKernel("Split", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0 });
+        }
+
+
+
         // compute: this = alpha * this
         public override void Update_Multiplying_By_Alpha(double alphaDouble)
         {
@@ -499,11 +534,10 @@ namespace SharpNet.GPU
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
             Wrapper.RunKernel("UpdateAdamOptimizer", Count, new object[] { beta1, beta2, epsilon, multiplicative_factor, dW, W, adam_vW, adam_sW });
         }
-        public override void UpdateSGDOptimizer(double learningRate, double momentum, double decay, bool usenesterov, Tensor dW, Tensor velocity)
+        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW,
+            Tensor velocity)
         {
             var W = this;
-            //Wrapper.RunKernel("UpdateSGDOptimizer", Count, new object[] { learningRate, momentum, decay, usenesterov, dW, W, velocity });
-            
             //velocity[i] = (momentum * velocity[i]) - (dW[i] * learningRate);
             velocity.AddTensor(-learningRate, dW, momentum);
             if (usenesterov)
@@ -586,9 +620,9 @@ namespace SharpNet.GPU
         {
             _deviceMemory.ZeroMemory();
         }
-        #endregion
+#endregion
 
-        #region Dispose pattern
+#region Dispose pattern
         private bool _disposed;
         public override void Dispose()
         {
@@ -617,7 +651,7 @@ namespace SharpNet.GPU
         {
             Dispose(false);
         }
-        #endregion
+#endregion
 
         private IntPtr TensorDesc(Tensor a) { return Wrapper.TensorDesc(CudaType, a.Shape); }
         private IntPtr FilterDesc(Tensor a) { return Wrapper.FilterDesc(CudaType, a.Shape); }

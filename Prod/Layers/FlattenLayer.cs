@@ -12,11 +12,11 @@ namespace SharpNet
         public FlattenLayer(Network network) : base(network)
         {
         }
-        public override string Serialize() {return RootSerializer().ToString();}
-        public static FlattenLayer Deserialize(Network network)
+        #region serialization
+        public FlattenLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
-            return new FlattenLayer(network);
         }
+        #endregion
         public override void ForwardPropagation(bool isTraining)
         {
             Allocate_y_dy_if_necessary();

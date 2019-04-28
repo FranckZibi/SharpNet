@@ -25,14 +25,27 @@ namespace SharpNet
             var x = PrevLayer.y;
             x.ActivationForward(ActivationFunction, y);
         }
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (ActivationLayer)b;
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(ActivationFunction, other.ActivationFunction, id + ":ActivationFunction", ref errors);
+            return allAreOk;
+        }
+        #region serialization
         public override string Serialize()
         {
             return RootSerializer().Add(nameof(ActivationFunction), (int)ActivationFunction).ToString();
         }
-        public static ActivationLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public ActivationLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
-            return new ActivationLayer((cudnnActivationMode_t)serialized[nameof(ActivationFunction)], network);
+            ActivationFunction = (cudnnActivationMode_t)serialized[nameof(ActivationFunction)];
         }
+        #endregion
         public override void BackwardPropagation()
         {
             //At this stage, we already know dy. We want to compute dx by backward propagation

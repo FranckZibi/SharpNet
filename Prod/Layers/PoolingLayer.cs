@@ -44,6 +44,20 @@ namespace SharpNet
             var dx = PrevLayer.dy;
             dy.PoolingGradient(y, x, dx, _poolingMode, _poolingSize, _poolingStride);
         }
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (PoolingLayer)b;
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(_poolingMode, other._poolingMode, id + ":_poolingMode", ref errors);
+            allAreOk &= Utils.Equals(_poolingSize, other._poolingSize, id + ":_poolingSize", ref errors);
+            allAreOk &= Utils.Equals(_poolingStride, other._poolingStride, id + ":_poolingStride", ref errors);
+            return allAreOk;
+        }
+        #region serialization
         public override string Serialize()
         {
             return RootSerializer()
@@ -51,11 +65,13 @@ namespace SharpNet
                 .Add(nameof(_poolingMode), (int)_poolingMode)
                 .ToString();
         }
-        public static PoolingLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public PoolingLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
-            return new PoolingLayer((cudnnPoolingMode_t)(int)serialized[nameof(_poolingMode)], (int)serialized[nameof(_poolingSize)], (int)serialized[nameof(_poolingStride)], network);
+            _poolingMode = (cudnnPoolingMode_t)(int)serialized[nameof(_poolingMode)];
+            _poolingSize = (int)serialized[nameof(_poolingSize)];
+            _poolingStride = (int)serialized[nameof(_poolingStride)];
         }
-
+        #endregion
         public override string SummaryName()
         {
             return (IsMaxPooling(_poolingMode) ? "max_pooling2d_" : "average_pooling2d_") + (1 + NbLayerOfSameTypeBefore());

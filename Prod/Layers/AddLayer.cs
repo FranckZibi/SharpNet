@@ -21,11 +21,6 @@ namespace SharpNet
         }
 
         #region serialization
-        public override string Serialize()
-        {
-            return RootSerializer()
-                .ToString();
-        }
         public AddLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
         }

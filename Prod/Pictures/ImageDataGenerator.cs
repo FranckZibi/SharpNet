@@ -38,6 +38,18 @@ namespace SharpNet.Pictures
         private readonly int _cutoutPatchlength;
 
 
+        public bool Equals(ImageDataGenerator other, double epsilon, string id, ref string errors)
+        {
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(_widthShiftRange, other._widthShiftRange, epsilon, id + ":_widthShiftRange", ref errors);
+            allAreOk &= Utils.Equals(_heightShiftRange, other._heightShiftRange, epsilon, id + ":_heightShiftRange", ref errors);
+            allAreOk &= Utils.Equals(_fillMode, other._fillMode, id + ":_fillMode", ref errors);
+            allAreOk &= Utils.Equals(_fillModeConsantVal, other._fillModeConsantVal, epsilon, id + ":_fillModeConsantVal", ref errors);
+            allAreOk &= Utils.Equals(_horizontalFlip, other._horizontalFlip, id + ":_horizontalFlip", ref errors);
+            allAreOk &= Utils.Equals(_verticalFlip, other._verticalFlip, id + ":_verticalFlip", ref errors);
+            allAreOk &= Utils.Equals(_cutoutPatchlength, other._cutoutPatchlength, id + ":_cutoutPatchlength", ref errors);
+            return allAreOk;
+        }
         //set input mean to 0 over the dataset
         //public bool FeaturewiseCenter { get; set; } = false;
         //set each sample mean to 0

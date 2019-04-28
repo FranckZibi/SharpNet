@@ -133,6 +133,16 @@ namespace SharpNetTests.CPU
             inputGPU.Convolution(convolutionGPU, padding, stride, outputGPU);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput,outputGPU, 1e-6));
         }
+        public static CpuTensor<double> RandomOneHotTensor(int[] shape, Random rand, string description)
+        {
+            var result = new CpuTensor<double>(shape, description);
+            for (int row = 0; row < result.Shape[0]; ++row)
+            {
+                result.Set(row, rand.Next(result.Shape[1]), 1.0);
+            }
+            return result;
+        }
+
 
 
 

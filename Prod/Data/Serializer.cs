@@ -18,7 +18,7 @@ namespace SharpNet.Data
         }
         public Serializer Add(string description, int[] values)
         {
-            _sb.Append("intVector;" + description + ";" + values.Length + ";" + ToString(values)+ ";");
+            _sb.Append("intVector;" + description + ";" + values.Length + ";" + ((values.Length==0)?"":(ToString(values)+ ";")));
             return this;
         }
         public Serializer Add(string description, double value)
@@ -28,7 +28,7 @@ namespace SharpNet.Data
         }
         public Serializer Add(string description, double[] values)
         {
-            _sb.Append("doubleVector;" + description + ";" + values.Length + ";" + ToString(values) + ";");
+            _sb.Append("doubleVector;" + description + ";" + values.Length + ";" + ((values.Length == 0) ? "" : (ToString(values) + ";")));
             return this;
         }
         public Serializer Add(string description, Type value)
@@ -48,7 +48,7 @@ namespace SharpNet.Data
 
         private static string[] Split(string s)
         {
-            return s.Split(new[] {';'}, StringSplitOptions.RemoveEmptyEntries);
+            return s.TrimEnd(';').Split(new[] {';'} /*, StringSplitOptions.RemoveEmptyEntries*/);
         }
 
         private Serializer Add<T>(string description, T[] array, Func<T, string[]> serializer)
@@ -94,7 +94,7 @@ namespace SharpNet.Data
         }
         public Serializer Add(string description, float[] values)
         {
-            _sb.Append("singleVector;" + description + ";" + values.Length + ";" + ToString(values) + ";");
+            _sb.Append("singleVector;" + description + ";" + values.Length + ";" + ((values.Length == 0) ? "" : (ToString(values) + ";")));
             return this;
         }
         public Serializer Add(string description, bool value)
@@ -104,7 +104,10 @@ namespace SharpNet.Data
         }
         public Serializer Add(Tensor value)
         {
-            _sb.Append(Serialize(value) + ";");
+            if (value != null)
+            {
+                _sb.Append(Serialize(value) + ";");
+            }
             return this;
         }
         public override string ToString()

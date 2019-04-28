@@ -56,6 +56,7 @@ namespace SharpNet
         public Tensor Bias => _bnBias;
         public Tensor BiasGradients => _resultBnBiasDiff;
 
+        #region serialization
         public override string Serialize()
         {
             return RootSerializer()
@@ -64,26 +65,7 @@ namespace SharpNet
                 .Add(_optimizer?.Serialize())
                 .ToString();
         }
-
-        private int[] ScaleAndBiasShape()
-        {
-            var res =  OutputShape(1);
-            if (LayerBatchNormalizationMode() == cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
-            {
-                return res; //shape is (1, C, H, W) or (1, C)
-            }
-            for (int i = 2; i < res.Length; ++i)
-            {
-                res[i] = 1;
-            }
-            return res; //shape is (1, C, 1, 1)
-        }
-
-        public static BatchNormalizationLayer Deserialize(IDictionary<string, object> serialized, Network network)
-        {
-            return new BatchNormalizationLayer(serialized, network);
-        }
-        private BatchNormalizationLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public BatchNormalizationLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
             _epsilon = (double)serialized[nameof(_epsilon)];
             _momentum = (double)serialized[nameof(_momentum)];
@@ -97,8 +79,35 @@ namespace SharpNet
             _resultSaveVariance = (Tensor)serialized[nameof(_resultSaveVariance)];
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
         }
+        #endregion
 
 
+        private int[] ScaleAndBiasShape()
+        {
+            var res = OutputShape(1);
+            if (LayerBatchNormalizationMode() == cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
+            {
+                return res; //shape is (1, C, H, W) or (1, C)
+            }
+            for (int i = 2; i < res.Length; ++i)
+            {
+                res[i] = 1;
+            }
+            return res; //shape is (1, C, 1, 1)
+        }
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (BatchNormalizationLayer)b;
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(_momentum, other._momentum, epsilon, id, ref errors);
+            allAreOk &= Utils.Equals(_epsilon, other._epsilon, epsilon, id, ref errors);
+            allAreOk &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
+            return allAreOk;
+        }
         public override void ForwardPropagation(bool isTraining)
         {
             Allocate_y_dy_if_necessary();

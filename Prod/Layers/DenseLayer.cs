@@ -12,12 +12,12 @@ namespace SharpNet
         public Tensor Weights { get; }                      // (prevLayer.n_x, n_x)
         public Tensor WeightGradients { get; }              // same as 'Weights'
         public Tensor Bias { get; private set; }            // (1, n_x) 
-        public Tensor BiasGradients { get; private set; }   // same as '_bias'
+        public Tensor BiasGradients { get; private set; }   // same as 'Bias'
         public override Tensor y { get; protected set; }    // (batchSize, n_x)
         public override Tensor dy { get; protected set; }   // same as 'y'
         private readonly int _n_x;
         private readonly double _lambdaL2Regularization;              //regularization hyperparameter. 0 if no L2 regularization
-        private bool _useBias;
+        private bool UseBias => Bias!=null;
         private readonly Optimizer _optimizer;              //Adam or SGD optimizer or Vanilla SGF
         #endregion
 
@@ -27,7 +27,6 @@ namespace SharpNet
         {
             _n_x = n_x;
             _lambdaL2Regularization = lambdaL2Regularization;
-            _useBias = true;
             Weights = Network.NewNotInitializedTensor(new[] { PrevLayer.n_x, _n_x }, Weights, nameof(Weights));
             WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, WeightGradients, nameof(WeightGradients));
             Bias = Network.NewNotInitializedTensor(new[] {1,  _n_x }, Bias, nameof(Bias));
@@ -37,46 +36,48 @@ namespace SharpNet
             Debug.Assert(WeightGradients.SameShape(Weights));
             Debug.Assert(Bias.SameShape(BiasGradients));
         }
-
-
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (DenseLayer)b;
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(_n_x, other._n_x, id + ":LayerIndex", ref errors);
+            allAreOk &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id, ref errors);
+            allAreOk &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
+            return allAreOk;
+        }
+        #region serialization
         public override string Serialize()
         {
-            var serializer = RootSerializer();
-            serializer.Add(nameof(_n_x), _n_x)
+            return RootSerializer()
+                .Add(nameof(_n_x), _n_x)
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
                 .Add(Weights).Add(WeightGradients)
-                .Add(_optimizer.Serialize());
-            if (_useBias)
-            {
-                serializer.Add(Bias).Add(BiasGradients);
-            }
-            return serializer.ToString();
+                .Add(Bias).Add(BiasGradients)
+                .Add(_optimizer.Serialize())
+                .ToString();
         }
-        public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
-        {
-            return new DenseLayer(serialized, network);
-        }
-        private DenseLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public DenseLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
             _n_x = (int)serialized[nameof(_n_x)];
             _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
             Weights = (Tensor)serialized[nameof(Weights)];
             WeightGradients = (Tensor)serialized[nameof(WeightGradients)];
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
-            if (_useBias)
-            {
-                Bias = (Tensor) serialized[nameof(Bias)];
-                BiasGradients = (Tensor) serialized[nameof(BiasGradients)];
-            }
+            Bias = serialized.TryGet<Tensor>(nameof(Bias));
+            BiasGradients = serialized.TryGet<Tensor>(nameof(BiasGradients));
         }
-
+        #endregion
         public override void ForwardPropagation(bool isTraining)
         {
             Allocate_y_dy_if_necessary();
             var x = PrevLayer.y;
             //We compute y = x*Weights+B
             y.Dot(x, Weights);
-            if (_useBias)
+            if (UseBias)
             {
                 Bias.BroadcastAddVectorToOutput(y);
             }
@@ -108,7 +109,7 @@ namespace SharpNet
                 WeightGradients.Update_Adding_Alpha_X(alpha, Weights);
             }
 
-            if (_useBias)
+            if (UseBias)
             {
                 dy.Compute_BiasGradient_from_dy(BiasGradients);
             }
@@ -145,7 +146,6 @@ namespace SharpNet
         }
         public override int DisableBias()
         {
-            _useBias = false;
             int nbDisabledWeights = (Bias?.Count ?? 0) + (BiasGradients?.Count ?? 0);
             Bias?.Dispose();
             Bias = null;
@@ -169,17 +169,8 @@ namespace SharpNet
             base.Dispose();
             _optimizer?.Dispose();
         }
-        public override int TotalParams
-        {
-            get
-            {
-                if (Weights == null)
-                {
-                    return 0;
-                }
-                return Weights.Count + Bias.Count;
-            }
-        }
+        public override int TotalParams => Weights?.Count??0 + Bias?.Count??0;
+
         public override List<Tensor> TensorsIndependantOfBatchSize
         {
             get

@@ -1,116 +1,92 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.GPU;
-using SharpNet.Optimizers;
-using SharpNet.Pictures;
 
 namespace SharpNet
 {
     public static class ResNetUtils
     {
-        public static bool DivideBy10OnPlateau = true; // 'true' : validated on 19-apr-2019: +20 bps
-        public static bool UseAdam = false; // 'false' : validated on 19-apr-2019: +70 bps
-        public static bool UseNesterov = false;
-        //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
-        public static int OneCycleDividerForMinLearningRate = 10; 
-        public static double OneCyclePercentInAnnealing = 0.2; 
-        public static bool OneCycleLearningRate = false;
-        public static double lambdaL2Regularization = 1e-4;
-        public static bool LinearLearningRate = false;
-        public static int NumEpochs = 160; //64k iterations
-        public static int BatchSize = 128;
-        public static double InitialLearningRate = 0.1;
-        public static int CutoutPatchlength = 16; // '16' : validated on 17-apr-2019: +70 bps
-        //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
-        public static double WidthShiftRange = 0.1;
-        public static double HeightShiftRange = 0.1;
-        
-        public static bool HorizontalFlip = true; // 'true' : validated on 18-apr-2019: +70 bps
-        public static bool VerticalFlip = false;
-        public static ImageDataGenerator.FillModeEnum FillMode = ImageDataGenerator.FillModeEnum.Reflect;  //validated on 18-apr-2019: +50 bps
-        public static string ExtraDescription { get; set; } = "";
 
 
-        public static Network ResNet18_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet18_V1(int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger = null)
         {
-            return ResNetV1(new[] { 2, 2, 2, 2 }, false, xShape, nbCategories, useGPU, useDoublePrecision, logger);
+            return ResNetV1(new[] { 2, 2, 2, 2 }, false, xShape, nbCategories, param, logger);
         }
-        public static Network ResNet34_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet34_V1(int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger = null)
         {
-            return ResNetV1(new[] { 3, 4, 6, 3 }, false, xShape, nbCategories, useGPU, useDoublePrecision, logger);
+            return ResNetV1(new[] { 3, 4, 6, 3 }, false, xShape, nbCategories, param, logger);
         }
-        public static Network ResNet50_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet50_V1(int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger = null)
         {
-            return ResNetV1(new[] { 3, 4, 6, 3 }, true, xShape, nbCategories, useGPU, useDoublePrecision, logger);
+            return ResNetV1(new[] { 3, 4, 6, 3 }, true, xShape, nbCategories, param, logger);
         }
-        public static Network ResNet101_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet101_V1(int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger = null)
         {
-            return ResNetV1(new[] { 3, 4, 23, 3 }, true, xShape, nbCategories, useGPU, useDoublePrecision, logger);
+            return ResNetV1(new[] { 3, 4, 23, 3 }, true, xShape, nbCategories, param, logger);
         }
-        public static Network ResNet152_V1(int[] xShape, int nbCategories, bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet152_V1(int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger = null)
         {
-            return ResNetV1(new[] { 3, 8, 36, 3 }, true, xShape, nbCategories, useGPU, useDoublePrecision, logger);
+            return ResNetV1(new[] { 3, 8, 36, 3 }, true, xShape, nbCategories, param, logger);
         }
-        public static Network ResNet20V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet20V1_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(3, useGPU, useDoublePrecision, logger);
+            return GetResNetV1_CIFAR10(3, param, logger);
         }
-        public static Network ResNet32V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet32V1_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(5, useGPU, useDoublePrecision, logger);
+            return GetResNetV1_CIFAR10(5, param, logger);
         }
-        public static Network ResNet44V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet44V1_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(7, useGPU, useDoublePrecision, logger);
+            return GetResNetV1_CIFAR10(7, param, logger);
         }
-        public static Network ResNet56V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet56V1_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(9, useGPU, useDoublePrecision, logger);
+            return GetResNetV1_CIFAR10(9, param, logger);
         }
-        public static Network ResNet110V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet110V1_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(18, useGPU, useDoublePrecision, logger);
+            return GetResNetV1_CIFAR10(18, param, logger);
         }
-        public static Network ResNet164V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet164V1_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(27, useGPU, useDoublePrecision, logger);
+            return GetResNetV1_CIFAR10(27, param, logger);
         }
-        public static Network ResNet1202V1_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet1202V1_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV1_CIFAR10(200, useGPU, useDoublePrecision, logger);
+            return GetResNetV1_CIFAR10(200, param, logger);
         }
 
 
 
-        public static Network ResNet11V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet11V2_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(1, useGPU, useDoublePrecision, logger);
+            return GetResNetV2_CIFAR10(1, param, logger);
         }
-        public static Network ResNet20V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet20V2_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(2, useGPU, useDoublePrecision, logger);
+            return GetResNetV2_CIFAR10(2, param, logger);
         }
-        public static Network ResNet29V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet29V2_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(3, useGPU, useDoublePrecision, logger);
+            return GetResNetV2_CIFAR10(3, param, logger);
         }
-        public static Network ResNet56V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet56V2_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(6, useGPU, useDoublePrecision, logger);
+            return GetResNetV2_CIFAR10(6, param, logger);
         }
-        public static Network ResNet110V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet110V2_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(12, useGPU, useDoublePrecision, logger);
+            return GetResNetV2_CIFAR10(12, param, logger);
         }
-        public static Network ResNet164V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet164V2_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(18, useGPU, useDoublePrecision, logger);
+            return GetResNetV2_CIFAR10(18, param, logger);
         }
-        public static Network ResNet1001V2_CIFAR10(bool useGPU = true, bool useDoublePrecision = false, Logger logger = null)
+        public static Network ResNet1001V2_CIFAR10(ResNetMetaParameters param, Logger logger = null)
         {
-            return GetResNetV2_CIFAR10(111, useGPU, useDoublePrecision, logger);
+            return GetResNetV2_CIFAR10(111, param, logger);
         }
         public static void Load(out CpuTensor<byte> xTrainingSet, out CpuTensor<byte> yTrainingSet, out CpuTensor<byte> xTestSet, out CpuTensor<byte> yTestSet)
         {
@@ -131,53 +107,15 @@ namespace SharpNet
             yWorkingSet = y.ToCategorical(1.0f, out _);
         }
 
-
-        public static ILearningRateScheduler Cifar10LearningRateScheduler()
-        {
-            if (OneCycleLearningRate)
-            {
-                return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycleDividerForMinLearningRate, OneCyclePercentInAnnealing, NumEpochs);
-            }
-            if (LinearLearningRate)
-            {
-                return LearningRateScheduler.InterpolateByInterval(1, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
-            }
-            return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
-        }
-
-
-        public static ReduceLROnPlateau Cifar10ReduceLROnPlateau()
-        {
-            if (OneCycleLearningRate)
-            {
-                return null;
-            }
-            var factorForReduceLrOnPlateau = DivideBy10OnPlateau?0.1:Math.Sqrt(0.1);
-            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
-        }
-        /*public static ILearningRateScheduler UpdatedCifar10LearningRateScheduler()
-        {
-            var initialLearningRate = 0.1;
-            return LearningRateScheduler.ConstantByInterval(1, initialLearningRate/10.0, 2, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 160, initialLearningRate / 1000, 180, initialLearningRate / 2000);
-        }*/
-        public static ILearningRateScheduler ResNet110LearningRateScheduler()
-        {
-            if (OneCycleLearningRate)
-            {
-                return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycleDividerForMinLearningRate, OneCyclePercentInAnnealing, NumEpochs);
-            }
-            return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate/10, 2, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
-        }
-
-        private static Network ResNetV1(int[] nbResBlocks, bool useBottleNeck, int[] xShape, int nbCategories, bool useGPU, bool useDoublePrecision, Logger logger)
+        private static Network ResNetV1(int[] nbResBlocks, bool useBottleNeck, int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger)
         {
             var activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
 
-            var networkConfig = new NetworkConfig(useGPU) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
-            var network = new Network(networkConfig.WithSGD(0.9, 0.0001, true), ResNetImageDataGenerator());
+            var networkConfig = new NetworkConfig(param.UseGPU) { UseDoublePrecision = param.UseDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
+            var network = new Network(networkConfig.WithSGD(0.9, 0.0, true), param.ResNetImageDataGenerator());
             network.Input(xShape[1], xShape[2], xShape[3]);
 
-            network.Convolution(64, 7, 2, 3, lambdaL2Regularization);
+            network.Convolution(64, 7, 2, 3, param.lambdaL2Regularization, true);
             network.MaxPooling(2, 2);
 
             int stageC = 64; //number of channels for current stage
@@ -190,47 +128,43 @@ namespace SharpNet
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
                     if (useBottleNeck)
                     {
-                        network.Convolution_BatchNorm_Activation(stageC, 1, stride, 0, lambdaL2Regularization, activationFunction);
-                        network.Convolution_BatchNorm_Activation(stageC, 3, 1, 1, lambdaL2Regularization, activationFunction);
-                        network.Convolution_BatchNorm(4 * stageC, 1, 1, 0, lambdaL2Regularization);
-                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, 4 * stageC, stride, lambdaL2Regularization);
+                        network.Convolution_BatchNorm_Activation(stageC, 1, stride, 0, param.lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm_Activation(stageC, 3, 1, 1, param.lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm(4 * stageC, 1, 1, 0, param.lambdaL2Regularization);
+                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, 4 * stageC, stride, param.lambdaL2Regularization);
                         network.Activation(activationFunction);
                     }
                     else
                     {
-                        network.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, lambdaL2Regularization, activationFunction);
-                        network.Convolution_BatchNorm(stageC, 3, 1, 1, lambdaL2Regularization);
-                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, lambdaL2Regularization);
+                        network.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, param.lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm(stageC, 3, 1, 1, param.lambdaL2Regularization);
+                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, param.lambdaL2Regularization);
                         network.Activation(activationFunction);
                     }
                 }
                 stageC *= 2;
             }
             network.GlobalAvgPooling();
-            network.Output(nbCategories, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Output(nbCategories, param.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
-        private static ImageDataGenerator ResNetImageDataGenerator()
-        {
-            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchlength);
-        }
+     
         private const int ChannelsCifar10 = 3;
         private const int HeightCifar10 = 32;
         private const int WidthCifar10 = HeightCifar10;
         private const int CategoriesCifar10 = 10;
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
-        private static Network GetResNetV1_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
+        private static Network GetResNetV1_CIFAR10(int numResBlocks, ResNetMetaParameters param, Logger logger)
         {
-            var description = "ResNet" + (6*numResBlocks+2) + "V1_CIFAR10" + ExtraDescription;
-            var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
+            var networkConfig = new NetworkConfig(param.UseGPU) { UseDoublePrecision = param.UseDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
         
-            networkConfig = UseAdam? networkConfig.WithAdam() :  networkConfig.WithSGD(0.9, 0, UseNesterov);
+            networkConfig = param.UseAdam ? networkConfig.WithAdam() :  networkConfig.WithSGD(0.9, 0, param.UseNesterov);
 
-            var network = new Network(networkConfig, ResNetImageDataGenerator());
+            var network = new Network(networkConfig, param.ResNetImageDataGenerator());
             network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
 
-            network.Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.Convolution_BatchNorm_Activation(16, 3, 1, 1, param.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageC = 16; //number of channels for current stage
             for (int stageId = 0; stageId < 3; ++stageId)
@@ -239,30 +173,30 @@ namespace SharpNet
                 {
                     int stride = (res_block == 0 && stageId != 0) ? 2 : 1;
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
-                    network.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                    network.Convolution_BatchNorm(stageC, 3, 1, 1, lambdaL2Regularization);
-                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, lambdaL2Regularization);
+                    network.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, param.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    network.Convolution_BatchNorm(stageC, 3, 1, 1, param.lambdaL2Regularization);
+                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, param.lambdaL2Regularization);
                     network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 }
                 stageC *= 2;
             }
             network.AvgPooling(8, 8);
-            network.Output(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
-            network.Description = description;
+            network.Output(CategoriesCifar10, param.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Description = "ResNet" + (6*numResBlocks+2) + "V1_CIFAR10" + param.ExtraDescription;
             return network;
         }
 
         //implementation described in: https://arxiv.org/pdf/1603.05027.pdf
-        private static Network GetResNetV2_CIFAR10(int numResBlocks, bool useGpu, bool useDoublePrecision, Logger logger)
+        private static Network GetResNetV2_CIFAR10(int numResBlocks, ResNetMetaParameters param, Logger logger)
         {
-            var description = "ResNet"+(9* numResBlocks +2)+ "V2_CIFAR10" + ExtraDescription;
-            var networkConfig = new NetworkConfig(useGpu) { UseDoublePrecision = useDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
+            var description = "ResNet"+(9* numResBlocks +2)+ "V2_CIFAR10" + param.ExtraDescription;
+            var networkConfig = new NetworkConfig(param.UseGPU) { UseDoublePrecision = param.UseDoublePrecision, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, Logger = logger ?? Logger.ConsoleLogger };
 
-            networkConfig = UseAdam ? networkConfig.WithAdam() : networkConfig.WithSGD(0.9, 0, UseNesterov);
-            var network = new Network(networkConfig, ResNetImageDataGenerator());
+            networkConfig = param.UseAdam ? networkConfig.WithAdam() : networkConfig.WithSGD(0.9, 0, param.UseNesterov);
+            var network = new Network(networkConfig, param.ResNetImageDataGenerator());
 
             network.Input(ChannelsCifar10, HeightCifar10, WidthCifar10);
-            network.Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.Convolution_BatchNorm_Activation(16, 3, 1, 1, param.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageCIn = 16; //number of channels for current stage
             int stageCOut = 4 * stageCIn;
@@ -275,22 +209,22 @@ namespace SharpNet
                     var startOfBlockLayerIndex = network.Layers.Last().LayerIndex;
                     if (stageId == 0 && resBlock == 0)
                     {
-                        network.Convolution(stageCIn, 1, stride, 0, lambdaL2Regularization);
+                        network.Convolution(stageCIn, 1, stride, 0, param.lambdaL2Regularization, true);
                     }
                     else
                     {
-                        network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, lambdaL2Regularization);
+                        network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, param.lambdaL2Regularization);
                     }
-                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, 1, lambdaL2Regularization);
-                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, 0, lambdaL2Regularization);
-                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, lambdaL2Regularization);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, 1, param.lambdaL2Regularization);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, 0, param.lambdaL2Regularization);
+                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, param.lambdaL2Regularization);
                 }
                 stageCIn = stageCOut;
                 stageCOut = 2 * stageCIn;
             }
             network.BatchNorm().Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.AvgPooling(8, 8);
-            network.Output(CategoriesCifar10, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Output(CategoriesCifar10, param.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             network.Description = description;
             return network;
         }

@@ -185,6 +185,26 @@ namespace SharpNetTests
             var x = RandomTensor(y.Shape, "x");
             TestAll(new[] { y, x }, tensors => tensors[0].AddTensor(0.5, tensors[1], 0.75));
         }
+
+
+        [Test]
+        public void TestConcatenate()
+        {
+            var x1 = RandomTensor(new[] { BatchSize, 17, Height, Width }, "x1");
+            var x2 = RandomTensor(new[] { BatchSize, 13, Height, Width }, "x2");
+            var concat = RandomTensor(new[] { BatchSize, 17 + 13, Height, Width }, "concat");
+            TestAll(new[] { concat, x1, x2 }, tensors => tensors[0].Concatenate(tensors[1], tensors[2]));
+        }
+
+        [Test]
+        public void TestSplit()
+        {
+            var toSplit = RandomTensor(new[] { BatchSize, 17 + 13, Height, Width }, "toSplit");
+            var x1 = RandomTensor(new[] { BatchSize, 17, Height, Width }, "x1");
+            var x2 = RandomTensor(new[] { BatchSize, 13, Height, Width }, "x2");
+            TestAll(new[] { toSplit, x1, x2 }, tensors => tensors[0].Split(tensors[1], tensors[2]));
+        }
+
         [Test]
         public void TestUpdate_Multiplying_By_Alpha()
         {
@@ -292,7 +312,7 @@ namespace SharpNetTests
             var W = RandomTensor(new[] { Width, Height }, "W");
             var dW = RandomTensor(W.Shape, "dW");
             var velocity = RandomTensor(W.Shape, "velocity");
-            TestAll(new[] { W, dW, velocity }, tensors => tensors[0].UpdateSGDOptimizer(learningRate, momentum, decay, usenesterov, tensors[1], tensors[2]));
+            TestAll(new[] { W, dW, velocity }, tensors => tensors[0].UpdateSGDOptimizer(learningRate, momentum, usenesterov, tensors[1], tensors[2]));
         }
 
         
@@ -306,7 +326,7 @@ namespace SharpNetTests
         {
             var nbRows = 1000;
             var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
-            var yExpectedOneHot = RandomOneHotTensor(yPredicted.Shape, "yExpectedOneHot");
+            var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand, "yExpectedOneHot");
             var buffer = RandomTensor(new[] { nbRows }, "buffer");
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
         }
@@ -317,7 +337,7 @@ namespace SharpNetTests
         {
             var nbRows = 10000;
             var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
-            var yExpectedOneHot = RandomOneHotTensor(yPredicted.Shape, "yExpectedOneHot");
+            var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand, "yExpectedOneHot");
             var buffer = RandomTensor(new[] { nbRows}, "buffer");
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
@@ -327,16 +347,6 @@ namespace SharpNetTests
 	    {
 	        return TestCpuTensor.RandomDoubleTensor(shape, _rand, -1.5, +1.5, description);
 	    }
-        private CpuTensor<double> RandomOneHotTensor(int[] shape, string description)
-        {
-            var result = new CpuTensor<double>(shape, description);
-            for (int row = 0; row < result.Shape[0]; ++row)
-            {
-                result.Set(row, _rand.Next(result.Shape[1]), 1.0);
-            }
-            return result;
-        }
-
         private static void AreEquals(CpuTensor<double> doubleCpu, CpuTensor<float> floatCpu, GPUTensor<double> doubleGpu, GPUTensor<float> floatGpu)
 	    {
 	        Assert.IsTrue(doubleCpu.SameShape(floatCpu, doubleGpu, floatGpu));

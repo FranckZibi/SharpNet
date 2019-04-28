@@ -16,24 +16,6 @@
 		}
 	}
 
-	//TODO remove this function
-	__global__ void UpdateSGDOptimizer(int N, double learningRate, double momentum, double decay, bool usenesterov,
-		const double* __restrict dW, double* __restrict W, double* __restrict velocity) {
-		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
-			double dw = dW[i];
-			velocity[i] = (momentum * velocity[i]) - (dw * learningRate);
-			if (usenesterov)
-			{
-				W[i] += momentum * velocity[i] - (dw * learningRate);
-			}
-			else
-			{
-				W[i] += velocity[i];
-			}
-
-		}
-	}
-
 	__global__ void ComputeAccuracy(int N, int categoryCount, double *countOk, const double* __restrict yExpectedOneHot, const double* __restrict yPredicted) 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x; 
 		if (i < N) {
@@ -94,5 +76,24 @@
 		}
 	}
 
-	
+	__global__ void Concatenate(int N, int m, double* __restrict concat, int concatMultDim0, const double* __restrict a, int aMultDim0, const double* __restrict b, int bMultDim0)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i >= N)  return;
+		int row = i/concatMultDim0;
+		int colInConcat = i%concatMultDim0;
+		concat[i] = (colInConcat<aMultDim0)?a[row*aMultDim0+colInConcat]:b[row*bMultDim0+colInConcat-aMultDim0];
+	}
+
+	__global__ void Split(int N, int m, const double* __restrict concat, int concatMultDim0, double* __restrict a, int aMultDim0, double* __restrict b, int bMultDim0)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i >= N)  return;
+		int row = i/concatMultDim0;
+		int colInConcat = i%concatMultDim0;
+		if (colInConcat<aMultDim0)
+			a[row*aMultDim0+colInConcat] = concat[i];
+		else
+			b[row*bMultDim0+colInConcat-aMultDim0] = concat[i];
+	}
 }

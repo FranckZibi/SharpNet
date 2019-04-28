@@ -141,7 +141,7 @@ namespace SharpNet.CPU
         }
 
         #region Tensor implementation
-        public override void UpdateSGDOptimizer(double learningRate, double momentum, double decay, bool usenesterov, Tensor dW, Tensor velocity)
+        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
         {
             var W = this;
             if (UseDoublePrecision)
@@ -502,6 +502,28 @@ namespace SharpNet.CPU
             // this = alpha * x + beta * this
             Update_Adding_Alpha_X(alpha, x);
         }
+        public override void Concatenate(Tensor a, Tensor b)
+        {
+            CheckConcatenate(a, b);
+            void ConcatenateSingleRow(int m)
+            {
+                a.CopyTo(a.Idx(m), this, Idx(m), a.MultDim0);
+                b.CopyTo(b.Idx(m), this, Idx(m) + a.MultDim0, b.MultDim0);
+            }
+            System.Threading.Tasks.Parallel.For(0, Shape[0], ConcatenateSingleRow);
+        }
+        public override void Split(Tensor a, Tensor b)
+        {
+            CheckConcatenate(a, b);
+            void SplitSingleRow(int m)
+            {
+                CopyTo(Idx(m), a, a.Idx(m), a.MultDim0);
+                CopyTo(Idx(m) + a.MultDim0, b, b.Idx(m), b.MultDim0);
+            }
+            System.Threading.Tasks.Parallel.For(0, Shape[0], SplitSingleRow);
+        }
+
+
 
         // compute:     this = alpha * this
         public override void Update_Multiplying_By_Alpha(double alpha)

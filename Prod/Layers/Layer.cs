@@ -15,6 +15,7 @@ namespace SharpNet
         protected readonly Network Network;
         private readonly List<int> _previousLayerIndexes = new List<int>();
         private readonly List<int> _nextLayerIndexes = new List<int>();
+        private int[] _lazyOutputShape;
         #endregion
 
         protected Layer(Network network) :this(network, network.Layers.Count-1) 
@@ -27,6 +28,27 @@ namespace SharpNet
             AddPreviousLayer(previousLayerIndex);
         }
 
+
+        /// <summary>
+        /// compares the current layer with the other layer 'b' 
+        /// </summary>
+        /// <param name="b">2nd Layer to compare</param>
+        /// <param name="epsilon">ignore difference between numeric values if less then epsilon </param>
+        /// <param name="id"></param>
+        /// <param name="errors"></param>
+        /// <returns>true if a difference was observed, false if same layers</returns>
+        public virtual bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            bool allAreOk = true;
+            allAreOk &= Utils.Equals(SummaryName(), b.SummaryName(), id + ":SummaryName", ref errors);
+            id += ":" + SummaryName();
+            allAreOk &= Utils.Equals(LayerIndex, b.LayerIndex, id+":LayerIndex", ref errors);
+            allAreOk &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
+            allAreOk &= Utils.EqualsList(_previousLayerIndexes, b._previousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
+            allAreOk &= Utils.EqualsList(_nextLayerIndexes, b._nextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
+            allAreOk &= Utils.EqualsList(TensorsIndependantOfBatchSize, b.TensorsIndependantOfBatchSize, epsilon, id+ ":TensorsIndependantOfBatchSize", ref errors);
+            return allAreOk;
+        }
         protected int NbLayerOfSameTypeBefore()
         {
             int result = 0;
@@ -39,7 +61,6 @@ namespace SharpNet
             }
             return result;
         }
-
         public int n_x
         {
             get
@@ -92,9 +113,19 @@ namespace SharpNet
         public abstract Tensor y { get; protected set; } //output of layer 
         // ReSharper disable once InconsistentNaming
         //gradient of layer output (= null if it is the input layer)
-        public abstract Tensor dy { get; protected set; } 
+        public abstract Tensor dy { get; protected set; }
         //by default (if not overriden) output shape is the same as the previous layer
-        public virtual int[] OutputShape(int batchSize) { return PrevLayer.OutputShape(batchSize); }
+        public virtual int[] OutputShape(int batchSize)
+        {
+            if (_lazyOutputShape != null)
+            {
+                var result = (int[]) _lazyOutputShape.Clone();
+                result[0] = batchSize;
+                return result;
+            }
+            _lazyOutputShape = PrevLayer.OutputShape(batchSize);
+            return (int[])_lazyOutputShape.Clone();
+        }
         public virtual int TotalParams => 0;
 
         public virtual int DisableBias()
@@ -104,6 +135,7 @@ namespace SharpNet
         public virtual void Dispose()
         {
             EmbeddedTensors.ForEach(x => x?.Dispose());
+            _lazyOutputShape = null;
         }
         public void LogContent()
         {
@@ -139,7 +171,10 @@ namespace SharpNet
         }
 
         #region serialization
-        public abstract string Serialize();
+        public virtual string Serialize()
+        {
+            return RootSerializer().ToString();
+        }
         protected Serializer RootSerializer()
         {
             return new Serializer().Add(nameof(Layer), GetType())
@@ -148,8 +183,9 @@ namespace SharpNet
                     .Add(nameof(_nextLayerIndexes), _nextLayerIndexes.ToArray())
                 ;
         }
-        protected Layer(IDictionary<string, object> serialized, Network network) : this(network, -1)
+        protected Layer(IDictionary<string, object> serialized, Network network)
         {
+            Network = network;
             LayerIndex = (int)serialized[nameof(LayerIndex)];
             _previousLayerIndexes = ((int[])serialized[nameof(_previousLayerIndexes)]).ToList();
             _nextLayerIndexes = ((int[])serialized[nameof(_nextLayerIndexes)]).ToList();
@@ -159,15 +195,16 @@ namespace SharpNet
             var layerType = (string)serialized[nameof(Layer)];
             switch (layerType)
             {
-                case nameof(ActivationLayer): return ActivationLayer.Deserialize(serialized, network);
-                case nameof(BatchNormalizationLayer): return BatchNormalizationLayer.Deserialize(serialized, network);
-                case nameof(ConvolutionLayer): return ConvolutionLayer.Deserialize(serialized, network);
-                case nameof(DenseLayer): return DenseLayer.Deserialize(serialized, network);
-                case nameof(DropoutLayer): return DropoutLayer.Deserialize(serialized, network);
-                case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
-                case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
-                case nameof(FlattenLayer): return FlattenLayer.Deserialize(network);
+                case nameof(ActivationLayer): return new ActivationLayer(serialized, network);
+                case nameof(BatchNormalizationLayer): return new BatchNormalizationLayer(serialized, network);
+                case nameof(ConvolutionLayer): return new ConvolutionLayer(serialized, network);
+                case nameof(DenseLayer): return new DenseLayer(serialized, network);
+                case nameof(DropoutLayer): return new DropoutLayer(serialized, network);
+                case nameof(InputLayer): return new InputLayer(serialized, network);
+                case nameof(PoolingLayer): return new PoolingLayer(serialized, network);
+                case nameof(FlattenLayer): return new FlattenLayer(serialized, network);
                 case nameof(AddLayer): return new AddLayer(serialized, network);
+                case nameof(ConcatenateLayer): return new ConcatenateLayer(serialized, network);
                 default: throw new NotImplementedException("don't know how to deserialize " + layerType);
             }
         }
@@ -191,7 +228,7 @@ namespace SharpNet
         }
         protected void Update_dy_With_GradientFromShortcutIdentityConnection()
         {
-            if (NextLayers.Count >= 2)
+            if (NextLayers.Count >= 2 && !NextLayers.Any(x => x is ConcatenateLayer))
             {
                 Debug.Assert(dyIdentityConnection != null);
                 dy.Update_Adding_Alpha_X(1.0, dyIdentityConnection);
@@ -208,7 +245,7 @@ namespace SharpNet
             if (dy == null || !dy.Shape.SequenceEqual(outputShape))
             {
                 dy = Network.NewNotInitializedTensor(outputShape, dy, nameof(dy));
-                if (NextLayers.Count >= 2)
+                if (NextLayers.Count >= 2 && !NextLayers.Any(x=> x is ConcatenateLayer))
                 {
                     dyIdentityConnection = Network.NewNotInitializedTensor(outputShape, dyIdentityConnection, nameof(dyIdentityConnection));
                 }

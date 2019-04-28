@@ -172,7 +172,7 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3, 1, 1, 0.0)
+                .Convolution(3, 3, 1, 1, 0.0, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray("[[[[-0.10066611, -0.22584948,  0.1257661 ]],[[ 0.00622791, -0.02702722, -0.19816945]],[[-0.00094005, -0.12673107,  0.10199177]]],[[[-0.05160269,  0.36979204, -0.38235503]],[[-0.25580615, -0.23532738, -0.18486507]],[[-0.18581466, -0.03875312, -0.18673505]]],[[[-0.1438927 , -0.05969113,  0.22153592]],[[ 0.02154535,  0.143184  ,  0.2194677 ]],[[-0.17963122,  0.14435953,  0.18853426]]]]", "Convolution");
@@ -229,8 +229,8 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, 0.0)
-                .Convolution(1, 1, 1, 0, 0.0)
+                .Convolution(1, 1, 1, 0, 0.0, true)
+                .Convolution(1, 1, 1, 0, 0.0, true)
                 .AddLayer(1, 2)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
@@ -264,9 +264,9 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, 0.0)
-                .Convolution(1, 1, 1, 0, 0.0); //left
-            network.Convolution(1, 1, 1, 0, 0.0, 1); //right (identity shortcut)
+                .Convolution(1, 1, 1, 0, 0.0, true)
+                .Convolution(1, 1, 1, 0, 0.0, true); //left
+            network.Convolution(1, 1, 1, 0, 0.0, true, 1); //right (identity shortcut)
             network.AddLayer(3, 2)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
                 ;
@@ -302,7 +302,7 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_1_4_4, "y");
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, lambdaL2Regularization)
+                .Convolution(1, 1, 1, 0, lambdaL2Regularization, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             Tensor w = FromNumpyArray("[[[[-0.7714059]]]]", "Convolution0");

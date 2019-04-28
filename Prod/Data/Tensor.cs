@@ -26,25 +26,6 @@ namespace SharpNet.Data
         {
             return ToString(false);
         }
-        private string ToString(bool displayStartofTensor)
-        {
-            var result = Description + "(" + string.Join(", ", Shape) + ")";
-            result += UseGPU ? "" : "CPU";
-            result += UseSinglePrecision ? "" : "x2";
-            if (displayStartofTensor && !UseGPU)
-            {
-                if (UseDoublePrecision)
-                {
-                    result += "(" + string.Join(",", AsCpu<double>().Content.Take(3)) + ",...)";
-                }
-                else
-                {
-                    result += "(" + string.Join(",", AsCpu<float>().Content.Take(3)) + ",...)";
-                }
-            }
-
-            return result;
-        }
         public int Idx(int n) { return MultDim0 * n; }
         public int Idx(int n, int c) { return MultDim0 * n + c; }
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
@@ -61,6 +42,63 @@ namespace SharpNet.Data
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
         public double[] AsDoubleCpuContent => AsCpu<double>().Content;
         public float[] AsFloatCpuContent => AsCpu<float>().Content;
+        public string ContentStats()
+        {
+            int naNCount = 0;
+            int infinityCount = 0;
+            int count = 0;
+            double sum = 0;
+            double sumSquare = 0;
+            double minValue = double.MaxValue;
+            double maxValue = double.MinValue;
+            foreach (var d in ContentAsDoubleArray())
+            {
+                if (double.IsNaN(d))
+                {
+                    ++naNCount;
+                    continue;
+                }
+                if (double.IsInfinity(d))
+                {
+                    ++infinityCount;
+                    continue;
+                }
+                minValue = Math.Min(minValue, d);
+                maxValue = Math.Max(maxValue, d);
+                sum += d;
+                sumSquare += d * d;
+                ++count;
+            }
+            string result = "";
+            if (count != 0)
+            {
+                var mean = (sum / count);
+                var variance = (sumSquare / count) - mean * mean;
+                if (Math.Abs(maxValue - minValue) < 1e-4)
+                {
+                    result = "Const: " + Math.Round(minValue, 4);
+                }
+                else
+                {
+                    result = "Min: " + Math.Round(minValue, 4) + "; Max: " + Math.Round(maxValue, 4) + "; Avg: " + Math.Round(mean, 4) + "; Vol: " + Math.Round(Math.Sqrt(variance), 4);
+                }
+                result += "; Count: " + Count;
+            }
+            if ((naNCount != 0) || (infinityCount != 0))
+            {
+                result += " (";
+                if (naNCount != 0)
+                {
+                    result += naNCount + " NaN";
+                }
+                if (infinityCount != 0)
+                {
+                    result += " " + infinityCount + " infinites";
+                }
+                result += ")";
+            }
+            return result;
+        }
         public static implicit operator IntPtr(Tensor t)
         {
             return t.UseDoublePrecision ? t.AsGPU<double>().DevicePointer : t.AsGPU<float>().DevicePointer;
@@ -85,6 +123,7 @@ namespace SharpNet.Data
         {
             return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
         }
+
         public static ulong OccupiedMemoryInBytes(IEnumerable<Tensor> tensors)
         {
             return (ulong)tensors.Select(x => (long) (x?.CapacityInBytes ?? 0) ).Sum();
@@ -150,6 +189,22 @@ namespace SharpNet.Data
         // compute: this = alpha * x + beta * this
         public abstract void AddTensor(double alpha, Tensor x, double beta);
         // compute: this = alpha * this
+        /// <summary>
+        /// Concatenate the 2 tensors 'a' & 'b'  (through the 'Channel' dimension) into the 'this' tensor.
+        /// They must have exactly the same geometry apart from the number of channels (at index 1)
+        /// 'this' : Tensor of Dimension [N, Ca+Cb, H, W]
+        /// </summary>
+        /// <param name="a">Tensor of Dimension [N, Ca, H, W]</param>
+        /// <param name="b">Tensor of Dimension [N, Cb, H, W]</param>
+        public abstract void Concatenate(Tensor a, Tensor b);
+        /// <summary>
+        /// Split the this tensor into the tensors 'a' & 'b'.
+        /// They must have exactly the same geometry apart from the number of channels (at index 1)
+        /// 'this' : Tensor of Dimension [N, Ca+Cb, H, W]
+        /// </summary>
+        /// <param name="a">Tensor of Dimension [N, Ca, H, W]</param>
+        /// <param name="b">Tensor of Dimension [N, Cb, H, W]</param>
+        public abstract void Split(Tensor a, Tensor b);
         public abstract void Update_Multiplying_By_Alpha(double alpha);
         //this = Tensor<T> convolutionBiasVector
         public abstract void BroadcastConvolutionBiasToOutput(Tensor y);
@@ -172,7 +227,7 @@ namespace SharpNet.Data
         //this = Weights or B
         public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep);
         //this = Weights or B
-        public abstract void UpdateSGDOptimizer(double learningRate, double momentum,double decay, bool usenesterov, Tensor dW, Tensor velocity);
+        public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
         public abstract Tensor ExtractSubTensor(int startRowIndex, int nbRows);
         public abstract void Dispose();
         //this = x
@@ -210,64 +265,6 @@ namespace SharpNet.Data
             }
             return result;
         }
-        public string ContentStats()
-        {
-            int naNCount = 0;
-            int infinityCount = 0;
-            int count = 0;
-            double sum = 0;
-            double sumSquare = 0;
-            double minValue = double.MaxValue;
-            double maxValue = double.MinValue;
-            foreach (var d in ContentAsDoubleArray())
-            {
-                if (double.IsNaN(d))
-                {
-                    ++naNCount;
-                    continue;
-                }
-                if (double.IsInfinity(d))
-                {
-                    ++infinityCount;
-                    continue;
-                }
-                minValue = Math.Min(minValue, d);
-                maxValue = Math.Max(maxValue, d);
-                sum += d;
-                sumSquare += d * d;
-                ++count;
-            }
-            string result = "";
-            if (count != 0)
-            {
-                var mean = (sum / count);
-                var variance = (sumSquare / count) - mean * mean;
-                if (Math.Abs(maxValue - minValue) < 1e-4)
-                {
-                    result = "Const: " + Math.Round(minValue, 4);
-                }
-                else
-                {
-                    result = "Min: " + Math.Round(minValue, 4) + "; Max: " + Math.Round(maxValue, 4) + "; Avg: " + Math.Round(mean, 4) + "; Vol: " + Math.Round(Math.Sqrt(variance), 4);
-                }
-                result += "; Count: "+Count;
-            }
-            if ((naNCount != 0)|| (infinityCount != 0))
-            {
-                result += " (";
-                if (naNCount != 0)
-                {
-                    result += naNCount + " NaN";
-                }
-                if (infinityCount != 0)
-                {
-                    result += " "+infinityCount + " infinites";
-                }
-                result += ")";
-            }
-            return result;
-        }
-
         protected Tensor(int[] shape, int typeSize, bool useGpu, string description)
         {
             Debug.Assert(shape.Length >= 1);
@@ -286,11 +283,41 @@ namespace SharpNet.Data
             MultDim0 = Shape.Length >= 2 ? Shape[1] * MultDim1 : 1;
         }
         protected ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
+        protected void CheckConcatenate(Tensor a, Tensor b)
+        {
+            Debug.Assert(Shape.Length >= 2);
+            Debug.Assert(Shape.Length == a.Shape.Length);
+            Debug.Assert(Shape.Length == b.Shape.Length);
+            //same number of elements
+            Debug.Assert(Shape[0] == a.Shape[0]);
+            Debug.Assert(Shape[0] == b.Shape[0]);
+            Debug.Assert(Shape[1] == (a.Shape[1] + b.Shape[1]));
+            Debug.Assert(Shape.Skip(2).SequenceEqual(a.Shape.Skip(2)));
+            Debug.Assert(Shape.Skip(2).SequenceEqual(b.Shape.Skip(2)));
+        }
 
         private bool IsCompatible(Tensor a)
         {
             return (a != null && UseDoublePrecision == a.UseDoublePrecision && UseGPU == a.UseGPU);
         }
+        private string ToString(bool displayStartofTensor)
+        {
+            var result = Description + "(" + string.Join(", ", Shape) + ")";
+            result += UseGPU ? "" : "CPU";
+            result += UseSinglePrecision ? "" : "x2";
+            if (displayStartofTensor && !UseGPU)
+            {
+                if (UseDoublePrecision)
+                {
+                    result += "(" + string.Join(",", AsCpu<double>().Content.Take(3)) + ",...)";
+                }
+                else
+                {
+                    result += "(" + string.Join(",", AsCpu<float>().Content.Take(3)) + ",...)";
+                }
+            }
 
+            return result;
+        }
     }
 }

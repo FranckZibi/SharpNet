@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using SharpNet.CPU;
@@ -91,6 +92,59 @@ namespace SharpNet.Data
                 sb.Append(t.UseSinglePrecision ? ", numpy.float)" : ", numpy.double)");
             }
         }
+        public static bool Equals(this Tensor a, Tensor b, double epsilon, string id, ref string errors)
+        {
+            if (a == b)
+            {
+                return true;
+            }
+            if (b == null)
+            {
+                errors += id + ":" + a.Description + ": b is null" + Environment.NewLine;
+                return false;
+            }
+            if (a == null)
+            {
+                errors += id + ":" + b.Description + ": a is null" + Environment.NewLine;
+                return false;
+            }
+            if (!Equals(a.Description, b.Description))
+            {
+                errors += id + ":Description: " + a.Description + " != " + b.Description + Environment.NewLine;
+                return false;
+            }
+            id += ":" + a.Description;
+            if (!a.SameShape(b))
+            {
+                errors += id + ":Shape: " + string.Join(",", a.Shape) + " != " + string.Join(",", b.Shape) + Environment.NewLine;
+                return false;
+            }
+            if (a.GetType() != b.GetType())
+            {
+                errors += id + ":Type: " + a.GetType() + " != " + b.GetType() + Environment.NewLine;
+                return false;
+            }
+            var contentA = a.ContentAsDoubleArray();
+            var contentB = b.ContentAsDoubleArray();
+            int nbFoundDifferences = 0;
+            for (int i = 0; i < contentA.Length; ++i)
+            {
+                if (!Utils.Equals(contentA[i], contentB[i], epsilon, id + "[" + i + "]", ref errors))
+                {
+                    ++nbFoundDifferences;
+                    if (nbFoundDifferences >= 10)
+                    {
+                        return false;
+                    }
+                }
+            }
+            if (nbFoundDifferences != 0)
+            {
+                return false;
+            }
+            return true;
+        }
+
         /*
         public static bool HasNan(this Tensor t)
         {

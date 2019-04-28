@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -201,6 +202,26 @@ namespace SharpNet
             return result;
         }
 
+        //TODO :add tests
+        public static bool TryGet<T>(this IDictionary<string, object> serialized, string key, out T value)
+        {
+            if (serialized.TryGetValue(key, out var resAsObject))
+            {
+                value = (T)resAsObject;
+                return true;
+            }
+            value = default(T);
+            return false;
+        }
+        public static T TryGet<T>(this IDictionary<string, object> serialized, string key)
+        {
+            if (serialized.TryGetValue(key, out var resAsObject))
+            {
+                return (T)resAsObject;
+            }
+            return default(T);
+        }
+
         private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
         {
             //uniform(0,1) random double
@@ -211,6 +232,14 @@ namespace SharpNet
             var randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) *Math.Sin(2.0 * Math.PI * u2);
             //random normal(mean,stdDev^2)
             return mean + stdDev * randStdNormal;
+        }
+
+        public static Logger Logger(string networkName)
+        {
+            var logFileName = ConcatenatePathWithFileName(@"c:\temp\ML\",
+                networkName + "_" + Process.GetCurrentProcess().Id + "_" +
+                System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            return new Logger(logFileName, true);
         }
         private static string GetDirectoryName(string path)
         {
@@ -226,6 +255,51 @@ namespace SharpNet
             {
                 return "";
             }
+        }
+
+        public static bool Equals<T>(T a, T b, string id, ref string errors)
+        {
+            if (!Equals(a, b))
+            {
+                errors += id + ": " + a + " != " + b + Environment.NewLine;
+                return false;
+            }
+            return true;
+        }
+        public static bool EqualsList(IList<int> a, IList<int> b, string id, ref string errors)
+        {
+            if (!a.SequenceEqual(b))
+            {
+                errors += id + ": " + string.Join(",", a) + " != " + string.Join(",", b) + Environment.NewLine;
+                return false;
+            }
+            return true;
+        }
+        public static bool Equals(double a, double b, double epsilon, string id, ref string errors)
+        {
+            if (Math.Abs(a - b) > epsilon)
+            {
+                errors += id + ": " + a + " != " + b + Environment.NewLine;
+                return false;
+            }
+            return true;
+        }
+        public static bool EqualsList(IList<Tensor> a, IList<Tensor> b, double epsilon, string id, ref string errors)
+        {
+            var tensorNames = new HashSet<string>(a.Where(x => x != null).Select(x => x.Description).Union(b.Where(x => x != null).Select(x => x.Description)));
+            var allAreOk = true;
+            foreach (var name in tensorNames.ToList())
+            {
+                allAreOk &= EqualsSingleTensor(a, b, name, epsilon, id, ref errors);
+            }
+            return allAreOk;
+        }
+
+        public static bool EqualsSingleTensor(IEnumerable<Tensor> a, IEnumerable<Tensor> b, string tensorName, double epsilon, string id, ref string errors)
+        {
+            var aFirst = a.FirstOrDefault(x => x.Description == tensorName);
+            var bFirst = b.FirstOrDefault(x => x.Description == tensorName);
+            return aFirst.Equals(bFirst, epsilon, id, ref errors);
         }
     }
 }

@@ -67,6 +67,28 @@ namespace SharpNet
             Info("After clearing memory: " + Config.GpuWrapper?.MemoryInfo());
         }
 
+        /// <summary>
+        /// Compares the 'this' network with the 'other' network a,n,d write a test report in the 'errors' output field
+        /// </summary>
+        /// <param name="other">the network to compare with the 'this' network</param>
+        /// <param name="errors">field where the report results will be stored</param>
+        /// <returns>true if the 2 networks are the same, else if a difference has been found</returns>
+        public bool Equals(Network other, out string errors)
+        {
+            var id = Description;
+            errors = "";
+            const double epsilon = 1e-5;
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(Description, other.Description, id + ":Description", ref errors);
+            allAreOk &= Config.Equals(other.Config, epsilon, id, ref errors);
+            allAreOk &= _imageDataGenerator.Equals(other._imageDataGenerator, epsilon, id, ref errors);
+            allAreOk &= Utils.Equals(Layers.Count, other.Layers.Count, id + ":Layers.Count", ref errors);
+            for (int i = 0; i < Math.Min(Layers.Count, other.Layers.Count); ++i)
+            {
+                allAreOk &= Layers[i].Equals(other.Layers[i], epsilon, id + ":Layers["+i+"]", ref errors);
+            }
+            return allAreOk;
+        }
         #region network construction: adding layers
         public Network Input(int channelCount, int h, int w)
         {
@@ -83,7 +105,7 @@ namespace SharpNet
         }
         public Network Convolution_BatchNorm(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
         {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization)
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, true)
                 .BatchNorm();
         }
         public Network Convolution_BatchNorm_Activation(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
@@ -96,12 +118,17 @@ namespace SharpNet
             return 
                 BatchNorm()
                 .Activation(activationFunction)
-                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization);
+                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, true);
         }
         public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
         {
             Layers.Add(new AddLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this));
             Debug.Assert(Layers[previousIdentityLayerIndex].SameOutputShape(Layers[previousResidualLayerIndex]));
+            return this;
+        }
+        public Network ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2)
+        {
+            Layers.Add(new ConcatenateLayer(previousLayerIndex1, previousLayerIndex2, this));
             return this;
         }
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
@@ -117,7 +144,7 @@ namespace SharpNet
             else
             {
                 //we need to add a convolution layer to make correct output format
-                Convolution(filtersCount, 1, stride, 0, lambdaL2Regularization, startOfBlockLayerIndex);
+                Convolution(filtersCount, 1, stride, 0, lambdaL2Regularization, true, startOfBlockLayerIndex);
                 int convLayerIdInIdentityBlock = Layers.Last().LayerIndex;
                 Layers.Add(new AddLayer(convLayerIdInIdentityBlock, previousResidualLayerIndex, this));
                 Debug.Assert(Layers[convLayerIdInIdentityBlock].SameOutputShape(Layers[previousResidualLayerIndex]));
@@ -126,18 +153,18 @@ namespace SharpNet
         }
         public Network Convolution_Activation_Pooling(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction, int poolingSize, int poolingStride)
         {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization)
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, true)
                 .Activation(activationFunction)
                 .MaxPooling(poolingSize, poolingStride);
         }
-        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
+        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias)
         {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, Layers.Count - 1);
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, Layers.Count - 1);
         }
-        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, int previousLayerIndex)
+        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(filtersCount, f, stride, padding, lambdaL2Regularization, previousLayerIndex, this));
+            Layers.Add(new ConvolutionLayer(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this));
             return this;
         }
         public Network Dropout(double dropProbability)
@@ -231,10 +258,6 @@ namespace SharpNet
             foreach (var l in Layers.Skip(1))
             {
                 l.ForwardPropagation(isTraining);
-                //if (Config.DisplayTensorContentStats)
-                //{
-                //    LogDebug(Environment.NewLine + "Epoch:" + (_epochsData.Count + 1) + "; Layer:" + l.SummaryName() + "_" + l.LayerIndex + "; After ForwardPropagation:" + Environment.NewLine + l.ContentStats());
-                //}
             }
             (isTraining ? _swPredictTraining : _swPredictNotTraining)?.Stop();
             return Layers.Last().y;
@@ -262,10 +285,6 @@ namespace SharpNet
             for (int i = Layers.Count - 1; i >= 1; --i)
             {
                 Layers[i].BackwardPropagation();
-                //if (Config.DisplayTensorContentStats)
-                //{
-                //    LogDebug(Environment.NewLine + "Epoch:" + (_epochsData.Count + 1) + "; Layer:" + Layers[i].SummaryName() + "_" + Layers[i].LayerIndex + "; After BackwardPropagation:" + Environment.NewLine + Layers[i].ContentStats());
-                //}
             }
             _swBackwardPropagation?.Stop();
         }
@@ -412,19 +431,19 @@ namespace SharpNet
             var imageDataGenerator = ImageDataGenerator.ValueOf(dicoFirstLine);
             var epochsData = (EpochData[])dicoFirstLine[nameof(_epochsData)];
             var network = new Network(config, imageDataGenerator, epochsData.ToList());
+            network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
             for (int i = 1; i < content.Length; ++i)
             {
                 network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(content[i], network.Config.GpuWrapper), network));
             }
             return network;
         }
-
-
-        private string Save(string path)
+        public string Save(string path)
         {
             int indexLastCompletedEpoch = _epochsData.Count;
             var fileName = Path.Combine(path, "Network_" + Process.GetCurrentProcess().Id + "_" + indexLastCompletedEpoch + ".txt");
             var firstLine = new Serializer()
+                .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
                 .Add(_imageDataGenerator.Serialize())
                 .Add(nameof(_epochsData), _epochsData.ToArray())
@@ -451,7 +470,7 @@ namespace SharpNet
             Debug.Assert(xCpu.Shape[0] == yCpu.Shape[0]); //same number of tests
             if (!Layer.IsValidYSet(yCpu))
             {
-                throw new Exception("Tnvalid Training Set 'y' : must contain only 0 and 1");
+                throw new Exception("Invalid Training Set 'y' : must contain only 0 and 1");
             }
             if (X_testCpu != null && Y_testCpu != null)
             {
@@ -459,7 +478,7 @@ namespace SharpNet
                 Debug.Assert(yCpu.Shape[1] == Y_testCpu.Shape[1]);
                 if (!Layer.IsValidYSet(yCpu))
                 {
-                    throw new Exception("Tnvalid Test Set 'Y_test' : must contain only 0 and 1");
+                    throw new Exception("Invalid Test Set 'Y_test' : must contain only 0 and 1");
                 }
             }
             var observedTypeSize = Marshal.SizeOf(typeof(T));
@@ -524,7 +543,7 @@ namespace SharpNet
             var blocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
             if (Config.UseGPU)
             {
-                LogDebug(Config.GpuWrapper.ToString());
+                LogDebug(Config.GpuWrapper?.ToString());
             }
             LogDebug("Training Set: " + x + " => " + y);
             if (xTest != null)
@@ -532,6 +551,10 @@ namespace SharpNet
                 LogDebug("Test Set: " + xTest + " => " + yTest);
             }
             Info("#Epochs=" + numEpochs + " BathSize=" + miniBatchSize+" Name="+Description);
+            if (Config.DisplayTensorContentStats)
+            {
+                LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
+            }
 
 
             var enlargedXCpu = _imageDataGenerator.EnlargePictures(xCpu);
@@ -662,17 +685,21 @@ namespace SharpNet
             _spInternalFit.Stop();
         }
 
-        private string ContentStats()
+        public string ContentStats()
         {
             var sb = new StringBuilder();
-            sb.Append(Environment.NewLine + "End of Epoch:" + (_epochsData.Count+1) + " Tensor Content stats" + Environment.NewLine);
-            foreach (var l in Layers.Skip(1))
+            foreach (var l in Layers)
             {
-                sb.Append("Layer:" + l.SummaryName() + Environment.NewLine + l.ContentStats() + Environment.NewLine);
+                sb.Append(new string('-',80)+Environment.NewLine);
+                sb.Append("Layer:" + l.SummaryName() + Environment.NewLine);
+                var contentStats = l.ContentStats();
+                if (!string.IsNullOrEmpty(contentStats))
+                {
+                    sb.Append(contentStats + Environment.NewLine);
+                }
             }
             return sb.ToString();
         }
-
 
         #region compute Loss and Accuracy
         //returns : Tuple<loss, accuracy>
@@ -759,10 +786,6 @@ namespace SharpNet
             foreach (var l in Layers.Skip(1)) //we skip the input layer
             {
                 l.UpdateWeights(learningRate);
-                //if (Config.DisplayTensorContentStats)
-                //{
-                //    LogDebug(Environment.NewLine + "Epoch:" + (_epochsData.Count + 1) + "; Layer:" + l.SummaryName() + "_" + l.LayerIndex + "; After UpdateWeights:" + Environment.NewLine + l.ContentStats());
-                //}
             }
             _swUpdateWeights?.Stop();
         }

@@ -24,16 +24,31 @@ namespace SharpNet
         {
             throw new Exception("should never call "+nameof(ForwardPropagation)+" in "+nameof(InputLayer));
         }
-
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (InputLayer)b;
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(ChannelCount, other.ChannelCount, id + ":ChannelCount", ref errors);
+            allAreOk &= Utils.Equals(H, other.H, id + ":H", ref errors);
+            allAreOk &= Utils.Equals(W, other.W, id + ":W", ref errors);
+            return allAreOk;
+        }
+        #region serialization
         public override string Serialize()
         {
             return RootSerializer().Add(nameof(ChannelCount), ChannelCount).Add(nameof(H), H).Add(nameof(W), W).ToString();
         }
-        public static InputLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public InputLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
-            return new InputLayer((int)serialized[nameof(ChannelCount)], (int)serialized[nameof(H)], (int)serialized[nameof(W)], network);
+            ChannelCount = (int)serialized[nameof(ChannelCount)];
+            H = (int)serialized[nameof(H)];
+            W = (int)serialized[nameof(W)];
         }
-
+        #endregion
         public override void BackwardPropagation()
         {
             throw new NotImplementedException();

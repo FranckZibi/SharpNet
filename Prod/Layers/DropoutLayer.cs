@@ -35,15 +35,25 @@ namespace SharpNet
             var dx = PrevLayer.dy;
             x.DropoutBackward(dy, dx, _dropProbability, _dropOutMaskBufferForCpuOnly);
         }
-
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (DropoutLayer)b;
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(_dropProbability, other._dropProbability, epsilon, id, ref errors);
+            return allAreOk;
+        }
         #region serialization
         public override string Serialize()
         {
             return RootSerializer().Add(nameof(_dropProbability), _dropProbability).ToString();
         }
-        public static DropoutLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public DropoutLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
-            return new DropoutLayer((double)serialized[nameof(_dropProbability)], network);
+            _dropProbability = (double) serialized[nameof(_dropProbability)];
         }
         #endregion
     }

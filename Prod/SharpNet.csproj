@@ -50,6 +50,7 @@
     <Compile Include="Data\size_t.cs" />
     <Compile Include="Data\Tensor.cs" />
     <Compile Include="Data\TensorExtensions.cs" />
+    <Compile Include="DenseNetMetaParameters.cs" />
     <Compile Include="GPU\CublasWrapper.cs" />
     <Compile Include="GPU\DeviceMemory.cs" />
     <Compile Include="GPU\CudaRuntimeCompiler.cs" />
@@ -70,6 +71,7 @@
     <Compile Include="Layers\Layer.cs" />
     <Compile Include="Layers\PoolingLayer.cs" />
     <Compile Include="Layers\AddLayer.cs" />
+    <Compile Include="Layers\ConcatenateLayer.cs" />
     <Compile Include="Network.cs" />
     <Compile Include="NetworkConfig.cs" />
     <Compile Include="Optimizers\Adam.cs" />
@@ -86,7 +88,9 @@
     <Compile Include="Pictures\PictureTools.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ResNetMetaParameters.cs" />
     <Compile Include="ResNetUtils.cs" />
+    <Compile Include="DenseNetUtils.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Optimizers\Sgd.cs" />
   </ItemGroup>

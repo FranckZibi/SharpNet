@@ -38,7 +38,7 @@ namespace SharpNet
         public bool DisplayTensorContentStats{ get; set; }
         public bool ProfileApplication { get; } = true;
         public string AutoSavePath { get; set; } = System.IO.Path.GetTempPath();
-        public int AutoSaveIntervalInMinuts { get; set; } = 15;
+        public int AutoSaveIntervalInMinuts { get; set; } = 10;
 
         #endregion
 
@@ -60,6 +60,25 @@ namespace SharpNet
             Adam_epsilon = 1e-8;
             OptimizerType = Optimizer.OptimizationEnum.Adam;
             return this;
+        }
+
+        public bool Equals(NetworkConfig other, double epsilon, string id, ref string errors)
+        {
+            var allAreOk = true;
+            allAreOk &= Utils.Equals(LossFunction, other.LossFunction, id+ ":LossFunction", ref errors);
+            allAreOk &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id+ ":Adam_beta1", ref errors);
+            allAreOk &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + ":Adam_beta2", ref errors);
+            allAreOk &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + ":Adam_epsilon", ref errors);
+            allAreOk &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + ":SGD_momentum", ref errors);
+            allAreOk &= Utils.Equals(SGD_decay, other.SGD_decay, epsilon, id + ":SGD_decay", ref errors);
+            allAreOk &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
+            allAreOk &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
+            allAreOk &= Utils.Equals(UseDoublePrecision, other.UseDoublePrecision, id + ":UseDoublePrecision", ref errors);
+            allAreOk &= Utils.Equals(ForceTensorflowCompatibilityMode, other.ForceTensorflowCompatibilityMode, id + ":ForceTensorflowCompatibilityMode", ref errors);
+            allAreOk &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
+            allAreOk &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
+            allAreOk &= Utils.Equals(AutoSaveIntervalInMinuts, other.AutoSaveIntervalInMinuts, id + ":AutoSaveIntervalInMinuts", ref errors);
+            return allAreOk;
         }
 
         public NetworkConfig WithSGD(double momentum= 0.9, double decay = 0.0, bool useNesterov = true)
