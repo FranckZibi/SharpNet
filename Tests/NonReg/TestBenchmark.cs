@@ -11,7 +11,7 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class TestBenchmark
     {
-        private static string LogFileName => Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "GPUBenchmark" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+        private static string LogFileName => Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
 
         [Test, Explicit]
         public void TestGPUBenchmark_Memory()
@@ -44,7 +44,7 @@ namespace SharpNetTests.NonReg
                 logger.Info("speed: " + speed + " GB/s");
             }
 
-            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "GPUBenchmark_Memory.csv"),
+            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Memory.csv"),
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
                 + "2GB Copy CPU=>GPU;"
                 + gpuContext.DeviceName()+";"
@@ -94,7 +94,7 @@ namespace SharpNetTests.NonReg
             var elapsedMs = sw.Elapsed.TotalSeconds;
             var lossAndAccuracy = network.ComputeLossAndAccuracy(batchSize, X_test, Y_test);
 
-            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "GPUBenchmark_Speed.csv" ), 
+            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Speed.csv" ), 
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"
                 +"MNIST;"
                 + network.Config.GpuWrapper.DeviceName() + ";"

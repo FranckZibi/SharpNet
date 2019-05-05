@@ -18,17 +18,7 @@ namespace SharpNetTests.NonReg
         [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalse")]
         public void Test()
         {
-            /*
-            var dllDirectory = @"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\bin;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\libnvvp";
-            Environment.SetEnvironmentVariable("PATH", dllDirectory + ";" + Environment.GetEnvironmentVariable("PATH"));
-            Environment.SetEnvironmentVariable("CUDA_PATH", @"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0");
-            Environment.SetEnvironmentVariable("NVCUDASAMPLES_ROOT  ", @"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0");
-            */
-            //Environment.SetEnvironmentVariable("TF_FP16_CONV_USE_FP32_COMPUTE", "1");
-            //Environment.SetEnvironmentVariable("TF_FP16_MATMUL_USE_FP32_COMPUTE", "1");
-
             var logger = new Logger(LogFileName, true);
-
             Load(out var xTrain, out var yTrain, out var xTest, out var yTest);
 
             var useGpu = true;
@@ -44,10 +34,6 @@ namespace SharpNetTests.NonReg
             Y_train = Y_train.ExtractSubTensor(0, nbTests);
             useGpu = false;
             */
-
-            //var network = Network.ValueOf("c:/temp/ml/save_2632_2.txt");network.Config.Logger = logger;
-
-
             var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0);
             var network = new Network(
                 new NetworkConfig(useGpu) { Logger = logger, UseDoublePrecision = false }
@@ -108,7 +94,7 @@ namespace SharpNetTests.NonReg
             Y_test = testTuple.Item2;
         }
 
-        private static string LogFileName => Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+        private static string LogFileName => Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
         private static Tuple<CpuTensor<double>, CpuTensor<double>> ToWorkingSet(List<KeyValuePair<CpuTensor<byte>, int>> t)
         {
             int setSize = t.Count;

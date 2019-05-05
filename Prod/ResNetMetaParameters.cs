@@ -14,7 +14,7 @@ namespace SharpNet
         public bool UseGPU { get; set; } = true;
         public bool UseDoublePrecision { get; set; } = false;
         public bool DivideBy10OnPlateau { get; set; } = true; // 'true' : validated on 19-apr-2019: +20 bps
-        public bool UseAdam { get; set; } = false; // 'false' : validated on 19-apr-2019: +70 bps
+        public bool UseAdam { get; set; } // 'false' : validated on 19-apr-2019: +70 bps
 
         public bool UseNesterov { get; set; } = false;
 

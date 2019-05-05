@@ -43,11 +43,11 @@ namespace SharpNet
                 return false;
             }
             var other = (DenseLayer)b;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(_n_x, other._n_x, id + ":LayerIndex", ref errors);
-            allAreOk &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id, ref errors);
-            allAreOk &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(_n_x, other._n_x, id + ":LayerIndex", ref errors);
+            equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id, ref errors);
+            equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
+            return equals;
         }
         #region serialization
         public override string Serialize()
@@ -169,7 +169,7 @@ namespace SharpNet
             base.Dispose();
             _optimizer?.Dispose();
         }
-        public override int TotalParams => Weights?.Count??0 + Bias?.Count??0;
+        public override int TotalParams => (Weights?.Count??0) + (Bias?.Count??0);
 
         public override List<Tensor> TensorsIndependantOfBatchSize
         {

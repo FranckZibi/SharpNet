@@ -27,7 +27,11 @@ namespace SharpNet.Data
             return ToString(false);
         }
         public int Idx(int n) { return MultDim0 * n; }
-        public int Idx(int n, int c) { return MultDim0 * n + c; }
+
+        public int Idx(int n, int c)
+        {
+            return MultDim0 * n + MultDim1 * c;
+        }
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1.0, 0.0); }
@@ -70,17 +74,18 @@ namespace SharpNet.Data
                 ++count;
             }
             string result = "";
+            const int decimalsForRounding = 6;
             if (count != 0)
             {
                 var mean = (sum / count);
                 var variance = (sumSquare / count) - mean * mean;
-                if (Math.Abs(maxValue - minValue) < 1e-4)
+                if (Math.Abs(maxValue - minValue) < 1e-6)
                 {
-                    result = "Const: " + Math.Round(minValue, 4);
+                    result = "Const: " + Math.Round(minValue, decimalsForRounding);
                 }
                 else
                 {
-                    result = "Min: " + Math.Round(minValue, 4) + "; Max: " + Math.Round(maxValue, 4) + "; Avg: " + Math.Round(mean, 4) + "; Vol: " + Math.Round(Math.Sqrt(variance), 4);
+                    result = "Min: " + Math.Round(minValue, decimalsForRounding) + "; Max: " + Math.Round(maxValue, decimalsForRounding) + "; Avg: " + Math.Round(mean, decimalsForRounding) + "; Vol: " + Math.Round(Math.Sqrt(variance), decimalsForRounding);
                 }
                 result += "; Count: " + Count;
             }

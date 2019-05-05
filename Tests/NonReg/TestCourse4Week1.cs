@@ -19,8 +19,6 @@ namespace SharpNetTests.NonReg
         {
             LoadDataSet(@"C:\Projects\SharpNet\Tests\Data\Course4Week1\train_signs.h5", "train_set_x", "train_set_y",
                 "list_classes", out var train_set_x_orig, out var train_set_y_orig, out _);
-            //for (int i = 0; i < train_set_x_orig.Height; ++i)CommonTools.BitmapFacilities.BitmapTools.SaveToDisk(Utils.AsBitmap(train_set_x_orig.GetSubTensorRemovingFirstDimension(i, sizeof(byte))), "c:/temp/ML/train_" + i.ToString("D5") + "_" + train_set_y.Get(0, i), 0, System.Drawing.Color.Black, "", "", "");
-
             var train_set_x = train_set_x_orig.From_NHWC_to_NCHW(x => x / 255.0);
             var train_set_y = train_set_y_orig.ToCategorical(1.0, out _);
 
@@ -47,7 +45,7 @@ namespace SharpNetTests.NonReg
             network.Fit(train_set_x, train_set_y, 0.009, 100, 10, test_set_x, test_set_y);
         }
 
-        private static string LogFileName => Utils.ConcatenatePathWithFileName(@"c:\temp\ML\",
+        private static string LogFileName => Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory,
             "Course1Week4" + "_" + Process.GetCurrentProcess().Id + "_" +
             System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
 

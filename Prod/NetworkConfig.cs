@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Optimizers;
@@ -37,8 +38,20 @@ namespace SharpNet
         /// </summary>
         public bool DisplayTensorContentStats{ get; set; }
         public bool ProfileApplication { get; } = true;
-        public string AutoSavePath { get; set; } = System.IO.Path.GetTempPath();
+        /// <summary>
+        /// Interval in minuts for saving the network
+        /// If less then 0
+        ///     => this option will be disabled
+        /// If == 0
+        ///     => the network will be saved after each iteration
+        /// </summary>
         public int AutoSaveIntervalInMinuts { get; set; } = 10;
+        public bool SaveStatsWhenSavingNetwork { get; set; }
+        public bool SaveLossAfterEachMiniBatch { get; set; }
+
+        public string LogDirectory { get; } = DefaultLogDirectory;
+
+        public static string DefaultLogDirectory => Path.Combine(Path.GetTempPath(), "SharpNet");
 
         #endregion
 
@@ -64,21 +77,23 @@ namespace SharpNet
 
         public bool Equals(NetworkConfig other, double epsilon, string id, ref string errors)
         {
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(LossFunction, other.LossFunction, id+ ":LossFunction", ref errors);
-            allAreOk &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id+ ":Adam_beta1", ref errors);
-            allAreOk &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + ":Adam_beta2", ref errors);
-            allAreOk &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + ":Adam_epsilon", ref errors);
-            allAreOk &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + ":SGD_momentum", ref errors);
-            allAreOk &= Utils.Equals(SGD_decay, other.SGD_decay, epsilon, id + ":SGD_decay", ref errors);
-            allAreOk &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
-            allAreOk &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
-            allAreOk &= Utils.Equals(UseDoublePrecision, other.UseDoublePrecision, id + ":UseDoublePrecision", ref errors);
-            allAreOk &= Utils.Equals(ForceTensorflowCompatibilityMode, other.ForceTensorflowCompatibilityMode, id + ":ForceTensorflowCompatibilityMode", ref errors);
-            allAreOk &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
-            allAreOk &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
-            allAreOk &= Utils.Equals(AutoSaveIntervalInMinuts, other.AutoSaveIntervalInMinuts, id + ":AutoSaveIntervalInMinuts", ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(LossFunction, other.LossFunction, id+ ":LossFunction", ref errors);
+            equals &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id+ ":Adam_beta1", ref errors);
+            equals &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + ":Adam_beta2", ref errors);
+            equals &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + ":Adam_epsilon", ref errors);
+            equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + ":SGD_momentum", ref errors);
+            equals &= Utils.Equals(SGD_decay, other.SGD_decay, epsilon, id + ":SGD_decay", ref errors);
+            equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
+            equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
+            equals &= Utils.Equals(UseDoublePrecision, other.UseDoublePrecision, id + ":UseDoublePrecision", ref errors);
+            equals &= Utils.Equals(ForceTensorflowCompatibilityMode, other.ForceTensorflowCompatibilityMode, id + ":ForceTensorflowCompatibilityMode", ref errors);
+            equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
+            equals &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
+            equals &= Utils.Equals(AutoSaveIntervalInMinuts, other.AutoSaveIntervalInMinuts, id + ":AutoSaveIntervalInMinuts", ref errors);
+            equals &= Utils.Equals(SaveStatsWhenSavingNetwork, other.SaveStatsWhenSavingNetwork, id + ":SaveStatsWhenSavingNetwork", ref errors);
+            equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + ":SaveLossAfterEachMiniBatch", ref errors);
+            return equals;
         }
 
         public NetworkConfig WithSGD(double momentum= 0.9, double decay = 0.0, bool useNesterov = true)
@@ -93,13 +108,6 @@ namespace SharpNet
             return this;
         }
         public Optimizer.OptimizationEnum OptimizerType { get; private set; } = Optimizer.OptimizationEnum.VanillaSGD;
-        //set the path for saving the network (by default the temp folder)
-        public void AutoSave(string autoSavePath, int intervalInMinuts = 15)
-        {
-            AutoSavePath = autoSavePath;
-            AutoSaveIntervalInMinuts = intervalInMinuts;
-        }
-
         #region serialization
         public string Serialize()
         {
@@ -112,7 +120,10 @@ namespace SharpNet
                 .Add(nameof(ForceTensorflowCompatibilityMode), ForceTensorflowCompatibilityMode)
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
                 .Add(nameof(ProfileApplication), ProfileApplication)
-                .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts).Add(nameof(AutoSavePath), AutoSavePath)
+                .Add(nameof(LogDirectory), LogDirectory)
+                .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts)
+                .Add(nameof(SaveStatsWhenSavingNetwork), SaveStatsWhenSavingNetwork)
+                .Add(nameof(SaveLossAfterEachMiniBatch), SaveLossAfterEachMiniBatch)
                 .Add(nameof(UseGPU), UseGPU)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
                 .Add(Logger.Serialize())
@@ -137,8 +148,10 @@ namespace SharpNet
             ForceTensorflowCompatibilityMode = (bool)serialized[nameof(ForceTensorflowCompatibilityMode)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
             ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
+            LogDirectory = (string)serialized[nameof(LogDirectory)];
             AutoSaveIntervalInMinuts = (int)serialized[nameof(AutoSaveIntervalInMinuts)];
-            AutoSavePath = (string)serialized[nameof(AutoSavePath)];
+            SaveStatsWhenSavingNetwork = (bool)serialized[nameof(SaveStatsWhenSavingNetwork)];
+            SaveLossAfterEachMiniBatch = (bool)serialized[nameof(SaveLossAfterEachMiniBatch)];
             var useGPU = (bool)serialized[nameof(UseGPU)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
             GpuWrapper = useGPU ? GPUWrapper.Default : null;

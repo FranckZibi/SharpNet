@@ -9,7 +9,16 @@ namespace SharpNetTests
     {
         private static void Main()
         {
+            /*
+            Console.WriteLine("Epoch1");
+            Console.WriteLine(Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_19064_1.txt").ContentStats());
+            Console.WriteLine("Epoch7");
+            Console.WriteLine(Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_19064_7.txt").ContentStats());
+            return;
+            */
+            
             DenseNetTests();
+            //ResNetTests();
 
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);
@@ -24,7 +33,8 @@ namespace SharpNetTests
         {
             var gpuWrapper = GPUWrapper.Default;
             var rand = new Random(0);
-            var x1 = TestCpuTensor.RandomFloatTensor(new[] { 128, 32, 16, 16 }, rand, -1.5, +1.5, "a");
+            var x1 = TestCpu
+            or.RandomFloatTensor(new[] { 128, 32, 16, 16 }, rand, -1.5, +1.5, "a");
             var x2 = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], 320, x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
             var concat = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], x1.Shape[1] + x2.Shape[1], x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
 
@@ -50,14 +60,24 @@ namespace SharpNetTests
         {
             var todo = new List<Action<DenseNetMetaParameters>>
             {
+                //TrainDenseNet.TrainDenseNet10_CIFAR10,
                 TrainDenseNet.TrainDenseNet40_CIFAR10,
             };
 
             var modifiers = new List<Action<DenseNetMetaParameters>>
             {
-                (param) =>{param.ExtraDescription = "";},
+                //(p) =>{p.UseNesterov = false; p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov";},
+                //(p) =>{p.UseAdam = true; p.NumEpochs = 5; p.ExtraDescription = "_50Epoch_Adam";},
+                //(p) =>{p.SaveStatsWhenSavingNetwork = true; p.ExtraDescription = "_Adam_with_l2_inConv";},
+                (p) =>{p.SaveStatsWhenSavingNetwork = false;p.UseAdam = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = true;p.SaveLossAfterEachMiniBatch = false;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
+                //(p) =>{p.SaveStatsWhenSavingNetwork = true;p.UseDoublePrecision = true;p.UseAdam = true;p.BatchSize = -1;p.ExtraDescription = "_ForceTensorflowCompatibilityMode_UseDoublePrecision";},
+                //(p) =>{p.UseAdam = true;p.BatchSize = 50;p.SaveStatsWhenSavingNetwork = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_with_l2_inConv";},
+                //(p) =>{p.UseAdam = true; p.lambdaL2Regularization = 0.0;p.SaveStatsWhenSavingNetwork = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_no_l2_inConv";},
+
+                //(p) =>{p.UseAdam = true;p.SaveStatsWhenSavingNetwork = true; p.lambdaL2Regularization = 0.0;p.NumEpochs = 2; p.ExtraDescription = "_Adam_no_lambdaL2Regularization";},
+                //(p) =>{p.lambdaL2Regularization = 0.0;p.UseNesterov = false;p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov_no_lambdaL2Regularization";},
                 #region already performed tests
-                #endregion
+            #endregion
             };
             PerformTestSet(modifiers, todo);
         }
@@ -66,6 +86,9 @@ namespace SharpNetTests
         {
             var todo = new List<Action<ResNetMetaParameters>>
             {
+                TrainResNet.TrainResNet32V1_CIFAR10,
+
+                /*
                 //TrainResNet.TrainResNet11V2_CIFAR10,
                 TrainResNet.TrainResNet20V1_CIFAR10,
                 //TrainResNet.TrainResNet20V2_CIFAR10,
@@ -76,12 +99,12 @@ namespace SharpNetTests
                 //TrainResNet.TrainResNet110V1_CIFAR10,
                 //TrainResNet.TrainResNet110V2_CIFAR10,
                 //TrainResNet.TrainResNet164V1_CIFAR10,
-                //TrainResNet.TrainResNet164V2_CIFAR10
+                //TrainResNet.TrainResNet164V2_CIFAR10 */
             };
 
             var modifiers = new List<Action<ResNetMetaParameters>>
             {
-                //(param) =>{param.FillMode=ImageDataGenerator.FillModeEnum.Nearest;param.ExtraDescription = "_FillMode_Nearest";},
+                (p) =>{p.UseAdam = true;p.BatchSize = -1;p.CutoutPatchlength = 0;p.ExtraDescription = "_Adam";},
                 #region already performed tests
                 /*
                 //https://sgugger.github.io/the-1cycle-policy.html

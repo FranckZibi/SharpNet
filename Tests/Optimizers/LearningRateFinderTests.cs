@@ -17,7 +17,7 @@ namespace SharpNetTests.Optimizers
 
         private static Logger Logger(string networkName)
         {
-            var logFileName = Utils.ConcatenatePathWithFileName(@"c:\temp\ML\",
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory,
                 networkName + "_" + Process.GetCurrentProcess().Id + "_" +
                 System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             return new Logger(logFileName, true);

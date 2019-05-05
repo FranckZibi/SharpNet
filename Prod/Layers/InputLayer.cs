@@ -31,11 +31,11 @@ namespace SharpNet
                 return false;
             }
             var other = (InputLayer)b;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(ChannelCount, other.ChannelCount, id + ":ChannelCount", ref errors);
-            allAreOk &= Utils.Equals(H, other.H, id + ":H", ref errors);
-            allAreOk &= Utils.Equals(W, other.W, id + ":W", ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(ChannelCount, other.ChannelCount, id + ":ChannelCount", ref errors);
+            equals &= Utils.Equals(H, other.H, id + ":H", ref errors);
+            equals &= Utils.Equals(W, other.W, id + ":W", ref errors);
+            return equals;
         }
         #region serialization
         public override string Serialize()

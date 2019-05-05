@@ -1,5 +1,4 @@
-﻿using System;
-using SharpNet.Optimizers;
+﻿using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
 namespace SharpNet
@@ -7,22 +6,25 @@ namespace SharpNet
     public class DenseNetMetaParameters : IMetaParameters
     {
         public bool UseGPU { get; set; } = true;
-        public bool UseDoublePrecision { get; set; } = false;
-        public bool DivideBy10OnPlateau { get; set; } = true;
-        public bool UseAdam { get; set; } = false;
+        public bool UseDoublePrecision { get; set; }
+        public bool UseAdam { get; set; }
+        public bool SaveLossAfterEachMiniBatch { get; set; }
+        public bool ForceTensorflowCompatibilityMode { get; set; }
         public bool UseNesterov { get; set; } = true;
+        public bool SaveStatsWhenSavingNetwork { get; set; }
+
         public NetworkConfig Config()
         {
-            var networkConfig = new NetworkConfig(UseGPU)
-            {
-                UseDoublePrecision = UseDoublePrecision,
-                LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                Logger = Logger.ConsoleLogger
-            };
-            networkConfig = UseAdam ? networkConfig.WithAdam() : networkConfig.WithSGD(0.9, 0, UseNesterov);
-            return networkConfig;
+            var config = new NetworkConfig(UseGPU);
+            config.UseDoublePrecision = UseDoublePrecision;
+            config.SaveStatsWhenSavingNetwork = SaveStatsWhenSavingNetwork;
+            config.LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy;
+            config.Logger = Logger.ConsoleLogger;
+            config = UseAdam ? config.WithAdam() : config.WithSGD(0.9, 0, UseNesterov);
+            config.ForceTensorflowCompatibilityMode = ForceTensorflowCompatibilityMode;
+            config.SaveLossAfterEachMiniBatch = SaveLossAfterEachMiniBatch;
+            return config;
         }
-        public bool OneCycleLearningRate { get; set; } = false;
         public double lambdaL2Regularization { get; set; } = 1e-4;
         public int NumEpochs { get; set; } = 300;
         public int BatchSize { get; set; } = 64;
@@ -47,12 +49,6 @@ namespace SharpNet
         public ReduceLROnPlateau Cifar10ReduceLROnPlateau()
         {
             return null;
-            if (OneCycleLearningRate)
-            {
-                return null;
-            }
-            var factorForReduceLrOnPlateau = DivideBy10OnPlateau ? 0.1 : Math.Sqrt(0.1);
-            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
         }
     }
 }

@@ -102,11 +102,11 @@ namespace SharpNet
                 return false;
             }
             var other = (BatchNormalizationLayer)b;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(_momentum, other._momentum, epsilon, id, ref errors);
-            allAreOk &= Utils.Equals(_epsilon, other._epsilon, epsilon, id, ref errors);
-            allAreOk &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(_momentum, other._momentum, epsilon, id, ref errors);
+            equals &= Utils.Equals(_epsilon, other._epsilon, epsilon, id, ref errors);
+            equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
+            return equals;
         }
         public override void ForwardPropagation(bool isTraining)
         {

@@ -32,9 +32,9 @@ namespace SharpNet
                 return false;
             }
             var other = (ActivationLayer)b;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(ActivationFunction, other.ActivationFunction, id + ":ActivationFunction", ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(ActivationFunction, other.ActivationFunction, id + ":ActivationFunction", ref errors);
+            return equals;
         }
         #region serialization
         public override string Serialize()

@@ -17,7 +17,7 @@ namespace SharpNetTests
     public class TestGradient
     {
 	    private readonly Random _rand = new Random(0);
-        private static readonly string logFileName = Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "TestGradient" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+        private static readonly string logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "TestGradient" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
         private static readonly Logger logger = new Logger(logFileName, true);
 
         [TestCase(true, false)]

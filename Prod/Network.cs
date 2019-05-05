@@ -35,6 +35,8 @@ namespace SharpNet
         private Tensor bufferComputeAccuracy;
         private Tensor bufferComputeLoss;
         private readonly List<EpochData> _epochsData;
+        private readonly DateTime _timeStampCreation = DateTime.Now;
+        private string UniqueId => (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description)) + "_" + _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
         #endregion
 
         public Network(NetworkConfig config, ImageDataGenerator imageDataGenerator = null, List<EpochData> epochData = null)
@@ -53,7 +55,16 @@ namespace SharpNet
                 _swComputeLoss = new Stopwatch();
                 _swComputeAccuracy = new Stopwatch();
             }
+            CreateLogDirectoryIfNeeded();
         }
+        private void CreateLogDirectoryIfNeeded()
+        {
+            if (!string.IsNullOrEmpty(Config.LogDirectory) && !Directory.Exists(Config.LogDirectory))
+            {
+                Directory.CreateDirectory(Config.LogDirectory);
+            }
+        }
+
         public void ClearMemory()
         {
             Info("Before clearing memory: " + Config.GpuWrapper?.MemoryInfo());
@@ -78,16 +89,16 @@ namespace SharpNet
             var id = Description;
             errors = "";
             const double epsilon = 1e-5;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(Description, other.Description, id + ":Description", ref errors);
-            allAreOk &= Config.Equals(other.Config, epsilon, id, ref errors);
-            allAreOk &= _imageDataGenerator.Equals(other._imageDataGenerator, epsilon, id, ref errors);
-            allAreOk &= Utils.Equals(Layers.Count, other.Layers.Count, id + ":Layers.Count", ref errors);
+            var equals = true;
+            equals &= Utils.Equals(Description, other.Description, id + ":Description", ref errors);
+            equals &= Config.Equals(other.Config, epsilon, id, ref errors);
+            equals &= _imageDataGenerator.Equals(other._imageDataGenerator, epsilon, id, ref errors);
+            equals &= Utils.Equals(Layers.Count, other.Layers.Count, id + ":Layers.Count", ref errors);
             for (int i = 0; i < Math.Min(Layers.Count, other.Layers.Count); ++i)
             {
-                allAreOk &= Layers[i].Equals(other.Layers[i], epsilon, id + ":Layers["+i+"]", ref errors);
+                equals &= Layers[i].Equals(other.Layers[i], epsilon, id + ":Layers["+i+"]", ref errors);
             }
-            return allAreOk;
+            return equals;
         }
         #region network construction: adding layers
         public Network Input(int channelCount, int h, int w)
@@ -96,10 +107,10 @@ namespace SharpNet
             Layers.Add(new InputLayer(channelCount, h, w, this));
             return this;
         }
-        public Network Dense(int n_x, double _lambdaL2Regularization)
+        public Network Dense(int n_x, double lambdaL2Regularization)
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(n_x, _lambdaL2Regularization, this);
+            var fullyConnectedLayer = new DenseLayer(n_x, lambdaL2Regularization, this);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
@@ -118,7 +129,7 @@ namespace SharpNet
             return 
                 BatchNorm()
                 .Activation(activationFunction)
-                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, true);
+                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, false);
         }
         public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
         {
@@ -214,9 +225,9 @@ namespace SharpNet
             return Dense(n_x, lambdaL2Regularization)
                 .Activation(activationFunction);
         }
-        public Network Output(int n_x, double _lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
+        public Network Output(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
         {
-            return Dense(n_x, _lambdaL2Regularization)
+            return Dense(n_x, lambdaL2Regularization)
                 .Activation(activationFunctionType);
         }
         public Network Flatten()
@@ -316,7 +327,7 @@ namespace SharpNet
                 {
                     firstColumn = firstColumn.Substring(0, firstColumnWidth-1);
                 }
-                result += $"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}" + Environment.NewLine;
+                result += ($"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}").TrimEnd() + Environment.NewLine;
                 result += (l.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
             result += "Total params: " + TotalParams;
@@ -348,10 +359,10 @@ namespace SharpNet
                 }
                 var previousLayers = l.PreviousLayers.OrderBy(x=>x.LayerIndex).ToList();
                 var firstPreviousLayer = (previousLayers.Count == 0 ? "" : previousLayers[0].SummaryName()+"[0][0]");
-                result += $"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}{firstPreviousLayer,-forthColumnWidth}" + Environment.NewLine;
+                result += ($"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}{firstPreviousLayer,-forthColumnWidth}").TrimEnd() + Environment.NewLine;
                 for (int i = 1; i < previousLayers.Count; ++i)
                 {
-                    result += $"{"",-(firstColumnWidth+secondColumnWidth+thirdColumnWidth)}{previousLayers[i].SummaryName() + "[0][0]",-forthColumnWidth}" + Environment.NewLine;
+                    result += ($"{"",-(firstColumnWidth+secondColumnWidth+thirdColumnWidth)}{previousLayers[i].SummaryName() + "[0][0]",-forthColumnWidth}").TrimEnd() + Environment.NewLine;
                 }
                 result += (l.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
@@ -367,6 +378,14 @@ namespace SharpNet
             var result = Summary() + Environment.NewLine;
             result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependantOfBatchSize);
             return result;
+        }
+
+        public int MaxMiniBatchSize()
+        {
+            var freeMemoryInBytes = Config.GpuWrapper?.FreeMemoryInBytes() ?? (ulong)GC.GetTotalMemory(false);
+            int miniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
+            Info("Target MiniBatchSize=" + miniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
+            return miniBatchSize;
         }
 
         //TODO add tests
@@ -441,7 +460,9 @@ namespace SharpNet
         public string Save(string path)
         {
             int indexLastCompletedEpoch = _epochsData.Count;
-            var fileName = Path.Combine(path, "Network_" + Process.GetCurrentProcess().Id + "_" + indexLastCompletedEpoch + ".txt");
+            var fileNameWithoutExtension = UniqueId + "_" + indexLastCompletedEpoch;
+
+            var fileName = Path.Combine(path, fileNameWithoutExtension + ".txt");
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
@@ -452,6 +473,11 @@ namespace SharpNet
             foreach (var l in Layers)
             {
                 File.AppendAllLines(fileName, new[] { l.Serialize() });
+            }
+            if (Config.SaveStatsWhenSavingNetwork)
+            {
+                var statsFileName = Path.Combine(path, fileNameWithoutExtension + "_ContentStats.txt");
+                File.WriteAllText(statsFileName, ContentStats());
             }
             return fileName;
         }
@@ -493,32 +519,52 @@ namespace SharpNet
             
         }
 
-        public double FindBestLearningRate(Tensor x, Tensor y, int miniBatchSize)
+        public double FindBestLearningRate(Tensor x, Tensor y, int miniBatchSize = -1)
         {
-            _spInternalFit.Start();
-        
             Info("Looking for best learning rate...");
-            var learningRateFinder = new LearningRateFinder(miniBatchSize, x.Shape[0]);
-            bool CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockId)
+            ResetWeights(); //restore weights to there original values
+            if (miniBatchSize < 1)
             {
-                _swComputeLoss?.Start();
+                miniBatchSize = MaxMiniBatchSize();
+            }
+            var learningRateFinder = new LearningRateFinder(miniBatchSize, x.Shape[0]);
+            bool CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockIdInEpoch, int nbBatchBlockInEpoch, int epoch)
+            {
                 bufferComputeLoss = NewNotInitializedTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
                 var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, bufferComputeLoss);
-                _swComputeLoss?.Stop();
                 return learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
-
             MiniBatchGradientDescent(miniBatchSize, x, y, learningRateFinder, CallBackAfterEachMiniBatch);
-            //File.WriteAllText("c:/temp/ml/toto_"+DateTime.Now.Ticks+".csv", learningRateFinder.AsCsv());
+            var fileName = Path.Combine(Config.LogDirectory, UniqueId + "_LearningRateFinder.csv");
+            File.WriteAllText(fileName, learningRateFinder.AsCsv());
+            Info("Stats stored in: " + fileName);
             var bestLearningRate = learningRateFinder.BestLearningRate();
-            Info("Best learning rate: "+ bestLearningRate);
+            Info("Best learning rate: "+ bestLearningRate+ " (with batch size="+miniBatchSize+")");
             ResetWeights(); //restore weights to there original values
-            _spInternalFit.Stop();
             return bestLearningRate;
         }
 
 
+        private string MiniBatchLossFile => Path.Combine(Config.LogDirectory, UniqueId + "_MiniBatchLoss.csv");
 
+        bool CallBackComputeLossAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockIdInEpoch, int nbBatchBlockInEachEpoch, int epoch)
+        {
+            var fileName = MiniBatchLossFile;
+            if (!File.Exists(fileName))
+            {
+                File.WriteAllText(fileName, "Sep=;"+Environment.NewLine+"Epoch;Iteration;Loss"+Environment.NewLine);
+            }
+            _swComputeLoss?.Start();
+            bufferComputeLoss = NewNotInitializedTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
+            var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, bufferComputeLoss);
+            _swComputeLoss?.Stop();
+            int iteration = (epoch - 1) * nbBatchBlockInEachEpoch + blockIdInEpoch;
+            File.AppendAllText(fileName, epoch+";"+ iteration + ";"+blockLoss.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
+            return false;
+        }
+
+
+        
 
         //here T is already of the target precision (double or float)
         private void InternalFit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize, CpuTensor<T> xTestCpu, CpuTensor<T> yTestCpu) where T : struct
@@ -536,9 +582,7 @@ namespace SharpNet
             Info(ToString());
             if (miniBatchSize < 1)
             {
-                var freeMemoryInBytes = Config.GpuWrapper?.FreeMemoryInBytes() ?? (ulong)GC.GetTotalMemory(false);
-                miniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
-                Info("Target MiniBatchSize=" + miniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
+                miniBatchSize = MaxMiniBatchSize();
             }
             var blocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
             if (Config.UseGPU)
@@ -556,6 +600,12 @@ namespace SharpNet
                 LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
             }
 
+            Func<Tensor, Tensor, int, int, int, bool> callBackAtEachIteration = null;
+            if (Config.SaveLossAfterEachMiniBatch)
+            {
+                Info("Saving mini batch loss in " + MiniBatchLossFile);
+                callBackAtEachIteration = CallBackComputeLossAfterEachMiniBatch;
+            }
 
             var enlargedXCpu = _imageDataGenerator.EnlargePictures(xCpu);
             var lastAutoSaveTime = DateTime.Now; //last time we saved the network
@@ -586,7 +636,7 @@ namespace SharpNet
                     _imageDataGenerator.CreateInputForEpoch(enlargedXCpu, yInputCpu, xCpu, yCpu, Config.RandomizeOrder);
                     _swCreateInputForEpoch?.Stop();              
                 }
-                //for (int i = 0; i < 10; ++i) {PictureTools.SaveBitmap(xCpu, i, "c:/temp/ML/Train/", i.ToString("D5")+"_epoch_" + epoch, "");}
+                //for (int i = 0; i < 10; ++i) {PictureTools.SaveBitmap(xCpu, i, Path.Combine(Config.LogDirectory, "Train"), i.ToString("D5")+"_epoch_" + epoch, "");}
 
                 if (x.UseGPU)
                 {
@@ -597,7 +647,7 @@ namespace SharpNet
 
                 #region Mini Batch gradient descent
                 var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, blocksInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                var yPredicted = MiniBatchGradientDescent(miniBatchSize, x, y, learningRateComputer);
+                var yPredicted = MiniBatchGradientDescent(miniBatchSize, x, y, learningRateComputer, callBackAtEachIteration);
                 #endregion
 
                 //We display stats about the just finished epoch
@@ -636,11 +686,11 @@ namespace SharpNet
 
                 #region we save the network in a file if necessary
                 if (((epoch == numEpochs) && (numEpochs > 10))
-                    || (!string.IsNullOrEmpty(Config.AutoSavePath) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts))
+                    || ( (Config.AutoSaveIntervalInMinuts>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts))
                 {
                     var swSaveTime = Stopwatch.StartNew();
-                    Info("Saving network '"+ Description+"' in directory '" + Config.AutoSavePath + "' ...");
-                    var fileName = Save(Config.AutoSavePath);
+                    Info("Saving network '"+ Description+"' in directory '" + Config.LogDirectory + "' ...");
+                    var fileName = Save(Config.LogDirectory);
                     Info("Network '" + Description + "' saved in file '" + fileName + "' in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
                     lastAutoSaveTime = DateTime.Now;
                 }
@@ -653,7 +703,7 @@ namespace SharpNet
             try
             {
                 //We save the results of the net
-                File.AppendAllText(Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "Tests.csv"),
+                File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, "Tests.csv"),
                     DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
                     + Description.Replace(';', '_') + ";"
                     + Config.GpuWrapper.DeviceName() + ";"
@@ -804,7 +854,7 @@ namespace SharpNet
         ///     parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         ///     If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
-        private Tensor MiniBatchGradientDescent(int miniBatchSize, Tensor x, Tensor y, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, bool> callBackToStop = null)
+        private Tensor MiniBatchGradientDescent(int miniBatchSize, Tensor x, Tensor y, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {
             x = ReformatToCorrectType(x);
             y = ReformatToCorrectType(y);
@@ -839,12 +889,26 @@ namespace SharpNet
                     BackwardPropagation(yExpectedMiniBatch);
                     UpdateWeights(learningRateComputerIfTraining.LearningRate(epoch, blockId, nbBatchBlock, lrMultiplicativeFactorFromReduceLrOnPlateau));
                 }
+
+            
+                //if ( 
+                //    (blockId >= 160 && blockId <= 200 && blockId%10 == 0) || 
+                //    (blockId % 100 == 0) 
+                //    ||(blockId == 0) || (blockId == (nbBatchBlock-1))
+                //    )
+                //{
+                //    var fileName = Path.Combine(Config.LogDirectory,"ContentStats_" + epoch + "_" + blockId + "_" + UniqueId + ".txt");
+                //    File.WriteAllText(fileName, ContentStats());
+                //}
+                
+
+
                 if (!yPredictedMiniBatch.UseGPU)
                 {
                     yPredictedMiniBatch.CopyTo(0, _yPredictedBufferForMiniBatchGradientDescent, _yPredictedBufferForMiniBatchGradientDescent.Idx(nbProcessed), yPredictedMiniBatch.Count);
                 }
                 nbProcessed += xMiniBatch.Shape[0];
-                if (callBackToStop != null && callBackToStop(yExpectedMiniBatch, yPredictedMiniBatch, blockId))
+                if (callBackToStop != null && callBackToStop(yExpectedMiniBatch, yPredictedMiniBatch, blockId, nbBatchBlock, epoch))
                 {
                     break;
                 }

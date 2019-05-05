@@ -403,7 +403,7 @@ namespace SharpNetTests.NonReg
             const int numEpochs = 10;
             const double learningRate = 0.12;
             const double lambdaL2Regularization = 0.05;
-            var logFileName = Utils.ConcatenatePathWithFileName(@"c:\temp\ML\", "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var logger = new Logger(logFileName, true);
 
             //2_1_4_4

@@ -69,54 +69,25 @@ namespace SharpNet.CPU
             }
             return nchwX;
         }
-        public T Get(int rowIndex, int colIndex)
+        public T Get(int n, int c)
         {
-            return this[Idx(rowIndex, colIndex)];
+            return this[Idx(n, c)];
         }
         public T Get(int n, int c, int h, int w)
         {
             Debug.Assert(Dimension == 4);
             return this[Idx(n, c, h, w)];
         }
-        public void Set(int rowIndex, int colIndex, T t)
+        public void Set(int n, int c, T t)
         {
             Debug.Assert(Dimension == 2);
-            this[MultDim0 * rowIndex + colIndex] = t;
+            this[Idx(n, c)] = t;
         }
         public void Set(int n, int c, int h, int w, T t)
         {
             Debug.Assert(Dimension == 4);
             this[Idx(n, c, h, w)] = t;
         }
-        public double Mean()
-        {
-            if (UseDoublePrecision)
-            {
-                return AsDoubleCpuContent.Average();
-            }
-            return AsFloatCpuContent.Average();
-        }
-        public void Add(double toAdd)
-        {
-            if (UseDoublePrecision)
-            {
-                var array = AsDoubleCpuContent;
-                for (int i = 0; i < array.Length; ++i)
-                {
-                    array[i] += toAdd;
-                }
-            }
-            else
-            {
-                var array = AsFloatCpuContent;
-                var toAddAsFloat = (float) toAdd;
-                for (int i = 0; i < array.Length; ++i)
-                {
-                    array[i] += toAddAsFloat;
-                }
-            }
-        }
-
         public void Map(Func<T, T> func, CpuTensor<T> result)
         {
             Debug.Assert(SameShape(result));
@@ -131,7 +102,34 @@ namespace SharpNet.CPU
             Debug.Assert(SameShape(result));
             for (int i = 0; i < Count; ++i)
             {
-                result[i] = func(this[i]);
+                result[i] = func(Content[i]);
+                }
+            return result;
+        }
+
+        /// <summary>
+        /// Transform the 'this' tensor into another tensor by transforming:
+        ///   each element 'val' of the  'this' tensor at position (m,c,h,w)
+        /// into
+        ///   the value returned bu the method func(m,c,val)
+        /// </summary>
+        /// <typeparam name="TY"></typeparam>
+        /// <param name="func"></param>
+        /// <returns></returns>
+        public CpuTensor<TY> Select<TY>(Func<int,int, T, TY> func) where TY : struct
+        {
+            var result = new CpuTensor<TY>(Shape, Description);
+            Debug.Assert(SameShape(result));
+            for (int m = 0; m < Shape[0]; ++m)
+            {
+                for (int c = 0; c < Shape[1]; ++c)
+                {
+                    int startIdx = Idx(m, c);
+                    for (int idx = startIdx; idx < (startIdx + MultDim1); ++idx)
+                    {
+                        result[idx] = func(m, c, Content[idx]);
+                    }
+                }
             }
             return result;
         }
@@ -582,7 +580,7 @@ namespace SharpNet.CPU
                     for (int colAfterPooling = 0; colAfterPooling < wOutput; ++colAfterPooling)
                     {
                         //we want to compute the point in y[n, channelId, row_output, col_output]
-                        //it is computed by appling an avg filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
+                        //it is computed by applying an avg filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                         if (UseDoublePrecision)
                         {
                             double outputPointSum = 0.0;
@@ -1291,7 +1289,52 @@ namespace SharpNet.CPU
             _hostPinnedMemory = null;
             Content = null;
         }
-#endregion
+        #endregion
+
+        /// <summary>
+        /// Compute the mean and volatility of each channel of the tensor
+        /// </summary>
+        /// <param name="toDouble">Function to convert 'T' type to double</param>
+        /// <returns>A list of Tuple (one Tuple per channel)
+        /// In each channel Tuple: Tuple.Item1: mean of the channel / Tuple.Item2: vol of the channel</returns>
+        // ReSharper disable once UnusedMember.Global
+        public List<Tuple<double, double>> ComputeMeanAndVolatilityOfEachChannel(Func<T, double> toDouble)
+        {
+            return Enumerable.Range(0, Shape[1]).Select(c => ComputeMeanAndVolatilityOfChannel(c, toDouble)).ToList();
+        }
+        /// <summary>
+        /// Computes the mean and volatility of the selected channel in the 'this' tensor
+        /// </summary>
+        /// <param name="c">The channel to compute in the tensor</param>
+        /// <param name="toDouble">Function to convert 'T' type to double</param>
+        /// <returns>Tuple.Item1: mean of the channel / Tuple.Item2: vol of the channel</returns>
+        private Tuple<double, double> ComputeMeanAndVolatilityOfChannel(int c, Func<T, double> toDouble)
+        {
+            double sum = 0.0;
+            double sumSquare = 0.0;
+            int count = 0;
+            for (int m = 0; m < Shape[0]; ++m)
+            {
+                int startIdx = Idx(m, c, 0, 0);
+                for (int idx = startIdx; idx < (startIdx + MultDim1); ++idx)
+                {
+                    var val = toDouble(Content[idx]);
+                    sum += val;
+                    sumSquare += val * val;
+                    ++count;
+                }
+            }
+            if (count == 0)
+            {
+                return Tuple.Create(0.0, 0.0);
+            }
+            var mean = (sum / count);
+            var variance = (sumSquare / count) - mean * mean;
+            var volatility = Math.Sqrt(Math.Max(0, variance));
+            return Tuple.Create(mean, volatility);
+        }
+
+
 
         private CpuTensor<T> Merge(CpuTensor<T> b, Func<T, T, T> func, string description)
         {

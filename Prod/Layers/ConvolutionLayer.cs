@@ -59,14 +59,14 @@ namespace SharpNet
                 return false;
             }
             var other = (ConvolutionLayer)b;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(_filtersCount, other._filtersCount, id + ":LayerIndex", ref errors);
-            allAreOk &= Utils.Equals(_f, other._f, id+":_f", ref errors);
-            allAreOk &= Utils.Equals(_stride, other._stride, id + ":_stride", ref errors);
-            allAreOk &= Utils.Equals(_padding, other._padding, id + ":_padding", ref errors);
-            allAreOk &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id + ":_lambdaL2Regularization", ref errors);
-            allAreOk &= _optimizer.Equals(other._optimizer, epsilon, id+":Optimizer", ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(_filtersCount, other._filtersCount, id + ":LayerIndex", ref errors);
+            equals &= Utils.Equals(_f, other._f, id+":_f", ref errors);
+            equals &= Utils.Equals(_stride, other._stride, id + ":_stride", ref errors);
+            equals &= Utils.Equals(_padding, other._padding, id + ":_padding", ref errors);
+            equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id + ":_lambdaL2Regularization", ref errors);
+            equals &= _optimizer.Equals(other._optimizer, epsilon, id+":Optimizer", ref errors);
+            return equals;
         }
         #region serialization
         public override string Serialize()

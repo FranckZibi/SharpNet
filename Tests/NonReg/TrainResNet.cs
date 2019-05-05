@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Collections.Generic;
 using SharpNet;
 using SharpNet.CPU;
 
@@ -136,12 +137,14 @@ namespace SharpNetTests.NonReg
         public static void LoadCifar10(out CpuTensor<float> xTrain, out CpuTensor<float> yTrain, out CpuTensor<float> xTest, out CpuTensor<float> yTest)
         {
             ResNetUtils.Load(out CpuTensor<byte> xTrainingSet, out var yTrainingSet, out var xTestSet, out var yTestSet);
-            ResNetUtils.ToWorkingSet(xTrainingSet, yTrainingSet, out xTrain, out yTrain);
-            ResNetUtils.ToWorkingSet(xTestSet, yTestSet, out xTest, out yTest);
-            //We remove the mean 
-            var mean = xTrain.Mean();
-            xTrain.Add(-mean);
-            xTest.Add(-mean);
+            //We normalize the input with 0 mean / 1 volatility
+            //var meanAndVolatilityOfEachChannel = xTrainingSet.ComputeMeanAndVolatilityOfEachChannel(x=>(double)x);
+            var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> {Tuple.Create(125.306918046875, 62.9932192781369),Tuple.Create(122.950394140625, 62.0887076400142),Tuple.Create(113.865383183594, 66.7048996406309)};
+            ResNetUtils.ToWorkingSet(xTrainingSet, yTrainingSet, out xTrain, out yTrain, meanAndVolatilityOfEachChannel);
+            ResNetUtils.ToWorkingSet(xTestSet, yTestSet, out xTest, out yTest, meanAndVolatilityOfEachChannel);
+            
+            //Uncomment the following line to take only the first 1000 elements;
+            //xTest = null;yTest = null;xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 1000);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]);
         }
     }
 }

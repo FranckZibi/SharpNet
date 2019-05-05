@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.GPU;
@@ -7,8 +9,6 @@ namespace SharpNet
 {
     public static class ResNetUtils
     {
-
-
         public static Network ResNet18_V1(int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger = null)
         {
             return ResNetV1(new[] { 2, 2, 2, 2 }, false, xShape, nbCategories, param, logger);
@@ -101,12 +101,11 @@ namespace SharpNet
             }
             LoadAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
         }
-        public static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet)
+        public static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<double, double>> meanAndVolatilityOfEachChannel)
         {
-            xWorkingSet = x.Select(b => b / 255.0f);
+            xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
             yWorkingSet = y.ToCategorical(1.0f, out _);
         }
-
         private static Network ResNetV1(int[] nbResBlocks, bool useBottleNeck, int[] xShape, int nbCategories, ResNetMetaParameters param, Logger logger)
         {
             var activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;

@@ -12,7 +12,7 @@ namespace SharpNet
         {
             var network = DenseNet(
                 new[] { 1, ChannelsCifar10, HeightCifar10, WidthCifar10 },
-                10,
+                CategoriesCifar10,
                 false,
                 new[] { 2, 2, 2},
                 false,
@@ -29,11 +29,10 @@ namespace SharpNet
 
         public static Network DenseNet40_CIFAR10(DenseNetMetaParameters param, Logger logger = null)
         {
-            //return Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_15272_21.txt");
-
+            //return Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_15576_14.txt");
             var network = DenseNet(
                 new [] {1, ChannelsCifar10, HeightCifar10, WidthCifar10},
-                10,
+                CategoriesCifar10,
                 false,
                 new [] {12, 12, 12},
                 false,
@@ -62,60 +61,33 @@ namespace SharpNet
             return network;
         }
 
+        private const int CategoriesCifar10 = 10;
         private const int ChannelsCifar10 = 3;
         private const int HeightCifar10 = 32;
         private const int WidthCifar10 = HeightCifar10;
 
         /// <summary>
-        /// 
+        /// buid a DenseNet
         /// </summary>
         /// <param name="xShape"></param>
         /// <param name="nbCategories"></param>
         /// <param name="nbConvBlocksInEachDenseBlock"></param>
         /// <param name="growthRate"></param>
-        /// <param name="filtersCount"></param>
+        /// <param name="filtersCount">-1 means 2*growthRate</param>
         /// <param name="useBottleneckInEachConvBlock"></param>
-        /// <param name="compression"></param>
+        /// <param name="compression"> 1.0 = no compression</param>
         /// <param name="dropProbability"></param>
         /// <param name="subsampleInitialBlock"></param>
         /// <param name="param"></param>
         /// <param name="logger"></param>
         /// <returns></returns>
-        /*
-                    ''' Build the DenseNet model
-                    Args:
-                        nb_classes: number of classes
-                        img_input: tuple of shape (channels, rows, columns) or (rows, columns, channels)
-                        include_top: flag to include the final Dense layer
-                        depth: number or layers
-                        nb_dense_block: number of dense blocks to add to end (generally = 3)
-                        growth_rate: number of filters to add per dense block
-                        nb_filter: initial number of filters. Default -1 indicates initial number of filters is 2 * growth_rate
-                        nb_layers_per_block: number of layers in each dense block.
-                                Can be a -1, positive integer or a list.
-                                If -1, calculates nb_layer_per_block from the depth of the network.
-                                If positive integer, a set number of layers per dense block.
-                                If list, nb_layer is used as provided. Note that list size must
-                                be (nb_dense_block + 1)
-                        bottleneck: add bottleneck blocks
-                        reduction: reduction factor of transition blocks. Note : reduction value is inverted to compute compression
-                        dropout_rate: dropout rate
-                        weight_decay: weight decay rate
-                        subsample_initial_block: Set to True to subsample the initial convolution and
-                                add a MaxPool2D before the dense blocks are added.
-                        subsample_initial:
-                        activation: Type of activation at the top layer. Can be one of 'softmax' or 'sigmoid'.
-                                Note that if sigmoid is used, classes must be 1.
-                    Returns: keras tensor with nb_layers of conv_block appended
-
-         */
         public static Network DenseNet(int[] xShape, int nbCategories,
                 bool subsampleInitialBlock,
                 int[] nbConvBlocksInEachDenseBlock,
                 bool useBottleneckInEachConvBlock,
                 int growthRate,
                 int filtersCount,
-                double compression, // 1.0 = no compression
+                double compression,
                 double? dropProbability,
                 DenseNetMetaParameters param, 
                 Logger logger)
@@ -123,9 +95,6 @@ namespace SharpNet
 
             var networkConfig = param.Config();
             networkConfig.Logger = logger ?? Logger.ConsoleLogger;
-            //networkConfig.ForceTensorflowCompatibilityMode = true;
-
-
             var network = new Network(networkConfig, param.DataGenerator());
             network.Input(xShape[1], xShape[2], xShape[3]);
 
@@ -142,7 +111,8 @@ namespace SharpNet
             }
             else
             {
-                 network.Convolution(filtersCount, 3, 1, 1, param.lambdaL2Regularization, false);
+                network.Convolution(filtersCount, 3, 1, 1, param.lambdaL2Regularization, false);
+                //network.Convolution(filtersCount, 3, 1, 1, 0.0, false);
             }
 
             for (int denseBlockId = 0; denseBlockId < nbConvBlocksInEachDenseBlock.Length; ++denseBlockId)
@@ -163,7 +133,7 @@ namespace SharpNet
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
                 //!D check if lambdaL2Regularization should be 0
-                .Dense(nbCategories, param.lambdaL2Regularization)
+                .Dense(nbCategories, 0.0)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
@@ -183,21 +153,6 @@ namespace SharpNet
             bool bottleneck,
             double? dropProbability, double lambdaL2Regularization)
         {
-            /*
-            ''' Build a dense_block where the output of each conv_block is fed to subsequent ones
-            Args:
-                x: keras tensor
-                nb_layers: the number of layers of conv_block to append to the model.
-                nb_filter: number of filters
-                growth_rate: growth rate
-                bottleneck: bottleneck block
-                dropout_rate: dropout rate
-                weight_decay: weight decay factor
-                grow_nb_filters: flag to decide to allow number of filters to grow
-                return_concat_list: return the list of feature maps along with the actual output
-            Returns: keras tensor with nb_layers of conv_block appended
-            '''
-             */
             for (int convBlockId = 0; convBlockId < nbConvBlocksInDenseBlock; ++convBlockId)
             {
                 var previousLayerIndex1 = network.Layers.Last().LayerIndex;
@@ -221,22 +176,12 @@ namespace SharpNet
         /// <returns></returns>
         public static Network AddConvolutionBlock(Network network, int growthRate, bool bottleneck, double? dropProbability, double lambdaL2Regularization)
         {
-            /*
-            ''' Apply BatchNorm, Relu, 3x3 Conv2D, optional bottleneck block and dropout
-            Args:
-            ip: Input keras tensor
-            nb_filter: number of filters
-            bottleneck: add bottleneck block
-            dropout_rate: dropout rate
-            weight_decay: weight decay factor
-            Returns: keras tensor with batch_norm, relu and convolution2d added (optional bottleneck)
-            */
             if (bottleneck)
             {
-                //!D check why  4*growthRate
                 network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 4 * growthRate, 1, 1, 0, lambdaL2Regularization);
             }
-            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, lambdaL2Regularization);
+            //network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, lambdaL2Regularization);
+            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, 0.0);
             if (dropProbability.HasValue)
             {
                 network.Dropout(dropProbability.Value);
@@ -246,26 +191,16 @@ namespace SharpNet
 
 
         /// <summary>
-        /// 
+        /// Add a transition block in a Dense Net network
         /// </summary>
         /// <param name="network"></param>
         /// <param name="compression"></param>
         /// <param name="lambdaL2Regularization"></param>
         /// <returns></returns>
-        /*     ''' Apply BatchNorm, Relu 1x1, Conv2D, optional compression, dropout and Maxpooling2D
-        Args:
-        ip: keras tensor
-        nb_filter: number of filters
-            compression: calculated as 1 - reduction.Reduces the number of feature maps
-        in the transition block.
-            dropout_rate: dropout rate
-        weight_decay: weight decay factor
-            Returns: keras tensor, after applying batch_norm, relu-conv, dropout, maxpool
-        */
-        private static Network AddTransitionBlock(Network network, double compression, double lambdaL2Regularization)
+        private static void AddTransitionBlock(Network network, double compression, double lambdaL2Regularization)
         {
             var filtersCount = network.Layers.Last().OutputShape(1)[1];
-            return network
+            network
                 .BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(filtersCount*compression), 1, 1, 0, lambdaL2Regularization)
                 .AvgPooling(2, 2);
         }

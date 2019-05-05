@@ -51,11 +51,11 @@ namespace SharpNet
                 return false;
             }
             var other = (PoolingLayer)b;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(_poolingMode, other._poolingMode, id + ":_poolingMode", ref errors);
-            allAreOk &= Utils.Equals(_poolingSize, other._poolingSize, id + ":_poolingSize", ref errors);
-            allAreOk &= Utils.Equals(_poolingStride, other._poolingStride, id + ":_poolingStride", ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(_poolingMode, other._poolingMode, id + ":_poolingMode", ref errors);
+            equals &= Utils.Equals(_poolingSize, other._poolingSize, id + ":_poolingSize", ref errors);
+            equals &= Utils.Equals(_poolingStride, other._poolingStride, id + ":_poolingStride", ref errors);
+            return equals;
         }
         #region serialization
         public override string Serialize()

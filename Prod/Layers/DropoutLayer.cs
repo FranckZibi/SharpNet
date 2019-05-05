@@ -42,9 +42,9 @@ namespace SharpNet
                 return false;
             }
             var other = (DropoutLayer)b;
-            var allAreOk = true;
-            allAreOk &= Utils.Equals(_dropProbability, other._dropProbability, epsilon, id, ref errors);
-            return allAreOk;
+            var equals = true;
+            equals &= Utils.Equals(_dropProbability, other._dropProbability, epsilon, id, ref errors);
+            return equals;
         }
         #region serialization
         public override string Serialize()

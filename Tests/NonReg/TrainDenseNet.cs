@@ -3,10 +3,17 @@
 namespace SharpNetTests.NonReg
 {
     /// <summary>
-    /// Train a DenseNet Network on Cifar10 dataset 
+    /// Train a DenseNet Network on CIFAR10 data set 
     /// </summary>
     public static class TrainDenseNet
     {
+        public static void TrainDenseNet10_CIFAR10(DenseNetMetaParameters param)
+        {
+            TrainResNet.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            var network = DenseNetUtils.DenseNet10_CIFAR10(param, Utils.Logger(nameof(DenseNetUtils.DenseNet10_CIFAR10)));
+            network.Fit(xTrain, yTrain, param.Cifar10LearningRateScheduler(), param.Cifar10ReduceLROnPlateau(), param.NumEpochs, param.BatchSize, xTest, yTest);
+            network.ClearMemory();
+        }
         public static void TrainDenseNet40_CIFAR10(DenseNetMetaParameters param)
         {
             TrainResNet.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);

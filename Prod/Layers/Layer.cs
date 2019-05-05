@@ -39,15 +39,15 @@ namespace SharpNet
         /// <returns>true if a difference was observed, false if same layers</returns>
         public virtual bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
-            bool allAreOk = true;
-            allAreOk &= Utils.Equals(SummaryName(), b.SummaryName(), id + ":SummaryName", ref errors);
+            bool equals = true;
+            equals &= Utils.Equals(SummaryName(), b.SummaryName(), id + ":SummaryName", ref errors);
             id += ":" + SummaryName();
-            allAreOk &= Utils.Equals(LayerIndex, b.LayerIndex, id+":LayerIndex", ref errors);
-            allAreOk &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
-            allAreOk &= Utils.EqualsList(_previousLayerIndexes, b._previousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
-            allAreOk &= Utils.EqualsList(_nextLayerIndexes, b._nextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
-            allAreOk &= Utils.EqualsList(TensorsIndependantOfBatchSize, b.TensorsIndependantOfBatchSize, epsilon, id+ ":TensorsIndependantOfBatchSize", ref errors);
-            return allAreOk;
+            equals &= Utils.Equals(LayerIndex, b.LayerIndex, id+":LayerIndex", ref errors);
+            equals &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
+            equals &= Utils.EqualsList(_previousLayerIndexes, b._previousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
+            equals &= Utils.EqualsList(_nextLayerIndexes, b._nextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
+            equals &= Utils.EqualsList(TensorsIndependantOfBatchSize, b.TensorsIndependantOfBatchSize, epsilon, id+ ":TensorsIndependantOfBatchSize", ref errors);
+            return equals;
         }
         protected int NbLayerOfSameTypeBefore()
         {
