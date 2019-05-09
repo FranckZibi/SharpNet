@@ -89,7 +89,7 @@ namespace SharpNet.Data
         }
         public Serializer Add(string description, float value)
         {
-            _sb.Append("single;" + description + ";" + value.ToString(CultureInfo.InvariantCulture) + ";");
+            _sb.Append("single;" + description + ";" + value.ToString("G9", CultureInfo.InvariantCulture) + ";");
             return this;
         }
         public Serializer Add(string description, float[] values)
@@ -238,7 +238,7 @@ namespace SharpNet.Data
 
         private static string ToString(float[] data)
         {
-            return string.Join(";", data.Select(x => x.ToString(CultureInfo.InvariantCulture)));
+            return string.Join(";", data.Select(x => x.ToString("G9", CultureInfo.InvariantCulture)));
         }
 
         private static string ToString(double[] data)

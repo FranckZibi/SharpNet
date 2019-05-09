@@ -83,15 +83,10 @@ namespace SharpNet
             }
         }
 
-        public override void BackwardPropagation()
+        public override void BackwardPropagation(Tensor dx)
         {
-            //At this stage, we already know dy
-            //we want to compute dx (= prevLayer.dy)  by backward propagation
             int batchSize = y.Shape[0];
             Debug.Assert(y.SameShape(dy));
-
-            //we update dy if necessary (shortcut connection to a futur layer)
-            Update_dy_With_GradientFromShortcutIdentityConnection(); 
 
             //we compute dW
             var x = PrevLayer.y;
@@ -121,7 +116,6 @@ namespace SharpNet
             }
 
             // we compute dx = dy * Weights.T
-            var dx = PrevLayer.dy;
             dx.Dot(dy, false, Weights, true, 1.0, 0.0);
         }
         public override void UpdateWeights(double learningRate)

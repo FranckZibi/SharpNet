@@ -28,11 +28,10 @@ namespace SharpNet
             var x = PrevLayer.y;
             x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropOutMaskBufferForCpuOnly);
         }
-        public override void BackwardPropagation()
+        public override void BackwardPropagation(Tensor dx)
         {
             //At this stage, we already know dy, we want to compute dx
             var x = PrevLayer.y;
-            var dx = PrevLayer.dy;
             x.DropoutBackward(dy, dx, _dropProbability, _dropOutMaskBufferForCpuOnly);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)

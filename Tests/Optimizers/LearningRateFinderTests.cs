@@ -1,27 +1,16 @@
-﻿using System.Diagnostics;
-using SharpNet;
-using SharpNetTests.NonReg;
+﻿using SharpNet;
+using SharpNet.Datasets;
 
 namespace SharpNetTests.Optimizers
 {
     public static class LearningRateFinderTests
     {
-
-        public static void TestLearningRateFinderTests_ResNet20V1_CIFAR10(ResNetMetaParameters param)
+        public static void TestLearningRateFinderTests_ResNet20V1_CIFAR10(ResNetConfig param)
         {
-            TrainResNet.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
-            var network = ResNetUtils.ResNet20V1_CIFAR10(param, Logger(nameof(TestLearningRateFinderTests_ResNet20V1_CIFAR10)));
+            CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            var network = param.ResNet20V1_CIFAR10();
             network.FindBestLearningRate(xTrain, yTrain, 128);
             network.ClearMemory();
         }
-
-        private static Logger Logger(string networkName)
-        {
-            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory,
-                networkName + "_" + Process.GetCurrentProcess().Id + "_" +
-                System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-            return new Logger(logFileName, true);
-        }
-
     }
 }

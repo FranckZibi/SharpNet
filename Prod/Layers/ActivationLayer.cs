@@ -46,13 +46,10 @@ namespace SharpNet
             ActivationFunction = (cudnnActivationMode_t)serialized[nameof(ActivationFunction)];
         }
         #endregion
-        public override void BackwardPropagation()
+        public override void BackwardPropagation(Tensor dx)
         {
             //At this stage, we already know dy. We want to compute dx by backward propagation
             Debug.Assert(y.SameShape(dy));
-
-            //we update dy if necessary (shortcut connection to a future layer)
-            Update_dy_With_GradientFromShortcutIdentityConnection();
 
             //no need to compute dy if previous Layer it is the input layer
             if (PrevLayer.IsInputLayer)
@@ -62,7 +59,6 @@ namespace SharpNet
 
             //we compute dx
             var x = PrevLayer.y;
-            var dx = PrevLayer.dy;
             if (IsOutputLayer)
             {
                 dy.CopyTo(dx);

@@ -115,16 +115,11 @@ namespace SharpNet
                 ConvolutionBias.BroadcastConvolutionBiasToOutput(y);
             }
         }
-
         // dy => ConvolutionGradient & dx
-        public override void BackwardPropagation()
+        public override void BackwardPropagation(Tensor dx)
         {
-            //At this stage, we already know dy, we want to compute dx by backward propagation
             Debug.Assert(y.SameShape(dy));
             Debug.Assert(ConvolutionBias == null || ConvolutionBias.SameShape(ConvolutionBiasGradients));
-
-            //we update dy if necessary (shortcut connection to a futur layer)
-            Update_dy_With_GradientFromShortcutIdentityConnection();
 
             // we compute ConvolutionBiasGradients
             if (UseBias)
@@ -134,16 +129,7 @@ namespace SharpNet
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
             var x = PrevLayer.y;
-            var dx = PrevLayer.dy;
-            if (PrevLayer.NextLayers.Count>=2 && PrevLayer.NextLayers[1].LayerIndex == LayerIndex)
-            {
-                //shortcut identity connection: conv layer was used only to change dimension
-                dx = PrevLayer.dyIdentityConnection;
-                Debug.Assert(dx != null);
-            }
-
             x.ConvolutionGradient(Convolution, dy, _padding, _stride, dx, ConvolutionGradients);
-
             if (UseL2Regularization)
             {
                 var batchSize = y.Shape[0];

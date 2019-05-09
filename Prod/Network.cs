@@ -15,7 +15,7 @@ using SharpNet.Pictures;
 
 namespace SharpNet
 {
-    public class Network
+    public partial class Network
     {
         #region fields
         private readonly ImageDataGenerator _imageDataGenerator;
@@ -34,6 +34,7 @@ namespace SharpNet
         private Tensor _yPredictedBufferForMiniBatchGradientDescent;
         private Tensor bufferComputeAccuracy;
         private Tensor bufferComputeLoss;
+        private Tensor bufferOutputGradient;
         private readonly List<EpochData> _epochsData;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         private string UniqueId => (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description)) + "_" + _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
@@ -74,6 +75,7 @@ namespace SharpNet
             _epochsData.Clear();
             bufferComputeAccuracy?.Dispose();
             bufferComputeLoss?.Dispose();
+            bufferOutputGradient?.Dispose();
             _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
             Info("After clearing memory: " + Config.GpuWrapper?.MemoryInfo());
         }
@@ -293,9 +295,16 @@ namespace SharpNet
                 dyPredicted.Update_Multiplying_By_Alpha(1.0 / categoryCount);
             }
 
+            Layers.ForEach(x=>x.dyHasBeenInitialized = false);
+            Layers.Last().dyHasBeenInitialized = true;
+
             for (int i = Layers.Count - 1; i >= 1; --i)
             {
-                Layers[i].BackwardPropagation();
+                var layer = Layers[i];
+                Debug.Assert(layer.dyHasBeenInitialized);
+                var dx = layer.Get_dx();
+                layer.BackwardPropagation(dx);
+                layer.Flush_dx(dx);
             }
             _swBackwardPropagation?.Stop();
         }
@@ -457,12 +466,8 @@ namespace SharpNet
             }
             return network;
         }
-        public string Save(string path)
+        public void Save(string fileName)
         {
-            int indexLastCompletedEpoch = _epochsData.Count;
-            var fileNameWithoutExtension = UniqueId + "_" + indexLastCompletedEpoch;
-
-            var fileName = Path.Combine(path, fileNameWithoutExtension + ".txt");
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
@@ -474,12 +479,6 @@ namespace SharpNet
             {
                 File.AppendAllLines(fileName, new[] { l.Serialize() });
             }
-            if (Config.SaveStatsWhenSavingNetwork)
-            {
-                var statsFileName = Path.Combine(path, fileNameWithoutExtension + "_ContentStats.txt");
-                File.WriteAllText(statsFileName, ContentStats());
-            }
-            return fileName;
         }
         public void LogContent()
         {
@@ -689,15 +688,19 @@ namespace SharpNet
                     || ( (Config.AutoSaveIntervalInMinuts>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts))
                 {
                     var swSaveTime = Stopwatch.StartNew();
-                    Info("Saving network '"+ Description+"' in directory '" + Config.LogDirectory + "' ...");
-                    var fileName = Save(Config.LogDirectory);
-                    Info("Network '" + Description + "' saved in file '" + fileName + "' in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
+                    var fileName = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
+                    Save(fileName);
+                    Info("Network '" + Description + "' saved in " + fileName + " in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
                     lastAutoSaveTime = DateTime.Now;
                 }
-
-                
-
                 #endregion
+
+                if (Config.SaveNetworkStatsAfterEachEpoch)
+                {
+                    var networkStatFileName = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + "_NetworkStats.txt");
+                    Info("Saving network '" + Description + "' stats in " + networkStatFileName);
+                    File.WriteAllText(networkStatFileName, ContentStats());
+                }
             }
 
             try
@@ -759,6 +762,12 @@ namespace SharpNet
             return ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
         }
 
+
+        public Tensor GetBufferOutputGradient(int[] shape)
+        {
+            bufferOutputGradient = NewNotInitializedTensor(shape, bufferOutputGradient, nameof(bufferOutputGradient));
+            return bufferOutputGradient;
+        }
 
         private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
         {

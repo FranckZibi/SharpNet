@@ -12,12 +12,12 @@ namespace SharpNet
     {
         #region fields
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
-        public GPUWrapper GpuWrapper { get; }
+        public GPUWrapper GpuWrapper { get; private set; }
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
         public double Adam_epsilon { get; private set; }
         public double SGD_momentum { get; private set; }
-        public double SGD_decay { get; private set; }
+        public double lambdaL2Regularization { get; set; }
         /// <summary>
         /// minimum value for the learning rate
         /// </summary>
@@ -46,7 +46,7 @@ namespace SharpNet
         ///     => the network will be saved after each iteration
         /// </summary>
         public int AutoSaveIntervalInMinuts { get; set; } = 10;
-        public bool SaveStatsWhenSavingNetwork { get; set; }
+        public bool SaveNetworkStatsAfterEachEpoch { get; set; }
         public bool SaveLossAfterEachMiniBatch { get; set; }
 
         public string LogDirectory { get; } = DefaultLogDirectory;
@@ -57,10 +57,15 @@ namespace SharpNet
 
         public NetworkConfig(bool useGPU = true)
         {
-            GpuWrapper = useGPU ? GPUWrapper.Default : null;
+            UseGPU = useGPU;
             Rand = new Random(0);
         }
-        public bool UseGPU => GpuWrapper != null;
+        public bool UseGPU
+        {
+            get => GpuWrapper != null;
+            set => GpuWrapper = value ? GPUWrapper.Default : null;
+        }
+
         public int TypeSize => UseDoublePrecision ? 8 : 4;
         public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999)
         {
@@ -75,15 +80,27 @@ namespace SharpNet
             return this;
         }
 
+        public NetworkConfig WithSGD(double momentum = 0.9, bool useNesterov = true)
+        {
+            Debug.Assert(momentum >= 0);
+            Debug.Assert(momentum <= 1.0);
+            SGD_momentum = momentum;
+            SGD_usenesterov = useNesterov;
+            OptimizerType = Optimizer.OptimizationEnum.SGD;
+            return this;
+        }
+        public Optimizer.OptimizationEnum OptimizerType { get; private set; } = Optimizer.OptimizationEnum.VanillaSGD;
+
+
         public bool Equals(NetworkConfig other, double epsilon, string id, ref string errors)
         {
             var equals = true;
-            equals &= Utils.Equals(LossFunction, other.LossFunction, id+ ":LossFunction", ref errors);
-            equals &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id+ ":Adam_beta1", ref errors);
+            equals &= Utils.Equals(LossFunction, other.LossFunction, id + ":LossFunction", ref errors);
+            equals &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id + ":Adam_beta1", ref errors);
             equals &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + ":Adam_beta2", ref errors);
             equals &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + ":Adam_epsilon", ref errors);
             equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + ":SGD_momentum", ref errors);
-            equals &= Utils.Equals(SGD_decay, other.SGD_decay, epsilon, id + ":SGD_decay", ref errors);
+            equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + ":lambdaL2Regularization", ref errors);
             equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
             equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
             equals &= Utils.Equals(UseDoublePrecision, other.UseDoublePrecision, id + ":UseDoublePrecision", ref errors);
@@ -91,30 +108,19 @@ namespace SharpNet
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
             equals &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
             equals &= Utils.Equals(AutoSaveIntervalInMinuts, other.AutoSaveIntervalInMinuts, id + ":AutoSaveIntervalInMinuts", ref errors);
-            equals &= Utils.Equals(SaveStatsWhenSavingNetwork, other.SaveStatsWhenSavingNetwork, id + ":SaveStatsWhenSavingNetwork", ref errors);
+            equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + ":SaveNetworkStatsAfterEachEpoch", ref errors);
             equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + ":SaveLossAfterEachMiniBatch", ref errors);
             return equals;
         }
 
-        public NetworkConfig WithSGD(double momentum= 0.9, double decay = 0.0, bool useNesterov = true)
-        {
-            Debug.Assert(momentum >= 0);
-            Debug.Assert(momentum <= 1.0);
-            Debug.Assert(decay >= 0);
-            SGD_momentum = momentum;
-            SGD_decay = decay;
-            SGD_usenesterov = useNesterov;
-            OptimizerType = Optimizer.OptimizationEnum.SGD;
-            return this;
-        }
-        public Optimizer.OptimizationEnum OptimizerType { get; private set; } = Optimizer.OptimizationEnum.VanillaSGD;
         #region serialization
         public string Serialize()
         {
             return new Serializer()
                 .Add(nameof(LossFunction), (int)LossFunction).Add(nameof(OptimizerType), (int)OptimizerType)
                 .Add(nameof(Adam_beta1), Adam_beta1).Add(nameof(Adam_beta2), Adam_beta2).Add(nameof(Adam_epsilon), Adam_epsilon)
-                .Add(nameof(SGD_momentum), SGD_momentum).Add(nameof(SGD_decay), SGD_decay).Add(nameof(SGD_usenesterov), SGD_usenesterov)
+                .Add(nameof(SGD_momentum), SGD_momentum).Add(nameof(SGD_usenesterov), SGD_usenesterov)
+                .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
                 .Add(nameof(UseDoublePrecision), UseDoublePrecision)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
                 .Add(nameof(ForceTensorflowCompatibilityMode), ForceTensorflowCompatibilityMode)
@@ -122,7 +128,7 @@ namespace SharpNet
                 .Add(nameof(ProfileApplication), ProfileApplication)
                 .Add(nameof(LogDirectory), LogDirectory)
                 .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts)
-                .Add(nameof(SaveStatsWhenSavingNetwork), SaveStatsWhenSavingNetwork)
+                .Add(nameof(SaveNetworkStatsAfterEachEpoch), SaveNetworkStatsAfterEachEpoch)
                 .Add(nameof(SaveLossAfterEachMiniBatch), SaveLossAfterEachMiniBatch)
                 .Add(nameof(UseGPU), UseGPU)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
@@ -141,7 +147,7 @@ namespace SharpNet
             Adam_beta2 = (double)serialized[nameof(Adam_beta2)];
             Adam_epsilon = (double)serialized[nameof(Adam_epsilon)];
             SGD_momentum= (double)serialized[nameof(SGD_momentum)];
-            SGD_decay = (double)serialized[nameof(SGD_decay)];
+            lambdaL2Regularization = (double)serialized[nameof(lambdaL2Regularization)];
             SGD_usenesterov = (bool)serialized[nameof(SGD_usenesterov)];
             UseDoublePrecision = (bool)serialized[nameof(UseDoublePrecision)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
@@ -150,7 +156,7 @@ namespace SharpNet
             ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];
             AutoSaveIntervalInMinuts = (int)serialized[nameof(AutoSaveIntervalInMinuts)];
-            SaveStatsWhenSavingNetwork = (bool)serialized[nameof(SaveStatsWhenSavingNetwork)];
+            SaveNetworkStatsAfterEachEpoch = (bool)serialized[nameof(SaveNetworkStatsAfterEachEpoch)];
             SaveLossAfterEachMiniBatch = (bool)serialized[nameof(SaveLossAfterEachMiniBatch)];
             var useGPU = (bool)serialized[nameof(UseGPU)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];

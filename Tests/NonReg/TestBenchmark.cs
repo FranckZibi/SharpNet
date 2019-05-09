@@ -4,6 +4,7 @@ using System.Globalization;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Datasets;
 using SharpNet.GPU;
 
 namespace SharpNetTests.NonReg
@@ -65,7 +66,7 @@ namespace SharpNetTests.NonReg
 
         {
             var logger = new Logger(LogFileName, true);
-            TestMNIST.Load(out var X_train, out var Y_train, out var X_test, out var Y_test);
+            MNIST.Load(out var X_train, out var Y_train, out var X_test, out var Y_test);
             const int batchSize = 64;
             const int numEpochs = 5;
             var network = new Network(new NetworkConfig(true) { Logger = logger, UseDoublePrecision = false }

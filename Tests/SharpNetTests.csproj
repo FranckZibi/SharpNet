@@ -65,8 +65,6 @@
     <Compile Include="NonReg\TestMNIST.cs" />
     <Compile Include="NonReg\TestNetworkPropagation.cs" />
     <Compile Include="NonReg\TestNetworkSave.cs" />
-    <Compile Include="NonReg\TrainDenseNet.cs" />
-    <Compile Include="NonReg\TrainResNet.cs" />
     <Compile Include="Optimizers\LearningRateFinderTests.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateauTests.cs" />
     <Compile Include="Program.cs" />

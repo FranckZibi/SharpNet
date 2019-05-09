@@ -49,7 +49,7 @@ namespace SharpNet
             W = (int)serialized[nameof(W)];
         }
         #endregion
-        public override void BackwardPropagation()
+        public override void BackwardPropagation(Tensor dx)
         {
             throw new NotImplementedException();
         }

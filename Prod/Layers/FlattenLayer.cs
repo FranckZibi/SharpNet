@@ -23,14 +23,14 @@ namespace SharpNet
             var x = PrevLayer.y;
             x.CopyTo(y);
         }
-        public override void BackwardPropagation()
+
+        public override void BackwardPropagation(Tensor dx)
         {
             Debug.Assert(y.SameShape(dy));
             if (PrevLayer.IsInputLayer)
             {
                 return;
             }
-            var dx = PrevLayer.dy;
             dy.CopyTo(dx);
         }
         public override int[] OutputShape(int batchSize) {return new []{batchSize, PrevLayer.n_x};}

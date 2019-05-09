@@ -50,7 +50,7 @@
     <Compile Include="Data\size_t.cs" />
     <Compile Include="Data\Tensor.cs" />
     <Compile Include="Data\TensorExtensions.cs" />
-    <Compile Include="DenseNetMetaParameters.cs" />
+    <Compile Include="DenseNetConfig.cs" />
     <Compile Include="GPU\CublasWrapper.cs" />
     <Compile Include="GPU\DeviceMemory.cs" />
     <Compile Include="GPU\CudaRuntimeCompiler.cs" />
@@ -88,11 +88,13 @@
     <Compile Include="Pictures\PictureTools.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ResNetMetaParameters.cs" />
-    <Compile Include="ResNetUtils.cs" />
-    <Compile Include="DenseNetUtils.cs" />
+    <Compile Include="ResNetConfig.cs" />
+    <Compile Include="ResNet.cs" />
+    <Compile Include="DenseNet.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="Optimizers\Sgd.cs" />
+    <Compile Include="Datasets\CIFAR10.cs" />
+    <Compile Include="Datasets\MNIST.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

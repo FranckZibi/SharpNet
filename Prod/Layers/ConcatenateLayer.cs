@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.Data;
 
@@ -16,7 +17,6 @@ namespace SharpNet
             Debug.Assert(LayerIndex>=2);
             Debug.Assert(previousLayerIndex1 >= 0);
             Debug.Assert(previousLayerIndex2 >= 0);
-            //we add the identity shortcut connection
             AddPreviousLayer(previousLayerIndex2);
         }
 
@@ -40,11 +40,23 @@ namespace SharpNet
             Allocate_y_dy_if_necessary();
             y.Concatenate(PreviousLayerIndex1.y, PreviousLayerIndex2.y);
         }
-        public override void BackwardPropagation()
+
+        public override Tensor Get_dx() { return null; }
+        public override void Flush_dx(Tensor dx) {}
+
+        public override void BackwardPropagation(Tensor notUsed)
         {
             //At this stage, we already know dy
             //we want to compute PreviousLayerIndex1.dy & PreviousLayerIndex2.dy by backward propagation
-            dy.Split(PreviousLayerIndex1.dy, PreviousLayerIndex2.dy);
+            var dx0 = Get_dx(0);
+            var dx1 = Get_dx(1);
+            if (ReferenceEquals(dx0, dx1))
+            {
+                throw new Exception("the same buffer has been used twice in " + this);
+            }
+            dy.Split(dx0, dx1);
+            Flush_dx(dx0, 0);
+            Flush_dx(dx1, 1);
         }
     }
 }

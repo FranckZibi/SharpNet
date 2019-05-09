@@ -20,8 +20,11 @@ namespace SharpNetTests.NonReg
             int nbCategories = 2;
             var xTrain = TestCpuTensor.RandomDoubleTensor(new[]{m, 2, 4, 4}, rand, -1.0, +1.0, "xTrain");
             var yTrain = TestCpuTensor.RandomOneHotTensor(new[]{m, nbCategories }, rand, "yTrain");
-            var param = new DenseNetMetaParameters {UseGPU = useGPU, UseDoublePrecision = useDoublePrecision };
-            var network = DenseNetUtils.DenseNet(xTrain.Shape, nbCategories, false, new[] {2, 2}, true, 8, -1, 1.0, null, param, Logger.NullLogger);
+            var param = new DenseNetConfig();
+            param.Config.UseGPU = useGPU;
+            param.Config.UseDoublePrecision = useDoublePrecision;
+            param.DisableLogging = true;
+            var network = param.GetNetwork(nameof(TestSave)).DenseNet(xTrain.Shape, nbCategories, false, new[] {2, 2}, true, 8, 1.0, null);
             CheckSave(network);
             network.Fit(xTrain, yTrain, 0.1, 10,2);
             network.Description = "after training";
@@ -30,23 +33,23 @@ namespace SharpNetTests.NonReg
 
         private static void CheckSave(Network net)
         {
-            var path = "";
+            var fileName = Path.Combine(Path.GetTempPath(), "network.txt");
             try
             {
-                path = net.Save(Path.GetTempPath());
-                var net2 = Network.ValueOf(path);
+                net.Save(fileName);
+                var net2 = Network.ValueOf(fileName);
                 var areEquals = net.Equals(net2, out var errors);
-                if (File.Exists(path))
+                if (File.Exists(fileName))
                 {
-                    File.Delete(path);
+                    File.Delete(fileName);
                 }
                 Assert.IsTrue(areEquals, errors);
             }
             finally
             {
-                if (File.Exists(path))
+                if (File.Exists(fileName))
                 {
-                    File.Delete(path);
+                    File.Delete(fileName);
                 }
             }
         }

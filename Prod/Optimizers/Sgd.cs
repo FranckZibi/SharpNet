@@ -36,13 +36,8 @@ namespace SharpNet.Optimizers
             Debug.Assert(weights.SameShape(weightGradients));
             Debug.Assert(bias == null || bias.SameShape(biasGradient));
             var momentum = _networkConfig.SGD_momentum;
-            var decay = _networkConfig.SGD_decay;
             var useNesterov = _networkConfig.SGD_usenesterov;
             ++_iterations;
-            if (decay > 0)
-            {
-                learningRate *= 1 / (1 + decay * _iterations);
-            }
             var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
             weights.UpdateSGDOptimizer(ponderedLearningRate, momentum, useNesterov, weightGradients, _velocityWeight);
             bias?.UpdateSGDOptimizer(ponderedLearningRate, momentum, useNesterov, biasGradient, _velocityBias);

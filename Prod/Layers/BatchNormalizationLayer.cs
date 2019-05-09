@@ -61,7 +61,8 @@ namespace SharpNet
         {
             return RootSerializer()
                 .Add(nameof(_epsilon), _epsilon).Add(nameof(_momentum), _momentum)
-                .Add(_bnScale).Add(_resultBnScaleDiff).Add(_bnBias).Add(_resultBnBiasDiff).Add(_resultRunningMean).Add(_resultRunningVariance).Add(_resultSaveMean).Add(_resultSaveVariance)
+                .Add(_bnScale).Add(_resultBnScaleDiff).Add(_bnBias).Add(_resultBnBiasDiff).Add(_resultRunningMean).Add(_resultRunningVariance).Add(_resultSaveMean)
+                .Add(_resultSaveVariance)
                 .Add(_optimizer?.Serialize())
                 .ToString();
         }
@@ -114,11 +115,9 @@ namespace SharpNet
             var x = PrevLayer.y;
             x.BatchNormalization(y, _bnScale, _bnBias, _momentum, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _resultSaveMean, _resultSaveVariance, isTraining);
         }
-        public override void BackwardPropagation()
+        public override void BackwardPropagation(Tensor dx)
         {
-            //At this stage, we already know dy
             var x = PrevLayer.y;
-            var dx = PrevLayer.dy;
             x.BatchNormalizationBackward(dy, dx, _bnScale, _resultBnScaleDiff, _resultBnBiasDiff, LayerBatchNormalizationMode(), _epsilon, _resultSaveMean, _resultSaveVariance);
         }
         public override void UpdateWeights(double learningRate)

@@ -35,19 +35,17 @@ namespace SharpNet
             x.CopyTo(y);
             y.Update_Adding_Alpha_X(1.0, PreviousIdentityLayer.y);
         }
-        public override void BackwardPropagation()
+        public override Tensor Get_dx() { return null; }
+        public override void Flush_dx(Tensor dx) { }
+
+        public override void BackwardPropagation(Tensor notUsed)
         {
             Debug.Assert(y.SameShape(dy));
-            dy.CopyTo(PreviousResidualLayer.dy);
-            if (PreviousIdentityLayer.NextLayers.Count == 1)
+            for (var i = 0; i < PreviousLayers.Count; i++)
             {
-                //previous layer is a convolution layer used to change dimension
-                dy.CopyTo(PreviousIdentityLayer.dy);
-            }
-            else
-            {
-                //direct identity shortcut between previous layer and current layer (because they have the same diemension)
-                dy.CopyTo(PreviousIdentityLayer.dyIdentityConnection);
+                var dx = Get_dx(i);
+                dy.CopyTo(dx);
+                Flush_dx(dx, i);
             }
         }
     }

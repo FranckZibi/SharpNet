@@ -10,7 +10,6 @@ namespace SharpNet
     public abstract class Layer : IDisposable
     {
         #region fields
-        public Tensor dyIdentityConnection { get; set; }
         public int LayerIndex { get; }
         protected readonly Network Network;
         private readonly List<int> _previousLayerIndexes = new List<int>();
@@ -107,9 +106,48 @@ namespace SharpNet
         public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
         public ulong BytesIndependantOfBatchSize => Tensor.OccupiedMemoryInBytes(TensorsIndependantOfBatchSize);
         public abstract void ForwardPropagation(bool isTraining);
-        public abstract void BackwardPropagation();
+        //At this stage, we already know dy, we want to compute dx by backward propagation
+        public abstract void BackwardPropagation(Tensor dx);
         public virtual void UpdateWeights(double learningRate) { }
         public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
+
+
+        public virtual Tensor Get_dx()
+        {
+            if (PreviousLayers.Count != 1)
+            {
+                throw new Exception(nameof(Get_dx)+" must be overriden in "+this);
+            }
+            return Get_dx(0);
+        }
+        public virtual void Flush_dx(Tensor dx)
+        {
+            if (PreviousLayers.Count != 1)
+            {
+                throw new Exception(nameof(Flush_dx) + " must be overriden in " + this);
+            }
+            Flush_dx(dx, 0);
+        }
+        public Tensor Get_dx(int prevLayerIndex)
+        {
+            var prevLayer = PreviousLayers[prevLayerIndex];
+            if (prevLayer.NextLayers.Count == 1 || !prevLayer.dyHasBeenInitialized)
+            {
+                return prevLayer.dy;
+            }
+            return Network.GetBufferOutputGradient(prevLayer.y.Shape);
+        }
+        public void Flush_dx(Tensor dx, int prevLayerIndex)
+        {
+            var prevLayer = PreviousLayers[prevLayerIndex];
+            prevLayer.dyHasBeenInitialized = true;
+            if (!ReferenceEquals(prevLayer.dy, dx))
+            {
+                //we need to copy the buffer into prevLayer.dy
+                prevLayer.dy.Update_Adding_Alpha_X(1.0, dx);
+            }
+        }
+        public bool dyHasBeenInitialized { get; set; }
         public abstract Tensor y { get; protected set; } //output of layer 
         // ReSharper disable once InconsistentNaming
         //gradient of layer output (= null if it is the input layer)
@@ -226,14 +264,6 @@ namespace SharpNet
             //In this mode bnBias, bnScale tensor dimensions are (1, C, 1, 1)
             return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
         }
-        protected void Update_dy_With_GradientFromShortcutIdentityConnection()
-        {
-            if (NextLayers.Count >= 2 && !NextLayers.Any(x => x is ConcatenateLayer))
-            {
-                Debug.Assert(dyIdentityConnection != null);
-                dy.Update_Adding_Alpha_X(1.0, dyIdentityConnection);
-            }
-        }
         protected void Allocate_y_dy_if_necessary()
         {
             var batchSize = PrevLayer.y.Shape[0];
@@ -245,10 +275,6 @@ namespace SharpNet
             if (dy == null || !dy.Shape.SequenceEqual(outputShape))
             {
                 dy = Network.NewNotInitializedTensor(outputShape, dy, nameof(dy));
-                if (NextLayers.Count >= 2 && !NextLayers.Any(x=> x is ConcatenateLayer))
-                {
-                    dyIdentityConnection = Network.NewNotInitializedTensor(outputShape, dyIdentityConnection, nameof(dyIdentityConnection));
-                }
             }
         }
         protected string MemoryDescription()

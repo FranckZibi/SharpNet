@@ -34,14 +34,13 @@ namespace SharpNet
             var x = PrevLayer.y;
             x.Pooling(y, _poolingMode, _poolingSize, _poolingSize);
         }
-        public override void BackwardPropagation()
+        public override void BackwardPropagation(Tensor dx)
         {
             //At this stage, we already know dy (after pooling)
             //we want to compute dx by backward propagation
             Debug.Assert(y.SameShape(dy));
             //we compute dx
             var x = PrevLayer.y;
-            var dx = PrevLayer.dy;
             dy.PoolingGradient(y, x, dx, _poolingMode, _poolingSize, _poolingStride);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)

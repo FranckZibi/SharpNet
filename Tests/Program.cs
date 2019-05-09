@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using SharpNet;
-using SharpNetTests.NonReg;
 
 namespace SharpNetTests
 {
@@ -58,23 +57,31 @@ namespace SharpNetTests
 
         private static void DenseNetTests()
         {
-            var todo = new List<Action<DenseNetMetaParameters>>
+            var todo = new List<Action<DenseNetConfig>>
             {
-                //TrainDenseNet.TrainDenseNet10_CIFAR10,
-                TrainDenseNet.TrainDenseNet40_CIFAR10,
+                //x => x.TrainDenseNet_12_10_CIFAR10(),
+                x => x.TrainDenseNet_12_40_CIFAR10(),
+                x => x.TrainDenseNetBC_12_40_CIFAR10(),
+                //x=> x.TrainDenseNetBC_12_100_CIFAR10()
             };
 
-            var modifiers = new List<Action<DenseNetMetaParameters>>
+            var modifiers = new List<Action<DenseNetConfig>>
             {
                 //(p) =>{p.UseNesterov = false; p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov";},
                 //(p) =>{p.UseAdam = true; p.NumEpochs = 5; p.ExtraDescription = "_50Epoch_Adam";},
-                //(p) =>{p.SaveStatsWhenSavingNetwork = true; p.ExtraDescription = "_Adam_with_l2_inConv";},
-                (p) =>{p.SaveStatsWhenSavingNetwork = false;p.UseAdam = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = true;p.SaveLossAfterEachMiniBatch = false;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
-                //(p) =>{p.SaveStatsWhenSavingNetwork = true;p.UseDoublePrecision = true;p.UseAdam = true;p.BatchSize = -1;p.ExtraDescription = "_ForceTensorflowCompatibilityMode_UseDoublePrecision";},
-                //(p) =>{p.UseAdam = true;p.BatchSize = 50;p.SaveStatsWhenSavingNetwork = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_with_l2_inConv";},
-                //(p) =>{p.UseAdam = true; p.lambdaL2Regularization = 0.0;p.SaveStatsWhenSavingNetwork = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_no_l2_inConv";},
+                //(p) =>{p.SaveNetworkStatsAfterEachEpoch = true; p.ExtraDescription = "_Adam_with_l2_inConv";},
+                //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 150; p.ExtraDescription = "_Adam";},
+                (p) =>{ p.ExtraDescription = "_OrigPaper";},
+                (p) =>{p.NumEpochs = 150;p.ExtraDescription = "_150Epochs";},
+                (p) =>{p.NumEpochs = 150;p.Config.WithSGD(0.9,false);p.ExtraDescription = "_150Epochs_NoNesterov";},
+                //(p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.Config.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
+                //(p) =>{p.UseAdam = false;p.UseNesterov = true;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGDNesterov";},
+                //(p) =>{p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 200;p.InitialLearningRate = 0.001;p.ExtraDescription = "_Adam_0_001";},
+                //(p) =>{p.SaveNetworkStatsAfterEachEpoch = true;p.UseDoublePrecision = true;p.UseAdam = true;p.BatchSize = -1;p.ExtraDescription = "_ForceTensorflowCompatibilityMode_UseDoublePrecision";},
+                //(p) =>{p.UseAdam = true;p.BatchSize = 50;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_with_l2_inConv";},
+                //(p) =>{p.UseAdam = true; p.lambdaL2Regularization = 0.0;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_no_l2_inConv";},
 
-                //(p) =>{p.UseAdam = true;p.SaveStatsWhenSavingNetwork = true; p.lambdaL2Regularization = 0.0;p.NumEpochs = 2; p.ExtraDescription = "_Adam_no_lambdaL2Regularization";},
+                //(p) =>{p.UseAdam = true;p.SaveNetworkStatsAfterEachEpoch = true; p.lambdaL2Regularization = 0.0;p.NumEpochs = 2; p.ExtraDescription = "_Adam_no_lambdaL2Regularization";},
                 //(p) =>{p.lambdaL2Regularization = 0.0;p.UseNesterov = false;p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov_no_lambdaL2Regularization";},
                 #region already performed tests
             #endregion
@@ -84,9 +91,9 @@ namespace SharpNetTests
 
         public static void ResNetTests()
         {
-            var todo = new List<Action<ResNetMetaParameters>>
+            var todo = new List<Action<ResNetConfig>>
             {
-                TrainResNet.TrainResNet32V1_CIFAR10,
+                x=> x.TrainResNet20V1_CIFAR10(),
 
                 /*
                 //TrainResNet.TrainResNet11V2_CIFAR10,
@@ -102,9 +109,9 @@ namespace SharpNetTests
                 //TrainResNet.TrainResNet164V2_CIFAR10 */
             };
 
-            var modifiers = new List<Action<ResNetMetaParameters>>
+            var modifiers = new List<Action<ResNetConfig>>
             {
-                (p) =>{p.UseAdam = true;p.BatchSize = -1;p.CutoutPatchlength = 0;p.ExtraDescription = "_Adam";},
+                (p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.NumEpochs = 21;p.ExtraDescription = "_SGD";},
                 #region already performed tests
                 /*
                 //https://sgugger.github.io/the-1cycle-policy.html
