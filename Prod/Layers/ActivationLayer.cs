@@ -9,7 +9,6 @@ namespace SharpNet
     {
         #region Private fields
         public override Tensor y { get; protected set; }    // (batchSize, C, H, W)
-        public override Tensor dy { get; protected set; }   //same as 'y'
         #endregion
 
         public cudnnActivationMode_t ActivationFunction { get; }
@@ -19,9 +18,16 @@ namespace SharpNet
         {
             ActivationFunction = activationFunctionType;
         }
+
+        public override Layer Clone(Network newNetwork) { return new ActivationLayer(this, newNetwork); }
+        private ActivationLayer(ActivationLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            ActivationFunction = toClone.ActivationFunction;
+        }
+
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
+            Allocate_y_if_necessary();
             var x = PrevLayer.y;
             x.ActivationForward(ActivationFunction, y);
         }
@@ -46,26 +52,25 @@ namespace SharpNet
             ActivationFunction = (cudnnActivationMode_t)serialized[nameof(ActivationFunction)];
         }
         #endregion
-        public override void BackwardPropagation(Tensor dx)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
-            //At this stage, we already know dy. We want to compute dx by backward propagation
-            Debug.Assert(y.SameShape(dy));
-
-            //no need to compute dy if previous Layer it is the input layer
+            Debug.Assert(dx.Count == 1);
+            
             if (PrevLayer.IsInputLayer)
             {
-                return; 
+                //no need to compute dy if previous Layer is the input layer
+                return;  
             }
 
             //we compute dx
             var x = PrevLayer.y;
             if (IsOutputLayer)
             {
-                dy.CopyTo(dx);
+                dy.CopyTo(dx[0]);
             }
             else
             {
-                y.ActivationBackward(dy, x, ActivationFunction, dx);
+                y.ActivationBackward(dy, x, ActivationFunction, dx[0]);
             }
         }
         public override void Dispose()

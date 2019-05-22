@@ -19,6 +19,7 @@ namespace SharpNet
     {
         #region fields
         private readonly ImageDataGenerator _imageDataGenerator;
+        private readonly BackwardPropagationManager _backwardPropagationManager;
         public NetworkConfig Config { get; }
         public List<Layer> Layers { get; } = new List<Layer>();
         public string Description { get; set; } = "";
@@ -35,16 +36,33 @@ namespace SharpNet
         private Tensor bufferComputeAccuracy;
         private Tensor bufferComputeLoss;
         private Tensor bufferOutputGradient;
+        private readonly int _gpuDeviceId;
         private readonly List<EpochData> _epochsData;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         private string UniqueId => (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description)) + "_" + _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
+        public bool UseGPU => _gpuDeviceId != -1;
         #endregion
+        public GPUWrapper GpuWrapper { get; }
 
-        public Network(NetworkConfig config, ImageDataGenerator imageDataGenerator = null, List<EpochData> epochData = null)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="imageDataGenerator"></param>
+        /// <param name="gpuDeviceId">
+        /// if -1
+        ///     run the network on CPU (no GPU usage)
+        /// else
+        ///     run the network on the GPU with device Id 'gpuDeviceId'
+        /// </param>
+        /// <param name="epochData"></param>
+        public Network(NetworkConfig config, ImageDataGenerator imageDataGenerator, int gpuDeviceId, List<EpochData> epochData = null)
         {
             Config = config;
             _imageDataGenerator = imageDataGenerator??ImageDataGenerator.NoDataAugmentation;
             _epochsData = epochData ?? new List<EpochData>();
+            _gpuDeviceId = gpuDeviceId;
+            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(gpuDeviceId) : null;
             if (config.ProfileApplication)
             {
                 _swUpdateWeights = new Stopwatch();
@@ -57,7 +75,28 @@ namespace SharpNet
                 _swComputeAccuracy = new Stopwatch();
             }
             CreateLogDirectoryIfNeeded();
+            _backwardPropagationManager = new BackwardPropagationManager(this);
         }
+        /// <summary>
+        /// Clone the current network
+        /// </summary>
+        /// <param name="newGpuWrapper">
+        /// if null the network will be cloned for CPU usage
+        /// if not null, the network will be cloned to work on the GPU embedded in 'newGpuWrapper'
+        /// </param>
+        /// <returns></returns>
+        public Network Clone(GPUWrapper newGpuWrapper)
+        {
+            var clonedNetworkGpuDeviceId = newGpuWrapper?.DeviceId ?? -1;
+            var clonedNetwork = new Network(Config, _imageDataGenerator, clonedNetworkGpuDeviceId, new List<EpochData>(_epochsData));
+            clonedNetwork.Description = Description;
+            foreach (var l in Layers)
+            {
+                clonedNetwork.Layers.Add(l.Clone(clonedNetwork));
+            }
+            return clonedNetwork;
+        }
+
         private void CreateLogDirectoryIfNeeded()
         {
             if (!string.IsNullOrEmpty(Config.LogDirectory) && !Directory.Exists(Config.LogDirectory))
@@ -65,11 +104,12 @@ namespace SharpNet
                 Directory.CreateDirectory(Config.LogDirectory);
             }
         }
+        public string DeviceName() { return GpuWrapper?.DeviceName(); }
 
         public void ClearMemory()
         {
-            Info("Before clearing memory: " + Config.GpuWrapper?.MemoryInfo());
-            Config.GpuWrapper?.ClearMemory();
+            Info("Before clearing memory: " + GpuWrapper?.MemoryInfo());
+            GpuWrapper?.ClearMemory();
             Layers.ForEach(x => x?.Dispose());
             Layers.Clear();
             _epochsData.Clear();
@@ -77,7 +117,8 @@ namespace SharpNet
             bufferComputeLoss?.Dispose();
             bufferOutputGradient?.Dispose();
             _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
-            Info("After clearing memory: " + Config.GpuWrapper?.MemoryInfo());
+            Info("After clearing memory: " + GpuWrapper?.MemoryInfo());
+            _backwardPropagationManager?.Dispose();
         }
 
         /// <summary>
@@ -95,6 +136,7 @@ namespace SharpNet
             equals &= Utils.Equals(Description, other.Description, id + ":Description", ref errors);
             equals &= Config.Equals(other.Config, epsilon, id, ref errors);
             equals &= _imageDataGenerator.Equals(other._imageDataGenerator, epsilon, id, ref errors);
+            equals &= Utils.Equals(other._gpuDeviceId, _gpuDeviceId, id, ref errors);
             equals &= Utils.Equals(Layers.Count, other.Layers.Count, id + ":Layers.Count", ref errors);
             for (int i = 0; i < Math.Min(Layers.Count, other.Layers.Count); ++i)
             {
@@ -102,6 +144,7 @@ namespace SharpNet
             }
             return equals;
         }
+
         #region network construction: adding layers
         public Network Input(int channelCount, int h, int w)
         {
@@ -278,14 +321,13 @@ namespace SharpNet
         public void BackwardPropagation(Tensor yExpected)
         {
             _swBackwardPropagation?.Start();
-
             var yPredicted = Layers.Last().y;
             Debug.Assert(yPredicted != null);
             Debug.Assert(yExpected.SameShape(yPredicted));
 
             //we compute: dyPredicted = 0.5*(yPredicted - yExpected)
             //!D TODO : do the 2 following steps once
-            var dyPredicted = Layers.Last().dy;
+            var dyPredicted = _backwardPropagationManager.dyOfLastLayer;
             yPredicted.CopyTo(dyPredicted);
             dyPredicted.Update_Adding_Alpha_X(-1.0, yExpected);
 
@@ -295,6 +337,9 @@ namespace SharpNet
                 dyPredicted.Update_Multiplying_By_Alpha(1.0 / categoryCount);
             }
 
+
+            _backwardPropagationManager.BackwardPropagation();
+            /*
             Layers.ForEach(x=>x.dyHasBeenInitialized = false);
             Layers.Last().dyHasBeenInitialized = true;
 
@@ -303,10 +348,10 @@ namespace SharpNet
                 var layer = Layers[i];
                 Debug.Assert(layer.dyHasBeenInitialized);
                 var dx = layer.Get_dx();
-                layer.BackwardPropagation(dx);
+                layer.BackwardPropagation(layer.dyField, dx);
                 layer.Flush_dx(dx);
             }
-            _swBackwardPropagation?.Stop();
+            _swBackwardPropagation?.Stop(); */
         }
 
         public string Summary()
@@ -391,7 +436,7 @@ namespace SharpNet
 
         public int MaxMiniBatchSize()
         {
-            var freeMemoryInBytes = Config.GpuWrapper?.FreeMemoryInBytes() ?? (ulong)GC.GetTotalMemory(false);
+            var freeMemoryInBytes = UseGPU?GpuWrapper.FreeMemoryInBytes() : (ulong)GC.GetTotalMemory(false);
             int miniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
             Info("Target MiniBatchSize=" + miniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
             return miniBatchSize;
@@ -438,14 +483,14 @@ namespace SharpNet
             }
             if (Config.UseDoublePrecision)
             {
-                return Config.UseGPU
-                    ? (Tensor)new GPUTensor<double>(shape, description, Config.GpuWrapper)
+                return UseGPU
+                    ? (Tensor)new GPUTensor<double>(shape, description, GpuWrapper)
                     : new CpuTensor<double>(shape, null, description);
             }
             else
             {
-                return Config.UseGPU
-                    ? (Tensor)new GPUTensor<float>(shape, description, Config.GpuWrapper)
+                return UseGPU
+                    ? (Tensor)new GPUTensor<float>(shape, description, GpuWrapper)
                     : new CpuTensor<float>(shape, null, description);
             }
         }
@@ -457,12 +502,13 @@ namespace SharpNet
             var dicoFirstLine = Serializer.Deserialize(content[0], null);
             var config = NetworkConfig.ValueOf(dicoFirstLine);
             var imageDataGenerator = ImageDataGenerator.ValueOf(dicoFirstLine);
+            var gpuDeviceId = (int)dicoFirstLine[nameof(_gpuDeviceId)];
             var epochsData = (EpochData[])dicoFirstLine[nameof(_epochsData)];
-            var network = new Network(config, imageDataGenerator, epochsData.ToList());
+            var network = new Network(config, imageDataGenerator, gpuDeviceId, epochsData.ToList());
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
             for (int i = 1; i < content.Length; ++i)
             {
-                network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(content[i], network.Config.GpuWrapper), network));
+                network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(content[i], network.GpuWrapper), network));
             }
             return network;
         }
@@ -472,6 +518,7 @@ namespace SharpNet
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
                 .Add(_imageDataGenerator.Serialize())
+                .Add(nameof(_gpuDeviceId), _gpuDeviceId)
                 .Add(nameof(_epochsData), _epochsData.ToArray())
                 .ToString();
             File.AppendAllLines(fileName, new[] { firstLine });
@@ -573,7 +620,7 @@ namespace SharpNet
             Debug.Assert(learningRateComputer != null);
             _spInternalFit.Start();
             CheckInput(xCpu, yCpu, learningRateComputer, numEpochs, miniBatchSize, xTestCpu, yTestCpu);
-            var yInputCpu = yCpu.Clone();
+            var yInputCpu = (CpuTensor<T>)yCpu.Clone(null);
             var x = ReformatToCorrectDevice_GPU_or_CPU(xCpu);
             var y = ReformatToCorrectDevice_GPU_or_CPU(yCpu);
             var xTest = ReformatToCorrectDevice_GPU_or_CPU(xTestCpu);
@@ -584,9 +631,9 @@ namespace SharpNet
                 miniBatchSize = MaxMiniBatchSize();
             }
             var blocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
-            if (Config.UseGPU)
+            if (UseGPU)
             {
-                LogDebug(Config.GpuWrapper?.ToString());
+                LogDebug(GpuWrapper.ToString());
             }
             LogDebug("Training Set: " + x + " => " + y);
             if (xTest != null)
@@ -669,9 +716,9 @@ namespace SharpNet
                 double nbStepsByEpoch = ((double)x.Shape[0]) / miniBatchSize;
                 var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
                 Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg);
-                if (Config.UseGPU)
+                if (UseGPU)
                 {
-                    LogDebug(Config.GpuWrapper.MemoryInfo());
+                    LogDebug(GpuWrapper.MemoryInfo());
                 }
                 if (Config.ProfileApplication)
                 {
@@ -684,7 +731,9 @@ namespace SharpNet
                 #endregion
 
                 #region we save the network in a file if necessary
-                if (((epoch == numEpochs) && (numEpochs > 10))
+                if (   //if we have finished training
+                       ((epoch == numEpochs) && (numEpochs > 10))
+                        //or if we should save the network every 'Config.AutoSaveIntervalInMinuts' minuts
                     || ( (Config.AutoSaveIntervalInMinuts>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts))
                 {
                     var swSaveTime = Stopwatch.StartNew();
@@ -703,13 +752,13 @@ namespace SharpNet
                 }
             }
 
+            string line = "";
             try
             {
                 //We save the results of the net
-                File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, "Tests.csv"),
-                    DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
+                line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
                     + Description.Replace(';', '_') + ";"
-                    + Config.GpuWrapper.DeviceName() + ";"
+                    + DeviceName() + ";"
                     + TotalParams + ";"
                     + numEpochs + ";"
                     + miniBatchSize + ";"
@@ -718,11 +767,12 @@ namespace SharpNet
                     + (_spInternalFit.Elapsed.TotalSeconds / numEpochs) + ";"
                     + validationLossAndAccuracy?.Item1 + ";"
                     + validationLossAndAccuracy?.Item2
-                    + Environment.NewLine
-                );
+                    + Environment.NewLine;
+                File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, "Tests.csv"), line);
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Info("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
                 // ignored
             }
 
@@ -762,13 +812,6 @@ namespace SharpNet
             return ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
         }
 
-
-        public Tensor GetBufferOutputGradient(int[] shape)
-        {
-            bufferOutputGradient = NewNotInitializedTensor(shape, bufferOutputGradient, nameof(bufferOutputGradient));
-            return bufferOutputGradient;
-        }
-
         private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
         {
             _swComputeAccuracy?.Start();
@@ -796,7 +839,14 @@ namespace SharpNet
             return x;
         }
         //private ulong OccupiedMemoryInBytes => _layers.Select(x => x.OccupiedMemoryInBytes).Sum();
-        private ulong BytesByBatchSize => Layers.Select(x => x.BytesByBatchSize).Sum();
+        private ulong BytesByBatchSize
+        {
+            get
+            {
+                return Layers.Select(x => x.BytesByBatchSize).Sum()+_backwardPropagationManager.BytesByBatchSizeForGradientComputation;
+            }
+        }
+
         private ulong BytesIndependantOfBatchSize => Layers.Select(x => x.BytesIndependantOfBatchSize).Sum();
         private Tensor ReformatToCorrectPrecision_float_or_double(Tensor X)
         {
@@ -810,7 +860,7 @@ namespace SharpNet
         }
         private Tensor ReformatToCorrectDevice_GPU_or_CPU(Tensor X)
         {
-            if (X == null || Config.UseGPU == X.UseGPU)
+            if (X == null || UseGPU == X.UseGPU)
             {
                 return X;
             }
@@ -819,8 +869,8 @@ namespace SharpNet
                 throw new NotImplementedException("can not reformat type that are stored in GPU");
             }
             return X.UseDoublePrecision
-                ? (Tensor)X.ToGPU<double>(Config.GpuWrapper)
-                : X.ToGPU<float>(Config.GpuWrapper);
+                ? (Tensor)X.ToGPU<double>(GpuWrapper)
+                : X.ToGPU<float>(GpuWrapper);
         }
         private string ProfilingComments()
         {
@@ -929,5 +979,6 @@ namespace SharpNet
         {
             return (entireBatchSize + miniBatchSize - 1) / miniBatchSize;
         }
+
     }
 }

@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Pictures;
 using SharpNetTests.NonReg;
 
 namespace SharpNetTests
@@ -167,7 +168,8 @@ namespace SharpNetTests
         }
         private static Network GetNetwork()
         {
-            return new Network(new NetworkConfig(false) { Logger = logger, UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true});
+            var gpuDeviceId = -1;
+            return new Network(new NetworkConfig{ Logger = logger, UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true},ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
         }
     }
 }

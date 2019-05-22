@@ -18,7 +18,6 @@ namespace SharpNet
         private readonly int _poolingSize;
         private readonly int _poolingStride;
         public override Tensor y { get; protected set; }
-        public override Tensor dy { get; protected set; }
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
@@ -28,21 +27,29 @@ namespace SharpNet
             _poolingSize = poolingSize;
             _poolingStride = poolingStride;
         }
+
+        public override Layer Clone(Network newNetwork) { return new PoolingLayer(this, newNetwork); }
+        private PoolingLayer(PoolingLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            _poolingMode = toClone._poolingMode;
+            _poolingSize = toClone._poolingSize;
+            _poolingStride = toClone._poolingStride;
+        }
+
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
+            Allocate_y_if_necessary();
             var x = PrevLayer.y;
             x.Pooling(y, _poolingMode, _poolingSize, _poolingSize);
         }
-        public override void BackwardPropagation(Tensor dx)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
-            //At this stage, we already know dy (after pooling)
-            //we want to compute dx by backward propagation
-            Debug.Assert(y.SameShape(dy));
-            //we compute dx
+            Debug.Assert(dx.Count == 1);
             var x = PrevLayer.y;
-            dy.PoolingGradient(y, x, dx, _poolingMode, _poolingSize, _poolingStride);
+            dy.PoolingGradient(y, x, dx[0], _poolingMode, _poolingSize, _poolingStride);
         }
+
+     
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
             if (!base.Equals(b, epsilon, id, ref errors))

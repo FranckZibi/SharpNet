@@ -1,11 +1,21 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using SharpNet;
+using SharpNet.Datasets;
+using SharpNet.GPU;
+using SharpNet.Optimizers;
 
 namespace SharpNetTests
 {
     static class Program
     {
+
+
+
         private static void Main()
         {
             /*
@@ -15,9 +25,11 @@ namespace SharpNetTests
             Console.WriteLine(Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_19064_7.txt").ContentStats());
             return;
             */
-            
+            //var x = new DenseNetBuilder {NumEpochs = 5,BatchSize = -1, GpuDeviceId=-1};Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());return;
+
+
+            ResNetTests();
             DenseNetTests();
-            //ResNetTests();
 
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);
@@ -55,25 +67,51 @@ namespace SharpNetTests
         }
         */
 
+        #region Training
+        /// <summary>
+        /// Train a network on CIFAR10 data set 
+        /// </summary>
+        ///
+        private static void Train_CIFAR10(NetworkBuilder p, Network network, ILearningRateScheduler lrScheduler = null, bool autoBatchSize = false)
+        {
+            CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            network.Fit(xTrain, yTrain, lrScheduler ?? p.Cifar10LearningRateScheduler(), p.Cifar10ReduceLROnPlateau(), p.NumEpochs, autoBatchSize ? -1 : p.BatchSize, xTest, yTest);
+            network.ClearMemory();
+        }
+        #endregion
+
         private static void DenseNetTests()
         {
-            var todo = new List<Action<DenseNetConfig>>
+            var todo = new List<Action<DenseNetBuilder,int>>
             {
-                //x => x.TrainDenseNet_12_10_CIFAR10(),
-                x => x.TrainDenseNet_12_40_CIFAR10(),
-                x => x.TrainDenseNetBC_12_40_CIFAR10(),
-                //x=> x.TrainDenseNetBC_12_100_CIFAR10()
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_100_CIFAR10());},
+
+                /*(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_Fast_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_10_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_40_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_NoNesterov_20190512_0743_200.txt"));},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_20190511_1946_154.txt"));},
+                 */
             };
 
-            var modifiers = new List<Action<DenseNetConfig>>
+            var metaParametersModifiers = new List<Action<DenseNetBuilder>>
             {
                 //(p) =>{p.UseNesterov = false; p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov";},
                 //(p) =>{p.UseAdam = true; p.NumEpochs = 5; p.ExtraDescription = "_50Epoch_Adam";},
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = true; p.ExtraDescription = "_Adam_with_l2_inConv";},
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 150; p.ExtraDescription = "_Adam";},
-                (p) =>{ p.ExtraDescription = "_OrigPaper";},
-                (p) =>{p.NumEpochs = 150;p.ExtraDescription = "_150Epochs";},
-                (p) =>{p.NumEpochs = 150;p.Config.WithSGD(0.9,false);p.ExtraDescription = "_150Epochs_NoNesterov";},
+                //(p) =>{ p.ExtraDescription = "_OrigPaper";},
+
+                (p) =>{p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchlength = 0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchlength0_WithNesterov_EnhancedMemory";},
+                (p) =>{p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchlength = 0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchlength0_NoNesterov_EnhancedMemory";},
+
+
+                //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchlength = 16;p.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchlength16";},
+                //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchlength = 0;p.ExtraDescription = "_200Epochs_L2_InDense_CutoutPatchlength0";},
+                //(p) =>{p.NumEpochs = 200;p.Config.WithSGD(0.9,false);p.ExtraDescription = "_200Epochs_NoNesterov";},
+
                 //(p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.Config.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
                 //(p) =>{p.UseAdam = false;p.UseNesterov = true;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGDNesterov";},
                 //(p) =>{p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 200;p.InitialLearningRate = 0.001;p.ExtraDescription = "_Adam_0_001";},
@@ -86,32 +124,28 @@ namespace SharpNetTests
                 #region already performed tests
             #endregion
             };
-            PerformTestSet(modifiers, todo);
+            PerformTestSet(metaParametersModifiers, todo);
         }
 
         public static void ResNetTests()
         {
-            var todo = new List<Action<ResNetConfig>>
+            var todo = new List<Action<ResNetBuilder, int>>
             {
-                x=> x.TrainResNet20V1_CIFAR10(),
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet11V2_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V2_CIFAR10());},
 
-                /*
-                //TrainResNet.TrainResNet11V2_CIFAR10,
-                TrainResNet.TrainResNet20V1_CIFAR10,
-                //TrainResNet.TrainResNet20V2_CIFAR10,
-                TrainResNet.TrainResNet32V1_CIFAR10,
-                TrainResNet.TrainResNet44V1_CIFAR10,
-                TrainResNet.TrainResNet56V1_CIFAR10,
-                //TrainResNet.TrainResNet56V2_CIFAR10,
-                //TrainResNet.TrainResNet110V1_CIFAR10,
-                //TrainResNet.TrainResNet110V2_CIFAR10,
-                //TrainResNet.TrainResNet164V1_CIFAR10,
-                //TrainResNet.TrainResNet164V2_CIFAR10 */
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V1_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet32V1_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet44V1_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V1_CIFAR10());},
             };
 
-            var modifiers = new List<Action<ResNetConfig>>
+            var modifiers = new List<Action<ResNetBuilder>>
             {
-                (p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.NumEpochs = 21;p.ExtraDescription = "_SGD";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "_SGD_WithNesterov_EnhancedMemory";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.ForceTensorflowCompatibilityMode = true;p.ExtraDescription = "_SGD_WithNesterov_ForceTensorflowCompatibilityMode_EnhancedMemory";},
+                (p) =>{p.Config.WithSGD(0.9,false);p.ExtraDescription = "_SGD_NoNesterov_EnhancedMemory";},
+                (p) =>{p.Config.WithSGD(0.9,false);p.Config.ForceTensorflowCompatibilityMode = true;p.ExtraDescription = "_SGD_NoNesterov_ForceTensorflowCompatibilityMode_EnhancedMemory";},
                 #region already performed tests
                 /*
                 //https://sgugger.github.io/the-1cycle-policy.html
@@ -135,33 +169,44 @@ namespace SharpNetTests
             };
             PerformTestSet(modifiers, todo);
         }
-        private static void PerformTestSet<T>(List<Action<T>> modifiers, List<Action<T>> todo) where T: IMetaParameters, new()
-        {
-            var totalTest = modifiers.Count * todo.Count;
-            var nbPerformedtests = 0;
-            for (int modifierIndex = 0; modifierIndex < modifiers.Count; ++modifierIndex)
-            {
-                Console.WriteLine("Starting all tests of family " + (modifierIndex + 1) + ".*");
-                for (int testIndex = 0; testIndex < todo.Count; ++testIndex)
-                {
-                    var param = new T();
-                    modifiers[modifierIndex](param);
-                    Console.WriteLine("Starting test " + (modifierIndex + 1) + "." + (testIndex + 1) + " ('" + param.ExtraDescription + "'), last one will be " + modifiers.Count + "." + todo.Count);
-                    {
-                        Console.WriteLine("Starting test: '" + param.ExtraDescription + "' (this test includes " + todo.Count + " networks)");
-                    }
-                    todo[testIndex](param);
-                    ++nbPerformedtests;
-                    if (modifierIndex == modifiers.Count - 1)
-                    {
-                        Console.WriteLine("End of test: '" + param.ExtraDescription + "'");
-                    }
 
+
+        private static void ConsumersLauchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)
+        {
+            Console.WriteLine("Computations on GPU " + gpuDeviceId+" have started (ThreadId"+Thread.CurrentThread.ManagedThreadId+")");
+            foreach (var action in produced.GetConsumingEnumerable())
+            {
+                action(gpuDeviceId);
+            }
+            Console.WriteLine("Computations on GPU " + gpuDeviceId + " has ended");
+        }
+        private static void PerformTestSet<T>(List<Action<T>> metaParameterModifiers, List<Action<T, int>> allNetworks) where T: NetworkBuilder, new()
+        {
+            int nbGPUs = GPUWrapper.GetDeviceCount();
+            Console.WriteLine("Computation will be done on "+nbGPUs+" GPU(s)");
+            var taskToBePerformed = new BlockingCollection<Action<int>>(1);
+            var consumers = Enumerable.Range(0, nbGPUs).Select(gpuDeviceId => Task.Run(() => ConsumersLauchingTests(gpuDeviceId, taskToBePerformed))).ToArray();
+            var totalTest = metaParameterModifiers.Count * allNetworks.Count;
+            var nbPerformedtests = 0;
+            for (int metaParameterModifiersIndex = 0; metaParameterModifiersIndex < metaParameterModifiers.Count; ++metaParameterModifiersIndex)
+            {
+                for (int networkIndex = 0; networkIndex < allNetworks.Count; ++networkIndex)
+                {
+                    int testIdx = metaParameterModifiersIndex* allNetworks.Count + networkIndex+1;
+                    int totalTests = metaParameterModifiers.Count*allNetworks.Count;
+                    var metaParameters = new T();
+                    metaParameterModifiers[metaParameterModifiersIndex](metaParameters);
+                    var action = allNetworks[networkIndex];
+                    Console.WriteLine("Adding test  " + (metaParameterModifiersIndex + 1) + "." + (networkIndex + 1) + "(#" + testIdx + "/" + totalTests + ") in queue  ('" + metaParameters.ExtraDescription + "')");
+                    taskToBePerformed.Add(gpuDeviceId => action(metaParameters, gpuDeviceId));
+                    ++nbPerformedtests;
                     Console.WriteLine(new string('-', 80));
                     Console.WriteLine("Progress: " + ((100.0 * nbPerformedtests) / totalTest));
                     Console.WriteLine(new string('-', 80));
                 }
             }
+            taskToBePerformed.CompleteAdding();
+            Task.WaitAll(consumers);
         }
     }
 }

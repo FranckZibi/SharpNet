@@ -11,7 +11,6 @@ namespace SharpNet
         private int H { get; }
         private int W { get; }
         public override Tensor y { get; protected set; }            // (batchSize, InputLayer.ChannelCount, InputLayer.H, InputLayer.Weights)
-        public override Tensor dy {get => null; protected set => throw new Exception("no dy available in input layer");}
         #endregion
 
         public InputLayer(int channelCount, int h, int w, Network network) : base(network)
@@ -20,6 +19,15 @@ namespace SharpNet
             this.H = h;
             this.W = w;
         }
+
+        public override Layer Clone(Network newNetwork) { return new InputLayer(this, newNetwork); }
+        private InputLayer(InputLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            ChannelCount = toClone.ChannelCount;
+            H = toClone.H;
+            W = toClone.W;
+        }
+
         public override void ForwardPropagation(bool isTraining)
         {
             throw new Exception("should never call "+nameof(ForwardPropagation)+" in "+nameof(InputLayer));
@@ -49,7 +57,7 @@ namespace SharpNet
             W = (int)serialized[nameof(W)];
         }
         #endregion
-        public override void BackwardPropagation(Tensor dx)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
             throw new NotImplementedException();
         }
@@ -67,7 +75,5 @@ namespace SharpNet
         {
             //do not dipose y
         }
-        //do not take into account 'dy' (only y)
-        public override ulong BytesByBatchSize => (ulong) (Utils.Product(OutputShape(1)) * Network.Config.TypeSize);
     }
 }

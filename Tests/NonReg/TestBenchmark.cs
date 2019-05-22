@@ -6,6 +6,7 @@ using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Pictures;
 
 namespace SharpNetTests.NonReg
 {
@@ -23,7 +24,7 @@ namespace SharpNetTests.NonReg
             var tmp_2GB = new double[250 * 1000000];
             var hostPinnedMemory = new HostPinnedMemory<double>(tmp_2GB);
 
-            var gpuContext = GPUWrapper.Default;
+            var gpuContext = GPUWrapper.FromDeviceId(0);
             logger.Info(gpuContext.ToString());
             double maxSpeed = 0;
             for (int i = 1; i <= 3; ++i)
@@ -69,9 +70,7 @@ namespace SharpNetTests.NonReg
             MNIST.Load(out var X_train, out var Y_train, out var X_test, out var Y_test);
             const int batchSize = 64;
             const int numEpochs = 5;
-            var network = new Network(new NetworkConfig(true) { Logger = logger, UseDoublePrecision = false }
-                .WithAdam()
-            );
+            var network = new Network(new NetworkConfig() { Logger = logger, UseDoublePrecision = false }.WithAdam(), ImageDataGenerator.NoDataAugmentation, 0);
             network
                 .Input(X_train.Shape[1], X_train.Shape[2], X_train.Shape[3])
 
@@ -98,7 +97,7 @@ namespace SharpNetTests.NonReg
             System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Speed.csv" ), 
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"
                 +"MNIST;"
-                + network.Config.GpuWrapper.DeviceName() + ";"
+                + network.DeviceName() + ";"
                 + network.TotalParams + ";"
                 + numEpochs + ";"
                 + batchSize + ";"

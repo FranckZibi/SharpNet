@@ -10,7 +10,6 @@ namespace SharpNet
     public class ConcatenateLayer : Layer
     {
         public override Tensor y { get; protected set; }
-        public override Tensor dy { get; protected set; }
 
         public ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2, Network network) : base(network, previousLayerIndex1)
         {
@@ -20,6 +19,9 @@ namespace SharpNet
             AddPreviousLayer(previousLayerIndex2);
         }
 
+        public override Layer Clone(Network newNetwork) { return new ConcatenateLayer(this, newNetwork); }
+        private ConcatenateLayer(ConcatenateLayer toClone, Network newNetwork) : base(toClone, newNetwork) { }
+
         #region serialization
         public ConcatenateLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
@@ -27,7 +29,7 @@ namespace SharpNet
         #endregion
         public override int[] OutputShape(int batchSize)
         {
-            // the number of channels is the sum of the the 2 previous layers
+            // the number of channels is the sum of the 2 previous layers
             var result = PreviousLayerIndex1.OutputShape(batchSize);
             result[1] += PreviousLayerIndex2.OutputShape(batchSize)[1];
             return result;
@@ -37,26 +39,22 @@ namespace SharpNet
         private Layer PreviousLayerIndex2 => PreviousLayers[1];
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
+            Allocate_y_if_necessary();
             y.Concatenate(PreviousLayerIndex1.y, PreviousLayerIndex2.y);
         }
 
-        public override Tensor Get_dx() { return null; }
-        public override void Flush_dx(Tensor dx) {}
-
-        public override void BackwardPropagation(Tensor notUsed)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(dx.Count == 2);
             //At this stage, we already know dy
             //we want to compute PreviousLayerIndex1.dy & PreviousLayerIndex2.dy by backward propagation
-            var dx0 = Get_dx(0);
-            var dx1 = Get_dx(1);
+            var dx0 = dx[0];
+            var dx1 = dx[1];
             if (ReferenceEquals(dx0, dx1))
             {
                 throw new Exception("the same buffer has been used twice in " + this);
             }
             dy.Split(dx0, dx1);
-            Flush_dx(dx0, 0);
-            Flush_dx(dx1, 1);
         }
     }
 }

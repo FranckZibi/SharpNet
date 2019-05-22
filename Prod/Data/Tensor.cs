@@ -11,7 +11,7 @@ namespace SharpNet.Data
     public abstract class Tensor : IDisposable
     {
         #region fields
-        public int[] Shape { get; protected set; }
+        public int[] Shape { get; private set; }
         public int MultDim0 { get; private set; }
         public int MultDim1 { get; private set; }
         private int _multDim2;
@@ -128,6 +128,16 @@ namespace SharpNet.Data
         {
             return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
         }
+        public void Reshape(int[] newShape)
+        {
+            if (Shape.SequenceEqual(newShape))
+            {
+                return;
+            }
+            Debug.Assert(ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes);
+            Shape = newShape;
+            RecomputeMultDim();
+        }
 
         public static ulong OccupiedMemoryInBytes(IEnumerable<Tensor> tensors)
         {
@@ -182,7 +192,6 @@ namespace SharpNet.Data
         }
         public abstract ulong CapacityInBytes { get; }
         public abstract void ZeroMemory();
-        public abstract void Reshape(int[] newShape);
         //this = dy
         public abstract void ConvolutionBackwardBias(Tensor convolutionBackwardBias);
         // this = alpha a*b + beta*this
@@ -202,6 +211,12 @@ namespace SharpNet.Data
         /// <param name="a">Tensor of Dimension [N, Ca, H, W]</param>
         /// <param name="b">Tensor of Dimension [N, Cb, H, W]</param>
         public abstract void Concatenate(Tensor a, Tensor b);
+        /// <summary>
+        /// Clone
+        /// </summary>
+        /// <param name="gpuWrapper"></param>
+        /// <returns></returns>
+        public abstract Tensor Clone(GPUWrapper gpuWrapper);
         /// <summary>
         /// Split the this tensor into the tensors 'a' & 'b'.
         /// They must have exactly the same geometry apart from the number of channels (at index 1)

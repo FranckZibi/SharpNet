@@ -133,9 +133,9 @@ namespace SharpNet.CPU
             }
             return result;
         }
-        public CpuTensor<T> Clone()
+        public override Tensor Clone(GPUWrapper notUsed)
         {
-            return new CpuTensor<T>(Shape, (T[])Content.Clone(), Description+" cloned");
+            return new CpuTensor<T>((int[])Shape.Clone(), (T[])Content.Clone(), Description);
         }
 
         #region Tensor implementation
@@ -1253,12 +1253,6 @@ namespace SharpNet.CPU
         public override void ZeroMemory()
         {
             Array.Clear(Content, 0, Content.Length);
-        }
-        public override void Reshape(int[] newShape)
-        {
-            Debug.Assert(ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes);
-            Shape = newShape;
-            RecomputeMultDim();
         }
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, double alpha, double beta)
         {

@@ -9,7 +9,6 @@ namespace SharpNet
     public class AddLayer : Layer
     {
         public override Tensor y { get; protected set; }
-        public override Tensor dy { get; protected set; }
 
         public AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network) : base(network, previousResidualLayerIndex)
         {
@@ -19,6 +18,8 @@ namespace SharpNet
             //we add the identity shortcut connection
             AddPreviousLayer(previousIdentityLayerIndex);
         }
+        public override Layer Clone(Network newNetwork) {return new AddLayer(this, newNetwork);}
+        private AddLayer(AddLayer toClone, Network newNetwork) : base(toClone, newNetwork) {}
 
         #region serialization
         public AddLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
@@ -30,23 +31,14 @@ namespace SharpNet
         private Layer PreviousIdentityLayer => PreviousLayers[1];
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
+            Allocate_y_if_necessary();
             var x = PreviousResidualLayer.y;
             x.CopyTo(y);
             y.Update_Adding_Alpha_X(1.0, PreviousIdentityLayer.y);
         }
-        public override Tensor Get_dx() { return null; }
-        public override void Flush_dx(Tensor dx) { }
-
-        public override void BackwardPropagation(Tensor notUsed)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> allDx)
         {
-            Debug.Assert(y.SameShape(dy));
-            for (var i = 0; i < PreviousLayers.Count; i++)
-            {
-                var dx = Get_dx(i);
-                dy.CopyTo(dx);
-                Flush_dx(dx, i);
-            }
+            allDx.ForEach(dy.CopyTo);
         }
     }
 }

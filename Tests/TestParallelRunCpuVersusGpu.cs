@@ -27,7 +27,7 @@ namespace SharpNetTests
         private const int PoolingSize = 2;
         private const int PoolingStride = 2;
 	    private readonly Random _rand = new Random(0);
-        private readonly GPUWrapper _gpuWrapper = GPUWrapper.Default;
+        private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
         [Test]
 	    public void TestConvolutionBackwardBias()
@@ -362,9 +362,9 @@ namespace SharpNetTests
 	        var cpuFloat = new List<CpuTensor<float>>();
 	        cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
 	        var gpuDouble = new List<GPUTensor<double>>();
-	        gpuDouble.AddRange(data.Select(x => CloneToGPU(x,_gpuWrapper)));
+	        gpuDouble.AddRange(data.Select(x => CloneToGPU(x,GpuWrapper)));
 	        var gpuFloat = new List<GPUTensor<float>>();
-	        gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, _gpuWrapper)));
+	        gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, GpuWrapper)));
 	        work(cpuDoubles.ToArray());
 	        work(cpuFloat.ToArray());
 	        work(gpuDouble.ToArray());
@@ -382,9 +382,9 @@ namespace SharpNetTests
             var cpuFloat = new List<CpuTensor<float>>();
             cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
             var gpuDouble = new List<GPUTensor<double>>();
-            gpuDouble.AddRange(data.Select(x => CloneToGPU(x, _gpuWrapper)));
+            gpuDouble.AddRange(data.Select(x => CloneToGPU(x, GpuWrapper)));
             var gpuFloat = new List<GPUTensor<float>>();
-            gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, _gpuWrapper)));
+            gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, GpuWrapper)));
             var resultCpuDoubles = work(cpuDoubles.Select(x=>(Tensor)x).ToArray());
             var resultCpuFloat = work(cpuFloat.Select(x => (Tensor)x).ToArray());
             var resultGPUDoubles = work(gpuDouble.Select(x => (Tensor)x).ToArray());

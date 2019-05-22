@@ -34,11 +34,12 @@ namespace SharpNetTests.NonReg
             */
             var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0);
             var network = new Network(
-                new NetworkConfig(useGpu) { Logger = logger, UseDoublePrecision = false }
+                new NetworkConfig{ Logger = logger, UseDoublePrecision = false }
                 //.WithAdam()
                 .WithSGD(0.99,true)
                 ,
-                imageDataGenerator
+                imageDataGenerator,
+                useGpu?0:-1
             );
 
             double lambdaL2Regularization = 0.0;

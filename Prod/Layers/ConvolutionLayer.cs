@@ -19,7 +19,6 @@ namespace SharpNet
     {
         #region Private fields
         public override Tensor y { get; protected set; }        // (batchSize, FiltersCount, y.H, y.W)
-        public override Tensor dy { get; protected set; }       // same as 'y'
         private readonly int _filtersCount;
         private readonly int _f;
         private readonly int _stride;
@@ -52,6 +51,22 @@ namespace SharpNet
             _optimizer = Network.GetOptimizer(Convolution.Shape, ConvolutionBias?.Shape);
             ResetWeights(false);
         }
+
+        public override Layer Clone(Network newNetwork) { return new ConvolutionLayer(this, newNetwork); }
+        private ConvolutionLayer(ConvolutionLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            _filtersCount = toClone._filtersCount;
+            _f = toClone._f;
+            _stride = toClone._stride;
+            _padding = toClone._padding;
+            _lambdaL2Regularization = toClone._lambdaL2Regularization;
+            Convolution = toClone.Convolution?.Clone(newNetwork.GpuWrapper);
+            ConvolutionGradients = toClone.ConvolutionGradients?.Clone(newNetwork.GpuWrapper);
+            ConvolutionBias = toClone.ConvolutionBias?.Clone(newNetwork.GpuWrapper);
+            ConvolutionBiasGradients = toClone.ConvolutionBiasGradients?.Clone(newNetwork.GpuWrapper);
+            _optimizer = toClone._optimizer?.Clone(newNetwork);
+        }
+
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
             if (!base.Equals(b, epsilon, id, ref errors))
@@ -106,7 +121,7 @@ namespace SharpNet
         }
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
+            Allocate_y_if_necessary();
             var x = PrevLayer.y;
             //We compute y = x (conv) Convolution + ConvolutionBias
             x.Convolution(Convolution, _padding, _stride, y);
@@ -116,9 +131,9 @@ namespace SharpNet
             }
         }
         // dy => ConvolutionGradient & dx
-        public override void BackwardPropagation(Tensor dx)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
-            Debug.Assert(y.SameShape(dy));
+            Debug.Assert(dx.Count == 1);
             Debug.Assert(ConvolutionBias == null || ConvolutionBias.SameShape(ConvolutionBiasGradients));
 
             // we compute ConvolutionBiasGradients
@@ -129,7 +144,7 @@ namespace SharpNet
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
             var x = PrevLayer.y;
-            x.ConvolutionGradient(Convolution, dy, _padding, _stride, dx, ConvolutionGradients);
+            x.ConvolutionGradient(Convolution, dy, _padding, _stride, dx[0], ConvolutionGradients);
             if (UseL2Regularization)
             {
                 var batchSize = y.Shape[0];

@@ -12,13 +12,13 @@ namespace SharpNetTests.GPU
     [TestFixture]
     public class KernelManagerTests
     {
-        private readonly GPUWrapper _gpuWrapper = GPUWrapper.Default;
+        private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
         private readonly Random _rand = new Random(0);
 
         [Test]
         public void KernelManagerTest()
         {
-            var km = new KernelManager(_gpuWrapper);
+            var km = new KernelManager(GpuWrapper);
             var size = 1 << 20;
             var shape = new[] { 1, size, 1, 1 };
             var aCpu = RandomTensor(shape, "aCpu");
@@ -30,16 +30,16 @@ namespace SharpNetTests.GPU
             }
 
             //GPU double precision test
-            Tensor a = aCpu.ToGPU<double>(_gpuWrapper);
-            Tensor b = bCpu.ToGPU<double>(_gpuWrapper);
-            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", _gpuWrapper);
+            Tensor a = aCpu.ToGPU<double>(GpuWrapper);
+            Tensor b = bCpu.ToGPU<double>(GpuWrapper);
+            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", GpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
             Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-9));
 
             //GPU single precision test
-            a = aCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
-            b = bCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
-            resultGpu = new GPUTensor<float>(shape, "resultGpu", _gpuWrapper);
+            a = aCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
+            b = bCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
+            resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
             Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-2));
         }
@@ -64,7 +64,7 @@ namespace SharpNetTests.GPU
         [Test, Explicit]
         public void BenchmarkTest()
         {
-            var km = new KernelManager(_gpuWrapper);
+            var km = new KernelManager(GpuWrapper);
 
             int size = 1<<20;
             var shape = new [] {1, size, 1, 1};
@@ -84,18 +84,18 @@ namespace SharpNetTests.GPU
             }
             Console.WriteLine("1 CPU Double Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu)) + "ms");
             Console.WriteLine("8 CPU Double Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu * 8)) + "ms");
-            Tensor a = aCpu.ToGPU<double>(_gpuWrapper);
-            Tensor b = bCpu.ToGPU<double>(_gpuWrapper);
-            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", _gpuWrapper);
+            Tensor a = aCpu.ToGPU<double>(GpuWrapper);
+            Tensor b = bCpu.ToGPU<double>(GpuWrapper);
+            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", GpuWrapper);
             sw = Stopwatch.StartNew();
             for (int batchid = 0; batchid < nbBatchGPU; ++batchid)
             {
                 km.RunKernel("Sum", resultGpu.Count, new object[] {a, b, resultGpu});
             }
             Console.WriteLine("1 GPU Double Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
-            a = aCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
-            b = bCpu.ToSinglePrecision().ToGPU<float>(_gpuWrapper);
-            resultGpu = new GPUTensor<float>(shape, "resultGpu", _gpuWrapper);
+            a = aCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
+            b = bCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
+            resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
             sw = Stopwatch.StartNew();
             for (int batchid = 0; batchid < nbBatchGPU; ++batchid)
             {

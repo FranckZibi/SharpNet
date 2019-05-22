@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using SharpNet.Data;
 
 namespace SharpNet
@@ -8,7 +9,6 @@ namespace SharpNet
     {
         #region fields
         public override Tensor y { get; protected set; }        // (batchSize, C, H, W)
-        public override Tensor dy { get; protected set; }       // same as 'y'
         private readonly double _dropProbability;
         private Tensor _dropOutMaskBufferForCpuOnly;            //only needed for CPU computation, should be null for GPU
         private readonly Random _dropOutRandomForCpuOnly = new Random(0);
@@ -18,21 +18,29 @@ namespace SharpNet
         {
             _dropProbability = dropProbability;
         }
+
+        public override Layer Clone(Network newNetwork) { return new DropoutLayer(this, newNetwork); }
+        private DropoutLayer(DropoutLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            _dropProbability = toClone._dropProbability;
+            _dropOutMaskBufferForCpuOnly = toClone._dropOutMaskBufferForCpuOnly?.Clone(newNetwork.GpuWrapper);
+        }
+
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
-            if (!Network.Config.UseGPU)
+            Allocate_y_if_necessary();
+            if (!Network.UseGPU)
             {
                 _dropOutMaskBufferForCpuOnly = Network.NewNotInitializedTensor(y.Shape, _dropOutMaskBufferForCpuOnly, "_DropOutMaskBufferForCpuOnly");
             }
             var x = PrevLayer.y;
             x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropOutMaskBufferForCpuOnly);
         }
-        public override void BackwardPropagation(Tensor dx)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
-            //At this stage, we already know dy, we want to compute dx
+            Debug.Assert(dx.Count == 1);
             var x = PrevLayer.y;
-            x.DropoutBackward(dy, dx, _dropProbability, _dropOutMaskBufferForCpuOnly);
+            x.DropoutBackward(dy, dx[0], _dropProbability, _dropOutMaskBufferForCpuOnly);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {

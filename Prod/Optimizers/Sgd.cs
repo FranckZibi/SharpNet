@@ -53,6 +53,15 @@ namespace SharpNet.Optimizers
                 .Add(_velocityWeight).Add(_velocityBias)
                 .ToString();
         }
+
+        public override Optimizer Clone(Network newNetwork) { return new Sgd(this, newNetwork); }
+        private Sgd(Sgd toClone, Network newNetwork) : base(newNetwork.Config)
+        {
+            _iterations = toClone._iterations;
+            _velocityWeight = toClone._velocityWeight?.Clone(newNetwork.GpuWrapper);
+            _velocityBias = toClone._velocityBias?.Clone(newNetwork.GpuWrapper);
+        }
+
         private Sgd(NetworkConfig networkConfig, IDictionary<string, object> serialized) : base(networkConfig)
         {
             serialized.TryGet(nameof(_iterations), out _iterations);

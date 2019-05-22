@@ -5,6 +5,7 @@ using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Pictures;
 using SharpNetTests.Data;
 // ReSharper disable UnusedMember.Local
 
@@ -21,8 +22,8 @@ namespace SharpNetTests.NonReg
         public const string Y_1_1_4_4 = @"numpy.array([[1,0,0]], numpy.float)";
         //public const string X_1_1_2_2 = @"numpy.array([[[[0.7262433, 0.8173254],[0.2060332, 0.5588848]]]], numpy.float)";
         //public const string Y_1_1_2_2 = @"numpy.array([[1,0,0]], numpy.float)";
-        //private const string X_1_1_2_1 = @"numpy.array([[[[0.7262433],[0.2060332]]]], numpy.float)";
-        //private const string Y_1_1_2_1 = @"numpy.array([[1,0]], numpy.float)";
+        private const string X_1_1_2_1 = @"numpy.array([[[[0.7262433],[0.2060332]]]], numpy.float)";
+        private const string Y_1_1_2_1 = @"numpy.array([[1,0]], numpy.float)";
         private const string W_N_1_4_4 = "[[0.22065729, -0.11788255, -0.4187895],[0.32060236, -0.44626778, 0.24227637],[-0.46897227, 0.5059137, 0.4339162],[-0.02144825, -0.04082066, -0.09005189],[0.28492624, -0.28046286, -0.18176123],[-0.1717251, -0.55430335, -0.28846815],[0.29476583, -0.3019745, 0.03277987],[0.41012663, 0.09135884, 0.2522431],[-0.40020466, -0.2832676, 0.2568243],[0.47819465, 0.06466031, 0.45569366],[0.4343483, -0.30980763, -0.01376414],[0.09202623, -0.02883267, 0.19485158],[-0.5382978, -0.5129023, 0.47553152],[0.15798962, 0.43635488, 0.4626748],[-0.47213712, 0.17086667, -0.03163177],[0.01544881, 0.26190037, 0.38539213]]";
 
         [Test]
@@ -435,8 +436,8 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow()
         {
-            const int numEpochs = 10;
-            const double learningRate = 0.1;
+            const int numEpochs = 1;
+            const double learningRate = 1.0;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
@@ -449,14 +450,17 @@ namespace SharpNetTests.NonReg
             //1_1_2_2
             //var X = FromNumpyArray(X_1_1_2_2, "X_train");var Y = FromNumpyArray(Y_1_1_2_2, "Y_train");
             //1_1_2_1
-            //var X = FromNumpyArray(X_1_1_2_1, "X_train"); var Y = FromNumpyArray(Y_1_1_2_1, "Y_train");
+            var X = FromNumpyArray(X_1_1_2_1, "X_train"); var Y = FromNumpyArray(Y_1_1_2_1, "Y_train");
             //1_1_1_1
-            var X = FromNumpyArray("[[[[1.0]]]]", "X_train");var Y = FromNumpyArray("[[1, 0]]", "Y_train");
+            //var X = FromNumpyArray("[[[[1.0]]]]", "X_train");var Y = FromNumpyArray("[[1, 0]]", "Y_train");
 
             int batchSize = X.Shape[0];
-            var network = new Network(new NetworkConfig(false) { Logger = logger, UseDoublePrecision = false, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, RandomizeOrder = false }
+            var gpuDeviceId = -1;
+            var network = new Network(new NetworkConfig{ Logger = logger, UseDoublePrecision = false, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, RandomizeOrder = false }
                        //.WithAdam(0.9,0.999)
                        .WithSGD(momentum, false)
+                        ,ImageDataGenerator.NoDataAugmentation, 
+                        gpuDeviceId
                 );
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, 0, lambdaL2Regularization, true)
@@ -479,8 +483,7 @@ namespace SharpNetTests.NonReg
             //.AddConvolution(3, 3, 1, 1)
             //.AddPooling(2, 2)
             //.AddDense(2, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)5
-            network.Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
-                ;
+            network.Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
 
             logger.Info(network.Summary() + Environment.NewLine);
@@ -491,7 +494,11 @@ namespace SharpNetTests.NonReg
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Convolution);
             w = FromNumpyArray("[[[[-1.0248963]]]]", "Convolution2");
             w.CopyTo(((ConvolutionLayer)network.Layers[2]).Convolution);
-            w = FromNumpyArray("[[-0.2765898 ,  0.26417303],[0.8351141, -1.053136]]", "Dense");
+            //w = FromNumpyArray("[[-0.0935044 ,  0.08930674,  0.2823201 ],[-0.35602492,  0.11951789, -0.09273729],[ 0.1940693 ,  0.02401561, -0.24284391],[-0.02394128,  0.07824224, -0.38054535],[ 0.32493195, -0.35884738, -0.38189083],[ 0.29424062,  0.04143113, -0.40191767],[-0.05293348,  0.19875017, -0.3346681 ],[ 0.03057194, -0.3735914 , -0.0674623 ],[ 0.3880823 , -0.09871182, -0.17574972],[-0.29038104,  0.25778064, -0.12032074],[ 0.11203721, -0.10517201,  0.3708817 ],[-0.1527186 ,  0.21801105, -0.26964042],[-0.31762403,  0.38830027, -0.3753271 ],[ 0.2077305 ,  0.0135166 , -0.18412004],[-0.35179925, -0.19563204,  0.27091482],[ 0.23023447,  0.01704031, -0.13919547],[-0.23399019, -0.26903233, -0.13446775],[-0.05098614, -0.3045844 , -0.07806098],[-0.13110533,  0.40553764,  0.23116526],[-0.12380904, -0.1990231 ,  0.16275999],[-0.3359664 , -0.10431516, -0.04660624],[ 0.20998248,  0.36364272,  0.10899469],[-0.32446536,  0.08360443,  0.2051796 ],[ 0.3240768 ,  0.33368257, -0.2362173 ],[-0.10315731, -0.37046236, -0.05063343],[-0.07400975,  0.33962646,  0.08680078],[-0.24701846,  0.38117084, -0.40346375],[-0.22841114, -0.2256576 ,  0.01416683],[-0.14235109, -0.1011408 ,  0.06660545],[-0.386455  , -0.29496735, -0.00108448],[ 0.36282876,  0.07580084, -0.21415901],[ 0.3094258 ,  0.23421249, -0.1189253 ]]", "Dense");
+            w = FromNumpyArray("[[-0.22583461,  0.21569633],[ 0.68186784, -0.8598819 ],[ 0.28866315, -0.22398186],[ 0.46872187,  0.05800319]]", "Dense");
+            //w = FromNumpyArray("[[-0.2765898 ,  0.26417303],[ 0.8351141 , -1.053136  ]]", "Dense");
+
+                
             //w = FromNumpyArray("[[-0.4380005 ,  0.87558043]],", "Dense");
             w.CopyTo(((DenseLayer)network.Layers[5]).Weights);
             //w = FromNumpyArray("[[ 0.32856905,  0.1894297 ,  0.4066078 ],[-0.43956745, 0.52707547, -0.20674482],[0.31645727, -0.31735897, -0.38774815],[-0.15041429, 0.02662414, -0.3353554],[0.22785252, 0.538137, 0.03771406],[-0.35584196, -0.04203749, 0.46805507],[0.22338176, -0.34921265, 0.51070255],[-0.05367857, 0.31961358, -0.46928698],[-0.20997655, 0.03387326, 0.39165902],[-0.28344244, 0.3322929, 0.17337584],[0.01335454, 0.37127644, -0.52875155],[0.09800142, 0.21306825, 0.31867707],[0.35722166, 0.34757876, 0.0046258],[-0.12657085, 0.43093973, -0.27573565],[-0.41127366, 0.11429685, 0.06350583],[-0.09927812, -0.04027134, 0.16407043]]", "WeightsDense");
@@ -526,7 +533,8 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction)
         {
-            return new Network(new NetworkConfig(false) { Logger = Logger.NullLogger, UseDoublePrecision = false, LossFunction = lossFunction, RandomizeOrder = false, ForceTensorflowCompatibilityMode = true});
+            var gpuDeviceId = -1;
+            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, UseDoublePrecision = false, LossFunction = lossFunction, RandomizeOrder = false, ForceTensorflowCompatibilityMode = true}, ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {

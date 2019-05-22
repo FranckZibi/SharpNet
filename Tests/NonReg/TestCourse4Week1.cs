@@ -7,6 +7,7 @@ using HDF5DotNet;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.GPU;
+using SharpNet.Pictures;
 
 namespace SharpNetTests.NonReg
 {
@@ -29,10 +30,8 @@ namespace SharpNetTests.NonReg
 
             var logger = new Logger(LogFileName, true);
 
-
-            bool useGPU = true;
-            var network =
-                new Network(new NetworkConfig(useGPU) {Logger = logger, UseDoublePrecision = false}.WithAdam());
+            var gpuDeviceId = 0;
+            var network = new Network(new NetworkConfig() {Logger = logger, UseDoublePrecision = false}.WithAdam(), ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
             var relu = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
             double lambdaL2Regularization = 0.0;
             network

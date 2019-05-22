@@ -20,7 +20,7 @@ namespace SharpNet
         /// <param name="compression"> 1.0 = no compression</param>
         /// <param name="dropProbability"></param>
         /// <returns></returns>
-        public Network DenseNet(int[] xShape, int nbCategories,
+        public void AddDenseNet(int[] xShape, int nbCategories,
             bool subsampleInitialBlock,
             int[] nbConvBlocksInEachDenseBlock,
             bool useBottleneckInEachConvBlock,
@@ -60,10 +60,9 @@ namespace SharpNet
                 .BatchNorm()
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
-                //!D check if lambdaL2Regularization should be 0
-                .Dense(nbCategories, 0.0)
+                //.Dense(nbCategories, 0.0) //!D check if lambdaL2Regularization should be 0
+                .Dense(nbCategories, Config.lambdaL2Regularization)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
-            return this;
         }
 
         /// <summary>

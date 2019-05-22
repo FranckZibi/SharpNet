@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using SharpNet.Data;
-using SharpNet.GPU;
 using SharpNet.Optimizers;
 
 namespace SharpNet
@@ -12,7 +11,6 @@ namespace SharpNet
     {
         #region fields
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
-        public GPUWrapper GpuWrapper { get; private set; }
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
         public double Adam_epsilon { get; private set; }
@@ -48,22 +46,21 @@ namespace SharpNet
         public int AutoSaveIntervalInMinuts { get; set; } = 10;
         public bool SaveNetworkStatsAfterEachEpoch { get; set; }
         public bool SaveLossAfterEachMiniBatch { get; set; }
+        public bool UseGPU2 { get; set;}
 
         public string LogDirectory { get; } = DefaultLogDirectory;
 
-        public static string DefaultLogDirectory => Path.Combine(Path.GetTempPath(), "SharpNet");
+        public static string DefaultLogDirectory => Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "SharpNet");
+
+        
+        
+
 
         #endregion
 
-        public NetworkConfig(bool useGPU = true)
+        public NetworkConfig()
         {
-            UseGPU = useGPU;
             Rand = new Random(0);
-        }
-        public bool UseGPU
-        {
-            get => GpuWrapper != null;
-            set => GpuWrapper = value ? GPUWrapper.Default : null;
         }
 
         public int TypeSize => UseDoublePrecision ? 8 : 4;
@@ -130,7 +127,6 @@ namespace SharpNet
                 .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts)
                 .Add(nameof(SaveNetworkStatsAfterEachEpoch), SaveNetworkStatsAfterEachEpoch)
                 .Add(nameof(SaveLossAfterEachMiniBatch), SaveLossAfterEachMiniBatch)
-                .Add(nameof(UseGPU), UseGPU)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
                 .Add(Logger.Serialize())
                 .ToString();
@@ -158,9 +154,7 @@ namespace SharpNet
             AutoSaveIntervalInMinuts = (int)serialized[nameof(AutoSaveIntervalInMinuts)];
             SaveNetworkStatsAfterEachEpoch = (bool)serialized[nameof(SaveNetworkStatsAfterEachEpoch)];
             SaveLossAfterEachMiniBatch = (bool)serialized[nameof(SaveLossAfterEachMiniBatch)];
-            var useGPU = (bool)serialized[nameof(UseGPU)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
-            GpuWrapper = useGPU ? GPUWrapper.Default : null;
             Logger = Logger.ValueOf(serialized);
             Rand = new Random(0);
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using SharpNet.Data;
+using SharpNet.GPU;
 
 namespace SharpNet.Optimizers
 {
@@ -51,5 +52,7 @@ namespace SharpNet.Optimizers
         {
             return learningRate / batchSize;
         }
+
+        public abstract Optimizer Clone(Network newNetwork);
     }
 }

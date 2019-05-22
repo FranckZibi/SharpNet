@@ -10,6 +10,8 @@ namespace SharpNet.GPU
 
     public class GPUWrapper : IDisposable
     {
+        public int DeviceId { get; }
+
         #region Private fields
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
         private readonly IntPtr _deviceHandle;
@@ -32,7 +34,6 @@ namespace SharpNet.GPU
         private ulong _bytesCopiedToHost;
         private DeviceMemory _lazyStorageBuffer;
         #endregion
-        public static readonly GPUWrapper Default = new GPUWrapper(0);
         #region readonly properties
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
@@ -43,9 +44,24 @@ namespace SharpNet.GPU
         public Stopwatch SwCopyToDevice { get; } = new Stopwatch();
         public Stopwatch SwCopyToHost { get; } = new Stopwatch();
 
+        private static IDictionary<int, GPUWrapper> _cache = new Dictionary<int, GPUWrapper>();
+
+        public static GPUWrapper FromDeviceId(int deviceId)
+        {
+            lock (_cache)
+            {
+                if (!_cache.ContainsKey(deviceId))
+                {
+                    _cache[deviceId] = new GPUWrapper(deviceId);
+                }
+                return _cache[deviceId];
+            }
+        }
+
 
         private GPUWrapper(int deviceId)
         {
+            DeviceId = deviceId;
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
 
@@ -207,11 +223,11 @@ namespace SharpNet.GPU
         }
         public string DeviceName()
         {
-            return _deviceName + " " + _driverVersion;
+            return _deviceName + " " + _driverVersion+ " (deviceId:"+DeviceId+")";
         }
         public override string ToString()
         {
-            return _deviceName+" "+_driverVersion+" - "+MemoryInfo();
+            return DeviceName() + " - "+MemoryInfo();
         }
         public string MemoryInfo()
         {
@@ -345,7 +361,7 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        private static int GetDeviceCount()
+        public static int GetDeviceCount()
         {
             var res = NVCudaWrapper.cuDeviceGetCount(out int deviceCount);
             if (res == CUresult.CUDA_ERROR_NOT_INITIALIZED)

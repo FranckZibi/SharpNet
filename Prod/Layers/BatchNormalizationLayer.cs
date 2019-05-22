@@ -24,7 +24,6 @@ namespace SharpNet
         private readonly Optimizer _optimizer;                  //Adam or SGD optimizer or Vanilla SGF
         #endregion
         public override Tensor y { get; protected set; }        // (batchSize, C, H, W)
-        public override Tensor dy { get; protected set; }       // same as 'y'
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
         public BatchNormalizationLayer(double momentum, double epsilon, Network network) : base(network)
@@ -50,6 +49,24 @@ namespace SharpNet
                 Network.LogDebug(nbDisabledWeights + " weights (bias) disabled thanks to batchNorm layer " + SummaryName());
             }
         }
+
+        public override Layer Clone(Network newNetwork) { return new BatchNormalizationLayer(this, newNetwork); }
+        private BatchNormalizationLayer(BatchNormalizationLayer other, Network newNetwork) : base(other, newNetwork)
+        {
+            _momentum = other._momentum;
+            _epsilon = other._epsilon;
+            var scaleAndBiasShape = ScaleAndBiasShape();
+            _bnScale = other._bnScale?.Clone(newNetwork.GpuWrapper);
+            _resultBnScaleDiff = other._resultBnScaleDiff?.Clone(newNetwork.GpuWrapper);
+            _bnBias = other._bnBias?.Clone(newNetwork.GpuWrapper);
+            _resultBnBiasDiff = other._resultBnBiasDiff?.Clone(newNetwork.GpuWrapper);
+            _resultRunningMean = other._resultRunningMean?.Clone(newNetwork.GpuWrapper);
+            _resultRunningVariance = other._resultRunningVariance?.Clone(newNetwork.GpuWrapper);
+            _resultSaveMean = other._resultSaveMean?.Clone(newNetwork.GpuWrapper);
+            _resultSaveVariance = other._resultSaveVariance?.Clone(newNetwork.GpuWrapper);
+            _optimizer = other._optimizer?.Clone(newNetwork);
+        }
+
 
         public Tensor Weights => _bnScale;
         public Tensor WeightGradients => _resultBnScaleDiff;
@@ -111,14 +128,14 @@ namespace SharpNet
         }
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
+            Allocate_y_if_necessary();
             var x = PrevLayer.y;
             x.BatchNormalization(y, _bnScale, _bnBias, _momentum, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _resultSaveMean, _resultSaveVariance, isTraining);
         }
-        public override void BackwardPropagation(Tensor dx)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
             var x = PrevLayer.y;
-            x.BatchNormalizationBackward(dy, dx, _bnScale, _resultBnScaleDiff, _resultBnBiasDiff, LayerBatchNormalizationMode(), _epsilon, _resultSaveMean, _resultSaveVariance);
+            x.BatchNormalizationBackward(dy, dx[0], _bnScale, _resultBnScaleDiff, _resultBnBiasDiff, LayerBatchNormalizationMode(), _epsilon, _resultSaveMean, _resultSaveVariance);
         }
         public override void UpdateWeights(double learningRate)
         {

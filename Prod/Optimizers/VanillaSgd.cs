@@ -8,6 +8,9 @@ namespace SharpNet.Optimizers
     {
         private VanillaSgd() : base(null) {}
         public static readonly VanillaSgd Instance = new VanillaSgd();
+
+        public override Optimizer Clone(Network newNetwork) { return Instance; }
+
         public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradients)
         {
             Debug.Assert(weights.SameShape(weightGradients));

@@ -56,14 +56,10 @@ namespace SharpNet.GPU
         public void CopyToDevice(T[] data)
         {
             Debug.Assert(data.Length == Count);
-            Wrapper.SwCopyToDevice.Start();
             using (var m = new HostPinnedMemory<T>(data))
             {
-                Wrapper.LogCopyToDeviceCall(ReallyNeededMemoryInBytes);
-                var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, m.Pointer, ReallyNeededMemoryInBytes);
-                GPUWrapper.CheckStatus(res);
+                CopyToDevice(m.Pointer);
             }
-            Wrapper.SwCopyToDevice.Stop();
         }
         [SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
         public T[] DeviceContent()
@@ -260,6 +256,14 @@ namespace SharpNet.GPU
             var concat = this;
             Wrapper.RunKernel("Concatenate", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0});
         }
+
+        public override Tensor Clone(GPUWrapper gpuWrapper)
+        {
+            var result = new GPUTensor<T>((int[]) Shape.Clone(), Description, gpuWrapper);
+            result.CopyToDevice(DeviceContent());
+            return result;
+        }
+
         public override void Split(Tensor a, Tensor b)
         {
 #if DEBUG
@@ -605,16 +609,6 @@ namespace SharpNet.GPU
             var offset = ReallyNeededMemoryInBytesForShape(shape);
             shape[0] = nbRows;
             return new GPUTensor<T>(this, shape, (int)offset, Description);
-        }
-        public override void Reshape(int[] newShape)
-        {
-            if (Shape.SequenceEqual(newShape))
-            {
-                return;
-            }
-            Debug.Assert(ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes);
-            Shape = newShape;
-            RecomputeMultDim();
         }
         public override void ZeroMemory()
         {

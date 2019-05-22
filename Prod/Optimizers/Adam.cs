@@ -12,7 +12,6 @@ namespace SharpNet.Optimizers
     //The argument beta2 of Adam and the argument decay of RMSProp are the same
     public class Adam : Optimizer
     {
-     
         #region private fields
         private int _timestep = 1;
         private readonly Tensor _adam_VW;                      // same as 'Weights'
@@ -28,6 +27,16 @@ namespace SharpNet.Optimizers
             _adam_VB = (biasShapeIfAny == null) ? null : network.NewNotInitializedTensor(biasShapeIfAny, _adam_VB, nameof(_adam_VB));
             _adam_SB = (biasShapeIfAny == null) ? null : network.NewNotInitializedTensor(biasShapeIfAny, _adam_SB, nameof(_adam_SB));
             ZeroMemory();
+        }
+
+        public override Optimizer Clone(Network newNetwork) { return new Adam(this, newNetwork); }
+        private Adam(Adam toClone, Network newNetwork) : base(newNetwork.Config)
+        {
+            _timestep = toClone._timestep;
+            _adam_VW = toClone._adam_VW?.Clone(newNetwork.GpuWrapper);
+            _adam_SW = toClone._adam_SW?.Clone(newNetwork.GpuWrapper);
+            _adam_VB = toClone._adam_VB?.Clone(newNetwork.GpuWrapper);
+            _adam_SB = toClone._adam_SB?.Clone(newNetwork.GpuWrapper);
         }
 
         public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
@@ -13,7 +12,6 @@ namespace SharpNetTests.CPU
     [TestFixture]
     public class TestCpuTensor
     {
-        private readonly GPUWrapper _gpuWrapper = GPUWrapper.Default;
         [Test]
         public void TestEquals()
         {
@@ -122,16 +120,9 @@ namespace SharpNetTests.CPU
         }
         private void TestConvolution(CpuTensor<double> input, CpuTensor<double> convolution, int padding, int stride, CpuTensor<double> expectedOutput)
         {
-            var output = new CpuTensor<double>(Tensor.ConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
-            input.Convolution(convolution, padding, stride, output);
-            Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
-
-            //We make the same test for GPU (CUDA)
-            var convolutionGPU = convolution.ToGPU<double>(_gpuWrapper);
-            var outputGPU = output.ToGPU<double>(_gpuWrapper);
-            var inputGPU = input.ToGPU<double>(_gpuWrapper);
-            inputGPU.Convolution(convolutionGPU, padding, stride, outputGPU);
-            Assert.IsTrue(TestTensor.SameContent(expectedOutput,outputGPU, 1e-6));
+            var outputCPU = new CpuTensor<double>(Tensor.ConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
+            input.Convolution(convolution, padding, stride, outputCPU);
+            Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }
         public static CpuTensor<double> RandomOneHotTensor(int[] shape, Random rand, string description)
         {

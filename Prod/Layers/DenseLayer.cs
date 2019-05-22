@@ -14,9 +14,11 @@ namespace SharpNet
         public Tensor Bias { get; private set; }            // (1, n_x) 
         public Tensor BiasGradients { get; private set; }   // same as 'Bias'
         public override Tensor y { get; protected set; }    // (batchSize, n_x)
-        public override Tensor dy { get; protected set; }   // same as 'y'
         private readonly int _n_x;
-        private readonly double _lambdaL2Regularization;              //regularization hyperparameter. 0 if no L2 regularization
+        /// <summary>
+        /// regularization hyper parameter. 0 if no L2 regularization
+        /// </summary>
+        private readonly double _lambdaL2Regularization;              
         private bool UseBias => Bias!=null;
         private readonly Optimizer _optimizer;              //Adam or SGD optimizer or Vanilla SGF
         #endregion
@@ -35,6 +37,18 @@ namespace SharpNet
             ResetWeights(false);
             Debug.Assert(WeightGradients.SameShape(Weights));
             Debug.Assert(Bias.SameShape(BiasGradients));
+        }
+
+        public override Layer Clone(Network newNetwork) { return new DenseLayer(this, newNetwork); }
+        private DenseLayer(DenseLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            _n_x = toClone.n_x;
+            _lambdaL2Regularization = toClone._lambdaL2Regularization;
+            Weights = toClone.Weights?.Clone(newNetwork.GpuWrapper);
+            WeightGradients = toClone.WeightGradients?.Clone(newNetwork.GpuWrapper);
+            Bias = toClone.Bias?.Clone(newNetwork.GpuWrapper);
+            BiasGradients = toClone.BiasGradients?.Clone(newNetwork.GpuWrapper);
+            _optimizer = toClone._optimizer?.Clone(newNetwork);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -73,7 +87,7 @@ namespace SharpNet
         #endregion
         public override void ForwardPropagation(bool isTraining)
         {
-            Allocate_y_dy_if_necessary();
+            Allocate_y_if_necessary();
             var x = PrevLayer.y;
             //We compute y = x*Weights+B
             y.Dot(x, Weights);
@@ -83,8 +97,9 @@ namespace SharpNet
             }
         }
 
-        public override void BackwardPropagation(Tensor dx)
+        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(dx.Count == 1);
             int batchSize = y.Shape[0];
             Debug.Assert(y.SameShape(dy));
 
@@ -116,7 +131,7 @@ namespace SharpNet
             }
 
             // we compute dx = dy * Weights.T
-            dx.Dot(dy, false, Weights, true, 1.0, 0.0);
+            dx[0].Dot(dy, false, Weights, true, 1.0, 0.0);
         }
         public override void UpdateWeights(double learningRate)
         {

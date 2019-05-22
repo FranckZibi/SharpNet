@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using SharpNet.CPU;
@@ -12,7 +11,7 @@ namespace SharpNetTests.Data
     [TestFixture]
     public class TestTensor
     {
-        private readonly GPUWrapper _gpuWrapper = GPUWrapper.Default;
+        private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
 
         [Test]
@@ -25,9 +24,9 @@ namespace SharpNetTests.Data
             var aSerialized = new Serializer().Add(a).ToString();
             var aDeserialized = (Tensor)Serializer.Deserialize(aSerialized, null)["a"];
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-9));
-            Tensor aGpu = a.ToGPU<double>(_gpuWrapper);
+            Tensor aGpu = a.ToGPU<double>(GpuWrapper);
             var aGpuSerialized = new Serializer().Add(aGpu).ToString();
-            var aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, _gpuWrapper)["a"];
+            var aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["a"];
             Assert.IsTrue(SameContent(aGpu, aGpuDeserialized, 1e-9));
 
             //float test
@@ -35,11 +34,34 @@ namespace SharpNetTests.Data
             aSerialized = new Serializer().Add(a).ToString();
             aDeserialized = (Tensor)Serializer.Deserialize(aSerialized, null)["a"];
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-5));
-            aGpu = a.ToGPU<float>(_gpuWrapper);
+            aGpu = a.ToGPU<float>(GpuWrapper);
             aGpuSerialized = new Serializer().Add(aGpu).ToString();
-            aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, _gpuWrapper)["a"];
+            aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["a"];
             Assert.IsTrue(SameContent(aGpu,aGpuDeserialized, 1e-5));
         }
+
+        [Test]
+        public void TestClone()
+        {
+            //double test
+            var shape = new[] { 10, 5 };
+            var rand = new Random(0);
+            Tensor a = TestCpuTensor.RandomDoubleTensor(shape, rand, -1.5, +1.5, "a");
+            var aCloned = a.Clone(null);
+            Assert.IsTrue(SameContent(a, aCloned, 1e-9));
+            Tensor aGpu = a.ToGPU<double>(GpuWrapper);
+            aCloned = aGpu.Clone(GpuWrapper);
+            Assert.IsTrue(SameContent(aGpu, aCloned, 1e-9));
+
+            //float test
+            a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
+            aCloned = a.Clone(null);
+            Assert.IsTrue(SameContent(a, aCloned, 1e-5));
+            aGpu = a.ToGPU<float>(GpuWrapper);
+            aCloned = aGpu.Clone(GpuWrapper);
+            Assert.IsTrue(SameContent(aGpu, aCloned, 1e-5));
+        }
+
 
 
         [Test]
