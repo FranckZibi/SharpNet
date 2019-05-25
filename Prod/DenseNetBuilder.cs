@@ -1,5 +1,4 @@
 ﻿using SharpNet.Datasets;
-using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
 /*
@@ -36,6 +35,15 @@ namespace SharpNet
                 lambdaL2Regularization = 1e-4
             };
             Config.WithSGD(0.9, true);
+            NumEpochs = 300;
+            BatchSize = 64;
+            InitialLearningRate = 0.1;
+            CutoutPatchlength = 16;
+            WidthShiftRange = 0.1;
+            HeightShiftRange = 0.1;
+            HorizontalFlip = true;
+            VerticalFlip = false;
+            FillMode = ImageDataGenerator.FillModeEnum.Reflect;
         }
 
         public Network DenseNet_Fast_CIFAR10()
@@ -113,48 +121,7 @@ namespace SharpNet
             return network;
         }
 
-        public bool DivideBy10OnPlateau { get; set; } = true;
-        public bool DisableLogging { get; set; }
-        //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
-        public int OneCycleDividerForMinLearningRate { get; set; } = 10;
-        public double OneCyclePercentInAnnealing { get; set; } = 0.2;
-        public bool OneCycleLearningRate { get; set; } = false;
-        public override int NumEpochs { get; set; } = 300;
-        public override int BatchSize { get; set; } = 64;
-        public double InitialLearningRate { get; set; } = 0.1;
 
-        #region Data Augmentation
-        public int CutoutPatchlength { get; set; } = 16;
-        public double WidthShiftRange { get; set; } = 0.1;
-        public double HeightShiftRange { get; set; } = 0.1;
-        public bool HorizontalFlip { get; set; } = true;
-        public bool VerticalFlip { get; set; } = false;
-        public ImageDataGenerator.FillModeEnum FillMode { get; set; } = ImageDataGenerator.FillModeEnum.Reflect;
-
-        protected override ImageDataGenerator DataGenerator()
-        {
-            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchlength);
-        }
-        #endregion
-
-
-        public override ReduceLROnPlateau Cifar10ReduceLROnPlateau()
-        {
-            return null;
-            /*
-            if (OneCycleLearningRate)
-            {
-                return null;
-            }
-            var factorForReduceLrOnPlateau = DivideBy10OnPlateau ? 0.1 : System.Math.Sqrt(0.1);
-            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);*/
-        }
-
-        public override ILearningRateScheduler Cifar10LearningRateScheduler()
-        {
-            //return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate, NumEpochs/2, InitialLearningRate / 10, (3* NumEpochs)/4, InitialLearningRate / 100);
-            return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate, 150, InitialLearningRate / 10, 225, InitialLearningRate / 100);
-        }
 
     }
 }

@@ -136,6 +136,39 @@ namespace SharpNet
             }
             return bytes + "B";
         }
+
+        //!D TODO Add tests
+        public static double Interpolate(List<Tuple<double,double>> values, double x, bool constantByInterval = false)
+        {
+            if (values.Count == 1)
+            {
+                return values[0].Item2;
+            }
+            for (int i = 0; i < values.Count; ++i)
+            {
+                var x2 = values[i].Item1;
+                if (x > x2)
+                {
+                    continue;
+                }
+                var y2 = values[i].Item2;
+                if ((Math.Abs(x2 - x) < 1e-9) || i == 0)
+                {
+                    return y2;
+                }
+                Debug.Assert(x < x2);
+                var x1 = values[i - 1].Item1;
+                Debug.Assert(x > x1);
+                var y1 = values[i - 1].Item2;
+                if (constantByInterval)
+                {
+                    return y1;
+                }
+                return Utils.Interpolate(x1, y1, x2, y2, x);
+            }
+            return values.Last().Item2;
+        }
+
         public static double Interpolate(double x1, double y1, double x2, double y2, double xToInterpolate)
         {
             double dEpoch = (xToInterpolate - x1) / (x2 - x1);
@@ -209,8 +242,6 @@ namespace SharpNet
             }
             return result;
         }
-
-        //TODO :add tests
         public static bool TryGet<T>(this IDictionary<string, object> serialized, string key, out T value)
         {
             if (serialized.TryGetValue(key, out var resAsObject))

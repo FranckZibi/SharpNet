@@ -10,6 +10,19 @@ namespace SharpNet
     public class NetworkConfig
     {
         #region fields
+
+        #region learning rate scheduler fields
+        public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, SGDR}
+        public LearningRateSchedulerEnum LearningRateSchedulerType { get; set; } = LearningRateSchedulerEnum.Cifar10ResNet;
+        public int SGDR_nbEpochsInFirstRun { get; private set; } = 10;
+        public int SGDR_nbEpochInNextRunMultiplier { get; private set; } = 2;
+        //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
+        public int OneCycle_DividerForMinLearningRate { get; set; } = 10;
+        public double OneCycle_PercentInAnnealing { get; set; } = 0.2;
+        public bool DivideBy10OnPlateau { get; set; } = true; // 'true' : validated on 19-apr-2019: +20 bps
+        public bool LinearLearningRate { get; set; } = false;
+        #endregion
+
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
@@ -31,7 +44,7 @@ namespace SharpNet
         /// </summary>
         public bool ForceTensorflowCompatibilityMode { get; set; }
         /// <summary>
-        /// true if we want t display statiistics about the wieghts tensors.
+        /// true if we want t display statistics about the weights tensors.
         /// Used only for debugging 
         /// </summary>
         public bool DisplayTensorContentStats{ get; set; }
@@ -43,19 +56,11 @@ namespace SharpNet
         /// If == 0
         ///     => the network will be saved after each iteration
         /// </summary>
-        public int AutoSaveIntervalInMinuts { get; set; } = 10;
+        public int AutoSaveIntervalInMinuts { get; set; } = 60;
         public bool SaveNetworkStatsAfterEachEpoch { get; set; }
         public bool SaveLossAfterEachMiniBatch { get; set; }
-        public bool UseGPU2 { get; set;}
-
         public string LogDirectory { get; } = DefaultLogDirectory;
-
-        public static string DefaultLogDirectory => Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "SharpNet");
-
-        
-        
-
-
+        public static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet");
         #endregion
 
         public NetworkConfig()
@@ -93,13 +98,24 @@ namespace SharpNet
         {
             var equals = true;
             equals &= Utils.Equals(LossFunction, other.LossFunction, id + ":LossFunction", ref errors);
+
             equals &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id + ":Adam_beta1", ref errors);
             equals &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + ":Adam_beta2", ref errors);
             equals &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + ":Adam_epsilon", ref errors);
+
             equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + ":SGD_momentum", ref errors);
+            equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
+
+            equals &= Utils.Equals((int)LearningRateSchedulerType, (int)other.LearningRateSchedulerType, id + ":LearningRateSchedulerType", ref errors);
+            equals &= Utils.Equals(SGDR_nbEpochsInFirstRun, other.SGDR_nbEpochsInFirstRun, epsilon, id + ":SGDR_nbEpochsInFirstRun", ref errors);
+            equals &= Utils.Equals(SGDR_nbEpochInNextRunMultiplier, other.SGDR_nbEpochInNextRunMultiplier, epsilon, id + ":SGDR_nbEpochInNextRunMultiplier", ref errors);
+            equals &= Utils.Equals(OneCycle_DividerForMinLearningRate, other.OneCycle_DividerForMinLearningRate, id + ":OneCycle_DividerForMinLearningRate", ref errors);
+            equals &= Utils.Equals(OneCycle_PercentInAnnealing, other.OneCycle_PercentInAnnealing, epsilon, id + ":OneCycle_PercentInAnnealing", ref errors);
+            equals &= Utils.Equals(DivideBy10OnPlateau, other.DivideBy10OnPlateau, id + ":DivideBy10OnPlateau", ref errors);
+            equals &= Utils.Equals(LinearLearningRate, other.LinearLearningRate, id + ":LinearLearningRate", ref errors);
+
             equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + ":lambdaL2Regularization", ref errors);
             equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
-            equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
             equals &= Utils.Equals(UseDoublePrecision, other.UseDoublePrecision, id + ":UseDoublePrecision", ref errors);
             equals &= Utils.Equals(ForceTensorflowCompatibilityMode, other.ForceTensorflowCompatibilityMode, id + ":ForceTensorflowCompatibilityMode", ref errors);
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
@@ -110,13 +126,84 @@ namespace SharpNet
             return equals;
         }
 
+
+        #region Learning Rate Scheduler
+        public NetworkConfig WithSGDRLearningRateScheduler(int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier)
+        {
+            LearningRateSchedulerType = LearningRateSchedulerEnum.SGDR;
+            SGDR_nbEpochsInFirstRun = nbEpochsInFirstRun;
+            SGDR_nbEpochInNextRunMultiplier = nbEpochInNextRunMultiplier;
+            return this;
+        }
+        public NetworkConfig WithOneCycleLearningRateScheduler(int dividerForMinLearningRate, double percentInAnnealing)
+        {
+            LearningRateSchedulerType = LearningRateSchedulerEnum.OneCycle;
+            OneCycle_DividerForMinLearningRate = dividerForMinLearningRate;
+            OneCycle_PercentInAnnealing = percentInAnnealing;
+            return this;
+        }
+        public NetworkConfig WithCifar10ResNetLearningRateScheduler(bool divideBy10OnPlateau = true, bool linearLearningRate = false)
+        {
+            LearningRateSchedulerType = LearningRateSchedulerEnum.Cifar10ResNet;
+            DivideBy10OnPlateau = divideBy10OnPlateau;
+            LinearLearningRate = linearLearningRate;
+            return this;
+        }
+        public NetworkConfig WithCifar10DenseNetLearningRateScheduler(bool divideBy10OnPlateau = true, bool linearLearningRate = false)
+        {
+            LearningRateSchedulerType = LearningRateSchedulerEnum.Cifar10DenseNet;
+            DivideBy10OnPlateau = divideBy10OnPlateau;
+            LinearLearningRate = linearLearningRate;
+            return this;
+        }
+        public ILearningRateScheduler GetLearningRateScheduler(double initialLearningRate, int numEpochs)
+        {
+            switch (LearningRateSchedulerType)
+            {
+                case LearningRateSchedulerEnum.OneCycle:
+                    return new OneCycleLearningRateScheduler(initialLearningRate, OneCycle_DividerForMinLearningRate, OneCycle_PercentInAnnealing, numEpochs);
+                case LearningRateSchedulerEnum.SGDR:
+                    return new SGDRLearningRateScheduler(initialLearningRate, SGDR_nbEpochsInFirstRun, SGDR_nbEpochInNextRunMultiplier, numEpochs);
+                case LearningRateSchedulerEnum.Cifar10DenseNet:
+                    return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 150, initialLearningRate / 10, 225, initialLearningRate / 100);
+                case LearningRateSchedulerEnum.Cifar10ResNet:
+                    return LinearLearningRate
+                        ? LearningRateScheduler.InterpolateByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 200, initialLearningRate / 100)
+                        : LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 200, initialLearningRate / 100);
+                default:
+                    throw new Exception("unknown LearningRateSchedulerType: "+ LearningRateSchedulerType);
+            }
+        }
+
+
+        public ReduceLROnPlateau ReduceLROnPlateau()
+        {
+            if (  (LearningRateSchedulerType == LearningRateSchedulerEnum.OneCycle) 
+                ||(LearningRateSchedulerType == LearningRateSchedulerEnum.SGDR)
+                ||(LearningRateSchedulerType == LearningRateSchedulerEnum.Cifar10DenseNet))
+            {
+                return null;
+            }
+            var factorForReduceLrOnPlateau = DivideBy10OnPlateau ? 0.1 : Math.Sqrt(0.1);
+            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
+        }
+        #endregion
+
         #region serialization
+        //TODO add tests
         public string Serialize()
         {
             return new Serializer()
                 .Add(nameof(LossFunction), (int)LossFunction).Add(nameof(OptimizerType), (int)OptimizerType)
                 .Add(nameof(Adam_beta1), Adam_beta1).Add(nameof(Adam_beta2), Adam_beta2).Add(nameof(Adam_epsilon), Adam_epsilon)
                 .Add(nameof(SGD_momentum), SGD_momentum).Add(nameof(SGD_usenesterov), SGD_usenesterov)
+
+                //learning rate scheduler fields
+                .Add(nameof(LearningRateSchedulerType), (int)LearningRateSchedulerType)
+                .Add(nameof(SGDR_nbEpochsInFirstRun), SGDR_nbEpochsInFirstRun).Add(nameof(SGDR_nbEpochInNextRunMultiplier), SGDR_nbEpochInNextRunMultiplier)
+                .Add(nameof(OneCycle_DividerForMinLearningRate), OneCycle_DividerForMinLearningRate).Add(nameof(OneCycle_PercentInAnnealing), OneCycle_PercentInAnnealing)
+                .Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau).Add(nameof(LinearLearningRate), LinearLearningRate)
+
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
                 .Add(nameof(UseDoublePrecision), UseDoublePrecision)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
@@ -138,13 +225,25 @@ namespace SharpNet
         private NetworkConfig(IDictionary<string, object> serialized)
         {
             LossFunction = (LossFunctionEnum)serialized[nameof(LossFunction)];
+
+            //optimizers fields
             OptimizerType = (Optimizer.OptimizationEnum)serialized[nameof(OptimizerType)];
             Adam_beta1 = (double)serialized[nameof(Adam_beta1)];
             Adam_beta2 = (double)serialized[nameof(Adam_beta2)];
             Adam_epsilon = (double)serialized[nameof(Adam_epsilon)];
             SGD_momentum= (double)serialized[nameof(SGD_momentum)];
-            lambdaL2Regularization = (double)serialized[nameof(lambdaL2Regularization)];
             SGD_usenesterov = (bool)serialized[nameof(SGD_usenesterov)];
+            lambdaL2Regularization = (double)serialized[nameof(lambdaL2Regularization)];
+
+            //learning rate scheduler fields
+            LearningRateSchedulerType = (LearningRateSchedulerEnum)serialized[nameof(LearningRateSchedulerType)];
+            SGDR_nbEpochsInFirstRun = (int)serialized[nameof(SGDR_nbEpochsInFirstRun)];
+            SGDR_nbEpochInNextRunMultiplier = (int)serialized[nameof(SGDR_nbEpochInNextRunMultiplier)];
+            OneCycle_DividerForMinLearningRate = (int)serialized[nameof(OneCycle_DividerForMinLearningRate)];
+            OneCycle_PercentInAnnealing = (double)serialized[nameof(OneCycle_PercentInAnnealing)];
+            DivideBy10OnPlateau = (bool)serialized[nameof(DivideBy10OnPlateau)];
+            LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
+
             UseDoublePrecision = (bool)serialized[nameof(UseDoublePrecision)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
             ForceTensorflowCompatibilityMode = (bool)serialized[nameof(ForceTensorflowCompatibilityMode)];

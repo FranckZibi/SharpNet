@@ -209,7 +209,7 @@ namespace SharpNet.Data
                 {
                     ++startIndex;
                     var desc = splitted[startIndex++];
-                    var data = splitted[startIndex++]; //!D TODO parse string to 'Type'
+                    var data = splitted[startIndex++];
                     result[desc] = data;
                 }
                 else if (string.Equals(type, "GPUTensor", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "CpuTensor", StringComparison.OrdinalIgnoreCase))

@@ -35,7 +35,6 @@ namespace SharpNet
         private Tensor _yPredictedBufferForMiniBatchGradientDescent;
         private Tensor bufferComputeAccuracy;
         private Tensor bufferComputeLoss;
-        private Tensor bufferOutputGradient;
         private readonly int _gpuDeviceId;
         private readonly List<EpochData> _epochsData;
         private readonly DateTime _timeStampCreation = DateTime.Now;
@@ -115,7 +114,6 @@ namespace SharpNet
             _epochsData.Clear();
             bufferComputeAccuracy?.Dispose();
             bufferComputeLoss?.Dispose();
-            bufferOutputGradient?.Dispose();
             _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
             Info("After clearing memory: " + GpuWrapper?.MemoryInfo());
             _backwardPropagationManager?.Dispose();
@@ -325,33 +323,15 @@ namespace SharpNet
             Debug.Assert(yPredicted != null);
             Debug.Assert(yExpected.SameShape(yPredicted));
 
-            //we compute: dyPredicted = 0.5*(yPredicted - yExpected)
-            //!D TODO : do the 2 following steps once
+            //we compute: dyPredicted = (1.0 / categoryCount)*(yPredicted - yExpected)
             var dyPredicted = _backwardPropagationManager.dyOfLastLayer;
             yPredicted.CopyTo(dyPredicted);
-            dyPredicted.Update_Adding_Alpha_X(-1.0, yExpected);
-
-            if (Layers.Last().IsSigmoidActivationLayer())
-            {
-                var categoryCount = yPredicted.Shape[1];
-                dyPredicted.Update_Multiplying_By_Alpha(1.0 / categoryCount);
-            }
-
+            var categoryCount = yPredicted.Shape[1];
+            var multiplier = Layers.Last().IsSigmoidActivationLayer()? (1.0 / categoryCount) :1.0;
+            dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
 
             _backwardPropagationManager.BackwardPropagation();
-            /*
-            Layers.ForEach(x=>x.dyHasBeenInitialized = false);
-            Layers.Last().dyHasBeenInitialized = true;
-
-            for (int i = Layers.Count - 1; i >= 1; --i)
-            {
-                var layer = Layers[i];
-                Debug.Assert(layer.dyHasBeenInitialized);
-                var dx = layer.Get_dx();
-                layer.BackwardPropagation(layer.dyField, dx);
-                layer.Flush_dx(dx);
-            }
-            _swBackwardPropagation?.Stop(); */
+            _swBackwardPropagation?.Stop();
         }
 
         public string Summary()
@@ -437,9 +417,9 @@ namespace SharpNet
         public int MaxMiniBatchSize()
         {
             var freeMemoryInBytes = UseGPU?GpuWrapper.FreeMemoryInBytes() : (ulong)GC.GetTotalMemory(false);
-            int miniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
-            Info("Target MiniBatchSize=" + miniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
-            return miniBatchSize;
+            int maxMiniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
+            LogDebug("Max MiniBatchSize=" + maxMiniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
+            return maxMiniBatchSize;
         }
 
         //TODO add tests
@@ -626,9 +606,16 @@ namespace SharpNet
             var xTest = ReformatToCorrectDevice_GPU_or_CPU(xTestCpu);
             var yTest = ReformatToCorrectDevice_GPU_or_CPU(yTestCpu);
             Info(ToString());
+            var maxMiniBatchSize = MaxMiniBatchSize();
             if (miniBatchSize < 1)
             {
-                miniBatchSize = MaxMiniBatchSize();
+                miniBatchSize = maxMiniBatchSize;
+                Info("Using (auto) MiniBatchSize of " + miniBatchSize);
+            }
+            else if (miniBatchSize > maxMiniBatchSize)
+            {
+                Info("Reducing MiniBatchSize from "+ miniBatchSize+" to "+ maxMiniBatchSize+" because of memory limit.");
+                miniBatchSize = maxMiniBatchSize;
             }
             var blocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
             if (UseGPU)

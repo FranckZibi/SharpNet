@@ -202,7 +202,6 @@ namespace SharpNet.Data
         public abstract void Update_Adding_Alpha_X(double alpha, Tensor x);
         // compute: this = alpha * x + beta * this
         public abstract void AddTensor(double alpha, Tensor x, double beta);
-        // compute: this = alpha * this
         /// <summary>
         /// Concatenate the 2 tensors 'a' & 'b'  (through the 'Channel' dimension) into the 'this' tensor.
         /// They must have exactly the same geometry apart from the number of channels (at index 1)

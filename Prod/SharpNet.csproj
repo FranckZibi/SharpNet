@@ -84,6 +84,7 @@
     <Compile Include="Optimizers\OneCycleLearningRateScheduler.cs" />
     <Compile Include="Optimizers\Optimizer.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateau.cs" />
+    <Compile Include="Optimizers\SGDRLearningRateScheduler.cs" />
     <Compile Include="Optimizers\VanillaSgd.cs" />
     <Compile Include="Pictures\ImageDataGenerator.cs" />
     <Compile Include="Pictures\PictureTools.cs" />

@@ -13,9 +13,6 @@ namespace SharpNetTests
 {
     static class Program
     {
-
-
-
         private static void Main()
         {
             /*
@@ -29,7 +26,7 @@ namespace SharpNetTests
 
 
             ResNetTests();
-            DenseNetTests();
+            //DenseNetTests();
 
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);
@@ -39,50 +36,11 @@ namespace SharpNetTests
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
         }
 
-        /*
-        private static void TestConcatSpeed()
-        {
-            var gpuWrapper = GPUWrapper.Default;
-            var rand = new Random(0);
-            var x1 = TestCpu
-            or.RandomFloatTensor(new[] { 128, 32, 16, 16 }, rand, -1.5, +1.5, "a");
-            var x2 = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], 320, x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
-            var concat = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], x1.Shape[1] + x2.Shape[1], x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
-
-            var x1Gpu = x1.ToGPU<float>(gpuWrapper);
-            var x2Gpu = x2.ToGPU<float>(gpuWrapper);
-            var concatGpu = concat.ToGPU<float>(gpuWrapper);
-            int nbTests = 15000;
-
-            concat.Concatenate(x1, x2); //WarmUp
-            concat.Concatenate(x1, x2); //WarmUp
-            var spGPU = Stopwatch.StartNew();
-            for (int i = 0; i < nbTests; ++i)
-            {
-                concatGpu.Concatenate(x1Gpu, x2Gpu);
-                concatGpu.Split(x1Gpu, x2Gpu);
-            }
-            spGPU.Stop();
-            Console.WriteLine("Elapsed GPU (ms): " + spGPU.Elapsed.TotalMilliseconds / nbTests);
-        }
-        */
-
         #region Training
-        /// <summary>
-        /// Train a network on CIFAR10 data set 
-        /// </summary>
-        ///
-        private static void Train_CIFAR10(NetworkBuilder p, Network network, ILearningRateScheduler lrScheduler = null, bool autoBatchSize = false)
-        {
-            CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
-            network.Fit(xTrain, yTrain, lrScheduler ?? p.Cifar10LearningRateScheduler(), p.Cifar10ReduceLROnPlateau(), p.NumEpochs, autoBatchSize ? -1 : p.BatchSize, xTest, yTest);
-            network.ClearMemory();
-        }
-        #endregion
-
+        #region DenseNet Training
         private static void DenseNetTests()
         {
-            var todo = new List<Action<DenseNetBuilder,int>>
+            var todo = new List<Action<DenseNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_100_CIFAR10());},
@@ -126,28 +84,40 @@ namespace SharpNetTests
             };
             PerformTestSet(metaParametersModifiers, todo);
         }
+        #endregion
 
+        #region ResNet Training
         public static void ResNetTests()
         {
             var todo = new List<Action<ResNetBuilder, int>>
             {
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet11V2_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V2_CIFAR10());},
-
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet32V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet44V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V1_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet110V1_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet11V2_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V2_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V2_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet164V1_CIFAR10());},
             };
 
             var modifiers = new List<Action<ResNetBuilder>>
             {
-                (p) =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "_SGD_WithNesterov_EnhancedMemory";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.NumEpochs=300;p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2_300Epochs";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(200,1);p.ExtraDescription = "_SGDR_200_1";},
+                (p) =>{p.Config.WithSGD(0.9,false);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2_NoNesterov";},
+
+                /*
+                (p) =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "";},
+                (p) =>{p.Config.WithSGD(0.9, true);p.BatchSize = -1;p.ExtraDescription = "_AutoMiniBatchSize";},
+                (p) =>{p.Config.WithSGD(0.9, true);p.NumEpochs=300;p.ExtraDescription = "_300Epochs";}, */
+                #region already performed tests
+                /*
                 (p) =>{p.Config.WithSGD(0.9,true);p.Config.ForceTensorflowCompatibilityMode = true;p.ExtraDescription = "_SGD_WithNesterov_ForceTensorflowCompatibilityMode_EnhancedMemory";},
                 (p) =>{p.Config.WithSGD(0.9,false);p.ExtraDescription = "_SGD_NoNesterov_EnhancedMemory";},
                 (p) =>{p.Config.WithSGD(0.9,false);p.Config.ForceTensorflowCompatibilityMode = true;p.ExtraDescription = "_SGD_NoNesterov_ForceTensorflowCompatibilityMode_EnhancedMemory";},
-                #region already performed tests
-                /*
                 //https://sgugger.github.io/the-1cycle-policy.html
                 //(param) => {}, //used to check new speed
                 //(param) => {param.UseAdam=true;param.ExtraDescription = "_UseAdam";},
@@ -169,6 +139,52 @@ namespace SharpNetTests
             };
             PerformTestSet(modifiers, todo);
         }
+        #endregion
+
+
+        /// <summary>
+        /// Train a network on CIFAR10 data set 
+        /// </summary>
+        ///
+        private static void Train_CIFAR10(NetworkBuilder p, Network network, ILearningRateScheduler lrScheduler = null, bool autoBatchSize = false)
+        {
+            CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            network.Fit(xTrain, yTrain, lrScheduler ?? p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, autoBatchSize ? -1 : p.BatchSize, xTest, yTest);
+            network.ClearMemory();
+        }
+        #endregion
+
+
+
+
+
+        /*
+        private static void TestConcatSpeed()
+        {
+            var gpuWrapper = GPUWrapper.Default;
+            var rand = new Random(0);
+            var x1 = TestCpu
+            or.RandomFloatTensor(new[] { 128, 32, 16, 16 }, rand, -1.5, +1.5, "a");
+            var x2 = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], 320, x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
+            var concat = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], x1.Shape[1] + x2.Shape[1], x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
+
+            var x1Gpu = x1.ToGPU<float>(gpuWrapper);
+            var x2Gpu = x2.ToGPU<float>(gpuWrapper);
+            var concatGpu = concat.ToGPU<float>(gpuWrapper);
+            int nbTests = 15000;
+
+            concat.Concatenate(x1, x2); //WarmUp
+            concat.Concatenate(x1, x2); //WarmUp
+            var spGPU = Stopwatch.StartNew();
+            for (int i = 0; i < nbTests; ++i)
+            {
+                concatGpu.Concatenate(x1Gpu, x2Gpu);
+                concatGpu.Split(x1Gpu, x2Gpu);
+            }
+            spGPU.Stop();
+            Console.WriteLine("Elapsed GPU (ms): " + spGPU.Elapsed.TotalMilliseconds / nbTests);
+        }
+        */
 
 
         private static void ConsumersLauchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)

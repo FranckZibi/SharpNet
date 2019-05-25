@@ -1,6 +1,4 @@
-﻿using System;
-using SharpNet.Optimizers;
-using SharpNet.Pictures;
+﻿using SharpNet.Pictures;
 
 
 /*
@@ -16,12 +14,12 @@ Cutout 16 / FillMode = Reflect / DivideBy10OnPlateau
 #           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)  
 # ---------------------------------------------------------------------------
 # ResNet11  | - (1)| NA        | NA        | 89.26     | -----     | NA   (8.8) 
-# ResNet20  | 3 (2)| 91.95     | 91.25     | 90.97     | -----     | 8.8  (14.9) 
-# ResNet32  | 5(NA)| 92.86     | 92.49     | NA        | NA        | 13.8 ( NA) 
-# ResNet44  | 7(NA)| 93.78     | 92.83     | NA        | NA        | 18.8 ( NA) 
-# ResNet56  | 9 (6)| 93.67     | 93.03     | 75.75     | -----     | 23.8 (41.9) 
-# ResNet110 |18(12)| 94.57     | 93.39+-.16| 44.17     | 93.63     | 47.1 (85.5)
-# ResNet164 |27(18)| 93.01     | 94.07     | -----     | 94.54     | 78.9 (141)
+# ResNet20  | 3 (2)| 91.96     | 91.25     | 90.97     | -----     | 8.8  (14.9) 
+# ResNet32  | 5(NA)| 93.28     | 92.49     | NA        | NA        | 13.8 ( NA) 
+# ResNet44  | 7(NA)| 93.41     | 92.83     | NA        | NA        | 18.8 ( NA) 
+# ResNet56  | 9 (6)| 93.92     | 93.03     | 89.29     | -----     | 23.8 (41.9) 
+# ResNet110 |18(12)| 94.07     | 93.39+-.16| 44.17     | 93.63     | 47.1 (85.5)
+# ResNet164 |27(18)| 93.51     | 94.07     | -----     | 94.54     | 78.9 (141)
 # ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| --- (---)
 # ---------------------------------------------------------------------------
 */
@@ -31,18 +29,20 @@ namespace SharpNet
     public abstract class NetworkBuilder
     {
         public string ExtraDescription { get; set; }
-        public int GpuDeviceId { private get; set; } = 0;
         public NetworkConfig Config { get; set; }
-
-
-        public abstract int NumEpochs { get; set; }
-        public abstract int BatchSize { get; set; }
-
-
-        protected abstract ImageDataGenerator DataGenerator();
-        public abstract ReduceLROnPlateau Cifar10ReduceLROnPlateau();
-        public abstract ILearningRateScheduler Cifar10LearningRateScheduler();
-
+        public int GpuDeviceId { private get; set; }
+        public int NumEpochs { get; set; }
+        public int BatchSize { get; set; }
+        public double InitialLearningRate { get; set; }
+        public bool DisableLogging { get; set; }
+        #region Data Augmentation
+        public double WidthShiftRange { get; set; }
+        public double HeightShiftRange { get; set; }
+        public bool HorizontalFlip { get; set; }
+        public bool VerticalFlip { get; set; }
+        public ImageDataGenerator.FillModeEnum FillMode { get; set; }
+        public int CutoutPatchlength { get; set; }
+        #endregion
 
         public Network Build(string networkName)
         {
@@ -50,6 +50,11 @@ namespace SharpNet
             var network = new Network(Config, DataGenerator(), GpuDeviceId);
             network.Description = networkName + ExtraDescription;
             return network;
+        }
+
+        private ImageDataGenerator DataGenerator()
+        {
+            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchlength);
         }
     }
 
@@ -64,6 +69,15 @@ namespace SharpNet
                 lambdaL2Regularization = 1e-4
             };
             Config.WithSGD(0.9, false); // SGD : validated on 19-apr-2019: +70 bps
+            NumEpochs = 160; //64k iterations
+            BatchSize = 128;
+            InitialLearningRate = 0.1;
+            WidthShiftRange = 0.1; //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
+            HeightShiftRange = 0.1;
+            HorizontalFlip  = true; // 'true' : validated on 18-apr-2019: +70 bps
+            VerticalFlip = false;
+            FillMode = ImageDataGenerator.FillModeEnum.Reflect; //validated on 18-apr-2019: +50 bps
+            CutoutPatchlength = 16; // '16' : validated on 17-apr-2019: +70 bps
         }
 
         #region ResNet V1
@@ -118,62 +132,5 @@ namespace SharpNet
         public Network ResNet164V2_CIFAR10() {return BuildResNetV2_CIFAR10(18);}
         public Network ResNet1001V2_CIFAR10() {return BuildResNetV2_CIFAR10(111);}
         #endregion
-
-
-        //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
-        public int OneCycleDividerForMinLearningRate { get; set; } = 10;
-        public double OneCyclePercentInAnnealing { get; set; } = 0.2;
-        public bool OneCycleLearningRate { get; set; } = false;
-        public bool LinearLearningRate { get; set; } = false;
-        public override int NumEpochs { get; set; } = 160; //64k iterations
-        public override int BatchSize { get; set; } = 128;
-        public double InitialLearningRate { get; set; } = 0.1;
-        public bool DivideBy10OnPlateau { get; set; } = true; // 'true' : validated on 19-apr-2019: +20 bps
-        #region Data Augmentation
-        public double WidthShiftRange { get; set; } = 0.1; //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
-        public double HeightShiftRange { get; set; } = 0.1;
-        public bool HorizontalFlip { get; set; } = true; // 'true' : validated on 18-apr-2019: +70 bps
-        public bool VerticalFlip { get; set; } = false;
-        public ImageDataGenerator.FillModeEnum FillMode { get; set; } = ImageDataGenerator.FillModeEnum.Reflect; //validated on 18-apr-2019: +50 bps
-        public int CutoutPatchlength { get; set; } = 16; // '16' : validated on 17-apr-2019: +70 bps
-
-        protected override ImageDataGenerator DataGenerator()
-        {
-            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchlength);
-        }
-        #endregion
-
-      
-
-        public override ILearningRateScheduler Cifar10LearningRateScheduler()
-        {
-            if (OneCycleLearningRate)
-            {
-                return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycleDividerForMinLearningRate, OneCyclePercentInAnnealing, NumEpochs);
-            }
-            if (LinearLearningRate)
-            {
-                return LearningRateScheduler.InterpolateByInterval(1, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
-            }
-            return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate, 80, InitialLearningRate / 10, 120,InitialLearningRate / 100);
-        }
-
-        public override ReduceLROnPlateau Cifar10ReduceLROnPlateau()
-        {
-            if (OneCycleLearningRate)
-            {
-                return null;
-            }
-            var factorForReduceLrOnPlateau = DivideBy10OnPlateau ? 0.1 : Math.Sqrt(0.1);
-            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
-        }
-        private ILearningRateScheduler ResNet110LearningRateScheduler()
-        {
-            if (OneCycleLearningRate)
-            {
-                return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycleDividerForMinLearningRate, OneCyclePercentInAnnealing, NumEpochs);
-            }
-            return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate / 10, 2, InitialLearningRate, 80, InitialLearningRate / 10, 120, InitialLearningRate / 100);
-        }
     }
 }
