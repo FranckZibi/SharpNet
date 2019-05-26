@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using System.Security;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Data
 {
@@ -14,7 +15,7 @@ namespace SharpNet.Data
             int N = transposeB ? bH : bW; //number of columns of the matrix op(B) (= number of columns of the matrix C)
             int K = transposeA ? aH : aW; //number of columns of the matrix op(A) (= number of rows of the matrix op(B))
             int lda = aW; //number of columns of the matrix A (because order = RowMajor)
-            int ldb = bW; //number of colums of the matrix B (because order = RowMajor)
+            int ldb = bW; //number of columns of the matrix B (because order = RowMajor)
             int ldc = N; //number of columns of the matrix C (because order = RowMajor)
             MKL_BLAS.cblas_dgemm(CBLAS_ORDER.RowMajor, transA, transB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
         }
@@ -26,7 +27,7 @@ namespace SharpNet.Data
             int N = transposeB ? bH : bW; //number of columns of the matrix op(B) (= number of columns of the matrix C)
             int K = transposeA ? aH : aW; //number of columns of the matrix op(A) (= number of rows of the matrix op(B))
             int lda = aW; //number of columns of the matrix A (because order = RowMajor)
-            int ldb = bW; //number of colums of the matrix B (because order = RowMajor)
+            int ldb = bW; //number of columns of the matrix B (because order = RowMajor)
             int ldc = N; //number of columns of the matrix C (because order = RowMajor)
             MKL_BLAS.cblas_sgemm(CBLAS_ORDER.RowMajor, transA, transB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
         }

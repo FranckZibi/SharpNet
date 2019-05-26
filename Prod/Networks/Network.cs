@@ -13,16 +13,16 @@ using SharpNet.GPU;
 using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
-namespace SharpNet
+namespace SharpNet.Networks
 {
-    public partial class Network
+    public class Network
     {
         #region fields
         private readonly ImageDataGenerator _imageDataGenerator;
         private readonly BackwardPropagationManager _backwardPropagationManager;
         public NetworkConfig Config { get; }
         public List<Layer> Layers { get; } = new List<Layer>();
-        public string Description { get; set; } = "";
+        public string Description { private get; set; } = "";
         private readonly Stopwatch _spInternalFit = new Stopwatch();
         private readonly Stopwatch _swUpdateWeights;
         private readonly Stopwatch _swPredictTraining;
@@ -167,12 +167,16 @@ namespace SharpNet
             return Convolution_BatchNorm(filtersCount, f, stride, padding, lambdaL2Regularization)
                 .Activation(activationFunction);
         }
-        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
+        public Network BatchNorm_Activation(cudnnActivationMode_t activationFunction)
+        {
+            return BatchNorm().Activation(activationFunction);
+        }
+        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias)
         {
             return 
                 BatchNorm()
                 .Activation(activationFunction)
-                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, false);
+                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, useBias);
         }
         public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
         {
@@ -204,12 +208,6 @@ namespace SharpNet
                 Debug.Assert(Layers[convLayerIdInIdentityBlock].SameOutputShape(Layers[previousResidualLayerIndex]));
             }
             return this;
-        }
-        public Network Convolution_Activation_Pooling(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction, int poolingSize, int poolingStride)
-        {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, true)
-                .Activation(activationFunction)
-                .MaxPooling(poolingSize, poolingStride);
         }
         public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias)
         {
@@ -414,7 +412,7 @@ namespace SharpNet
             return result;
         }
 
-        public int MaxMiniBatchSize()
+        private int MaxMiniBatchSize()
         {
             var freeMemoryInBytes = UseGPU?GpuWrapper.FreeMemoryInBytes() : (ulong)GC.GetTotalMemory(false);
             int maxMiniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
@@ -426,9 +424,7 @@ namespace SharpNet
         public static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
         {
             freeMemoryInBytes -= bytesIndependantOfBatchSize;
-            freeMemoryInBytes = (8* freeMemoryInBytes)/10;
-
-            //return (int) Math.Max(1, freeMemoryInBytes / bytesByBatchSize);
+            freeMemoryInBytes = (80* freeMemoryInBytes)/100;
             ulong miniBatchSize = 1;
             while ( (2UL * miniBatchSize * bytesByBatchSize) < freeMemoryInBytes)
             {
@@ -509,10 +505,7 @@ namespace SharpNet
         }
         public void LogContent()
         {
-            for (int i = 0; i < Layers.Count; ++i)
-            {
-                Layers[i].LogContent();
-            }
+            Layers.ForEach(l => l.LogContent());
         }
         #endregion
 
@@ -536,7 +529,7 @@ namespace SharpNet
             var observedTypeSize = Marshal.SizeOf(typeof(T));
             if (observedTypeSize != Config.TypeSize)
             {
-                throw new Exception("Tnvalid type : expecting: "+Config.TypeSize+" but was "+ observedTypeSize);
+                throw new Exception("Invalid type : expecting: "+Config.TypeSize+" but was "+ observedTypeSize);
             }
             foreach (var l in Layers)
             {
@@ -617,7 +610,7 @@ namespace SharpNet
                 Info("Reducing MiniBatchSize from "+ miniBatchSize+" to "+ maxMiniBatchSize+" because of memory limit.");
                 miniBatchSize = maxMiniBatchSize;
             }
-            var blocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
+            var nbBlocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
             if (UseGPU)
             {
                 LogDebug(GpuWrapper.ToString());
@@ -679,7 +672,7 @@ namespace SharpNet
                 #endregion
 
                 #region Mini Batch gradient descent
-                var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, blocksInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau);
+                var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, nbBlocksInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau);
                 var yPredicted = MiniBatchGradientDescent(miniBatchSize, x, y, learningRateComputer, callBackAtEachIteration);
                 #endregion
 
@@ -749,13 +742,16 @@ namespace SharpNet
                     + TotalParams + ";"
                     + numEpochs + ";"
                     + miniBatchSize + ";"
-                    + learningRateComputer.LearningRate(1, 0, blocksInEpoch, 1.0) + ";"
+                    + learningRateComputer.LearningRate(1, 0, nbBlocksInEpoch, 1.0) + ";"
                     + _spInternalFit.Elapsed.TotalSeconds + ";"
                     + (_spInternalFit.Elapsed.TotalSeconds / numEpochs) + ";"
                     + validationLossAndAccuracy?.Item1 + ";"
                     + validationLossAndAccuracy?.Item2
                     + Environment.NewLine;
-                File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, "Tests.csv"), line);
+                if (!Config.DisableLogging)
+                {
+                    File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, "Tests.csv"), line);
+                }
             }
             catch (Exception e)
             {
@@ -775,7 +771,7 @@ namespace SharpNet
             _spInternalFit.Stop();
         }
 
-        public string ContentStats()
+        private string ContentStats()
         {
             var sb = new StringBuilder();
             foreach (var l in Layers)
@@ -961,11 +957,9 @@ namespace SharpNet
             }
             return _yPredictedBufferForMiniBatchGradientDescent;
         }
-
         private static int NbBlocksInEpoch(int miniBatchSize, int entireBatchSize)
         {
             return (entireBatchSize + miniBatchSize - 1) / miniBatchSize;
         }
-
     }
 }

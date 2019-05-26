@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Networks;
 
 namespace SharpNet
 {

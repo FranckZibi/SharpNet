@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using SharpNet.Data;
+using SharpNet.Networks;
 
 namespace SharpNet
 {

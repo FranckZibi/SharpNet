@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Networks;
 
 namespace SharpNet.GPU
 {

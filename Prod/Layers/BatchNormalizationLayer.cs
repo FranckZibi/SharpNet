@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Networks;
 using SharpNet.Optimizers;
 
 namespace SharpNet
@@ -55,7 +56,6 @@ namespace SharpNet
         {
             _momentum = other._momentum;
             _epsilon = other._epsilon;
-            var scaleAndBiasShape = ScaleAndBiasShape();
             _bnScale = other._bnScale?.Clone(newNetwork.GpuWrapper);
             _resultBnScaleDiff = other._resultBnScaleDiff?.Clone(newNetwork.GpuWrapper);
             _bnBias = other._bnBias?.Clone(newNetwork.GpuWrapper);

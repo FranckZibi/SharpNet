@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Networks;
 using SharpNet.Pictures;
 using SharpNetTests.NonReg;
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -15,7 +16,6 @@ namespace SharpNet.CPU
         private bool _disposed;
 
         public int Capacity => _pinnedHostMemory.Length;
-        public int Length { get; private set; }
 
         public HostPinnedMemory(T[] hostMemoryToBePinned)
         {
@@ -29,7 +29,6 @@ namespace SharpNet.CPU
             _pinnedHostMemory = hostMemoryToBePinned;
             _handle = GCHandle.Alloc(_pinnedHostMemory, GCHandleType.Pinned);
             _hostMemoryPointer = _handle.AddrOfPinnedObject();
-            Length = Capacity;
         }
 
         public void Resize(int nbElements)
@@ -37,7 +36,6 @@ namespace SharpNet.CPU
             Debug.Assert(!_disposed);
             if (nbElements <= Capacity)
             {
-                Length = nbElements;
                 return;
             }
             if (_handle.IsAllocated)

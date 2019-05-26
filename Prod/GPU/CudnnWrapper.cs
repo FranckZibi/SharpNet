@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.GPU
 { 

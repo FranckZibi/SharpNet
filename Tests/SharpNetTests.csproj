@@ -61,7 +61,6 @@
     <Compile Include="GPU\TestGpuTensor.cs" />
     <Compile Include="LearningRateSchedulerTests.cs" />
     <Compile Include="NonReg\TestBenchmark.cs" />
-    <Compile Include="NonReg\TestCourse4Week1.cs" />
     <Compile Include="NonReg\TestMNIST.cs" />
     <Compile Include="NonReg\TestNetworkPropagation.cs" />
     <Compile Include="Optimizers\LearningRateFinderTests.cs" />

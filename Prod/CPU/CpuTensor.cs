@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Networks;
 
 namespace SharpNet.CPU
 {
@@ -103,7 +104,7 @@ namespace SharpNet.CPU
             for (int i = 0; i < Count; ++i)
             {
                 result[i] = func(Content[i]);
-                }
+            }
             return result;
         }
 
@@ -187,7 +188,6 @@ namespace SharpNet.CPU
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor>{x,y,bnScale,bnBias,resultRunningMean,resultRunningVariance,resultSaveMean,resultSaveVariance}));
             Debug.Assert(x.SameShape(y));
-            //Debug.Assert(MultDim0 == bnScale.Count);
             Debug.Assert(bnScale.SameShape(bnBias, resultRunningMean, resultRunningVariance, resultSaveMean, resultSaveVariance));
             bool is1C11Shape = bnBias.Count == bnBias.Shape[1];
             var meanDivider = Count / bnBias.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
@@ -630,7 +630,7 @@ namespace SharpNet.CPU
                     for (int colAfterPooling = 0; colAfterPooling < wOutput; ++colAfterPooling)
                     {
                         //we want to compute the point in y[n, channelId, row_output, col_output]
-                        //it is computed by appling a max filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
+                        //it is computed by applying a max filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                         if (UseDoublePrecision)
                         {
                             double outputPointResult = double.MinValue;
@@ -887,7 +887,7 @@ namespace SharpNet.CPU
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
                         {
                             //we want to compute the point in y[m, filterId, row_output, col_output]
-                            //it is computed by appling a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
+                            //it is computed by applying a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                             double outputPointResult = 0.0;
                             var colInputStart = Math.Max(0, colFilterStart);
                             var colInputEndExcluded = Math.Min(wInput, colFilterStart + F);
@@ -981,7 +981,7 @@ namespace SharpNet.CPU
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
                         {
                             //we want to compute the point in y[m, filterId, rowOutput, colOutput]
-                            //it is computed by appling a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
+                            //it is computed by applying a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                             // and centered at this particular location
                             var chainGradientDouble = UseDoublePrecision
                                 ? dy.AsDoubleCpu.Get(m, filterId, rowOutput, colOutput)
@@ -1397,7 +1397,6 @@ namespace SharpNet.CPU
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, sumByColumn }));
             Debug.Assert(Dimension >= 2);
-            //Debug.Assert(MultDim0 == sumByColumn.Count);
             var batchSize = Shape[0];
             bool is1C11Shape = sumByColumn.Count == sumByColumn.Shape[1];
 

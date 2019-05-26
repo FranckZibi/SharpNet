@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using SharpNet.Data;
+using SharpNet.Networks;
 
 namespace SharpNet
 {

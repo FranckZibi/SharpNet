@@ -48,7 +48,7 @@ namespace SharpNet.Data
 
         private static string[] Split(string s)
         {
-            return s.TrimEnd(';').Split(new[] {';'} /*, StringSplitOptions.RemoveEmptyEntries*/);
+            return s.TrimEnd(';').Split(';');
         }
 
         private Serializer Add<T>(string description, T[] array, Func<T, string[]> serializer)
@@ -87,11 +87,13 @@ namespace SharpNet.Data
             }
             return this;
         }
+        // ReSharper disable once UnusedMember.Global
         public Serializer Add(string description, float value)
         {
             _sb.Append("single;" + description + ";" + value.ToString("G9", CultureInfo.InvariantCulture) + ";");
             return this;
         }
+        // ReSharper disable once UnusedMember.Global
         public Serializer Add(string description, float[] values)
         {
             _sb.Append("singleVector;" + description + ";" + values.Length + ";" + ((values.Length == 0) ? "" : (ToString(values) + ";")));

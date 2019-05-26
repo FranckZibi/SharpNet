@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using SharpNet.Data;
+using SharpNet.Networks;
 using SharpNet.Optimizers;
 
 namespace SharpNet

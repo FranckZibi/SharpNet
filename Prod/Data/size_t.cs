@@ -6,7 +6,7 @@ namespace SharpNet.Data
     [StructLayout(LayoutKind.Sequential)]
     public struct size_t
     {
-        private UIntPtr value;
+        private readonly UIntPtr value;
 
         public size_t(ulong value)
         {

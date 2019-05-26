@@ -6,6 +6,7 @@ using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Networks;
 using SharpNet.Pictures;
 
 namespace SharpNetTests.NonReg
@@ -37,9 +38,9 @@ namespace SharpNetTests.NonReg
                     tensors[t] = new GPUTensor<double>(new[] { tmp_2GB.Length}, hostPinnedMemory.Pointer, "test", gpuContext);
                 }
                 logger.Info(gpuContext.ToString());
-                for (int t = 0; t < tensors.Length; ++t)
+                foreach (var t in tensors)
                 {
-                    tensors[t].Dispose();
+                    t.Dispose();
                 }
                 var speed = (tensors.Length*((double)tensors[0].CapacityInBytes) / sw.Elapsed.TotalSeconds)/1e9;
                 maxSpeed = Math.Max(speed, maxSpeed);

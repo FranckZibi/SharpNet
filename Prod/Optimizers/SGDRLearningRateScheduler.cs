@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 
 namespace SharpNet.Optimizers
 {
@@ -21,9 +20,8 @@ namespace SharpNet.Optimizers
         /// </summary>
         /// <param name="maxLearningRate"></param>
         /// <param name="nbEpochsInFirstRun">Number of epochs in the first warm started run</param>
-        /// <param name="nbEpochInNextRunMultiplier">factor to multiply the number of epochs in the previous run
-        /// <param name="nbEpochs">total number of epochs</param>
-        /// to get the number of epochs in the next run</param>
+        /// <param name="nbEpochInNextRunMultiplier">factor to multiply the number of epochs in the previous run</param>
+        /// <param name="nbEpochs">total number of epochs to get the number of epochs in the next run</param>
         public SGDRLearningRateScheduler(double maxLearningRate, int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier, int nbEpochs)
         {
             Debug.Assert(nbEpochsInFirstRun>=1);

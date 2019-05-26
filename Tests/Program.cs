@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpNet;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Networks;
 using SharpNet.Optimizers;
+// ReSharper disable UnusedMember.Local
 
 namespace SharpNetTests
 {
@@ -24,8 +25,8 @@ namespace SharpNetTests
             */
             //var x = new DenseNetBuilder {NumEpochs = 5,BatchSize = -1, GpuDeviceId=-1};Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());return;
 
-
-            ResNetTests();
+            WideResNetTests();
+            //ResNetTests();
             //DenseNetTests();
 
             //TestSpeed();return;
@@ -36,7 +37,6 @@ namespace SharpNetTests
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
         }
 
-        #region Training
         #region DenseNet Training
         private static void DenseNetTests()
         {
@@ -44,15 +44,14 @@ namespace SharpNetTests
             {
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_100_CIFAR10());},
-
-                /*(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_Fast_CIFAR10());},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_10_CIFAR10());},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_40_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_NoNesterov_20190512_0743_200.txt"));},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_20190511_1946_154.txt"));},
-                 */
-            };
+            /*(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_Fast_CIFAR10());},
+            (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_10_CIFAR10());},
+            (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());},
+            (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_40_CIFAR10());},
+            //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_NoNesterov_20190512_0743_200.txt"));},
+            //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_20190511_1946_154.txt"));},
+             */
+        };
 
             var metaParametersModifiers = new List<Action<DenseNetBuilder>>
             {
@@ -86,16 +85,43 @@ namespace SharpNetTests
         }
         #endregion
 
+        #region WideResNet Training
+        private static void WideResNetTests()
+        {
+            var todo = new List<Action<WideResNetBuilder, int>>
+            {
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_4_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_40_4_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_8_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_10_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_8_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_10_CIFAR10());},
+        };
+
+            var modifiers = new List<Action<WideResNetBuilder>>
+            {
+                (p) =>{p.ExtraDescription = "";},
+                (p) =>{p.DropOut = 0.3;p.ExtraDescription = "_030_dropout";},
+                (p) =>{p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2";},
+            };
+            PerformTestSet(modifiers, todo);
+        }
+        #endregion
+
         #region ResNet Training
-        public static void ResNetTests()
+        private static void ResNetTests()
         {
             var todo = new List<Action<ResNetBuilder, int>>
             {
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V2_CIFAR10());},
+
+                /*
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet32V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet44V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet110V1_CIFAR10());},
+                */
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet11V2_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V2_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V2_CIFAR10());},
@@ -104,11 +130,14 @@ namespace SharpNetTests
 
             var modifiers = new List<Action<ResNetBuilder>>
             {
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_testFix_SGDR_10_2";},
+                
+                /*
                 (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2";},
                 (p) =>{p.Config.WithSGD(0.9,true);p.NumEpochs=300;p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2_300Epochs";},
                 (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(200,1);p.ExtraDescription = "_SGDR_200_1";},
                 (p) =>{p.Config.WithSGD(0.9,false);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2_NoNesterov";},
-
+                */
                 /*
                 (p) =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "";},
                 (p) =>{p.Config.WithSGD(0.9, true);p.BatchSize = -1;p.ExtraDescription = "_AutoMiniBatchSize";},
@@ -142,17 +171,6 @@ namespace SharpNetTests
         #endregion
 
 
-        /// <summary>
-        /// Train a network on CIFAR10 data set 
-        /// </summary>
-        ///
-        private static void Train_CIFAR10(NetworkBuilder p, Network network, ILearningRateScheduler lrScheduler = null, bool autoBatchSize = false)
-        {
-            CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
-            network.Fit(xTrain, yTrain, lrScheduler ?? p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, autoBatchSize ? -1 : p.BatchSize, xTest, yTest);
-            network.ClearMemory();
-        }
-        #endregion
 
 
 
@@ -187,6 +205,17 @@ namespace SharpNetTests
         */
 
 
+
+        /// <summary>
+        /// Train a network on CIFAR10 data set 
+        /// </summary>
+        private static void Train_CIFAR10(NetworkBuilder p, Network network, ILearningRateScheduler lrScheduler = null, bool autoBatchSize = false)
+        {
+            CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            network.Fit(xTrain, yTrain, lrScheduler ?? p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, autoBatchSize ? -1 : p.BatchSize, xTest, yTest);
+            network.ClearMemory();
+        }
+
         private static void ConsumersLauchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)
         {
             Console.WriteLine("Computations on GPU " + gpuDeviceId+" have started (ThreadId"+Thread.CurrentThread.ManagedThreadId+")");
@@ -194,7 +223,7 @@ namespace SharpNetTests
             {
                 action(gpuDeviceId);
             }
-            Console.WriteLine("Computations on GPU " + gpuDeviceId + " has ended");
+            Console.WriteLine("Last computation on GPU " + gpuDeviceId+ " is in progress");
         }
         private static void PerformTestSet<T>(List<Action<T>> metaParameterModifiers, List<Action<T, int>> allNetworks) where T: NetworkBuilder, new()
         {

@@ -4,6 +4,7 @@ using NUnit.Framework;
 using SharpNet;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Networks;
 using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
@@ -16,7 +17,6 @@ namespace SharpNetTests.NonReg
         [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalse")]
         public void Test()
         {
-            var logger = new Logger(LogFileName, true);
             MNIST.Load(out var xTrain, out var yTrain, out var xTest, out var yTest);
 
             var useGpu = true;
@@ -33,8 +33,9 @@ namespace SharpNetTests.NonReg
             useGpu = false;
             */
             var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0);
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var network = new Network(
-                new NetworkConfig{ Logger = logger, UseDoublePrecision = false }
+                new NetworkConfig{ Logger = new Logger(logFileName, true), UseDoublePrecision = false }
                 //.WithAdam()
                 .WithSGD(0.99,true)
                 ,
@@ -83,6 +84,5 @@ namespace SharpNetTests.NonReg
             network.Fit(xTrain, yTrain, learningRate, null, numEpochs, batchSize, xTest, yTest);
         }
 
-        private static string LogFileName => Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
     }
 }

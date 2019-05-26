@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.GPU
 {
@@ -70,7 +71,7 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_10_1:
                     return CublasWrapper_cublas64_10.cublasDcopy_v2(cublasHandle, n, x, incx, y, incy);
                 default:
-                    return CublasWrapper_cublas64_100.cublasDcopy_v2(cublasHandle, n, x, incx, y, incy); ;
+                    return CublasWrapper_cublas64_100.cublasDcopy_v2(cublasHandle, n, x, incx, y, incy);
             }
         }
         public static cublasStatus_t cublasDgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref double alpha, IntPtr A, int lda, IntPtr B, int ldb, ref double beta, IntPtr C, int ldc)
@@ -80,7 +81,7 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_10_1:
                     return CublasWrapper_cublas64_10.cublasDgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 default:
-                    return CublasWrapper_cublas64_100.cublasDgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc); ;
+                    return CublasWrapper_cublas64_100.cublasDgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
             }
         }
         public static cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref float alpha, IntPtr A, int lda, IntPtr B, int ldb, ref float beta, IntPtr C, int ldc)

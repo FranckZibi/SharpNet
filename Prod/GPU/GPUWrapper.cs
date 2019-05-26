@@ -10,8 +10,6 @@ namespace SharpNet.GPU
 
     public class GPUWrapper : IDisposable
     {
-        public int DeviceId { get; }
-
         #region Private fields
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
         private readonly IntPtr _deviceHandle;
@@ -33,68 +31,28 @@ namespace SharpNet.GPU
         private int _copyToHostCalls;
         private ulong _bytesCopiedToHost;
         private DeviceMemory _lazyStorageBuffer;
+        private static readonly IDictionary<int, GPUWrapper> Cache = new Dictionary<int, GPUWrapper>();
         #endregion
+
         #region readonly properties
+        public int DeviceId { get; }
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
-        #endregion
-
-
         public Stopwatch SwCopyToDevice { get; } = new Stopwatch();
         public Stopwatch SwCopyToHost { get; } = new Stopwatch();
-
-        private static IDictionary<int, GPUWrapper> _cache = new Dictionary<int, GPUWrapper>();
+        #endregion
 
         public static GPUWrapper FromDeviceId(int deviceId)
         {
-            lock (_cache)
+            lock (Cache)
             {
-                if (!_cache.ContainsKey(deviceId))
+                if (!Cache.ContainsKey(deviceId))
                 {
-                    _cache[deviceId] = new GPUWrapper(deviceId);
+                    Cache[deviceId] = new GPUWrapper(deviceId);
                 }
-                return _cache[deviceId];
+                return Cache[deviceId];
             }
-        }
-
-
-        private GPUWrapper(int deviceId)
-        {
-            DeviceId = deviceId;
-            var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
-            CheckStatus(cublasRes);
-
-            _deviceHandle = GetDeviceHandle(deviceId);
-
-            var res = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
-            CheckStatus(res);
-
-            var devName = new byte[256];
-            res = NVCudaWrapper.cuDeviceGetName(devName, devName.Length, _deviceHandle);
-            CheckStatus(res);
-            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-            _deviceName = enc.GetString(devName).Replace("\0", "");
-
-            res = NVCudaWrapper.cuDriverGetVersion(out int driverVersion);
-            CheckStatus(res);
-            _driverVersion = new Version(driverVersion / 1000, driverVersion % 100);
-
-            foreach (var e in Enum.GetValues(typeof(CUdevice_attribute)).Cast<CUdevice_attribute>())
-            {
-                var cuDeviceGetAttribute = NVCudaWrapper.cuDeviceGetAttribute(out int tmp, e, _deviceHandle);
-                if (cuDeviceGetAttribute == CUresult.CUDA_SUCCESS)
-                {
-                    properties[e] = tmp;
-                }
-            }
-            MaxThreadsPerBlock = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK];
-            MultiProcessorCount = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT];
-            WarpSize = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE];
-            DefaultStream = new StreamWrapper();
-            var cudnnRes = CudnnWrapper.cudnnCreate(out _cudnnHandle);
-            CheckStatus(cudnnRes);
-            _kernelManager = new KernelManager(this);
         }
         public IntPtr CudnnHandle => _cudnnHandle;
         public void RunKernel(string kernelName, int count, object[] parameterLists)
@@ -239,12 +197,6 @@ namespace SharpNet.GPU
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
             return result;
         }
-
-        private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
-        {
-            var res = NVCudaWrapper.cuMemGetInfo_v2(out freeMemoryInBytes, out totalMemoryInBytes);
-            CheckStatus(res);
-        }
         public ulong FreeMemoryInBytes()
         {
             CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
@@ -285,20 +237,6 @@ namespace SharpNet.GPU
                 throw new Exception(_status.ToString());
             }
         }
-
-
-        public static string CudaVersionFromCudaPath()
-        {
-            try
-            {
-                var cudaPath = Environment.GetEnvironmentVariable("CUDA_PATH");
-                return string.IsNullOrEmpty(cudaPath) ? "" : cudaPath.Split(new []{'/', '\\'}, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
         public static CUDA_Versions GetInstalledCudaVersion()
         {
             var cudaPath = (Environment.GetEnvironmentVariable("CUDA_PATH") ?? "").ToLowerInvariant();
@@ -311,6 +249,23 @@ namespace SharpNet.GPU
                 return CUDA_Versions.CUDA_10_1;
             }
             return CUDA_Versions.CUDA_10_0;
+        }
+        public static int GetDeviceCount()
+        {
+            var res = NVCudaWrapper.cuDeviceGetCount(out int deviceCount);
+            if (res == CUresult.CUDA_ERROR_NOT_INITIALIZED)
+            {
+                res = NVCudaWrapper.cuInit(0);
+                CheckStatus(res);
+                res = NVCudaWrapper.cuDeviceGetCount(out deviceCount);
+                CheckStatus(res);
+            }
+            else
+            {
+                CheckStatus(res);
+            }
+
+            return deviceCount;
         }
 
         #region Dispose pattern
@@ -361,22 +316,47 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        public static int GetDeviceCount()
+        private GPUWrapper(int deviceId)
         {
-            var res = NVCudaWrapper.cuDeviceGetCount(out int deviceCount);
-            if (res == CUresult.CUDA_ERROR_NOT_INITIALIZED)
-            {
-                res = NVCudaWrapper.cuInit(0);
-                CheckStatus(res);
-                res = NVCudaWrapper.cuDeviceGetCount(out deviceCount);
-                CheckStatus(res);
-            }
-            else
-            {
-                CheckStatus(res);
-            }
+            DeviceId = deviceId;
+            var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
+            CheckStatus(cublasRes);
 
-            return deviceCount;
+            _deviceHandle = GetDeviceHandle(deviceId);
+
+            var res = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
+            CheckStatus(res);
+
+            var devName = new byte[256];
+            res = NVCudaWrapper.cuDeviceGetName(devName, devName.Length, _deviceHandle);
+            CheckStatus(res);
+            System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
+            _deviceName = enc.GetString(devName).Replace("\0", "");
+
+            res = NVCudaWrapper.cuDriverGetVersion(out int driverVersion);
+            CheckStatus(res);
+            _driverVersion = new Version(driverVersion / 1000, driverVersion % 100);
+
+            foreach (var e in Enum.GetValues(typeof(CUdevice_attribute)).Cast<CUdevice_attribute>())
+            {
+                var cuDeviceGetAttribute = NVCudaWrapper.cuDeviceGetAttribute(out int tmp, e, _deviceHandle);
+                if (cuDeviceGetAttribute == CUresult.CUDA_SUCCESS)
+                {
+                    properties[e] = tmp;
+                }
+            }
+            MaxThreadsPerBlock = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK];
+            MultiProcessorCount = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT];
+            WarpSize = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE];
+            DefaultStream = new StreamWrapper();
+            var cudnnRes = CudnnWrapper.cudnnCreate(out _cudnnHandle);
+            CheckStatus(cudnnRes);
+            _kernelManager = new KernelManager(this);
+        }
+        private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
+        {
+            var res = NVCudaWrapper.cuMemGetInfo_v2(out freeMemoryInBytes, out totalMemoryInBytes);
+            CheckStatus(res);
         }
         private static IntPtr GetDeviceHandle(int deviceId)
         {
@@ -393,11 +373,23 @@ namespace SharpNet.GPU
             CheckStatus(res);
             return deviceHandle;
         }
-        private ulong TotalMemoryInBytes()
+        private static ulong TotalMemoryInBytes()
         {
             CuMemGetInfoV2(out size_t _, out size_t totalMemoryInBytes);
             return totalMemoryInBytes;
 
+        }
+        private static string CudaVersionFromCudaPath()
+        {
+            try
+            {
+                var cudaPath = Environment.GetEnvironmentVariable("CUDA_PATH");
+                return string.IsNullOrEmpty(cudaPath) ? "" : cudaPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            }
+            catch (Exception)
+            {
+                return "";
+            }
         }
     }
 }

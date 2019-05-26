@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Networks;
 
 namespace SharpNet
 {

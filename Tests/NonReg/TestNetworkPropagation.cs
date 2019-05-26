@@ -5,6 +5,7 @@ using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Networks;
 using SharpNet.Pictures;
 using SharpNetTests.Data;
 // ReSharper disable UnusedMember.Local
@@ -14,12 +15,12 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class TestNetworkPropagation
     {
-        public const string X_1_1_1_1 = @"numpy.array([[[[1]]]], numpy.float)";
-        public const string Y_1_1_1_1 = @"numpy.array([[1,0]], numpy.float)";
+        private const string X_1_1_1_1 = @"numpy.array([[[[1]]]], numpy.float)";
+        private const string Y_1_1_1_1 = @"numpy.array([[1,0]], numpy.float)";
         public const string X_2_1_4_4 = @"numpy.array([[[[0.7262433,0.8173254,0.7680227,0.5581612],[0.2060332,0.5588848,0.9060271,0.4421779],[0.9775497,0.2737045,0.2919063,0.4673147],[0.6326591,0.4695119,0.9821513,0.03036699]]],[[[0.8623701,0.9953471,0.6771811,0.3145918],[0.8169079,0.8480518,0.9919022,0.0326252],[0.699942,0.5262842,0.9340187,0.6876203],[0.5468155,0.08110995,0.1871246,0.4533272]]]], numpy.float)";
         public const string Y_2_1_4_4 = @"numpy.array([[1,0,0], [0,0,1]], numpy.float)";
-        public const string X_1_1_4_4 = @"numpy.array([[[[0.7262433,0.8173254,0.7680227,0.5581612],[0.2060332,0.5588848,0.9060271,0.4421779],[0.9775497,0.2737045,0.2919063,0.4673147],[0.6326591,0.4695119,0.9821513,0.03036699]]]], numpy.float)";
-        public const string Y_1_1_4_4 = @"numpy.array([[1,0,0]], numpy.float)";
+        private const string X_1_1_4_4 = @"numpy.array([[[[0.7262433,0.8173254,0.7680227,0.5581612],[0.2060332,0.5588848,0.9060271,0.4421779],[0.9775497,0.2737045,0.2919063,0.4673147],[0.6326591,0.4695119,0.9821513,0.03036699]]]], numpy.float)";
+        private const string Y_1_1_4_4 = @"numpy.array([[1,0,0]], numpy.float)";
         //public const string X_1_1_2_2 = @"numpy.array([[[[0.7262433, 0.8173254],[0.2060332, 0.5588848]]]], numpy.float)";
         //public const string Y_1_1_2_2 = @"numpy.array([[1,0,0]], numpy.float)";
         private const string X_1_1_2_1 = @"numpy.array([[[[0.7262433],[0.2060332]]]], numpy.float)";
@@ -548,11 +549,11 @@ namespace SharpNetTests.NonReg
             var observedLossAccuracy = network.ComputeLossAndAccuracy(batchSize, X, Y_expected);
             if (expectedLoss.HasValue)
             { 
-                Assert.AreEqual(expectedLoss.Value, observedLossAccuracy.Item1, 1e-6, "expeted loss: " + expectedLoss.Value + " but was: " + observedLossAccuracy.Item1);
+                Assert.AreEqual(expectedLoss.Value, observedLossAccuracy.Item1, 1e-6, "expected loss: " + expectedLoss.Value + " but was: " + observedLossAccuracy.Item1);
             }
             if (expectedAccuracy.HasValue)
             {
-                Assert.AreEqual(expectedAccuracy.Value, observedLossAccuracy.Item2, 1e-6, "expeted accuracy: " + expectedAccuracy.Value + " but was: " + observedLossAccuracy.Item2);
+                Assert.AreEqual(expectedAccuracy.Value, observedLossAccuracy.Item2, 1e-6, "expected accuracy: " + expectedAccuracy.Value + " but was: " + observedLossAccuracy.Item2);
             }
         }
     }

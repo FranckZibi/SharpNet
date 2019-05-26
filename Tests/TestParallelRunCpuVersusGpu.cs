@@ -5,8 +5,8 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Networks;
 using SharpNetTests.CPU;
 using SharpNetTests.Data;
 
