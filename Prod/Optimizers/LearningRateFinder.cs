@@ -98,5 +98,10 @@ namespace SharpNet.Optimizers
         }
         public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData) {return false;}
         public double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData) {return 1.0;}
+        public bool ShouldCreateSnapshotForEpoch(int epoch)
+        {
+            return false;
+        }
+
     }
 }

@@ -73,6 +73,7 @@
     <Compile Include="Layers\PoolingLayer.cs" />
     <Compile Include="Layers\AddLayer.cs" />
     <Compile Include="Layers\ConcatenateLayer.cs" />
+    <Compile Include="Networks\EnsembleLearning.cs" />
     <Compile Include="Networks\NetworkBuilder.cs" />
     <Compile Include="Networks\Network.cs" />
     <Compile Include="Networks\NetworkConfig.cs" />
@@ -86,7 +87,7 @@
     <Compile Include="Optimizers\OneCycleLearningRateScheduler.cs" />
     <Compile Include="Optimizers\Optimizer.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateau.cs" />
-    <Compile Include="Optimizers\SGDRLearningRateScheduler.cs" />
+    <Compile Include="Optimizers\CyclicCosineAnnealingLearningRateScheduler.cs" />
     <Compile Include="Optimizers\VanillaSgd.cs" />
     <Compile Include="Pictures\ImageDataGenerator.cs" />
     <Compile Include="Pictures\PictureTools.cs" />

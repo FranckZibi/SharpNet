@@ -44,5 +44,9 @@ namespace SharpNet.Optimizers
             return learningRateMultiplicativeFactorFromReduceLrOnPlateau;
         }
 
+        public bool ShouldCreateSnapshotForEpoch(int epoch)
+        {
+            return _lrScheduler.ShouldCreateSnapshotForEpoch(epoch);
+        }
     }
 }

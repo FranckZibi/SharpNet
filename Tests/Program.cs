@@ -7,15 +7,18 @@ using System.Threading.Tasks;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Networks;
-using SharpNet.Optimizers;
+
 // ReSharper disable UnusedMember.Local
 
 namespace SharpNetTests
 {
     static class Program
     {
+     
+
         private static void Main()
         {
+
             /*
             Console.WriteLine("Epoch1");
             Console.WriteLine(Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_19064_1.txt").ContentStats());
@@ -25,6 +28,7 @@ namespace SharpNetTests
             */
             //var x = new DenseNetBuilder {NumEpochs = 5,BatchSize = -1, GpuDeviceId=-1};Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());return;
 
+            //new TestEnsembleLearning().Test(); return;
             WideResNetTests();
             //ResNetTests();
             //DenseNetTests();
@@ -93,16 +97,31 @@ namespace SharpNetTests
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_4_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_40_4_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_8_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_10_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_10_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_8_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_10_CIFAR10());},
-        };
+            };
 
             var modifiers = new List<Action<WideResNetBuilder>>
             {
-                (p) =>{p.ExtraDescription = "";},
-                (p) =>{p.DropOut = 0.3;p.ExtraDescription = "_030_dropout";},
-                (p) =>{p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2";},
+                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
+                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(150,1);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_150_1_150epochs";},
+                (p) =>{p.DropOutAfterDenseLayer = 0.3;p.NumEpochs = 150;p.ExtraDescription = "_030DropOutAfterDenseLayer_150epochs";},
+
+                //(p) =>{p.CutoutPatchlength=0;p.ExtraDescription = "_0CutoutPatchlength";},
+                //(p) =>{p.AvgPoolingSize=2;p.ExtraDescription = "_2AvgPoolingSize";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(50,1);p.ExtraDescription = "_CyclicCosineAnnealing_50_1";},
+
+                //(p) =>{p.ExtraDescription = "";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(150,1);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_150_1_150epochs";},
+                //(p) =>{p.DropOut = 0.3;p.ExtraDescription = "_030_dropout";},
+                //(p) =>{p.CutoutPatchlength=0;p.ExtraDescription = "_0CutoutPatchlength";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1,2);p.ExtraDescription = "_CyclicCosineAnnealing_1_2";},
+                #region already performed tests
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
+                //(p) =>{p.ExtraDescription = "";},
+                #endregion
             };
             PerformTestSet(modifiers, todo);
         }
@@ -113,7 +132,12 @@ namespace SharpNetTests
         {
             var todo = new List<Action<ResNetBuilder, int>>
             {
+                
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet164V2_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet110V2_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V2_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V2_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet11V2_CIFAR10());},
 
                 /*
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V1_CIFAR10());},
@@ -122,21 +146,19 @@ namespace SharpNetTests
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V1_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet110V1_CIFAR10());},
                 */
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet11V2_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet20V2_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V2_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet164V1_CIFAR10());},
             };
 
             var modifiers = new List<Action<ResNetBuilder>>
             {
-                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_testFix_SGDR_10_2";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
                 
                 /*
-                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2";},
-                (p) =>{p.Config.WithSGD(0.9,true);p.NumEpochs=300;p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2_300Epochs";},
-                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithSGDRLearningRateScheduler(200,1);p.ExtraDescription = "_SGDR_200_1";},
-                (p) =>{p.Config.WithSGD(0.9,false);p.Config.WithSGDRLearningRateScheduler(10,2);p.ExtraDescription = "_SGDR_10_2_NoNesterov";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.NumEpochs=300;p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2_300Epochs";},
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
+                (p) =>{p.Config.WithSGD(0.9,false);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2_NoNesterov";},
                 */
                 /*
                 (p) =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "";},
@@ -209,10 +231,10 @@ namespace SharpNetTests
         /// <summary>
         /// Train a network on CIFAR10 data set 
         /// </summary>
-        private static void Train_CIFAR10(NetworkBuilder p, Network network, ILearningRateScheduler lrScheduler = null, bool autoBatchSize = false)
+        private static void Train_CIFAR10(NetworkBuilder p, Network network)
         {
             CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
-            network.Fit(xTrain, yTrain, lrScheduler ?? p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, autoBatchSize ? -1 : p.BatchSize, xTest, yTest);
+            network.Fit(xTrain, yTrain, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, xTest, yTest);
             network.ClearMemory();
         }
 
@@ -242,7 +264,7 @@ namespace SharpNetTests
                     var metaParameters = new T();
                     metaParameterModifiers[metaParameterModifiersIndex](metaParameters);
                     var action = allNetworks[networkIndex];
-                    Console.WriteLine("Adding test  " + (metaParameterModifiersIndex + 1) + "." + (networkIndex + 1) + "(#" + testIdx + "/" + totalTests + ") in queue  ('" + metaParameters.ExtraDescription + "')");
+                    Console.WriteLine("Adding test " + (metaParameterModifiersIndex + 1) + "." + (networkIndex + 1) + " (#" + testIdx + "/" + totalTests + ") in queue  ('" + metaParameters.ExtraDescription + "')");
                     taskToBePerformed.Add(gpuDeviceId => action(metaParameters, gpuDeviceId));
                     ++nbPerformedtests;
                     Console.WriteLine(new string('-', 80));

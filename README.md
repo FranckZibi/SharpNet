@@ -7,6 +7,7 @@ It supports:
  - Elu / Relu / Sigmoid / Softmax activations
  - SGD & Adam optimizers
  - Image Data Augmentation (with Cutout)
+ - Ensemble Learning
  
 It can be run both on GPU (using NVIDIA cuDNN) and on the CPU (using MKL Blas).
 
@@ -25,6 +26,6 @@ Next Targets:
  - ~~Cutout~~ => DONE
  - Add multi GPU support
  - Add RNN / LSTM support
- - Improve memory efficiency for gradients
- - Add Wide ResNet / Wide DenseNet support
+ - ~~Improve memory efficiency for gradients~~ => DONE
+ - ~~Add Wide ResNet / Wide DenseNet support~~ => DONE
  - Improve Image Data Augmentation (with rotation)

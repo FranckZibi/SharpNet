@@ -5,15 +5,18 @@ using System.Diagnostics;
 namespace SharpNet.Optimizers
 {
     /// <summary>
-    /// Implementation of SGDR: stochastic gradient descent with warm restarts
+    /// Implementation of Cyclic Cosine Annealing Learning Rate = SGDR = stochastic gradient descent with warm restarts
     /// (see https://arxiv.org/pdf/1608.03983.pdf)
     /// </summary>
-    public class SGDRLearningRateScheduler : ILearningRateScheduler
+    public class CyclicCosineAnnealingLearningRateScheduler : ILearningRateScheduler
     {
         #region private fields
         private readonly double _maxLearningRate;
         private readonly List<Tuple<double, double>> _values = new List<Tuple<double, double>>();
         #endregion
+
+        public List<int> RelevantEpochSnapshot { get; }= new List<int>();
+
 
         /// <summary>
         /// see https://arxiv.org/pdf/1608.03983.pdf
@@ -22,7 +25,7 @@ namespace SharpNet.Optimizers
         /// <param name="nbEpochsInFirstRun">Number of epochs in the first warm started run</param>
         /// <param name="nbEpochInNextRunMultiplier">factor to multiply the number of epochs in the previous run</param>
         /// <param name="nbEpochs">total number of epochs to get the number of epochs in the next run</param>
-        public SGDRLearningRateScheduler(double maxLearningRate, int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier, int nbEpochs)
+        public CyclicCosineAnnealingLearningRateScheduler(double maxLearningRate, int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier, int nbEpochs)
         {
             Debug.Assert(nbEpochsInFirstRun>=1);
             Debug.Assert(nbEpochInNextRunMultiplier >= 1);
@@ -42,6 +45,7 @@ namespace SharpNet.Optimizers
                     //(no need to do a new run after it because it will have a smaller size)
                     lastEpochInCurrentRun = nbEpochs;
                 }
+                RelevantEpochSnapshot.Add(lastEpochInCurrentRun);
                 _values.Add(Tuple.Create(lastEpochInCurrentRun+1-1e-6, 1.0));
                 if (lastEpochInCurrentRun >= nbEpochs)
                 {
@@ -51,7 +55,15 @@ namespace SharpNet.Optimizers
                 nbEpochsInCurrentRun = nbEpochsInNextRun;
             }
             _maxLearningRate = maxLearningRate;
+            RelevantEpochSnapshot.Reverse();
         }
+
+        public bool ShouldCreateSnapshotForEpoch(int epoch)
+        {
+            int epochIdx= RelevantEpochSnapshot.IndexOf(epoch);
+            return (epochIdx>=0) && (epochIdx <= 2);
+        }
+
         public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
         {
             var currentEpoch = epoch + ((double)blockIdInEpoch) / nbBlocksInEpoch;

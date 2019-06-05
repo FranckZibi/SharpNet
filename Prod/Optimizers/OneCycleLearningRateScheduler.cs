@@ -34,6 +34,9 @@ namespace SharpNet.Optimizers
             _pct = pct;
             _nbEpochs = nbEpochs;
         }
+
+        public bool ShouldCreateSnapshotForEpoch(int epoch) { return epoch == _nbEpochs; }
+
         public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
         {
             double currentEpoch = epoch + ((double) blockIdInEpoch) / nbBlocksInEpoch;

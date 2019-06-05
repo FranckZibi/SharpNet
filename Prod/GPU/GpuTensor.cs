@@ -260,7 +260,7 @@ namespace SharpNet.GPU
 
         public override Tensor Clone(GPUWrapper gpuWrapper)
         {
-            var result = new GPUTensor<T>((int[]) Shape.Clone(), Description, gpuWrapper);
+            var result = new GPUTensor<T>((int[]) Shape.Clone(), Description, gpuWrapper??Wrapper);
             result.CopyToDevice(DeviceContent());
             return result;
         }
@@ -455,7 +455,7 @@ namespace SharpNet.GPU
             return UseDoublePrecision ? ToFloatArray(deviceContent as double[]) : (deviceContent as float[]);
         }
         //this = yExpectedOneHot
-        public override int ComputeAccuracy(Tensor yPredicted, Tensor buffer)
+        public override double ComputeAccuracy(Tensor yPredicted, Tensor buffer)
         {
             var yExpectedOneHot = this;
             Debug.Assert(AreCompatible(new List<Tensor> {yExpectedOneHot, yPredicted}));
@@ -466,7 +466,8 @@ namespace SharpNet.GPU
             int nbRows = yExpectedOneHot.Shape[0];
             var categoryCount = yExpectedOneHot.MultDim0;
             Wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
-            return UseDoublePrecision? ((int) buffer.ContentAsDoubleArray().Sum()): ((int) buffer.ContentAsFloatArray().Sum());
+            var countOk = UseDoublePrecision? ((int) buffer.ContentAsDoubleArray().Sum()): ((int) buffer.ContentAsFloatArray().Sum());
+            return ((double)countOk) / Shape[0];
         }
         //this = yExpectedOneHot
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)

@@ -46,14 +46,9 @@ namespace SharpNet.CPU
             get => Content[i];
             set => Content[i] = value;
         }
-        public CpuTensor<TTransformed> From_NHWC_to_NCHW<TTransformed>(Func<T, TTransformed> transform)
-            where TTransformed : struct
+        public CpuTensor<TTransformed> From_NHWC_to_NCHW<TTransformed>(Func<T, TTransformed> transform) where TTransformed : struct
         {
-            var transformedShape = new int[4];
-            transformedShape[0] = Shape[0];
-            transformedShape[1] = Shape[3];
-            transformedShape[2] = Shape[1];
-            transformedShape[3] = Shape[2];
+            var transformedShape = new [] {Shape[0], Shape[3], Shape[1], Shape[2]};
             var nchwX = new CpuTensor<TTransformed>(transformedShape, Description);
             for (int n = 0; n < transformedShape[0]; ++n)
             {
@@ -1182,8 +1177,8 @@ namespace SharpNet.CPU
             return UseDoublePrecision ? ToFloatArray(AsDoubleCpuContent) : AsFloatCpuContent;
         }
         //this method is only called for display / logging testing
-        //this = yExpected
-        public override int ComputeAccuracy(Tensor yPredicted, Tensor buffer)
+        //this = yExpectedOneHot
+        public override double ComputeAccuracy(Tensor yPredicted, Tensor buffer)
         {
             var yExpectedOneHot = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpectedOneHot, yPredicted }));
@@ -1198,7 +1193,7 @@ namespace SharpNet.CPU
                 var yPredictedCpu = yPredicted.AsCpu<double>();
                 for (int m = 0; m < batchSize; ++m)
                 {
-                    result += ComputeSingleAccuracy(yExpectedOneHotCpu, yPredictedCpu, m);
+                    result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m);
                 }
             }
             else
@@ -1207,10 +1202,10 @@ namespace SharpNet.CPU
                 var yPredictedCpu = yPredicted.AsCpu<float>();
                 for (int m = 0; m < batchSize; ++m)
                 {
-                    result += ComputeSingleAccuracy(yExpectedOneHotCpu, yPredictedCpu, m);
+                    result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m);
                 }
             }
-            return result;
+            return ((double)result)/Shape[0];
         }
         public override void CopyTo(Tensor b)
         {
@@ -1556,7 +1551,7 @@ namespace SharpNet.CPU
                 }
             }
         }
-        private static int ComputeSingleAccuracy(CpuTensor<double> yExpectedOneHot, CpuTensor<double> yPredicted, int m)
+        private static int ComputeSingleAccuracyCount(CpuTensor<double> yExpectedOneHot, CpuTensor<double> yPredicted, int m)
         {
             Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
             if (yExpectedOneHot.Width == 1)
@@ -1578,7 +1573,7 @@ namespace SharpNet.CPU
             }
             return 0;
         }
-        private static int ComputeSingleAccuracy(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m)
+        private static int ComputeSingleAccuracyCount(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m)
         {
             if (yExpectedOneHot.Width == 1)
             {

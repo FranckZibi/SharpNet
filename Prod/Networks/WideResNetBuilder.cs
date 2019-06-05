@@ -17,12 +17,12 @@ Cutout 16 / FillMode = Reflect / Disable DivideBy10OnPlateau
 #           |             |   %Accuracy   |   %Accuracy   | 
 #           |             |   (dropout)   |   (dropout)   | 
 # ---------------------------------------------------------------
-# WRN-16-4  |   2,752,506 | ----- (-----) | 94.98 (94.76) |  27.0
-# WRN-40-4  |   8,959,994 | ----- (-----) | 95.43 (-----) |  81.0
-# WRN-16-8  |  10,968,570 | ----- (-----) | 95.73         |  83.0
+# WRN-16-4  |   2,752,506 | 94.61 (-----) | 94.98 (94.76) |  27.4
+# WRN-40-4  |   8,959,994 | 95.43 (-----) | 95.43 (-----) |  77.3
+# WRN-16-8  |  10,968,570 | 95.20 (-----) | 95.73         |  83.0
 # WRN-16-10 |  17,125,626 | ----- (-----) | NA            | 136.0
 # WRN-28-8  |  23,369,210 | ----- (-----) | NA            | 173.0
-# WRN-28-10 |  36,497,146 | ----- (-----) | 96.00 (96.11) | 300.0
+# WRN-28-10 |  36,497,146 | 95.28 (-----) | 96.00 (96.11) | 296.5
 # ---------------------------------------------------------------
 */
 
@@ -50,12 +50,16 @@ namespace SharpNet.Networks
             HorizontalFlip = true;
             VerticalFlip = false;
             FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            CutoutPatchlength = 16;
+            CutoutPatchlength = 16; //validated on 04-june-2019: +44 bps
 
             NumEpochs = 200;
             BatchSize = 128;
             DropOut = 0.0; //by default we disable dropout
             InitialLearningRate = 0.1;
+            AvgPoolingSize = 2; //validated on 04-june-2019: +37 bps
+
+            //DropOutAfterDenseLayer = 0.3; //discarded on 05-june-2019: -136 bps
+            DropOutAfterDenseLayer = 0;
         }
 
         /// <summary>
@@ -63,6 +67,9 @@ namespace SharpNet.Networks
         /// any value > 0 will enable dropout
         /// </summary>
         public double DropOut { get; set; }
+        public double DropOutAfterDenseLayer { get; set; }
+
+        public int AvgPoolingSize { get; set; }
 
         public Network WRN_16_4_CIFAR10() { return WRN_CIFAR10(16, 4); }
         public Network WRN_40_4_CIFAR10() { return WRN_CIFAR10(40, 4); }
@@ -120,8 +127,19 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             net.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-            net.AvgPooling(8, 8);
-            net.Output(CIFAR10.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            if (AvgPoolingSize>=1)
+            { 
+                net.AvgPooling(AvgPoolingSize, AvgPoolingSize);
+            }
+
+            if (DropOutAfterDenseLayer > 0)
+            {
+                net.Dense_DropOut_Activation(CIFAR10.Categories, config.lambdaL2Regularization, DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            }
+            else
+            {
+                net.Output(CIFAR10.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            }
             return net;
         }
     }

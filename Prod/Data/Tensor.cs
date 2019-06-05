@@ -259,7 +259,7 @@ namespace SharpNet.Data
         public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask);
         //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
-        public abstract int ComputeAccuracy(Tensor yPredicted, Tensor buffer);
+        public abstract double ComputeAccuracy(Tensor yPredicted, Tensor buffer);
         //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);

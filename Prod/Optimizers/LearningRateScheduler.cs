@@ -13,6 +13,8 @@ namespace SharpNet.Optimizers
         private readonly bool _constantByInterval;
         #endregion
 
+        public bool ShouldCreateSnapshotForEpoch(int epoch) {return false;}
+
         #region Constructors
         private LearningRateScheduler(List<Tuple<double, double>> values, bool constantByInterval)
         {

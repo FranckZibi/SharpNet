@@ -13,10 +13,10 @@ namespace SharpNet.Networks
         #region fields
 
         #region learning rate scheduler fields
-        public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, SGDR, Cifar10WideResNet}
+        public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, CyclicCosineAnnealing, Cifar10WideResNet}
         public LearningRateSchedulerEnum LearningRateSchedulerType { get; set; } = LearningRateSchedulerEnum.Cifar10ResNet;
-        public int SGDR_nbEpochsInFirstRun { get; private set; } = 10;
-        public int SGDR_nbEpochInNextRunMultiplier { get; private set; } = 2;
+        public int CyclicCosineAnnealing_nbEpochsInFirstRun { get; private set; } = 10;
+        public int CyclicCosineAnnealing_nbEpochInNextRunMultiplier { get; private set; } = 2;
         //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
         public int OneCycle_DividerForMinLearningRate { get; set; } = 10;
         public double OneCycle_PercentInAnnealing { get; set; } = 0.2;
@@ -34,7 +34,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// minimum value for the learning rate
         /// </summary>
-        public double MinimumLearningRate { get; } = 0.5*1e-6;
+        public double MinimumLearningRate { get; } = 1e-7;
         public bool SGD_usenesterov { get; private set; }
         public Random Rand { get; }
         public Logger Logger { get; set; } = Logger.ConsoleLogger;
@@ -51,6 +51,7 @@ namespace SharpNet.Networks
         /// </summary>
         public bool DisplayTensorContentStats{ get; set; }
         public bool ProfileApplication { get; } = true;
+
         /// <summary>
         /// Interval in minuts for saving the network
         /// If less then 0
@@ -58,7 +59,7 @@ namespace SharpNet.Networks
         /// If == 0
         ///     => the network will be saved after each iteration
         /// </summary>
-        public int AutoSaveIntervalInMinuts { get; set; } = 60;
+        public int AutoSaveIntervalInMinuts { get; set; } = 90;
         public bool SaveNetworkStatsAfterEachEpoch { get; set; }
         public bool SaveLossAfterEachMiniBatch { get; set; }
         public string LogDirectory { get; } = DefaultLogDirectory;
@@ -112,8 +113,8 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
 
             equals &= Utils.Equals((int)LearningRateSchedulerType, (int)other.LearningRateSchedulerType, id + ":LearningRateSchedulerType", ref errors);
-            equals &= Utils.Equals(SGDR_nbEpochsInFirstRun, other.SGDR_nbEpochsInFirstRun, epsilon, id + ":SGDR_nbEpochsInFirstRun", ref errors);
-            equals &= Utils.Equals(SGDR_nbEpochInNextRunMultiplier, other.SGDR_nbEpochInNextRunMultiplier, epsilon, id + ":SGDR_nbEpochInNextRunMultiplier", ref errors);
+            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochsInFirstRun, other.CyclicCosineAnnealing_nbEpochsInFirstRun, epsilon, id + ":CyclicCosineAnnealing_nbEpochsInFirstRun", ref errors);
+            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochInNextRunMultiplier, other.CyclicCosineAnnealing_nbEpochInNextRunMultiplier, epsilon, id + ":CyclicCosineAnnealing_nbEpochInNextRunMultiplier", ref errors);
             equals &= Utils.Equals(OneCycle_DividerForMinLearningRate, other.OneCycle_DividerForMinLearningRate, id + ":OneCycle_DividerForMinLearningRate", ref errors);
             equals &= Utils.Equals(OneCycle_PercentInAnnealing, other.OneCycle_PercentInAnnealing, epsilon, id + ":OneCycle_PercentInAnnealing", ref errors);
             equals &= Utils.Equals(DisableReduceLROnPlateau, other.DisableReduceLROnPlateau, id + ":DisableReduceLROnPlateau", ref errors);
@@ -134,12 +135,12 @@ namespace SharpNet.Networks
 
 
         #region Learning Rate Scheduler
-        public NetworkConfig WithSGDRLearningRateScheduler(int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier)
+        public NetworkConfig WithCyclicCosineAnnealingLearningRateScheduler(int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier)
         {
             DisableReduceLROnPlateau = true;
-            LearningRateSchedulerType = LearningRateSchedulerEnum.SGDR;
-            SGDR_nbEpochsInFirstRun = nbEpochsInFirstRun;
-            SGDR_nbEpochInNextRunMultiplier = nbEpochInNextRunMultiplier;
+            LearningRateSchedulerType = LearningRateSchedulerEnum.CyclicCosineAnnealing;
+            CyclicCosineAnnealing_nbEpochsInFirstRun = nbEpochsInFirstRun;
+            CyclicCosineAnnealing_nbEpochInNextRunMultiplier = nbEpochInNextRunMultiplier;
             return this;
         }
         public NetworkConfig WithOneCycleLearningRateScheduler(int dividerForMinLearningRate, double percentInAnnealing)
@@ -180,8 +181,8 @@ namespace SharpNet.Networks
             {
                 case LearningRateSchedulerEnum.OneCycle:
                     return new OneCycleLearningRateScheduler(initialLearningRate, OneCycle_DividerForMinLearningRate, OneCycle_PercentInAnnealing, numEpochs);
-                case LearningRateSchedulerEnum.SGDR:
-                    return new SGDRLearningRateScheduler(initialLearningRate, SGDR_nbEpochsInFirstRun, SGDR_nbEpochInNextRunMultiplier, numEpochs);
+                case LearningRateSchedulerEnum.CyclicCosineAnnealing:
+                    return new CyclicCosineAnnealingLearningRateScheduler(initialLearningRate, CyclicCosineAnnealing_nbEpochsInFirstRun, CyclicCosineAnnealing_nbEpochInNextRunMultiplier, numEpochs);
                 case LearningRateSchedulerEnum.Cifar10DenseNet:
                     return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 150, initialLearningRate / 10, 225, initialLearningRate / 100);
                 case LearningRateSchedulerEnum.Cifar10ResNet:
@@ -217,7 +218,7 @@ namespace SharpNet.Networks
 
                 //learning rate scheduler fields
                 .Add(nameof(LearningRateSchedulerType), (int)LearningRateSchedulerType)
-                .Add(nameof(SGDR_nbEpochsInFirstRun), SGDR_nbEpochsInFirstRun).Add(nameof(SGDR_nbEpochInNextRunMultiplier), SGDR_nbEpochInNextRunMultiplier)
+                .Add(nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), CyclicCosineAnnealing_nbEpochsInFirstRun).Add(nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), CyclicCosineAnnealing_nbEpochInNextRunMultiplier)
                 .Add(nameof(OneCycle_DividerForMinLearningRate), OneCycle_DividerForMinLearningRate).Add(nameof(OneCycle_PercentInAnnealing), OneCycle_PercentInAnnealing)
                 .Add(nameof(DisableReduceLROnPlateau), DisableReduceLROnPlateau).Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau).Add(nameof(LinearLearningRate), LinearLearningRate)
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
@@ -253,8 +254,8 @@ namespace SharpNet.Networks
 
             //learning rate scheduler fields
             LearningRateSchedulerType = (LearningRateSchedulerEnum)serialized[nameof(LearningRateSchedulerType)];
-            SGDR_nbEpochsInFirstRun = (int)serialized[nameof(SGDR_nbEpochsInFirstRun)];
-            SGDR_nbEpochInNextRunMultiplier = (int)serialized[nameof(SGDR_nbEpochInNextRunMultiplier)];
+            CyclicCosineAnnealing_nbEpochsInFirstRun = (int)serialized[nameof(CyclicCosineAnnealing_nbEpochsInFirstRun)];
+            CyclicCosineAnnealing_nbEpochInNextRunMultiplier = (int)serialized[nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier)];
             OneCycle_DividerForMinLearningRate = (int)serialized[nameof(OneCycle_DividerForMinLearningRate)];
             OneCycle_PercentInAnnealing = (double)serialized[nameof(OneCycle_PercentInAnnealing)];
             DisableReduceLROnPlateau = (bool)serialized[nameof(DisableReduceLROnPlateau)];

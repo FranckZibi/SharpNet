@@ -108,7 +108,7 @@ namespace SharpNet
         public bool IsOutputLayer => _nextLayerIndexes.Count == 0;
         public bool SameOutputShape(Layer layer)
         {
-            return OutputShape(10).SequenceEqual(layer.OutputShape(10));
+            return OutputShape(1).SequenceEqual(layer.OutputShape(1));
         }
         public void CheckConsistency()
         {

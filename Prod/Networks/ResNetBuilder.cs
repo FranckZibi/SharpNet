@@ -13,20 +13,20 @@ BatchSize = 128
 EpochCount = 160
 SGD with momentum = 0.9 & L2 = 1-e4
 Cutout 16 / FillMode = Reflect / DivideBy10OnPlateau
-# ----------------------------------------------------------------------------
-#           |      | 160-epoch | Orig Paper| 160-epoch | Orig Paper| sec/epoch
-# Model     |  n   | ResNet v1 | ResNet v1 | ResNet v2 | ResNet v2 | GTX1080
-#           |v1(v2)| %Accuracy | %Accuracy | %Accuracy | %Accuracy | v1 (v2)  
-# ---------------------------------------------------------------------------
-# ResNet11  | - (1)| NA        | NA        | 89.26     | -----     | NA   (8.8) 
-# ResNet20  | 3 (2)| 91.96     | 91.25     | 90.97     | -----     | 8.8  (14.9) 
-# ResNet32  | 5(NA)| 93.28     | 92.49     | NA        | NA        | 13.8 ( NA) 
-# ResNet44  | 7(NA)| 93.41     | 92.83     | NA        | NA        | 18.8 ( NA) 
-# ResNet56  | 9 (6)| 93.92     | 93.03     | 94.43     | -----     | 23.8 (40.5) 
-# ResNet110 |18(12)| 94.07     | 93.39+-.16| 44.17     | 93.63     | 47.1 (85.5)
-# ResNet164 |27(18)| 93.51     | 94.07     | -----     | 94.54     | 78.9 (141)
-# ResNet1001| (111)| -----     | 92.39     | -----     | 95.08+-.14| --- (---)
-# ---------------------------------------------------------------------------
+# ------------------------------------------------------------------------
+#           |      |   160-epoch   |    Orig Paper      | sec/epoch
+# Model     |  n   | ResNetV1 (V2) |   ResNetV1 (V2)    | GTX1080
+#           |v1(v2)|   %Accuracy   |     %Accuracy      | v1 (v2)  
+# ------------------------------------------------------------------------
+# ResNet11  | - (1)| NA    (88.82) | NA (-----)         |   NA (8.4) 
+# ResNet20  | 3 (2)| 91.96 (92.24) | 91.25 (-----)      |  8.8 (15.1) 
+# ResNet32  | 5(NA)| 93.28 (NA   ) | 92.49 (NA   )      | 13.8 ( NA) 
+# ResNet44  | 7(NA)| 93.41 (NA   ) | 92.83 (NA   )      | 18.8 ( NA) 
+# ResNet56  | 9 (6)| 93.92 (94.53) | 93.03 (-----)      | 23.8 (41.0) 
+# ResNet110 |18(12)| 94.07 (95.38) | 93.39+-.16 (93.63) | 47.1 (80.2)
+# ResNet164 |27(18)| 93.51 (92.92) | 94.07 (94.54)      | 78.9 (125)
+# ResNet1001| (111)| ----- (-----) | 92.39 (95.08+-.14) | ---- (---)
+# ------------------------------------------------------------------------
 */
 
 namespace SharpNet.Networks
@@ -44,6 +44,7 @@ namespace SharpNet.Networks
                 .WithSGD(0.9, false) // SGD : validated on 19-apr-2019: +70 bps
                 .WithCifar10ResNetLearningRateScheduler(true, true, false);
 
+            //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2); //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
             WidthShiftRange = 0.1; //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
             HeightShiftRange = 0.1;
             HorizontalFlip = true; // 'true' : validated on 18-apr-2019: +70 bps
@@ -179,7 +180,6 @@ namespace SharpNet.Networks
             var config = net.Config;
             var layers = net.Layers;
 
-            //var networkName = "ResNet"+(9* numResBlocks +2)+ "V2_CIFAR10";
             net.Input(CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width);
             net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 

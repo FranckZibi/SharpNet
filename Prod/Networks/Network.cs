@@ -36,6 +36,7 @@ namespace SharpNet.Networks
         private Tensor bufferComputeAccuracy;
         private Tensor bufferComputeLoss;
         private readonly int _gpuDeviceId;
+
         private readonly List<EpochData> _epochsData;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         private string UniqueId => (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description)) + "_" + _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
@@ -107,7 +108,7 @@ namespace SharpNet.Networks
 
         public void ClearMemory()
         {
-            Info("Before clearing memory: " + GpuWrapper?.MemoryInfo());
+            LogDebug("Before clearing memory: " + GpuWrapper?.MemoryInfo());
             GpuWrapper?.ClearMemory();
             Layers.ForEach(x => x?.Dispose());
             Layers.Clear();
@@ -115,7 +116,7 @@ namespace SharpNet.Networks
             bufferComputeAccuracy?.Dispose();
             bufferComputeLoss?.Dispose();
             _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
-            Info("After clearing memory: " + GpuWrapper?.MemoryInfo());
+            LogDebug("After clearing memory: " + GpuWrapper?.MemoryInfo());
             _backwardPropagationManager?.Dispose();
         }
 
@@ -266,6 +267,12 @@ namespace SharpNet.Networks
             return Dense(n_x, lambdaL2Regularization)
                 .Activation(activationFunction);
         }
+        public Network Dense_DropOut_Activation(int n_x, double lambdaL2Regularization, double dropOut, cudnnActivationMode_t activationFunction)
+        {
+            return Dense(n_x, lambdaL2Regularization)
+                .Dropout(dropOut)
+                .Activation(activationFunction);
+        }
         public Network Output(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
         {
             return Dense(n_x, lambdaL2Regularization)
@@ -412,7 +419,7 @@ namespace SharpNet.Networks
             return result;
         }
 
-        private int MaxMiniBatchSize()
+        public int MaxMiniBatchSize()
         {
             var freeMemoryInBytes = UseGPU?GpuWrapper.FreeMemoryInBytes() : (ulong)GC.GetTotalMemory(false);
             int maxMiniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
@@ -472,13 +479,13 @@ namespace SharpNet.Networks
         }
         #region serialization
         // ReSharper disable once UnusedMember.Global
-        public static Network ValueOf(string path)
+        public static Network ValueOf(string path, int?overrideGpuDeviceId = null)
         {
             var content = File.ReadAllLines(path);
             var dicoFirstLine = Serializer.Deserialize(content[0], null);
             var config = NetworkConfig.ValueOf(dicoFirstLine);
             var imageDataGenerator = ImageDataGenerator.ValueOf(dicoFirstLine);
-            var gpuDeviceId = (int)dicoFirstLine[nameof(_gpuDeviceId)];
+            var gpuDeviceId = overrideGpuDeviceId ?? (int)dicoFirstLine[nameof(_gpuDeviceId)];
             var epochsData = (EpochData[])dicoFirstLine[nameof(_epochsData)];
             var network = new Network(config, imageDataGenerator, gpuDeviceId, epochsData.ToList());
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
@@ -683,7 +690,7 @@ namespace SharpNet.Networks
                 }
 
                 _swComputeLossAndAccuracy?.Start();
-                var trainLossAndAccuracy = ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
+                var trainLossAndAccuracy = ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted);
                 var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracy, "");
                 if (xTest != null)
                 {
@@ -714,7 +721,9 @@ namespace SharpNet.Networks
                 if (   //if we have finished training
                        ((epoch == numEpochs) && (numEpochs > 10))
                         //or if we should save the network every 'Config.AutoSaveIntervalInMinuts' minuts
-                    || ( (Config.AutoSaveIntervalInMinuts>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts))
+                    || ( (Config.AutoSaveIntervalInMinuts>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinuts)
+                    || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
+                    )
                 {
                     var swSaveTime = Stopwatch.StartNew();
                     var fileName = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
@@ -792,22 +801,22 @@ namespace SharpNet.Networks
         public Tuple<double, double> ComputeLossAndAccuracy(int miniBatchSize, Tensor x, Tensor y)
         {
             var yPredicted = MiniBatchGradientDescent(miniBatchSize, x, y);
-            return ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted, Config.LossFunction);
+            return ComputeLossAndAccuracy_From_Expected_vs_Predicted(y, yPredicted);
         }
 
-        private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
+        public Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted)
         {
             _swComputeAccuracy?.Start();
             yExpected = ReformatToCorrectType(yExpected);
             yPredicted = ReformatToCorrectType(yPredicted);
             bufferComputeAccuracy = NewNotInitializedTensor(new []{ yExpected.Shape[0]}, bufferComputeAccuracy, nameof(bufferComputeAccuracy));
-            var countOk = yExpected.ComputeAccuracy(yPredicted, bufferComputeAccuracy);
+            var accuracy = yExpected.ComputeAccuracy(yPredicted, bufferComputeAccuracy);
             _swComputeAccuracy?.Stop();
             _swComputeLoss?.Start();
             bufferComputeLoss = NewNotInitializedTensor(new[] { yExpected.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
-            var totalLoss = yExpected.ComputeLoss(yPredicted, lossFunction, bufferComputeLoss);
+            var totalLoss = yExpected.ComputeLoss(yPredicted, Config.LossFunction, bufferComputeLoss);
             _swComputeLoss?.Stop();
-            return Tuple.Create(totalLoss, countOk / ((double)yExpected.Shape[0]));
+            return Tuple.Create(totalLoss, accuracy);
         }
         private static string LossAndAccuracyToString(Tuple<double, double> lossAndAccuracy, string prefix)
         {
@@ -815,7 +824,7 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        private Tensor ReformatToCorrectType(Tensor x)
+        public Tensor ReformatToCorrectType(Tensor x)
         {
             x = ReformatToCorrectPrecision_float_or_double(x);
             x = ReformatToCorrectDevice_GPU_or_CPU(x);
@@ -896,7 +905,7 @@ namespace SharpNet.Networks
         ///     parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         ///     If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
-        private Tensor MiniBatchGradientDescent(int miniBatchSize, Tensor x, Tensor y, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
+        public Tensor MiniBatchGradientDescent(int miniBatchSize, Tensor x, Tensor y, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {
             x = ReformatToCorrectType(x);
             y = ReformatToCorrectType(y);
