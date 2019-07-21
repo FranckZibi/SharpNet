@@ -4,7 +4,7 @@ using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.Networks;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
     //used for Dense Network
     //Layer that is the concatenation of 2 previous layers

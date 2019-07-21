@@ -10,6 +10,7 @@ using System.Text;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Layers;
 using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
@@ -149,6 +150,15 @@ namespace SharpNet.Networks
         {
             ClearMemory();
             Layers.Add(new InputLayer(channelCount, h, w, this));
+            return this;
+        }
+        public Network Input(int channelCount) {return Input(channelCount, 1, 1);}
+
+        public Network SimpleRnnLayer(int xLength, int aLength, int yLength, bool returnSequences)
+        {
+            Debug.Assert(Layers.Count >= 1);
+            var simpleRnnLayer = new SimpleRnnLayer(xLength, aLength, yLength, returnSequences, this);
+            Layers.Add(simpleRnnLayer);
             return this;
         }
         public Network Dense(int n_x, double lambdaL2Regularization)

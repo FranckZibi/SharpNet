@@ -33,6 +33,7 @@ namespace SharpNet.Data
         {
             return MultDim0 * n + MultDim1 * c;
         }
+        public int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1.0, 0.0); }
@@ -199,6 +200,8 @@ namespace SharpNet.Data
         public abstract void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, double alpha, double beta);
         //this = singleLineMatrix to add to y
         public abstract void BroadcastAddVectorToOutput(Tensor y);
+        //extract channel 'channel' from this tensor and store it in 'tensor_NH'
+        public abstract void From_NCH_to_NH(Tensor tensor_NH, int channel);
         // compute: this = alpha * x + this
         public abstract void Update_Adding_Alpha_X(double alpha, Tensor x);
         // compute: this = alpha * x + beta * this
@@ -250,6 +253,8 @@ namespace SharpNet.Data
         public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
         public abstract Tensor ExtractSubTensor(int startRowIndex, int nbRows);
         public abstract void Dispose();
+
+        public abstract Tensor Transpose();
         //this = x
         public abstract void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining);
         //this = x

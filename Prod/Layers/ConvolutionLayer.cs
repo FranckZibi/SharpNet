@@ -6,7 +6,7 @@ using SharpNet.Data;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
 /*
   x                 (batchSize, x.C, x.H, x.W)

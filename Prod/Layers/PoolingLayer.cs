@@ -5,7 +5,7 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
     public class PoolingLayer : Layer
     {

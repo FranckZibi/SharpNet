@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Layers;
 using SharpNet.Networks;
 
 namespace SharpNet.CPU
@@ -65,9 +66,45 @@ namespace SharpNet.CPU
             }
             return nchwX;
         }
+        public CpuTensor<T> From_HNC_to_NCH()
+        {
+            var transformedShape = new[] { Shape[1], Shape[2], Shape[0] };
+            var result = new CpuTensor<T>(transformedShape, Description);
+            for (int n = 0; n < transformedShape[0]; ++n)
+            {
+                for (int c = 0; c < transformedShape[1]; ++c)
+                {
+                    for (int h = 0; h < transformedShape[2]; ++h)
+                    {
+                        result.Set(n, c, h, Get(h, n, c));
+                    }
+                }
+            }
+            return result;
+        }
+        public override void From_NCH_to_NH(Tensor tensor_NH, int channel)
+        {
+            Debug.Assert(Shape[0] == tensor_NH.Shape[0]);  //N
+            Debug.Assert(Shape[2] == tensor_NH.Shape[1]);  //H
+            Debug.Assert(channel < Shape[1]);
+            var cpuTensor_NH = tensor_NH as CpuTensor<T>;
+            Debug.Assert(cpuTensor_NH != null);
+            for (int n = 0; n < tensor_NH.Shape[0]; ++n)
+            {
+                for (int h = 0; h < tensor_NH.Shape[1]; ++h)
+                {
+                    cpuTensor_NH.Set(n, h, Get(n, channel, h));
+                }
+            }
+        }
         public T Get(int n, int c)
         {
             return this[Idx(n, c)];
+        }
+        public T Get(int n, int c, int h)
+        {
+            Debug.Assert(Dimension == 3);
+            return this[Idx(n, c, h)];
         }
         public T Get(int n, int c, int h, int w)
         {
@@ -78,6 +115,11 @@ namespace SharpNet.CPU
         {
             Debug.Assert(Dimension == 2);
             this[Idx(n, c)] = t;
+        }
+        public void Set(int n, int c, int h, T t)
+        {
+            Debug.Assert(Dimension == 3);
+            this[Idx(n, c, h)] = t;
         }
         public void Set(int n, int c, int h, int w, T t)
         {
@@ -495,6 +537,22 @@ namespace SharpNet.CPU
             // this = alpha * x + beta * this
             Update_Adding_Alpha_X(alpha, x);
         }
+
+        //TODO : add tests
+        public override Tensor Transpose()
+        {
+            Debug.Assert(Dimension == 2);
+            var output = new CpuTensor<T>(new[] { Shape[1], Shape[0] }, Description);
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                for (int col = 0; col < Shape[1]; ++col)
+                {
+                    output.Set(col, row, Get(row, col));
+                }
+            }
+            return output;
+        }
+
         public override void Concatenate(Tensor a, Tensor b)
         {
             CheckConcatenate(a, b);
@@ -1069,14 +1127,14 @@ namespace SharpNet.CPU
             var W = this;
             if (UseDoublePrecision)
             {
-                adam_vW.AsCpu<double>().Udpate(dW, (adam_vw, dw) => beta1 * adam_vw + (1 - beta1) * dw);
-                adam_sW.AsCpu<double>().Udpate(dW, (adam_sw, dw) => beta2 * adam_sw + (1 - beta2) * dw * dw);
+                adam_vW.AsCpu<double>().Update(dW, (adam_vw, dw) => beta1 * adam_vw + (1 - beta1) * dw);
+                adam_sW.AsCpu<double>().Update(dW, (adam_sw, dw) => beta2 * adam_sw + (1 - beta2) * dw * dw);
                 W.AsCpu<double>().Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)));
             }
             else
             {
-                adam_vW.AsCpu<float>().Udpate(dW, (adam_vw, dw) => (float) (beta1 * adam_vw + (1 - beta1) * dw));
-                adam_sW.AsCpu<float>().Udpate(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
+                adam_vW.AsCpu<float>().Update(dW, (adam_vw, dw) => (float) (beta1 * adam_vw + (1 - beta1) * dw));
+                adam_sW.AsCpu<float>().Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
                 W.AsCpu<float>().Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
             }
         }
@@ -1355,7 +1413,7 @@ namespace SharpNet.CPU
                 this[i] = funcInput(this[i], aCpu[i], bCpu[i]);
             }
         }
-        private void Udpate(Tensor b, Func<T, T, T> funcInput)
+        private void Update(Tensor b, Func<T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> {this, b}));
             Debug.Assert(SameShape(b));

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using SharpNet.Data;
 using SharpNet.Networks;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
     public class InputLayer : Layer
     {

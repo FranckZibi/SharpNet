@@ -6,7 +6,7 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
     public abstract class Layer : IDisposable
     {
@@ -253,7 +253,7 @@ namespace SharpNet
             //In this mode bnBias, bnScale tensor dimensions are (1, C, 1, 1)
             return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
         }
-        protected void Allocate_y_if_necessary()
+        protected virtual void Allocate_y_if_necessary()
         {
             var batchSize = PrevLayer.y.Shape[0];
             var outputShape = OutputShape(batchSize);

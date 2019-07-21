@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNet.Pictures;
 using SharpNetTests.NonReg;
@@ -114,7 +115,7 @@ namespace SharpNetTests
             }
             return result;
         }
-        private static void AbsWeigthsWithMinimum(Network n, double min)
+        private static void AbsWeightsWithMinimum(Network n, double min)
         {
             foreach (var l in n.TensorsIndependantOfBatchSize.OfType<CpuTensor<double>>())
             {
@@ -126,7 +127,7 @@ namespace SharpNetTests
         }
         private static void CompareExpectedVsObservedGradients(Network n, CpuTensor<double> w, CpuTensor<double> dW, CpuTensor<double> X, CpuTensor<double> Y, Random r, int nbTests = 100)
         {
-            AbsWeigthsWithMinimum(n, 0.0);
+            AbsWeightsWithMinimum(n, 0.0);
             ComputeGradientAndReturnLoss(n, X, Y, true);
             double epsilon = 1e-8;
             var observedDifferences =  new List<double>();

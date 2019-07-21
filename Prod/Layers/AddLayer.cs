@@ -3,7 +3,7 @@ using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.Networks;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
     //used for Residual Network
     //Layer that is the sum of the Previous Layer and the Shortcut Layer

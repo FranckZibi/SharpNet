@@ -4,7 +4,7 @@ using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.Networks;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
     public class DropoutLayer : Layer
     {

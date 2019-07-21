@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>SharpNet</RootNamespace>
     <AssemblyName>SharpNet</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
@@ -24,6 +24,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>x64</PlatformTarget>
@@ -37,8 +38,21 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Buffers.4.4.0\lib\netstandard2.0\System.Buffers.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Memory, Version=4.0.1.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Memory.4.5.3\lib\netstandard2.0\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Numerics.Vectors.4.4.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.4.5.2\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BackwardPropagationManager.cs" />
@@ -62,8 +76,10 @@
     <Compile Include="GPU\NVCudaWrapper.cs" />
     <Compile Include="GPU\NVRTCWrapper.cs" />
     <Compile Include="GPU\StreamWrapper.cs" />
+    <Compile Include="Layers\AddLayer.cs" />
     <Compile Include="Layers\ActivationLayer.cs" />
     <Compile Include="Layers\BatchNormalizationLayer.cs" />
+    <Compile Include="Layers\ConcatenateLayer.cs" />
     <Compile Include="Layers\ConvolutionLayer.cs" />
     <Compile Include="Layers\DenseLayer.cs" />
     <Compile Include="Layers\DropoutLayer.cs" />
@@ -71,8 +87,7 @@
     <Compile Include="Layers\InputLayer.cs" />
     <Compile Include="Layers\Layer.cs" />
     <Compile Include="Layers\PoolingLayer.cs" />
-    <Compile Include="Layers\AddLayer.cs" />
-    <Compile Include="Layers\ConcatenateLayer.cs" />
+    <Compile Include="Layers\SimpleRnnLayer.cs" />
     <Compile Include="Networks\EnsembleLearning.cs" />
     <Compile Include="Networks\NetworkBuilder.cs" />
     <Compile Include="Networks\Network.cs" />
@@ -98,6 +113,9 @@
     <Compile Include="Optimizers\Sgd.cs" />
     <Compile Include="Datasets\CIFAR10.cs" />
     <Compile Include="Datasets\MNIST.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

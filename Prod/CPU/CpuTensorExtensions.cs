@@ -70,11 +70,13 @@ namespace SharpNet.CPU
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {x, y}));
             if (x.UseDoublePrecision)
             {
-                x.AsDoubleCpu.Map(v => (1.7159 * Math.Tanh(0.66666667 * v)), y.AsDoubleCpu);
+                //x.AsDoubleCpu.Map(v => (1.7159 * Math.Tanh(0.66666667 * v)), y.AsDoubleCpu);
+                x.AsDoubleCpu.Map(Math.Tanh, y.AsDoubleCpu);
             }
             else
             {
-                x.AsFloatCpu.Map(v => (float) (1.7159 * Math.Tanh(0.66666667 * v)), y.AsFloatCpu);
+                //x.AsFloatCpu.Map(v => (float) (1.7159 * Math.Tanh(0.66666667 * v)), y.AsFloatCpu);
+                x.AsFloatCpu.Map(v=> (float)Math.Tanh(v), y.AsFloatCpu);
             }
         }
         public static void Relu<T>(this CpuTensor<T> x, Tensor y) where T : struct

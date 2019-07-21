@@ -240,6 +240,7 @@ namespace SharpNetTests
             TestAll(new[] { src, dest }, tensors => tensors[0].CopyTo(20,tensors[1],60,40));
         }
 
+        //TODO [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)]
@@ -251,6 +252,7 @@ namespace SharpNetTests
 	        TestAll(new[] { x, y }, tensors => tensors[0].ActivationForward(activationMode, tensors[1]));
 	    }
 
+        //TODO [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)]

@@ -220,6 +220,11 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnPoolingBackward(CudnnHandle, poolingDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
             CheckStatus(res);
         }
+        public override void From_NCH_to_NH(Tensor tensor_NH, int channel)
+        {
+            throw new NotImplementedException(); //TODO
+        }
+
         // compute: this += alpha * bias
         public override void Update_Adding_Alpha_X(double alphaDouble, Tensor x)
         {
@@ -239,6 +244,12 @@ namespace SharpNet.GPU
             var beta = (UseDoublePrecision) ? (void*)&betaDouble : &betaFloat;
             var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, alpha, xDesc, x, beta, cDesc, c);
             CheckStatus(res);
+        }
+
+        //TODO
+        public override Tensor Transpose()
+        {
+            throw new NotImplementedException();
         }
 
         public override void Concatenate(Tensor a, Tensor b)

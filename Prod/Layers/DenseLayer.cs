@@ -5,7 +5,7 @@ using SharpNet.Data;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
 
-namespace SharpNet
+namespace SharpNet.Layers
 {
     public sealed class DenseLayer : Layer
     {
