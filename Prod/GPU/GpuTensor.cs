@@ -23,7 +23,7 @@ namespace SharpNet.GPU
             Debug.Assert(memoryOwner.DevicePointer != IntPtr.Zero);
             Wrapper = memoryOwner.Wrapper;
             CapacityInBytes = ReallyNeededMemoryInBytes;
-            _deviceMemory = new DeviceMemory(memoryOwner.DevicePointer+offsetInBytes, CapacityInBytes);
+            _deviceMemory = Wrapper.NewDeviceMemory(memoryOwner.DevicePointer+offsetInBytes, CapacityInBytes);
         }
 
         public GPUTensor(int[] shape, string description, GPUWrapper wrapper) : this(shape, IntPtr.Zero, description, wrapper)
@@ -34,12 +34,13 @@ namespace SharpNet.GPU
         {
             Wrapper = wrapper;
             CapacityInBytes = ReallyNeededMemoryInBytes;
-            _deviceMemory = new DeviceMemory(CapacityInBytes);
+            _deviceMemory = Wrapper.NewDeviceMemory(CapacityInBytes);
             if (hostMemoryPointer != IntPtr.Zero)
             {
                 CopyToDevice(hostMemoryPointer);
             }
         }
+
 
         /// <summary>
         /// copy from CPU (Host) to GPU (Device) memory
@@ -139,7 +140,6 @@ namespace SharpNet.GPU
             Debug.Assert(x.SameShape(y));
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
-            var activationDescriptor = ActivationDesc(activationType);
 
             float oneFloat = 1.0f, zeroFloat = 0.0f;
             double oneDouble = 1.0d, zeroDouble = 0.0d;
@@ -154,6 +154,7 @@ namespace SharpNet.GPU
             }
             else
             {
+                var activationDescriptor = ActivationDesc(activationType);
                 res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDescriptor, one, xDesc, x, zero, yDesc, y);
             }
             CheckStatus(res);
@@ -519,10 +520,10 @@ namespace SharpNet.GPU
             {
                 res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var dropoutStateSize);
                 CheckStatus(res);
-                _randomNumberGeneratorStatesBuffer = new DeviceMemory(Math.Max(dropoutStateSize, 1));
+                _randomNumberGeneratorStatesBuffer = Wrapper.NewDeviceMemory(Math.Max(dropoutStateSize, 1));
                 res = CudnnWrapper.cudnnDropoutGetReserveSpaceSize(xDesc, out var dropoutReserveSpaceSize);
                 CheckStatus(res);
-                _dropoutReserveSpace = new DeviceMemory(Math.Max(dropoutReserveSpaceSize, 1));
+                _dropoutReserveSpace = Wrapper.NewDeviceMemory(Math.Max(dropoutReserveSpaceSize, 1));
                 _dropoutDescriptor = Wrapper.DropoutDesc(dropProbability, _randomNumberGeneratorStatesBuffer.Pointer);
             }
             res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, _dropoutDescriptor, xDesc, x, yDesc, y, _dropoutReserveSpace.Pointer, _dropoutReserveSpace.SizeInBytes);
@@ -634,6 +635,7 @@ namespace SharpNet.GPU
         public override void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
         private void Dispose(bool disposing)
         {
@@ -644,12 +646,15 @@ namespace SharpNet.GPU
             _disposed = true;
             if (disposing)
             {
-                GC.SuppressFinalize(this);
+                //managed memory
                 _randomNumberGeneratorStatesBuffer?.Dispose();
                 _dropoutReserveSpace?.Dispose();
-                CudnnWrapper.cudnnDestroyDropoutDescriptor(_dropoutDescriptor);
+                _deviceMemory?.Dispose();
             }
-            _deviceMemory.Dispose();
+
+            //unmanaged memory
+            CudnnWrapper.cudnnDestroyDropoutDescriptor(_dropoutDescriptor);
+
             _randomNumberGeneratorStatesBuffer = null;
             _dropoutReserveSpace = null;
             _dropoutDescriptor = IntPtr.Zero;

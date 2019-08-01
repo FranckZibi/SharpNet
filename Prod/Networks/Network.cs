@@ -304,18 +304,22 @@ namespace SharpNet.Networks
 
         public void Fit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateScheduler lrScheduler, ReduceLROnPlateau reduceLROnPlateau, int numEpochs, int batchSize, CpuTensor<T> xTestCpu = null,CpuTensor<T> yTestCpu = null) where T : struct
         {
-            var learningRateComputer = new LearningRateComputer(lrScheduler, reduceLROnPlateau, Config.MinimumLearningRate);
-            Fit(xCpu, yCpu, learningRateComputer, numEpochs, batchSize, xTestCpu, yTestCpu);
-        }
-        private void Fit<T>(CpuTensor<T> xCpu, CpuTensor<T> yCpu, ILearningRateComputer learningRateComputer, int numEpochs, int batchSize, CpuTensor<T> xTestCpu = null, CpuTensor<T> yTestCpu = null) where T : struct
-        {
-            if (Config.UseDoublePrecision)
+            try
             {
-                InternalFit(xCpu.ToDoublePrecision(), yCpu.ToDoublePrecision(), learningRateComputer, numEpochs, batchSize, xTestCpu?.ToDoublePrecision(), yTestCpu?.ToDoublePrecision());
+                var learningRateComputer = new LearningRateComputer(lrScheduler, reduceLROnPlateau, Config.MinimumLearningRate);
+                if (Config.UseDoublePrecision)
+                {
+                    InternalFit(xCpu.ToDoublePrecision(), yCpu.ToDoublePrecision(), learningRateComputer, numEpochs, batchSize, xTestCpu?.ToDoublePrecision(), yTestCpu?.ToDoublePrecision());
+                }
+                else
+                {
+                    InternalFit(xCpu.ToSinglePrecision(), yCpu.ToSinglePrecision(), learningRateComputer, numEpochs, batchSize, xTestCpu?.ToSinglePrecision(), yTestCpu?.ToSinglePrecision());
+                }
             }
-            else
+            catch (Exception e)
             {
-                InternalFit(xCpu.ToSinglePrecision(), yCpu.ToSinglePrecision(), learningRateComputer, numEpochs, batchSize, xTestCpu?.ToSinglePrecision(), yTestCpu?.ToSinglePrecision());
+                Info("Exception occured in ThreadId#"+ System.Threading.Thread.CurrentThread.ManagedThreadId+": " +e);
+                //throw;
             }
         }
         //= ForwardPropagation
@@ -429,9 +433,10 @@ namespace SharpNet.Networks
             return result;
         }
 
-        public int MaxMiniBatchSize()
+        private int MaxMiniBatchSize()
         {
-            var freeMemoryInBytes = UseGPU?GpuWrapper.FreeMemoryInBytes() : (ulong)GC.GetTotalMemory(false);
+            //TODO  : GC.GetTotalMemory(false) is wrong
+            var freeMemoryInBytes = UseGPU?(ulong)GpuWrapper.AvailableMemoryInBytes() : (ulong)GC.GetTotalMemory(false);
             int maxMiniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
             LogDebug("Max MiniBatchSize=" + maxMiniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
             return maxMiniBatchSize;
@@ -441,6 +446,7 @@ namespace SharpNet.Networks
         public static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
         {
             freeMemoryInBytes -= bytesIndependantOfBatchSize;
+            //TODO : take into account real memory available in GPUWrapper
             freeMemoryInBytes = (80* freeMemoryInBytes)/100;
             ulong miniBatchSize = 1;
             while ( (2UL * miniBatchSize * bytesByBatchSize) < freeMemoryInBytes)
@@ -474,6 +480,7 @@ namespace SharpNet.Networks
                 bufferIfAny.Reshape(shape);
                 return bufferIfAny;
             }
+
             if (Config.UseDoublePrecision)
             {
                 return UseGPU
@@ -627,6 +634,8 @@ namespace SharpNet.Networks
                 Info("Reducing MiniBatchSize from "+ miniBatchSize+" to "+ maxMiniBatchSize+" because of memory limit.");
                 miniBatchSize = maxMiniBatchSize;
             }
+
+
             var nbBlocksInEpoch = NbBlocksInEpoch(miniBatchSize, x.Shape[0]);
             if (UseGPU)
             {
@@ -649,6 +658,8 @@ namespace SharpNet.Networks
                 Info("Saving mini batch loss in " + MiniBatchLossFile);
                 callBackAtEachIteration = CallBackComputeLossAfterEachMiniBatch;
             }
+
+            //Info(GpuWrapper.ToString());
 
             var enlargedXCpu = _imageDataGenerator.EnlargePictures(xCpu);
             var lastAutoSaveTime = DateTime.Now; //last time we saved the network
@@ -900,7 +911,7 @@ namespace SharpNet.Networks
             }
             _swUpdateWeights?.Stop();
         }
-        private void Info(string msg) { Config.Logger.Info(msg); }
+        public void Info(string msg) { Config.Logger.Info(msg); }
         public void LogDebug(string msg) { Config.Logger.Debug(msg); }
 
         /// <summary>

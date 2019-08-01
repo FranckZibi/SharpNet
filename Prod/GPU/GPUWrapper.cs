@@ -1,8 +1,8 @@
-﻿using System;
+﻿using SharpNet.Data;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using SharpNet.Data;
 
 namespace SharpNet.GPU
 {
@@ -32,10 +32,16 @@ namespace SharpNet.GPU
         private ulong _bytesCopiedToHost;
         private DeviceMemory _lazyStorageBuffer;
         private static readonly IDictionary<int, GPUWrapper> Cache = new Dictionary<int, GPUWrapper>();
+        private readonly bool _preAllocateAllDeviceMemory;
+        private IntPtr _pointToDeviceMemory;
+        private size_t _sizeInBytesOfAllocatedMemory;
+        private long _offsetNextSpaceInDeviceMemory;
+        private int _nbChunksInDeviceMemory = 0;
         #endregion
 
         #region readonly properties
         public int DeviceId { get; }
+        public int ThreadId { get; }
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
@@ -63,8 +69,10 @@ namespace SharpNet.GPU
         {
             if (!cacheActivationDesc.TryGetValue(activationFunctionType, out var desc))
             {
-                CudnnWrapper.cudnnCreateActivationDescriptor(out desc);
-                CudnnWrapper.cudnnSetActivationDescriptor(desc, activationFunctionType, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, 1.0);
+                var res = CudnnWrapper.cudnnCreateActivationDescriptor(out desc);
+                CheckStatus(res);
+                res = CudnnWrapper.cudnnSetActivationDescriptor(desc, activationFunctionType, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, 1.0);
+                CheckStatus(res);
                 cacheActivationDesc[activationFunctionType] = desc;
             }
             return desc;
@@ -74,8 +82,10 @@ namespace SharpNet.GPU
             var key = Tuple.Create(poolingMode, poolingSize, poolingStride);
             if (!cachePoolingDesc.TryGetValue(key, out var desc))
             {
-                CudnnWrapper.cudnnCreatePoolingDescriptor(out desc);
-                CudnnWrapper.cudnnSetPooling2dDescriptor(desc, poolingMode, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, poolingSize, poolingSize, 0, 0, poolingStride, poolingStride);
+                var res = CudnnWrapper.cudnnCreatePoolingDescriptor(out desc);
+                CheckStatus(res);
+                res = CudnnWrapper.cudnnSetPooling2dDescriptor(desc, poolingMode, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, poolingSize, poolingSize, 0, 0, poolingStride, poolingStride);
+                CheckStatus(res);
                 cachePoolingDesc[key] = desc;
             }
             return desc;
@@ -85,8 +95,10 @@ namespace SharpNet.GPU
             var key = Tuple.Create(cudaType, padding, stride);
             if (!cacheConvolutionDesc.TryGetValue(key, out var desc))
             {
-                CudnnWrapper.cudnnCreateConvolutionDescriptor(out desc);
-                CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, padding, padding, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
+                var res = CudnnWrapper.cudnnCreateConvolutionDescriptor(out desc);
+                CheckStatus(res);
+                res = CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, padding, padding, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
+                CheckStatus(res);
                 cacheConvolutionDesc[key] = desc;
             }
             return desc;
@@ -100,16 +112,19 @@ namespace SharpNet.GPU
             var key = Tuple.Create(cudaType, n, c, h, w);
             if (!cacheFilterDesc.TryGetValue(key, out var desc))
             {
-                CudnnWrapper.cudnnCreateFilterDescriptor(out desc);
-                CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, n, c, h, w);
+                var res = CudnnWrapper.cudnnCreateFilterDescriptor(out desc);
+                CheckStatus(res);
+                res = CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, n, c, h, w);
+                CheckStatus(res);
                 cacheFilterDesc[key] = desc;
             }
             return desc;
         }
         public IntPtr DropoutDesc(double dropoutRate, IntPtr randomNumberGeneratorStatesBuffer)
         {
-            CudnnWrapper.cudnnCreateDropoutDescriptor(out IntPtr desc);
-            var res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var stateSize);
+            var res = CudnnWrapper.cudnnCreateDropoutDescriptor(out IntPtr desc);
+            CheckStatus(res);
+            res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var stateSize);
             CheckStatus(res);
             res = CudnnWrapper.cudnnSetDropoutDescriptor(desc, _cudnnHandle, (float)dropoutRate, randomNumberGeneratorStatesBuffer, stateSize, 0);
             CheckStatus(res);
@@ -129,8 +144,10 @@ namespace SharpNet.GPU
             var key = Tuple.Create(cudaType, n, c, h, w);
             if (!cacheTensorDesc.TryGetValue(key, out var desc))
             {
-                CudnnWrapper.cudnnCreateTensorDescriptor(out desc);
-                CudnnWrapper.cudnnSetTensor4dDescriptor(desc, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, cudaType, n, c, h, w);
+                var res = CudnnWrapper.cudnnCreateTensorDescriptor(out desc);
+                CheckStatus(res);
+                res = CudnnWrapper.cudnnSetTensor4dDescriptor(desc, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, cudaType, n, c, h, w);
+                CheckStatus(res);
                 cacheTensorDesc[key] = desc;
             }
             return desc;
@@ -141,10 +158,43 @@ namespace SharpNet.GPU
             if (_lazyStorageBuffer == null || _lazyStorageBuffer.SizeInBytes < sizeInBytes)
             {
                 _lazyStorageBuffer?.Dispose();
-                _lazyStorageBuffer = new DeviceMemory(Math.Max(sizeInBytes,10*1024*1024));
+                _lazyStorageBuffer = NewDeviceMemory(Math.Max(sizeInBytes, 10 * 1024 * 1024));
             }
             return _lazyStorageBuffer;
         }
+
+
+
+        public DeviceMemory NewDeviceMemory(size_t sizeInBytes)
+        {
+
+            if (ThreadId != System.Threading.Thread.CurrentThread.ManagedThreadId)
+            {
+                throw new Exception("invalid Thread Id " + this);
+            }
+            if (!_preAllocateAllDeviceMemory)
+            {
+                return new DeviceMemory(sizeInBytes);
+            }
+            if (sizeInBytes > FreePreAllocatedMemoryInBytes())
+            {
+                throw new OutOfMemoryException("Not enough memory to allocate " + sizeInBytes + " (available:" + FreePreAllocatedMemoryInBytes() + ") in " + this);
+            }
+            var result = NewDeviceMemory(new IntPtr(_pointToDeviceMemory.ToInt64() + (long)(ulong)_offsetNextSpaceInDeviceMemory), sizeInBytes);
+            _offsetNextSpaceInDeviceMemory += (long)(ulong)sizeInBytes;
+            const long alignment = 128;
+            if (_offsetNextSpaceInDeviceMemory % alignment != 0)
+            {
+                _offsetNextSpaceInDeviceMemory += alignment - (_offsetNextSpaceInDeviceMemory % alignment);
+            }
+            ++_nbChunksInDeviceMemory;
+            return result;
+        }
+        public DeviceMemory NewDeviceMemory(IntPtr pointer, size_t sizeInBytes)
+        {
+            return new DeviceMemory(pointer, sizeInBytes);
+        }
+
         public void ClearMemory()
         {
             _copyToDeviceCalls = 0;
@@ -153,7 +203,8 @@ namespace SharpNet.GPU
             _bytesCopiedToHost = 0;
             SwCopyToDevice.Reset();
             SwCopyToHost.Reset();
-
+            _offsetNextSpaceInDeviceMemory = 0;
+            _nbChunksInDeviceMemory = 0;
             cacheTensorDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyTensorDescriptor(x));
             cacheTensorDesc.Clear();
             cacheFilterDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyFilterDescriptor(x));
@@ -181,20 +232,25 @@ namespace SharpNet.GPU
         }
         public string DeviceName()
         {
-            return _deviceName + " " + _driverVersion+ " (deviceId:"+DeviceId+")";
+            return _deviceName + " " + _driverVersion + " (deviceId:" + DeviceId + "/threadId:" + ThreadId + ")";
         }
         public override string ToString()
         {
-            return DeviceName() + " - "+MemoryInfo();
+            return DeviceName() + " - " + MemoryInfo();
         }
         public string MemoryInfo()
         {
-            var result = "Free Gpu Memory: " + Utils.MemoryBytesToString(FreeMemoryInBytes())  + "/" + Utils.MemoryBytesToString(TotalMemoryInBytes());
+            var result = "Free GPU Memory: " + Utils.MemoryBytesToString(FreeMemoryInBytes()) + "/" + Utils.MemoryBytesToString(TotalMemoryInBytes());
+            if (_preAllocateAllDeviceMemory)
+            {
+                result += " - Free PreAllocated GPU Memory: " + Utils.MemoryBytesToString(FreePreAllocatedMemoryInBytes()) + "/" + Utils.MemoryBytesToString(_sizeInBytesOfAllocatedMemory);
+            }
             var cudaVersion = CudaVersionFromCudaPath();
-            result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - with CUDA " + cudaVersion);
-            result += " - GetTotalMemory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false)) ;
-            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice)+" CopiedToDevice (" + _copyToDeviceCalls + "calls, "+ SwCopyToDevice.ElapsedMilliseconds+"ms)";
+            result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
+            result += " - RAM Memory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false));
+            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice) + " CopiedToDevice (" + _copyToDeviceCalls + "calls, " + SwCopyToDevice.ElapsedMilliseconds + "ms)";
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
+            result += " - CurrentThreadId#" + System.Threading.Thread.CurrentThread.ManagedThreadId;
             return result;
         }
         public ulong FreeMemoryInBytes()
@@ -202,12 +258,22 @@ namespace SharpNet.GPU
             CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
             return freeMemoryInBytes;
         }
+        private size_t FreePreAllocatedMemoryInBytes()
+        {
+            return (_sizeInBytesOfAllocatedMemory - (ulong)_offsetNextSpaceInDeviceMemory);
+        }
+        public size_t AvailableMemoryInBytes()
+        {
+            return (_preAllocateAllDeviceMemory ? FreePreAllocatedMemoryInBytes() : (size_t)FreeMemoryInBytes());
+        }
+
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
         public StreamWrapper DefaultStream
         {
             get => _defaultStream;
             private set => _defaultStream = value;
         }
+
         public static void CheckStatus(cublasStatus_t _status)
         {
             if (_status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
@@ -230,6 +296,9 @@ namespace SharpNet.GPU
                 throw new Exception(_status.ToString());
             }
         }
+
+
+
         public static void CheckStatus(nvrtcResult _status)
         {
             if (_status != nvrtcResult.NVRTC_SUCCESS)
@@ -272,6 +341,7 @@ namespace SharpNet.GPU
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
         // ReSharper disable once RedundantDefaultMemberInitializer
         private bool disposed = false;
@@ -284,41 +354,39 @@ namespace SharpNet.GPU
             disposed = true;
             if (disposing)
             {
-                GC.SuppressFinalize(this);
-                Dispose(ref _defaultStream);
-                CublasWrapper.cublasDestroy_v2(_cudaBlasHandle);
-                _cudaBlasHandle = IntPtr.Zero;
-                CudnnWrapper.cudnnDestroy(_cudnnHandle);
-                _cudnnHandle = IntPtr.Zero;
-                NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
-                _contextHandle = IntPtr.Zero;
+                //managed memory
+                _defaultStream?.Dispose();
             }
-        }
-        private static void Dispose<T>(ref T field) where T : class, IDisposable
-        {
-            if (field != null)
-            {
-                try
-                {
-                    field.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                }
 
-                field = null;
+            //unmanaged memory
+            if (_preAllocateAllDeviceMemory)
+            {
+                NVCudaWrapper.cuMemFree_v2(_pointToDeviceMemory);
+                _pointToDeviceMemory = IntPtr.Zero;
+                _sizeInBytesOfAllocatedMemory = 0;
+                _offsetNextSpaceInDeviceMemory = 0;
+                _nbChunksInDeviceMemory = 0;
             }
+            CublasWrapper.cublasDestroy_v2(_cudaBlasHandle);
+            _cudaBlasHandle = IntPtr.Zero;
+            CudnnWrapper.cudnnDestroy(_cudnnHandle);
+            _cudnnHandle = IntPtr.Zero;
+            NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
+            _contextHandle = IntPtr.Zero;
         }
+
         ~GPUWrapper()
         {
             Dispose(false);
         }
         #endregion
 
+
         private GPUWrapper(int deviceId)
         {
             DeviceId = deviceId;
+            ThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            _preAllocateAllDeviceMemory = false;
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
 
@@ -326,6 +394,8 @@ namespace SharpNet.GPU
 
             var res = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
             CheckStatus(res);
+
+
 
             var devName = new byte[256];
             res = NVCudaWrapper.cuDeviceGetName(devName, devName.Length, _deviceHandle);
@@ -352,6 +422,18 @@ namespace SharpNet.GPU
             var cudnnRes = CudnnWrapper.cudnnCreate(out _cudnnHandle);
             CheckStatus(cudnnRes);
             _kernelManager = new KernelManager(this);
+            if (_preAllocateAllDeviceMemory)
+            {
+                _sizeInBytesOfAllocatedMemory = (75 * FreeMemoryInBytes()) / 100;
+                while (CUresult.CUDA_SUCCESS != NVCudaWrapper.cuMemAlloc_v2(out _pointToDeviceMemory, _sizeInBytesOfAllocatedMemory))
+                {
+                    _sizeInBytesOfAllocatedMemory = (90 * _sizeInBytesOfAllocatedMemory) / 100;
+                    if (_sizeInBytesOfAllocatedMemory < 0.1 * FreeMemoryInBytes())
+                    {
+                        throw new Exception("Fail to allocate enough Device memory in " + this);
+                    }
+                }
+            }
         }
         private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
         {

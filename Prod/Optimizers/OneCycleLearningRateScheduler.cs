@@ -2,6 +2,10 @@
 
 namespace SharpNet.Optimizers
 {
+    //Uses the following policy for Learning Rate (LR) :
+    //  Step1: increasing the LR from 'MinLearningRate()' to 'MaxLearningRate()'
+    //  Step2: decreasing the LR from 'MaxLearningRate()' to 'MinLearningRate()'
+    //  Step3: annihilating the LR from 'MinLearningRate()' to 'LearningRateForLastEpoch()'
     public class OneCycleLearningRateScheduler : ILearningRateScheduler
     {
         #region private fields

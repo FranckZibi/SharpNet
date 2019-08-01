@@ -74,7 +74,7 @@ namespace SharpNet.GPU
                 return;
             }
             _disposed = true;
-            //non managed memory
+            //unmanaged memory
             if (_isOwnerOfDeviceMemory)
             {
                 NVCudaWrapper.cuMemFree_v2(_pointer);

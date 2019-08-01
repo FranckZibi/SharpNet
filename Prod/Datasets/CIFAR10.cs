@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using SharpNet.CPU;
+using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
@@ -26,7 +27,7 @@ namespace SharpNet.Datasets
         }
         private static void Load(out CpuTensor<byte> xTrainingSet, out CpuTensor<byte> yTrainingSet, out CpuTensor<byte> xTestSet, out CpuTensor<byte> yTestSet)
         {
-            var path = @"C:\Projects\SharpNet\Tests\Data\cifar-10-batches-bin\";
+            var path =  Path.Combine(NetworkConfig.DefaultDataDirectory, "cifar-10-batches-bin");
             xTrainingSet = new CpuTensor<byte>(new[] {50000, Channels, Height, Width }, "xTrainingSet");
             yTrainingSet = new CpuTensor<byte>(new[] {50000, 1, 1, 1}, "yTrainingSet");
             xTestSet = new CpuTensor<byte>(new[] {10000, Channels, Height, Width }, "xTestSet");

@@ -20,5 +20,10 @@ namespace SharpNet.Data
         {
             return t.value.ToUInt64();
         }
+
+        public override string ToString()
+        {
+            return ((ulong)this).ToString();
+        }
     }
 }

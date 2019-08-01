@@ -18,7 +18,6 @@ namespace SharpNetTests
 
         private static void Main()
         {
-
             /*
             Console.WriteLine("Epoch1");
             Console.WriteLine(Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_19064_1.txt").ContentStats());
@@ -97,9 +96,10 @@ namespace SharpNetTests
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_4_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_40_4_CIFAR10());},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_8_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_10_CIFAR10());},
+
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_10_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_8_CIFAR10());},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_10_CIFAR10());}
             };
 
             var modifiers = new List<Action<WideResNetBuilder>>
@@ -107,6 +107,7 @@ namespace SharpNetTests
                 (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
                 (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
                 (p) =>{p.DropOutAfterDenseLayer = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_010DropOutAfterDenseLayer_150epochs";},
+
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(150,1);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_150_1_150epochs";},
                 //(p) =>{p.DropOutAfterDenseLayer = 0.3;p.NumEpochs = 150;p.ExtraDescription = "_030DropOutAfterDenseLayer_150epochs";},
@@ -155,9 +156,10 @@ namespace SharpNetTests
             var modifiers = new List<Action<ResNetBuilder>>
             {
                 (p) =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "";},
-                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
+
                 
                 /*
+                (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
                 (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
                 (p) =>{p.Config.WithSGD(0.9,true);p.NumEpochs=300;p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2_300Epochs";},
                 (p) =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
@@ -236,12 +238,21 @@ namespace SharpNetTests
         /// </summary>
         private static void Train_CIFAR10(NetworkBuilder p, Network network)
         {
-            CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
-            network.Fit(xTrain, yTrain, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, xTest, yTest);
-            network.ClearMemory();
+            try
+            {
+                CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+                network.Fit(xTrain, yTrain, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, xTest, yTest);
+                network.ClearMemory();
+            }
+            catch (Exception e)
+            {
+                network.Info(e.ToString());
+                throw;
+            }
+
         }
 
-        private static void ConsumersLauchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)
+        private static void ConsumersLaunchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)
         {
             Console.WriteLine("Computations on GPU " + gpuDeviceId+" have started (ThreadId"+Thread.CurrentThread.ManagedThreadId+")");
             foreach (var action in produced.GetConsumingEnumerable())
@@ -250,28 +261,28 @@ namespace SharpNetTests
             }
             Console.WriteLine("Last computation on GPU " + gpuDeviceId+ " is in progress");
         }
-        private static void PerformTestSet<T>(List<Action<T>> metaParameterModifiers, List<Action<T, int>> allNetworks) where T: NetworkBuilder, new()
+        private static void PerformTestSet<T>(List<Action<T>> networkDeformers, List<Action<T, int>> networks) where T: NetworkBuilder, new()
         {
             int nbGPUs = GPUWrapper.GetDeviceCount();
+            var totalTests = networkDeformers.Count * networks.Count;
+            nbGPUs = Math.Min(nbGPUs, totalTests);
             Console.WriteLine("Computation will be done on "+nbGPUs+" GPU(s)");
             var taskToBePerformed = new BlockingCollection<Action<int>>(1);
-            var consumers = Enumerable.Range(0, nbGPUs).Select(gpuDeviceId => Task.Run(() => ConsumersLauchingTests(gpuDeviceId, taskToBePerformed))).ToArray();
-            var totalTest = metaParameterModifiers.Count * allNetworks.Count;
-            var nbPerformedtests = 0;
-            for (int metaParameterModifiersIndex = 0; metaParameterModifiersIndex < metaParameterModifiers.Count; ++metaParameterModifiersIndex)
+            var consumers = Enumerable.Range(0, nbGPUs).Select(gpuDeviceId => Task.Run(() => ConsumersLaunchingTests(gpuDeviceId, taskToBePerformed))).ToArray();
+            var nbPerformedTests = 0;
+            for (int networkDeformerIndex = 0; networkDeformerIndex < networkDeformers.Count; ++networkDeformerIndex)
             {
-                for (int networkIndex = 0; networkIndex < allNetworks.Count; ++networkIndex)
+                for (int networkIndex = 0; networkIndex < networks.Count; ++networkIndex)
                 {
-                    int testIdx = metaParameterModifiersIndex* allNetworks.Count + networkIndex+1;
-                    int totalTests = metaParameterModifiers.Count*allNetworks.Count;
-                    var metaParameters = new T();
-                    metaParameterModifiers[metaParameterModifiersIndex](metaParameters);
-                    var action = allNetworks[networkIndex];
-                    Console.WriteLine("Adding test " + (metaParameterModifiersIndex + 1) + "." + (networkIndex + 1) + " (#" + testIdx + "/" + totalTests + ") in queue  ('" + metaParameters.ExtraDescription + "')");
-                    taskToBePerformed.Add(gpuDeviceId => action(metaParameters, gpuDeviceId));
-                    ++nbPerformedtests;
+                    int testIdx = networkDeformerIndex* networks.Count + networkIndex+1;
+                    var networkDeformer = new T();
+                    networkDeformers[networkDeformerIndex](networkDeformer);
+                    var network = networks[networkIndex];
+                    Console.WriteLine("Adding test " + (networkDeformerIndex + 1) + "." + (networkIndex + 1) + " (#" + testIdx + "/" + totalTests + ") in queue  ('" + networkDeformer.ExtraDescription + "')");
+                    taskToBePerformed.Add(gpuDeviceId => network(networkDeformer, gpuDeviceId));
+                    ++nbPerformedTests;
                     Console.WriteLine(new string('-', 80));
-                    Console.WriteLine("Progress: " + ((100.0 * nbPerformedtests) / totalTest));
+                    Console.WriteLine("Progress: " + ((100.0 * nbPerformedTests) / totalTests));
                     Console.WriteLine(new string('-', 80));
                 }
             }

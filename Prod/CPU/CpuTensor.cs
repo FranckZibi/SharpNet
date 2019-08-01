@@ -149,7 +149,7 @@ namespace SharpNet.CPU
         /// Transform the 'this' tensor into another tensor by transforming:
         ///   each element 'val' of the  'this' tensor at position (m,c,h,w)
         /// into
-        ///   the value returned bu the method func(m,c,val)
+        ///   the value returned by the method func(m,c,val)
         /// </summary>
         /// <typeparam name="TY"></typeparam>
         /// <param name="func"></param>

@@ -64,6 +64,7 @@ namespace SharpNet.Networks
         public bool SaveLossAfterEachMiniBatch { get; set; }
         public string LogDirectory { get; } = DefaultLogDirectory;
         public static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet");
+        public static string DefaultDataDirectory => Path.Combine(DefaultLogDirectory, "Data");
         #endregion
 
         public NetworkConfig()

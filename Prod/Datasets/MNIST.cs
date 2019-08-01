@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using SharpNet.CPU;
+using SharpNet.Networks;
 using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
@@ -41,8 +43,13 @@ namespace SharpNet.Datasets
             return Tuple.Create(X, Y);
         }
 
-        private static List<KeyValuePair<CpuTensor<byte>, int>> TrainingSet => PictureTools.ReadInputPictures(@"C:\Projects\SharpNet\Tests\Data\MNIST\train-images.idx3-ubyte", @"C:\Projects\SharpNet\Tests\Data\MNIST\train-labels.idx1-ubyte");
-        private static List<KeyValuePair<CpuTensor<byte>, int>> TestSet => PictureTools.ReadInputPictures(@"C:\Projects\SharpNet\Tests\Data\MNIST\t10k-images.idx3-ubyte", @"C:\Projects\SharpNet\Tests\Data\MNIST\t10k-labels.idx1-ubyte");
+        private static string FileNameToPath(string fileName)
+        {
+            return Path.Combine(NetworkConfig.DefaultDataDirectory, "MNIST", fileName);
 
+        }
+
+        private static List<KeyValuePair<CpuTensor<byte>, int>> TrainingSet => PictureTools.ReadInputPictures(FileNameToPath("train-images.idx3-ubyte"), FileNameToPath("train-labels.idx1-ubyte"));
+        private static List<KeyValuePair<CpuTensor<byte>, int>> TestSet => PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
     }
 }

@@ -9,8 +9,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Layers
 {
-    //?D
-    // 'batchSize'   : number of sentences to process
+    // 'batchSize'   : number of sentences to process in current batch
     // Foreach each timeStep in (1, timeSteps_x)
     //      We'll process all words at position 'timeStep' in all sentences & update the network
     //              input (for each sentence): the hidden state of previous time step + the word at time step 't'
@@ -125,7 +124,7 @@ namespace SharpNet.Layers
             {
                 y_t.Add(Network.NewNotInitializedTensor(yShape, null, "y_" + (a_t.Count + 1)));
             }
-            y_t.ForEach(t => t.ZeroMemory()); //?D
+            //y_t.ForEach(t => t.ZeroMemory());
         }
 
         public override void ForwardPropagation(bool isTraining)
