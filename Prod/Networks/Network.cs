@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text;
 using SharpNet.CPU;
@@ -110,6 +111,8 @@ namespace SharpNet.Networks
         public void ClearMemory()
         {
             LogDebug("Before clearing memory: " + GpuWrapper?.MemoryInfo());
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
             GpuWrapper?.ClearMemory();
             Layers.ForEach(x => x?.Dispose());
             Layers.Clear();
@@ -117,8 +120,10 @@ namespace SharpNet.Networks
             bufferComputeAccuracy?.Dispose();
             bufferComputeLoss?.Dispose();
             _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
-            LogDebug("After clearing memory: " + GpuWrapper?.MemoryInfo());
             _backwardPropagationManager?.Dispose();
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect();
+            LogDebug("After clearing memory: " + GpuWrapper?.MemoryInfo());
         }
 
         /// <summary>
@@ -726,7 +731,7 @@ namespace SharpNet.Networks
                 Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg);
                 if (UseGPU)
                 {
-                    LogDebug(GpuWrapper.MemoryInfo());
+                    Info(GpuWrapper.MemoryInfo());
                 }
                 if (Config.ProfileApplication)
                 {
@@ -798,6 +803,7 @@ namespace SharpNet.Networks
             {
                 x.Dispose();
             }
+            enlargedXCpu.Dispose();
             _spInternalFit.Stop();
         }
 

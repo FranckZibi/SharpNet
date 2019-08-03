@@ -24,7 +24,6 @@ namespace SharpNet.GPU
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
-        private StreamWrapper _defaultStream;
         private IntPtr _cudnnHandle;
         private int _copyToDeviceCalls;
         private ulong _bytesCopiedToDevice;
@@ -33,15 +32,15 @@ namespace SharpNet.GPU
         private DeviceMemory _lazyStorageBuffer;
         private static readonly IDictionary<int, GPUWrapper> Cache = new Dictionary<int, GPUWrapper>();
         private readonly bool _preAllocateAllDeviceMemory;
+        private readonly int _threadId;
         private IntPtr _pointToDeviceMemory;
         private size_t _sizeInBytesOfAllocatedMemory;
         private long _offsetNextSpaceInDeviceMemory;
-        private int _nbChunksInDeviceMemory = 0;
+        //private int _nbChunksInDeviceMemory = 0;
         #endregion
 
         #region readonly properties
         public int DeviceId { get; }
-        public int ThreadId { get; }
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
@@ -162,16 +161,9 @@ namespace SharpNet.GPU
             }
             return _lazyStorageBuffer;
         }
-
-
-
         public DeviceMemory NewDeviceMemory(size_t sizeInBytes)
         {
-
-            if (ThreadId != System.Threading.Thread.CurrentThread.ManagedThreadId)
-            {
-                throw new Exception("invalid Thread Id " + this);
-            }
+            CheckThreadId();
             if (!_preAllocateAllDeviceMemory)
             {
                 return new DeviceMemory(sizeInBytes);
@@ -187,11 +179,12 @@ namespace SharpNet.GPU
             {
                 _offsetNextSpaceInDeviceMemory += alignment - (_offsetNextSpaceInDeviceMemory % alignment);
             }
-            ++_nbChunksInDeviceMemory;
+            //++_nbChunksInDeviceMemory;
             return result;
         }
         public DeviceMemory NewDeviceMemory(IntPtr pointer, size_t sizeInBytes)
         {
+            CheckThreadId();
             return new DeviceMemory(pointer, sizeInBytes);
         }
 
@@ -204,7 +197,7 @@ namespace SharpNet.GPU
             SwCopyToDevice.Reset();
             SwCopyToHost.Reset();
             _offsetNextSpaceInDeviceMemory = 0;
-            _nbChunksInDeviceMemory = 0;
+            //_nbChunksInDeviceMemory = 0;
             cacheTensorDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyTensorDescriptor(x));
             cacheTensorDesc.Clear();
             cacheFilterDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyFilterDescriptor(x));
@@ -232,7 +225,7 @@ namespace SharpNet.GPU
         }
         public string DeviceName()
         {
-            return _deviceName + " " + _driverVersion + " (deviceId:" + DeviceId + "/threadId:" + ThreadId + ")";
+            return _deviceName + " " + _driverVersion + " (deviceId:" + DeviceId + "/threadId:" + _threadId + ")";
         }
         public override string ToString()
         {
@@ -240,6 +233,7 @@ namespace SharpNet.GPU
         }
         public string MemoryInfo()
         {
+            CheckThreadId();
             var result = "Free GPU Memory: " + Utils.MemoryBytesToString(FreeMemoryInBytes()) + "/" + Utils.MemoryBytesToString(TotalMemoryInBytes());
             if (_preAllocateAllDeviceMemory)
             {
@@ -253,26 +247,12 @@ namespace SharpNet.GPU
             result += " - CurrentThreadId#" + System.Threading.Thread.CurrentThread.ManagedThreadId;
             return result;
         }
-        public ulong FreeMemoryInBytes()
-        {
-            CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
-            return freeMemoryInBytes;
-        }
-        private size_t FreePreAllocatedMemoryInBytes()
-        {
-            return (_sizeInBytesOfAllocatedMemory - (ulong)_offsetNextSpaceInDeviceMemory);
-        }
         public size_t AvailableMemoryInBytes()
         {
             return (_preAllocateAllDeviceMemory ? FreePreAllocatedMemoryInBytes() : (size_t)FreeMemoryInBytes());
         }
-
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
-        public StreamWrapper DefaultStream
-        {
-            get => _defaultStream;
-            private set => _defaultStream = value;
-        }
+        public StreamWrapper DefaultStream { get; }
 
         public static void CheckStatus(cublasStatus_t _status)
         {
@@ -296,9 +276,6 @@ namespace SharpNet.GPU
                 throw new Exception(_status.ToString());
             }
         }
-
-
-
         public static void CheckStatus(nvrtcResult _status)
         {
             if (_status != nvrtcResult.NVRTC_SUCCESS)
@@ -355,7 +332,7 @@ namespace SharpNet.GPU
             if (disposing)
             {
                 //managed memory
-                _defaultStream?.Dispose();
+                DefaultStream?.Dispose();
             }
 
             //unmanaged memory
@@ -365,7 +342,7 @@ namespace SharpNet.GPU
                 _pointToDeviceMemory = IntPtr.Zero;
                 _sizeInBytesOfAllocatedMemory = 0;
                 _offsetNextSpaceInDeviceMemory = 0;
-                _nbChunksInDeviceMemory = 0;
+                //_nbChunksInDeviceMemory = 0;
             }
             CublasWrapper.cublasDestroy_v2(_cudaBlasHandle);
             _cudaBlasHandle = IntPtr.Zero;
@@ -374,7 +351,6 @@ namespace SharpNet.GPU
             NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
             _contextHandle = IntPtr.Zero;
         }
-
         ~GPUWrapper()
         {
             Dispose(false);
@@ -385,7 +361,7 @@ namespace SharpNet.GPU
         private GPUWrapper(int deviceId)
         {
             DeviceId = deviceId;
-            ThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            _threadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             _preAllocateAllDeviceMemory = false;
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
@@ -471,6 +447,26 @@ namespace SharpNet.GPU
             catch (Exception)
             {
                 return "";
+            }
+        }
+        private ulong FreeMemoryInBytes()
+        {
+            CheckThreadId();
+            CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
+            return freeMemoryInBytes;
+        }
+        private size_t FreePreAllocatedMemoryInBytes()
+        {
+            return (_sizeInBytesOfAllocatedMemory - (ulong)_offsetNextSpaceInDeviceMemory);
+        }
+        /// <summary>
+        /// Ensure that the current ThreadId is the same used when creating the 'this' object
+        /// </summary>
+        private void CheckThreadId()
+        {
+            if (_threadId != System.Threading.Thread.CurrentThread.ManagedThreadId)
+            {
+                throw new Exception("invalid Thread Id " + this);
             }
         }
     }

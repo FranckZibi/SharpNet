@@ -108,6 +108,7 @@ namespace SharpNetTests
                 (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
                 (p) =>{p.DropOutAfterDenseLayer = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_010DropOutAfterDenseLayer_150epochs";},
 
+
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(150,1);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_150_1_150epochs";},
                 //(p) =>{p.DropOutAfterDenseLayer = 0.3;p.NumEpochs = 150;p.ExtraDescription = "_030DropOutAfterDenseLayer_150epochs";},
@@ -243,6 +244,11 @@ namespace SharpNetTests
                 CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
                 network.Fit(xTrain, yTrain, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, xTest, yTest);
                 network.ClearMemory();
+                xTrain?.Dispose();
+                yTrain?.Dispose();
+                xTest?.Dispose();
+                yTest?.Dispose();
+                GC.Collect();
             }
             catch (Exception e)
             {
@@ -272,14 +278,15 @@ namespace SharpNetTests
             var nbPerformedTests = 0;
             for (int networkDeformerIndex = 0; networkDeformerIndex < networkDeformers.Count; ++networkDeformerIndex)
             {
+                var networkMetaParametersDeformer = networkDeformers[networkDeformerIndex];
                 for (int networkIndex = 0; networkIndex < networks.Count; ++networkIndex)
                 {
-                    int testIdx = networkDeformerIndex* networks.Count + networkIndex+1;
-                    var networkDeformer = new T();
-                    networkDeformers[networkDeformerIndex](networkDeformer);
                     var network = networks[networkIndex];
-                    Console.WriteLine("Adding test " + (networkDeformerIndex + 1) + "." + (networkIndex + 1) + " (#" + testIdx + "/" + totalTests + ") in queue  ('" + networkDeformer.ExtraDescription + "')");
-                    taskToBePerformed.Add(gpuDeviceId => network(networkDeformer, gpuDeviceId));
+                    int testIdx = networkDeformerIndex* networks.Count + networkIndex+1;
+                    var networkMetaParameters = new T();
+                    networkMetaParametersDeformer(networkMetaParameters);
+                    Console.WriteLine("Adding test " + (networkDeformerIndex + 1) + "." + (networkIndex + 1) + " (#" + testIdx + "/" + totalTests + ") in queue  ('" + networkMetaParameters.ExtraDescription + "')");
+                    taskToBePerformed.Add(gpuDeviceId => network(networkMetaParameters, gpuDeviceId));
                     ++nbPerformedTests;
                     Console.WriteLine(new string('-', 80));
                     Console.WriteLine("Progress: " + ((100.0 * nbPerformedTests) / totalTests));
