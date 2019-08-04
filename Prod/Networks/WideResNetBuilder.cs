@@ -51,7 +51,9 @@ namespace SharpNet.Networks
             HorizontalFlip = true;
             VerticalFlip = false;
             FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            CutoutPatchlength = 16; //validated on 04-june-2019: +44 bps
+
+            CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR10: +75 bps vs no cutout (= 0.0)
+            //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR10: -60 bps vs 0.5
 
             NumEpochs = 200;
             BatchSize = 128;

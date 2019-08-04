@@ -49,7 +49,7 @@ namespace SharpNet.Networks
             HorizontalFlip = true;
             VerticalFlip = false;
             FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            CutoutPatchlength = 16;
+            CutoutPatchPercentage = 0.5; //by default we use a cutout of 1/2 of the image width
 
             NumEpochs = 300;
             BatchSize = 64;

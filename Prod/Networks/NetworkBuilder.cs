@@ -17,7 +17,11 @@ namespace SharpNet.Networks
         public bool HorizontalFlip { private get; set; }
         public bool VerticalFlip { private get; set; }
         public ImageDataGenerator.FillModeEnum FillMode { private get; set; }
-        public int CutoutPatchlength { private get; set; }
+        /// <summary>
+        /// The cutout to use in % of the longest length ( = Max(height, width) )
+        /// If <= 0 cutout will be disabled
+        /// </summary>
+        public double CutoutPatchPercentage { private get; set; }
         #endregion
 
         protected Network BuildEmptyNetwork(string networkName)
@@ -30,7 +34,7 @@ namespace SharpNet.Networks
 
         private ImageDataGenerator DataGenerator()
         {
-            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchlength);
+            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage);
         }
     }
 }

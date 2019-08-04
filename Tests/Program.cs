@@ -64,12 +64,12 @@ namespace SharpNetTests
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 150; p.ExtraDescription = "_Adam";},
                 //(p) =>{ p.ExtraDescription = "_OrigPaper";},
 
-                (p) =>{p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchlength = 0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchlength0_WithNesterov_EnhancedMemory";},
-                (p) =>{p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchlength = 0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchlength0_NoNesterov_EnhancedMemory";},
+                (p) =>{p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";},
+                (p) =>{p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";},
 
 
-                //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchlength = 16;p.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchlength16";},
-                //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchlength = 0;p.ExtraDescription = "_200Epochs_L2_InDense_CutoutPatchlength0";},
+                //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchPercentage0_25;},
+                //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_200Epochs_L2_InDense_CutoutPatchPercentage0";},
                 //(p) =>{p.NumEpochs = 200;p.Config.WithSGD(0.9,false);p.ExtraDescription = "_200Epochs_NoNesterov";},
 
                 //(p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.Config.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
@@ -104,9 +104,16 @@ namespace SharpNetTests
 
             var modifiers = new List<Action<WideResNetBuilder>>
             {
-                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
-                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
-                (p) =>{p.DropOutAfterDenseLayer = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_010DropOutAfterDenseLayer_150epochs";},
+                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
+                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_no_cutout_150epochs";},
+                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_cutout_0_25_150epochs";},
+
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_no_cutout";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_cutout_0_25";},
+
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
+                //(p) =>{p.DropOutAfterDenseLayer = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_010DropOutAfterDenseLayer_150epochs";},
 
 
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
