@@ -12,7 +12,7 @@ namespace SharpNet.Data
     public abstract class Tensor : IDisposable
     {
         #region fields
-        public int[] Shape { get; private set; }
+        public int[] Shape { get; protected set; }
         public int MultDim0 { get; private set; }
         public int MultDim1 { get; private set; }
         private int _multDim2;
@@ -33,7 +33,6 @@ namespace SharpNet.Data
         {
             return MultDim0 * n + MultDim1 * c;
         }
-        public int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1.0, 0.0); }
@@ -100,7 +99,7 @@ namespace SharpNet.Data
                 }
                 if (infinityCount != 0)
                 {
-                    result += " " + infinityCount + " infinites";
+                    result += " " + infinityCount + " infinite";
                 }
                 result += ")";
             }
@@ -118,28 +117,12 @@ namespace SharpNet.Data
             }
             throw new Exception("fail to convert " + this + " this to a CpuTensor<" + typeof(T)+">");
         }
-        public GPUTensor<T> AsGPU<T>() where T : struct
-        {
-            if (this is GPUTensor<T> result)
-            {
-                return result;
-            }
-            throw new Exception("fail to convert " + this + " this to a GPUTensor<" + typeof(T)+">");
-        }
+
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper) where T : struct
         {
             return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
         }
-        public void Reshape(int[] newShape)
-        {
-            if (Shape.SequenceEqual(newShape))
-            {
-                return;
-            }
-            Debug.Assert(ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes);
-            Shape = newShape;
-            RecomputeMultDim();
-        }
+        public abstract void Reshape(int[] newShape);
 
         public static ulong OccupiedMemoryInBytes(IEnumerable<Tensor> tensors)
         {
@@ -192,7 +175,7 @@ namespace SharpNet.Data
             }
             return true;
         }
-        public abstract ulong CapacityInBytes { get; }
+        public ulong CapacityInBytes { get; protected set; }
         public abstract void ZeroMemory();
         //this = dy
         public abstract void ConvolutionBackwardBias(Tensor convolutionBackwardBias);
@@ -301,12 +284,6 @@ namespace SharpNet.Data
             TypeSize = typeSize;
             RecomputeMultDim();
         }
-        protected void RecomputeMultDim()
-        {
-            _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;
-            MultDim1 = Shape.Length >= 3 ? Shape[2] * _multDim2 : 1;
-            MultDim0 = Shape.Length >= 2 ? Shape[1] * MultDim1 : 1;
-        }
         protected ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
         protected void CheckConcatenate(Tensor a, Tensor b)
         {
@@ -320,7 +297,14 @@ namespace SharpNet.Data
             Debug.Assert(Shape.Skip(2).SequenceEqual(a.Shape.Skip(2)));
             Debug.Assert(Shape.Skip(2).SequenceEqual(b.Shape.Skip(2)));
         }
+        protected int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
 
+        protected void RecomputeMultDim()
+        {
+            _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;
+            MultDim1 = Shape.Length >= 3 ? Shape[2] * _multDim2 : 1;
+            MultDim0 = Shape.Length >= 2 ? Shape[1] * MultDim1 : 1;
+        }
         private bool IsCompatible(Tensor a)
         {
             return (a != null && UseDoublePrecision == a.UseDoublePrecision && UseGPU == a.UseGPU);
@@ -343,6 +327,14 @@ namespace SharpNet.Data
             }
 
             return result;
+        }
+        public GPUTensor<T> AsGPU<T>() where T : struct
+        {
+            if (this is GPUTensor<T> result)
+            {
+                return result;
+            }
+            throw new Exception("fail to convert " + this + " this to a GPUTensor<" + typeof(T) + ">");
         }
     }
 }

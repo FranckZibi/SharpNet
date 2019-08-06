@@ -7,24 +7,35 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public static class MNIST
+    public class MNISTDataLoader<T> : IDataSet<T> where T: struct
     {
-        public static void Load(out CpuTensor<double> X_train, out CpuTensor<double> Y_train, out CpuTensor<double> X_test, out CpuTensor<double> Y_test)
+        public IDataSetLoader<T> Training { get; }
+        public IDataSetLoader<T> Test { get; }
+
+        public MNISTDataLoader(ImageDataGenerator imageDataGenerator)
         {
-            var trainTuple = ToWorkingSet(TrainingSet);
-            X_train = trainTuple.Item1;
-            Y_train = trainTuple.Item2;
-            var testTuple = ToWorkingSet(TestSet);
-            X_test = testTuple.Item1;
-            Y_test = testTuple.Item2;
+            var trainingSet = PictureTools.ReadInputPictures(FileNameToPath("train-images.idx3-ubyte"), FileNameToPath("train-labels.idx1-ubyte"));
+            var trainWorkingSet = ToWorkingSet(trainingSet);
+            var xTrain = trainWorkingSet.Item1;
+            var yTrain = trainWorkingSet.Item2;
+            Training = (IDataSetLoader<T>)new InMemoryDataSetLoader<double>(xTrain, yTrain, imageDataGenerator);
+
+            var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
+            var testWorkingSet = ToWorkingSet(testSet);
+            var xTest = testWorkingSet.Item1;
+            var yTest = testWorkingSet.Item2;
+            Test = (IDataSetLoader <T>)new InMemoryDataSetLoader<double>(xTest, yTest, imageDataGenerator);
         }
 
+        public void Dispose()
+        {
+            Training?.Dispose();
+            Test?.Dispose();
+        }
 
         private static Tuple<CpuTensor<double>, CpuTensor<double>> ToWorkingSet(List<KeyValuePair<CpuTensor<byte>, int>> t)
         {
             int setSize = t.Count;
-
-            //setSize = Math.Min(5000,setSize);
 
             var X = new CpuTensor<double>(new[] { setSize, 1, t[0].Key.Height, t[0].Key.Width }, "X");
             var Y = new CpuTensor<double>(new[] { setSize, 10 }, "Y");
@@ -42,14 +53,9 @@ namespace SharpNet.Datasets
             }
             return Tuple.Create(X, Y);
         }
-
         private static string FileNameToPath(string fileName)
         {
             return Path.Combine(NetworkConfig.DefaultDataDirectory, "MNIST", fileName);
-
         }
-
-        private static List<KeyValuePair<CpuTensor<byte>, int>> TrainingSet => PictureTools.ReadInputPictures(FileNameToPath("train-images.idx3-ubyte"), FileNameToPath("train-labels.idx1-ubyte"));
-        private static List<KeyValuePair<CpuTensor<byte>, int>> TestSet => PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
     }
 }

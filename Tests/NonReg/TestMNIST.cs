@@ -17,8 +17,6 @@ namespace SharpNetTests.NonReg
         [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalse")]
         public void Test()
         {
-            MNIST.Load(out var xTrain, out var yTrain, out var xTest, out var yTest);
-
             var useGpu = true;
             int batchSize = 32;
             const int numEpochs = 1000;
@@ -43,10 +41,12 @@ namespace SharpNetTests.NonReg
                 useGpu?0:-1
             );
 
+            var loader = new MNISTDataLoader<double>(imageDataGenerator);
+
             double lambdaL2Regularization = 0.0;
 
             network
-                .Input(xTrain.Shape[1], xTrain.Shape[2], xTrain.Shape[3])
+                .Input(loader.Training.Channels, loader.Training.CurrentHeight, loader.Training.CurrentWidth)
 
                 .Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .MaxPooling(2,2)
@@ -73,7 +73,7 @@ namespace SharpNetTests.NonReg
                 .Dropout(0.5)
                 //.AddBatchNorm()
 
-                .Output(yTrain.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Output(loader.Training.Categories, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
             
@@ -81,7 +81,7 @@ namespace SharpNetTests.NonReg
             //learningRate = LearningRateScheduler.Constant(0.00774263682681115);
 
 
-            network.Fit(xTrain, yTrain, learningRate, null, numEpochs, batchSize, xTest, yTest);
+            network.Fit(loader.Training, learningRate, null, numEpochs, batchSize, loader.Test);
         }
 
     }

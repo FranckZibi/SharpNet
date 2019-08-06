@@ -86,9 +86,21 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="depth">total number of convolutions in the network
         /// There are always 3 stages in a Wide ResNet.
-        /// Number of convolutions in each stage = (depth-1)/3      (one of them is used to change dimension)
-        /// Number of convolutions in each residual block = 2
+        /// Number of convolutions in each stage = (depth-1)/3      (1 of them is used to change dimension)
+        /// Number of convolutions in each residual block = 2       (3 for the 1st residual block of each stage)
         /// Number of residual blocks in each stage = (depth-4)/6
+        /// Each residual block is in the form:
+        ///     for the 1st one at each stage:
+        ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv + Conv + Add
+        ///     for the other residual blocks ones:
+        ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv +        Add
+        /// For each stage,
+        ///     if the input is of dimension
+        ///         (N,C,H,W)
+        ///     the output will:
+        ///         (N,k*C,H,W)         => for the 1st stage
+        ///         (N,2C,H/2,W/2)      => for other stages
+        /// 
         /// </param>
         /// <param name="k">widening parameter</param>
         /// <returns></returns>
@@ -101,7 +113,7 @@ namespace SharpNet.Networks
             var net = BuildEmptyNetwork(networkName);
             var config = net.Config;
             var layers = net.Layers;
-            net.Input(CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width);
+            net.Input(CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width);
 
             net.Convolution(16, 3, 1, 1, config.lambdaL2Regularization, false);
 
@@ -137,11 +149,11 @@ namespace SharpNet.Networks
 
             if (DropOutAfterDenseLayer > 0)
             {
-                net.Dense_DropOut_Activation(CIFAR10.Categories, config.lambdaL2Regularization, DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                net.Dense_DropOut_Activation(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             else
             {
-                net.Output(CIFAR10.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                net.Output(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             return net;
         }

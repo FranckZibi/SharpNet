@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.CPU;
@@ -13,7 +12,6 @@ namespace SharpNet.GPU
     public sealed unsafe class GPUTensor<T> : Tensor where T : struct
     {
         #region Private fields
-        public override ulong CapacityInBytes { get; }
         private GPUWrapper Wrapper { get; }
         private readonly DeviceMemory _deviceMemory;
         #endregion
@@ -63,8 +61,7 @@ namespace SharpNet.GPU
                 CopyToDevice(m.Pointer);
             }
         }
-        [SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
-        public T[] DeviceContent()
+        private T[] DeviceContent()
         {
             Debug.Assert(!_disposed);
             Wrapper.SwCopyToHost.Start();
@@ -293,8 +290,24 @@ namespace SharpNet.GPU
             var concat = this;
             Wrapper.RunKernel("Split", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0 });
         }
-
-
+        /// <summary>
+        /// resize the current GPU tensor to a different shape
+        /// </summary>
+        /// <param name="newShape"></param>
+        public override void Reshape(int[] newShape)
+        {
+            if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
+            {
+                //smaller shape
+                Shape = newShape;
+            }
+            else
+            {
+                //bigger shape
+                throw new NotImplementedException();
+            }
+            RecomputeMultDim();
+        }
 
         // compute: this = alpha * this
         public override void Update_Multiplying_By_Alpha(double alphaDouble)

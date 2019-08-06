@@ -140,7 +140,7 @@ namespace SharpNet.Networks
             var layers = net.Layers;
 
             Debug.Assert(layers.Count == 0);
-            net.Input(CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width);
+            net.Input(CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width);
 
             net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
@@ -159,7 +159,7 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             net.AvgPooling(8, 8);
-            net.Output(CIFAR10.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            net.Output(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
         #endregion
@@ -180,7 +180,7 @@ namespace SharpNet.Networks
             var config = net.Config;
             var layers = net.Layers;
 
-            net.Input(CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width);
+            net.Input(CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width);
             net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageCIn = 16; //number of channels for current stage
@@ -209,7 +209,7 @@ namespace SharpNet.Networks
             }
             net.BatchNorm().Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             net.AvgPooling(8, 8);
-            net.Output(CIFAR10.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            net.Output(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
         #endregion

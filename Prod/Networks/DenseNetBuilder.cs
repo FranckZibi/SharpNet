@@ -61,8 +61,8 @@ namespace SharpNet.Networks
             //return Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_15576_14.txt");
             return Build(
                 nameof(DenseNet_12_40_CIFAR10),
-                new[] { 1, CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width },
-                CIFAR10.Categories,
+                new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
+                CIFAR10DataLoader.Categories,
                 false,
                 new[] { 12, 12, 12 },
                 false,
@@ -74,8 +74,8 @@ namespace SharpNet.Networks
         {
             return Build(
                 nameof(DenseNetBC_12_40_CIFAR10),
-                new[] { 1, CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width },
-                CIFAR10.Categories,
+                new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
+                CIFAR10DataLoader.Categories,
                 false,
                 new[] { 12 / 2, 12 / 2, 12 / 2 },
                 true,
@@ -87,8 +87,8 @@ namespace SharpNet.Networks
         {
             return Build(
                 nameof(DenseNetBC_12_100_CIFAR10),
-                new[] { 1, CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width },
-                CIFAR10.Categories,
+                new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
+                CIFAR10DataLoader.Categories,
                 false,
                 new[] { 32 / 2, 32 / 2, 32 / 2 },
                 true,
@@ -100,8 +100,8 @@ namespace SharpNet.Networks
         //{
         //    return AddDenseNet(
         //        nameof(DenseNet_Fast_CIFAR10),
-        //        new[] { 1, CIFAR10.Channels, CIFAR10.Height, CIFAR10.Width },
-        //        CIFAR10.Categories,
+        //        new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
+        //        CIFAR10DataLoader.Categories,
         //        false,
         //        new[] { 2, 2},
         //        false,

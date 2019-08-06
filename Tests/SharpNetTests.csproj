@@ -66,6 +66,7 @@
     <Compile Include="NonReg\TestNetworkPropagation.cs" />
     <Compile Include="Optimizers\LearningRateFinderTests.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateauTests.cs" />
+    <Compile Include="Pictures\ImageDataGeneratorTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestParallelRunCpuVersusGpu.cs" />

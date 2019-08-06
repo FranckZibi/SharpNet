@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using SharpNet.Datasets;
 using SharpNet.Networks;
 using SharpNetTests.CPU;
 
@@ -40,7 +41,7 @@ namespace SharpNetTests
             param.DisableLogging = true;
             var network = param.Build(nameof(TestSave), xTrain.Shape, nbCategories, false, new[] { 2, 2 }, true, 8, 1.0, null);
             testToPerform(network);
-            network.Fit(xTrain, yTrain, 0.1, 10, 2);
+            network.Fit(xTrain,yTrain, 0.1, 10, 2);
             network.Description = "after training";
             testToPerform(network);
         }

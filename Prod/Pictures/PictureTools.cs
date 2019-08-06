@@ -28,7 +28,6 @@ namespace SharpNet.Pictures
             }
             return result;
         }
-
         // ReSharper disable once UnusedMember.Global
         public static void SaveBitmap<T>(CpuTensor<T> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix) where T : struct
         {
@@ -39,15 +38,16 @@ namespace SharpNet.Pictures
                 default: SaveBitmap(xTrain as CpuTensor<float>, pictureIndex, directory, filePrefix, fileSuffix);break;
             }
         }
-        public static void SaveBitmap(CpuTensor<byte> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
+
+        private static void SaveBitmap(CpuTensor<byte> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
         {
             SaveBitmap(xTrain, (x => x), pictureIndex, directory, filePrefix, fileSuffix);
         }
-        public static void SaveBitmap(CpuTensor<float> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
+        private static void SaveBitmap(CpuTensor<float> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
         {
             SaveBitmap(xTrain, (x => (byte)(255 * x)), pictureIndex, directory, filePrefix, fileSuffix);
         }
-        public static void SaveBitmap(CpuTensor<double> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
+        private static void SaveBitmap(CpuTensor<double> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
         {
             SaveBitmap(xTrain, (x => (byte)(255 * x)), pictureIndex, directory, filePrefix, fileSuffix);
         }

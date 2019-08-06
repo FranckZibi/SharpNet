@@ -1,6 +1,7 @@
 ﻿using System;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Datasets;
 
 namespace SharpNet.Networks
 {
@@ -13,10 +14,10 @@ namespace SharpNet.Networks
             _files = files;
         }
 
-        public Tuple<Tensor, double> Predict(Tensor xTestCpu, Tensor yExpectedCpu)
+        public Tuple<Tensor, double> Predict(IDataSetLoader<float> testDataSet)
         {
             CpuTensor<float> yPredictedEnsembleNetwork = null;
-            Tensor xTest = null;
+            //Tensor xTest = null;
             Tensor yExpected = null;
             foreach (var file in _files)
             {
@@ -25,9 +26,9 @@ namespace SharpNet.Networks
                 Console.WriteLine("File loaded");
 
                 Console.WriteLine("Computing accuracy for single network...");
-                xTest = xTest ?? net.ReformatToCorrectType(xTestCpu);
-                yExpected = yExpected ?? net.ReformatToCorrectType(yExpectedCpu);
-                var yPredicted = net.MiniBatchGradientDescent(128, xTest, yExpected);
+                //xTest = xTest ?? net.ReformatToCorrectType(xTestCpu);
+                yExpected = yExpected ?? net.ReformatToCorrectType(testDataSet.Y);
+                var yPredicted = net.MiniBatchGradientDescent(128, testDataSet);
                 var accuracy = net.ComputeLossAndAccuracy_From_Expected_vs_Predicted(yExpected, yPredicted).Item2;
                 Console.WriteLine("Single Network Accuracy=" + accuracy);
 
@@ -43,7 +44,7 @@ namespace SharpNet.Networks
                 net.ClearMemory();
             }
             yPredictedEnsembleNetwork?.Update_Multiplying_By_Alpha(1.0 / _files.Length);
-            var accuracyEnsembleNetwork = yExpectedCpu.ComputeAccuracy(yPredictedEnsembleNetwork, null);
+            var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yPredictedEnsembleNetwork, null);
             Console.WriteLine("Ensemble Network Accuracy=" + accuracyEnsembleNetwork);
             return Tuple.Create((Tensor)yPredictedEnsembleNetwork, accuracyEnsembleNetwork);
         }

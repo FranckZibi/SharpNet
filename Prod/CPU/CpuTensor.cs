@@ -14,7 +14,6 @@ namespace SharpNet.CPU
     {
         #region fields
         public T[] Content { get; private set; }
-        public override ulong CapacityInBytes { get; }
         private HostPinnedMemory<T> _hostPinnedMemory;
 
         /// <summary>
@@ -42,6 +41,30 @@ namespace SharpNet.CPU
         public CpuTensor(int[] shape, string description) : this(shape, null, description)
         {
         }
+
+        /// <summary>
+        /// resize the current Cpu tensor to a different shape (both bigger or smaller)
+        /// </summary>
+        /// <param name="newShape"></param>
+        public override void Reshape(int[] newShape)
+        {
+            if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
+            {
+                //smaller shape
+                Shape = newShape;
+            }
+            else
+            {
+                //bigger shape
+                _hostPinnedMemory?.Dispose();
+                Content = new T[Utils.Product(newShape)];
+                CapacityInBytes = (ulong)(Content.Length * TypeSize);
+                Shape = newShape;
+            }
+            RecomputeMultDim();
+        }
+
+
         public T this[int i]
         {
             get => Content[i];

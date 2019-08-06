@@ -4,6 +4,7 @@ using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
@@ -193,17 +194,6 @@ namespace SharpNetTests.NonReg
             //predictions after training
             TestPredict(network, X, "[[0.5584541,0.1351326,0.4495322],[0.4868227,0.1388872,0.4988887]]");
             TestLossAccuracy(network, X, Y, 0.472797473271688, 1.0);
-        }
-
-
-
-        public struct P
-        {
-            public P(int x)
-            {
-                X = x;
-            }
-            public int X;
         }
 
         [Test]
@@ -544,7 +534,9 @@ namespace SharpNetTests.NonReg
 
             var predict_before = network.Predict(X, false).ToNumpy();
             network.LogContent();
-            var lossAccuracyBefore = network.ComputeLossAndAccuracy(batchSize, X, Y);
+
+            var trainingDataSet = new InMemoryDataSetLoader<float>(X,Y,network.GetImageDataGenerator());
+            var lossAccuracyBefore = network.ComputeLossAndAccuracy(batchSize, trainingDataSet);
 
             logger.Info("-");
             logger.Info("--------------------------------------------------------------------");
@@ -554,7 +546,7 @@ namespace SharpNetTests.NonReg
             network.LogContent();
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeLossAndAccuracy(batchSize, X, Y);
+            var lossAccuracyAfter = network.ComputeLossAndAccuracy(batchSize, trainingDataSet);
 
             logger.Info("C# numEpochs= " + numEpochs);
             logger.Info("C# learningRate= " + learningRate);
@@ -580,7 +572,8 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];
-            var observedLossAccuracy = network.ComputeLossAndAccuracy(batchSize, X, Y_expected);
+            var dataSet = new InMemoryDataSetLoader<float>(X, Y_expected, network.GetImageDataGenerator());
+            var observedLossAccuracy = network.ComputeLossAndAccuracy(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
                 Assert.AreEqual(expectedLoss.Value, observedLossAccuracy.Item1, 1e-6, "expected loss: " + expectedLoss.Value + " but was: " + observedLossAccuracy.Item1);

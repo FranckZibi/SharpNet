@@ -121,15 +121,7 @@ namespace SharpNet.Layers
         {
             y = yValue;
         }
-        public static bool IsValidYSet(Tensor data)
-        {
-            Debug.Assert(!data.UseGPU);
-            if (data.UseDoublePrecision)
-            {
-                return data.AsDoubleCpuContent.All(IsValidY);
-            }
-            return data.AsFloatCpuContent.All(x=> IsValidY(x));
-        }
+      
         public ulong BytesByBatchSize => (ulong)(Utils.Product(OutputShape(1)) * Network.Config.TypeSize); //y
         public virtual string SummaryName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
         public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
@@ -307,10 +299,7 @@ namespace SharpNet.Layers
                 return result;
             }
         }
-        private static bool IsValidY(double x)
-        {
-            return Math.Abs(x) <= 1e-9 || Math.Abs(x - 1.0) <= 1e-9;
-        }
+      
         private ulong OccupiedMemoryInBytes => Tensor.OccupiedMemoryInBytes(EmbeddedTensors);
     }
 }

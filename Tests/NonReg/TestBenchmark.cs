@@ -7,6 +7,7 @@ using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Networks;
+using SharpNet.Optimizers;
 using SharpNet.Pictures;
 
 namespace SharpNetTests.NonReg
@@ -65,15 +66,15 @@ namespace SharpNetTests.NonReg
 
         [Test, Explicit]
         public void TestGPUBenchmark_Speed()
-
         {
             var logger = new Logger(LogFileName, true);
-            MNIST.Load(out var X_train, out var Y_train, out var X_test, out var Y_test);
             const int batchSize = 64;
             const int numEpochs = 5;
-            var network = new Network(new NetworkConfig() { Logger = logger, UseDoublePrecision = false }.WithAdam(), ImageDataGenerator.NoDataAugmentation, 0);
+            var imageDataGenerator = ImageDataGenerator.NoDataAugmentation;
+            var loader = new MNISTDataLoader<double>(imageDataGenerator);
+            var network = new Network(new NetworkConfig() { Logger = logger, UseDoublePrecision = false }.WithAdam(), imageDataGenerator, 0);
             network
-                .Input(X_train.Shape[1], X_train.Shape[2], X_train.Shape[3])
+                .Input(loader.Training.Channels, loader.Training.CurrentHeight, loader.Training.CurrentWidth)
 
                 .Convolution(16, 3, 1, 1, 0.0, true)
                 .BatchNorm()
@@ -87,13 +88,13 @@ namespace SharpNetTests.NonReg
                 .Dense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
 
-                .Output(Y_train.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Output(loader.Training.Categories, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
             var learningRate = 0.01;
-            network.Fit(X_train, Y_train, learningRate, numEpochs, batchSize, X_test, Y_test);
+            network.Fit(loader.Training, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, loader.Test);
             var elapsedMs = sw.Elapsed.TotalSeconds;
-            var lossAndAccuracy = network.ComputeLossAndAccuracy(batchSize, X_test, Y_test);
+            var lossAndAccuracy = network.ComputeLossAndAccuracy(batchSize, loader.Test);
 
             System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Speed.csv" ), 
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"

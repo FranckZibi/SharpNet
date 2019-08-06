@@ -7,7 +7,7 @@ namespace SharpNet.Optimizers
 {
     public class VanillaSgd : Optimizer
     {
-        private VanillaSgd() : base(null) {}
+        private VanillaSgd() {}
         public static readonly VanillaSgd Instance = new VanillaSgd();
 
         public override Optimizer Clone(Network newNetwork) { return Instance; }

@@ -149,6 +149,21 @@ namespace SharpNetTests.Data
             }
             return true;
         }
+        public static bool SameContent<T>(CpuTensor<T> a, CpuTensor<T> b) where T: struct
+        {
+            if (!a.SameShape(b))
+            {
+                return false;
+            }
+            for (int i = 0; i < a.Count; ++i)
+            {
+                if (!Equals(a.Content[i], b.Content[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
 
     }
 }

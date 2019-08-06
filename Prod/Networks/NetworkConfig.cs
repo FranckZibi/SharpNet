@@ -38,8 +38,11 @@ namespace SharpNet.Networks
         public bool SGD_usenesterov { get; private set; }
         public Random Rand { get; }
         public Logger Logger { get; set; } = Logger.ConsoleLogger;
+
         public bool UseDoublePrecision { get; set; }
+
         public bool RandomizeOrder { get; set; } = true;
+
         /// <summary>
         /// true if we should use exactly the same conventions then Tensorflow
         /// used only for // run and testing
@@ -73,7 +76,7 @@ namespace SharpNet.Networks
         }
 
 
-        public bool DisableLogging => ReferenceEquals(Logger, SharpNet.Logger.NullLogger);
+        public bool DisableLogging => ReferenceEquals(Logger, Logger.NullLogger);
 
         public int TypeSize => UseDoublePrecision ? 8 : 4;
         public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999)

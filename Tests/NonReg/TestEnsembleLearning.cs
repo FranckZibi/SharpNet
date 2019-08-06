@@ -11,7 +11,9 @@ namespace SharpNetTests.NonReg
         public void Test()
         {
             Console.WriteLine("loading CIFAR10");
-            CIFAR10.LoadCifar10(out var _, out var _, out var xTestCpu, out var yExpectedCpu);
+            //CIFAR10.LoadCifar10(out var _, out var _, out var xTestCpu, out var yExpectedCpu);
+
+            var loader = new CIFAR10DataLoader(null);
 
             //95.65 <= 95.32 (200 epochs) + 94.02 (70 epochs)
             //var files_WRN_40_4 = new[]
@@ -113,7 +115,7 @@ namespace SharpNetTests.NonReg
             //    @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-28-10_20190529_0709_152.txt",
             //};
             var ensembleLearning = new EnsembleLearning(files_WRN_16_8_CyclicCosineAnnealing_10_2_200epochs);
-            ensembleLearning.Predict(xTestCpu, yExpectedCpu);
+            ensembleLearning.Predict(loader.Test);
         }
 
     }

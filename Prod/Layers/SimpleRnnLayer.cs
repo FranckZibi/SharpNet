@@ -151,7 +151,7 @@ namespace SharpNet.Layers
 
             for (int t = 0; t < _timeSteps_x; ++t)
             {
-                x_NCH.AsFloatCpu.From_NCH_to_NH(x_at_t_buffer, t);
+                x_NCH.From_NCH_to_NH(x_at_t_buffer, t);
                 //a(t): tanh( x(t)*Weights_ax + a(t-1)*Weights_aa + Bias_a)
 
                 a_buffer1.Dot(x_at_t_buffer, Weights_ax);

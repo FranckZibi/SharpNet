@@ -3,17 +3,32 @@ using System.Collections.Generic;
 using System.IO;
 using SharpNet.CPU;
 using SharpNet.Networks;
+using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public static class CIFAR10
+    public class CIFAR10DataLoader : IDataSet<float>
     {
         public const int Channels = 3;
         public const int Height = 32;
         public const int Width = Height;
         public const int Categories = 10;
+        public IDataSetLoader<float> Training { get; }
+        public IDataSetLoader<float> Test { get; }
 
-        public static void LoadCifar10(out CpuTensor<float> xTrain, out CpuTensor<float> yTrain, out CpuTensor<float> xTest, out CpuTensor<float> yTest)
+        public CIFAR10DataLoader(ImageDataGenerator imageDataGenerator)
+        {
+            LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
+            Training = new InMemoryDataSetLoader<float>(xTrain, yTrain, imageDataGenerator);
+            Test = new InMemoryDataSetLoader<float>(xTest, yTest, imageDataGenerator);
+        }
+        public void Dispose()
+        {
+            Training?.Dispose();
+            Test?.Dispose();
+        }
+
+        private static void LoadCifar10(out CpuTensor<float> xTrain, out CpuTensor<float> yTrain, out CpuTensor<float> xTest, out CpuTensor<float> yTest)
         {
             Load(out CpuTensor<byte> xTrainingSet, out var yTrainingSet, out var xTestSet, out var yTestSet);
             //We normalize the input with 0 mean / 1 volatility
@@ -22,8 +37,8 @@ namespace SharpNet.Datasets
             ToWorkingSet(xTrainingSet, yTrainingSet, out xTrain, out yTrain, meanAndVolatilityOfEachChannel);
             ToWorkingSet(xTestSet, yTestSet, out xTest, out yTest, meanAndVolatilityOfEachChannel);
             
-            //Uncomment the following line to take only the first 1000 elements;
-            //xTest = null;yTest = null;xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 1000);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]);
+            //Uncomment the following line to take only the first 100 elements;
+            //xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 100);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = xTrain; yTest = yTrain;
         }
         private static void Load(out CpuTensor<byte> xTrainingSet, out CpuTensor<byte> yTrainingSet, out CpuTensor<byte> xTestSet, out CpuTensor<byte> yTestSet)
         {
@@ -39,13 +54,12 @@ namespace SharpNet.Datasets
 
             LoadAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
         }
-
         private static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<double, double>> meanAndVolatilityOfEachChannel)
         {
             xWorkingSet = x.Select((n, c, val) =>(float) ((val - meanAndVolatilityOfEachChannel[c].Item1) /Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
+            //xWorkingSet = x.Select((n, c, val) => (float)val/255.0f);
             yWorkingSet = y.ToCategorical(1.0f, out _);
         }
-
         private static void LoadAt(string path, CpuTensor<byte> x, CpuTensor<byte> y, int indexFirst)
         {
             var b = File.ReadAllBytes(path);

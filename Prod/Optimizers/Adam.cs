@@ -15,14 +15,20 @@ namespace SharpNet.Optimizers
     {
         #region private fields
         private int _timestep = 1;
+        private readonly double _adam_beta1;
+        private readonly double _adam_beta2;
+        private readonly double _adam_epsilon;
         private readonly Tensor _adam_VW;                      // same as 'Weights'
         private readonly Tensor _adam_SW;                      // same as 'Weights'
         private readonly Tensor _adam_VB;                      // same as 'Weights Bias'
         private readonly Tensor _adam_SB;                      // same as 'Weight Bias'
         #endregion
 
-        public Adam(Network network, int[] weightShape, int[] biasShapeIfAny) : base(network.Config)
+        public Adam(Network network, double adam_beta1, double adam_beta2, double adam_epsilon, int[] weightShape, int[] biasShapeIfAny)
         {
+            _adam_beta1 = adam_beta1;
+            _adam_beta2 = adam_beta2;
+            _adam_epsilon = adam_epsilon;
             _adam_VW = network.NewNotInitializedTensor(weightShape, _adam_VW, nameof(_adam_VW));
             _adam_SW = network.NewNotInitializedTensor(weightShape, _adam_SW, nameof(_adam_SW));
             _adam_VB = (biasShapeIfAny == null) ? null : network.NewNotInitializedTensor(biasShapeIfAny, _adam_VB, nameof(_adam_VB));
@@ -31,9 +37,12 @@ namespace SharpNet.Optimizers
         }
 
         public override Optimizer Clone(Network newNetwork) { return new Adam(this, newNetwork); }
-        private Adam(Adam toClone, Network newNetwork) : base(newNetwork.Config)
+        private Adam(Adam toClone, Network newNetwork)
         {
             _timestep = toClone._timestep;
+            _adam_beta1 = toClone._adam_beta1;
+            _adam_beta2 = toClone._adam_beta2;
+            _adam_epsilon = toClone._adam_epsilon;
             _adam_VW = toClone._adam_VW?.Clone(newNetwork.GpuWrapper);
             _adam_SW = toClone._adam_SW?.Clone(newNetwork.GpuWrapper);
             _adam_VB = toClone._adam_VB?.Clone(newNetwork.GpuWrapper);
@@ -47,7 +56,11 @@ namespace SharpNet.Optimizers
                 return false;
             }
             var b = (Adam)other;
-            return  Utils.Equals(_timestep, b._timestep, id+ "_timestep", ref errors)
+            return  
+                    Utils.Equals(_timestep, b._timestep, id+ "_timestep", ref errors)
+                && Utils.Equals(_adam_beta1, b._adam_beta1, epsilon, id+ "_adam_beta1", ref errors)
+                && Utils.Equals(_adam_beta2, b._adam_beta2, epsilon, id+ "_adam_beta2", ref errors)
+                && Utils.Equals(_adam_epsilon, b._adam_epsilon, epsilon, id+ "_adam_epsilon", ref errors)
                 && _adam_VW.Equals(b._adam_VW, epsilon, id + "_adam_VW", ref errors)
                 && _adam_SW.Equals(b._adam_SW, epsilon, id + "_adam_SW", ref errors)
                 && _adam_VB.Equals(b._adam_VB, epsilon, id + "_adam_VB", ref errors)
@@ -60,12 +73,9 @@ namespace SharpNet.Optimizers
             Debug.Assert(weights.SameShape(weightGradients));
             Debug.Assert(bias == null || bias.SameShape(biasGradient));
             ++_timestep;
-            var beta1 = _networkConfig.Adam_beta1;
-            var beta2 = _networkConfig.Adam_beta2;
-            var epsilon = _networkConfig.Adam_epsilon;
             var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
-            weights.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, weightGradients, _adam_VW, _adam_SW, _timestep);
-            bias?.UpdateAdamOptimizer(ponderedLearningRate, beta1, beta2, epsilon, biasGradient, _adam_VB, _adam_SB, _timestep);
+            weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, weightGradients, _adam_VW, _adam_SW, _timestep);
+            bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, biasGradient, _adam_VB, _adam_SB, _timestep);
         }
 
         #region serialization
@@ -73,26 +83,28 @@ namespace SharpNet.Optimizers
         {
             return new Serializer()
                 .Add(nameof(_timestep), _timestep)
+                .Add(nameof(_adam_beta1), _adam_beta1)
+                .Add(nameof(_adam_beta2), _adam_beta2)
+                .Add(nameof(_adam_epsilon), _adam_epsilon)
                 .Add(_adam_VW).Add(_adam_SW)
                 .Add(_adam_VB).Add(_adam_SB)
                 .ToString();
         }
-        public static Optimizer DeserializeAdam(NetworkConfig networkConfig, IDictionary<string, object> serialized)
+        public static Optimizer DeserializeAdam(IDictionary<string, object> serialized)
         {
-            return serialized.ContainsKey(nameof(_adam_VW)) ? new Adam(networkConfig, serialized) : null;
+            return serialized.ContainsKey(nameof(_adam_VW)) ? new Adam(serialized) : null;
         }
-        private Adam(NetworkConfig networkConfig, IDictionary<string, object> serialized) : base(networkConfig)
+        private Adam(IDictionary<string, object> serialized)
         {
-            _timestep = (int)serialized[nameof(_timestep)];
-            _adam_VW = (Tensor)serialized[nameof(_adam_VW)];
-            _adam_SW = (Tensor)serialized[nameof(_adam_SW)];
+            serialized.TryGet(nameof(_timestep), out _timestep);
+            serialized.TryGet(nameof(_adam_beta1), out _adam_beta1);
+            serialized.TryGet(nameof(_adam_beta2), out _adam_beta2);
+            serialized.TryGet(nameof(_adam_epsilon), out _adam_epsilon);
+            serialized.TryGet(nameof(_adam_VW), out _adam_VW);
+            serialized.TryGet(nameof(_adam_SW), out _adam_SW);
             serialized.TryGet(nameof(_adam_VB), out _adam_VB);
             serialized.TryGet(nameof(_adam_SB), out _adam_SB);
         }
-
-
-
         #endregion
-
     }
 }

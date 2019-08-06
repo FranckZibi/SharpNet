@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using SharpNet.CPU;
 using SharpNet.Data;
 
@@ -12,10 +9,9 @@ namespace SharpNet.Pictures
     public class ImageDataGenerator
     {
         //TODO: add FillModeEnum: Constant
-        public enum FillModeEnum {Nearest,Reflect};
+        public enum FillModeEnum { Nearest, Reflect };
 
         #region private fields
-        private readonly Random _randForShuffle;
         private readonly Random[] _rands;
         //randomly shift images horizontally
         private readonly double _widthShiftRange;
@@ -90,53 +86,129 @@ namespace SharpNet.Pictures
             _fillMode = fillMode;
             _fillModeConstantVal = fillModeConstantVal;
             _cutoutPatchPercentage = cutoutPatchPercentage;
-            _randForShuffle = new Random(0);
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
                 _rands[i] = new Random(i);
             }
         }
-        public void CreateInputForEpoch<T>(CpuTensor<T> inputEnlargedPictures, CpuTensor<T> yInputOneHot,  CpuTensor<T> outputBufferPictures, CpuTensor<T> yOutputOneHot, bool randomizeOrder) where T : struct
-        {
-            Debug.Assert(yInputOneHot.SameShape(yOutputOneHot));
-            Debug.Assert(yInputOneHot.Dimension == 2);
-            //same batch size
-            Debug.Assert(inputEnlargedPictures.Shape[0] == outputBufferPictures.Shape[0]);
-            Debug.Assert(inputEnlargedPictures.Shape[0] == yInputOneHot.Shape[0]);
-            //same number of channels
-            Debug.Assert(inputEnlargedPictures.Shape[1] == outputBufferPictures.Shape[1]);
-            CheckPictures(outputBufferPictures, inputEnlargedPictures);
 
-            var entireBatchSize = inputEnlargedPictures.Shape[0];
-            var shuffledRows = Enumerable.Range(0, entireBatchSize).ToList();
-            if (randomizeOrder)
-            {
-                Utils.Shuffle(shuffledRows, _randForShuffle);
-            }
-            var typeSize = Marshal.SizeOf(typeof(T));
-            Parallel.For(0, entireBatchSize, inputPictureIndex => CreateSingleInputForEpoch(inputEnlargedPictures, yInputOneHot, outputBufferPictures, yOutputOneHot, inputPictureIndex, shuffledRows[inputPictureIndex], typeSize));
-        }
-        public CpuTensor<T> EnlargePictures<T>(CpuTensor<T> originalPicture) where T : struct
+
+        /// <summary>
+        /// takes the input (enlarged) picture at index 'inputPictureIndex' in 'inputEnlargedPictures'&'yInputOneHot'
+        /// and stores a data augmented version of it at index 'outputPictureIndex' of 'outputBufferPictures'&'yOutputOneHot'
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="epoch"></param>
+        /// <param name="isTraining"></param>
+        /// <param name="xInputPictures"></param>
+        /// <param name="yInputOneHot"></param>
+        /// <param name="xOutputBufferPictures"></param>
+        /// <param name="yOutputOneHot"></param>
+        /// <param name="inputPictureIndex"></param>
+        /// <param name="outputPictureIndex"></param>
+        /// <param name="typeSize"></param>
+        public void CreateSingleInputForEpoch<T>(int epoch, bool isTraining, CpuTensor<T> xInputPictures, CpuTensor<T> yInputOneHot, CpuTensor<T> xOutputBufferPictures, CpuTensor<T> yOutputOneHot, int inputPictureIndex, int outputPictureIndex, int typeSize) where T : struct
         {
-            if (!UseDataAugmentation)
+            // NCHW tensors
+            Debug.Assert(xInputPictures.Shape.Length == 4);
+            Debug.Assert(xInputPictures.Shape.Length == xOutputBufferPictures.Shape.Length);
+            //same number of channels
+            Debug.Assert(xInputPictures.Shape[1] == xOutputBufferPictures.Shape[1]);
+            //same number of rows
+            Debug.Assert(xInputPictures.Shape[2] == xOutputBufferPictures.Shape[2]);
+            //same number of columns
+            Debug.Assert(xInputPictures.Shape[3] == xOutputBufferPictures.Shape[3]);
+
+            //We compute the output y vector
+            var yInputIdx = yInputOneHot.Idx(inputPictureIndex);
+            var yOutputIdx = yOutputOneHot.Idx(outputPictureIndex);
+            Buffer.BlockCopy(yInputOneHot.Content, yInputIdx * typeSize, yOutputOneHot.Content, yOutputIdx * typeSize, yInputOneHot.MultDim0 * typeSize);
+
+            if (!UseDataAugmentation || (epoch == 1) || !isTraining)
             {
-                return originalPicture;
+                //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
+                var pictureInputIdx = xInputPictures.Idx(inputPictureIndex);
+                var pictureOutputIdx = xOutputBufferPictures.Idx(outputPictureIndex);
+                Buffer.BlockCopy(xInputPictures.Content, pictureInputIdx * typeSize, xOutputBufferPictures.Content, pictureOutputIdx * typeSize, xOutputBufferPictures.MultDim0 * typeSize);
+                return;
             }
-            var n = originalPicture.Shape[0];
-            var h = originalPicture.Shape[2];
-            var w = originalPicture.Shape[3];
-            GetPadding(h, w, out int paddingForTopAndBottom, out int paddingForLeftAndRight);
-            var shapeOutput = (int[])originalPicture.Shape.Clone();
-            var hOutput = h + 2 * paddingForTopAndBottom;
-            var wOutput = w + 2 * paddingForLeftAndRight;
-            shapeOutput[2] = hOutput;
-            shapeOutput[3] = wOutput;
-            var enlargedPictures = new CpuTensor<T>(shapeOutput, "enlargedPictures");
-            int typeSize = Marshal.SizeOf(typeof(T));
-            Parallel.For(0, n, pictureIndexToEnlarge => CreateSingleEnlargedPicture(originalPicture, enlargedPictures, typeSize, pictureIndexToEnlarge));
-            return enlargedPictures;
+            var rand = _rands[inputPictureIndex % _rands.Length];
+            var horizontalFlip = _horizontalFlip && rand.Next(2) == 0;
+            var verticalFlip = _verticalFlip && rand.Next(2) == 0;
+            var nbRows = xOutputBufferPictures.Shape[2];
+            var nbCols = xOutputBufferPictures.Shape[3];
+            Cutout(nbRows, nbCols, rand, out var cutoutRowStart, out var cutoutRowEnd, out var cutoutColStart, out var cutoutColEnd);
+            GetPadding(xInputPictures.Shape[2], xInputPictures.Shape[3], out int paddingForTopAndBottom, out int paddingForLeftAndRight);
+            var deltaRowInput = rand.Next(2 * paddingForTopAndBottom + 1) - paddingForTopAndBottom;
+            var deltaColInput = rand.Next(2 * paddingForLeftAndRight + 1) - paddingForLeftAndRight;
+            var rotationAngleInRadians = 0.0;
+            InitializeOutputPicture(
+                xInputPictures, inputPictureIndex, 
+                xOutputBufferPictures, outputPictureIndex,
+                deltaRowInput, deltaColInput, _fillMode,
+                horizontalFlip, verticalFlip,
+                cutoutRowStart, cutoutRowEnd, cutoutColStart, cutoutColEnd, rotationAngleInRadians);
         }
+
+        public static void InitializeOutputPicture<T>(CpuTensor<T> xInputPictures, int inputPictureIndex,
+         CpuTensor<T> xOutputBufferPictures, int outputPictureIndex,
+         int deltaRowInput, int deltaColInput, FillModeEnum _fillMode,
+         bool horizontalFlip, bool verticalFlip,
+         int cutoutRowStart, int cutoutRowEnd, int cutoutColStart, int cutoutColEnd, double rotationAngleInRadians) where T : struct
+        {
+            //TODO : take into 'rotationAngleInRadians'
+            var nbRows = xOutputBufferPictures.Shape[2];
+            var nbCols = xOutputBufferPictures.Shape[3];
+
+            for (int channel = 0; channel < xOutputBufferPictures.Shape[1]; ++channel)
+            {
+                for (int rowOutput = 0; rowOutput < nbRows; ++rowOutput)
+                {
+                    var rowInput = verticalFlip ? (-deltaRowInput + nbRows - 1 - rowOutput) : (rowOutput - deltaRowInput);
+
+                    if (rowInput < 0)
+                    {
+                        rowInput = _fillMode == FillModeEnum.Reflect ? Math.Abs(rowInput + 1) : 0;
+                    }
+                    if (rowInput >= nbRows)
+                    {
+                        rowInput = _fillMode == FillModeEnum.Reflect ? (nbRows - 1 - (rowInput - nbRows)) : (nbRows - 1);
+                    }
+
+                    Debug.Assert(rowInput >= 0 && rowInput < nbRows);
+
+                    var inputPictureIdx = xInputPictures.Idx(inputPictureIndex, channel, rowInput, 0);
+                    var outputPictureIdx = xOutputBufferPictures.Idx(outputPictureIndex, channel, rowOutput, 0);
+                    for (int colOutput = 0; colOutput < nbCols; ++colOutput)
+                    {
+                        //we check if we should apply cutout to the pixel
+                        if (rowOutput >= cutoutRowStart && rowOutput <= cutoutRowEnd &&
+                            colOutput >= cutoutColStart && colOutput <= cutoutColEnd)
+                        {
+                            xOutputBufferPictures[outputPictureIdx + colOutput] = default(T);
+                            continue;
+                        }
+
+                        //horizontal flip
+                        var colInput = horizontalFlip ? (-deltaColInput + nbCols - 1 - colOutput) : (colOutput - deltaColInput);
+
+                        if (colInput < 0)
+                        {
+                            colInput = _fillMode == FillModeEnum.Reflect ? Math.Abs(colInput + 1) : 0;
+                        }
+                        if (colInput >= nbCols)
+                        {
+                            colInput = _fillMode == FillModeEnum.Reflect ? (nbCols - 1 - (colInput - nbCols)) : (nbCols - 1);
+                        }
+                        Debug.Assert(colInput >= 0 && colInput < nbCols);
+
+                        xOutputBufferPictures[outputPictureIdx + colOutput] = xInputPictures[inputPictureIdx + colInput];
+                    }
+                }
+            }
+        }
+
 
         #region serialization
         public string Serialize()
@@ -162,75 +234,17 @@ namespace SharpNet.Pictures
                 return NoDataAugmentation;
             }
             return new ImageDataGenerator(
-                (double) serialized[nameof(_widthShiftRange)],
-                (double) serialized[nameof(_heightShiftRange)],
-                (bool) serialized[nameof(_horizontalFlip)],
-                (bool) serialized[nameof(_verticalFlip)],
-                (FillModeEnum) serialized[nameof(_fillMode)],
-                (double) serialized[nameof(_fillModeConstantVal)],
-                (double) serialized[nameof(_cutoutPatchPercentage)]
+                (double)serialized[nameof(_widthShiftRange)],
+                (double)serialized[nameof(_heightShiftRange)],
+                (bool)serialized[nameof(_horizontalFlip)],
+                (bool)serialized[nameof(_verticalFlip)],
+                (FillModeEnum)serialized[nameof(_fillMode)],
+                (double)serialized[nameof(_fillModeConstantVal)],
+                (double)serialized[nameof(_cutoutPatchPercentage)]
                 );
         }
         #endregion
 
-        /// <summary>
-        /// takes the input (enlarged) picture at index 'inputPictureIndex' in 'inputEnlargedPictures'&'yInputOneHot'
-        /// and stores a data augmented version of it at index 'outputPictureIndex' of 'outputBufferPictures'&'yOutputOneHot'
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="inputEnlargedPictures"></param>
-        /// <param name="yInputOneHot"></param>
-        /// <param name="outputBufferPictures"></param>
-        /// <param name="yOutputOneHot"></param>
-        /// <param name="inputPictureIndex"></param>
-        /// <param name="outputPictureIndex"></param>
-        /// <param name="typeSize"></param>
-        private void CreateSingleInputForEpoch<T>(CpuTensor<T> inputEnlargedPictures, CpuTensor<T> yInputOneHot, CpuTensor<T> outputBufferPictures, CpuTensor<T> yOutputOneHot, int inputPictureIndex, int outputPictureIndex, int typeSize) where T : struct
-        {
-            var yInputIdx = yInputOneHot.Idx(inputPictureIndex);
-            var yOutputIdx = yOutputOneHot.Idx(outputPictureIndex);
-            Buffer.BlockCopy(yInputOneHot.Content, yInputIdx * typeSize, yOutputOneHot.Content, yOutputIdx * typeSize, yInputOneHot.MultDim0 * typeSize);
-
-            if (!UseDataAugmentation)
-            {
-                //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
-                var pictureInputIdx = inputEnlargedPictures.Idx(inputPictureIndex);
-                var pictureOutputIdx = outputBufferPictures.Idx(outputPictureIndex);
-                Buffer.BlockCopy(inputEnlargedPictures.Content, pictureInputIdx * typeSize, outputBufferPictures.Content, pictureOutputIdx * typeSize, outputBufferPictures.MultDim0 * typeSize);
-                return;
-            }
-
-            var nbRowsOutput = outputBufferPictures.Shape[2];
-            var nbColsOutput = outputBufferPictures.Shape[3];
-            var wOutputSizeInBytes = nbColsOutput * typeSize;
-            var paddingForTopAndBottom = (inputEnlargedPictures.Shape[2] - nbRowsOutput) / 2;
-            var paddingForLeftAndRight = (inputEnlargedPictures.Shape[3] - nbColsOutput) / 2;
-            var rand = _rands[inputPictureIndex % _rands.Length];
-            var rowInEnlargedPictures = rand.Next(2 * paddingForTopAndBottom);
-            var colInEnlargedPictures = rand.Next(2 * paddingForLeftAndRight);
-            var horizontalFlip = _horizontalFlip && rand.Next(2) == 0;
-            var verticalFlip = _verticalFlip && rand.Next(2) == 0;
-            Cutout(nbRowsOutput, nbColsOutput, rand, out var cutoutOutputRowStart, out var cutoutOutputRowEnd, out var cutoutOutputColStart, out var cutoutOutputColEnd);
-            for (int channel = 0; channel < outputBufferPictures.Shape[1]; ++channel)
-            {
-                for (int rowOutput = 0; rowOutput < nbRowsOutput; ++rowOutput)
-                {
-                    var rowInput = verticalFlip ? (rowInEnlargedPictures + nbRowsOutput - 1 - rowOutput) : (rowOutput + rowInEnlargedPictures);
-                    var inputPictureIdx = inputEnlargedPictures.Idx(inputPictureIndex, channel, rowInput, colInEnlargedPictures);
-                    var outputPictureIdx = outputBufferPictures.Idx(outputPictureIndex, channel, rowOutput, 0);
-                    Buffer.BlockCopy(inputEnlargedPictures.Content, inputPictureIdx * typeSize, outputBufferPictures.Content, outputPictureIdx * typeSize, wOutputSizeInBytes);
-                    if (horizontalFlip)
-                    {
-                        Array.Reverse(outputBufferPictures.Content, outputPictureIdx, nbColsOutput);
-                    }
-                    //we check if we should apply cutout to row
-                    if (rowOutput >= cutoutOutputRowStart && rowOutput <= cutoutOutputRowEnd)
-                    {
-                        Array.Clear(outputBufferPictures.Content, outputPictureIdx+cutoutOutputColStart, cutoutOutputColEnd- cutoutOutputColStart+1);
-                    }
-                }
-            }
-        }
 
         private void Cutout(int nbRows, int nbCols, Random rand, out int rowStart, out int rowEnd, out int colStart, out int colEnd)
         {
@@ -249,9 +263,9 @@ namespace SharpNet.Pictures
             var rowMiddle = rand.Next(nbRows);
             var colMiddle = rand.Next(nbCols);
             rowStart = Math.Max(0, rowMiddle - cutoutPatchLength / 2);
-            rowEnd = Math.Min(nbRows-1, rowStart+ cutoutPatchLength-1);
+            rowEnd = Math.Min(nbRows - 1, rowStart + cutoutPatchLength - 1);
             colStart = Math.Max(0, colMiddle - cutoutPatchLength / 2);
-            colEnd = Math.Min(nbCols- 1, colStart + cutoutPatchLength - 1);
+            colEnd = Math.Min(nbCols - 1, colStart + cutoutPatchLength - 1);
         }
         private bool UseDataAugmentation => !ReferenceEquals(this, NoDataAugmentation);
         private void GetPadding(int pictureHeight, int pictureWidth, out int paddingForTopAndBottom, out int paddingForLeftAndRight)
@@ -267,72 +281,18 @@ namespace SharpNet.Pictures
             }
             return (int)Math.Ceiling(pictureWidth * widthShiftRange);
         }
-        private void CreateSingleEnlargedPicture<T>(CpuTensor<T> originalPictures, CpuTensor<T> enlargedPictures, int typeSize, int pictureIndex) where T : struct
-        {
-            CheckPictures(originalPictures, enlargedPictures);
-            var h = originalPictures.Shape[2];
-            var w = originalPictures.Shape[3];
-            var wSizeInBytes = w*typeSize;
-            var hEnlarged = enlargedPictures.Shape[2];
-            var wEnlarged = enlargedPictures.Shape[3];
-            var wEnlargedSizeInBytes = wEnlarged*typeSize;
-            var paddingForTopAndBottom = (hEnlarged - h) / 2;
-            var paddingForLeftAndRight = (wEnlarged - w) / 2;
-            var enlargedPicturesContent = enlargedPictures.Content;
-            for (int channel = 0; channel < originalPictures.Shape[1]; ++channel)
-            {
-                for (int row = 0; row < h; ++row)
-                {
-                    int originalIdx = originalPictures.Idx(pictureIndex, channel, row, 0);
-                    int outputIdx = enlargedPictures.Idx(pictureIndex, channel, row + paddingForTopAndBottom, paddingForLeftAndRight);
-                    Buffer.BlockCopy(originalPictures.Content, originalIdx * typeSize, enlargedPicturesContent, outputIdx * typeSize, wSizeInBytes);
-
-                    //left of line
-                    var startOfLineValue = enlargedPicturesContent[outputIdx];
-                    for (int col = 1; col <= paddingForLeftAndRight; ++col)
-                    {
-                        enlargedPicturesContent[outputIdx - col] = (_fillMode==FillModeEnum.Reflect)?enlargedPicturesContent[outputIdx + col]: startOfLineValue;
-                    }
-
-                    //right of line
-                    var endOfLineValue = enlargedPicturesContent[outputIdx+h-1];
-                    for (int col = 1; col <= paddingForLeftAndRight; ++col)
-                    {
-                        enlargedPicturesContent[outputIdx + h - 1 + col] = (_fillMode == FillModeEnum.Reflect)?enlargedPicturesContent[outputIdx + h - 1-col]: endOfLineValue;
-                    }
-                }
-
-                //top 
-                int srcTopRowIdx = enlargedPictures.Idx(pictureIndex, channel, paddingForTopAndBottom, 0);
-                for (int row = 1; row <= paddingForTopAndBottom; ++row)
-                {
-                    int srcIdx = (_fillMode == FillModeEnum.Reflect) ? enlargedPictures.Idx(pictureIndex, channel, paddingForTopAndBottom+row, 0): srcTopRowIdx;
-                    int targetIdx = enlargedPictures.Idx(pictureIndex, channel, paddingForTopAndBottom - row, 0);
-                    Buffer.BlockCopy(enlargedPictures.Content, srcIdx*typeSize, enlargedPictures.Content, targetIdx * typeSize, wEnlargedSizeInBytes);
-                }
-
-                //bottom 
-                int srcBottomRowIdx = enlargedPictures.Idx(pictureIndex, channel, paddingForTopAndBottom + h - 1, 0);
-                for (int row = 1; row <= paddingForTopAndBottom; ++row)
-                {
-                    int srcIdx = (_fillMode == FillModeEnum.Reflect) ? enlargedPictures.Idx(pictureIndex, channel, paddingForTopAndBottom + h - 1-row, 0) : srcBottomRowIdx;
-                    int targetIdx = enlargedPictures.Idx(pictureIndex, channel, paddingForTopAndBottom + h - 1 + row, 0);
-                    Buffer.BlockCopy(enlargedPicturesContent, srcIdx * typeSize, enlargedPicturesContent, targetIdx * typeSize, wEnlargedSizeInBytes);
-                }
-            }
-        }
-        private static void CheckPictures<T>(CpuTensor<T> originalPictures, CpuTensor<T> enlargedPictures) where T : struct
-        {
-            Debug.Assert(originalPictures.Shape.Length == 4);
-            Debug.Assert(originalPictures.Shape.Length == enlargedPictures.Shape.Length);
-            Debug.Assert(enlargedPictures.Shape[0] == originalPictures.Shape[0]);
-            Debug.Assert(enlargedPictures.Shape[1] == originalPictures.Shape[1]);
-            Debug.Assert(enlargedPictures.Shape[2] >= originalPictures.Shape[2]);
-            Debug.Assert((enlargedPictures.Shape[2] - originalPictures.Shape[2]) % 2 == 0);
-            Debug.Assert(enlargedPictures.Shape[3] >= originalPictures.Shape[3]);
-            Debug.Assert((enlargedPictures.Shape[3] - originalPictures.Shape[3]) % 2 == 0);
-            Debug.Assert((enlargedPictures.Shape[2] - originalPictures.Shape[2]) / 2 <= enlargedPictures.Shape[2]);
-            Debug.Assert((enlargedPictures.Shape[3] - originalPictures.Shape[3]) / 2 <= enlargedPictures.Shape[3]);
-        }
+        //public static void CheckPictures<T>(CpuTensor<T> originalPictures, CpuTensor<T> enlargedPictures) where T : struct
+        //{
+        //    Debug.Assert(originalPictures.Shape.Length == 4);
+        //    Debug.Assert(originalPictures.Shape.Length == enlargedPictures.Shape.Length);
+        //    Debug.Assert(enlargedPictures.Shape[0] == originalPictures.Shape[0]);
+        //    Debug.Assert(enlargedPictures.Shape[1] == originalPictures.Shape[1]);
+        //    Debug.Assert(enlargedPictures.Shape[2] >= originalPictures.Shape[2]);
+        //    Debug.Assert((enlargedPictures.Shape[2] - originalPictures.Shape[2]) % 2 == 0);
+        //    Debug.Assert(enlargedPictures.Shape[3] >= originalPictures.Shape[3]);
+        //    Debug.Assert((enlargedPictures.Shape[3] - originalPictures.Shape[3]) % 2 == 0);
+        //    Debug.Assert((enlargedPictures.Shape[2] - originalPictures.Shape[2]) / 2 <= enlargedPictures.Shape[2]);
+        //    Debug.Assert((enlargedPictures.Shape[3] - originalPictures.Shape[3]) / 2 <= enlargedPictures.Shape[3]);
+        //}
     }
 }

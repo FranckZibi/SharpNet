@@ -248,13 +248,10 @@ namespace SharpNetTests
         {
             try
             {
-                CIFAR10.LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
-                network.Fit(xTrain, yTrain, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, xTest, yTest);
+                var loader = new CIFAR10DataLoader(network.GetImageDataGenerator());
+                network.Fit(loader.Training, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, loader.Test);
                 network.ClearMemory();
-                xTrain?.Dispose();
-                yTrain?.Dispose();
-                xTest?.Dispose();
-                yTest?.Dispose();
+                loader.Dispose();
                 GC.Collect();
             }
             catch (Exception e)
