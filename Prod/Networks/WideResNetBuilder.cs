@@ -2,6 +2,7 @@
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Pictures;
+// ReSharper disable MemberCanBePrivate.Global
 
 // ReSharper disable UnusedMember.Global
 

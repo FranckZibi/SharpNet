@@ -21,16 +21,7 @@ namespace SharpNetTests.NonReg
             int batchSize = 32;
             const int numEpochs = 1000;
 
-            /*
-            //this code is used to use CPU instead of GPU. It uses a smaller sample
-            int nbTests = 100;
-            X_test = X_test.ExtractSubTensor(0, nbTests);
-            Y_test = Y_test.ExtractSubTensor(0, nbTests);
-            X_train = X_train.ExtractSubTensor(0, nbTests);
-            Y_train = Y_train.ExtractSubTensor(0, nbTests);
-            useGpu = false;
-            */
-            var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0);
+            var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0);
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var network = new Network(
                 new NetworkConfig{ Logger = new Logger(logFileName, true), UseDoublePrecision = false }

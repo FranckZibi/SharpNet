@@ -91,7 +91,7 @@ namespace SharpNet.Datasets
                 var xCpuChunkBytes = (xCpuChunkBuffer as CpuTensor<float>)?.Select((n, c, val) => (byte)((val*meanAndVolatilityOfEachChannel[c].Item2+ meanAndVolatilityOfEachChannel[c].Item1)));
                 for (int i = indexFirstElement; i < Math.Min((indexFirstElement + miniBatchSize),10); ++i)
                 {
-                    PictureTools.SaveBitmap(xCpuChunkBytes, i, Path.Combine(@"C:\Users\fzibi\AppData\Local\SharpNet\Train"), i.ToString("D5")+"_epoch_" + epoch, "");
+                    PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Local\SharpNet\Train"), i.ToString("D5")+"_epoch_" + epoch, "");
                 }
             }
             */

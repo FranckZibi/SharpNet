@@ -4,9 +4,7 @@ using NUnit.Framework;
 using SharpNet.Data;
 using SharpNet.GPU;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
@@ -20,8 +18,6 @@ namespace SharpNetTests
     public class TestGradient
     {
 	    private readonly Random _rand = new Random(0);
-        private static readonly string logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "TestGradient" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-        private static readonly Logger logger = new Logger(logFileName, true);
 
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -164,14 +160,13 @@ namespace SharpNetTests
             if (observedDifferences.Count != 0)
             {
                 var errorMsg = "found "+observedDifferences.Count+" differences, max = "+observedDifferences.Max();
-                logger.Info(errorMsg);
                 throw new Exception(errorMsg);
             }
         }
         private static Network GetNetwork()
         {
             var gpuDeviceId = -1;
-            return new Network(new NetworkConfig{ Logger = logger, UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true},ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
+            return new Network(new NetworkConfig{ UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true},ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
         }
     }
 }

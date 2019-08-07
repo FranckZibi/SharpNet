@@ -17,14 +17,14 @@ namespace SharpNet.Pictures
         private readonly double _widthShiftRange;
         //randomly shift images vertically
         private readonly double _heightShiftRange;
-        //set mode for filling points outside the input boundaries
-        private readonly FillModeEnum _fillMode;
-        //value used for fill_mode  {get;set;} = "constant"
-        private readonly double _fillModeConstantVal;
         //randomly flip images
         private readonly bool _horizontalFlip;
         //randomly flip images
         private readonly bool _verticalFlip;
+        //set mode for filling points outside the input boundaries
+        private readonly FillModeEnum _fillMode;
+        //value used for fill_mode  {get;set;} = "constant"
+        private readonly double _fillModeConstantVal;
         //see https://arxiv.org/pdf/1708.04552.pdf
         /// <summary>
         /// width and height of the zero mask to apply to the input picture (see  https://arxiv.org/pdf/1708.04552.pdf)
@@ -32,53 +32,34 @@ namespace SharpNet.Pictures
         /// less or equal to 0.0 means no cutout
         /// </summary>
         private readonly double _cutoutPatchPercentage;
-
-
-        public bool Equals(ImageDataGenerator other, double epsilon, string id, ref string errors)
-        {
-            var equals = true;
-            equals &= Utils.Equals(_widthShiftRange, other._widthShiftRange, epsilon, id + ":_widthShiftRange", ref errors);
-            equals &= Utils.Equals(_heightShiftRange, other._heightShiftRange, epsilon, id + ":_heightShiftRange", ref errors);
-            equals &= Utils.Equals(_fillMode, other._fillMode, id + ":_fillMode", ref errors);
-            equals &= Utils.Equals(_fillModeConstantVal, other._fillModeConstantVal, epsilon, id + ":_fillModeConstantVal", ref errors);
-            equals &= Utils.Equals(_horizontalFlip, other._horizontalFlip, id + ":_horizontalFlip", ref errors);
-            equals &= Utils.Equals(_verticalFlip, other._verticalFlip, id + ":_verticalFlip", ref errors);
-            equals &= Utils.Equals(_cutoutPatchPercentage, other._cutoutPatchPercentage, epsilon, id + ":_cutoutPatchPercentage", ref errors);
-            return equals;
-        }
-        //set input mean to 0 over the dataset
-        //public bool FeaturewiseCenter { get; set; } = false;
-        //set each sample mean to 0
-        //public bool SamplewiseCenter { get; set; } = false;
-        //divide inputs by std of dataset
-        //public bool FeaturewiseStdNormalization { get; set; } = false;
-        //divide each input by its std
-        //public bool SamplewiseStdNormalization { get; set; } = false;
-        //apply ZCA whitening
-        //public bool ZcaWhitening { get; set; } = false;
-        //epsilon for ZCA whitening
-        //public double ZcaEpsilon { get; set; } = 1e-06;
-        //randomly rotate images in the range (deg 0 to 180)
-        //public double RotationRange { get; set; } = 0;
-        //set range for random shear
-        //public double ShearRange { get; set; } = 0;
-        //set range for random zoom
-        //public double ZoomRange { get; set; } = 0;
-        //set range for random channel shifts
-        //public double ChannelShiftRange { get; set; } = 0;
-        //set rescaling factor (applied before any other transformation)
-        //public string Rescale { get; set; } = "None";
-        //set function that will be applied on each input
-        //public string PreprocessingFunction { get; set; } = "None";
-        //image data format; either "channels_first" or "channels_last"
-        //public string DataFormat { get; set; } = "None";
-        //fraction of images reserved for validation (strictly between 0 and 1)
-        //public double ValidationSplit { get; set; } = 0.0;
+        /// <summary>
+        /// rotation range in degrees, in [0,180] range.
+        /// The actual rotation will be a random number in [-_rotationRangeInDegrees,+_rotationRangeInDegrees]
+        /// </summary>
+        private readonly double _rotationRangeInDegrees;
+        /// <summary>
+        /// Range for random zoom. [lower, upper] = [1 - _zoomRange, 1 + _zoomRange].
+        /// </summary>
+        private readonly double _zoomRange;
         #endregion
-        public static readonly ImageDataGenerator NoDataAugmentation = new ImageDataGenerator(0, 0, false, false, FillModeEnum.Nearest, 0.0, 0);
 
-        public ImageDataGenerator(double widthShiftRange, double heightShiftRange, bool horizontalFlip, bool verticalFlip, FillModeEnum fillMode, double fillModeConstantVal, double cutoutPatchPercentage)
+        public static readonly ImageDataGenerator NoDataAugmentation = new ImageDataGenerator(0, 0, false, false, FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0);
+
+        public ImageDataGenerator(
+            double widthShiftRange, double heightShiftRange, 
+            bool horizontalFlip, bool verticalFlip, FillModeEnum fillMode, double fillModeConstantVal,
+            double cutoutPatchPercentage,
+            double rotationRangeInDegrees,
+            double zoomRange)
         {
+            Debug.Assert(widthShiftRange >= 0);
+            Debug.Assert(widthShiftRange <= 1.0);
+            Debug.Assert(heightShiftRange >= 0);
+            Debug.Assert(heightShiftRange <= 1.0);
+            Debug.Assert(zoomRange >= 0);
+            Debug.Assert(zoomRange <= 1.0);
+            Debug.Assert(rotationRangeInDegrees >= 0);
+            Debug.Assert(rotationRangeInDegrees <= 180.0);
             _widthShiftRange = widthShiftRange;
             _heightShiftRange = heightShiftRange;
             _horizontalFlip = horizontalFlip;
@@ -86,6 +67,8 @@ namespace SharpNet.Pictures
             _fillMode = fillMode;
             _fillModeConstantVal = fillModeConstantVal;
             _cutoutPatchPercentage = cutoutPatchPercentage;
+            _rotationRangeInDegrees = rotationRangeInDegrees;
+            _zoomRange = zoomRange;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -139,46 +122,56 @@ namespace SharpNet.Pictures
             var nbRows = xOutputBufferPictures.Shape[2];
             var nbCols = xOutputBufferPictures.Shape[3];
             Cutout(nbRows, nbCols, rand, out var cutoutRowStart, out var cutoutRowEnd, out var cutoutColStart, out var cutoutColEnd);
-            GetPadding(xInputPictures.Shape[2], xInputPictures.Shape[3], out int paddingForTopAndBottom, out int paddingForLeftAndRight);
-            var deltaRowInput = rand.Next(2 * paddingForTopAndBottom + 1) - paddingForTopAndBottom;
-            var deltaColInput = rand.Next(2 * paddingForLeftAndRight + 1) - paddingForLeftAndRight;
-            var rotationAngleInRadians = 0.0;
+            int pictureWidth = xInputPictures.Shape[3];
+            int heightShiftRangeInPixels = GetPadding(xInputPictures.Shape[2], _heightShiftRange);
+            int widthShiftRangeInPixels = GetPadding(pictureWidth, _widthShiftRange);
+            var heightShift = rand.Next(2 * heightShiftRangeInPixels + 1) - heightShiftRangeInPixels;
+            var widthShift = rand.Next(2 * widthShiftRangeInPixels + 1) - widthShiftRangeInPixels;
+            var rotationInDegrees = 2*_rotationRangeInDegrees*rand.NextDouble() - _rotationRangeInDegrees;
+            var zoom = 2*_zoomRange * rand.NextDouble() - _zoomRange;
+            var widthMultiplier = (1.0+zoom);
+            var heightMultiplier = (1.0+zoom);
+
             InitializeOutputPicture(
                 xInputPictures, inputPictureIndex, 
                 xOutputBufferPictures, outputPictureIndex,
-                deltaRowInput, deltaColInput, _fillMode,
+                widthShift, heightShift, _fillMode,
                 horizontalFlip, verticalFlip,
-                cutoutRowStart, cutoutRowEnd, cutoutColStart, cutoutColEnd, rotationAngleInRadians);
+                widthMultiplier, heightMultiplier,
+                cutoutRowStart, cutoutRowEnd, cutoutColStart, cutoutColEnd, 
+                rotationInDegrees);
         }
-
+        public bool Equals(ImageDataGenerator other, double epsilon, string id, ref string errors)
+        {
+            var equals = true;
+            equals &= Utils.Equals(_widthShiftRange, other._widthShiftRange, epsilon, id + ":_widthShiftRange", ref errors);
+            equals &= Utils.Equals(_heightShiftRange, other._heightShiftRange, epsilon, id + ":_heightShiftRange", ref errors);
+            equals &= Utils.Equals(_horizontalFlip, other._horizontalFlip, id + ":_horizontalFlip", ref errors);
+            equals &= Utils.Equals(_verticalFlip, other._verticalFlip, id + ":_verticalFlip", ref errors);
+            equals &= Utils.Equals(_fillMode, other._fillMode, id + ":_fillMode", ref errors);
+            equals &= Utils.Equals(_fillModeConstantVal, other._fillModeConstantVal, epsilon, id + ":_fillModeConstantVal", ref errors);
+            equals &= Utils.Equals(_cutoutPatchPercentage, other._cutoutPatchPercentage, epsilon, id + ":_cutoutPatchPercentage", ref errors);
+            equals &= Utils.Equals(_rotationRangeInDegrees, other._rotationRangeInDegrees, epsilon, id + ":_rotationRangeInDegrees", ref errors);
+            equals &= Utils.Equals(_zoomRange, other._zoomRange, epsilon, id + ":_zoomRange", ref errors);
+            return equals;
+        }
         public static void InitializeOutputPicture<T>(CpuTensor<T> xInputPictures, int inputPictureIndex,
          CpuTensor<T> xOutputBufferPictures, int outputPictureIndex,
-         int deltaRowInput, int deltaColInput, FillModeEnum _fillMode,
+         int widthShift, int heightShift, FillModeEnum _fillMode,
          bool horizontalFlip, bool verticalFlip,
-         int cutoutRowStart, int cutoutRowEnd, int cutoutColStart, int cutoutColEnd, double rotationAngleInRadians) where T : struct
+         double widthMultiplier, double heightMultiplier,
+         int cutoutRowStart, int cutoutRowEnd, int cutoutColStart, int cutoutColEnd, 
+         double rotationInDegrees) where T : struct
         {
-            //TODO : take into 'rotationAngleInRadians'
             var nbRows = xOutputBufferPictures.Shape[2];
             var nbCols = xOutputBufferPictures.Shape[3];
+            var transformer = new PointTransformer(heightShift, widthShift, horizontalFlip, verticalFlip,
+                widthMultiplier, heightMultiplier, rotationInDegrees, nbRows, nbCols);
 
             for (int channel = 0; channel < xOutputBufferPictures.Shape[1]; ++channel)
             {
                 for (int rowOutput = 0; rowOutput < nbRows; ++rowOutput)
                 {
-                    var rowInput = verticalFlip ? (-deltaRowInput + nbRows - 1 - rowOutput) : (rowOutput - deltaRowInput);
-
-                    if (rowInput < 0)
-                    {
-                        rowInput = _fillMode == FillModeEnum.Reflect ? Math.Abs(rowInput + 1) : 0;
-                    }
-                    if (rowInput >= nbRows)
-                    {
-                        rowInput = _fillMode == FillModeEnum.Reflect ? (nbRows - 1 - (rowInput - nbRows)) : (nbRows - 1);
-                    }
-
-                    Debug.Assert(rowInput >= 0 && rowInput < nbRows);
-
-                    var inputPictureIdx = xInputPictures.Idx(inputPictureIndex, channel, rowInput, 0);
                     var outputPictureIdx = xOutputBufferPictures.Idx(outputPictureIndex, channel, rowOutput, 0);
                     for (int colOutput = 0; colOutput < nbCols; ++colOutput)
                     {
@@ -186,13 +179,23 @@ namespace SharpNet.Pictures
                         if (rowOutput >= cutoutRowStart && rowOutput <= cutoutRowEnd &&
                             colOutput >= cutoutColStart && colOutput <= cutoutColEnd)
                         {
-                            xOutputBufferPictures[outputPictureIdx + colOutput] = default(T);
+                            xOutputBufferPictures[outputPictureIdx + colOutput] = default;
                             continue;
                         }
+                        
+                        var rowInput = transformer.UnconvertRow(rowOutput, colOutput);
+                        if (rowInput < 0)
+                        {
+                            rowInput = _fillMode == FillModeEnum.Reflect ? Math.Abs(rowInput + 1) : 0;
+                        }
+                        if (rowInput >= nbRows)
+                        {
+                            rowInput = _fillMode == FillModeEnum.Reflect ? (nbRows - 1 - (rowInput - nbRows)) : (nbRows - 1);
+                        }
+                        rowInput = Math.Max(0, rowInput);
+                        Debug.Assert(rowInput >= 0 && rowInput < nbRows);
 
-                        //horizontal flip
-                        var colInput = horizontalFlip ? (-deltaColInput + nbCols - 1 - colOutput) : (colOutput - deltaColInput);
-
+                        var colInput = transformer.UnconvertCol(rowOutput, colOutput);
                         if (colInput < 0)
                         {
                             colInput = _fillMode == FillModeEnum.Reflect ? Math.Abs(colInput + 1) : 0;
@@ -201,8 +204,10 @@ namespace SharpNet.Pictures
                         {
                             colInput = _fillMode == FillModeEnum.Reflect ? (nbCols - 1 - (colInput - nbCols)) : (nbCols - 1);
                         }
+                        colInput = Math.Max(0, colInput);
                         Debug.Assert(colInput >= 0 && colInput < nbCols);
 
+                        var inputPictureIdx = xInputPictures.Idx(inputPictureIndex, channel, rowInput, 0);
                         xOutputBufferPictures[outputPictureIdx + colOutput] = xInputPictures[inputPictureIdx + colInput];
                     }
                 }
@@ -225,6 +230,8 @@ namespace SharpNet.Pictures
                 .Add(nameof(_fillMode), (int)_fillMode)
                 .Add(nameof(_fillModeConstantVal), _fillModeConstantVal)
                 .Add(nameof(_cutoutPatchPercentage), _cutoutPatchPercentage)
+                .Add(nameof(_rotationRangeInDegrees), _rotationRangeInDegrees)
+                .Add(nameof(_zoomRange), _zoomRange)
                 .ToString();
         }
         public static ImageDataGenerator ValueOf(IDictionary<string, object> serialized)
@@ -240,12 +247,13 @@ namespace SharpNet.Pictures
                 (bool)serialized[nameof(_verticalFlip)],
                 (FillModeEnum)serialized[nameof(_fillMode)],
                 (double)serialized[nameof(_fillModeConstantVal)],
-                (double)serialized[nameof(_cutoutPatchPercentage)]
+                (double)serialized[nameof(_cutoutPatchPercentage)],
+                (double)serialized[nameof(_rotationRangeInDegrees)],
+                (double)serialized[nameof(_zoomRange)]
                 );
         }
         #endregion
-
-
+ 
         private void Cutout(int nbRows, int nbCols, Random rand, out int rowStart, out int rowEnd, out int colStart, out int colEnd)
         {
             if (_cutoutPatchPercentage <= 0)
@@ -268,11 +276,6 @@ namespace SharpNet.Pictures
             colEnd = Math.Min(nbCols - 1, colStart + cutoutPatchLength - 1);
         }
         private bool UseDataAugmentation => !ReferenceEquals(this, NoDataAugmentation);
-        private void GetPadding(int pictureHeight, int pictureWidth, out int paddingForTopAndBottom, out int paddingForLeftAndRight)
-        {
-            paddingForTopAndBottom = GetPadding(pictureHeight, _heightShiftRange);
-            paddingForLeftAndRight = GetPadding(pictureWidth, _widthShiftRange);
-        }
         private static int GetPadding(int pictureWidth, double widthShiftRange)
         {
             if (widthShiftRange <= 0)
@@ -281,18 +284,5 @@ namespace SharpNet.Pictures
             }
             return (int)Math.Ceiling(pictureWidth * widthShiftRange);
         }
-        //public static void CheckPictures<T>(CpuTensor<T> originalPictures, CpuTensor<T> enlargedPictures) where T : struct
-        //{
-        //    Debug.Assert(originalPictures.Shape.Length == 4);
-        //    Debug.Assert(originalPictures.Shape.Length == enlargedPictures.Shape.Length);
-        //    Debug.Assert(enlargedPictures.Shape[0] == originalPictures.Shape[0]);
-        //    Debug.Assert(enlargedPictures.Shape[1] == originalPictures.Shape[1]);
-        //    Debug.Assert(enlargedPictures.Shape[2] >= originalPictures.Shape[2]);
-        //    Debug.Assert((enlargedPictures.Shape[2] - originalPictures.Shape[2]) % 2 == 0);
-        //    Debug.Assert(enlargedPictures.Shape[3] >= originalPictures.Shape[3]);
-        //    Debug.Assert((enlargedPictures.Shape[3] - originalPictures.Shape[3]) % 2 == 0);
-        //    Debug.Assert((enlargedPictures.Shape[2] - originalPictures.Shape[2]) / 2 <= enlargedPictures.Shape[2]);
-        //    Debug.Assert((enlargedPictures.Shape[3] - originalPictures.Shape[3]) / 2 <= enlargedPictures.Shape[3]);
-        //}
     }
 }
