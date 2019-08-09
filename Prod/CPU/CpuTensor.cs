@@ -57,6 +57,7 @@ namespace SharpNet.CPU
             {
                 //bigger shape
                 _hostPinnedMemory?.Dispose();
+                _hostPinnedMemory = null;
                 Content = new T[Utils.Product(newShape)];
                 CapacityInBytes = (ulong)(Content.Length * TypeSize);
                 Shape = newShape;

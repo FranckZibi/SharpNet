@@ -14,9 +14,9 @@ namespace SharpNet.Pictures
         #region private fields
         private readonly Random[] _rands;
         //randomly shift images horizontally
-        private readonly double _widthShiftRange;
+        private readonly double _widthShiftRangeInPercentage;
         //randomly shift images vertically
-        private readonly double _heightShiftRange;
+        private readonly double _heightShiftRangeInPercentage;
         //randomly flip images
         private readonly bool _horizontalFlip;
         //randomly flip images
@@ -27,7 +27,7 @@ namespace SharpNet.Pictures
         private readonly double _fillModeConstantVal;
         //see https://arxiv.org/pdf/1708.04552.pdf
         /// <summary>
-        /// width and height of the zero mask to apply to the input picture (see  https://arxiv.org/pdf/1708.04552.pdf)
+        /// % of the max(width,height) of the zero mask to apply to the input picture (see  https://arxiv.org/pdf/1708.04552.pdf)
         /// recommended size : 16/32=0.5 (= 16x16) for CIFAR10 / 8/32=0.25 (= 8x8) for CIFAR100 / 20/32 (= 20x20) for SVHN / 32/96 (= 32x32) for STL-10
         /// less or equal to 0.0 means no cutout
         /// </summary>
@@ -46,22 +46,22 @@ namespace SharpNet.Pictures
         public static readonly ImageDataGenerator NoDataAugmentation = new ImageDataGenerator(0, 0, false, false, FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0);
 
         public ImageDataGenerator(
-            double widthShiftRange, double heightShiftRange, 
+            double widthShiftRangeInPercentage, double heightShiftRangeInPercentage, 
             bool horizontalFlip, bool verticalFlip, FillModeEnum fillMode, double fillModeConstantVal,
             double cutoutPatchPercentage,
             double rotationRangeInDegrees,
             double zoomRange)
         {
-            Debug.Assert(widthShiftRange >= 0);
-            Debug.Assert(widthShiftRange <= 1.0);
-            Debug.Assert(heightShiftRange >= 0);
-            Debug.Assert(heightShiftRange <= 1.0);
+            Debug.Assert(widthShiftRangeInPercentage >= 0);
+            Debug.Assert(widthShiftRangeInPercentage <= 1.0);
+            Debug.Assert(heightShiftRangeInPercentage >= 0);
+            Debug.Assert(heightShiftRangeInPercentage <= 1.0);
             Debug.Assert(zoomRange >= 0);
             Debug.Assert(zoomRange <= 1.0);
             Debug.Assert(rotationRangeInDegrees >= 0);
             Debug.Assert(rotationRangeInDegrees <= 180.0);
-            _widthShiftRange = widthShiftRange;
-            _heightShiftRange = heightShiftRange;
+            _widthShiftRangeInPercentage = widthShiftRangeInPercentage;
+            _heightShiftRangeInPercentage = heightShiftRangeInPercentage;
             _horizontalFlip = horizontalFlip;
             _verticalFlip = verticalFlip;
             _fillMode = fillMode;
@@ -122,9 +122,8 @@ namespace SharpNet.Pictures
             var nbRows = xOutputBufferPictures.Shape[2];
             var nbCols = xOutputBufferPictures.Shape[3];
             Cutout(nbRows, nbCols, rand, out var cutoutRowStart, out var cutoutRowEnd, out var cutoutColStart, out var cutoutColEnd);
-            int pictureWidth = xInputPictures.Shape[3];
-            int heightShiftRangeInPixels = GetPadding(xInputPictures.Shape[2], _heightShiftRange);
-            int widthShiftRangeInPixels = GetPadding(pictureWidth, _widthShiftRange);
+            int heightShiftRangeInPixels = GetPadding(xInputPictures.Shape[2], _heightShiftRangeInPercentage);
+            int widthShiftRangeInPixels = GetPadding(xInputPictures.Shape[3], _widthShiftRangeInPercentage);
             var heightShift = rand.Next(2 * heightShiftRangeInPixels + 1) - heightShiftRangeInPixels;
             var widthShift = rand.Next(2 * widthShiftRangeInPixels + 1) - widthShiftRangeInPixels;
             var rotationInDegrees = 2*_rotationRangeInDegrees*rand.NextDouble() - _rotationRangeInDegrees;
@@ -144,8 +143,8 @@ namespace SharpNet.Pictures
         public bool Equals(ImageDataGenerator other, double epsilon, string id, ref string errors)
         {
             var equals = true;
-            equals &= Utils.Equals(_widthShiftRange, other._widthShiftRange, epsilon, id + ":_widthShiftRange", ref errors);
-            equals &= Utils.Equals(_heightShiftRange, other._heightShiftRange, epsilon, id + ":_heightShiftRange", ref errors);
+            equals &= Utils.Equals(_widthShiftRangeInPercentage, other._widthShiftRangeInPercentage, epsilon, id + ":_widthShiftRange", ref errors);
+            equals &= Utils.Equals(_heightShiftRangeInPercentage, other._heightShiftRangeInPercentage, epsilon, id + ":_heightShiftRange", ref errors);
             equals &= Utils.Equals(_horizontalFlip, other._horizontalFlip, id + ":_horizontalFlip", ref errors);
             equals &= Utils.Equals(_verticalFlip, other._verticalFlip, id + ":_verticalFlip", ref errors);
             equals &= Utils.Equals(_fillMode, other._fillMode, id + ":_fillMode", ref errors);
@@ -206,9 +205,7 @@ namespace SharpNet.Pictures
                         }
                         colInput = Math.Max(0, colInput);
                         Debug.Assert(colInput >= 0 && colInput < nbCols);
-
-                        var inputPictureIdx = xInputPictures.Idx(inputPictureIndex, channel, rowInput, 0);
-                        xOutputBufferPictures[outputPictureIdx + colOutput] = xInputPictures[inputPictureIdx + colInput];
+                        xOutputBufferPictures[outputPictureIdx + colOutput] = xInputPictures.Get(inputPictureIndex, channel, rowInput, colInput);
                     }
                 }
             }
@@ -223,8 +220,8 @@ namespace SharpNet.Pictures
                 return "";
             }
             return new Serializer()
-                .Add(nameof(_widthShiftRange), _widthShiftRange)
-                .Add(nameof(_heightShiftRange), _heightShiftRange)
+                .Add(nameof(_widthShiftRangeInPercentage), _widthShiftRangeInPercentage)
+                .Add(nameof(_heightShiftRangeInPercentage), _heightShiftRangeInPercentage)
                 .Add(nameof(_horizontalFlip), _horizontalFlip)
                 .Add(nameof(_verticalFlip), _verticalFlip)
                 .Add(nameof(_fillMode), (int)_fillMode)
@@ -236,13 +233,13 @@ namespace SharpNet.Pictures
         }
         public static ImageDataGenerator ValueOf(IDictionary<string, object> serialized)
         {
-            if (!serialized.ContainsKey(nameof(_widthShiftRange)))
+            if (!serialized.ContainsKey(nameof(_widthShiftRangeInPercentage)))
             {
                 return NoDataAugmentation;
             }
             return new ImageDataGenerator(
-                (double)serialized[nameof(_widthShiftRange)],
-                (double)serialized[nameof(_heightShiftRange)],
+                (double)serialized[nameof(_widthShiftRangeInPercentage)],
+                (double)serialized[nameof(_heightShiftRangeInPercentage)],
                 (bool)serialized[nameof(_horizontalFlip)],
                 (bool)serialized[nameof(_verticalFlip)],
                 (FillModeEnum)serialized[nameof(_fillMode)],
