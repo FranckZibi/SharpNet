@@ -122,7 +122,8 @@ namespace SharpNet.Pictures
             var yOutputIdx = yOutputOneHot.Idx(outputPictureIndex);
             Buffer.BlockCopy(yInputOneHot.Content, yInputIdx * typeSize, yOutputOneHot.Content, yOutputIdx * typeSize, yInputOneHot.MultDim0 * typeSize);
 
-            if (!UseDataAugmentation || (epoch == 1) || !isTraining)
+            //?D if (!UseDataAugmentation || (epoch == 1) || !isTraining)
+            if (!UseDataAugmentation || !isTraining)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
                 var pictureInputIdx = xInputPictures.Idx(inputPictureIndex);
@@ -166,7 +167,7 @@ namespace SharpNet.Pictures
                 rotationInDegrees);
 
 
-            if (_CutMix)
+            if (_CutMix && inputElementIdToCategoryId(inputPictureIndex)!= inputElementIdToCategoryId(inputPictureIndexForCutMix))
             {
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
