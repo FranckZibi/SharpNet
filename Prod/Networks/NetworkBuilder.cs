@@ -29,6 +29,11 @@ namespace SharpNet.Networks
         /// </summary>
         public double CutoutPatchPercentage { private get; set; }
         /// <summary>
+        /// Should we use CutMix 
+        /// </summary>
+        public bool CutMix { private get; set; }
+
+        /// <summary>
         /// rotation range in degrees, in [0,180] range.
         /// The actual rotation will be a random number in [-_rotationRangeInDegrees,+_rotationRangeInDegrees]
         /// </summary>
@@ -50,7 +55,7 @@ namespace SharpNet.Networks
 
         private ImageDataGenerator DataGenerator()
         {
-            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage, RotationRangeInDegrees, ZoomRange);
+            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage, CutMix, RotationRangeInDegrees, ZoomRange);
         }
     }
 }

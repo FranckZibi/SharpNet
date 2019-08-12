@@ -56,7 +56,7 @@ namespace SharpNet.Networks
             CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR10: +75 bps vs no cutout (= 0.0)
             //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR10: -60 bps vs 0.5
 
-            NumEpochs = 200;
+            NumEpochs = 150; //changed on 8-aug-2019 : new default batch size : 150 (was 200)
             BatchSize = 128;
             DropOut = 0.0; //by default we disable dropout
             InitialLearningRate = 0.1;
@@ -92,7 +92,7 @@ namespace SharpNet.Networks
         /// Number of residual blocks in each stage = (depth-4)/6
         /// Each residual block is in the form:
         ///     for the 1st one at each stage:
-        ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv + Conv + Add
+        ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv + Conv(to change diemnsion) + Add
         ///     for the other residual blocks ones:
         ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv +        Add
         /// For each stage,

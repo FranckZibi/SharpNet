@@ -29,13 +29,16 @@
 
 			int startIndex = i * categoryCount;
 			int endIndexExcluded = startIndex + categoryCount;
-			int maxIndex = startIndex;
-			for (int j = startIndex; j < endIndexExcluded; ++j)
+			int maxIndexPredicted = startIndex;
+			int maxIndexExpected = startIndex;
+			for (int j = startIndex+1; j < endIndexExcluded; ++j)
 			{
-				if (yPredicted[j] > yPredicted[maxIndex])
-					maxIndex = j;
+				if (yPredicted[j] > yPredicted[maxIndexPredicted])
+					maxIndexPredicted = j;
+				if (yExpectedOneHot[j] > yExpectedOneHot[maxIndexExpected])
+					maxIndexExpected = j;
 			}
-			countOk[i] = (yExpectedOneHot[maxIndex] > 0.9f) ? 1.0f : 0.0f;
+			countOk[i] = (maxIndexPredicted == maxIndexExpected) ? 1.0f : 0.0f;
 		}
 	}
 

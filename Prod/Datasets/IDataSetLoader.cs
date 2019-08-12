@@ -22,13 +22,23 @@ namespace SharpNet.Datasets
         /// number of elements in DataSet
         /// </summary>
         int Count { get; }
-
         int TypeSize { get; }
-
         /// <summary>
         ///  number of distinct categories in the DataSet
         /// </summary>
         int Categories { get; }
+        /// <summary>
+        /// category id to associated description
+        /// </summary>
+        /// <param name="categoryId">id of the category (between 0 and 'Categories-1')</param>
+        /// <returns></returns>
+        string CategoryIdToDescription(int categoryId);
+        /// <summary>
+        /// element id to associated category id 
+        /// </summary>
+        /// <param name="elementId">id of the element (between 0 and 'Count-1')</param>
+        /// <returns>id of the associated category (between 0 and 'Categories-1')</returns>
+        int ElementIdToCategoryId(int elementId);
         /// <summary>
         /// number of channels of each elements
         /// </summary>
@@ -41,15 +51,11 @@ namespace SharpNet.Datasets
         /// Current width of elements to load
         /// </summary>
         int CurrentWidth { get; }
-
         IDataSetLoader<float> ToSinglePrecision();
         IDataSetLoader<double> ToDoublePrecision();
-
         int[] Y_Shape { get; }
         int[] XChunk_Shape(int miniBatchSize);
         int[] YChunk_Shape(int miniBatchSize);
-
         CpuTensor<T> Y { get; }
-
     }
 }

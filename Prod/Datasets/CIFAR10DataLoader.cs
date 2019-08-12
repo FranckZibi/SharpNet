@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Networks;
 using SharpNet.Pictures;
@@ -9,6 +11,8 @@ namespace SharpNet.Datasets
 {
     public class CIFAR10DataLoader : IDataSet<float>
     {
+        private readonly string[] CategoryIdToDescription = new[] { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
+
         public const int Channels = 3;
         public const int Height = 32;
         public const int Width = Height;
@@ -18,9 +22,9 @@ namespace SharpNet.Datasets
 
         public CIFAR10DataLoader(ImageDataGenerator imageDataGenerator)
         {
-            LoadCifar10(out var xTrain, out var yTrain, out var xTest, out var yTest);
-            Training = new InMemoryDataSetLoader<float>(xTrain, yTrain, imageDataGenerator);
-            Test = new InMemoryDataSetLoader<float>(xTest, yTest, imageDataGenerator);
+            LoadCifar10(out var xTrain, out var yTrain, out var trainElementIdToCategoryId, out var xTest, out var yTest, out var testElementIdToCategoryId);
+            Training = new InMemoryDataSetLoader<float>(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
+            Test = new InMemoryDataSetLoader<float>(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
         }
         public void Dispose()
         {
@@ -28,17 +32,24 @@ namespace SharpNet.Datasets
             Test?.Dispose();
         }
 
-        private static void LoadCifar10(out CpuTensor<float> xTrain, out CpuTensor<float> yTrain, out CpuTensor<float> xTest, out CpuTensor<float> yTest)
+        private static void LoadCifar10(out CpuTensor<float> xTrain, out CpuTensor<float> yTrain, out int[] trainElementIdToCategoryId, out CpuTensor<float> xTest, out CpuTensor<float> yTest, out int[] testElementIdToCategoryId)
         {
             Load(out CpuTensor<byte> xTrainingSet, out var yTrainingSet, out var xTestSet, out var yTestSet);
             //We normalize the input with 0 mean / 1 volatility
             //var meanAndVolatilityOfEachChannel = xTrainingSet.ComputeMeanAndVolatilityOfEachChannel(x=>(double)x);
             var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>>{Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142),Tuple.Create(113.865383183594, 66.7048996406309)};
             ToWorkingSet(xTrainingSet, yTrainingSet, out xTrain, out yTrain, meanAndVolatilityOfEachChannel);
-            ToWorkingSet(xTestSet, yTestSet, out xTest, out yTest, meanAndVolatilityOfEachChannel);
+            InMemoryDataSetLoader<float>.AreCompatible_X_Y(xTrain, yTrain);
+            trainElementIdToCategoryId = yTrainingSet.Content.Select(x => (int) x).ToArray();
+            Debug.Assert(trainElementIdToCategoryId.Length == xTrainingSet.Shape[0]);
 
-            //Uncomment the following line to take only the first 100 elements;
-            //xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 100);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, 100); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
+            ToWorkingSet(xTestSet, yTestSet, out xTest, out yTest, meanAndVolatilityOfEachChannel);
+            InMemoryDataSetLoader<float>.AreCompatible_X_Y(xTest, yTest);
+            testElementIdToCategoryId = yTestSet.Content.Select(x => (int)x).ToArray();
+            Debug.Assert(testElementIdToCategoryId.Length == xTestSet.Shape[0]);
+
+            //Uncomment the following line to take only the first elements
+            //xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 1000);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, 1000); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
         }
         private static void Load(out CpuTensor<byte> xTrainingSet, out CpuTensor<byte> yTrainingSet, out CpuTensor<byte> xTestSet, out CpuTensor<byte> yTestSet)
         {

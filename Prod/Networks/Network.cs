@@ -305,12 +305,6 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        public void Fit<T>(CpuTensor<T> X, CpuTensor<T> Y, double learningRate, int numEpochs, int batchSize, IDataSetLoader<T> testDataSet = null) where T : struct
-        {
-            var trainingDataSet = new InMemoryDataSetLoader<T>(X,Y,GetImageDataGenerator());
-            Fit(trainingDataSet, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, testDataSet);
-        }
-
         public void Fit<T>(IDataSetLoader<T> training, ILearningRateScheduler lrScheduler, ReduceLROnPlateau reduceLROnPlateau, int numEpochs, int batchSize, IDataSetLoader<T> test = null) where T : struct
         {
             try
@@ -444,8 +438,7 @@ namespace SharpNet.Networks
 
         private int MaxMiniBatchSize()
         {
-            //TODO  : GC.GetTotalMemory(false) is wrong
-            var freeMemoryInBytes = UseGPU?(ulong)GpuWrapper.AvailableMemoryInBytes() : (ulong)GC.GetTotalMemory(false);
+            var freeMemoryInBytes = UseGPU?(ulong)GpuWrapper.AvailableMemoryInBytes() : Utils.AvailableRamMemoryInBytes();
             int maxMiniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
             LogDebug("Max MiniBatchSize=" + maxMiniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
             return maxMiniBatchSize;

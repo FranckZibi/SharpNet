@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Networks;
 using SharpNet.Pictures;
@@ -9,6 +10,8 @@ namespace SharpNet.Datasets
 {
     public class MNISTDataLoader<T> : IDataSet<T> where T: struct
     {
+        private readonly string[] CategoryIdToDescription = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+
         public IDataSetLoader<T> Training { get; }
         public IDataSetLoader<T> Test { get; }
 
@@ -18,14 +21,18 @@ namespace SharpNet.Datasets
             var trainWorkingSet = ToWorkingSet(trainingSet);
             var xTrain = trainWorkingSet.Item1;
             var yTrain = trainWorkingSet.Item2;
-            Training = (IDataSetLoader<T>)new InMemoryDataSetLoader<double>(xTrain, yTrain, imageDataGenerator);
+
+            var trainElementIdToCategoryId = trainingSet.Select(x=>x.Value).ToArray();
+            Training = (IDataSetLoader<T>)new InMemoryDataSetLoader<double>(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
 
             var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
             var testWorkingSet = ToWorkingSet(testSet);
             var xTest = testWorkingSet.Item1;
             var yTest = testWorkingSet.Item2;
-            Test = (IDataSetLoader <T>)new InMemoryDataSetLoader<double>(xTest, yTest, imageDataGenerator);
+            var testElementIdToCategoryId = testSet.Select(x => x.Value).ToArray();
+            Test = (IDataSetLoader <T>)new InMemoryDataSetLoader<double>(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
         }
+
 
         public void Dispose()
         {

@@ -1636,20 +1636,26 @@ namespace SharpNet.CPU
         private static int ComputeSingleAccuracyCount(CpuTensor<double> yExpectedOneHot, CpuTensor<double> yPredicted, int m)
         {
             Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
-            if (yExpectedOneHot.Width == 1)
+            var categoryCount = yExpectedOneHot.Width;
+            if (categoryCount == 1)
             {
                 var error = Math.Abs(yExpectedOneHot.Get(m, 0) - yPredicted.Get(m, 0));
                 return (error < 0.5) ? 1 : 0;
             }
-            int maxIndex = 0;
-            for (int j = 0; j < yPredicted.Width; ++j)
+            int maxIndexPredicted = 0;
+            int maxIndexExpected = 0;
+            for (int j = 1; j < categoryCount; ++j)
             {
-                if (yPredicted.Get(m, j) > yPredicted.Get(m, maxIndex))
+                if (yPredicted.Get(m, j) > yPredicted.Get(m, maxIndexPredicted))
                 {
-                    maxIndex = j;
+                    maxIndexPredicted = j;
+                }
+                if (yExpectedOneHot.Get(m, j) > yExpectedOneHot.Get(m, maxIndexExpected))
+                {
+                    maxIndexExpected = j;
                 }
             }
-            if (yExpectedOneHot.Get(m, maxIndex) > 0.9)
+            if (maxIndexExpected == maxIndexPredicted)
             {
                 return 1;
             }
@@ -1657,20 +1663,27 @@ namespace SharpNet.CPU
         }
         private static int ComputeSingleAccuracyCount(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m)
         {
-            if (yExpectedOneHot.Width == 1)
+            Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
+            var categoryCount = yExpectedOneHot.Width;
+            if (categoryCount == 1)
             {
                 var error = Math.Abs(yExpectedOneHot.Get(m, 0) - yPredicted.Get(m, 0));
                 return (error < 0.5) ? 1 : 0;
             }
-            int maxIndex = 0;
-            for (int j = 0; j < yPredicted.Width; ++j)
+            int maxIndexPredicted = 0;
+            int maxIndexExpected = 0;
+            for (int j = 1; j < categoryCount; ++j)
             {
-                if (yPredicted.Get(m, j) > yPredicted.Get(m, maxIndex))
+                if (yPredicted.Get(m, j) > yPredicted.Get(m, maxIndexPredicted))
                 {
-                    maxIndex = j;
+                    maxIndexPredicted = j;
+                }
+                if (yExpectedOneHot.Get(m, j) > yExpectedOneHot.Get(m, maxIndexExpected))
+                {
+                    maxIndexExpected = j;
                 }
             }
-            if (yExpectedOneHot.Get(m, maxIndex) > 0.9)
+            if (maxIndexExpected == maxIndexPredicted)
             {
                 return 1;
             }

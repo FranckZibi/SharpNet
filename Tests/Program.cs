@@ -104,33 +104,49 @@ namespace SharpNetTests
 
             var modifiers = new List<Action<WideResNetBuilder>>
             {
+                //ref 8-aug-2019: 0 bps
                 (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
-                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_no_cutout_150epochs";},
-                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_cutout_0_25_150epochs";},
 
+                //TODO
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.RotationRangeInDegrees = 15;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_RotationRangeInDegrees_15_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ZoomRange = 0.1;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_ZoomRange_0_1_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.WidthShiftRange = 0.0;p.HeightShiftRange = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_WidthShiftRange_0_0_150epochs";},
+
+                #region already performed tests
+                //10-aug-2019: -10 bps
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_1_2_150epochs";},
+                //10-aug-2019: -5 bps
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ZoomRange = 0.2;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_ZoomRange_0_2_150epochs";},
+                //10-aug-2019: +4 bps
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ZoomRange = 0.1;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_ZoomRange_0_1_150epochs";},
+                //10-aug-2019: -42 bps
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.RotationRangeInDegrees = 10;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_RotationRangeInDegrees_10_150epochs";},
+                //9-aug-2019: -80 bps
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.RotationRangeInDegrees = 25;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_RotationRangeInDegrees_25_150epochs";},
+                //9-aug-2019: -33 bps
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1, 2);p.NumEpochs = 127;p.ExtraDescription = "_CyclicCosineAnnealing_1_2_127epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_no_cutout_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_cutout_0_25_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.WidthShiftRange = 0.2;p.HeightShiftRange = 0.2;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_WidthShiftRange_0_2_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.BatchSize = 512;p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_BatchSize512_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_no_cutout";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_cutout_0_25";},
-
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
                 //(p) =>{p.DropOutAfterDenseLayer = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_010DropOutAfterDenseLayer_150epochs";},
-
-
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(150,1);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_150_1_150epochs";},
                 //(p) =>{p.DropOutAfterDenseLayer = 0.3;p.NumEpochs = 150;p.ExtraDescription = "_030DropOutAfterDenseLayer_150epochs";},
-
                 //(p) =>{p.CutoutPatchlength=0;p.ExtraDescription = "_0CutoutPatchlength";},
                 //(p) =>{p.AvgPoolingSize=2;p.ExtraDescription = "_2AvgPoolingSize";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(50,1);p.ExtraDescription = "_CyclicCosineAnnealing_50_1";},
-
                 //(p) =>{p.ExtraDescription = "";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(150,1);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_150_1_150epochs";},
                 //(p) =>{p.DropOut = 0.3;p.ExtraDescription = "_030_dropout";},
                 //(p) =>{p.CutoutPatchlength=0;p.ExtraDescription = "_0CutoutPatchlength";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1,2);p.ExtraDescription = "_CyclicCosineAnnealing_1_2";},
-                #region already performed tests
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
                 //(p) =>{p.ExtraDescription = "";},
                 #endregion

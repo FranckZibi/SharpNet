@@ -241,7 +241,9 @@ namespace SharpNet.GPU
             }
             var cudaVersion = CudaVersionFromCudaPath();
             result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
-            result += " - RAM Memory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false));
+            result += " - Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);
+            result += " - Used in GC: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false));
+            result += " - Available RAM Memory: " + Utils.MemoryBytesToString(Utils.AvailableRamMemoryInBytes());
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice) + " CopiedToDevice (" + _copyToDeviceCalls + "calls, " + SwCopyToDevice.ElapsedMilliseconds + "ms)";
             result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
             result += " - CurrentThreadId#" + System.Threading.Thread.CurrentThread.ManagedThreadId;

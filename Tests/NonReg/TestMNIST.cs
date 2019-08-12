@@ -21,7 +21,7 @@ namespace SharpNetTests.NonReg
             int batchSize = 32;
             const int numEpochs = 1000;
 
-            var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0);
+            var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0.0, false, 0.0, 0.0);
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var network = new Network(
                 new NetworkConfig{ Logger = new Logger(logFileName, true), UseDoublePrecision = false }

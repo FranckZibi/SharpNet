@@ -48,7 +48,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.707915127277374,0.336254686117172]]");
@@ -74,7 +74,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.67996985, 0.17650272, 0.4107801]]");
@@ -100,7 +100,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.4153017,  0.19545524, 0.6464454],[0.6064757,  0.09901482, 0.62172073]]");
@@ -126,7 +126,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.6009891,0.09348926,0.30552167],[0.2477788,0.08346885,0.6687523]]");
@@ -160,7 +160,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.5302857,  0.49406603, 0.5208457 ],[0.5566553, 0.4216699,  0.5151303]]");
@@ -189,7 +189,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.5584541,0.1351326,0.4495322],[0.4868227,0.1388872,0.4988887]]");
@@ -240,7 +240,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.8123572,0.3967234,0.3261538],[0.184946,0.3705481,0.6772146]]");
@@ -273,7 +273,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.3923742,0.2287465,0.3788793],[0.3707,0.2305237,0.3987763]]");
@@ -313,7 +313,7 @@ namespace SharpNetTests.NonReg
 
             var learningRate = 0.1;
             var numEpochs = 10;
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.5254775,0.02025996,0.4542625],[0.4535444,0.01977866,0.526677]]");
@@ -342,7 +342,7 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.553912222385406,0.135723426938057,0.310364335775375],[0.57789421081543,0.159836992621422,0.26226881146431]]");
             TestLossAccuracy(network, X, Y, null  /*0.9943205118179321*/, 0.5);
 
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.56008917093277,0.0195358134806156,0.420375019311905],[0.398750722408295,0.0234715715050697,0.577777683734894]]");
@@ -366,7 +366,7 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.475850999355316,0.251384913921356,0.27276411652565],[0.506687998771667,0.285933136940002,0.207378879189491]]");
             TestLossAccuracy(network, X, Y, null  /*1.4464839696884155*/, 0.5);
 
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.56395947933197,0.0651973560452461,0.370843172073364],[0.344296395778656,0.0696434527635574,0.586060106754303]]");
@@ -391,7 +391,7 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.475850999355316,0.251384913921356,0.27276411652565],[0.506687998771667,0.285933136940002,0.207378879189491]]");
             TestLossAccuracy(network, X, Y, null  /* 4.0434770584106445 */, 0.5);
 
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
             TestPredict(network, X, "[[0.635447382926941,0.101806730031967,0.262745916843414],[0.348914474248886,0.0936608985066414,0.557424664497375]]");
@@ -418,7 +418,7 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, null  /*  1.4464839696884155 */, 0.5);
 
             var batchSize = X.Shape[0];
-            network.Fit(X, Y, learningRate* batchSize, numEpochs, batchSize);
+            TestNetwork.Fit(network, X, Y, learningRate* batchSize, numEpochs, batchSize);
 
             //predictions after training
             TestPredict(network, X, "[[0.894426345825195,0.00220351060852408,0.103370226919651],[0.0549939684569836,0.00156258791685104,0.943443357944489]]");
@@ -452,7 +452,7 @@ namespace SharpNetTests.NonReg
             //predictions before training
             TestPredict(network, X, "[[0.8710213, 0.12897871]]");
             TestLossAccuracy(network, X, Y, 0.1380888819694519, 1.0);
-            network.Fit(X, Y, learningRate, numEpochs, X.Shape[0]);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
             //predictions after training
             TestPredict(network, X, "[[9.9985039e-01, 1.4956875e-04]]");
             TestLossAccuracy(network, X, Y, 0.0001495592441642657, 1.0);
@@ -535,14 +535,14 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
             network.LogContent();
 
-            var trainingDataSet = new InMemoryDataSetLoader<float>(X,Y,network.GetImageDataGenerator());
+            var trainingDataSet = new InMemoryDataSetLoader<float>(X,Y,null,null,network.GetImageDataGenerator());
             var lossAccuracyBefore = network.ComputeLossAndAccuracy(batchSize, trainingDataSet);
 
             logger.Info("-");
             logger.Info("--------------------------------------------------------------------");
             logger.Info("-");
 
-            network.Fit(X, Y, learningRate, numEpochs, batchSize);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
             network.LogContent();
 
             var predict_after = network.Predict(X, false).ToNumpy();
@@ -572,7 +572,7 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];
-            var dataSet = new InMemoryDataSetLoader<float>(X, Y_expected, network.GetImageDataGenerator());
+            var dataSet = new InMemoryDataSetLoader<float>(X, Y_expected, null, null, network.GetImageDataGenerator());
             var observedLossAccuracy = network.ComputeLossAndAccuracy(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 

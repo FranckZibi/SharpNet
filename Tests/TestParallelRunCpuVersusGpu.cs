@@ -335,7 +335,7 @@ namespace SharpNetTests
 
         [TestCase(10)]
         [TestCase(1)]
-        public void TestComputeAccuracy(int nbCategories)
+        public void TestComputeAccuracyOneHot(int nbCategories)
         {
             var nbRows = 10000;
             var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
@@ -343,7 +343,18 @@ namespace SharpNetTests
             var buffer = RandomTensor(new[] { nbRows}, "buffer");
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
-        
+
+        [TestCase(10)]
+        [TestCase(1)]
+        public void TestComputeAccuracyTwoHot(int nbCategories)
+        {
+            var nbRows = 10000;
+            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
+            var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand, "yExpectedTwoHot");
+            var buffer = RandomTensor(new[] { nbRows }, "buffer");
+            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
+        }
+
 
         private CpuTensor<double> RandomTensor(int[] shape, string description)
 	    {

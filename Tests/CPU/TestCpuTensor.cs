@@ -134,6 +134,24 @@ namespace SharpNetTests.CPU
             return result;
         }
 
+        //random tensor
+        //in each row: only 2 elements with non zero value, the sum of the 2 elements is always = 1.0
+        public static CpuTensor<double> RandomTwoHotTensor(int[] shape, Random rand, string description)
+        {
+            var result = new CpuTensor<double>(shape, description);
+            int nbCategories = result.Shape[1];
+            for (int row = 0; row < result.Shape[0]; ++row)
+            {
+                int indexFirstCategory = rand.Next(nbCategories);
+                var expectedFirstCategory = rand.NextDouble();
+                result.Set(row, indexFirstCategory, expectedFirstCategory);
+                int indexSecondCategory = (indexFirstCategory+7)%nbCategories;
+                var expectedSecondCategory = 1.0-expectedFirstCategory;
+                result.Set(row, indexSecondCategory, expectedSecondCategory);
+            }
+            return result;
+        }
+
 
 
 

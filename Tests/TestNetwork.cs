@@ -1,8 +1,10 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.Networks;
+using SharpNet.Optimizers;
 using SharpNetTests.CPU;
 
 namespace SharpNetTests
@@ -41,10 +43,18 @@ namespace SharpNetTests
             param.DisableLogging = true;
             var network = param.Build(nameof(TestSave), xTrain.Shape, nbCategories, false, new[] { 2, 2 }, true, 8, 1.0, null);
             testToPerform(network);
-            network.Fit(xTrain,yTrain, 0.1, 10, 2);
+            Fit(network, xTrain,yTrain, 0.1, 10, 2);
             network.Description = "after training";
             testToPerform(network);
         }
+
+        public static void Fit<T>(Network network, CpuTensor<T> X, CpuTensor<T> Y, double learningRate, int numEpochs, int batchSize, IDataSetLoader<T> testDataSet = null) where T : struct
+        {
+            var trainingDataSet = new InMemoryDataSetLoader<T>(X, Y, null, null, network.GetImageDataGenerator());
+            network.Fit(trainingDataSet, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, testDataSet);
+        }
+
+
 
         private static void CheckSave(Network network)
         {

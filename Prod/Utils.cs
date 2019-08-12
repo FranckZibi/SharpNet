@@ -100,6 +100,15 @@ namespace SharpNet
             }
             return result;
         }
+
+
+        public static ulong AvailableRamMemoryInBytes()
+        {
+            var ramCounter = new PerformanceCounter("Memory", "Available Bytes");
+            return (ulong)ramCounter.NextValue();
+        }
+
+
         public static string ShapeToStringWithBacthSize(int[] shape)
         {
             if (shape == null)
