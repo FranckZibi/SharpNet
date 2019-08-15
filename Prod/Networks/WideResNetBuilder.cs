@@ -81,18 +81,8 @@ namespace SharpNet.Networks
 
         public int AvgPoolingSize { get; set; }
 
-        public Network WRN_10_4_CIFAR10() { return WRN_CIFAR10(10, 4); }
-        public Network WRN_16_4_CIFAR10() { return WRN_CIFAR10(16, 4); }
-        public Network WRN_40_4_CIFAR10() { return WRN_CIFAR10(40, 4); }
-        public Network WRN_16_8_CIFAR10() { return WRN_CIFAR10(16, 8); }
-        public Network WRN_16_10_CIFAR10() { return WRN_CIFAR10(16, 10); }
-        public Network WRN_28_8_CIFAR10() { return WRN_CIFAR10(28, 8); }
-        public Network WRN_28_10_CIFAR10() { return WRN_CIFAR10(28, 10); }
-
         /// <summary>
         /// returns a Wide Residual network, as described in https://arxiv.org/pdf/1605.07146.pdf
-        /// </summary>
-        /// <param name="depth">total number of convolutions in the network
         /// There are always 3 stages in a Wide ResNet.
         /// Number of convolutions in each stage = (depth-1)/3      (1 of them is used to change dimension)
         /// Number of convolutions in each residual block = 2       (3 for the 1st residual block of each stage)
@@ -108,25 +98,13 @@ namespace SharpNet.Networks
         ///     the output will:
         ///         (N,k*C,H,W)         => for the 1st stage
         ///         (N,2C,H/2,W/2)      => for other stages
-        /// 
-        /// </param>
-        /// <param name="k">widening parameter</param>
-        /// <returns></returns>
-        private Network WRN_CIFAR10(int depth, int k)
-        {
-            return WRN(depth, k, new[] {CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width}, CIFAR10DataLoader.Categories);
-        }
-
-
-
-        /// <summary>
-        /// 
         /// </summary>
-        /// <param name="depth"></param>
+        /// <param name="depth">total number of convolutions in the network</param>
         /// <param name="k">widening parameter</param>
-        /// <param name="inputShape_CHW">input shape of a single element in format (channels,height, width)</param>
+        /// <param name="inputShape_CHW">input shape of a single element in format (channels, height, width)</param>
         /// <param name="categories">number of distinct categories</param>
         /// <returns></returns>
+
         public Network WRN(int depth, int k, int[] inputShape_CHW, int categories)
         {
             int convolutionsCountByStage = (depth - 1) / 3;

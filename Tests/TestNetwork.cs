@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices.WindowsRuntime;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Datasets;
@@ -50,11 +51,26 @@ namespace SharpNetTests
 
         public static void Fit<T>(Network network, CpuTensor<T> X, CpuTensor<T> Y, double learningRate, int numEpochs, int batchSize, IDataSetLoader<T> testDataSet = null) where T : struct
         {
-            var trainingDataSet = new InMemoryDataSetLoader<T>(X, Y, new int[X.Shape[0]], null);
+            var trainingDataSet = new InMemoryDataSetLoader<T>(X, Y, Y_to_Categories(Y), null);
             network.Fit(trainingDataSet, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, testDataSet);
         }
 
-
+        private static int[] Y_to_Categories<T>(CpuTensor<T> Y) where T: struct
+        {
+            var result = new int[Y.Shape[0]];
+            for (int m = 0;m < Y.Shape[0]; ++m)
+            {
+                for (int category = 0; category < Y.Shape[1]; ++category)
+                {
+                    if (!Equals(Y.Get(m, category), default(T)))
+                    {
+                        result[m] = category;
+                        break;
+                    }
+                }
+            }
+            return result;
+        }
 
         private static void CheckSave(Network network)
         {

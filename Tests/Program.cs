@@ -95,13 +95,13 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_4_CIFAR10());},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_40_4_CIFAR10());},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_8_CIFAR10());},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
 
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_10_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_8_CIFAR10());},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_10_CIFAR10());}
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 10,4,WidthAptos2019);},
             };
@@ -109,7 +109,7 @@ namespace SharpNetTests
             var modifiers = new List<Action<WideResNetBuilder>>
             {
                 //ref 8-aug-2019: 0 bps
-                //(p) =>{},
+                (p) =>{},
 
                 //(p) => { p.CutMix = false;p.CutoutPatchPercentage = 0.5;},
 
@@ -283,6 +283,15 @@ namespace SharpNetTests
         /// </summary>
         private static void Train_CIFAR10(NetworkBuilder p, Network network)
         {
+            using (var cifar10DataLoader = new CIFAR10DataLoader())
+            {
+                Train(p, network, cifar10DataLoader.Training, cifar10DataLoader.Test);
+            }
+        }
+
+        private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
+        {
+            var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataLoader.InputShape_CHW, CIFAR10DataLoader.Categories);
             using (var cifar10DataLoader = new CIFAR10DataLoader())
             {
                 Train(p, network, cifar10DataLoader.Training, cifar10DataLoader.Test);

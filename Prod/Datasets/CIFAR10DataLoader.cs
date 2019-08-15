@@ -16,6 +16,10 @@ namespace SharpNet.Datasets
         public const int Height = 32;
         public const int Width = Height;
         public const int Categories = 10;
+
+        public static readonly int[] InputShape_CHW = {Channels, Height, Width};
+
+
         public IDataSetLoader<float> Training { get; }
         public IDataSetLoader<float> Test { get; }
 

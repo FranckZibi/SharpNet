@@ -112,7 +112,7 @@ namespace SharpNet.Pictures
             //same number of columns
             Debug.Assert(xOriginalMiniBatch.Shape[3] == xDataAugmentedMiniBatch.Shape[3]);
 
-            var rand = _rands[miniBatchSize % _rands.Length];
+            var rand = _rands[indexInMiniBatch % _rands.Length];
 
             //random shift
             int heightShiftRangeInPixels = GetPadding(xOriginalMiniBatch.Shape[2], _heightShiftRangeInPercentage);
