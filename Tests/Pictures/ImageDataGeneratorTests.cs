@@ -134,7 +134,7 @@ namespace SharpNetTests.Pictures
             var expectedOutputTensor = new CpuTensor<int>(inputShape, expectedOutput, "expectedOutput");
             var bufferOutputTensor = new CpuTensor<int>(inputShape, "bufferOutputTensor");
 
-            ImageDataGenerator.InitializeOutputPicture(inputTensor, 0, bufferOutputTensor, 0, 
+            ImageDataGenerator.InitializeOutputPicture(inputTensor, bufferOutputTensor, 0, 
                 widthShift, heightShift, _fillMode,
                 horizontalFlip, verticalFlip,
                 widthMultiplier, heightMultiplier,

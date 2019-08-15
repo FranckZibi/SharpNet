@@ -1,188 +1,63 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using SharpNet.CPU;
-using SharpNet.Data;
-using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public class InMemoryDataSetLoader<T> : IDataSetLoader<T> where T : struct
+    public class InMemoryDataSetLoader<T> : AbstractDataSetLoader<T> where T : struct
     {
         #region private fields
         private readonly CpuTensor<T> _x;
-        private readonly CpuTensor<T> _y;
-        private readonly Random _randForShuffle = new Random(0);
-        private readonly ImageDataGenerator _imageDataGenerator;
-        private readonly int[] _elementIdToCategoryId;
-        private readonly string[] _categoryIdToDescription;
-        private readonly List<int> orderInCurrentEpoch;
-        private CpuTensor<T> xCpuChunkBuffer = new CpuTensor<T>(new[] { 1 }, nameof(xCpuChunkBuffer));
-        private CpuTensor<T> yCpuChunkBuffer = new CpuTensor<T>(new[] { 1 }, nameof(yCpuChunkBuffer));
-        private int epochPreviousCall = -1;
         #endregion
 
-        public CpuTensor<T> Y => _y;
-        public InMemoryDataSetLoader(CpuTensor<T> x, CpuTensor<T> y, int [] elementIdToCategoryId, string[] categoryIdToDescription, ImageDataGenerator imageDataGenerator)
+        public InMemoryDataSetLoader(CpuTensor<T> x, CpuTensor<T> y, int[] elementIdToCategoryId, string[] categoryIdToDescription)
+        : base(x.Shape[1], y.Shape[1], categoryIdToDescription)
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
             _x = x;
-            _y = y;
-            if (!IsValidYSet(_y))
+            Y = y;
+            if (!IsValidYSet(y))
             {
                 throw new Exception("Invalid Training Set 'y' : must contain only 0 and 1");
             }
-            _elementIdToCategoryId = elementIdToCategoryId;
-            _categoryIdToDescription = categoryIdToDescription;
-            orderInCurrentEpoch = Enumerable.Range(0, Count).ToList();
-            _imageDataGenerator = imageDataGenerator;
-            TypeSize = Marshal.SizeOf(typeof(T));
+
+            _elementIdToCategoryIdOrMinusOneIfUnknown = elementIdToCategoryId;
         }
-        public void Load(int epoch, bool isTraining, int indexFirstElement, int miniBatchSize, bool randomizeOrder, ref Tensor xChunkBuffer, ref Tensor yChunkBuffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer)
         {
-            Debug.Assert(xChunkBuffer.Shape[0] == miniBatchSize);
-            Debug.Assert(xChunkBuffer.TypeSize == TypeSize);
-            Debug.Assert(AreCompatible_X_Y(xChunkBuffer,yChunkBuffer));
-            bool shouldShuffle = epoch >= 2 && randomizeOrder && isTraining;
-
-            //change of epoch
-            if (epochPreviousCall != epoch)
-            {
-                //if the first epoch (numEpoch == 1), there is no need to shuffle data
-                if (shouldShuffle)
-                {
-                    Utils.Shuffle(orderInCurrentEpoch, _randForShuffle);
-                }
-
-                epochPreviousCall = epoch;
-            }
-
-            if (xChunkBuffer.UseGPU)
-            {
-                //we'll first create mini batch input in CPU, then copy them in GPU
-                xCpuChunkBuffer.Reshape(XChunk_Shape(miniBatchSize));
-                yCpuChunkBuffer.Reshape(YChunk_Shape(miniBatchSize));
-            }
-            else
-            {
-                xCpuChunkBuffer = xChunkBuffer.AsCpu<T>();
-                yCpuChunkBuffer = yChunkBuffer.AsCpu<T>();
-            }
-
-            Debug.Assert(AreCompatible_X_Y(xCpuChunkBuffer, yCpuChunkBuffer));
-
-
-            //for (int inputPictureIndex = 0; inputPictureIndex < miniBatchSize; ++inputPictureIndex){_imageDataGenerator.CreateSingleInputForEpoch(epoch, isTraining, _x, _y, xCpuChunkBuffer, yCpuChunkBuffer, shouldShuffle?orderInCurrentEpoch[indexFirstElement + inputPictureIndex]:(indexFirstElement + inputPictureIndex), inputPictureIndex, TypeSize);}
-            Parallel.For(0, miniBatchSize, inputPictureIndex => _imageDataGenerator.CreateSingleInputForEpoch(epoch, isTraining, _x, _y, ElementIdToCategoryId, xCpuChunkBuffer, yCpuChunkBuffer, shouldShuffle?orderInCurrentEpoch[indexFirstElement + inputPictureIndex]:(indexFirstElement + inputPictureIndex), inputPictureIndex, TypeSize));
-
-            if (xChunkBuffer.UseGPU)
-            {
-                xChunkBuffer.AsGPU<T>().CopyToDevice(xCpuChunkBuffer.HostPointer);
-                yChunkBuffer.AsGPU<T>().CopyToDevice(yCpuChunkBuffer.HostPointer);
-            }
-
-            /*
-            //uncomment to store data augmented pictures
-            if (isTraining&&(indexFirstElement == 0))
-            { 
-                var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
-                var xCpuChunkBytes = (xCpuChunkBuffer as CpuTensor<float>)?.Select((n, c, val) => (byte)((val*meanAndVolatilityOfEachChannel[c].Item2+ meanAndVolatilityOfEachChannel[c].Item1)));
-                for (int i = indexFirstElement; i < Math.Min((indexFirstElement + miniBatchSize),100); ++i)
-                {
-                    PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Local\SharpNet\Train"), i.ToString("D5")+"_epoch_" + epoch, "");
-                }
-            }
-            */
-
-        }
-        public int Count => _x.Shape[0];
-        public int TypeSize { get; }
-        public int Categories => _y.Shape[1];
-        public string CategoryIdToDescription(int categoryId)
-        {
-            if (_categoryIdToDescription == null)
-            {
-                return categoryId.ToString();
-            }
-            return _categoryIdToDescription[categoryId];
+            Debug.Assert(indexInBuffer >= 0 &&  indexInBuffer < buffer.Shape[0]);
+            Debug.Assert(_x.Shape[1] == buffer.Shape[1]); //same number of channels
+            Debug.Assert(_x.Shape[2] == buffer.Shape[2]); //same height
+            Debug.Assert(_x.Shape[3] == buffer.Shape[3]); //same width
+            var pictureInputIdx = _x.Idx(elementId);
+            var pictureOutputIdx = buffer.Idx(indexInBuffer);
+            Buffer.BlockCopy(_x.Content, pictureInputIdx * TypeSize, buffer.Content, pictureOutputIdx * TypeSize, buffer.MultDim0 * TypeSize);
         }
 
-        public int ElementIdToCategoryId(int elementId)
-        {
-            return _elementIdToCategoryId[elementId];
-        }
-
-        public int Channels => _x.Shape[1];
-        public int CurrentHeight => _x.Shape[2];
-        public int CurrentWidth => _x.Shape[3];
-        public IDataSetLoader<float> ToSinglePrecision()
+        public override int Count => _x.Shape[0];
+        public override int CurrentHeight => _x.Shape[2];
+        public override int CurrentWidth => _x.Shape[3];
+        public override IDataSetLoader<float> ToSinglePrecision()
         {
             if (this is IDataSetLoader<float>)
             {
                 return (IDataSetLoader<float>) this;
             }
-            return new InMemoryDataSetLoader<float>(_x.ToSinglePrecision(), _y.ToSinglePrecision(), _elementIdToCategoryId, _categoryIdToDescription, _imageDataGenerator);
+            return new InMemoryDataSetLoader<float>(_x.ToSinglePrecision(), Y.ToSinglePrecision(), _elementIdToCategoryIdOrMinusOneIfUnknown, _categoryIdToDescription);
         }
-        public IDataSetLoader<double> ToDoublePrecision()
+        public override IDataSetLoader<double> ToDoublePrecision()
         {
             if (this is IDataSetLoader<double>)
             {
                 return (IDataSetLoader<double>)this;
             }
-            return new InMemoryDataSetLoader<double>(_x.ToDoublePrecision(), _y.ToDoublePrecision(), _elementIdToCategoryId, _categoryIdToDescription, _imageDataGenerator);
-        }
-        public int[] Y_Shape => _y.Shape;
-        public int[] XChunk_Shape(int miniBatchSize)
-        {
-            var result = (int[])_x.Shape.Clone();
-            result[0] = miniBatchSize;
-            return result;
-        }
-        public int[] YChunk_Shape(int miniBatchSize)
-        {
-            var result = (int[])_y.Shape.Clone();
-            result[0] = miniBatchSize;
-            return result;
-        }
-        public override string ToString()
-        {
-            return _x + " => " + _y;
-        }
-        public void Dispose()
-        {
-            xCpuChunkBuffer?.Dispose();
-            xCpuChunkBuffer = null;
-            yCpuChunkBuffer?.Dispose();
-            yCpuChunkBuffer = null;
+            return new InMemoryDataSetLoader<double>(_x.ToDoublePrecision(), Y.ToDoublePrecision(), _elementIdToCategoryIdOrMinusOneIfUnknown, _categoryIdToDescription);
         }
 
-        private static bool IsValidYSet(Tensor data)
+        public override CpuTensor<T> Y { get; }
+        public override string ToString()
         {
-            Debug.Assert(!data.UseGPU);
-            if (data.UseDoublePrecision)
-            {
-                return data.AsDoubleCpuContent.All(IsValidY);
-            }
-            return data.AsFloatCpuContent.All(x => IsValidY(x));
-        }
-        public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
-        {
-            if (X == null && Y == null)
-            {
-                return true;
-            }
-            return (X != null) && (Y != null)
-                               && (X.UseDoublePrecision == Y.UseDoublePrecision)
-                               && (X.UseGPU == Y.UseGPU)
-                               && (X.Shape[0] == Y.Shape[0]) //same number of tests
-                               && (Y.Shape.Length == 2);
-        }
-        private static bool IsValidY(double x)
-        {
-            return Math.Abs(x) <= 1e-9 || Math.Abs(x - 1.0) <= 1e-9;
+            return _x + " => " + Y;
         }
     }
 }

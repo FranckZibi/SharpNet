@@ -535,7 +535,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
             network.LogContent();
 
-            var trainingDataSet = new InMemoryDataSetLoader<float>(X,Y,null,null,network.GetImageDataGenerator());
+            var trainingDataSet = new InMemoryDataSetLoader<float>(X,Y,null,null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracy(batchSize, trainingDataSet);
 
             logger.Info("-");
@@ -572,7 +572,7 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];
-            var dataSet = new InMemoryDataSetLoader<float>(X, Y_expected, null, null, network.GetImageDataGenerator());
+            var dataSet = new InMemoryDataSetLoader<float>(X, Y_expected, null, null);
             var observedLossAccuracy = network.ComputeLossAndAccuracy(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 

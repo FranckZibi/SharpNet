@@ -50,7 +50,7 @@ namespace SharpNetTests
 
         public static void Fit<T>(Network network, CpuTensor<T> X, CpuTensor<T> Y, double learningRate, int numEpochs, int batchSize, IDataSetLoader<T> testDataSet = null) where T : struct
         {
-            var trainingDataSet = new InMemoryDataSetLoader<T>(X, Y, null, null, network.GetImageDataGenerator());
+            var trainingDataSet = new InMemoryDataSetLoader<T>(X, Y, null, null);
             network.Fit(trainingDataSet, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, testDataSet);
         }
 

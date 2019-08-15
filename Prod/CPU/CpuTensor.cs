@@ -13,6 +13,7 @@ namespace SharpNet.CPU
     public class CpuTensor<T> : Tensor where T : struct
     {
         #region fields
+
         public T[] Content { get; private set; }
         private HostPinnedMemory<T> _hostPinnedMemory;
 
@@ -70,25 +71,6 @@ namespace SharpNet.CPU
         {
             get => Content[i];
             set => Content[i] = value;
-        }
-        public CpuTensor<TTransformed> From_NHWC_to_NCHW<TTransformed>(Func<T, TTransformed> transform) where TTransformed : struct
-        {
-            var transformedShape = new [] {Shape[0], Shape[3], Shape[1], Shape[2]};
-            var nchwX = new CpuTensor<TTransformed>(transformedShape, Description);
-            for (int n = 0; n < transformedShape[0]; ++n)
-            {
-                for (int c = 0; c < transformedShape[1]; ++c)
-                {
-                    for (int h = 0; h < transformedShape[2]; ++h)
-                    {
-                        for (int w = 0; w < transformedShape[3]; ++w)
-                        {
-                            nchwX.Set(n, c, h, w, transform(Get(n, h, w, c)));
-                        }
-                    }
-                }
-            }
-            return nchwX;
         }
         public CpuTensor<T> From_HNC_to_NCH()
         {
@@ -597,7 +579,30 @@ namespace SharpNet.CPU
             }
             System.Threading.Tasks.Parallel.For(0, Shape[0], SplitSingleRow);
         }
-
+        public static CpuTensor<T> CreateOneHotTensor(int[] elementIdToCategoryId, int categories)
+        {
+            var Y = new CpuTensor<T>(new[] { elementIdToCategoryId.Length, categories }, "YOneHot");
+            var contentDouble = Y.Content as double[];
+            var contentFloat = Y.Content as float[];
+            for (int elementId = 0; elementId < elementIdToCategoryId.Length; ++elementId)
+            {
+                var category = elementIdToCategoryId[elementId];
+                if (category < 0)
+                {
+                    continue;
+                }
+                if (contentDouble != null)
+                {
+                    contentDouble[elementId * categories + category] = 1.0;
+                }
+                else
+                {
+                    // ReSharper disable once PossibleNullReferenceException
+                    contentFloat[elementId * categories + category] = 1.0f;
+                }
+            }
+            return Y;
+        }
 
 
         // compute:     this = alpha * this
@@ -1373,6 +1378,9 @@ namespace SharpNet.CPU
         {
             return Enumerable.Range(0, Shape[1]).Select(c => ComputeMeanAndVolatilityOfChannel(c, toDouble)).ToList();
         }
+
+
+
         /// <summary>
         /// Computes the mean and volatility of the selected channel in the 'this' tensor
         /// </summary>
@@ -1404,9 +1412,6 @@ namespace SharpNet.CPU
             var volatility = Math.Sqrt(Math.Max(0, variance));
             return Tuple.Create(mean, volatility);
         }
-
-
-
         private CpuTensor<T> Merge(CpuTensor<T> b, Func<T, T, T> func, string description)
         {
             Debug.Assert(Dimension == b.Dimension);

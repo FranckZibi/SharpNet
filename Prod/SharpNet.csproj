@@ -46,6 +46,9 @@
     <Compile Include="CPU\CpuTensor.cs" />
     <Compile Include="CPU\CpuTensorExtensions.cs" />
     <Compile Include="CPU\HostPinnedMemory.cs" />
+    <Compile Include="Datasets\AbstractDataSetLoader.cs" />
+    <Compile Include="Datasets\Aptos2019BlindnessDetectionDataLoader.cs" />
+    <Compile Include="Datasets\DirectoryDataSetLoader.cs" />
     <Compile Include="Datasets\IDataSet.cs" />
     <Compile Include="Datasets\IDataSetLoader.cs" />
     <Compile Include="Datasets\InMemoryDataSetLoader.cs" />
@@ -94,6 +97,7 @@
     <Compile Include="Optimizers\ReduceLROnPlateau.cs" />
     <Compile Include="Optimizers\CyclicCosineAnnealingLearningRateScheduler.cs" />
     <Compile Include="Optimizers\VanillaSgd.cs" />
+    <Compile Include="Pictures\BitmapContent.cs" />
     <Compile Include="Pictures\ImageDataGenerator.cs" />
     <Compile Include="Pictures\PictureTools.cs" />
     <Compile Include="Pictures\PointTransformer.cs" />

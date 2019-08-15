@@ -12,7 +12,7 @@ namespace SharpNet.Networks
         public int GpuDeviceId { private get; set; }
         public int NumEpochs { get; set; }
         public int BatchSize { get; set; }
-        public double InitialLearningRate { get; protected set; }
+        public double InitialLearningRate { get; set; }
         public bool DisableLogging { private get; set; }
 
         #region Data Augmentation

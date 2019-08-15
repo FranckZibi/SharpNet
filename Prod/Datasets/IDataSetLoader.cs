@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
@@ -13,11 +15,22 @@ namespace SharpNet.Datasets
         /// <param name="isTraining"></param>
         /// <param name="indexFirstElement">The index of the first element to load (the very first element fo the data set is at index 0</param>
         /// <param name="miniBatchSize">number of elements to load (from the one art index 'indexFirstElement')</param>
-        /// <param name="randomizeOrder"></param>
+        /// <param name="imageDataGenerator"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
+        /// <param name="orderInCurrentEpoch"></param>
         /// <returns></returns>
-        void Load(int epoch, bool isTraining, int indexFirstElement, int miniBatchSize, bool randomizeOrder, ref Tensor x, ref Tensor y);
+        void Load(int epoch, bool isTraining, int indexFirstElement, int miniBatchSize, IReadOnlyList<int> orderInCurrentEpoch, ImageDataGenerator imageDataGenerator, ref Tensor x, ref Tensor y);
+
+        /// <summary>
+        /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
+        /// </summary>
+        /// <param name="elementId">id of element to store, in range [0, Count-1] </param>
+        /// <param name="indexInBuffer">where to store the element in the buffer</param>
+        /// <param name="buffer">buffer where to store elementId (with a capacity of 'buffer.Shape[0]' elements) </param>
+        void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer);
+
+
         /// <summary>
         /// number of elements in DataSet
         /// </summary>

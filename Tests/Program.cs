@@ -88,6 +88,8 @@ namespace SharpNetTests
         }
         #endregion
 
+        const int WidthAptos2019 = 128;
+
         #region WideResNet Training
         private static void WideResNetTests()
         {
@@ -100,14 +102,17 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_16_10_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_8_CIFAR10());},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.WRN_28_10_CIFAR10());}
+
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 10,4,WidthAptos2019);},
             };
 
             var modifiers = new List<Action<WideResNetBuilder>>
             {
                 //ref 8-aug-2019: 0 bps
-                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
 
                 //TODO
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.BatchSize = 32;/*p.RotationRangeInDegrees = 180.0;*/p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = true;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_Cutout_noCutMix__Rotation180_"+WidthAptos2019+"_"+WidthAptos2019;},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.RotationRangeInDegrees = 15;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_RotationRangeInDegrees_15_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ZoomRange = 0.1;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_ZoomRange_0_1_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.WidthShiftRange = 0.0;p.HeightShiftRange = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_WidthShiftRange_0_0_150epochs";},
@@ -262,12 +267,33 @@ namespace SharpNetTests
         /// </summary>
         private static void Train_CIFAR10(NetworkBuilder p, Network network)
         {
+            using (var cifar10DataLoader = new CIFAR10DataLoader())
+            {
+                Train(p, network, cifar10DataLoader.Training, cifar10DataLoader.Test);
+            }
+        }
+
+
+        private static void Train_Aptos2019Blindness_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k, int heightAndWidth)
+        {
+            //dimension of a single element in the training data (in shape (channels,height, width)
+            var inputShape_CHW = new[] { Aptos2019BlindnessDetectionDataLoader.Channels, heightAndWidth, heightAndWidth };
+            var network = p.WRN(WRN_depth, WRN_k, inputShape_CHW, Aptos2019BlindnessDetectionDataLoader.Categories);
+            var directoryWithElements = @"C:\temp\aptos2019-blindness-detection\train_images_cropped_square_resize_"+ heightAndWidth + "_"+ heightAndWidth;
+            var csvFilename = @"C:\temp\aptos2019-blindness-detection\train_images\train.csv";
+            var fullTestSet = new Aptos2019BlindnessDetectionDataLoader(csvFilename, directoryWithElements, heightAndWidth, heightAndWidth, 0.8, network.Config.Logger);
+            Train(p, network, fullTestSet.Training, fullTestSet.Test);
+            fullTestSet.Dispose();
+        }
+
+
+        private static void Train(NetworkBuilder p, Network network, IDataSetLoader<float> trainingSet, IDataSetLoader<float> testSet)
+        {
             try
             {
-                var loader = new CIFAR10DataLoader(network.GetImageDataGenerator());
-                network.Fit(loader.Training, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, loader.Test);
+                //network.FindBestLearningRate(trainingSet, p.BatchSize);return;
+                network.Fit(trainingSet, p.Config.GetLearningRateScheduler(p.InitialLearningRate, p.NumEpochs), p.Config.ReduceLROnPlateau(), p.NumEpochs, p.BatchSize, testSet);
                 network.ClearMemory();
-                loader.Dispose();
                 GC.Collect();
             }
             catch (Exception e)
@@ -275,7 +301,6 @@ namespace SharpNetTests
                 network.Info(e.ToString());
                 throw;
             }
-
         }
 
         private static void ConsumersLaunchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)

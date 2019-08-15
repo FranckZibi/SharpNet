@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Datasets;
 
 namespace SharpNet.Pictures
 {
@@ -97,45 +98,62 @@ namespace SharpNet.Pictures
         /// <typeparam name="T"></typeparam>
         /// <param name="epoch"></param>
         /// <param name="isTraining"></param>
-        /// <param name="xInputPictures"></param>
+        /// <param name="dataSetLoader"></param>
+        /// <param name="elementId"></param>
+        /// <param name="xInputBufferPictures"></param>
+        /// <param name="elementIdToCategoryId"></param>
         /// <param name="yInputOneHot"></param>
-        /// <param name="inputElementIdToCategoryId"></param>
+        /// <param name="indexInBuffer"></param>
         /// <param name="xOutputBufferPictures"></param>
         /// <param name="yOutputOneHot"></param>
-        /// <param name="inputPictureIndex"></param>
-        /// <param name="outputPictureIndex"></param>
         /// <param name="typeSize"></param>
-        public void CreateSingleInputForEpoch<T>(int epoch, bool isTraining, CpuTensor<T> xInputPictures, CpuTensor<T> yInputOneHot, Func<int,int>  inputElementIdToCategoryId, CpuTensor<T> xOutputBufferPictures, CpuTensor<T> yOutputOneHot, int inputPictureIndex, int outputPictureIndex, int typeSize) where T : struct
+        public void CreateSingleInputForEpoch<T>(int epoch, bool isTraining, IDataSetLoader<T> dataSetLoader,
+            int elementId, CpuTensor<T> xInputBufferPictures, int[] elementIdToCategoryId, CpuTensor<T> yInputOneHot, 
+            int indexInBuffer, CpuTensor<T> xOutputBufferPictures, CpuTensor<T> yOutputOneHot, int typeSize) where T : struct
         {
             // NCHW tensors
-            Debug.Assert(xInputPictures.Shape.Length == 4);
-            Debug.Assert(xInputPictures.Shape.Length == xOutputBufferPictures.Shape.Length);
+            Debug.Assert(xInputBufferPictures.SameShape(xOutputBufferPictures));
+            Debug.Assert(xInputBufferPictures.Shape.Length == xOutputBufferPictures.Shape.Length);
             //same number of channels
-            Debug.Assert(xInputPictures.Shape[1] == xOutputBufferPictures.Shape[1]);
+            Debug.Assert(xInputBufferPictures.Shape[1] == xOutputBufferPictures.Shape[1]);
             //same number of rows
-            Debug.Assert(xInputPictures.Shape[2] == xOutputBufferPictures.Shape[2]);
+            Debug.Assert(xInputBufferPictures.Shape[2] == xOutputBufferPictures.Shape[2]);
             //same number of columns
-            Debug.Assert(xInputPictures.Shape[3] == xOutputBufferPictures.Shape[3]);
+            Debug.Assert(xInputBufferPictures.Shape[3] == xOutputBufferPictures.Shape[3]);
 
             //We compute the output y vector
-            var yInputIdx = yInputOneHot.Idx(inputPictureIndex);
-            var yOutputIdx = yOutputOneHot.Idx(outputPictureIndex);
+            var yInputIdx = yInputOneHot.Idx(elementId);
+            var yOutputIdx = yOutputOneHot.Idx(indexInBuffer);
             Buffer.BlockCopy(yInputOneHot.Content, yInputIdx * typeSize, yOutputOneHot.Content, yOutputIdx * typeSize, yInputOneHot.MultDim0 * typeSize);
+            /*
+            var yOutputIdx = yOutputOneHot.Idx(indexInBuffer, elementIdToCategoryId[elementId]);
+            if (yOutputOneHot.Content is double[])
+            {
+                (yOutputOneHot.Content as double[])[yOutputIdx] = 1.0;
+            }
+            else
+            {
+                // ReSharper disable once PossibleNullReferenceException
+                (yOutputOneHot.Content as float[])[yOutputIdx] = 1.0f;
+            }*/
 
-            //?D if (!UseDataAugmentation || (epoch == 1) || !isTraining)
-            if (!UseDataAugmentation || !isTraining)
+            //We copy the element Id in the input buffer 'xInputBufferPictures' at index 'indexInBuffer'
+            dataSetLoader.LoadAt(elementId, indexInBuffer, xInputBufferPictures);
+
+
+            if (!UseDataAugmentation || (epoch == 1) || !isTraining)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
-                var pictureInputIdx = xInputPictures.Idx(inputPictureIndex);
-                var pictureOutputIdx = xOutputBufferPictures.Idx(outputPictureIndex);
-                Buffer.BlockCopy(xInputPictures.Content, pictureInputIdx * typeSize, xOutputBufferPictures.Content, pictureOutputIdx * typeSize, xOutputBufferPictures.MultDim0 * typeSize);
+                var pictureInputIdx = xInputBufferPictures.Idx(indexInBuffer);
+                var pictureOutputIdx = xOutputBufferPictures.Idx(indexInBuffer);
+                Buffer.BlockCopy(xInputBufferPictures.Content, pictureInputIdx * typeSize, xOutputBufferPictures.Content, pictureOutputIdx * typeSize, xOutputBufferPictures.MultDim0 * typeSize);
                 return;
             }
-            var rand = _rands[inputPictureIndex % _rands.Length];
+            var rand = _rands[elementId % _rands.Length];
 
             //random shift
-            int heightShiftRangeInPixels = GetPadding(xInputPictures.Shape[2], _heightShiftRangeInPercentage);
-            int widthShiftRangeInPixels = GetPadding(xInputPictures.Shape[3], _widthShiftRangeInPercentage);
+            int heightShiftRangeInPixels = GetPadding(xInputBufferPictures.Shape[2], _heightShiftRangeInPercentage);
+            int widthShiftRangeInPixels = GetPadding(xInputBufferPictures.Shape[3], _widthShiftRangeInPercentage);
             var heightShift = rand.Next(2 * heightShiftRangeInPixels + 1) - heightShiftRangeInPixels;
             var widthShift = rand.Next(2 * widthShiftRangeInPixels + 1) - widthShiftRangeInPixels;
 
@@ -152,13 +170,13 @@ namespace SharpNet.Pictures
             var nbCols = xOutputBufferPictures.Shape[3];
             Cutout(nbRows, nbCols, rand, out var cutoutRowStart, out var cutoutRowEnd, out var cutoutColStart, out var cutoutColEnd);
             CutMix(nbRows, nbCols, rand, out var cutMixRowStart, out var cutMixRowEnd, out var cutMixColStart, out var cutMixColEnd, out double cutMixLambda);
-            int inputPictureIndexForCutMix = rand.Next(xInputPictures.Shape[0]);
+            int inputPictureIndexForCutMix = rand.Next(xInputBufferPictures.Shape[0]);
             //random rotation in range [-_rotationRangeInDegrees, +_rotationRangeInDegrees]
             var rotationInDegrees = 2 * _rotationRangeInDegrees * rand.NextDouble() - _rotationRangeInDegrees;
 
             InitializeOutputPicture(
-                xInputPictures, inputPictureIndex, 
-                xOutputBufferPictures, outputPictureIndex,
+                xInputBufferPictures, 
+                xOutputBufferPictures, indexInBuffer,
                 widthShift, heightShift, _fillMode,
                 horizontalFlip, verticalFlip,
                 widthMultiplier, heightMultiplier,
@@ -167,7 +185,7 @@ namespace SharpNet.Pictures
                 rotationInDegrees);
 
 
-            if (_CutMix && inputElementIdToCategoryId(inputPictureIndex)!= inputElementIdToCategoryId(inputPictureIndexForCutMix))
+            if (_CutMix && elementIdToCategoryId[elementId]!= elementIdToCategoryId[inputPictureIndexForCutMix])
             {
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
@@ -175,13 +193,13 @@ namespace SharpNet.Pictures
                 //        'cutMixLambda' % of the category of the element at 'inputPictureIndexForCutMix'
                 if (yOutputOneHot.UseDoublePrecision)
                 {
-                    (yOutputOneHot as CpuTensor<double>)?.Set(outputPictureIndex, inputElementIdToCategoryId(inputPictureIndex), cutMixLambda);
-                    (yOutputOneHot as CpuTensor<double>)?.Set(outputPictureIndex, inputElementIdToCategoryId(inputPictureIndexForCutMix), 1.0 - cutMixLambda);
+                    (yOutputOneHot as CpuTensor<double>)?.Set(indexInBuffer, elementIdToCategoryId[elementId], cutMixLambda);
+                    (yOutputOneHot as CpuTensor<double>)?.Set(indexInBuffer, elementIdToCategoryId[inputPictureIndexForCutMix], 1.0 - cutMixLambda);
                 }
                 else
                 {
-                    (yOutputOneHot as CpuTensor<float>)?.Set(outputPictureIndex, inputElementIdToCategoryId(inputPictureIndex), (float)cutMixLambda);
-                    (yOutputOneHot as CpuTensor<float>)?.Set(outputPictureIndex, inputElementIdToCategoryId(inputPictureIndexForCutMix), (float)(1.0 - cutMixLambda));
+                    (yOutputOneHot as CpuTensor<float>)?.Set(indexInBuffer, elementIdToCategoryId[elementId], (float)cutMixLambda);
+                    (yOutputOneHot as CpuTensor<float>)?.Set(indexInBuffer, elementIdToCategoryId[inputPictureIndexForCutMix], (float)(1.0 - cutMixLambda));
                 }
             }
         }
@@ -200,8 +218,8 @@ namespace SharpNet.Pictures
             equals &= Utils.Equals(_zoomRange, other._zoomRange, epsilon, id + ":_zoomRange", ref errors);
             return equals;
         }
-        public static void InitializeOutputPicture<T>(CpuTensor<T> xInputPictures, int inputPictureIndex,
-            CpuTensor<T> xOutputBufferPictures, int outputPictureIndex,
+        public static void InitializeOutputPicture<T>(CpuTensor<T> xInputBufferPictures,
+            CpuTensor<T> xOutputBufferPictures, int indexInBuffer,
             int widthShift, int heightShift, FillModeEnum _fillMode,
             bool horizontalFlip, bool verticalFlip,
             double widthMultiplier, double heightMultiplier,
@@ -219,7 +237,7 @@ namespace SharpNet.Pictures
             {
                 for (int rowOutput = 0; rowOutput < nbRows; ++rowOutput)
                 {
-                    var outputPictureIdx = xOutputBufferPictures.Idx(outputPictureIndex, channel, rowOutput, 0);
+                    var outputPictureIdx = xOutputBufferPictures.Idx(indexInBuffer, channel, rowOutput, 0);
                     for (int colOutput = 0; colOutput < nbCols; ++colOutput)
                     {
                         //we check if we should apply cutout to the pixel
@@ -232,7 +250,7 @@ namespace SharpNet.Pictures
                         //we check if we should apply cutMix to the pixel
                         if (rowOutput >= cutMixRowStart && rowOutput <= cutMixRowEnd && colOutput >= cutMixColStart && colOutput <= cutMixColEnd)
                         {
-                            xOutputBufferPictures[outputPictureIdx + colOutput] = xInputPictures.Get(inputPictureIndexForCutMix, channel, rowOutput, colOutput);
+                            xOutputBufferPictures[outputPictureIdx + colOutput] = xInputBufferPictures.Get(inputPictureIndexForCutMix, channel, rowOutput, colOutput);
                             continue;
                         }
 
@@ -259,7 +277,7 @@ namespace SharpNet.Pictures
                         }
                         colInput = Math.Min(Math.Max(0, colInput), nbCols - 1);
                         Debug.Assert(colInput >= 0 && colInput < nbCols);
-                        xOutputBufferPictures[outputPictureIdx + colOutput] = xInputPictures.Get(inputPictureIndex, channel, rowInput, colInput);
+                        xOutputBufferPictures[outputPictureIdx + colOutput] = xInputBufferPictures.Get(indexInBuffer, channel, rowInput, colInput);
                     }
                 }
             }

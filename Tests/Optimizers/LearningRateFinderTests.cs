@@ -10,7 +10,7 @@ namespace SharpNetTests.Optimizers
         public static void TestLearningRateFinderTests_ResNet20V1_CIFAR10(ResNetBuilder param)
         {
             var network = param.ResNet20V1_CIFAR10();
-            var loader = new CIFAR10DataLoader(network.GetImageDataGenerator());
+            var loader = new CIFAR10DataLoader();
             network.FindBestLearningRate(loader.Training, 128);
             network.ClearMemory();
             loader.Dispose();

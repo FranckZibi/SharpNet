@@ -562,6 +562,14 @@ namespace SharpNet.Networks
             {
                 miniBatchSize = MaxMiniBatchSize();
             }
+            else
+            {
+                if (miniBatchSize > MaxMiniBatchSize())
+                {
+                    Info("Reducing BatchSize from "+miniBatchSize+" to "+MaxMiniBatchSize());
+                    miniBatchSize = MaxMiniBatchSize();
+                }
+            }
             var learningRateFinder = new LearningRateFinder(miniBatchSize, trainingDataSet.Count);
             bool CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockIdInEpoch, int nbBatchBlockInEpoch, int epoch)
             {
@@ -905,6 +913,13 @@ namespace SharpNet.Networks
             _yPredictedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
             _yExpectedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForMiniBatchGradientDescent, nameof(_yExpectedBufferForMiniBatchGradientDescent));
             var xMiniBatch = NewNotInitializedTensor(dataSet.XChunk_Shape(miniBatchSize), null, "xMiniBatch");
+
+            var orderInCurrentEpoch = Enumerable.Range(0, dataSet.Count).ToList();
+            if (epoch >= 2 && Config.RandomizeOrder && isTraining) 
+            {
+                Utils.Shuffle(orderInCurrentEpoch, Config.Rand);
+            }
+
             int nbProcessed = 0;
             for (var blockId = 0; blockId < nbBatchBlock; blockId++)
             {
@@ -914,7 +929,7 @@ namespace SharpNet.Networks
 
                 var yExpectedMiniBatch = _yExpectedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 _swCreateInputForEpoch?.Start();
-                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, blockSize, Config.RandomizeOrder, ref xMiniBatch, ref yExpectedMiniBatch);
+                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, blockSize, orderInCurrentEpoch, _imageDataGenerator, ref xMiniBatch, ref yExpectedMiniBatch);
                 _swCreateInputForEpoch?.Stop();
 
                 var yPredictedMiniBatch = _yPredictedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);

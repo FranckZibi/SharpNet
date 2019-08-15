@@ -75,6 +75,7 @@ namespace SharpNet.Networks
 
         public int AvgPoolingSize { get; set; }
 
+        public Network WRN_10_4_CIFAR10() { return WRN_CIFAR10(10, 4); }
         public Network WRN_16_4_CIFAR10() { return WRN_CIFAR10(16, 4); }
         public Network WRN_40_4_CIFAR10() { return WRN_CIFAR10(40, 4); }
         public Network WRN_16_8_CIFAR10() { return WRN_CIFAR10(16, 8); }
@@ -92,7 +93,7 @@ namespace SharpNet.Networks
         /// Number of residual blocks in each stage = (depth-4)/6
         /// Each residual block is in the form:
         ///     for the 1st one at each stage:
-        ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv + Conv(to change diemnsion) + Add
+        ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv + Conv(to change dimension) + Add
         ///     for the other residual blocks ones:
         ///         BatchNorm+Activ+Conv + BatchNorm+Activ+Conv +        Add
         /// For each stage,
@@ -107,6 +108,21 @@ namespace SharpNet.Networks
         /// <returns></returns>
         private Network WRN_CIFAR10(int depth, int k)
         {
+            return WRN(depth, k, new[] {CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width}, CIFAR10DataLoader.Categories);
+        }
+
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="depth"></param>
+        /// <param name="k">widening parameter</param>
+        /// <param name="inputShape_CHW">input shape of a single element in format (channels,height, width)</param>
+        /// <param name="categories">number of distinct categories</param>
+        /// <returns></returns>
+        public Network WRN(int depth, int k, int[] inputShape_CHW, int categories)
+        {
             int convolutionsCountByStage = (depth - 1) / 3;
             int residualBlocksCountByStage = (convolutionsCountByStage-1) / 2;
 
@@ -114,7 +130,10 @@ namespace SharpNet.Networks
             var net = BuildEmptyNetwork(networkName);
             var config = net.Config;
             var layers = net.Layers;
-            net.Input(CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width);
+            var channelCount = inputShape_CHW[0];
+            var height = inputShape_CHW[1];
+            var width = inputShape_CHW[2];
+            net.Input(channelCount, height, width);
 
             net.Convolution(16, 3, 1, 1, config.lambdaL2Regularization, false);
 
@@ -150,11 +169,11 @@ namespace SharpNet.Networks
 
             if (DropOutAfterDenseLayer > 0)
             {
-                net.Dense_DropOut_Activation(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                net.Dense_DropOut_Activation(categories, config.lambdaL2Regularization, DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             else
             {
-                net.Output(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                net.Output(categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             return net;
         }

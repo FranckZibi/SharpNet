@@ -23,14 +23,14 @@ namespace SharpNet.Datasets
             var yTrain = trainWorkingSet.Item2;
 
             var trainElementIdToCategoryId = trainingSet.Select(x=>x.Value).ToArray();
-            Training = (IDataSetLoader<T>)new InMemoryDataSetLoader<double>(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
+            Training = (IDataSetLoader<T>)new InMemoryDataSetLoader<double>(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription);
 
             var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
             var testWorkingSet = ToWorkingSet(testSet);
             var xTest = testWorkingSet.Item1;
             var yTest = testWorkingSet.Item2;
             var testElementIdToCategoryId = testSet.Select(x => x.Value).ToArray();
-            Test = (IDataSetLoader <T>)new InMemoryDataSetLoader<double>(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
+            Test = (IDataSetLoader <T>)new InMemoryDataSetLoader<double>(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription);
         }
 
 

@@ -2,7 +2,6 @@
 using NUnit.Framework;
 using SharpNet.Datasets;
 using SharpNet.Networks;
-using SharpNet.Pictures;
 
 namespace SharpNetTests.NonReg
 {
@@ -15,7 +14,7 @@ namespace SharpNetTests.NonReg
             Console.WriteLine("loading CIFAR10");
             //CIFAR10.LoadCifar10(out var _, out var _, out var xTestCpu, out var yExpectedCpu);
 
-            var loader = new CIFAR10DataLoader(ImageDataGenerator.NoDataAugmentation);
+            var loader = new CIFAR10DataLoader();
 
             //95.65 <= 95.32 (200 epochs) + 94.02 (70 epochs)
             //var files_WRN_40_4 = new[]

@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Networks;
-using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
@@ -20,11 +19,11 @@ namespace SharpNet.Datasets
         public IDataSetLoader<float> Training { get; }
         public IDataSetLoader<float> Test { get; }
 
-        public CIFAR10DataLoader(ImageDataGenerator imageDataGenerator)
+        public CIFAR10DataLoader()
         {
             LoadCifar10(out var xTrain, out var yTrain, out var trainElementIdToCategoryId, out var xTest, out var yTest, out var testElementIdToCategoryId);
-            Training = new InMemoryDataSetLoader<float>(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
-            Test = new InMemoryDataSetLoader<float>(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, imageDataGenerator);
+            Training = new InMemoryDataSetLoader<float>(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription);
+            Test = new InMemoryDataSetLoader<float>(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription);
         }
         public void Dispose()
         {
