@@ -7,7 +7,7 @@ namespace SharpNet.Networks
 {
     public abstract class NetworkBuilder
     {
-        public string ExtraDescription { get; set; }
+        public string ExtraDescription { get; set; } = "";
         public NetworkConfig Config { get; protected set; }
         public int GpuDeviceId { private get; set; }
         public int NumEpochs { get; set; }

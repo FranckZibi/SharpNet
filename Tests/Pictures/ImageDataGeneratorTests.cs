@@ -109,16 +109,20 @@ namespace SharpNetTests.Pictures
             //no cutMix
             expected = new[] { 0, 1, 2, 3, 4, 5, 6, 7, 0,0,0,0,0,0,0,0 };
             Test_InitializeOutputPicture(input, inputShapeCutMix, expected, 0, 0, ImageDataGenerator.FillModeEnum.Nearest, false, false, 1.0, 1.0, -1, -1, -1, -1, -1,-1,-1,-1,-1, 0);
-            //right side of 2nd picture
+            //right side of 2nd picture into right side of 1st picture
             expected = new[] { 0, 1, 10,11, 4, 5, 14,15, 0, 0, 0, 0, 0, 0, 0, 0 };
             Test_InitializeOutputPicture(input, inputShapeCutMix, expected, 0, 0, ImageDataGenerator.FillModeEnum.Nearest, false, false, 1.0, 1.0, -1, -1, -1, -1, 0, 1, 2, 3, 1, 0);
-            //all of 2nd picture
+            //all of 2nd picture into 1st picture
             expected = new[] { 8,9,10,11,12,13,14,15, 0, 0, 0, 0, 0, 0, 0, 0 };
             Test_InitializeOutputPicture(input, inputShapeCutMix, expected, 0, 0, ImageDataGenerator.FillModeEnum.Nearest, false, false, 1.0, 1.0, -1, -1, -1, -1, 0, 1, 0,3, 1, 0);
-            //1 pixel of 2nd picture
+            //1 pixel of 2nd picture into 1st picture
             expected = new[] { 0, 9, 2, 3, 4, 5, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0 };
             Test_InitializeOutputPicture(input, inputShapeCutMix, expected, 0, 0, ImageDataGenerator.FillModeEnum.Nearest, false, false, 1.0, 1.0, -1, -1, -1, -1, 0, 0, 1, 1, 1, 0);
 
+            //cutMix (copy right side of 2nd picture into 1st picture) + cutout (middle of 1st picture)
+            //the CutMix must be performed before the cutout
+            expected = new[] { 0, 0, 10, 11, 4, 0, 14, 15, 0, 0, 0, 0, 0, 0, 0, 0 };
+            Test_InitializeOutputPicture(input, inputShapeCutMix, expected, 0, 0, ImageDataGenerator.FillModeEnum.Nearest, false, false, 1.0, 1.0, 0,1,1,2, 0,1,2,3, 1, 0.0);
 
         }
 

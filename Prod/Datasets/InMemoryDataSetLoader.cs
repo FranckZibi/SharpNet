@@ -11,16 +11,17 @@ namespace SharpNet.Datasets
         #endregion
 
         public InMemoryDataSetLoader(CpuTensor<T> x, CpuTensor<T> y, int[] elementIdToCategoryId, string[] categoryIdToDescription)
-        : base(x.Shape[1], y.Shape[1], categoryIdToDescription)
+            : base(x.Shape[1], y.Shape[1], categoryIdToDescription)
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
-            _x = x;
-            Y = y;
+            Debug.Assert(elementIdToCategoryId != null);
             if (!IsValidYSet(y))
             {
                 throw new Exception("Invalid Training Set 'y' : must contain only 0 and 1");
             }
 
+            _x = x;
+            Y = y;
             _elementIdToCategoryIdOrMinusOneIfUnknown = elementIdToCategoryId;
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer)

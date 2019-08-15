@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
@@ -122,6 +123,21 @@ namespace SharpNet.CPU
             Debug.Assert(Dimension == 2);
             this[Idx(n, c)] = t;
         }
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
+        public void SetValue(int n, int c, double value)
+        {
+            Debug.Assert(Dimension == 2);
+            var idx = Idx(n, c);
+            if (UseSinglePrecision)
+            {
+                (Content as float[])[idx] = (float)value;
+            }
+            else
+            {
+                (Content as double[])[idx] = value;
+            }
+        }
+
         public void Set(int n, int c, int h, T t)
         {
             Debug.Assert(Dimension == 3);

@@ -44,7 +44,9 @@ namespace SharpNet.Networks
                     lambdaL2Regularization = 0.0005
                 }
                 .WithSGD(0.9, false)
-                .WithCifar10WideResNetLearningRateScheduler(true, true, false);
+                //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
+                .WithCyclicCosineAnnealingLearningRateScheduler(10, 2) //new default value on 14-aug-2019
+                ;
 
             //Data augmentation
             WidthShiftRange = 0.1;
@@ -53,7 +55,11 @@ namespace SharpNet.Networks
             VerticalFlip = false;
             FillMode = ImageDataGenerator.FillModeEnum.Reflect;
 
-            CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR10: +75 bps vs no cutout (= 0.0)
+
+            CutMix = true; //validated on 14-aug-2019 : +15 bps
+            
+            //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
+            //CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR10: +75 bps vs no cutout (= 0.0)
             //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR10: -60 bps vs 0.5
 
             NumEpochs = 150; //changed on 8-aug-2019 : new default batch size : 150 (was 200)

@@ -37,7 +37,11 @@ namespace SharpNet.Datasets
             Debug.Assert(xChunkBuffer.TypeSize == TypeSize);
             Debug.Assert(AreCompatible_X_Y(xChunkBuffer, yChunkBuffer));
 
+            //we initialize 'xInputCpuChunkBuffer' with all the input data in the given order
             xInputCpuChunkBuffer.Reshape(XChunk_Shape(miniBatchSize));
+            //We copy the element Id in the input buffer 'xInputBufferPictures' at index 'indexInBuffer'
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(orderInCurrentEpoch[indexFirstElement + indexInBuffer], indexInBuffer, xInputCpuChunkBuffer));
+
             if (xChunkBuffer.UseGPU)
             {
                 //we'll first create mini batch input in CPU, then copy them in GPU
@@ -50,8 +54,30 @@ namespace SharpNet.Datasets
                 yOutputCpuChunkBuffer = yChunkBuffer.AsCpu<T>();
             }
             Debug.Assert(AreCompatible_X_Y(xOutputCpuChunkBuffer, yOutputCpuChunkBuffer));
-            //for (int inputPictureIndex = 0; inputPictureIndex < miniBatchSize; ++inputPictureIndex){_imageDataGenerator.CreateSingleInputForEpoch(epoch, isTraining, _x, _y, xCpuChunkBuffer, yCpuChunkBuffer, shouldShuffle?orderInCurrentEpoch[indexFirstElement + inputPictureIndex]:(indexFirstElement + inputPictureIndex), inputPictureIndex, TypeSize);}
-            Parallel.For(0, miniBatchSize, pictureIndexInOutputBuffer => imageDataGenerator.CreateSingleInputForEpoch(epoch, isTraining, this, orderInCurrentEpoch[indexFirstElement + pictureIndexInOutputBuffer], xInputCpuChunkBuffer, _elementIdToCategoryIdOrMinusOneIfUnknown, Y, pictureIndexInOutputBuffer, xOutputCpuChunkBuffer, yOutputCpuChunkBuffer, TypeSize));
+
+            
+            int IndexInMiniBatchToCategoryId(int miniBatchIdx) => _elementIdToCategoryIdOrMinusOneIfUnknown[orderInCurrentEpoch[indexFirstElement + miniBatchIdx]];
+
+            //We compute the output y vector
+            yOutputCpuChunkBuffer.ZeroMemory();
+            for (int idx = 0; idx < miniBatchSize; ++idx)
+            {
+                yOutputCpuChunkBuffer.SetValue(idx, IndexInMiniBatchToCategoryId(idx), 1.0);
+            }
+
+
+            if (!imageDataGenerator.UseDataAugmentation || (epoch == 1) || !isTraining)
+            {
+                //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
+                xInputCpuChunkBuffer.CopyTo(xOutputCpuChunkBuffer);
+            }
+            else
+            {
+                //for (int inputPictureIndex = 0; inputPictureIndex < miniBatchSize; ++inputPictureIndex){_imageDataGenerator.CreateSingleInputForEpoch(epoch, isTraining, _x, _y, xCpuChunkBuffer, yCpuChunkBuffer, shouldShuffle?orderInCurrentEpoch[indexFirstElement + inputPictureIndex]:(indexFirstElement + inputPictureIndex), inputPictureIndex, TypeSize);}
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xInputCpuChunkBuffer, xOutputCpuChunkBuffer, yOutputCpuChunkBuffer, IndexInMiniBatchToCategoryId));
+            }
+
+
             if (xChunkBuffer.UseGPU)
             {
                 xChunkBuffer.AsGPU<T>().CopyToDevice(xOutputCpuChunkBuffer.HostPointer);
