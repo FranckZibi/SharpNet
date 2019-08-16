@@ -18,40 +18,21 @@ namespace SharpNet.Datasets
         private readonly string _csvFileName;
         private readonly string _directoryWithElements;
         private readonly Logger _logger;
-        //private readonly List<string> _elementIdToDescription = new List<string>();
+        private readonly List<int> _elementIdToCategoryId;
+        private readonly string[] _categoryIdToDescription;
         private readonly List<string> _elementIdToFullName = new List<string>();
         private readonly List<Tuple<double, double>> _meanAndVolatlityForEachChannel = new List<Tuple<double, double>>();
         #endregion
-        public override int CurrentHeight { get; }
-        public override int CurrentWidth { get; }
+        public override int Height { get; }
+        public override int Width { get; }
         public override CpuTensor<T> Y { get; }
-
-        
-        private DirectoryDataSetLoader(string csvFileName, string directoryWithElements, Logger logger,
-            int channels, int height, int width, string[] categoryIdToDescription,
-            List<string> elementIdToFullName,
-            List<Tuple<double, double>> meanAndVolatlityForEachChannel,
-            int[] elementIdToCategoryId
-            ) : base(channels, categoryIdToDescription.Length, categoryIdToDescription)
-        {
-            CurrentHeight = height;
-            CurrentWidth = width;
-            _csvFileName = csvFileName;
-            _directoryWithElements = directoryWithElements;
-            _logger = logger;
-            _elementIdToFullName = elementIdToFullName;
-            _meanAndVolatlityForEachChannel = meanAndVolatlityForEachChannel;
-            _elementIdToCategoryIdOrMinusOneIfUnknown = elementIdToCategoryId;
-            //We compute Y 
-            Y = CpuTensor<T>.CreateOneHotTensor(_elementIdToCategoryIdOrMinusOneIfUnknown, Categories);
-        }
 
         public DirectoryDataSetLoader(string csvFileName, string directoryWithElements, Logger logger,
             int channels, int height, int width, string[] categoryIdToDescription)
-            : base(channels, categoryIdToDescription.Length, categoryIdToDescription)
+            : base(channels, categoryIdToDescription.Length)
         {
-            CurrentHeight = height;
-            CurrentWidth = width;
+            Height = height;
+            Width = width;
 
             _csvFileName = csvFileName;
             _logger = logger ?? Logger.ConsoleLogger;
@@ -70,7 +51,7 @@ namespace SharpNet.Datasets
             }
 
             var lines = File.ReadAllLines(csvFileName);
-            var elementIdToCategoryId = new List<int>();
+            _elementIdToCategoryId = new List<int>();
             for (var index = 0; index < lines.Length; index++)
             {
                 var lineContent = lines[index].Split(',', ';').ToArray();
@@ -96,38 +77,20 @@ namespace SharpNet.Datasets
                     _logger.Debug("WARNING: no matching file for line: " + lines[index]);
                     continue;
                 }
-                elementIdToCategoryId.Add(categoryId);
+                _elementIdToCategoryId.Add(categoryId);
                 //_elementIdToDescription.Add(description);
                 _elementIdToFullName.Add(fileNameWithoutExtensionToFullPath[elementFileNameWithoutExtension]);
             }
 
-            _elementIdToCategoryIdOrMinusOneIfUnknown = elementIdToCategoryId.ToArray();
+            _categoryIdToDescription = categoryIdToDescription;
 
             if (!LoadStatsFile())
             {
                 CreateStatsFile();
             }
             //We compute Y 
-            Y = CpuTensor<T>.CreateOneHotTensor(_elementIdToCategoryIdOrMinusOneIfUnknown, Categories);
+            Y = CpuTensor<T>.CreateOneHotTensor(ElementIdToCategoryId, _elementIdToCategoryId.Count, Categories);
         }
-        public DirectoryDataSetLoader<T> Sub(int startIndex, int endIndexIncluded)
-        {
-            int count = endIndexIncluded - startIndex + 1;
-            var subElementIdToFullName = new List<string>();
-            var subElementIdToCategoryId = new int[count];
-            for (int elementId = startIndex; elementId <= endIndexIncluded; ++elementId)
-            {
-                subElementIdToFullName.Add(_elementIdToFullName[elementId]);
-                subElementIdToCategoryId[elementId - startIndex] = ElementIdToCategoryId(elementId);
-            }
-            return new DirectoryDataSetLoader<T>(_csvFileName, _directoryWithElements, _logger,
-                Channels,  CurrentHeight, CurrentWidth, _categoryIdToDescription,
-                subElementIdToFullName,
-                _meanAndVolatlityForEachChannel,
-                subElementIdToCategoryId
-            );
-        }
-
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer)
         {
             var data = BitmapContent.ValueOf(_elementIdToFullName[elementId], "");
@@ -173,7 +136,7 @@ namespace SharpNet.Datasets
             _logger.Info("Cropping " + Count + " elements and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => CropBorder(GetFullName(elementId), targetDirectory, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, CurrentHeight, CurrentWidth, _categoryIdToDescription);
+            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
         }
         public DirectoryDataSetLoader<T> Resize(int newWidth, int newHeight, bool skipIfFileAlreadyExists = true)
         {
@@ -185,7 +148,7 @@ namespace SharpNet.Datasets
             _logger.Info("Resizing " + Count + " elements and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => Resize(GetFullName(elementId), targetDirectory, newWidth, newHeight, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, CurrentHeight, CurrentWidth, _categoryIdToDescription);
+            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
         }
         public DirectoryDataSetLoader<T> MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, Tuple<byte, byte, byte> fillingColor = null, bool skipIfFileAlreadyExists = true)
         {
@@ -198,16 +161,21 @@ namespace SharpNet.Datasets
             _logger.Info("Making " + Count + " elements square pictures and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => MakeSquarePictures(GetFullName(elementId), targetDirectory, alwaysUseBiggestSideForWidthSide, fillingColor, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, CurrentHeight, CurrentWidth, _categoryIdToDescription);
+            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
         }
-        /// <summary>
-        /// Total number of valid elements in the CSV file 
-        /// </summary>
-        //public int GetCategoryId(int elementId) => ElementIdToCategoryId[elementId];
-        //public string GetDescription(int elementId) => _elementIdToDescription[elementId];
-        public override int Count => _elementIdToCategoryIdOrMinusOneIfUnknown.Length;
-
-
+        public override int Count => _elementIdToCategoryId.Count;
+        public override int ElementIdToCategoryId(int elementId)
+        {
+            return _elementIdToCategoryId[elementId];
+        }
+        public override string CategoryIdToDescription(int categoryId)
+        {
+            if (_categoryIdToDescription == null)
+            {
+                return categoryId.ToString();
+            }
+            return _categoryIdToDescription[categoryId];
+        }
 
         private List<Tuple<double, double>> ComputeMeanAndVolatilityForEachChannel(bool ignoreZeroPixel)
         {

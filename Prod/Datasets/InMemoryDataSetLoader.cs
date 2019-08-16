@@ -8,10 +8,12 @@ namespace SharpNet.Datasets
     {
         #region private fields
         private readonly CpuTensor<T> _x;
+        private readonly int[] _elementIdToCategoryId;
+        private readonly string[] _categoryIdToDescription;
         #endregion
 
         public InMemoryDataSetLoader(CpuTensor<T> x, CpuTensor<T> y, int[] elementIdToCategoryId, string[] categoryIdToDescription)
-            : base(x.Shape[1], y.Shape[1], categoryIdToDescription)
+            : base(x.Shape[1], y.Shape[1])
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
             Debug.Assert(elementIdToCategoryId != null);
@@ -22,7 +24,8 @@ namespace SharpNet.Datasets
 
             _x = x;
             Y = y;
-            _elementIdToCategoryIdOrMinusOneIfUnknown = elementIdToCategoryId;
+            _elementIdToCategoryId = elementIdToCategoryId;
+            _categoryIdToDescription = categoryIdToDescription;
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer)
         {
@@ -36,15 +39,15 @@ namespace SharpNet.Datasets
         }
 
         public override int Count => _x.Shape[0];
-        public override int CurrentHeight => _x.Shape[2];
-        public override int CurrentWidth => _x.Shape[3];
+        public override int Height => _x.Shape[2];
+        public override int Width => _x.Shape[3];
         public override IDataSetLoader<float> ToSinglePrecision()
         {
             if (this is IDataSetLoader<float>)
             {
                 return (IDataSetLoader<float>) this;
             }
-            return new InMemoryDataSetLoader<float>(_x.ToSinglePrecision(), Y.ToSinglePrecision(), _elementIdToCategoryIdOrMinusOneIfUnknown, _categoryIdToDescription);
+            return new InMemoryDataSetLoader<float>(_x.ToSinglePrecision(), Y.ToSinglePrecision(), _elementIdToCategoryId, _categoryIdToDescription);
         }
         public override IDataSetLoader<double> ToDoublePrecision()
         {
@@ -52,7 +55,20 @@ namespace SharpNet.Datasets
             {
                 return (IDataSetLoader<double>)this;
             }
-            return new InMemoryDataSetLoader<double>(_x.ToDoublePrecision(), Y.ToDoublePrecision(), _elementIdToCategoryIdOrMinusOneIfUnknown, _categoryIdToDescription);
+            return new InMemoryDataSetLoader<double>(_x.ToDoublePrecision(), Y.ToDoublePrecision(), _elementIdToCategoryId, _categoryIdToDescription);
+        }
+     
+        public override int ElementIdToCategoryId(int elementId)
+        {
+            return _elementIdToCategoryId[elementId];
+        }
+        public override string CategoryIdToDescription(int categoryId)
+        {
+            if (_categoryIdToDescription == null)
+            {
+                return categoryId.ToString();
+            }
+            return _categoryIdToDescription[categoryId];
         }
 
         public override CpuTensor<T> Y { get; }

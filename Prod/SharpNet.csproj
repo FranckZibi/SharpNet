@@ -52,6 +52,7 @@
     <Compile Include="Datasets\IDataSet.cs" />
     <Compile Include="Datasets\IDataSetLoader.cs" />
     <Compile Include="Datasets\InMemoryDataSetLoader.cs" />
+    <Compile Include="Datasets\SubDataSetLoader.cs" />
     <Compile Include="Data\BlasServices.cs" />
     <Compile Include="Data\EpochData.cs" />
     <Compile Include="Data\Serializer.cs" />

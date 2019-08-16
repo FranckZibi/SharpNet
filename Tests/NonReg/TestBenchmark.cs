@@ -74,7 +74,7 @@ namespace SharpNetTests.NonReg
             var loader = new MNISTDataLoader<double>();
             var network = new Network(new NetworkConfig() { Logger = logger, UseDoublePrecision = false }.WithAdam(), imageDataGenerator, 0);
             network
-                .Input(loader.Training.Channels, loader.Training.CurrentHeight, loader.Training.CurrentWidth)
+                .Input(loader.Training.Channels, loader.Training.Height, loader.Training.Width)
 
                 .Convolution(16, 3, 1, 1, 0.0, true)
                 .BatchNorm()

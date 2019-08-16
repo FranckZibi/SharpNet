@@ -16,37 +16,23 @@ namespace SharpNet.Networks
 
         public Tuple<Tensor, double> Predict(IDataSetLoader<float> testDataSet)
         {
-            CpuTensor<float> yPredictedEnsembleNetwork = null;
-            //Tensor xTest = null;
-            Tensor yExpected = null;
+            var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape, "yCpuPredictedAllNetworks");
             foreach (var file in _files)
             {
                 Console.WriteLine("Loading " + file + " ...");
-                var net = Network.ValueOf(file, 0);
+                var network = Network.ValueOf(file, 0);
                 Console.WriteLine("File loaded");
-
                 Console.WriteLine("Computing accuracy for single network...");
-                //xTest = xTest ?? net.ReformatToCorrectType(xTestCpu);
-                yExpected = yExpected ?? net.ReformatToCorrectType(testDataSet.Y);
-                var yPredicted = net.MiniBatchGradientDescent(128, testDataSet);
-                var accuracy = net.ComputeLossAndAccuracy_From_Expected_vs_Predicted(yExpected, yPredicted).Item2;
+                var yPredictedSingleNetwork = network.MiniBatchGradientDescent(128, testDataSet);
+                var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
+                var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);
                 Console.WriteLine("Single Network Accuracy=" + accuracy);
-
-                var yPredictedAsCpu = new CpuTensor<float>(yPredicted.Shape, yPredicted.ContentAsFloatArray(), yPredicted.Description);
-                if (yPredictedEnsembleNetwork == null)
-                {
-                    yPredictedEnsembleNetwork = yPredictedAsCpu;
-                }
-                else
-                {
-                    yPredictedEnsembleNetwork.Update_Adding_Alpha_X(1.0, yPredictedAsCpu);
-                }
-                net.ClearMemory();
+                yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1.0/ _files.Length, yCpuPredictedSingleNetwork);
+                network.ClearMemory();
             }
-            yPredictedEnsembleNetwork?.Update_Multiplying_By_Alpha(1.0 / _files.Length);
-            var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yPredictedEnsembleNetwork, null);
+            var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, null);
             Console.WriteLine("Ensemble Network Accuracy=" + accuracyEnsembleNetwork);
-            return Tuple.Create((Tensor)yPredictedEnsembleNetwork, accuracyEnsembleNetwork);
+            return Tuple.Create((Tensor)yCpuPredictedAllNetworks, accuracyEnsembleNetwork);
         }
     }
 }

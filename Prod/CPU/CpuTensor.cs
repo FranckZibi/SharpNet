@@ -619,26 +619,26 @@ namespace SharpNet.CPU
             }
             System.Threading.Tasks.Parallel.For(0, Shape[0], SplitSingleRow);
         }
-        public static CpuTensor<T> CreateOneHotTensor(int[] elementIdToCategoryId, int categories)
+        public static CpuTensor<T> CreateOneHotTensor(Func<int,int> elementIdToCategoryId, int elementCount, int categoriesCount)
         {
-            var Y = new CpuTensor<T>(new[] { elementIdToCategoryId.Length, categories }, "YOneHot");
+            var Y = new CpuTensor<T>(new[] { elementCount, categoriesCount }, "YOneHot");
             var contentDouble = Y.Content as double[];
             var contentFloat = Y.Content as float[];
-            for (int elementId = 0; elementId < elementIdToCategoryId.Length; ++elementId)
+            for (int elementId = 0; elementId < elementCount; ++elementId)
             {
-                var category = elementIdToCategoryId[elementId];
+                var category = elementIdToCategoryId(elementId);
                 if (category < 0)
                 {
                     continue;
                 }
                 if (contentDouble != null)
                 {
-                    contentDouble[elementId * categories + category] = 1.0;
+                    contentDouble[elementId * categoriesCount + category] = 1.0;
                 }
                 else
                 {
                     // ReSharper disable once PossibleNullReferenceException
-                    contentFloat[elementId * categories + category] = 1.0f;
+                    contentFloat[elementId * categoriesCount + category] = 1.0f;
                 }
             }
             return Y;
@@ -1305,7 +1305,7 @@ namespace SharpNet.CPU
         }
         //this method is only called for display / logging testing
         //this = yExpectedOneHot
-        public override double ComputeAccuracy(Tensor yPredicted, Tensor buffer)
+        public override double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer)
         {
             var yExpectedOneHot = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpectedOneHot, yPredicted }));

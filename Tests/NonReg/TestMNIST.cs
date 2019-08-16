@@ -37,7 +37,7 @@ namespace SharpNetTests.NonReg
             double lambdaL2Regularization = 0.0;
 
             network
-                .Input(loader.Training.Channels, loader.Training.CurrentHeight, loader.Training.CurrentWidth)
+                .Input(loader.Training.Channels, loader.Training.Height, loader.Training.Width)
 
                 .Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .MaxPooling(2,2)

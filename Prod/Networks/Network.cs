@@ -445,10 +445,9 @@ namespace SharpNet.Networks
         }
 
         //TODO add tests
-        public static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
+        private static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
         {
             freeMemoryInBytes -= bytesIndependantOfBatchSize;
-            //TODO : take into account real memory available in GPUWrapper
             freeMemoryInBytes = (80* freeMemoryInBytes)/100;
             ulong miniBatchSize = 1;
             while ( (2UL * miniBatchSize * bytesByBatchSize) < freeMemoryInBytes)
@@ -528,10 +527,6 @@ namespace SharpNet.Networks
             {
                 File.AppendAllLines(fileName, new[] { l.Serialize() });
             }
-        }
-        public ImageDataGenerator GetImageDataGenerator()
-        {
-            return _imageDataGenerator;
         }
         public void LogContent()
         {
@@ -912,7 +907,7 @@ namespace SharpNet.Networks
             }
             _yPredictedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
             _yExpectedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForMiniBatchGradientDescent, nameof(_yExpectedBufferForMiniBatchGradientDescent));
-            var xMiniBatch = NewNotInitializedTensor(dataSet.XChunk_Shape(miniBatchSize), null, "xMiniBatch");
+            var xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(miniBatchSize), null, "xMiniBatch");
 
             var orderInCurrentEpoch = Enumerable.Range(0, dataSet.Count).ToList();
             if (epoch >= 2 && Config.RandomizeOrder && isTraining) 
@@ -925,11 +920,11 @@ namespace SharpNet.Networks
             {
                 var blockSize = (blockId == nbBatchBlock - 1) ? lastBlockSize : miniBatchSize;
 
-                xMiniBatch = NewNotInitializedTensor(dataSet.XChunk_Shape(blockSize), xMiniBatch, "xMiniBatch");
+                xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(blockSize), xMiniBatch, "xMiniBatch");
 
                 var yExpectedMiniBatch = _yExpectedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 _swCreateInputForEpoch?.Start();
-                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, blockSize, orderInCurrentEpoch, _imageDataGenerator, ref xMiniBatch, ref yExpectedMiniBatch);
+                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, orderInCurrentEpoch, _imageDataGenerator, ref xMiniBatch, ref yExpectedMiniBatch);
                 _swCreateInputForEpoch?.Stop();
 
                 var yPredictedMiniBatch = _yPredictedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);

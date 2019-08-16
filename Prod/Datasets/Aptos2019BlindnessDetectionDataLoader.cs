@@ -44,8 +44,9 @@
             }
             else
             {
-                Training = fullTestSet.Sub(0, (int)(percentageInTrainingSet * fullTestSet.Count));
-                Test = fullTestSet.Sub(Training.Count, fullTestSet.Count - 1);
+                int lastElementIdIncludedInTrainingSet = (int) (percentageInTrainingSet * fullTestSet.Count);
+                Training = new SubDataSetLoader<float>(fullTestSet, id => id<= lastElementIdIncludedInTrainingSet);
+                Test = new SubDataSetLoader<float>(fullTestSet, id => id > lastElementIdIncludedInTrainingSet);
             }
         }
         public void Dispose()

@@ -61,7 +61,7 @@ namespace SharpNet.GPU
                 CopyToDevice(m.Pointer);
             }
         }
-        private T[] DeviceContent()
+        public T[] DeviceContent()
         {
             Debug.Assert(!_disposed);
             Wrapper.SwCopyToHost.Start();
