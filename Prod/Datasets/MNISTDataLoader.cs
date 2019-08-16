@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using SharpNet.CPU;
@@ -15,7 +16,7 @@ namespace SharpNet.Datasets
         public IDataSetLoader<T> Training { get; }
         public IDataSetLoader<T> Test { get; }
 
-        public MNISTDataLoader(ImageDataGenerator imageDataGenerator)
+        public MNISTDataLoader()
         {
             var trainingSet = PictureTools.ReadInputPictures(FileNameToPath("train-images.idx3-ubyte"), FileNameToPath("train-labels.idx1-ubyte"));
             var trainWorkingSet = ToWorkingSet(trainingSet);
@@ -42,16 +43,19 @@ namespace SharpNet.Datasets
 
         private static Tuple<CpuTensor<double>, CpuTensor<double>> ToWorkingSet(List<KeyValuePair<CpuTensor<byte>, int>> t)
         {
+            Debug.Assert(t[0].Key.Dimension == 2);
             int setSize = t.Count;
 
-            var X = new CpuTensor<double>(new[] { setSize, 1, t[0].Key.Height, t[0].Key.Width }, "X");
+            var height = t[0].Key.Shape[0];
+            var width = t[0].Key.Shape[1];
+            var X = new CpuTensor<double>(new[] { setSize, 1, height, width }, "X");
             var Y = new CpuTensor<double>(new[] { setSize, 10 }, "Y");
             for (int m = 0; m < setSize; ++m)
             {
                 var matrix = t[m].Key;
-                for (int row = 0; row < matrix.Height; ++row)
+                for (int row = 0; row < height; ++row)
                 {
-                    for (int col = 0; col < matrix.Width; ++col)
+                    for (int col = 0; col < width; ++col)
                     {
                         X.Set(m, 0, row, col, matrix.Get(row, col) / 255.0);
                     }

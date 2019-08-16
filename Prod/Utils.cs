@@ -174,7 +174,7 @@ namespace SharpNet
                 {
                     return y1;
                 }
-                return Utils.Interpolate(x1, y1, x2, y2, x);
+                return Interpolate(x1, y1, x2, y2, x);
             }
             return values.Last().Item2;
         }
@@ -344,11 +344,41 @@ namespace SharpNet
             return equals;
         }
 
-        public static bool EqualsSingleTensor(IEnumerable<Tensor> a, IEnumerable<Tensor> b, string tensorName, double epsilon, string id, ref string errors)
+        private static bool EqualsSingleTensor(IEnumerable<Tensor> a, IEnumerable<Tensor> b, string tensorName, double epsilon, string id, ref string errors)
         {
             var aFirst = a.FirstOrDefault(x => x.Description == tensorName);
             var bFirst = b.FirstOrDefault(x => x.Description == tensorName);
             return aFirst.Equals(bFirst, epsilon, id, ref errors);
+        }
+
+        public static double BetaDistribution(double a, double b, Random rand)
+        {
+            var alpha = a + b;
+            double beta;
+            if (Math.Min(a, b) <= 1.0)
+            {
+                beta = Math.Max(1 / a, 1 / b);
+            }
+            else
+            {
+                beta = Math.Sqrt(alpha - 2.0) / (2 * a * b - alpha);
+            }
+
+            double gamma = a + 1 / beta;
+            double w;
+            while (true)
+            {
+                var u1 = rand.NextDouble();
+                var u2 = rand.NextDouble();
+                var v = beta * Math.Log(u1 / (1 - u1));
+                w = a * Math.Exp(v);
+                var tmp = Math.Log(alpha / (b + w));
+                if ((alpha*tmp+(gamma*v)-1.3862944) >= Math.Log(u1*u1*u2))
+                {
+                    break;
+                }
+            }
+            return w / (b + w);
         }
     }
 }

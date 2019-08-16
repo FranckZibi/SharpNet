@@ -591,9 +591,9 @@ namespace SharpNet.GPU
             Debug.Assert(b.Dimension >= 2);
             Debug.Assert(a.Dimension >= 2);
             Debug.Assert(Dimension >= 2);
-            var bH = b.Height;
+            var bH = b.Shape[0];
             var bW = b.MultDim0;
-            var aH = a.Height;
+            var aH = a.Shape[0];
             var aW = a.MultDim0;
             var transLeft = transposeB ? cublasOperation_t.CUBLAS_OP_T : cublasOperation_t.CUBLAS_OP_N;
             var transRight = transposeA ? cublasOperation_t.CUBLAS_OP_T : cublasOperation_t.CUBLAS_OP_N;

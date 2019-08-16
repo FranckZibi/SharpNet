@@ -36,10 +36,6 @@ namespace SharpNet.Data
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1.0, 0.0); }
-        //TODO TO REMOVE
-        public int Height => Shape[0];
-        //TODO TO REMOVE
-        public int Width => Shape.Length == 1 ? 1 : Shape[1];
         public int Count => Shape[0] * MultDim0;
         public int Dimension => Shape.Length;
         public bool UseDoublePrecision => TypeSize == 8;

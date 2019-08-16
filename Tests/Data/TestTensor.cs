@@ -119,17 +119,13 @@ namespace SharpNetTests.Data
 	        Assert.AreEqual(3, t.Dimension);
 	        Assert.AreEqual(30, t.Count);
 	        Assert.AreEqual(2, t.Shape[0]);
-	        Assert.AreEqual(2, t.Height);
 	        Assert.AreEqual(3, t.Shape[1]);
 	        Assert.AreEqual(5, t.Shape[2]);
-	        Assert.AreEqual(3, t.Width);
 
 	        t = new CpuTensor<int>(new[] { 7 }, "t");
 	        Assert.AreEqual(1, t.Dimension);
 	        Assert.AreEqual(7, t.Count);
 	        Assert.AreEqual(7, t.Shape[0]);
-	        Assert.AreEqual(7, t.Height);
-	        Assert.AreEqual(1, t.Width);
         }
 
         public static bool SameContent(Tensor a, Tensor b, double epsilon)
@@ -149,21 +145,5 @@ namespace SharpNetTests.Data
             }
             return true;
         }
-        public static bool SameContent<T>(CpuTensor<T> a, CpuTensor<T> b) where T: struct
-        {
-            if (!a.SameShape(b))
-            {
-                return false;
-            }
-            for (int i = 0; i < a.Count; ++i)
-            {
-                if (!Equals(a.Content[i], b.Content[i]))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
     }
 }

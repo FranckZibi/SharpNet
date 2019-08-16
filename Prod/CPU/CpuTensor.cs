@@ -100,6 +100,7 @@ namespace SharpNet.CPU
             {
                 for (int h = 0; h < tensor_NH.Shape[1]; ++h)
                 {
+                    // ReSharper disable once PossibleNullReferenceException
                     cpuTensor_NH.Set(n, h, Get(n, channel, h));
                 }
             }
@@ -118,23 +119,46 @@ namespace SharpNet.CPU
             Debug.Assert(Dimension == 4);
             return this[Idx(n, c, h, w)];
         }
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
+        public float GetFloatValue(int n, int c, int h, int w)
+        {
+            Debug.Assert(Dimension == 4);
+            var idx = Idx(n, c, h, w);
+            if (UseSinglePrecision)
+            {
+                return (Content as float[])[idx];
+            }
+            else
+            {
+                return (float)(Content as double[])[idx];
+            }
+        }
+
         public void Set(int n, int c, T t)
         {
             Debug.Assert(Dimension == 2);
             this[Idx(n, c)] = t;
         }
-        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        public void SetValue(int n, int c, double value)
+        public void SetFloatValue(int n, int c, float value)
         {
             Debug.Assert(Dimension == 2);
-            var idx = Idx(n, c);
+            SetFloatValueAtIndex(value, Idx(n, c));
+        }
+        public void SetFloatValue(int n, int c, int h, int w, float value)
+        {
+            Debug.Assert(Dimension == 4);
+            SetFloatValueAtIndex(value, Idx(n, c, h, w));
+        }
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
+        private void SetFloatValueAtIndex(float value, int idx)
+        {
             if (UseSinglePrecision)
             {
-                (Content as float[])[idx] = (float)value;
+                (Content as float[])[idx] = value;
             }
             else
             {
-                (Content as double[])[idx] = value;
+                (Content as double[])[idx] = (float) value;
             }
         }
 
@@ -1338,8 +1362,8 @@ namespace SharpNet.CPU
         {
             Debug.Assert(Shape.Length >= 2);
             Debug.Assert(startRowIndex >= 0);
-            Debug.Assert(startRowIndex < Height);
-            Debug.Assert(startRowIndex + nbRows - 1 < Height);
+            Debug.Assert(startRowIndex < Shape[0]);
+            Debug.Assert(startRowIndex + nbRows - 1 < Shape[0]);
             var extractedShape = (int[])Shape.Clone();
             extractedShape[0] = nbRows; //news number of rows
             var extractedCount = nbRows * MultDim0;
@@ -1360,13 +1384,13 @@ namespace SharpNet.CPU
             Debug.Assert(Dimension >= 2);
             if (a.UseDoublePrecision)
             {
-                BlasServices.DotMkl(a.AsDoubleCpuContent, a.Height, a.MultDim0, transposeA, b.AsDoubleCpuContent,
-                    b.Height, b.MultDim0, transposeB, AsDoubleCpuContent, alpha, beta);
+                BlasServices.DotMkl(a.AsDoubleCpuContent, a.Shape[0], a.MultDim0, transposeA, b.AsDoubleCpuContent,
+                    b.Shape[0], b.MultDim0, transposeB, AsDoubleCpuContent, alpha, beta);
             }
             else
             {
-                BlasServices.DotMkl(a.AsFloatCpuContent, a.Height, a.MultDim0, transposeA, b.AsFloatCpuContent,
-                    b.Height, b.MultDim0, transposeB, AsFloatCpuContent, (float)alpha, (float)beta);
+                BlasServices.DotMkl(a.AsFloatCpuContent, a.Shape[0], a.MultDim0, transposeA, b.AsFloatCpuContent,
+                    b.Shape[0], b.MultDim0, transposeB, AsFloatCpuContent, (float)alpha, (float)beta);
             }
             //MathServices.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
             //var tmpTranspose = new double[b.Count];
@@ -1657,7 +1681,8 @@ namespace SharpNet.CPU
         private static int ComputeSingleAccuracyCount(CpuTensor<double> yExpectedOneHot, CpuTensor<double> yPredicted, int m)
         {
             Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
-            var categoryCount = yExpectedOneHot.Width;
+            Debug.Assert(yExpectedOneHot.Dimension == 2);
+            var categoryCount = yExpectedOneHot.Shape[1];
             if (categoryCount == 1)
             {
                 var error = Math.Abs(yExpectedOneHot.Get(m, 0) - yPredicted.Get(m, 0));
@@ -1685,7 +1710,8 @@ namespace SharpNet.CPU
         private static int ComputeSingleAccuracyCount(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m)
         {
             Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
-            var categoryCount = yExpectedOneHot.Width;
+            Debug.Assert(yExpectedOneHot.Dimension == 2);
+            var categoryCount = yExpectedOneHot.Shape[1];
             if (categoryCount == 1)
             {
                 var error = Math.Abs(yExpectedOneHot.Get(m, 0) - yPredicted.Get(m, 0));

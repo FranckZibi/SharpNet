@@ -71,7 +71,7 @@ namespace SharpNetTests.NonReg
             const int batchSize = 64;
             const int numEpochs = 5;
             var imageDataGenerator = ImageDataGenerator.NoDataAugmentation;
-            var loader = new MNISTDataLoader<double>(imageDataGenerator);
+            var loader = new MNISTDataLoader<double>();
             var network = new Network(new NetworkConfig() { Logger = logger, UseDoublePrecision = false }.WithAdam(), imageDataGenerator, 0);
             network
                 .Input(loader.Training.Channels, loader.Training.CurrentHeight, loader.Training.CurrentWidth)

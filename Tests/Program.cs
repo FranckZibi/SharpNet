@@ -95,6 +95,9 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
+
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 10,4,WidthAptos2019);},
+
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
@@ -103,7 +106,7 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
 
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 10,4,WidthAptos2019);},
+
             };
 
             var modifiers = new List<Action<WideResNetBuilder>>
@@ -112,10 +115,9 @@ namespace SharpNetTests
                 (p) =>{},
 
                 //(p) => { p.CutMix = false;p.CutoutPatchPercentage = 0.5;},
-
+                //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;},
                 //(p) =>{p.NumEpochs=200;p.ExtraDescription = "_200epochs";},
                 //(p) =>{p.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);p.ExtraDescription = "_WithCifar10WideResNetLearningRateScheduler";},
-
 
                 //with CutMix: tested on 12-aug-2019: +15 bps
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutMix = true;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_CutMix_150epochs";},
@@ -124,7 +126,15 @@ namespace SharpNetTests
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_CutoutV3_150epochs";},
 
 
-                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.BatchSize = 32;/*p.RotationRangeInDegrees = 180.0;*/p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = true;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_Cutout_noCutMix__Rotation180_"+WidthAptos2019+"_"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_noRotation"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.CutMix = true;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_noCutout_CutMix_noRotation"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.CutoutPatchPercentage = 0.1;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_noRotation"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.CutoutPatchPercentage = 0.5;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_Cutout_0_50_noCutMix_noRotation"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.RotationRangeInDegrees=10;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Rotation10"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Rotation90"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.RotationRangeInDegrees=180;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Rotation180"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_Rotation90"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_50_noCutMix_Rotation90"+WidthAptos2019;},
 
                 #region already performed tests
                 //CutMix : tested on 14-aug-2019 : +15 bps
@@ -306,7 +316,7 @@ namespace SharpNetTests
             var network = p.WRN(WRN_depth, WRN_k, inputShape_CHW, Aptos2019BlindnessDetectionDataLoader.Categories);
             var directoryWithElements = @"C:\temp\aptos2019-blindness-detection\train_images_cropped_square_resize_"+ heightAndWidth + "_"+ heightAndWidth;
             var csvFilename = @"C:\temp\aptos2019-blindness-detection\train_images\train.csv";
-            var fullTestSet = new Aptos2019BlindnessDetectionDataLoader(csvFilename, directoryWithElements, heightAndWidth, heightAndWidth, 0.8, network.Config.Logger);
+            var fullTestSet = new Aptos2019BlindnessDetectionDataLoader(csvFilename, directoryWithElements, heightAndWidth, heightAndWidth, 0.9, network.Config.Logger);
             Train(p, network, fullTestSet.Training, fullTestSet.Test);
             fullTestSet.Dispose();
         }

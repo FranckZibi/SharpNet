@@ -29,9 +29,19 @@ namespace SharpNet.Networks
         /// </summary>
         public double CutoutPatchPercentage { private get; set; }
         /// <summary>
-        /// Should we use CutMix 
+        /// The alpha coefficient used to compute lambda in CutMix
+        /// A value les or equal then 0.0 wil disable CutMix
+        /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
         /// </summary>
-        public bool CutMix { private get; set; }
+        public double AlphaCutMix { private get; set; }
+
+        /// <summary>
+        /// The alpha coefficient used to compute lambda in Mixup
+        /// A value less or equal then 0.0 wil disable Mixup
+        /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
+        /// </summary>
+        public double AlphaMixup { get; set; }
+
 
         /// <summary>
         /// rotation range in degrees, in [0,180] range.
@@ -55,7 +65,7 @@ namespace SharpNet.Networks
 
         private ImageDataGenerator DataGenerator()
         {
-            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage, CutMix, RotationRangeInDegrees, ZoomRange);
+            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage, AlphaCutMix, AlphaMixup, RotationRangeInDegrees, ZoomRange);
         }
     }
 }

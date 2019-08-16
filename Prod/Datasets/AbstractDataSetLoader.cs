@@ -62,7 +62,7 @@ namespace SharpNet.Datasets
             yOutputCpuChunkBuffer.ZeroMemory();
             for (int idx = 0; idx < miniBatchSize; ++idx)
             {
-                yOutputCpuChunkBuffer.SetValue(idx, IndexInMiniBatchToCategoryId(idx), 1.0);
+                yOutputCpuChunkBuffer.SetFloatValue(idx, IndexInMiniBatchToCategoryId(idx), 1.0f);
             }
 
 
@@ -110,15 +110,15 @@ namespace SharpNet.Datasets
             }
             return _categoryIdToDescription[categoryId];
         }
-        public int ElementIdToCategoryId(int elementId)
-        {
-            return _elementIdToCategoryIdOrMinusOneIfUnknown[elementId];
-        }
         /// <summary>
         /// retrieve the category associated with a specific element
         /// </summary>
         /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
         /// <returns>the associated category id, or -1 if the category is not known</returns>
+        public int ElementIdToCategoryId(int elementId)
+        {
+            return _elementIdToCategoryIdOrMinusOneIfUnknown[elementId];
+        }
         public virtual IDataSetLoader<float> ToSinglePrecision()
         {
             if (this is IDataSetLoader<float>)

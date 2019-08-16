@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Pictures;
 // ReSharper disable MemberCanBePrivate.Global
@@ -55,8 +54,8 @@ namespace SharpNet.Networks
             VerticalFlip = false;
             FillMode = ImageDataGenerator.FillModeEnum.Reflect;
 
-
-            CutMix = true; //validated on 14-aug-2019 : +15 bps
+            //We use CutMix, lambda will follow a uniform distribution in [0,1]
+            AlphaCutMix = 1.0; //validated on 14-aug-2019 : +15 bps
             
             //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
             //CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR10: +75 bps vs no cutout (= 0.0)
