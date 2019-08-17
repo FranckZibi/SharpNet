@@ -24,7 +24,7 @@ namespace SharpNetTests.NonReg
             var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var network = new Network(
-                new NetworkConfig{ Logger = new Logger(logFileName, true), UseDoublePrecision = false }
+                new NetworkConfig{ Logger = new Logger(logFileName, true)}
                 //.WithAdam()
                 .WithSGD(0.99,true)
                 ,
@@ -32,7 +32,7 @@ namespace SharpNetTests.NonReg
                 useGpu?0:-1
             );
 
-            var loader = new MNISTDataLoader<double>();
+            var loader = new MNISTDataLoader();
 
             double lambdaL2Regularization = 0.0;
 

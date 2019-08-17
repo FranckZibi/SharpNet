@@ -33,11 +33,11 @@ namespace SharpNetTests
             var denseLayer = (DenseLayer)n.Layers[1];
             if (testWeights)
             {
-                CompareExpectedVsObservedGradients(n, denseLayer.Weights as CpuTensor<double>, denseLayer.WeightGradients as CpuTensor<double>, X, Y, _rand);
+                CompareExpectedVsObservedGradients(n, (CpuTensor<float>)denseLayer.Weights, (CpuTensor<float>)denseLayer.WeightGradients, X, Y, _rand);
             }
             if (testBias)
             {
-                CompareExpectedVsObservedGradients(n, denseLayer.Bias as CpuTensor<double>,denseLayer.BiasGradients as CpuTensor<double>, X, Y, _rand);
+                CompareExpectedVsObservedGradients(n, (CpuTensor<float>)denseLayer.Bias, (CpuTensor<float>)denseLayer.BiasGradients, X, Y, _rand);
             }
         }
 
@@ -57,11 +57,11 @@ namespace SharpNetTests
             var convLayer = (ConvolutionLayer)n.Layers[1];
             if (testWeights)
             {
-                CompareExpectedVsObservedGradients(n, convLayer.Convolution as CpuTensor<double>, convLayer.ConvolutionGradients as CpuTensor<double>, X, Y, _rand);
+                CompareExpectedVsObservedGradients(n, convLayer.Convolution as CpuTensor<float>, convLayer.ConvolutionGradients as CpuTensor<float>, X, Y, _rand);
             }
             if (testBias)
             {
-                CompareExpectedVsObservedGradients(n, convLayer.ConvolutionBias as CpuTensor<double>,convLayer.ConvolutionBiasGradients as CpuTensor<double>, X, Y, _rand);
+                CompareExpectedVsObservedGradients(n, convLayer.ConvolutionBias as CpuTensor<float>,convLayer.ConvolutionBiasGradients as CpuTensor<float>, X, Y, _rand);
                 
             }
         }
@@ -82,26 +82,22 @@ namespace SharpNetTests
             var batchNormLayer = (BatchNormalizationLayer)n.Layers[1];
             if (testWeights)
             {
-                CompareExpectedVsObservedGradients(n, batchNormLayer.Weights as CpuTensor<double>, batchNormLayer.WeightGradients as CpuTensor<double>, X, Y, _rand, 1);
+                CompareExpectedVsObservedGradients(n, batchNormLayer.Weights as CpuTensor<float>, batchNormLayer.WeightGradients as CpuTensor<float>, X, Y, _rand, 1);
             }
             if (testBias)
             {
-                CompareExpectedVsObservedGradients(n, batchNormLayer.Bias as CpuTensor<double>, batchNormLayer.BiasGradients as CpuTensor<double>, X, Y, _rand, 1);
+                CompareExpectedVsObservedGradients(n, batchNormLayer.Bias as CpuTensor<float>, batchNormLayer.BiasGradients as CpuTensor<float>, X, Y, _rand, 1);
             }
         }
 
-        private static CpuTensor<double> FromNumpyArray(string s, string description)
+        private static CpuTensor<float> FromNumpyArray(string s, string description)
         {
             var X0 = TensorExtensions.FromNumpyArray(s, description);
-            if (X0.UseSinglePrecision)
-            {
-                return X0.AsFloatCpu.ToDoublePrecision();
-            }
-            return X0 as CpuTensor<double>;
+            return X0.AsFloatCpu;
         }
-        private static double ComputeGradientAndReturnLoss(Network n, CpuTensor<double> X, CpuTensor<double> yExpected, bool isTraining)
+        private static double ComputeGradientAndReturnLoss(Network n, CpuTensor<float> X, CpuTensor<float> yExpected, bool isTraining)
         {
-            var yPredicted = n.Predict(X, isTraining) as CpuTensor<double>;
+            var yPredicted = n.Predict(X, isTraining) as CpuTensor<float>;
             n.BackwardPropagation(yExpected); //we compute gradients
             double result = 0;
             for (int i = 0; i < yExpected.Count; ++i)
@@ -111,9 +107,9 @@ namespace SharpNetTests
             }
             return result;
         }
-        private static void AbsWeightsWithMinimum(Network n, double min)
+        private static void AbsWeightsWithMinimum(Network n, float min)
         {
-            foreach (var l in n.TensorsIndependantOfBatchSize.OfType<CpuTensor<double>>())
+            foreach (var l in n.TensorsIndependantOfBatchSize.OfType<CpuTensor<float>>())
             {
                 for (int i = 0; i < l.Content.Length; ++i)
                 {
@@ -121,11 +117,11 @@ namespace SharpNetTests
                 }
             }
         }
-        private static void CompareExpectedVsObservedGradients(Network n, CpuTensor<double> w, CpuTensor<double> dW, CpuTensor<double> X, CpuTensor<double> Y, Random r, int nbTests = 100)
+        private static void CompareExpectedVsObservedGradients(Network n, CpuTensor<float> w, CpuTensor<float> dW, CpuTensor<float> X, CpuTensor<float> Y, Random r, int nbTests = 100)
         {
-            AbsWeightsWithMinimum(n, 0.0);
+            AbsWeightsWithMinimum(n, 0);
             ComputeGradientAndReturnLoss(n, X, Y, true);
-            double epsilon = 1e-8;
+            float epsilon = 1e-2f;
             var observedDifferences =  new List<double>();
             for (int testIndex = 0; testIndex < nbTests; ++testIndex)
             {
@@ -166,7 +162,7 @@ namespace SharpNetTests
         private static Network GetNetwork()
         {
             var gpuDeviceId = -1;
-            return new Network(new NetworkConfig{ UseDoublePrecision = true, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true},ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
+            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true},ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
         }
     }
 }

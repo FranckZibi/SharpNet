@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace SharpNet.Datasets
 {
-    public class DirectoryDataSetLoader<T> : AbstractDataSetLoader<T> where T : struct
+    public class DirectoryDataSetLoader : AbstractDataSetLoader
     {
         #region private fields
         private readonly string _csvFileName;
@@ -25,7 +25,7 @@ namespace SharpNet.Datasets
         #endregion
         public override int Height { get; }
         public override int Width { get; }
-        public override CpuTensor<T> Y { get; }
+        public override CpuTensor<float> Y { get; }
 
         public DirectoryDataSetLoader(string csvFileName, string directoryWithElements, Logger logger,
             int channels, int height, int width, string[] categoryIdToDescription)
@@ -89,13 +89,11 @@ namespace SharpNet.Datasets
                 CreateStatsFile();
             }
             //We compute Y 
-            Y = CpuTensor<T>.CreateOneHotTensor(ElementIdToCategoryId, _elementIdToCategoryId.Count, Categories);
+            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryId, _elementIdToCategoryId.Count, Categories);
         }
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer)
         {
             var data = BitmapContent.ValueOf(_elementIdToFullName[elementId], "");
-            var bufferAsDouble = buffer.Content as double[];
-            var bufferAsFloat = buffer.Content as float[];
             for (int channel = 0; channel < data.GetChannels(); ++channel)
             {
                 for (int row = 0; row < data.GetHeight(); ++row)
@@ -113,20 +111,12 @@ namespace SharpNet.Datasets
                             val = (val - ChannelMean(channel)) / ChannelVolatility(channel);
                         }
                         var bufferIdx = buffer.Idx(indexInBuffer, channel, row, col);
-                        if (bufferAsDouble != null)
-                        {
-                            bufferAsDouble[bufferIdx] = val;
-                        }
-                        else
-                        {
-                            // ReSharper disable once PossibleNullReferenceException
-                            bufferAsFloat[bufferIdx] = (float)val;
-                        }
+                        buffer.Content[bufferIdx] = (float)val;
                     }
                 }
             }
         }
-        public DirectoryDataSetLoader<T> CropBorder(bool skipIfFileAlreadyExists = true)
+        public DirectoryDataSetLoader CropBorder(bool skipIfFileAlreadyExists = true)
         {
             var targetDirectory = _directoryWithElements + "_cropped";
             if (!Directory.Exists(targetDirectory))
@@ -136,9 +126,9 @@ namespace SharpNet.Datasets
             _logger.Info("Cropping " + Count + " elements and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => CropBorder(GetFullName(elementId), targetDirectory, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
+            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
         }
-        public DirectoryDataSetLoader<T> Resize(int newWidth, int newHeight, bool skipIfFileAlreadyExists = true)
+        public DirectoryDataSetLoader Resize(int newWidth, int newHeight, bool skipIfFileAlreadyExists = true)
         {
             var targetDirectory = _directoryWithElements + "_resize_" + newWidth + "_" + newHeight;
             if (!Directory.Exists(targetDirectory))
@@ -148,9 +138,9 @@ namespace SharpNet.Datasets
             _logger.Info("Resizing " + Count + " elements and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => Resize(GetFullName(elementId), targetDirectory, newWidth, newHeight, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
+            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
         }
-        public DirectoryDataSetLoader<T> MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, Tuple<byte, byte, byte> fillingColor = null, bool skipIfFileAlreadyExists = true)
+        public DirectoryDataSetLoader MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, Tuple<byte, byte, byte> fillingColor = null, bool skipIfFileAlreadyExists = true)
         {
             fillingColor = fillingColor ?? Tuple.Create((byte)0, (byte)0, (byte)0);
             var targetDirectory = _directoryWithElements + "_square";
@@ -161,7 +151,7 @@ namespace SharpNet.Datasets
             _logger.Info("Making " + Count + " elements square pictures and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => MakeSquarePictures(GetFullName(elementId), targetDirectory, alwaysUseBiggestSideForWidthSide, fillingColor, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader<T>(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
+            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription);
         }
         public override int Count => _elementIdToCategoryId.Count;
         public override int ElementIdToCategoryId(int elementId)

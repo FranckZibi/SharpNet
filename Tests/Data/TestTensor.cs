@@ -20,11 +20,11 @@ namespace SharpNetTests.Data
             //double test
             var shape = new[] {10, 5};
             var rand = new Random(0);
-            Tensor a = TestCpuTensor.RandomDoubleTensor(shape, rand, -1.5, +1.5, "a");
+            Tensor a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
             var aSerialized = new Serializer().Add(a).ToString();
             var aDeserialized = (Tensor)Serializer.Deserialize(aSerialized, null)["a"];
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-9));
-            Tensor aGpu = a.ToGPU<double>(GpuWrapper);
+            Tensor aGpu = a.ToGPU<float>(GpuWrapper);
             var aGpuSerialized = new Serializer().Add(aGpu).ToString();
             var aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["a"];
             Assert.IsTrue(SameContent(aGpu, aGpuDeserialized, 1e-9));
@@ -43,21 +43,13 @@ namespace SharpNetTests.Data
         [Test]
         public void TestClone()
         {
-            //double test
+            //float test
             var shape = new[] { 10, 5 };
             var rand = new Random(0);
-            Tensor a = TestCpuTensor.RandomDoubleTensor(shape, rand, -1.5, +1.5, "a");
+            Tensor a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
             var aCloned = a.Clone(null);
-            Assert.IsTrue(SameContent(a, aCloned, 1e-9));
-            Tensor aGpu = a.ToGPU<double>(GpuWrapper);
-            aCloned = aGpu.Clone(GpuWrapper);
-            Assert.IsTrue(SameContent(aGpu, aCloned, 1e-9));
-
-            //float test
-            a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
-            aCloned = a.Clone(null);
             Assert.IsTrue(SameContent(a, aCloned, 1e-5));
-            aGpu = a.ToGPU<float>(GpuWrapper);
+            var aGpu = a.ToGPU<float>(GpuWrapper);
             aCloned = aGpu.Clone(GpuWrapper);
             Assert.IsTrue(SameContent(aGpu, aCloned, 1e-5));
         }
@@ -134,11 +126,11 @@ namespace SharpNetTests.Data
             {
                 return false;
             }
-            var aDoubleContent = a.ContentAsDoubleArray();
-            var bDoubleContent = b.ContentAsDoubleArray();
+            var aFloatContent = a.ContentAsFloatArray();
+            var bFloatContent = b.ContentAsFloatArray();
             for (int i = 0; i < a.Count; ++i)
             {
-                if (Math.Abs(aDoubleContent[i] - bDoubleContent[i]) > epsilon)
+                if (Math.Abs(aFloatContent[i] - bFloatContent[i]) > epsilon)
                 {
                     return false;
                 }

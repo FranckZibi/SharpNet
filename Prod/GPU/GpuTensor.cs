@@ -13,7 +13,7 @@ namespace SharpNet.GPU
     {
         #region Private fields
         private GPUWrapper Wrapper { get; }
-        private readonly DeviceMemory _deviceMemory;
+        private DeviceMemory _deviceMemory;
         #endregion
 
         public GPUTensor(GPUTensor<T> memoryOwner, int[] shape, int offsetInBytes, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
@@ -61,7 +61,8 @@ namespace SharpNet.GPU
                 CopyToDevice(m.Pointer);
             }
         }
-        public T[] DeviceContent()
+
+        private T[] DeviceContent()
         {
             Debug.Assert(!_disposed);
             Wrapper.SwCopyToHost.Start();
@@ -86,9 +87,9 @@ namespace SharpNet.GPU
             var xDesc = TensorDesc(x);
             var bnScaleBiasMeanVarDesc = TensorDesc(bnScale);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f; double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*)&zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*)&oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             if (isTraining)
             {
@@ -116,9 +117,9 @@ namespace SharpNet.GPU
             var xDesc = TensorDesc(x);
             var bnScaleBiasDiffDesc = TensorDesc(bnScale);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f;double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*)&zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*)&oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             var res = CudnnWrapper.cudnnBatchNormalizationBackward(CudnnHandle, mode, 
                 one, zero, one, zero,
@@ -138,10 +139,9 @@ namespace SharpNet.GPU
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f;
-            double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*) &zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*) &oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             cudnnStatus_t res;
             if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
@@ -167,10 +167,9 @@ namespace SharpNet.GPU
             var dxDesc = TensorDesc(dx);
             var activationDesc = ActivationDesc(activationType);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f;
-            double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*) &zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*) &oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             cudnnStatus_t res;
             if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
@@ -194,9 +193,9 @@ namespace SharpNet.GPU
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f; double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*)&zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*)&oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             var res = CudnnWrapper.cudnnPoolingForward(CudnnHandle, poolingDesc, one, xDesc, x, zero, yDesc, y);
             CheckStatus(res);
@@ -211,9 +210,9 @@ namespace SharpNet.GPU
             var yDesc = TensorDesc(y);
             var dyDesc = TensorDesc(dy);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f; double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*)&zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*)&oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             var res = CudnnWrapper.cudnnPoolingBackward(CudnnHandle, poolingDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
             CheckStatus(res);
@@ -224,23 +223,19 @@ namespace SharpNet.GPU
         }
 
         // compute: this += alpha * bias
-        public override void Update_Adding_Alpha_X(double alphaDouble, Tensor x)
+        public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
-            AddTensor(alphaDouble, x, 1.0);
+            AddTensor(alpha, x, 1);
         }
 
         // compute: this = alpha * x + beta * this
-        public override void AddTensor(double alphaDouble, Tensor x, double betaDouble)
+        public override void AddTensor(float alpha, Tensor x, float beta)
         {
             var c = this;
             Debug.Assert(AreCompatible(new List<Tensor> { c, x }));
             var cDesc = TensorDesc(c);
             var xDesc = TensorDesc(x);
-            var alphaFloat = (float)alphaDouble;
-            var betaFloat = (float)betaDouble;
-            var alpha = (UseDoublePrecision) ? (void*)&alphaDouble : &alphaFloat;
-            var beta = (UseDoublePrecision) ? (void*)&betaDouble : &betaFloat;
-            var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, alpha, xDesc, x, beta, cDesc, c);
+            var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, &alpha, xDesc, x, &beta, cDesc, c);
             CheckStatus(res);
         }
 
@@ -300,23 +295,25 @@ namespace SharpNet.GPU
             {
                 //smaller shape
                 Shape = newShape;
+                RecomputeMultDim();
             }
             else
             {
-                //bigger shape
-                throw new NotImplementedException();
+                //bigger shape : we do not have enough space to store it
+                Shape = newShape;
+                RecomputeMultDim();
+                CapacityInBytes = ReallyNeededMemoryInBytes;
+                _deviceMemory?.Dispose();
+                _deviceMemory = Wrapper.NewDeviceMemory(CapacityInBytes);
             }
-            RecomputeMultDim();
         }
 
         // compute: this = alpha * this
-        public override void Update_Multiplying_By_Alpha(double alphaDouble)
+        public override void Update_Multiplying_By_Alpha(float alphaFloat)
         {
             var y = this;
             var yDesc = TensorDesc(y);
-            var alphaFloat = (float)alphaDouble;
-            var alpha = (UseDoublePrecision) ? (void*)&alphaDouble : &alphaFloat;
-            var res = CudnnWrapper.cudnnScaleTensor(CudnnHandle, yDesc, y, alpha);
+            var res = CudnnWrapper.cudnnScaleTensor(CudnnHandle, yDesc, y, &alphaFloat);
             CheckStatus(res);
         }
         public override void BroadcastAddVectorToOutput(Tensor y)
@@ -325,7 +322,7 @@ namespace SharpNet.GPU
             Debug.Assert(AreCompatible(new List<Tensor> { bias, y }));
             Debug.Assert(y.Dimension >= 2);
             Debug.Assert(y.MultDim0 == Count);
-            y.Update_Adding_Alpha_X(1.0, bias);
+            y.Update_Adding_Alpha_X(1, bias);
         }
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient)
         {
@@ -335,9 +332,9 @@ namespace SharpNet.GPU
             var dyDesc = TensorDesc(dy);
             var dbDesc = TensorDesc(biasGradient);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f; double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*)&zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*)&oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, biasGradient);
             CheckStatus(res);
@@ -360,10 +357,9 @@ namespace SharpNet.GPU
             CheckStatus(res);
             var storageBuffer = Wrapper.StorageBuffer(workspaceSize);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f;
-            double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*) &zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*) &oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             res = CudnnWrapper.cudnnConvolutionForward(CudnnHandle, one, xDesc, x, filterDesc, filters, convDesc, algo,
                 storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, yDesc, y);
@@ -376,9 +372,9 @@ namespace SharpNet.GPU
             var dyDesc = TensorDesc(dy);
             var dbDesc = TensorDesc(convolutionBackwardBias);
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f; double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*)&zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*)&oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, convolutionBackwardBias);
             CheckStatus(res);
@@ -400,10 +396,9 @@ namespace SharpNet.GPU
             CheckStatus(res);
             var storageBuffer = Wrapper.StorageBuffer(Math.Max(1, filterWorkspaceSize));
 
-            float oneFloat = 1.0f, zeroFloat = 0.0f;
-            double oneDouble = 1.0d, zeroDouble = 0.0d;
-            var zero = (UseDoublePrecision) ? (void*) &zeroDouble : &zeroFloat;
-            var one = (UseDoublePrecision) ? (void*) &oneDouble : &oneFloat;
+            float oneFloat = 1f, zeroFloat = 0f;
+            var zero = &zeroFloat;
+            var one = &oneFloat;
 
             res = CudnnWrapper.cudnnConvolutionBackwardFilter(CudnnHandle, one, xDesc, x, dyDesc, 
                 dy, convDesc, filterAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes,
@@ -433,51 +428,25 @@ namespace SharpNet.GPU
        
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
-            if (UseDoublePrecision)
-            {
-                var array = new double[Count];
-                Utils.RandomizeNormalDistribution(array, rand, mean, stdDev);
-                CopyToDevice(array as T[]);
-            }
-            else
-            {
-                var array = new float[Count];
-                Utils.RandomizeNormalDistribution(array, rand, mean, stdDev);
-                CopyToDevice(array as T[]);
-            }
+            var array = new float[Count];
+            Utils.RandomizeNormalDistribution(array, rand, mean, stdDev);
+            CopyToDevice(array as T[]);
         }
 
         public override void NewSameValueTensor(double sameValue)
         {
-            if (UseDoublePrecision)
+            var array = new float[Count];
+            var sameValueAsFloat = (float) sameValue;
+            for (int i = 0; i < array.Length; ++i)
             {
-                var array = new double[Count];
-                for (int i = 0; i < array.Length; ++i)
-                {
-                    array[i] = sameValue;
-                }
-                CopyToDevice(array as T[]);
+                array[i] = sameValueAsFloat;
             }
-            else
-            {
-                var array = new float[Count];
-                var sameValueAsFloat = (float) sameValue;
-                for (int i = 0; i < array.Length; ++i)
-                {
-                    array[i] = sameValueAsFloat;
-                }
-                CopyToDevice(array as T[]);
-            }
-        }
-        public override double[] ContentAsDoubleArray()
-        {
-            var deviceContent = DeviceContent();
-            return UseDoublePrecision ? (deviceContent as double[]) : ToDoubleArray(deviceContent as float[]);
+            CopyToDevice(array as T[]);
         }
         public override float[] ContentAsFloatArray()
         {
             var deviceContent = DeviceContent();
-            return UseDoublePrecision ? ToFloatArray(deviceContent as double[]) : (deviceContent as float[]);
+            return (deviceContent as float[]);
         }
         //this = yExpectedOneHot
         public override double ComputeAccuracy(Tensor yPredicted, Tensor buffer)
@@ -491,7 +460,7 @@ namespace SharpNet.GPU
             int nbRows = yExpectedOneHot.Shape[0];
             var categoryCount = yExpectedOneHot.MultDim0;
             Wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
-            var countOk = UseDoublePrecision? ((int) buffer.ContentAsDoubleArray().Sum()): ((int) buffer.ContentAsFloatArray().Sum());
+            var countOk = (int) buffer.ContentAsFloatArray().Sum();
             return ((double)countOk) / Shape[0];
         }
         //this = yExpectedOneHot
@@ -509,7 +478,7 @@ namespace SharpNet.GPU
             int nbRows = yExpectedOneHot.Shape[0];
             var categoryCount = yExpectedOneHot.MultDim0;
             Wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
-            return UseDoublePrecision? (buffer.ContentAsDoubleArray().Sum()/nbRows):((double)buffer.ContentAsFloatArray().Sum() / nbRows);
+            return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
         }
 
 
@@ -555,7 +524,7 @@ namespace SharpNet.GPU
         {
             var convolutionBias = this;
             Debug.Assert(AreCompatible(new List<Tensor> { convolutionBias, y}));
-            y.Update_Adding_Alpha_X(1.0, convolutionBias);
+            y.Update_Adding_Alpha_X(1, convolutionBias);
         }
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep)
         {
@@ -570,22 +539,22 @@ namespace SharpNet.GPU
         {
             var W = this;
             //velocity[i] = (momentum * velocity[i]) - (dW[i] * learningRate);
-            velocity.AddTensor(-learningRate, dW, momentum);
+            velocity.AddTensor((float)-learningRate, dW, (float)momentum);
             if (usenesterov)
             {
                 //W[i] += momentum * velocity[i] - (dW[i] * learningRate);
-                W.Update_Adding_Alpha_X(momentum, velocity);
-                W.Update_Adding_Alpha_X(-learningRate, dW);
+                W.Update_Adding_Alpha_X((float)momentum, velocity);
+                W.Update_Adding_Alpha_X((float)-learningRate, dW);
             }
             else
             {
                 //W[i] += velocity[i];
-                W.Update_Adding_Alpha_X(1.0, velocity);
+                W.Update_Adding_Alpha_X(1, velocity);
             }
 
 
         }
-        public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, double alpha, double beta)
+        public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, a, b }));
             Debug.Assert(b.Dimension >= 2);
@@ -604,16 +573,7 @@ namespace SharpNet.GPU
             int lda = aW; //number of rows of the matrix y (because order = ColumnMajor)
             int ldc = N; //number of rows of the matrix C (because order = ColumnMajor)
             //Cuda is column major : we have to compute B*y instead of y*B
-            if (UseDoublePrecision)
-            {
-                CublasWrapper.cublasDgemm_v2(CublasHandle, transLeft, transRight, N, M, K, ref alpha, b, ldb, a, lda, ref beta, this, ldc);
-            }
-            else
-            {
-                var alphaFloat = (float)alpha;
-                var betaFloat = (float)beta;
-                CublasWrapper.cublasSgemm_v2(CublasHandle, transLeft, transRight, N, M, K, ref alphaFloat, b, ldb, a, lda, ref betaFloat, this, ldc);
-            }
+            CublasWrapper.cublasSgemm_v2(CublasHandle, transLeft, transRight, N, M, K, ref alpha, b, ldb, a, lda, ref beta, this, ldc);
         }
         public override void CopyTo(Tensor b)
         {
@@ -624,9 +584,7 @@ namespace SharpNet.GPU
             Debug.Assert(AreCompatible(new List<Tensor> { this, other }));
             var thisPointer = (IntPtr)this + (TypeSize * startElement);
             var otherPointer = (IntPtr)other + (TypeSize * otherStartElement);
-            var _status = UseDoublePrecision
-                ? CublasWrapper.cublasDcopy_v2(CublasHandle, elementCount, thisPointer, 1, otherPointer, 1)
-                : CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, thisPointer, 1, otherPointer, 1);
+            var _status = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, thisPointer, 1, otherPointer, 1);
             CheckStatus(_status);
         }
         public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
@@ -689,7 +647,7 @@ namespace SharpNet.GPU
             return Wrapper.PoolingDesc(poolingMode, poolingSize, poolingStride);
         }
         private IntPtr ConvDesc(int padding, int stride) { return Wrapper.ConvDesc(CudaType, padding, stride); }
-        private cudnnDataType_t CudaType => UseDoublePrecision ? cudnnDataType_t.CUDNN_DATA_DOUBLE : cudnnDataType_t.CUDNN_DATA_FLOAT;
+        private cudnnDataType_t CudaType => cudnnDataType_t.CUDNN_DATA_FLOAT;
         private IntPtr CudnnHandle => Wrapper.CudnnHandle;
         private IntPtr CublasHandle => Wrapper.CudaBlasHandle;
         private static void CheckStatus(cublasStatus_t _status)

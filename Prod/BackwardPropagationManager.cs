@@ -88,7 +88,7 @@ namespace SharpNet
                     {
                         if (!isMock)
                         {
-                            _layerTensor_dY[prevLayer.LayerIndex].Update_Adding_Alpha_X(1.0, dyPrevLayer);
+                            _layerTensor_dY[prevLayer.LayerIndex].Update_Adding_Alpha_X(1, dyPrevLayer);
                         }
                         AddInCache(dyPrevLayer);
                     }
@@ -153,7 +153,7 @@ namespace SharpNet
             {
                 return new CpuTensor<float>(new[] {1}, new float[]{ NeededMemoryInBytes(shape) }, MockKey);
             }
-            return _network.NewNotInitializedTensor(shape, null, "dy");
+            return _network.NewNotInitializedTensor(shape, "dy");
         }
 
         public void Dispose()

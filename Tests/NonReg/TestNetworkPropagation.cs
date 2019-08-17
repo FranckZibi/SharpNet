@@ -481,7 +481,7 @@ namespace SharpNetTests.NonReg
 
             int batchSize = X.Shape[0];
             var gpuDeviceId = -1;
-            var network = new Network(new NetworkConfig{ Logger = logger, UseDoublePrecision = false, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, RandomizeOrder = false }
+            var network = new Network(new NetworkConfig{ Logger = logger, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, RandomizeOrder = false }
                        //.WithAdam(0.9,0.999)
                        .WithSGD(momentum, false)
                         ,ImageDataGenerator.NoDataAugmentation, 
@@ -535,7 +535,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
             network.LogContent();
 
-            var trainingDataSet = new InMemoryDataSetLoader<float>(X,Y,null,null);
+            var trainingDataSet = new InMemoryDataSetLoader(X,Y,null,null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracy(batchSize, trainingDataSet);
 
             logger.Info("-");
@@ -561,7 +561,7 @@ namespace SharpNetTests.NonReg
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction)
         {
             var gpuDeviceId = -1;
-            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, UseDoublePrecision = false, LossFunction = lossFunction, RandomizeOrder = false, ForceTensorflowCompatibilityMode = true}, ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
+            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, LossFunction = lossFunction, RandomizeOrder = false, ForceTensorflowCompatibilityMode = true}, ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {
@@ -572,7 +572,7 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];
-            var dataSet = new InMemoryDataSetLoader<float>(X, Y_expected, new int[batchSize], null);
+            var dataSet = new InMemoryDataSetLoader(X, Y_expected, new int[batchSize], null);
             var observedLossAccuracy = network.ComputeLossAndAccuracy(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 

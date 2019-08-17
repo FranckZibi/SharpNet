@@ -42,12 +42,12 @@ namespace SharpNet.Layers
             _stride = stride;
             _padding = padding;
             _lambdaL2Regularization = lambdaL2Regularization;
-            Convolution = Network.NewNotInitializedTensor(ConvolutionShape, Convolution, nameof(Convolution));
-            ConvolutionGradients = Network.NewNotInitializedTensor(Convolution.Shape, ConvolutionGradients, nameof(ConvolutionGradients));
+            Convolution = Network.NewNotInitializedTensor(ConvolutionShape, nameof(Convolution));
+            ConvolutionGradients = Network.NewNotInitializedTensor(Convolution.Shape, nameof(ConvolutionGradients));
             if (useBias)
             {
-                ConvolutionBias = Network.NewNotInitializedTensor(ConvolutionBiasShape, ConvolutionBias, nameof(ConvolutionBias));
-                ConvolutionBiasGradients = Network.NewNotInitializedTensor(ConvolutionBias.Shape, ConvolutionBiasGradients, nameof(ConvolutionBiasGradients));
+                ConvolutionBias = Network.NewNotInitializedTensor(ConvolutionBiasShape, nameof(ConvolutionBias));
+                ConvolutionBiasGradients = Network.NewNotInitializedTensor(ConvolutionBias.Shape, nameof(ConvolutionBiasGradients));
             }
             _optimizer = Network.GetOptimizer(Convolution.Shape, ConvolutionBias?.Shape);
             ResetWeights(false);
@@ -149,7 +149,7 @@ namespace SharpNet.Layers
             if (UseL2Regularization)
             {
                 var batchSize = y.Shape[0];
-                var alpha = 2 * batchSize * _lambdaL2Regularization;
+                var alpha = 2 * batchSize * (float)_lambdaL2Regularization;
                 ConvolutionGradients.Update_Adding_Alpha_X(alpha, Convolution);
             }
         }

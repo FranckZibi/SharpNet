@@ -23,23 +23,16 @@ namespace SharpNetTests.GPU
             var shape = new[] { 1, size, 1, 1 };
             var aCpu = RandomTensor(shape, "aCpu");
             var bCpu = RandomTensor(shape, "bCpu");
-            var resultCpu = new CpuTensor<double>(shape, "resultCpu");
+            var resultCpu = new CpuTensor<float>(shape, "resultCpu");
             for (int i = 0; i < aCpu.Count; ++i)
             {
                 resultCpu[i] = aCpu[i] + bCpu[i];
             }
 
-            //GPU double precision test
-            Tensor a = aCpu.ToGPU<double>(GpuWrapper);
-            Tensor b = bCpu.ToGPU<double>(GpuWrapper);
-            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", GpuWrapper);
-            km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
-            Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-9));
-
             //GPU single precision test
-            a = aCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
-            b = bCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
-            resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
+            Tensor a = aCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
+            Tensor b = bCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
+            Tensor resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
             Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-2));
         }
@@ -70,7 +63,7 @@ namespace SharpNetTests.GPU
             var shape = new [] {1, size, 1, 1};
             var aCpu = RandomTensor(shape, "aCpu");
             var bCpu = RandomTensor(shape, "bCpu");
-            var resultCpu = new CpuTensor<double>(shape, "resultCpu");
+            var resultCpu = new CpuTensor<float>(shape, "resultCpu");
             int nbBatchCpu = 10;
             int nbBatchGPU = 1000;
 
@@ -82,17 +75,17 @@ namespace SharpNetTests.GPU
                     resultCpu[i] = aCpu[i] + bCpu[i];
                 }
             }
-            Console.WriteLine("1 CPU Double Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu)) + "ms");
-            Console.WriteLine("8 CPU Double Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu * 8)) + "ms");
-            Tensor a = aCpu.ToGPU<double>(GpuWrapper);
-            Tensor b = bCpu.ToGPU<double>(GpuWrapper);
-            Tensor resultGpu = new GPUTensor<double>(shape, "resultGpu", GpuWrapper);
+            Console.WriteLine("1 CPU Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu)) + "ms");
+            Console.WriteLine("8 CPU Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu * 8)) + "ms");
+            Tensor a = aCpu.ToGPU<float>(GpuWrapper);
+            Tensor b = bCpu.ToGPU<float>(GpuWrapper);
+            Tensor resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
             sw = Stopwatch.StartNew();
             for (int batchid = 0; batchid < nbBatchGPU; ++batchid)
             {
                 km.RunKernel("Sum", resultGpu.Count, new object[] {a, b, resultGpu});
             }
-            Console.WriteLine("1 GPU Double Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
+            Console.WriteLine("1 GPU Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
             a = aCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
             b = bCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
             resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
@@ -104,9 +97,9 @@ namespace SharpNetTests.GPU
             Console.WriteLine("1 GPU Float Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
         }
 
-        private CpuTensor<double> RandomTensor(int[] shape, string description)
+        private CpuTensor<float> RandomTensor(int[] shape, string description)
         {
-            return TestCpuTensor.RandomDoubleTensor(shape, _rand, -1.5, +1.5, description);
+            return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5, description);
         }
     }
 }

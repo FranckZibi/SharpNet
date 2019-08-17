@@ -6,7 +6,7 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public interface IDataSetLoader<T> : IDisposable where T: struct
+    public interface IDataSetLoader : IDisposable
     {
         /// <summary>
         /// Load 'elementCount' elements from the one starting at index 'indexFirstElement' and for epoch 'numEpoch'
@@ -28,7 +28,7 @@ namespace SharpNet.Datasets
         /// <param name="elementId">id of element to store, in range [0, Count-1] </param>
         /// <param name="indexInBuffer">where to store the element in the buffer</param>
         /// <param name="buffer">buffer where to store elementId (with a capacity of 'buffer.Shape[0]' elements) </param>
-        void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer);
+        void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer);
 
 
         /// <summary>
@@ -64,10 +64,8 @@ namespace SharpNet.Datasets
         /// Current width of elements to load
         /// </summary>
         int Width { get; }
-        IDataSetLoader<float> ToSinglePrecision();
-        IDataSetLoader<double> ToDoublePrecision();
         int[] Y_Shape { get; }
         int[] XMiniBatch_Shape(int miniBatchSize);
-        CpuTensor<T> Y { get; }
+        CpuTensor<float> Y { get; }
     }
 }

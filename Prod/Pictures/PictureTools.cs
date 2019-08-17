@@ -35,8 +35,8 @@ namespace SharpNet.Pictures
             switch (Marshal.SizeOf(typeof(T)))
             {
                 case 1: SaveBitmap(xTrain as CpuTensor<byte>, pictureIndex, directory, filePrefix, fileSuffix);break;
-                case 8: SaveBitmap(xTrain as CpuTensor<double>, pictureIndex, directory, filePrefix, fileSuffix);break;
-                default: SaveBitmap(xTrain as CpuTensor<float>, pictureIndex, directory, filePrefix, fileSuffix);break;
+                case 4: SaveBitmap(xTrain as CpuTensor<float>, pictureIndex, directory, filePrefix, fileSuffix);break;
+                default: throw new ArgumentException(Marshal.SizeOf(typeof(T)) + " size is not supported");
             }
         }
 
@@ -45,10 +45,6 @@ namespace SharpNet.Pictures
             SaveBitmap(xTrain, (x => x), pictureIndex, directory, filePrefix, fileSuffix);
         }
         private static void SaveBitmap(CpuTensor<float> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
-        {
-            SaveBitmap(xTrain, (x => (byte)(255 * x)), pictureIndex, directory, filePrefix, fileSuffix);
-        }
-        private static void SaveBitmap(CpuTensor<double> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
         {
             SaveBitmap(xTrain, (x => (byte)(255 * x)), pictureIndex, directory, filePrefix, fileSuffix);
         }

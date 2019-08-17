@@ -14,7 +14,7 @@ namespace SharpNet.Networks
             _files = files;
         }
 
-        public Tuple<Tensor, double> Predict(IDataSetLoader<float> testDataSet)
+        public Tuple<Tensor, double> Predict(IDataSetLoader testDataSet)
         {
             var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape, "yCpuPredictedAllNetworks");
             foreach (var file in _files)
@@ -27,7 +27,7 @@ namespace SharpNet.Networks
                 var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
                 var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);
                 Console.WriteLine("Single Network Accuracy=" + accuracy);
-                yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1.0/ _files.Length, yCpuPredictedSingleNetwork);
+                yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _files.Length, yCpuPredictedSingleNetwork);
                 network.ClearMemory();
             }
             var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, null);

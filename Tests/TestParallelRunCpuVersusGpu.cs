@@ -35,7 +35,7 @@ namespace SharpNetTests
 	        var dxShape = new [] { BatchSize, FiltersCount, Height, Width };
             var biasShape = new [] { 1, FiltersCount, 1, 1};
             var dx = RandomTensor(dxShape, "dx");
-	        var convolutionBackwardBias = new CpuTensor<double>(biasShape, "convolutionBackwardBias");
+	        var convolutionBackwardBias = new CpuTensor<float>(biasShape, "convolutionBackwardBias");
 	        TestAll(new[] {dx, convolutionBackwardBias}, tensors => tensors[0].ConvolutionBackwardBias(tensors[1]));
 	    }
 	    [Test]
@@ -51,7 +51,7 @@ namespace SharpNetTests
         public void TestConvolutionGradient()
         {
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
-            x = new CpuTensor<double>(x.Shape, "x");
+            x = new CpuTensor<float>(x.Shape, "x");
             var convolution = RandomTensor(new[] { BatchSize, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
             var dy = RandomTensor(Tensor.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
             //this will compute 'dx' && 'convolutionGradient'
@@ -160,7 +160,7 @@ namespace SharpNetTests
 	    {
 	        var a = RandomTensor(new[] { 8, 10}, "a");
 	        var b = RandomTensor(new[] { a.Shape[1], 12}, "b");
-	        var result = new CpuTensor<double>(new[] { a.Shape[0], b.Shape[1] }, "result");
+	        var result = new CpuTensor<float>(new[] { a.Shape[0], b.Shape[1] }, "result");
 	        TestAll(new[] { a, b, result}, tensors => tensors[2].Dot(tensors[0], false, tensors[1], false, 1, 0));
         }
 	    [Test]
@@ -168,7 +168,7 @@ namespace SharpNetTests
 	    {
 	        var a = RandomTensor(new[] { 8, 10 }, "a");
 	        var b = RandomTensor(new[] { a.Shape[1], 12 }, "b");
-	        var result = new CpuTensor<double>(new[] { a.Shape[0], b.Shape[1] }, "result");
+	        var result = new CpuTensor<float>(new[] { a.Shape[0], b.Shape[1] }, "result");
             TestAll(new[] { a, b, result }, tensors => tensors[2].Dot(tensors[0], tensors[1]));
         }
 	    [Test]
@@ -176,14 +176,14 @@ namespace SharpNetTests
 	    {
 	        var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width}, "y");
 	        var x = RandomTensor(y.Shape, "x");
-	        TestAll(new[] { y, x}, tensors => tensors[0].Update_Adding_Alpha_X(0.5, tensors[1]));
+	        TestAll(new[] { y, x}, tensors => tensors[0].Update_Adding_Alpha_X(0.5f, tensors[1]));
 	    }
         [Test]
         public void TestAddTensor()
         {
             var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "y");
             var x = RandomTensor(y.Shape, "x");
-            TestAll(new[] { y, x }, tensors => tensors[0].AddTensor(0.5, tensors[1], 0.75));
+            TestAll(new[] { y, x }, tensors => tensors[0].AddTensor(0.5f, tensors[1], 0.75f));
         }
 
 
@@ -209,7 +209,7 @@ namespace SharpNetTests
         public void TestUpdate_Multiplying_By_Alpha()
         {
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
-            TestAll(new[] { x }, tensors => tensors[0].Update_Multiplying_By_Alpha(0.5));
+            TestAll(new[] { x }, tensors => tensors[0].Update_Multiplying_By_Alpha(0.5f));
         }
         [Test]
 	    public void TestCompute_BiasGradient_from_dy()
@@ -356,62 +356,46 @@ namespace SharpNetTests
         }
 
 
-        private CpuTensor<double> RandomTensor(int[] shape, string description)
+        private CpuTensor<float> RandomTensor(int[] shape, string description)
 	    {
-	        return TestCpuTensor.RandomDoubleTensor(shape, _rand, -1.5, +1.5, description);
+	        return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5, description);
 	    }
-        private static void AreEquals(CpuTensor<double> doubleCpu, CpuTensor<float> floatCpu, GPUTensor<double> doubleGpu, GPUTensor<float> floatGpu)
+        private static void AreEquals(CpuTensor<float> floatCpu, GPUTensor<float> floatGpu)
 	    {
-	        Assert.IsTrue(doubleCpu.SameShape(floatCpu, doubleGpu, floatGpu));
-	        Assert.IsTrue(TestTensor.SameContent(doubleCpu, doubleGpu, 1e-9), doubleCpu+Environment.NewLine+doubleGpu);
-	        Assert.IsTrue(TestTensor.SameContent(doubleCpu, floatCpu, 1e-2), doubleCpu + Environment.NewLine + floatCpu);
-            Assert.IsTrue(TestTensor.SameContent(doubleCpu, floatGpu, 1e-2), doubleCpu + Environment.NewLine + floatGpu);
+	        Assert.IsTrue(floatCpu.SameShape(floatGpu));
+            Assert.IsTrue(TestTensor.SameContent(floatCpu, floatGpu, 1e-2), floatCpu + Environment.NewLine + floatGpu);
         }
 	    [SuppressMessage("ReSharper", "CoVariantArrayConversion")]
-	    private void TestAll(CpuTensor<double>[] data, Action<Tensor[]> work)
+	    private void TestAll(CpuTensor<float>[] data, Action<Tensor[]> work)
 	    {
-	        var cpuDoubles = new List<CpuTensor<double>>();
-	        cpuDoubles.AddRange(data);
 	        var cpuFloat = new List<CpuTensor<float>>();
-	        cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
-	        var gpuDouble = new List<GPUTensor<double>>();
-	        gpuDouble.AddRange(data.Select(x => CloneToGPU(x,GpuWrapper)));
+	        cpuFloat.AddRange(data);
 	        var gpuFloat = new List<GPUTensor<float>>();
 	        gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, GpuWrapper)));
-	        work(cpuDoubles.ToArray());
 	        work(cpuFloat.ToArray());
-	        work(gpuDouble.ToArray());
 	        work(gpuFloat.ToArray());
-            for (var i = 0; i < cpuDoubles.Count; ++i)
+            for (var i = 0; i < cpuFloat.Count; ++i)
             {
-	            AreEquals(cpuDoubles[i], cpuFloat[i], gpuDouble[i], gpuFloat[i]);
+	            AreEquals(cpuFloat[i], gpuFloat[i]);
 	        }
 	    }
 
-        private void TestAllForReturnValue(CpuTensor<double>[] data, Func<Tensor[], double> work, List<int> tensorIdsToIgnore = null)
+        private void TestAllForReturnValue(CpuTensor<float>[] data, Func<Tensor[], double> work, List<int> tensorIdsToIgnore = null)
         {
-            var cpuDoubles = new List<CpuTensor<double>>();
-            cpuDoubles.AddRange(data);
             var cpuFloat = new List<CpuTensor<float>>();
             cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
-            var gpuDouble = new List<GPUTensor<double>>();
-            gpuDouble.AddRange(data.Select(x => CloneToGPU(x, GpuWrapper)));
             var gpuFloat = new List<GPUTensor<float>>();
             gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, GpuWrapper)));
-            var resultCpuDoubles = work(cpuDoubles.Select(x=>(Tensor)x).ToArray());
             var resultCpuFloat = work(cpuFloat.Select(x => (Tensor)x).ToArray());
-            var resultGPUDoubles = work(gpuDouble.Select(x => (Tensor)x).ToArray());
             var resultGPUFloat = work(gpuFloat.Select(x => (Tensor)x).ToArray());
-            Assert.AreEqual(resultCpuDoubles, resultGPUDoubles, 1e-7);
-            Assert.AreEqual(resultCpuDoubles, resultCpuFloat, 1e-5, cpuDoubles.Last().Content.Min() + " vs " + cpuFloat.Last().Content.Min());
-            Assert.AreEqual(resultCpuDoubles, resultGPUFloat, 1e-5, cpuDoubles.Last().Content.Min() + " vs "+gpuFloat.Last().ContentAsDoubleArray().Min());
-            for (var i = 0; i < cpuDoubles.Count; ++i)
+            Assert.AreEqual(resultCpuFloat, resultGPUFloat, 1e-5, cpuFloat.Last().Content.Min() + " vs "+gpuFloat.Last().ContentAsFloatArray().Min());
+            for (var i = 0; i < cpuFloat.Count; ++i)
             {
                 if (tensorIdsToIgnore != null && tensorIdsToIgnore.Contains(i))
                 {
                     continue;
                 }
-                AreEquals(cpuDoubles[i], cpuFloat[i], gpuDouble[i], gpuFloat[i]);
+                AreEquals(cpuFloat[i], gpuFloat[i]);
             }
         }
 

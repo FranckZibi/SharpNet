@@ -4,11 +4,12 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class SubDataSetLoader<T> : AbstractDataSetLoader<T> where T : struct
+    public class SubDataSetLoader : AbstractDataSetLoader
     {
-        private readonly IDataSetLoader<T> _original;
+        private readonly IDataSetLoader _original;
+        private readonly List<int> subElementIdToOriginalElementId = new List<int>();
 
-        public SubDataSetLoader(IDataSetLoader<T> original, Func<int,bool> elemetIdInOriginaDataSetToIsIncludedInSubDataSet) 
+        public SubDataSetLoader(IDataSetLoader original, Func<int,bool> elemetIdInOriginaDataSetToIsIncludedInSubDataSet) 
             : base(original.Channels, original.Categories)
         {
             _original = original;
@@ -20,12 +21,9 @@ namespace SharpNet.Datasets
                 }
             }
             //We compute Y 
-            Y = CpuTensor<T>.CreateOneHotTensor(ElementIdToCategoryId, subElementIdToOriginalElementId.Count, Categories);
+            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryId, subElementIdToOriginalElementId.Count, Categories);
         }
-
-        private readonly List<int> subElementIdToOriginalElementId = new List<int>();
-
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer)
         {
             _original.LoadAt(subElementIdToOriginalElementId[elementId], indexInBuffer, buffer);
         }
@@ -38,9 +36,8 @@ namespace SharpNet.Datasets
         {
             return _original.ElementIdToCategoryId(subElementIdToOriginalElementId[elementId]);
         }
-
         public override int Height => _original.Height;
         public override int Width => _original.Width;
-        public override CpuTensor<T> Y { get; }
+        public override CpuTensor<float> Y { get; }
     }
 }

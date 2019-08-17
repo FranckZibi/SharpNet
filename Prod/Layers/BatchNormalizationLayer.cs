@@ -32,14 +32,14 @@ namespace SharpNet.Layers
             _momentum = momentum;
             _epsilon = epsilon;
             var scaleAndBiasShape = ScaleAndBiasShape();
-            _bnScale = Network.NewNotInitializedTensor(scaleAndBiasShape, _bnScale, nameof(_bnScale));
-            _resultBnScaleDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultBnScaleDiff, nameof(_resultBnScaleDiff));
-            _bnBias = Network.NewNotInitializedTensor(scaleAndBiasShape, _bnBias, nameof(_bnBias));
-            _resultBnBiasDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultBnBiasDiff, nameof(_resultBnBiasDiff));
-            _resultRunningMean = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultRunningMean, nameof(_resultRunningMean));
-            _resultRunningVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultRunningVariance, nameof(_resultRunningVariance));
-            _resultSaveMean = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultSaveMean, nameof(_resultSaveMean));
-            _resultSaveVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, _resultSaveVariance, nameof(_resultSaveVariance));
+            _bnScale = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_bnScale));
+            _resultBnScaleDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultBnScaleDiff));
+            _bnBias = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_bnBias));
+            _resultBnBiasDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultBnBiasDiff));
+            _resultRunningMean = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultRunningMean));
+            _resultRunningVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultRunningVariance));
+            _resultSaveMean = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultSaveMean));
+            _resultSaveVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultSaveVariance));
             _optimizer = Network.GetOptimizer(_bnScale.Shape, _bnBias.Shape);
             ResetWeights(false);
 

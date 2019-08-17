@@ -30,10 +30,10 @@ namespace SharpNet.Layers
         {
             _n_x = n_x;
             _lambdaL2Regularization = lambdaL2Regularization;
-            Weights = Network.NewNotInitializedTensor(new[] { PrevLayer.n_x, _n_x }, Weights, nameof(Weights));
-            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, WeightGradients, nameof(WeightGradients));
-            Bias = Network.NewNotInitializedTensor(new[] {1,  _n_x }, Bias, nameof(Bias));
-            BiasGradients = Network.NewNotInitializedTensor(Bias.Shape, BiasGradients, nameof(BiasGradients));
+            Weights = Network.NewNotInitializedTensor(new[] { PrevLayer.n_x, _n_x }, nameof(Weights));
+            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, nameof(WeightGradients));
+            Bias = Network.NewNotInitializedTensor(new[] {1,  _n_x }, nameof(Bias));
+            BiasGradients = Network.NewNotInitializedTensor(Bias.Shape, nameof(BiasGradients));
             _optimizer = Network.GetOptimizer(Weights.Shape, Bias.Shape);
             ResetWeights(false);
             Debug.Assert(WeightGradients.SameShape(Weights));
@@ -106,17 +106,17 @@ namespace SharpNet.Layers
 
             //we compute dW
             var x = PrevLayer.y;
-            var multiplier = 1.0 / batchSize;
+            var multiplier = 1f / batchSize;
             if (Network.Config.ForceTensorflowCompatibilityMode)
             {
-                multiplier = 1.0; //used only for tests and parallel run
+                multiplier = 1f; //used only for tests and parallel run
             }
-            WeightGradients.Dot(x, true, dy, false, multiplier, 0.0);
+            WeightGradients.Dot(x, true, dy, false, multiplier, 0);
 
             //L2 regularization on dW
             if (UseL2Regularization)
             {
-                var alpha = 2 * batchSize * _lambdaL2Regularization;
+                var alpha = 2 * batchSize * (float)_lambdaL2Regularization;
                 WeightGradients.Update_Adding_Alpha_X(alpha, Weights);
             }
 
@@ -132,7 +132,7 @@ namespace SharpNet.Layers
             }
 
             // we compute dx = dy * Weights.T
-            dx[0].Dot(dy, false, Weights, true, 1.0, 0.0);
+            dx[0].Dot(dy, false, Weights, true, 1, 0);
         }
         public override void UpdateWeights(double learningRate)
         {

@@ -99,15 +99,14 @@ namespace SharpNet.Pictures
         /// takes the input picture at index 'indexInMiniBatch' in 'xOriginalMiniBatch'
         /// and stores a data augmented version of it at index 'indexInMiniBatch' of 'xTransformedMiniBatch'&'yMiniBatch'
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="indexInMiniBatch"></param>
         /// <param name="xOriginalMiniBatch"></param>
         /// <param name="xDataAugmentedMiniBatch"></param>
         /// <param name="yMiniBatch"></param>
         /// <param name="indexInMiniBatchToCategoryId"></param>
-        public void DataAugmentationForMiniBatch<T>(int indexInMiniBatch, CpuTensor<T> xOriginalMiniBatch,
-            CpuTensor<T> xDataAugmentedMiniBatch, CpuTensor<T> yMiniBatch, 
-            Func<int,int> indexInMiniBatchToCategoryId) where T : struct
+        public void DataAugmentationForMiniBatch(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
+            CpuTensor<float> xDataAugmentedMiniBatch, CpuTensor<float> yMiniBatch, 
+            Func<int,int> indexInMiniBatchToCategoryId)
         {
             int miniBatchSize = xOriginalMiniBatch.Shape[0];
 
@@ -164,15 +163,15 @@ namespace SharpNet.Pictures
             if (_alphaCutMix>0.0 && indexInMiniBatchToCategoryId(indexInMiniBatch) != indexInMiniBatchToCategoryId(indexInMiniBatchForCutMix))
             {
 
-                float cutMixLambda = 1.0f - ((float)((cutMixRowEnd - cutMixRowStart + 1) * (cutMixColEnd - cutMixColStart + 1))) / (nbCols * nbRows);
+                float cutMixLambda = 1f - ((float)((cutMixRowEnd - cutMixRowStart + 1) * (cutMixColEnd - cutMixColStart + 1))) / (nbCols * nbRows);
 
 
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
                 //        'cutMixLambda' % of the category of the element at 'inputPictureIndex'
                 //      '1-cutMixLambda' % of the category of the element at 'inputPictureIndexForCutMix'
-                yMiniBatch.SetFloatValue(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatch), cutMixLambda);
-                yMiniBatch.SetFloatValue(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatchForCutMix), 1.0f - cutMixLambda);
+                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatch), cutMixLambda);
+                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatchForCutMix), 1f - cutMixLambda);
             }
 
             if (mixupLambda.HasValue && indexInMiniBatchToCategoryId(indexInMiniBatch) != indexInMiniBatchToCategoryId(indexInMiniBatchForMixup))
@@ -181,8 +180,8 @@ namespace SharpNet.Pictures
                 // the associated y is:
                 //        'cutMixLambda' % of the category of the element at 'inputPictureIndex'
                 //      '1-cutMixLambda' % of the category of the element at 'inputPictureIndexForCutMix'
-                yMiniBatch.SetFloatValue(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatch), (float)mixupLambda);
-                yMiniBatch.SetFloatValue(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatchForMixup), 1.0f - (float)mixupLambda);
+                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatch), (float)mixupLambda);
+                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatchForMixup), 1f - (float)mixupLambda);
             }
 
         }
@@ -202,15 +201,15 @@ namespace SharpNet.Pictures
             equals &= Utils.Equals(_zoomRange, other._zoomRange, epsilon, id + ":_zoomRange", ref errors);
             return equals;
         }
-        public static void InitializeOutputPicture<T>(CpuTensor<T> xInputBufferPictures,
-            CpuTensor<T> xOutputBufferPictures, int indexInBuffer,
+        public static void InitializeOutputPicture(CpuTensor<float> xInputBufferPictures,
+            CpuTensor<float> xOutputBufferPictures, int indexInBuffer,
             int widthShift, int heightShift, FillModeEnum _fillMode,
             bool horizontalFlip, bool verticalFlip,
             double widthMultiplier, double heightMultiplier,
             int cutoutRowStart, int cutoutRowEnd, int cutoutColStart, int cutoutColEnd,
             int cutMixRowStart, int cutMixRowEnd, int cutMixColStart, int cutMixColEnd, int indexInMiniBatchForCutMix,
             float ?mixupLambda, int indexInMiniBatchForMixup,
-            double rotationInDegrees) where T : struct
+            double rotationInDegrees)
         {
             var nbRows = xOutputBufferPictures.Shape[2];
             var nbCols = xOutputBufferPictures.Shape[3];
@@ -267,9 +266,9 @@ namespace SharpNet.Pictures
 
                         if (mixupLambda.HasValue)
                         {
-                            xOutputBufferPictures.SetFloatValue(indexInBuffer, channel, rowOutput, colOutput,
-                                        mixupLambda.Value * xInputBufferPictures.GetFloatValue(indexInBuffer, channel, rowInput, colInput)
-                                + (1.0f - mixupLambda.Value) * xInputBufferPictures.GetFloatValue(indexInMiniBatchForMixup, channel,rowOutput, colOutput));
+                            xOutputBufferPictures.Set(indexInBuffer, channel, rowOutput, colOutput,
+                                        mixupLambda.Value * xInputBufferPictures.Get(indexInBuffer, channel, rowInput, colInput)
+                                + (1 - mixupLambda.Value) * xInputBufferPictures.Get(indexInMiniBatchForMixup, channel,rowOutput, colOutput));
                         }
                         else
                         {

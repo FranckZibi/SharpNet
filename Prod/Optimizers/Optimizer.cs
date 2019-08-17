@@ -39,9 +39,9 @@ namespace SharpNet.Optimizers
             EmbeddedTensors.ForEach(x => x?.Dispose());
         }
 
-        protected double PonderedLearning(double learningRate, int batchSize)
+        protected float PonderedLearning(double learningRate, int batchSize)
         {
-            return learningRate / batchSize;
+            return (float)learningRate / batchSize;
         }
         public abstract Optimizer Clone(Network newNetwork);
     }

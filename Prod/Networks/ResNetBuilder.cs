@@ -37,7 +37,6 @@ namespace SharpNet.Networks
         {
             Config = new NetworkConfig
                 {
-                    UseDoublePrecision = false,
                     LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                     lambdaL2Regularization = 1e-4
                 }

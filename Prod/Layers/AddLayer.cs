@@ -35,7 +35,7 @@ namespace SharpNet.Layers
             Allocate_y_if_necessary();
             var x = PreviousResidualLayer.y;
             x.CopyTo(y);
-            y.Update_Adding_Alpha_X(1.0, PreviousIdentityLayer.y);
+            y.Update_Adding_Alpha_X(1, PreviousIdentityLayer.y);
         }
         public override void BackwardPropagation(Tensor dy, List<Tensor> allDx)
         {

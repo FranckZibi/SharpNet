@@ -1,12 +1,12 @@
 SharpNet is an Open-source Deep Learning library written in C# 7.0.
 
 It supports:
- - Residual Networks [v1](https://arxiv.org/pdf/1512.03385.pdf) and [v2](https://arxiv.org/pdf/1603.05027.pdf)
+ - Residual Networks [v1](https://arxiv.org/pdf/1512.03385.pdf), [v2](https://arxiv.org/pdf/1603.05027.pdf) and [WideResNet](https://arxiv.org/pdf/1605.07146.pdf)
  - [DenseNet](https://arxiv.org/pdf/1608.06993.pdf)
  - Dropout / BatchNorm / Conv / Pooling / Dense / Concatenate / Shortcut layers
  - Elu / Relu / Sigmoid / Softmax activations
  - SGD & Adam optimizers
- - Image Data Augmentation (with Cutout)
+ - Image Data Augmentation (with Cutout/CutMix/Mixup)
  - Ensemble Learning
  
 It can be run both on GPU (using NVIDIA cuDNN) and on the CPU (using MKL Blas).
@@ -24,8 +24,10 @@ Next Targets:
  - ~~Add ResNet v2 support~~ => DONE
  - ~~Add Dense Network support~~ => DONE
  - ~~Cutout~~ => DONE
+ - ~~Add CutMix~~ => DONE
+ - ~~Add Mixup~~ => DONE
  - Add multi GPU support
  - Add RNN / LSTM support
  - ~~Improve memory efficiency for gradients~~ => DONE
  - ~~Add Wide ResNet / Wide DenseNet support~~ => DONE
- - Improve Image Data Augmentation (with rotation)
+ - ~~Improve Image Data Augmentation (with rotation)~~ => DONE

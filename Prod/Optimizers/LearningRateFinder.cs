@@ -15,9 +15,9 @@ namespace SharpNet.Optimizers
         private readonly double _momentum;
         private readonly double _minLearningRate;
         /// <summary>
-        ///between each block, we'll multiply the learning rate by 'multiplicateCoeff'
+        ///between each block, we'll multiply the learning rate by 'multiplicativeCoeff'
         /// </summary>
-        private readonly double _multiplicateCoeff;
+        private readonly double _multiplicativeCoeff;
         private readonly List<double> _loss = new List<double>();
         private readonly List<double> _avgLosses = new List<double>();
         private readonly List<double> _smoothedLosses = new List<double>();
@@ -30,7 +30,7 @@ namespace SharpNet.Optimizers
             _momentum = momentum;
             _minLearningRate = minLearningRate;
             _nbBlocksPerEpoch = (entireBatchSize + miniBatchSize - 1) / miniBatchSize;
-            _multiplicateCoeff = Math.Pow(maxLearningRate / minLearningRate, (1.0 / (_nbBlocksPerEpoch - 1)));
+            _multiplicativeCoeff = Math.Pow(maxLearningRate / minLearningRate, (1.0 / (_nbBlocksPerEpoch - 1)));
         }
 
         public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch, double learningRateMultiplicativeFactorFromReduceLrOnPlateau)
@@ -38,7 +38,7 @@ namespace SharpNet.Optimizers
             Debug.Assert(epoch >= 1);
             Debug.Assert(blockIdInEpoch >= 0);
             Debug.Assert(nbBlocksInEpoch >= 1);
-            return _minLearningRate * Math.Pow(_multiplicateCoeff, blockIdInEpoch);
+            return _minLearningRate * Math.Pow(_multiplicativeCoeff, blockIdInEpoch);
         }
         /// <summary>
         /// at the end of each block id, this method is called with the loss computed in the last block
@@ -62,11 +62,11 @@ namespace SharpNet.Optimizers
         }
         public double BestLearningRate()
         {
-            if (_multiplicateCoeff <= 1.0)
+            if (_multiplicativeCoeff <= 1.0)
             {
                 return 0.0;
             }
-            var nbBlocksBetweenAFactor10InLearningRate = (int)Math.Ceiling(Math.Log(10) / Math.Log(_multiplicateCoeff));
+            var nbBlocksBetweenAFactor10InLearningRate = (int)Math.Ceiling(Math.Log(10) / Math.Log(_multiplicativeCoeff));
             double maxDecreaseInLoss = double.MinValue;
             double bestLearningRate = double.NaN;
             for (int blockId = 10 + nbBlocksBetweenAFactor10InLearningRate;blockId < _smoothedLosses.Count - 5;++blockId)

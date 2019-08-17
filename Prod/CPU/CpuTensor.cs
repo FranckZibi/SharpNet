@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
@@ -119,49 +118,11 @@ namespace SharpNet.CPU
             Debug.Assert(Dimension == 4);
             return this[Idx(n, c, h, w)];
         }
-        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        public float GetFloatValue(int n, int c, int h, int w)
-        {
-            Debug.Assert(Dimension == 4);
-            var idx = Idx(n, c, h, w);
-            if (UseSinglePrecision)
-            {
-                return (Content as float[])[idx];
-            }
-            else
-            {
-                return (float)(Content as double[])[idx];
-            }
-        }
-
         public void Set(int n, int c, T t)
         {
             Debug.Assert(Dimension == 2);
             this[Idx(n, c)] = t;
         }
-        public void SetFloatValue(int n, int c, float value)
-        {
-            Debug.Assert(Dimension == 2);
-            SetFloatValueAtIndex(value, Idx(n, c));
-        }
-        public void SetFloatValue(int n, int c, int h, int w, float value)
-        {
-            Debug.Assert(Dimension == 4);
-            SetFloatValueAtIndex(value, Idx(n, c, h, w));
-        }
-        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        private void SetFloatValueAtIndex(float value, int idx)
-        {
-            if (UseSinglePrecision)
-            {
-                (Content as float[])[idx] = value;
-            }
-            else
-            {
-                (Content as double[])[idx] = (float) value;
-            }
-        }
-
         public void Set(int n, int c, int h, T t)
         {
             Debug.Assert(Dimension == 3);
@@ -179,16 +140,6 @@ namespace SharpNet.CPU
             {
                 result[i] = func(this[i]);
             }
-        }
-        public CpuTensor<TY> Select<TY>(Func<T, TY> func) where TY : struct
-        {
-            var result = new CpuTensor<TY>(Shape, Description);
-            Debug.Assert(SameShape(result));
-            for (int i = 0; i < Count; ++i)
-            {
-                result[i] = func(Content[i]);
-            }
-            return result;
         }
 
         /// <summary>
@@ -226,43 +177,21 @@ namespace SharpNet.CPU
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
         {
             var W = this;
-            if (UseDoublePrecision)
+            var wContent = W.AsCpu<float>().Content;
+            var dWContent = dW.AsCpu<float>().Content;
+            var velocityContent = velocity.AsCpu<float>().Content;
+            var learningRateFloat = (float) learningRate;
+            var momentumFloat = (float)momentum;
+            for (int i = 0; i < W.Count; ++i)
             {
-                var wContent = W.AsCpu<double>().Content;
-                var dWContent = dW.AsCpu<double>().Content;
-                var velocityContent = velocity.AsCpu<double>().Content;
-                for (int i = 0; i < W.Count; ++i)
+                velocityContent[i] = (momentumFloat * velocityContent[i]) - (dWContent[i] * learningRateFloat);
+                if (usenesterov)
                 {
-                    velocityContent[i] = (momentum * velocityContent[i]) - (dWContent[i] * learningRate);
-                    if (usenesterov)
-                    {
-                        wContent[i] += momentum * velocityContent[i] - (dWContent[i] * learningRate);
-                    }
-                    else
-                    {
-                        wContent[i] += velocityContent[i];
-                    }
+                    wContent[i] += momentumFloat * velocityContent[i] - (dWContent[i] * learningRateFloat);
                 }
-            }
-            else
-            {
-                var wContent = W.AsCpu<float>().Content;
-                var dWContent = dW.AsCpu<float>().Content;
-                var velocityContent = velocity.AsCpu<float>().Content;
-                var learningRateFloat = (float) learningRate;
-                var momentumFloat = (float)momentum;
-                for (int i = 0; i < W.Count; ++i)
+                else
                 {
-                    velocityContent[i] = (momentumFloat * velocityContent[i]) - (dWContent[i] * learningRateFloat);
-                    if (usenesterov)
-                    {
-                        wContent[i] += momentumFloat * velocityContent[i] - (dWContent[i] * learningRateFloat);
-                    }
-                    else
-                    {
-                        wContent[i] += velocityContent[i];
-                    }
-
+                    wContent[i] += velocityContent[i];
                 }
             }
         }
@@ -279,76 +208,37 @@ namespace SharpNet.CPU
             var batchSize = x.Shape[0];
 
             int idx = 0;
-            if (UseDoublePrecision)
+            var xContent = x.AsFloatCpuContent;
+            var yContent = y.AsFloatCpuContent;
+            var bnScaleContent = bnScale.AsFloatCpuContent;
+            var bnBiasContent = bnBias.AsFloatCpuContent;
+            var resultSaveMeanContent = resultSaveMean.AsFloatCpuContent;
+            var resultSaveVarianceContent = resultSaveVariance.AsFloatCpuContent;
+            var resultRunningMeanContent = resultRunningMean.AsFloatCpuContent;
+            var resultRunningVarianceContent = resultRunningVariance.AsFloatCpuContent;
+            if (isTraining)
             {
-                var xContent = x.AsDoubleCpuContent;
-                var yContent = y.AsDoubleCpuContent;
-                var bnScaleContent = bnScale.AsDoubleCpuContent;
-                var bnBiasContent = bnBias.AsDoubleCpuContent;
-                var resultSaveMeanContent = resultSaveMean.AsDoubleCpuContent;
-                var resultSaveVarianceContent = resultSaveVariance.AsDoubleCpuContent;
-                var resultRunningMeanContent = resultRunningMean.AsDoubleCpuContent;
-                var resultRunningVarianceContent = resultRunningVariance.AsDoubleCpuContent;
-               
-                if (isTraining)
+                for (int j = 0; j < resultRunningVarianceContent.Length; ++j)
                 {
-                    for (int j = 0; j < resultRunningMeanContent.Length; ++j)
-                    {
-                        resultRunningMeanContent[j] = resultSaveMeanContent[j] * exponentialAverageFactor +resultRunningMeanContent[j] * (1 - exponentialAverageFactor);
-                        resultRunningVarianceContent[j] = resultSaveVarianceContent[j] * exponentialAverageFactor + resultRunningVarianceContent[j] * (1 - exponentialAverageFactor);
-                    }
-                }
-                for (int j = 0; j < resultSaveVarianceContent.Length; ++j)
-                {
-                    resultSaveVarianceContent[j] = (1.0 / Math.Sqrt(((meanDivider - 1) * resultSaveVarianceContent[j]) / meanDivider + epsilon));
-                }
-                for (int n = 0; n < batchSize; ++n)
-                {
-                    for (int j = 0; j < MultDim0; ++j)
-                    {
-                        int scaleIndex = is1C11Shape ? (j / MultDim1) : j;
-                        var xOriginal = xContent[idx];
-                        var xTarget = isTraining
-                            ? ((xOriginal - resultSaveMeanContent[scaleIndex]) * resultSaveVarianceContent[scaleIndex])
-                            : ((xOriginal - resultRunningMeanContent[scaleIndex]) / Math.Sqrt(resultRunningVarianceContent[scaleIndex] + epsilon));
-                        yContent[idx++] = bnScaleContent[scaleIndex] * xTarget + bnBiasContent[scaleIndex];
-                    }
+                    resultRunningMeanContent[j] = (float) (resultSaveMeanContent[j] * exponentialAverageFactor + resultRunningMeanContent[j] * (1 - exponentialAverageFactor));
+                    resultRunningVarianceContent[j] = (float)(resultSaveVarianceContent[j] * exponentialAverageFactor + resultRunningVarianceContent[j] * (1 - exponentialAverageFactor));
                 }
             }
-            else
+            for (int j = 0; j < resultSaveVarianceContent.Length; ++j)
             {
-                var xContent = x.AsFloatCpuContent;
-                var yContent = y.AsFloatCpuContent;
-                var bnScaleContent = bnScale.AsFloatCpuContent;
-                var bnBiasContent = bnBias.AsFloatCpuContent;
-                var resultSaveMeanContent = resultSaveMean.AsFloatCpuContent;
-                var resultSaveVarianceContent = resultSaveVariance.AsFloatCpuContent;
-                var resultRunningMeanContent = resultRunningMean.AsFloatCpuContent;
-                var resultRunningVarianceContent = resultRunningVariance.AsFloatCpuContent;
-                if (isTraining)
-                {
-                    for (int j = 0; j < resultRunningVarianceContent.Length; ++j)
-                    {
-                        resultRunningMeanContent[j] = (float) (resultSaveMeanContent[j] * exponentialAverageFactor + resultRunningMeanContent[j] * (1 - exponentialAverageFactor));
-                        resultRunningVarianceContent[j] = (float)(resultSaveVarianceContent[j] * exponentialAverageFactor + resultRunningVarianceContent[j] * (1 - exponentialAverageFactor));
-                    }
-                }
-                for (int j = 0; j < resultSaveVarianceContent.Length; ++j)
-                {
-                    resultSaveVarianceContent[j] = (float) (1.0 / Math.Sqrt(((meanDivider - 1) * resultSaveVarianceContent[j]) / meanDivider + epsilon));
-                }
+                resultSaveVarianceContent[j] = (float) (1.0 / Math.Sqrt(((meanDivider - 1) * resultSaveVarianceContent[j]) / meanDivider + epsilon));
+            }
 
-                for (int n = 0; n < batchSize; ++n)
+            for (int n = 0; n < batchSize; ++n)
+            {
+                for (int j = 0; j < MultDim0; ++j)
                 {
-                    for (int j = 0; j < MultDim0; ++j)
-                    {
-                        int scaleIndex = is1C11Shape ? (j / MultDim1) : j;
-                        var xOriginal = xContent[idx];
-                        var xTarget = isTraining
-                            ? ((xOriginal - resultSaveMeanContent[scaleIndex]) * resultSaveVarianceContent[scaleIndex])
-                            : (float)((xOriginal - resultRunningMeanContent[scaleIndex]) / Math.Sqrt(resultRunningVarianceContent[scaleIndex] + epsilon));
-                        yContent[idx++] = bnScaleContent[scaleIndex] * xTarget + bnBiasContent[scaleIndex];
-                    }
+                    int scaleIndex = is1C11Shape ? (j / MultDim1) : j;
+                    var xOriginal = xContent[idx];
+                    var xTarget = isTraining
+                        ? ((xOriginal - resultSaveMeanContent[scaleIndex]) * resultSaveVarianceContent[scaleIndex])
+                        : (float)((xOriginal - resultRunningMeanContent[scaleIndex]) / Math.Sqrt(resultRunningVarianceContent[scaleIndex] + epsilon));
+                    yContent[idx++] = bnScaleContent[scaleIndex] * xTarget + bnBiasContent[scaleIndex];
                 }
             }
         }
@@ -364,78 +254,38 @@ namespace SharpNet.CPU
             resultBnScaleDiff.ZeroMemory();
             dx?.ZeroMemory();
 
-            if (UseDoublePrecision)
+            //we compute resultBnBiasDiff
+            dy.AsCpu<float>().ComputeSumByColumn(resultBnBiasDiff);
+            //we compute resultBnScaleDiff
+            var xContent = x.AsFloatCpuContent;
+            var dyContent = dy.AsFloatCpuContent;
+            var dxContent = dx?.AsFloatCpuContent ?? new float[x.Count];
+            var resultBnBiasDiffContent = resultBnBiasDiff.AsFloatCpuContent;
+            var resultBnScaleDiffContent = resultBnScaleDiff.AsFloatCpuContent;
+            var bnScaleContent = bnScale.AsFloatCpuContent;
+            var resultSaveMeanContent = resultSaveMean.AsFloatCpuContent;
+            var resultSaveVarianceContent = resultSaveVariance.AsFloatCpuContent;
+            for (int j = 0; j < MultDim0; ++j)
             {
-                //we compute resultBnBiasDiff
-                dy.AsCpu<double>().ComputeSumByColumn(resultBnBiasDiff);
-                //we compute resultBnScaleDiff
-                var xContent = x.AsDoubleCpuContent;
-                var dyContent = dy.AsDoubleCpuContent;
-                var dxContent = dx?.AsDoubleCpuContent?? new double[x.Count];
-                var resultBnBiasDiffContent = resultBnBiasDiff.AsDoubleCpuContent;
-                var resultBnScaleDiffContent = resultBnScaleDiff.AsDoubleCpuContent;
-                var bnScaleContent = bnScale.AsDoubleCpuContent;
-                var resultSaveMeanContent = resultSaveMean.AsDoubleCpuContent;
-                var resultSaveVarianceContent = resultSaveVariance.AsDoubleCpuContent;
-                for (int j = 0; j < MultDim0; ++j)
+                int meanIndex = is1C11Shape ? (j / MultDim1) : j;
+                double result = 0.0;
+                for (int n = 0; n < batchSize; ++n)
                 {
-                    int meanIndex = is1C11Shape ? (j / MultDim1) : j;
-                    double result = 0.0;
-                    for (int n = 0; n < batchSize; ++n)
-                    {
 
-                        int idx = n * MultDim0 + j;
-                        result += dyContent[idx] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
-                    }
-                    resultBnScaleDiffContent[meanIndex] += result * resultSaveVarianceContent[meanIndex];
+                    int idx = n * MultDim0 + j;
+                    result += dyContent[idx] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
                 }
-                //we compute dx
-                for (int i = 0; i < batchSize; ++i)
-                {
-                    for (int j = 0; j < MultDim0; ++j)
-                    {
-                        int meanIndex = is1C11Shape ? (j / MultDim1) : j;
-                        int idx = i * MultDim0 + j;
-                        double result = meanDivider * dyContent[idx] - resultBnBiasDiffContent[meanIndex] - resultBnScaleDiffContent[meanIndex] * resultSaveVarianceContent[meanIndex] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
-                        dxContent[idx] += (bnScaleContent[meanIndex] * resultSaveVarianceContent[meanIndex] * result) / meanDivider;
-                    }
-                }
+                resultBnScaleDiffContent[meanIndex] += (float) (result * resultSaveVarianceContent[meanIndex]);
             }
-            else
+            //we compute dx
+            for (int i = 0; i < batchSize; ++i)
             {
-                //we compute resultBnBiasDiff
-                dy.AsCpu<float>().ComputeSumByColumn(resultBnBiasDiff);
-                //we compute resultBnScaleDiff
-                var xContent = x.AsFloatCpuContent;
-                var dyContent = dy.AsFloatCpuContent;
-                var dxContent = dx?.AsFloatCpuContent ?? new float[x.Count];
-                var resultBnBiasDiffContent = resultBnBiasDiff.AsFloatCpuContent;
-                var resultBnScaleDiffContent = resultBnScaleDiff.AsFloatCpuContent;
-                var bnScaleContent = bnScale.AsFloatCpuContent;
-                var resultSaveMeanContent = resultSaveMean.AsFloatCpuContent;
-                var resultSaveVarianceContent = resultSaveVariance.AsFloatCpuContent;
                 for (int j = 0; j < MultDim0; ++j)
                 {
                     int meanIndex = is1C11Shape ? (j / MultDim1) : j;
-                    double result = 0.0;
-                    for (int n = 0; n < batchSize; ++n)
-                    {
-
-                        int idx = n * MultDim0 + j;
-                        result += dyContent[idx] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
-                    }
-                    resultBnScaleDiffContent[meanIndex] += (float) (result * resultSaveVarianceContent[meanIndex]);
-                }
-                //we compute dx
-                for (int i = 0; i < batchSize; ++i)
-                {
-                    for (int j = 0; j < MultDim0; ++j)
-                    {
-                        int meanIndex = is1C11Shape ? (j / MultDim1) : j;
-                        int idx = i * MultDim0 + j;
-                        double result = meanDivider * dyContent[idx] - resultBnBiasDiffContent[meanIndex] - resultBnScaleDiffContent[meanIndex] * resultSaveVarianceContent[meanIndex] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
-                        dxContent[idx] += (float) ((bnScaleContent[meanIndex] * resultSaveVarianceContent[meanIndex] * result) / meanDivider);
-                    }
+                    int idx = i * MultDim0 + j;
+                    double result = meanDivider * dyContent[idx] - resultBnBiasDiffContent[meanIndex] - resultBnScaleDiffContent[meanIndex] * resultSaveVarianceContent[meanIndex] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
+                    dxContent[idx] += (float) ((bnScaleContent[meanIndex] * resultSaveVarianceContent[meanIndex] * result) / meanDivider);
                 }
             }
         }
@@ -449,29 +299,14 @@ namespace SharpNet.CPU
                 return;
             }
        
-            if (UseDoublePrecision)
-            {
-                Utils.Randomize(dropoutMaskBuffer.AsDoubleCpuContent, dropoutRandom, 0.0, 1.0);
-                y.AsCpu<double>().BuildEntirelyFromInput(x, dropoutMaskBuffer, (prevLayer, prob) => prob < dropProbability ? 0.0 : prevLayer / (1 - dropProbability));
-            }
-            else
-            {
-                var dropProbabilityFloat = (float)dropProbability;
-                Utils.Randomize(dropoutMaskBuffer.AsFloatCpuContent, dropoutRandom, 0.0, 1.0);
-                y.AsCpu<float>().BuildEntirelyFromInput(x, dropoutMaskBuffer, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
-            }
+            var dropProbabilityFloat = (float)dropProbability;
+            Utils.Randomize(dropoutMaskBuffer.AsFloatCpuContent, dropoutRandom, 0.0, 1.0);
+            y.AsCpu<float>().BuildEntirelyFromInput(x, dropoutMaskBuffer, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
         }
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask)
         {
-            if (UseDoublePrecision)
-            {
-                dx.AsCpu<double>().BuildEntirelyFromInput(dy, usedDropoutMask, (dOutput, prob) => prob < dropProbability ? 0.0 : dOutput / (1 - dropProbability));
-            }
-            else
-            {
-                var _dropProbabilityFloat = (float)dropProbability;
-                dx.AsCpu<float>().BuildEntirelyFromInput(dy, usedDropoutMask, (dOutput, prob) => prob < _dropProbabilityFloat ? 0.0f : dOutput / (1 - _dropProbabilityFloat));
-            }
+            var _dropProbabilityFloat = (float)dropProbability;
+            dx.AsCpu<float>().BuildEntirelyFromInput(dy, usedDropoutMask, (dOutput, prob) => prob < _dropProbabilityFloat ? 0f : dOutput / (1 - _dropProbabilityFloat));
         }
         //this = dy
         public override void ConvolutionBackwardBias(Tensor convolutionBackwardBias)
@@ -491,23 +326,11 @@ namespace SharpNet.CPU
                 {
                     int startIndex = n * dy.MultDim0 + filterId * dy.MultDim1;
                     var endIndex = startIndex + dy.MultDim1;
-                    if (UseDoublePrecision)
+                    var convolutionBackwardBiasContent = convolutionBackwardBias.AsFloatCpuContent;
+                    var dyContent = dy.AsFloatCpuContent;
+                    for (int i = startIndex; i < endIndex; ++i)
                     {
-                        var convolutionBackwardBiasContent = convolutionBackwardBias.AsDoubleCpuContent;
-                        var dyContent = dy.AsDoubleCpuContent;
-                        for (int i = startIndex; i < endIndex; ++i)
-                        {
-                            convolutionBackwardBiasContent[filterId] += dyContent[i];
-                        }
-                    }
-                    else
-                    {
-                        var convolutionBackwardBiasContent = convolutionBackwardBias.AsFloatCpuContent;
-                        var dyContent = dy.AsFloatCpuContent;
-                        for (int i = startIndex; i < endIndex; ++i)
-                        {
-                            convolutionBackwardBiasContent[filterId] += dyContent[i];
-                        }
+                        convolutionBackwardBiasContent[filterId] += dyContent[i];
                     }
                 }
             }
@@ -547,7 +370,7 @@ namespace SharpNet.CPU
                     ReluGradient(dy, x, dx);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
-                    EluGradient(y, dy, x, dx, 1.0);
+                    EluGradient(y, dy, x, dx, 1f);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID:
                     SigmoidGradient(y, dy, dx);
@@ -560,23 +383,16 @@ namespace SharpNet.CPU
             }
         }
         // compute:  this += alpha * x
-        public override void Update_Adding_Alpha_X(double alpha, Tensor x)
+        public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
             var y = this;
             Debug.Assert(AreCompatible(new List<Tensor> {y, x}));
             Debug.Assert(x.Count == y.Count);
-            if (UseDoublePrecision)
-            {
-                MKL_BLAS.cblas_daxpy(x.Count, alpha, x.AsDoubleCpuContent, 1, y.AsDoubleCpuContent, 1);
-            }
-            else
-            {
-                MKL_BLAS.cblas_saxpy(x.Count, (float) alpha, x.AsFloatCpuContent, 1, y.AsFloatCpuContent, 1);
-            }
+            MKL_BLAS.cblas_saxpy(x.Count, alpha, x.AsFloatCpuContent, 1, y.AsFloatCpuContent, 1);
         }
 
         // compute: this = alpha * x + beta * this
-        public override void AddTensor(double alpha, Tensor x, double beta)
+        public override void AddTensor(float alpha, Tensor x, float beta)
         {
             // this = beta * this
             Update_Multiplying_By_Alpha(beta);
@@ -619,11 +435,9 @@ namespace SharpNet.CPU
             }
             System.Threading.Tasks.Parallel.For(0, Shape[0], SplitSingleRow);
         }
-        public static CpuTensor<T> CreateOneHotTensor(Func<int,int> elementIdToCategoryId, int elementCount, int categoriesCount)
+        public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryId, int elementCount, int categoriesCount)
         {
-            var Y = new CpuTensor<T>(new[] { elementCount, categoriesCount }, "YOneHot");
-            var contentDouble = Y.Content as double[];
-            var contentFloat = Y.Content as float[];
+            var Y = new CpuTensor<float>(new[] { elementCount, categoriesCount }, "YOneHot");
             for (int elementId = 0; elementId < elementCount; ++elementId)
             {
                 var category = elementIdToCategoryId(elementId);
@@ -631,31 +445,16 @@ namespace SharpNet.CPU
                 {
                     continue;
                 }
-                if (contentDouble != null)
-                {
-                    contentDouble[elementId * categoriesCount + category] = 1.0;
-                }
-                else
-                {
-                    // ReSharper disable once PossibleNullReferenceException
-                    contentFloat[elementId * categoriesCount + category] = 1.0f;
-                }
+                Y.Content[elementId * categoriesCount + category] = 1f;
             }
             return Y;
         }
 
 
         // compute:     this = alpha * this
-        public override void Update_Multiplying_By_Alpha(double alpha)
+        public override void Update_Multiplying_By_Alpha(float alpha)
         {
-            if (UseDoublePrecision)
-            {
-                MKL_BLAS.cblas_dscal(Count, alpha, AsDoubleCpuContent, 1);
-            }
-            else
-            {
-                MKL_BLAS.cblas_sscal(Count, (float)alpha, AsFloatCpuContent, 1);
-            }
+            MKL_BLAS.cblas_sscal(Count, alpha, AsFloatCpuContent, 1);
         }
         #region pooling layers
         public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
@@ -703,34 +502,17 @@ namespace SharpNet.CPU
                     {
                         //we want to compute the point in y[n, channelId, row_output, col_output]
                         //it is computed by applying an avg filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
-                        if (UseDoublePrecision)
+                        float outputPointSum = 0f;
+                        int count = 0;
+                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
                         {
-                            double outputPointSum = 0.0;
-                            int count = 0;
-                            for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
+                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
                             {
-                                for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
-                                {
-                                    outputPointSum += x.AsDoubleCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling);
-                                    ++count;
-                                }
+                                outputPointSum += x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling);
+                                ++count;
                             }
-                            y.AsDoubleCpu.Set(elementIndex, c, rowAfterPooling, colAfterPooling, outputPointSum / count);
                         }
-                        else
-                        {
-                            float outputPointSum = 0.0f;
-                            int count = 0;
-                            for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
-                            {
-                                for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
-                                {
-                                    outputPointSum += x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling);
-                                    ++count;
-                                }
-                            }
-                            y.AsFloatCpu.Set(elementIndex, c, rowAfterPooling, colAfterPooling, outputPointSum / count);
-                        }
+                        y.AsFloatCpu.Set(elementIndex, c, rowAfterPooling, colAfterPooling, outputPointSum / count);
                         col_filter_start += poolingStride;
                     }
                     row_filter_start += poolingStride;
@@ -753,30 +535,15 @@ namespace SharpNet.CPU
                     {
                         //we want to compute the point in y[n, channelId, row_output, col_output]
                         //it is computed by applying a max filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
-                        if (UseDoublePrecision)
+                        float outputPointResult = float.MinValue;
+                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
                         {
-                            double outputPointResult = double.MinValue;
-                            for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
+                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
                             {
-                                for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
-                                {
-                                    outputPointResult = Math.Max(outputPointResult, x.AsDoubleCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling));
-                                }
+                                outputPointResult = Math.Max(outputPointResult, x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling));
                             }
-                            y.AsDoubleCpu.Set(elementIndex, c, rowAfterPooling, colAfterPooling, outputPointResult);
                         }
-                        else
-                        {
-                            float outputPointResult = float.MinValue;
-                            for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
-                            {
-                                for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
-                                {
-                                    outputPointResult = Math.Max(outputPointResult, x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling));
-                                }
-                            }
-                            y.AsFloatCpu.Set(elementIndex, c, rowAfterPooling, colAfterPooling, outputPointResult);
-                        }
+                        y.AsFloatCpu.Set(elementIndex, c, rowAfterPooling, colAfterPooling, outputPointResult);
                         col_filter_start += poolingStride;
                     }
                     row_filter_start += poolingStride;
@@ -828,16 +595,8 @@ namespace SharpNet.CPU
                         {
                             for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
                             {
-                                if (UseDoublePrecision)
-                                {
-                                    var pointGradient = dy.AsDoubleCpu.Get(elementIndex, c, rowAfterPooling, colAfterPooling);
-                                    dx.AsDoubleCpu.Set(elementIndex, c, rowBeforePooling, colBeforePooling, doubleMultiplier * pointGradient);
-                                }
-                                else
-                                {
-                                    var pointGradient = dy.AsFloatCpu.Get(elementIndex, c, rowAfterPooling, colAfterPooling);
-                                    dx.AsFloatCpu.Set(elementIndex, c, rowBeforePooling, colBeforePooling, floatMultiplier * pointGradient);
-                                }
+                                var pointGradient = dy.AsFloatCpu.Get(elementIndex, c, rowAfterPooling, colAfterPooling);
+                                dx.AsFloatCpu.Set(elementIndex, c, rowBeforePooling, colBeforePooling, floatMultiplier * pointGradient);
                             }
                         }
                         col_filter_start += poolingStride;
@@ -869,9 +628,7 @@ namespace SharpNet.CPU
                         {
                             for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
                             {
-                                var currentPointValue = UseDoublePrecision
-                                    ? x.AsDoubleCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling)
-                                    : x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling);
+                                var currentPointValue = x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling);
                                 if (currentPointValue > outputPointResult)
                                 {
                                     outputPointResult = currentPointValue;
@@ -880,16 +637,8 @@ namespace SharpNet.CPU
                                 }
                             }
                         }
-                        if (UseDoublePrecision)
-                        {
-                            var pointGradient = dy.AsDoubleCpu.Get(elementIndex, c, rowAfterPooling, colAfterPooling);
-                            dx.AsDoubleCpu.Set(elementIndex, c, maxRowBeforePooling, maxColBeforePooling, pointGradient);
-                        }
-                        else
-                        {
-                            var pointGradient = dy.AsFloatCpu.Get(elementIndex, c, rowAfterPooling, colAfterPooling);
-                            dx.AsFloatCpu.Set(elementIndex, c, maxRowBeforePooling, maxColBeforePooling, pointGradient);
-                        }
+                        var pointGradient = dy.AsFloatCpu.Get(elementIndex, c, rowAfterPooling, colAfterPooling);
+                        dx.AsFloatCpu.Set(elementIndex, c, maxRowBeforePooling, maxColBeforePooling, pointGradient);
                         col_filter_start += poolingStride;
                     }
                     row_filter_start += poolingStride;
@@ -904,32 +653,16 @@ namespace SharpNet.CPU
             Debug.Assert(y.Dimension >= 2);
             Debug.Assert(y.MultDim0 == Count);
             var batchSize = y.Shape[0];
-            if (UseDoublePrecision)
+
+            var singleRowMatrixContent = bias.AsFloatCpuContent;
+            var yContent = y.AsFloatCpuContent;
+            for (int colIndex = 0; colIndex < Count; ++colIndex)
             {
-                var singleRowMatrixContent = bias.AsDoubleCpuContent;
-                var yContent = y.AsDoubleCpuContent;
-                for (int colIndex = 0; colIndex < Count; ++colIndex)
+                var valueToAddToColumn = singleRowMatrixContent[colIndex];
+                for (int n = 0; n < batchSize; ++n)
                 {
-                    var valueToAddToColumn = singleRowMatrixContent[colIndex];
-                    for (int n = 0; n < batchSize; ++n)
-                    {
-                        var idx = y.Idx(n, colIndex);
-                        yContent[idx] += valueToAddToColumn;
-                    }
-                }
-            }
-            else
-            {
-                var singleRowMatrixContent = bias.AsFloatCpuContent;
-                var yContent = y.AsFloatCpuContent;
-                for (int colIndex = 0; colIndex < Count; ++colIndex)
-                {
-                    var valueToAddToColumn = singleRowMatrixContent[colIndex];
-                    for (int n = 0; n < batchSize; ++n)
-                    {
-                        var idx = y.Idx(n, colIndex);
-                        yContent[idx] += valueToAddToColumn;
-                    }
+                    var idx = y.Idx(n, colIndex);
+                    yContent[idx] += valueToAddToColumn;
                 }
             }
         }
@@ -948,24 +681,11 @@ namespace SharpNet.CPU
                 int startIndex = n * y.MultDim0;
                 for (int filterId = 0; filterId < y.Shape[1]; ++filterId, startIndex += y.MultDim1)
                 {
-
-                    if (UseDoublePrecision)
+                    var yContent = y.AsFloatCpuContent;
+                    var toAdd = convolutionBias.AsFloatCpuContent[filterId];
+                    for (int i = startIndex; i < (startIndex + y.MultDim1); ++i)
                     {
-                        var yContent = y.AsDoubleCpuContent;
-                        var toAdd = convolutionBias.AsDoubleCpuContent[filterId];
-                        for (int i = startIndex; i < (startIndex + y.MultDim1); ++i)
-                        {
-                            yContent[i] += toAdd;
-                        }
-                    }
-                    else
-                    {
-                        var yContent = y.AsFloatCpuContent;
-                        var toAdd = convolutionBias.AsFloatCpuContent[filterId];
-                        for (int i = startIndex; i < (startIndex + y.MultDim1); ++i)
-                        {
-                            yContent[i] += toAdd;
-                        }
+                        yContent[i] += toAdd;
                     }
                 }
             }
@@ -993,10 +713,8 @@ namespace SharpNet.CPU
             //the first (top left) point in 'y' is computed from a filter starting at (-padding,-padding)
             void ComputeForBatch(int m)
             {
-                var convolutionContentAsDouble = UseDoublePrecision ? convolution.AsDoubleCpuContent : null;
-                var convolutionContentAsFloat = UseSinglePrecision ? convolution.AsFloatCpuContent : null;
-                var xContentAsDouble = UseDoublePrecision ? x.AsDoubleCpuContent : null;
-                var xContentAsFloat = UseSinglePrecision ? x.AsFloatCpuContent : null;
+                var convolutionContentAsFloat = convolution.AsFloatCpuContent;
+                var xContentAsFloat = x.AsFloatCpuContent;
 
                 for (int filterId = 0; filterId < fitlerCount; ++filterId)
                 {
@@ -1024,18 +742,9 @@ namespace SharpNet.CPU
                                     var xIdx = xIdxForStartRow;
                                     for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
                                     {
-                                        if (convolutionContentAsDouble != null)
-                                        {
-                                            outputPointResult +=
-                                                convolutionContentAsDouble[convolutionIdx] *
-                                                xContentAsDouble[xIdx];
-                                        }
-                                        else
-                                        {
-                                            outputPointResult +=
-                                                convolutionContentAsFloat[convolutionIdx] *
-                                                xContentAsFloat[xIdx];
-                                        }
+                                        outputPointResult +=
+                                            convolutionContentAsFloat[convolutionIdx] *
+                                            xContentAsFloat[xIdx];
                                         ++convolutionIdx;
                                         ++xIdx;
                                     }
@@ -1043,14 +752,7 @@ namespace SharpNet.CPU
                                     xIdxForStartRow += x.Shape[3];
                                 }
                             }
-                            if (UseDoublePrecision)
-                            {
-                                y.AsDoubleCpu.Set(m, filterId, rowOutput, colOutput, outputPointResult);
-                            }
-                            else
-                            {
-                                y.AsFloatCpu.Set(m, filterId, rowOutput, colOutput, (float) outputPointResult);
-                            }
+                            y.AsFloatCpu.Set(m, filterId, rowOutput, colOutput, (float) outputPointResult);
                             colFilterStart += stride;
                         }
                         rowFilterStart += stride;
@@ -1088,10 +790,7 @@ namespace SharpNet.CPU
                 //every thread needs to update 'convolutionGradient'
                 //to be thread safe, each thread will update a local object 'convolutionGradientContent' and at the end
                 //will update the object 'convolutionGradient' with a local
-                double[] convolutionGradientForLocalThreadDouble =
-                    UseDoublePrecision ? new double[convGradient.Count] : null;
-                float[] convolutionGradientForLocalThreadFloat =
-                    UseSinglePrecision ? new float[convGradient.Count] : null;
+                float[] convolutionGradientForLocalThreadFloat = new float[convGradient.Count];
                 for (int filterId = 0; filterId < fitlerCount; ++filterId)
                 {
                     int rowFilterStart = -padding;
@@ -1105,12 +804,7 @@ namespace SharpNet.CPU
                             //we want to compute the point in y[m, filterId, rowOutput, colOutput]
                             //it is computed by applying a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                             // and centered at this particular location
-                            var chainGradientDouble = UseDoublePrecision
-                                ? dy.AsDoubleCpu.Get(m, filterId, rowOutput, colOutput)
-                                : 0.0;
-                            var chainGradientFloat = UseSinglePrecision
-                                ? dy.AsFloatCpu.Get(m, filterId, rowOutput, colOutput)
-                                : 0.0f;
+                            var chainGradientFloat = dy.AsFloatCpu.Get(m, filterId, rowOutput, colOutput);
                             var colInputStart = Math.Max(0, colFilterStart);
                             var colInputEndExcluded = Math.Min(wInput, colFilterStart + F);
                             for (int channelId = 0; channelId < channelCount; ++channelId)
@@ -1122,35 +816,17 @@ namespace SharpNet.CPU
                                 {
                                     var convIdx = convIdxStartRow;
                                     var APrevLayerIdx = APrevLayerIdxStartRow;
-                                    if (UseDoublePrecision)
+                                    for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
                                     {
-                                        for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
+                                        convolutionGradientForLocalThreadFloat[convIdx] +=
+                                            x.AsFloatCpuContent[APrevLayerIdx] * chainGradientFloat;
+                                        if (dx != null)
                                         {
-                                            convolutionGradientForLocalThreadDouble[convIdx] +=
-                                                x.AsDoubleCpuContent[APrevLayerIdx] * chainGradientDouble;
-                                            if (dx != null)
-                                            {
-                                                dx.AsDoubleCpuContent[APrevLayerIdx] +=
-                                                    conv.AsDoubleCpuContent[convIdx] * chainGradientDouble;
-                                            }
-                                            ++convIdx;
-                                            ++APrevLayerIdx;
+                                            dx.AsFloatCpuContent[APrevLayerIdx] +=
+                                                conv.AsFloatCpuContent[convIdx] * chainGradientFloat;
                                         }
-                                    }
-                                    else
-                                    {
-                                        for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
-                                        {
-                                            convolutionGradientForLocalThreadFloat[convIdx] +=
-                                                x.AsFloatCpuContent[APrevLayerIdx] * chainGradientFloat;
-                                            if (dx != null)
-                                            {
-                                                dx.AsFloatCpuContent[APrevLayerIdx] +=
-                                                    conv.AsFloatCpuContent[convIdx] * chainGradientFloat;
-                                            }
-                                            ++convIdx;
-                                            ++APrevLayerIdx;
-                                        }
+                                        ++convIdx;
+                                        ++APrevLayerIdx;
                                     }
                                     convIdxStartRow += convGradient.Shape[3];
                                     APrevLayerIdxStartRow += wInput;
@@ -1163,19 +839,9 @@ namespace SharpNet.CPU
                 }
                 lock (convGradient)
                 {
-                    if (UseDoublePrecision)
+                    for (int i = 0; i < convGradient.Count; ++i)
                     {
-                        for (int i = 0; i < convGradient.Count; ++i)
-                        {
-                            convGradient.AsDoubleCpuContent[i] += convolutionGradientForLocalThreadDouble[i];
-                        }
-                    }
-                    else
-                    {
-                        for (int i = 0; i < convGradient.Count; ++i)
-                        {
-                            convGradient.AsFloatCpuContent[i] += convolutionGradientForLocalThreadFloat[i];
-                        }
+                        convGradient.AsFloatCpuContent[i] += convolutionGradientForLocalThreadFloat[i];
                     }
                 }
             }
@@ -1194,18 +860,9 @@ namespace SharpNet.CPU
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
 
             var W = this;
-            if (UseDoublePrecision)
-            {
-                adam_vW.AsCpu<double>().Update(dW, (adam_vw, dw) => beta1 * adam_vw + (1 - beta1) * dw);
-                adam_sW.AsCpu<double>().Update(dW, (adam_sw, dw) => beta2 * adam_sw + (1 - beta2) * dw * dw);
-                W.AsCpu<double>().Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)));
-            }
-            else
-            {
-                adam_vW.AsCpu<float>().Update(dW, (adam_vw, dw) => (float) (beta1 * adam_vw + (1 - beta1) * dw));
-                adam_sW.AsCpu<float>().Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
-                W.AsCpu<float>().Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
-            }
+            adam_vW.AsCpu<float>().Update(dW, (adam_vw, dw) => (float) (beta1 * adam_vw + (1 - beta1) * dw));
+            adam_sW.AsCpu<float>().Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
+            W.AsCpu<float>().Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
         }
         //this = yExpected
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
@@ -1220,24 +877,10 @@ namespace SharpNet.CPU
             switch (lossFunction)
             {
                 case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
-                    if (yExpected.UseDoublePrecision)
-                    {
-                        cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsCpu<double>().Merge(yExpected.AsCpu<double>(), (prediction, expected) => expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction), "BinaryCrossentropy").NaNSum();
-                    }
-                    else
-                    {
-                        cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsCpu<float>().Merge(yExpected.AsCpu<float>(), (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction)), "BinaryCrossentropy").NaNSum();
-                    }
+                    cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsCpu<float>().Merge(yExpected.AsCpu<float>(), (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction)), "BinaryCrossentropy").NaNSum();
                     break;
                 case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
-                    if (yExpected.UseDoublePrecision)
-                    {
-                        cost = (-1.0 / (batchSize)) * yPredicted.AsCpu<double>().Merge(yExpected.AsCpu<double>(), (prediction, expected) => expected * Math.Log(prediction), "CategoricalCrossentropy").NaNSum();
-                    }
-                    else
-                    {
-                        cost = (-1.0 / (batchSize)) * yPredicted.AsCpu<float>().Merge(yExpected.AsCpu<float>(), (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
-                    }
+                    cost = (-1.0 / (batchSize)) * yPredicted.AsCpu<float>().Merge(yExpected.AsCpu<float>(), (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
                     break;
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
@@ -1266,42 +909,20 @@ namespace SharpNet.CPU
 
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
-            if (UseDoublePrecision)
-            {
-                Utils.RandomizeNormalDistribution(AsDoubleCpuContent, rand, mean, stdDev);
-            }
-            else
-            {
-                Utils.RandomizeNormalDistribution(AsFloatCpuContent, rand, mean, stdDev);
-            }
+            Utils.RandomizeNormalDistribution(AsFloatCpuContent, rand, mean, stdDev);
         }
         public override void NewSameValueTensor(double sameValue)
         {
-            if (UseDoublePrecision)
+            var array = AsFloatCpuContent;
+            var sameValueAsFloat = (float)sameValue;
+            for (int i = 0; i < array.Length; ++i)
             {
-                var array = AsDoubleCpuContent;
-                for (int i = 0; i < array.Length; ++i)
-                {
-                    array[i] = sameValue;
-                }
+                array[i] = sameValueAsFloat;
             }
-            else
-            {
-                var array = AsFloatCpuContent;
-                var sameValueAsFloat = (float)sameValue;
-                for (int i = 0; i < array.Length; ++i)
-                {
-                    array[i] = sameValueAsFloat;
-                }
-            }
-        }
-        public override double[] ContentAsDoubleArray()
-        {
-            return UseDoublePrecision ? AsDoubleCpuContent : ToDoubleArray(AsFloatCpuContent);
         }
         public override float[] ContentAsFloatArray()
         {
-            return UseDoublePrecision ? ToFloatArray(AsDoubleCpuContent) : AsFloatCpuContent;
+            return AsFloatCpuContent;
         }
         //this method is only called for display / logging testing
         //this = yExpectedOneHot
@@ -1314,23 +935,11 @@ namespace SharpNet.CPU
             int batchSize = yExpectedOneHot.Shape[0];
             int result = 0;
 
-            if (yExpectedOneHot.UseDoublePrecision)
+            var yExpectedOneHotCpu = yExpectedOneHot.AsCpu<float>();
+            var yPredictedCpu = yPredicted.AsCpu<float>();
+            for (int m = 0; m < batchSize; ++m)
             {
-                var yExpectedOneHotCpu = yExpectedOneHot.AsCpu<double>();
-                var yPredictedCpu = yPredicted.AsCpu<double>();
-                for (int m = 0; m < batchSize; ++m)
-                {
-                    result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m);
-                }
-            }
-            else
-            {
-                var yExpectedOneHotCpu = yExpectedOneHot.AsCpu<float>();
-                var yPredictedCpu = yPredicted.AsCpu<float>();
-                for (int m = 0; m < batchSize; ++m)
-                {
-                    result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m);
-                }
+                result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m);
             }
             return ((double)result)/Shape[0];
         }
@@ -1338,25 +947,11 @@ namespace SharpNet.CPU
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, b }));
             Debug.Assert(Count == b.Count);
-            if (UseDoublePrecision)
-            {
-                MKL_BLAS.cblas_dcopy(AsDoubleCpuContent.Length, AsDoubleCpuContent, 1, b.AsDoubleCpuContent, 1);
-            }
-            else
-            {
-                MKL_BLAS.cblas_scopy(AsFloatCpuContent.Length, AsFloatCpuContent, 1, b.AsFloatCpuContent, 1);
-            }
+            MKL_BLAS.cblas_scopy(AsFloatCpuContent.Length, AsFloatCpuContent, 1, b.AsFloatCpuContent, 1);
         }
         public override void CopyTo(int startElement, Tensor other, int bStartElement, int elementCount)
         {
-            if (UseDoublePrecision)
-            {
-                Array.Copy(AsDoubleCpuContent, startElement, other.AsDoubleCpuContent, bStartElement, elementCount);
-            }
-            else
-            {
-                Array.Copy(AsFloatCpuContent, startElement, other.AsFloatCpuContent, bStartElement, elementCount);
-            }
+            Array.Copy(AsFloatCpuContent, startElement, other.AsFloatCpuContent, bStartElement, elementCount);
         }
         public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
         {
@@ -1376,22 +971,14 @@ namespace SharpNet.CPU
         {
             Array.Clear(Content, 0, Content.Length);
         }
-        public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, double alpha, double beta)
+        public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, a, b }));
             Debug.Assert(a.Dimension >= 2);
             Debug.Assert(b.Dimension >= 2);
             Debug.Assert(Dimension >= 2);
-            if (a.UseDoublePrecision)
-            {
-                BlasServices.DotMkl(a.AsDoubleCpuContent, a.Shape[0], a.MultDim0, transposeA, b.AsDoubleCpuContent,
-                    b.Shape[0], b.MultDim0, transposeB, AsDoubleCpuContent, alpha, beta);
-            }
-            else
-            {
-                BlasServices.DotMkl(a.AsFloatCpuContent, a.Shape[0], a.MultDim0, transposeA, b.AsFloatCpuContent,
-                    b.Shape[0], b.MultDim0, transposeB, AsFloatCpuContent, (float)alpha, (float)beta);
-            }
+            BlasServices.DotMkl(a.AsFloatCpuContent, a.Shape[0], a.MultDim0, transposeA, b.AsFloatCpuContent,
+                b.Shape[0], b.MultDim0, transposeB, AsFloatCpuContent, alpha, beta);
             //MathServices.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
             //var tmpTranspose = new double[b.Count];
             //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
@@ -1465,10 +1052,6 @@ namespace SharpNet.CPU
         }
         private double NaNSum()
         {
-            if (UseDoublePrecision)
-            {
-                return AsDoubleCpuContent.Select(x => double.IsNaN(x) ? 0 : x).Sum();
-            }
             return AsFloatCpuContent.Select(x => float.IsNaN(x) ? 0 : x).Sum();
         }
         private void Update(Tensor a, Tensor b, Func<T, T, T, T> funcInput)
@@ -1523,32 +1106,15 @@ namespace SharpNet.CPU
             bool is1C11Shape = sumByColumn.Count == sumByColumn.Shape[1];
 
             sumByColumn.ZeroMemory();
-            if (UseDoublePrecision)
+            var content = AsFloatCpuContent;
+            var columnSumContent = sumByColumn.AsFloatCpuContent;
+            for (int n = 0; n < batchSize; ++n)
             {
-                var content = AsDoubleCpuContent;
-                var columnSumContent = sumByColumn.AsDoubleCpuContent;
-                for (int n = 0; n < batchSize; ++n)
+                int start = MultDim0 * n;
+                for (int i = 0; i < MultDim0; ++i)
                 {
-                    int start = MultDim0 * n;
-                    for (int i = 0; i < MultDim0; ++i)
-                    {
-                        int sumByColumnIndex = is1C11Shape ? (i / MultDim1) : i;
-                        columnSumContent[sumByColumnIndex] += content[start + i];
-                    }
-                }
-            }
-            else
-            {
-                var content = AsFloatCpuContent;
-                var columnSumContent = sumByColumn.AsFloatCpuContent;
-                for (int n = 0; n < batchSize; ++n)
-                {
-                    int start = MultDim0 * n;
-                    for (int i = 0; i < MultDim0; ++i)
-                    {
-                        int sumByColumnIndex = is1C11Shape ? (i / MultDim1) : i;
-                        columnSumContent[sumByColumnIndex] += content[start + i];
-                    }
+                    int sumByColumnIndex = is1C11Shape ? (i / MultDim1) : i;
+                    columnSumContent[sumByColumnIndex] += content[start + i];
                 }
             }
         }
@@ -1563,149 +1129,57 @@ namespace SharpNet.CPU
 
             mean.ZeroMemory();
             variance.ZeroMemory();
-            if (UseDoublePrecision)
+            var content = AsFloatCpuContent;
+            //we'll store in meanContent Sum(X) and in varianceContent Sum(X^2)
+            var meanContent = mean.AsFloatCpuContent;
+            var varianceContent = variance.AsFloatCpuContent;
+            for (int n = 0; n < batchSize; ++n)
             {
-                var content = AsDoubleCpuContent;
-                //we'll store in meanContent Sum(X) and in varianceContent Sum(X^2)
-                var meanContent = mean.AsDoubleCpuContent;
-                var varianceContent = variance.AsDoubleCpuContent;
-                for (int n = 0; n < batchSize; ++n)
+                int start = MultDim0 * n;
+                for (int i = 0; i < MultDim0; ++i)
                 {
-                    int start = MultDim0 * n;
-                    for (int i = 0; i < MultDim0; ++i)
-                    {
-                        var d = content[start + i];
-                        int scaleIndex = is1C11Shape ? (i / MultDim1) : i;
-                        meanContent[scaleIndex] += d;
-                        varianceContent[scaleIndex] += d * d;
-                    }
+                    var d = content[start + i];
+                    int scaleIndex = is1C11Shape ? (i / MultDim1) : i;
+                    meanContent[scaleIndex] += d;
+                    varianceContent[scaleIndex] += d * d;
                 }
-                var meanDivider = Count / mean.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
-                for (int i = 0; i < varianceContent.Length; ++i)
-                {
-                    meanContent[i] /= meanDivider; // E(X) = Sum(X)/batchSize
-                    //Variance(X) = E(X^2) - E(X) ^2
-                    //varianceContent[i] = varianceContent[i]/meanDivider - meanContent[i] * meanContent[i];
-                    varianceContent[i] = (meanDivider <= 1) ? 1.0 : (varianceContent[i] - meanDivider * meanContent[i] * meanContent[i]) / (meanDivider - 1);
-                }
-
             }
-            else
+            var meanDivider = Count / mean.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
+            for (int i = 0; i < varianceContent.Length; ++i)
             {
-                var content = AsFloatCpuContent;
-                var meanContent = mean.AsFloatCpuContent;
-                var varianceContent = variance.AsFloatCpuContent;
-                for (int n = 0; n < batchSize; ++n)
-                {
-                    int start = MultDim0 * n;
-                    for (int i = 0; i < MultDim0; ++i)
-                    {
-                        var d = content[start + i];
-                        int scaleIndex = is1C11Shape ? (i / MultDim1) : i;
-                        meanContent[scaleIndex] += d;
-                        varianceContent[scaleIndex] += d * d;
-                    }
-                }
-                var meanDivider = Count / mean.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
-                for (int i = 0; i < varianceContent.Length; ++i)
-                {
-                    meanContent[i] /= meanDivider;
-                    varianceContent[i] = (meanDivider <= 1) ? 1.0f : (varianceContent[i] - meanDivider * meanContent[i] * meanContent[i]) / (meanDivider - 1);
-                }
+                meanContent[i] /= meanDivider;
+                //Variance(X) = E(X^2) - E(X) ^2
+                //varianceContent[i] = varianceContent[i]/meanDivider - meanContent[i] * meanContent[i];
+                varianceContent[i] = (meanDivider <= 1) ? 1f : (varianceContent[i] - meanDivider * meanContent[i] * meanContent[i]) / (meanDivider - 1);
             }
         }
         private static void ReluGradient(Tensor dy, Tensor x, Tensor dx)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { dy, x, dx }));
-            if (dy.UseDoublePrecision)
-            {
-                dx.AsDoubleCpu.BuildEntirelyFromInput(dy, x, (da, z) => (z >= 0.0 ? da : 0.0));
-            }
-            else
-            {
-                dx.AsFloatCpu.BuildEntirelyFromInput(dy, x, (da, z) => (z >= 0.0f ? da : 0.0f));
-            }
+            dx.AsFloatCpu.BuildEntirelyFromInput(dy, x, (da, z) => (z >= 0f ? da : 0f));
         }
-        private static void EluGradient(Tensor y, Tensor dy, Tensor x, Tensor dx, double alpha)
+        private static void EluGradient(Tensor y, Tensor dy, Tensor x, Tensor dx, float alpha)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { dy, x, dx }));
-            if (dy.UseDoublePrecision)
-            {
-                dx.AsDoubleCpu.BuildEntirelyFromInput(y, dy, x, (a, da, z) => (z >= 0.0 ? da : da * (a + alpha)));
-            }
-            else
-            {
-                dx.AsFloatCpu.BuildEntirelyFromInput(y, dy, x, (a, da, z) => (z >= 0.0 ? da : (float)(da * (a + alpha))));
-            }
+            dx.AsFloatCpu.BuildEntirelyFromInput(y, dy, x, (a, da, z) => (z >= 0.0 ? da : da * (a + alpha)));
         }
         private static void SigmoidGradient(Tensor y, Tensor dy, Tensor dx)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { y, dy, dx }));
-            if (dy.UseDoublePrecision)
-            {
-                dx.AsDoubleCpu.BuildEntirelyFromInput(y, dy, (a, da) => da * a * (1.0 - a));
-            }
-            else
-            {
-                dx.AsFloatCpu.BuildEntirelyFromInput(y, dy, (a, da) => da * a * (1.0f - a));
-            }
+            dx.AsFloatCpu.BuildEntirelyFromInput(y, dy, (a, da) => da * a * (1f - a));
         }
         private static void SoftmaxGradient(Tensor y, Tensor dy, Tensor dx)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { y, dy, dx }));
-            if (y.UseDoublePrecision)
+            var yContent = y.AsFloatCpuContent;
+            var dyContent = dy.AsFloatCpuContent;
+            var dxContent = dx.AsFloatCpuContent;
+            for (int i = 0; i < dx.Count; ++i)
             {
-                var yContent = y.AsDoubleCpuContent;
-                var dyContent = dy.AsDoubleCpuContent;
-                var dxContent = dx.AsDoubleCpuContent;
-                for (int i = 0; i < dx.Count; ++i)
-                {
-                    var yi = yContent[i];
-                    var dyi = dyContent[i];
-                    dxContent[i] = (Math.Abs(dyi - 1.0) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
-                }
+                var yi = yContent[i];
+                var dyi = dyContent[i];
+                dxContent[i] = (Math.Abs(dyi - 1.0) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
             }
-            else
-            {
-                var yContent = y.AsFloatCpuContent;
-                var dyContent = dy.AsFloatCpuContent;
-                var dxContent = dx.AsFloatCpuContent;
-                for (int i = 0; i < dx.Count; ++i)
-                {
-                    var yi = yContent[i];
-                    var dyi = dyContent[i];
-                    dxContent[i] = (Math.Abs(dyi - 1.0) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
-                }
-            }
-        }
-        private static int ComputeSingleAccuracyCount(CpuTensor<double> yExpectedOneHot, CpuTensor<double> yPredicted, int m)
-        {
-            Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
-            Debug.Assert(yExpectedOneHot.Dimension == 2);
-            var categoryCount = yExpectedOneHot.Shape[1];
-            if (categoryCount == 1)
-            {
-                var error = Math.Abs(yExpectedOneHot.Get(m, 0) - yPredicted.Get(m, 0));
-                return (error < 0.5) ? 1 : 0;
-            }
-            int maxIndexPredicted = 0;
-            int maxIndexExpected = 0;
-            for (int j = 1; j < categoryCount; ++j)
-            {
-                if (yPredicted.Get(m, j) > yPredicted.Get(m, maxIndexPredicted))
-                {
-                    maxIndexPredicted = j;
-                }
-                if (yExpectedOneHot.Get(m, j) > yExpectedOneHot.Get(m, maxIndexExpected))
-                {
-                    maxIndexExpected = j;
-                }
-            }
-            if (maxIndexExpected == maxIndexPredicted)
-            {
-                return 1;
-            }
-            return 0;
         }
         private static int ComputeSingleAccuracyCount(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m)
         {

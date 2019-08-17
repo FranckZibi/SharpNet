@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using SharpNet.CPU;
 using SharpNet.Data;
@@ -10,12 +9,12 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public abstract class AbstractDataSetLoader<T> : IDataSetLoader<T> where T : struct
+    public abstract class AbstractDataSetLoader : IDataSetLoader
     {
         #region private & protected fields
-        private CpuTensor<T> xInputCpuChunkBuffer = new CpuTensor<T>(new[] { 1 }, nameof(xInputCpuChunkBuffer));
-        private CpuTensor<T> xOutputCpuChunkBuffer = new CpuTensor<T>(new[] { 1 }, nameof(xOutputCpuChunkBuffer));
-        private CpuTensor<T> yOutputCpuChunkBuffer = new CpuTensor<T>(new[] { 1 }, nameof(yOutputCpuChunkBuffer));
+        private CpuTensor<float> xInputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(xInputCpuChunkBuffer));
+        private CpuTensor<float> xOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(xOutputCpuChunkBuffer));
+        private CpuTensor<float> yOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(yOutputCpuChunkBuffer));
         #endregion
 
         #region constructor
@@ -23,11 +22,10 @@ namespace SharpNet.Datasets
         {
             Channels = channels;
             Categories = categories;
-            TypeSize = Marshal.SizeOf(typeof(T));
         }
         #endregion
 
-        public abstract void LoadAt(int elementId, int indexInBuffer, CpuTensor<T> buffer);
+        public abstract void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer);
         public void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> orderInCurrentEpoch,
             ImageDataGenerator imageDataGenerator, ref Tensor xChunkBuffer, ref Tensor yChunkBuffer)
         {
@@ -51,8 +49,8 @@ namespace SharpNet.Datasets
             }
             else
             {
-                xOutputCpuChunkBuffer = xChunkBuffer.AsCpu<T>();
-                yOutputCpuChunkBuffer = yChunkBuffer.AsCpu<T>();
+                xOutputCpuChunkBuffer = xChunkBuffer.AsCpu<float>();
+                yOutputCpuChunkBuffer = yChunkBuffer.AsCpu<float>();
             }
             Debug.Assert(AreCompatible_X_Y(xOutputCpuChunkBuffer, yOutputCpuChunkBuffer));
 
@@ -63,7 +61,7 @@ namespace SharpNet.Datasets
             yOutputCpuChunkBuffer.ZeroMemory();
             for (int idx = 0; idx < miniBatchSize; ++idx)
             {
-                yOutputCpuChunkBuffer.SetFloatValue(idx, IndexInMiniBatchToCategoryId(idx), 1.0f);
+                yOutputCpuChunkBuffer.Set(idx, IndexInMiniBatchToCategoryId(idx), 1);
             }
 
 
@@ -81,8 +79,8 @@ namespace SharpNet.Datasets
 
             if (xChunkBuffer.UseGPU)
             {
-                xChunkBuffer.AsGPU<T>().CopyToDevice(xOutputCpuChunkBuffer.HostPointer);
-                yChunkBuffer.AsGPU<T>().CopyToDevice(yOutputCpuChunkBuffer.HostPointer);
+                xChunkBuffer.AsGPU<float>().CopyToDevice(xOutputCpuChunkBuffer.HostPointer);
+                yChunkBuffer.AsGPU<float>().CopyToDevice(yOutputCpuChunkBuffer.HostPointer);
             }
 
             /*
@@ -111,22 +109,6 @@ namespace SharpNet.Datasets
         /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
         /// <returns>the associated category id, or -1 if the category is not known</returns>
         public abstract int ElementIdToCategoryId(int elementId);
-        public virtual IDataSetLoader<float> ToSinglePrecision()
-        {
-            if (this is IDataSetLoader<float>)
-            {
-                return (IDataSetLoader<float>)this;
-            }
-            throw new NotImplementedException();
-        }
-        public virtual IDataSetLoader<double> ToDoublePrecision()
-        {
-            if (this is IDataSetLoader<double>)
-            {
-                return (IDataSetLoader<double>)this;
-            }
-            throw new NotImplementedException();
-        }
         public abstract int Height { get; }
         public abstract int Width { get; }
         public int[] Y_Shape => new []{Count, Categories};
@@ -144,7 +126,8 @@ namespace SharpNet.Datasets
         {
             return new []{ miniBatchSize , Channels, Height, Width};
         }
-        public int TypeSize { get; }
+
+        public int TypeSize => 4; //float size
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
         {
             if (X == null && Y == null)
@@ -152,21 +135,16 @@ namespace SharpNet.Datasets
                 return true;
             }
             return (X != null) && (Y != null)
-                               && (X.UseDoublePrecision == Y.UseDoublePrecision)
                                && (X.UseGPU == Y.UseGPU)
                                && (X.Shape[0] == Y.Shape[0]) //same number of tests
                                && (Y.Shape.Length == 2);
         }
-        public abstract CpuTensor<T> Y { get; }
+        public abstract CpuTensor<float> Y { get; }
 
       
         protected static bool IsValidYSet(Tensor data)
         {
             Debug.Assert(!data.UseGPU);
-            if (data.UseDoublePrecision)
-            {
-                return data.AsDoubleCpuContent.All(IsValidY);
-            }
             return data.AsFloatCpuContent.All(x => IsValidY(x));
         }
 

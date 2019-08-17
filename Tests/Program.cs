@@ -14,8 +14,6 @@ namespace SharpNetTests
 {
     static class Program
     {
-     
-
         private static void Main()
         {
             /*
@@ -75,7 +73,6 @@ namespace SharpNetTests
                 //(p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.Config.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
                 //(p) =>{p.UseAdam = false;p.UseNesterov = true;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGDNesterov";},
                 //(p) =>{p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 200;p.InitialLearningRate = 0.001;p.ExtraDescription = "_Adam_0_001";},
-                //(p) =>{p.SaveNetworkStatsAfterEachEpoch = true;p.UseDoublePrecision = true;p.UseAdam = true;p.BatchSize = -1;p.ExtraDescription = "_ForceTensorflowCompatibilityMode_UseDoublePrecision";},
                 //(p) =>{p.UseAdam = true;p.BatchSize = 50;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_with_l2_inConv";},
                 //(p) =>{p.UseAdam = true; p.lambdaL2Regularization = 0.0;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_no_l2_inConv";},
 
@@ -112,7 +109,7 @@ namespace SharpNetTests
             var modifiers = new List<Action<WideResNetBuilder>>
             {
                 //ref 8-aug-2019: 0 bps
-                //(p) =>{},
+                (p) =>{},
 
                 //(p) => { p.CutMix = false;p.CutoutPatchPercentage = 0.5;},
                 //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;},
@@ -256,41 +253,6 @@ namespace SharpNetTests
         #endregion
 
 
-
-
-
-
-
-        /*
-        private static void TestConcatSpeed()
-        {
-            var gpuWrapper = GPUWrapper.Default;
-            var rand = new Random(0);
-            var x1 = TestCpu
-            or.RandomFloatTensor(new[] { 128, 32, 16, 16 }, rand, -1.5, +1.5, "a");
-            var x2 = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], 320, x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
-            var concat = TestCpuTensor.RandomFloatTensor(new[] { x1.Shape[0], x1.Shape[1] + x2.Shape[1], x1.Shape[2], x1.Shape[3] }, rand, -1.5, +1.5, "a");
-
-            var x1Gpu = x1.ToGPU<float>(gpuWrapper);
-            var x2Gpu = x2.ToGPU<float>(gpuWrapper);
-            var concatGpu = concat.ToGPU<float>(gpuWrapper);
-            int nbTests = 15000;
-
-            concat.Concatenate(x1, x2); //WarmUp
-            concat.Concatenate(x1, x2); //WarmUp
-            var spGPU = Stopwatch.StartNew();
-            for (int i = 0; i < nbTests; ++i)
-            {
-                concatGpu.Concatenate(x1Gpu, x2Gpu);
-                concatGpu.Split(x1Gpu, x2Gpu);
-            }
-            spGPU.Stop();
-            Console.WriteLine("Elapsed GPU (ms): " + spGPU.Elapsed.TotalMilliseconds / nbTests);
-        }
-        */
-
-
-
         /// <summary>
         /// Train a network on CIFAR10 data set 
         /// </summary>
@@ -305,9 +267,9 @@ namespace SharpNetTests
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataLoader.InputShape_CHW, CIFAR10DataLoader.Categories);
-            using (var cifar10DataLoader = new CIFAR10DataLoader())
+            using (var loader = new CIFAR10DataLoader())
             {
-                Train(p, network, cifar10DataLoader.Training, cifar10DataLoader.Test);
+                Train(p, network, loader.Training, loader.Test);
             }
         }
 
@@ -325,7 +287,7 @@ namespace SharpNetTests
         }
 
 
-        private static void Train(NetworkBuilder p, Network network, IDataSetLoader<float> trainingSet, IDataSetLoader<float> testSet)
+        private static void Train(NetworkBuilder p, Network network, IDataSetLoader trainingSet, IDataSetLoader testSet)
         {
             try
             {

@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices.WindowsRuntime;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Datasets;
@@ -13,34 +12,29 @@ namespace SharpNetTests
     [TestFixture]
     public class TestNetwork
     {
-        [TestCase(false, false)]
-        [TestCase(false, true)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
-        public void TestSave(bool useDoublePrecision, bool useGPU)
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestSave(bool useGPU)
         {
-            PerformTest(useDoublePrecision, useGPU, CheckSave);
+            PerformTest(useGPU, CheckSave);
         }
 
-        [TestCase(false, false)]
-        [TestCase(false, true)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
-        public void TestClone(bool useDoublePrecision, bool useGPU)
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestClone(bool useGPU)
         {
-            PerformTest(useDoublePrecision, useGPU, CheckClone);
+            PerformTest(useGPU, CheckClone);
         }
 
-        private static void PerformTest(bool useDoublePrecision, bool useGPU, Action<Network> testToPerform)
+        private static void PerformTest(bool useGPU, Action<Network> testToPerform)
         {
             var rand = new Random(0);
             int m = 4;
             int nbCategories = 2;
-            var xTrain = TestCpuTensor.RandomDoubleTensor(new[] { m, 2, 4, 4 }, rand, -1.0, +1.0, "xTrain");
+            var xTrain = TestCpuTensor.RandomFloatTensor(new[] { m, 2, 4, 4 }, rand, -1.0, +1.0, "xTrain");
             var yTrain = TestCpuTensor.RandomOneHotTensor(new[] { m, nbCategories }, rand, "yTrain");
             var param = new DenseNetBuilder();
             param.GpuDeviceId = useGPU?0:-1;
-            param.Config.UseDoublePrecision = useDoublePrecision;
             param.DisableLogging = true;
             var network = param.Build(nameof(TestSave), xTrain.Shape, nbCategories, false, new[] { 2, 2 }, true, 8, 1.0, null);
             testToPerform(network);
@@ -49,9 +43,9 @@ namespace SharpNetTests
             testToPerform(network);
         }
 
-        public static void Fit<T>(Network network, CpuTensor<T> X, CpuTensor<T> Y, double learningRate, int numEpochs, int batchSize, IDataSetLoader<T> testDataSet = null) where T : struct
+        public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSetLoader testDataSet = null)
         {
-            var trainingDataSet = new InMemoryDataSetLoader<T>(X, Y, Y_to_Categories(Y), null);
+            var trainingDataSet = new InMemoryDataSetLoader(X, Y, Y_to_Categories(Y), null);
             network.Fit(trainingDataSet, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, testDataSet);
         }
 

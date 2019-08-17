@@ -23,8 +23,8 @@ namespace SharpNetTests.NonReg
             var logger = new Logger(LogFileName, true);
 
             //check RAM => GPU Copy perf
-            var tmp_2GB = new double[250 * 1000000];
-            var hostPinnedMemory = new HostPinnedMemory<double>(tmp_2GB);
+            var tmp_2GB = new float[500 * 1000000];
+            var hostPinnedMemory = new HostPinnedMemory<float>(tmp_2GB);
 
             var gpuContext = GPUWrapper.FromDeviceId(0);
             logger.Info(gpuContext.ToString());
@@ -33,10 +33,10 @@ namespace SharpNetTests.NonReg
             {
                 logger.Info(Environment.NewLine + "Loop#" + i);
                 var sw = Stopwatch.StartNew();
-                var tensors = new GPUTensor<double>[1];
+                var tensors = new GPUTensor<float>[1];
                 for(int t=0;t<tensors.Length;++t)
                 {
-                    tensors[t] = new GPUTensor<double>(new[] { tmp_2GB.Length}, hostPinnedMemory.Pointer, "test", gpuContext);
+                    tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, hostPinnedMemory.Pointer, "test", gpuContext);
                 }
                 logger.Info(gpuContext.ToString());
                 foreach (var t in tensors)
@@ -71,8 +71,8 @@ namespace SharpNetTests.NonReg
             const int batchSize = 64;
             const int numEpochs = 5;
             var imageDataGenerator = ImageDataGenerator.NoDataAugmentation;
-            var loader = new MNISTDataLoader<double>();
-            var network = new Network(new NetworkConfig() { Logger = logger, UseDoublePrecision = false }.WithAdam(), imageDataGenerator, 0);
+            var loader = new MNISTDataLoader();
+            var network = new Network(new NetworkConfig() { Logger = logger}.WithAdam(), imageDataGenerator, 0);
             network
                 .Input(loader.Training.Channels, loader.Training.Height, loader.Training.Width)
 

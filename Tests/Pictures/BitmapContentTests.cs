@@ -13,7 +13,7 @@ namespace SharpNetTests.Pictures
         {
             var csvFile = @"C:\temp\aptos2019-blindness-detection\train_images0\train.csv";
             var logger = new Logger(csvFile+".log", true);
-            var infos = new DirectoryDataSetLoader<float>(csvFile, Path.GetDirectoryName(csvFile), logger, 3,-1,-1,null);
+            var infos = new DirectoryDataSetLoader(csvFile, Path.GetDirectoryName(csvFile), logger, 3,-1,-1,null);
             var resize_256_256 = infos
                 .CropBorder()
                 .MakeSquarePictures(true)

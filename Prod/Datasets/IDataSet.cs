@@ -2,9 +2,9 @@
 
 namespace SharpNet.Datasets
 {
-    public interface IDataSet<T> : IDisposable where T : struct
+    public interface IDataSet : IDisposable
     {
-        IDataSetLoader<T> Training { get; }
-        IDataSetLoader<T> Test { get; }
+        IDataSetLoader Training { get; }
+        IDataSetLoader Test { get; }
     }
 }

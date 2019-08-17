@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
 
@@ -31,7 +30,6 @@ namespace SharpNet.GPU
         #region private fields
         private readonly GPUWrapper _gpu;
         private readonly Dictionary<string, CudaKernel> _kernelSinglePrecision = new Dictionary<string, CudaKernel>();
-        private readonly Dictionary<string, CudaKernel> _kernelDoublePrecision = new Dictionary<string, CudaKernel>();
         #endregion
 
         public KernelManager(GPUWrapper gpu)
@@ -47,7 +45,6 @@ namespace SharpNet.GPU
                     "Concatenate",
                     "Split"
                 },
-                @"C:\Projects\SharpNet\Prod\GPU\Kernels\DoublePrecision.cu",
                 @"C:\Projects\SharpNet\Prod\GPU\Kernels\SinglePrecision.cu",
                 out var errorMsg);
             if (!success)
@@ -57,8 +54,7 @@ namespace SharpNet.GPU
         }
         public void RunKernel(string kernelName, int count, object[] parameterLists)
         {
-            bool useDoublePrecision = parameterLists.Any(x => x is Tensor && ((Tensor)x).UseDoublePrecision);
-            var kernel = useDoublePrecision ? _kernelDoublePrecision[kernelName] : _kernelSinglePrecision[kernelName];
+            var kernel = _kernelSinglePrecision[kernelName];
 
             var blocksPerGrid_ThreadsPerBlock = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize);
             kernel.BlocksPerGrid = blocksPerGrid_ThreadsPerBlock.Item1;
@@ -72,12 +68,7 @@ namespace SharpNet.GPU
                     parameterLists[i] = (IntPtr)((Tensor)e);
                     continue;
                 }
-                if (useDoublePrecision && (e is float))
-                {
-                    parameterLists[i] = (double)(float)e;
-                    continue;
-                }
-                if (!useDoublePrecision && (e is double))
+                if (e is double)
                 {
                     parameterLists[i] = (float)(double)e;
                     continue;
@@ -152,34 +143,24 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        private bool TryLoadKernel(string[] kernelNames, string pathDoublePrecision, string pathSinglePrecision, out string errorMsg)
+        private bool TryLoadKernel(string[] kernelNames, string pathSinglePrecision, out string errorMsg)
         {
-            foreach (var useDoublePrecision in new[] { true, false })
+            var path = pathSinglePrecision;
+            using (var rtc = new CudaRuntimeCompiler(File.ReadAllText(path), Path.GetFileName(path)))
             {
-                var path = useDoublePrecision ? pathDoublePrecision : pathSinglePrecision;
-                using (var rtc = new CudaRuntimeCompiler(File.ReadAllText(path), Path.GetFileName(path)))
+                try
                 {
-                    try
-                    {
-                        rtc.Compile();
-                    }
-                    catch (Exception ex)
-                    {
-                        errorMsg = rtc.GetLogAsString() + Environment.NewLine + ex;
-                        return false;
-                    }
-                    foreach (var kernelName in kernelNames)
-                    {
-                        var kernel = new CudaKernel(rtc.FatBinaryObject, kernelName);
-                        if (useDoublePrecision)
-                        {
-                            _kernelDoublePrecision[kernelName] = kernel;
-                        }
-                        else
-                        {
-                            _kernelSinglePrecision[kernelName] = kernel;
-                        }
-                    }
+                    rtc.Compile();
+                }
+                catch (Exception ex)
+                {
+                    errorMsg = rtc.GetLogAsString() + Environment.NewLine + ex;
+                    return false;
+                }
+                foreach (var kernelName in kernelNames)
+                {
+                    var kernel = new CudaKernel(rtc.FatBinaryObject, kernelName);
+                    _kernelSinglePrecision[kernelName] = kernel;
                 }
             }
             errorMsg = "";

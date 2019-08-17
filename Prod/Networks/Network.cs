@@ -6,7 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime;
-using System.Runtime.InteropServices;
 using System.Text;
 using SharpNet.CPU;
 using SharpNet.Data;
@@ -305,19 +304,12 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        public void Fit<T>(IDataSetLoader<T> training, ILearningRateScheduler lrScheduler, ReduceLROnPlateau reduceLROnPlateau, int numEpochs, int batchSize, IDataSetLoader<T> test = null) where T : struct
+        public void Fit(IDataSetLoader training, ILearningRateScheduler lrScheduler, ReduceLROnPlateau reduceLROnPlateau, int numEpochs, int batchSize, IDataSetLoader test = null)
         {
             try
             {
                 var learningRateComputer = new LearningRateComputer(lrScheduler, reduceLROnPlateau, Config.MinimumLearningRate);
-                if (Config.UseDoublePrecision)
-                {
-                    InternalFit(training.ToDoublePrecision(), learningRateComputer, numEpochs, batchSize, test?.ToDoublePrecision());
-                }
-                else
-                {
-                    InternalFit(training.ToSinglePrecision(), learningRateComputer, numEpochs, batchSize, test?.ToSinglePrecision());
-                }
+                InternalFit(training, learningRateComputer, numEpochs, batchSize, test);
             }
             catch (Exception e)
             {
@@ -329,7 +321,7 @@ namespace SharpNet.Networks
         public Tensor Predict(Tensor X, bool isTraining)
         {
             (isTraining ? _swPredictTraining : _swPredictNotTraining)?.Start();
-            X = ReformatToCorrectType(X);
+            X = ReformatToCorrectDevice_GPU_or_CPU(X);
             ((InputLayer)Layers[0]).Set_y(X);
             foreach (var l in Layers.Skip(1))
             {
@@ -349,7 +341,7 @@ namespace SharpNet.Networks
             var dyPredicted = _backwardPropagationManager.dyOfLastLayer;
             yPredicted.CopyTo(dyPredicted);
             var categoryCount = yPredicted.Shape[1];
-            var multiplier = Layers.Last().IsSigmoidActivationLayer()? (1.0 / categoryCount) :1.0;
+            var multiplier = Layers.Last().IsSigmoidActivationLayer()? (1f / categoryCount) :1f;
             dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
 
             _backwardPropagationManager.BackwardPropagation();
@@ -476,24 +468,18 @@ namespace SharpNet.Networks
         public Tensor NewNotInitializedTensor(int[] shape, Tensor bufferIfAny, string description)
         {
             //we check if we can re use the buffer 'bufferIfAny'
-            if (bufferIfAny != null && bufferIfAny.CapacityInBytes >= bufferIfAny.ReallyNeededMemoryInBytesForShape(shape))
+            if (bufferIfAny != null)
             {
                 bufferIfAny.Reshape(shape);
                 return bufferIfAny;
             }
-
-            if (Config.UseDoublePrecision)
-            {
-                return UseGPU
-                    ? (Tensor)new GPUTensor<double>(shape, description, GpuWrapper)
-                    : new CpuTensor<double>(shape, null, description);
-            }
-            else
-            {
-                return UseGPU
-                    ? (Tensor)new GPUTensor<float>(shape, description, GpuWrapper)
-                    : new CpuTensor<float>(shape, null, description);
-            }
+            return NewNotInitializedTensor(shape, description);
+        }
+        public Tensor NewNotInitializedTensor(int[] shape, string description)
+        {
+            return UseGPU
+                ? (Tensor)new GPUTensor<float>(shape, description, GpuWrapper)
+                : new CpuTensor<float>(shape, null, description);
         }
         #region serialization
         // ReSharper disable once UnusedMember.Global
@@ -535,12 +521,11 @@ namespace SharpNet.Networks
         #endregion
 
         [SuppressMessage("ReSharper", "UnusedParameter.Local")]
-        private void CheckInput<T>(IDataSetLoader<T> trainingDateSetCpu, IDataSetLoader<T> testDateSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize) where T : struct
+        private void CheckInput(IDataSetLoader trainingDateSetCpu, IDataSetLoader testDateSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize)
         {
-            var observedTypeSize = Marshal.SizeOf(typeof(T));
-            if (observedTypeSize != Config.TypeSize)
+            if (trainingDateSetCpu.TypeSize != Config.TypeSize)
             {
-                throw new Exception("Invalid type : expecting: "+Config.TypeSize+" but was "+ observedTypeSize);
+                throw new Exception("Invalid type : expecting: "+Config.TypeSize+" but was "+ trainingDateSetCpu.TypeSize);
             }
             foreach (var l in Layers)
             {
@@ -549,7 +534,7 @@ namespace SharpNet.Networks
             
         }
 
-        public double FindBestLearningRate(IDataSetLoader<float> trainingDataSet, int miniBatchSize = -1)
+        public double FindBestLearningRate(IDataSetLoader trainingDataSet, int miniBatchSize = -1)
         {
             Info("Looking for best learning rate...");
             ResetWeights(); //restore weights to there original values
@@ -603,7 +588,7 @@ namespace SharpNet.Networks
 
 
         //here T is already of the target precision (double or float)
-        private void InternalFit<T>(IDataSetLoader<T> trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize, IDataSetLoader<T> testDataSetCpu) where T : struct
+        private void InternalFit(IDataSetLoader trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize, IDataSetLoader testDataSetCpu)
         {
             Debug.Assert(Config.TypeSize == trainingDataSetCpu.TypeSize);
             Debug.Assert(learningRateComputer != null);
@@ -783,17 +768,17 @@ namespace SharpNet.Networks
 
         #region compute Loss and Accuracy
         //returns : Tuple<loss, accuracy>
-        public Tuple<double, double> ComputeLossAndAccuracy<T>(int miniBatchSize, IDataSetLoader<T> testDataSet) where T: struct
+        public Tuple<double, double> ComputeLossAndAccuracy(int miniBatchSize, IDataSetLoader testDataSet)
         {
             var yPredicted = MiniBatchGradientDescent(miniBatchSize, testDataSet);
             return ComputeLossAndAccuracy_From_Expected_vs_Predicted(testDataSet.Y, yPredicted);
         }
 
-        public Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted)
+        private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted)
         {
             _swComputeAccuracy?.Start();
-            yExpected = ReformatToCorrectType(yExpected);
-            yPredicted = ReformatToCorrectType(yPredicted);
+            yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
+            yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
             bufferComputeAccuracy = NewNotInitializedTensor(new []{ yExpected.Shape[0]}, bufferComputeAccuracy, nameof(bufferComputeAccuracy));
             var accuracy = yExpected.ComputeAccuracy(yPredicted, bufferComputeAccuracy);
             _swComputeAccuracy?.Stop();
@@ -809,12 +794,6 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        public Tensor ReformatToCorrectType(Tensor x)
-        {
-            x = ReformatToCorrectPrecision_float_or_double(x);
-            x = ReformatToCorrectDevice_GPU_or_CPU(x);
-            return x;
-        }
         //private ulong OccupiedMemoryInBytes => _layers.Select(x => x.OccupiedMemoryInBytes).Sum();
         private ulong BytesByBatchSize
         {
@@ -825,16 +804,7 @@ namespace SharpNet.Networks
         }
 
         private ulong BytesIndependantOfBatchSize => Layers.Select(x => x.BytesIndependantOfBatchSize).Sum();
-        private Tensor ReformatToCorrectPrecision_float_or_double(Tensor X)
-        {
-            if (X == null || Config.UseDoublePrecision == X.UseDoublePrecision)
-            {
-                return X;
-            }
-            return X.UseDoublePrecision
-                ? X.AsDoubleCpu.ToSinglePrecision()
-                : (Tensor)X.AsFloatCpu.ToDoublePrecision();
-        }
+
         private Tensor ReformatToCorrectDevice_GPU_or_CPU(Tensor X)
         {
             if (X == null || UseGPU == X.UseGPU)
@@ -845,9 +815,7 @@ namespace SharpNet.Networks
             {
                 throw new NotImplementedException("can not reformat type that are stored in GPU");
             }
-            return X.UseDoublePrecision
-                ? (Tensor)X.ToGPU<double>(GpuWrapper)
-                : X.ToGPU<float>(GpuWrapper);
+            return X.ToGPU<float>(GpuWrapper);
         }
         private string ProfilingComments()
         {
@@ -889,7 +857,7 @@ namespace SharpNet.Networks
         ///     parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         ///     If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
-        public Tensor MiniBatchGradientDescent<T>(int miniBatchSize, IDataSetLoader<T> dataSet, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null) where T: struct
+        public Tensor MiniBatchGradientDescent(int miniBatchSize, IDataSetLoader dataSet, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {
             bool isTraining = learningRateComputerIfTraining != null;
             var entireBatchSize = dataSet.Count;
@@ -897,17 +865,12 @@ namespace SharpNet.Networks
             {
                 throw new Exception("invalid miniBatchSize size (" + miniBatchSize + ")");
             }
-            int nbBatchBlock = NbBlocksInEpoch(miniBatchSize, entireBatchSize);
-            var lastBlockSize = (nbBatchBlock==1)? entireBatchSize : (entireBatchSize % miniBatchSize);
+            int nbMiniBatchBlock = NbBlocksInEpoch(miniBatchSize, entireBatchSize);
             int epoch = _epochsData.Count + 1;
             var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(_epochsData) ?? 1.0;
-            if (lastBlockSize == 0)
-            {
-                lastBlockSize = miniBatchSize;
-            }
             _yPredictedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
             _yExpectedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForMiniBatchGradientDescent, nameof(_yExpectedBufferForMiniBatchGradientDescent));
-            var xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(miniBatchSize), null, "xMiniBatch");
+            var xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(miniBatchSize), "xMiniBatch");
 
             var orderInCurrentEpoch = Enumerable.Range(0, dataSet.Count).ToList();
             if (epoch >= 2 && Config.RandomizeOrder && isTraining) 
@@ -915,12 +878,12 @@ namespace SharpNet.Networks
                 Utils.Shuffle(orderInCurrentEpoch, Config.Rand);
             }
 
+            int blockId = 0;
             int nbProcessed = 0;
-            for (var blockId = 0; blockId < nbBatchBlock; blockId++)
+            while(nbProcessed < entireBatchSize)
             {
-                var blockSize = (blockId == nbBatchBlock - 1) ? lastBlockSize : miniBatchSize;
-
-                xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(blockSize), xMiniBatch, "xMiniBatch");
+                var blockSize = Math.Min(entireBatchSize- nbProcessed, miniBatchSize);
+                xMiniBatch.Reshape(dataSet.XMiniBatch_Shape(blockSize));
 
                 var yExpectedMiniBatch = _yExpectedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 _swCreateInputForEpoch?.Start();
@@ -933,21 +896,19 @@ namespace SharpNet.Networks
                 if (isTraining)
                 {
                     BackwardPropagation(yExpectedMiniBatch);
-                    UpdateWeights(learningRateComputerIfTraining.LearningRate(epoch, blockId, nbBatchBlock, lrMultiplicativeFactorFromReduceLrOnPlateau));
+                    UpdateWeights(learningRateComputerIfTraining.LearningRate(epoch, blockId, nbMiniBatchBlock, lrMultiplicativeFactorFromReduceLrOnPlateau));
                 }
-                //totalLoss += yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, bufferComputeLoss);
-                //totalAcc += yExpectedMiniBatch.ComputeAccuracy(yPredictedMiniBatch, bufferComputeAccuracy);
-
                 if (!yPredictedMiniBatch.UseGPU)
                 {
                     yPredictedMiniBatch.CopyTo(0, _yPredictedBufferForMiniBatchGradientDescent, _yPredictedBufferForMiniBatchGradientDescent.Idx(nbProcessed), yPredictedMiniBatch.Count);
                     yExpectedMiniBatch.CopyTo(0, _yExpectedBufferForMiniBatchGradientDescent, _yExpectedBufferForMiniBatchGradientDescent.Idx(nbProcessed),  yExpectedMiniBatch.Count);
                 }
-                nbProcessed += xMiniBatch.Shape[0];
-                if (callBackToStop != null && callBackToStop(yExpectedMiniBatch, yPredictedMiniBatch, blockId, nbBatchBlock, epoch))
+                nbProcessed += blockSize;
+                if (callBackToStop != null && callBackToStop(yExpectedMiniBatch, yPredictedMiniBatch, blockId, nbMiniBatchBlock, epoch))
                 {
                     break;
                 }
+                ++blockId;
             }
             return _yPredictedBufferForMiniBatchGradientDescent;
         }

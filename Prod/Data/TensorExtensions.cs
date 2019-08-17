@@ -12,7 +12,7 @@ namespace SharpNet.Data
         {
             var sb = new StringBuilder();
             int idx = 0;
-            var tContent = t.ContentAsDoubleArray();
+            var tContent = t.ContentAsFloatArray();
 
             NumpyArrayHelper(t, tContent, 0, ref idx, sb);
             return sb.ToString();
@@ -45,7 +45,10 @@ namespace SharpNet.Data
             }
 
             bool isInteger = s.Contains("numpy.int");
-            bool isDouble = s.Contains("numpy.double");
+            if (s.Contains("numpy.double"))
+            {
+                throw new NotImplementedException();
+            }
 
             s = s.ToLowerInvariant().Replace("numpy.array", "").Replace("numpy.float", "").Replace("numpy.int32", "")
                 .Replace("numpy.double", "").Replace("(", " ").Replace(")", " ").Replace("[", " ").Replace("]", " ")
@@ -56,15 +59,11 @@ namespace SharpNet.Data
             {
                 return new CpuTensor<int>(shape.ToArray(), s.Split(',').Select(int.Parse).ToArray(), description);
             }
-            if (isDouble)
-            {
-                return new CpuTensor<double>(shape.ToArray(), s.Split(',').Select(double.Parse).ToArray(), description);
-            }
             //float
             return new CpuTensor<float>(shape.ToArray(), s.Split(',').Select(float.Parse).ToArray(), description);
         }
 
-        private static void NumpyArrayHelper(Tensor t, double[] tContent, int currentDepth, ref int idx, StringBuilder sb)
+        private static void NumpyArrayHelper(Tensor t, float[] tContent, int currentDepth, ref int idx, StringBuilder sb)
         {
             if (currentDepth == 0)
             {
@@ -89,7 +88,7 @@ namespace SharpNet.Data
             sb.Append("]");
             if (currentDepth == 0)
             {
-                sb.Append(t.UseSinglePrecision ? ", numpy.float)" : ", numpy.double)");
+                sb.Append(", numpy.float)");
             }
         }
         public static bool Equals(this Tensor a, Tensor b, double epsilon, string id, ref string errors)
@@ -124,8 +123,8 @@ namespace SharpNet.Data
                 errors += id + ":Type: " + a.GetType() + " != " + b.GetType() + Environment.NewLine;
                 return false;
             }
-            var contentA = a.ContentAsDoubleArray();
-            var contentB = b.ContentAsDoubleArray();
+            var contentA = a.ContentAsFloatArray();
+            var contentB = b.ContentAsFloatArray();
             int nbFoundDifferences = 0;
             for (int i = 0; i < contentA.Length; ++i)
             {
@@ -144,28 +143,5 @@ namespace SharpNet.Data
             }
             return true;
         }
-
-        /*
-        public static bool HasNan(this Tensor t)
-        {
-            if (t.UseDoublePrecision)
-            {
-                var content = t.ToCpu<double>().AsDoubleCpuContent;
-                if (content.Any(double.IsNaN))
-                {
-                    return true;
-                }
-                return false;
-            }
-            else
-            {
-                var content = t.ToCpu<float>().AsFloatCpuContent;
-                if (content.Any(float.IsNaN))
-                {
-                    return true;
-                }
-                return false;
-            }
-        }*/
     }
 }

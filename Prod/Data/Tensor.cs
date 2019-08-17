@@ -35,15 +35,11 @@ namespace SharpNet.Data
         }
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         // this = a*b
-        public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1.0, 0.0); }
+        public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
         public int Count => Shape[0] * MultDim0;
         public int Dimension => Shape.Length;
-        public bool UseDoublePrecision => TypeSize == 8;
-        public bool UseSinglePrecision => !UseDoublePrecision;
         public ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
-        public CpuTensor<double> AsDoubleCpu => AsCpu<double>();
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
-        public double[] AsDoubleCpuContent => AsCpu<double>().Content;
         public float[] AsFloatCpuContent => AsCpu<float>().Content;
         public string ContentStats()
         {
@@ -54,14 +50,14 @@ namespace SharpNet.Data
             double sumSquare = 0;
             double minValue = double.MaxValue;
             double maxValue = double.MinValue;
-            foreach (var d in ContentAsDoubleArray())
+            foreach (var d in ContentAsFloatArray())
             {
-                if (double.IsNaN(d))
+                if (float.IsNaN(d))
                 {
                     ++naNCount;
                     continue;
                 }
-                if (double.IsInfinity(d))
+                if (float.IsInfinity(d))
                 {
                     ++infinityCount;
                     continue;
@@ -105,7 +101,7 @@ namespace SharpNet.Data
         }
         public static implicit operator IntPtr(Tensor t)
         {
-            return t.UseDoublePrecision ? t.AsGPU<double>().DevicePointer : t.AsGPU<float>().DevicePointer;
+            return t.AsGPU<float>().DevicePointer;
         }
         public CpuTensor<T> AsCpu<T>() where T : struct
         {
@@ -119,10 +115,6 @@ namespace SharpNet.Data
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper) where T : struct
         {
             return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
-        }
-        public CpuTensor<T> ToCpu<T>() where T : struct
-        {
-            return !UseGPU ? AsCpu<T>() : new CpuTensor<T>(Shape, AsGPU<T>().DeviceContent(), Description);
         }
         public CpuTensor<float> ToCpuFloat()
         {
@@ -190,15 +182,15 @@ namespace SharpNet.Data
         //this = dy
         public abstract void ConvolutionBackwardBias(Tensor convolutionBackwardBias);
         // this = alpha a*b + beta*this
-        public abstract void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, double alpha, double beta);
+        public abstract void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta);
         //this = singleLineMatrix to add to y
         public abstract void BroadcastAddVectorToOutput(Tensor y);
         //extract channel 'channel' from this tensor and store it in 'tensor_NH'
         public abstract void From_NCH_to_NH(Tensor tensor_NH, int channel);
         // compute: this = alpha * x + this
-        public abstract void Update_Adding_Alpha_X(double alpha, Tensor x);
+        public abstract void Update_Adding_Alpha_X(float alpha, Tensor x);
         // compute: this = alpha * x + beta * this
-        public abstract void AddTensor(double alpha, Tensor x, double beta);
+        public abstract void AddTensor(float alpha, Tensor x, float beta);
         /// <summary>
         /// Concatenate the 2 tensors 'a' & 'b'  (through the 'Channel' dimension) into the 'this' tensor.
         /// They must have exactly the same geometry apart from the number of channels (at index 1)
@@ -221,7 +213,7 @@ namespace SharpNet.Data
         /// <param name="a">Tensor of Dimension [N, Ca, H, W]</param>
         /// <param name="b">Tensor of Dimension [N, Cb, H, W]</param>
         public abstract void Split(Tensor a, Tensor b);
-        public abstract void Update_Multiplying_By_Alpha(double alpha);
+        public abstract void Update_Multiplying_By_Alpha(float alpha);
         //this = Tensor<T> convolutionBiasVector
         public abstract void BroadcastConvolutionBiasToOutput(Tensor y);
         //this = x
@@ -263,26 +255,7 @@ namespace SharpNet.Data
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
         public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
         public abstract void NewSameValueTensor(double sameValue);
-        public abstract double[] ContentAsDoubleArray();
         public abstract float[] ContentAsFloatArray();
-        protected static double[] ToDoubleArray(float[] data)
-        {
-            var result = new double[data.Length];
-            for (int i = 0; i < data.Length; ++i)
-            {
-                result[i] = data[i];
-            }
-            return result;
-        }
-        protected static float[] ToFloatArray(double[] data)
-        {
-            var result = new float[data.Length];
-            for (int i = 0; i < data.Length; ++i)
-            {
-                result[i] = (float)data[i];
-            }
-            return result;
-        }
         protected Tensor(int[] shape, int typeSize, bool useGpu, string description)
         {
             Debug.Assert(shape.Length >= 1);
@@ -317,23 +290,15 @@ namespace SharpNet.Data
         }
         private bool IsCompatible(Tensor a)
         {
-            return (a != null && UseDoublePrecision == a.UseDoublePrecision && UseGPU == a.UseGPU);
+            return (a != null && UseGPU == a.UseGPU);
         }
         private string ToString(bool displayStartofTensor)
         {
             var result = Description + "(" + string.Join(", ", Shape) + ")";
             result += UseGPU ? "" : "CPU";
-            result += UseSinglePrecision ? "" : "x2";
             if (displayStartofTensor && !UseGPU)
             {
-                if (UseDoublePrecision)
-                {
-                    result += "(" + string.Join(",", AsCpu<double>().Content.Take(3)) + ",...)";
-                }
-                else
-                {
-                    result += "(" + string.Join(",", AsCpu<float>().Content.Take(3)) + ",...)";
-                }
+                result += "(" + string.Join(",", AsCpu<float>().Content.Take(3)) + ",...)";
             }
 
             return result;

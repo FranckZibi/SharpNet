@@ -25,34 +25,34 @@ namespace SharpNet.Networks
 
         /// <summary>
         /// The cutout to use in % of the longest length ( = Max(height, width) )
-        /// If less or equal to 0 , cutout will be disabled
+        /// If less or equal to 0 , Cutout will be disabled
         /// </summary>
         public double CutoutPatchPercentage { private get; set; }
+
         /// <summary>
         /// The alpha coefficient used to compute lambda in CutMix
-        /// A value les or equal then 0.0 wil disable CutMix
+        /// If less or equal to 0 , CutMix will be disabled
         /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
         /// </summary>
         public double AlphaCutMix { private get; set; }
 
         /// <summary>
         /// The alpha coefficient used to compute lambda in Mixup
-        /// A value less or equal then 0.0 wil disable Mixup
+        /// A value less or equal to 0.0 wil disable Mixup
         /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
         /// </summary>
         public double AlphaMixup { get; set; }
-
 
         /// <summary>
         /// rotation range in degrees, in [0,180] range.
         /// The actual rotation will be a random number in [-_rotationRangeInDegrees,+_rotationRangeInDegrees]
         /// </summary>
         public double RotationRangeInDegrees { private get; set; }
+
         /// <summary>
         /// Range for random zoom. [lower, upper] = [1 - _zoomRange, 1 + _zoomRange].
         /// </summary>
         public double ZoomRange { private get; set; }
-
         #endregion
 
         protected Network BuildEmptyNetwork(string networkName)

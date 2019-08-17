@@ -8,7 +8,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
-    public class CIFAR10DataLoader : IDataSet<float>
+    public class CIFAR10DataLoader : IDataSet
     {
         private readonly string[] CategoryIdToDescription = new[] { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
 
@@ -20,14 +20,14 @@ namespace SharpNet.Datasets
         public static readonly int[] InputShape_CHW = {Channels, Height, Width};
 
 
-        public IDataSetLoader<float> Training { get; }
-        public IDataSetLoader<float> Test { get; }
+        public IDataSetLoader Training { get; }
+        public IDataSetLoader Test { get; }
 
         public CIFAR10DataLoader()
         {
             LoadCifar10(out var xTrain, out var yTrain, out var trainElementIdToCategoryId, out var xTest, out var yTest, out var testElementIdToCategoryId);
-            Training = new InMemoryDataSetLoader<float>(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription);
-            Test = new InMemoryDataSetLoader<float>(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription);
+            Training = new InMemoryDataSetLoader(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription);
+            Test = new InMemoryDataSetLoader(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription);
         }
         public void Dispose()
         {
@@ -42,12 +42,12 @@ namespace SharpNet.Datasets
             //var meanAndVolatilityOfEachChannel = xTrainingSet.ComputeMeanAndVolatilityOfEachChannel(x=>(double)x);
             var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>>{Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142),Tuple.Create(113.865383183594, 66.7048996406309)};
             ToWorkingSet(xTrainingSet, yTrainingSet, out xTrain, out yTrain, meanAndVolatilityOfEachChannel);
-            InMemoryDataSetLoader<float>.AreCompatible_X_Y(xTrain, yTrain);
+            AbstractDataSetLoader.AreCompatible_X_Y(xTrain, yTrain);
             trainElementIdToCategoryId = yTrainingSet.Content.Select(x => (int) x).ToArray();
             Debug.Assert(trainElementIdToCategoryId.Length == xTrainingSet.Shape[0]);
 
             ToWorkingSet(xTestSet, yTestSet, out xTest, out yTest, meanAndVolatilityOfEachChannel);
-            InMemoryDataSetLoader<float>.AreCompatible_X_Y(xTest, yTest);
+            AbstractDataSetLoader.AreCompatible_X_Y(xTest, yTest);
             testElementIdToCategoryId = yTestSet.Content.Select(x => (int)x).ToArray();
             Debug.Assert(testElementIdToCategoryId.Length == xTestSet.Shape[0]);
 
@@ -71,8 +71,8 @@ namespace SharpNet.Datasets
         private static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<double, double>> meanAndVolatilityOfEachChannel)
         {
             xWorkingSet = x.Select((n, c, val) =>(float) ((val - meanAndVolatilityOfEachChannel[c].Item1) /Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
-            //xWorkingSet = x.Select((n, c, val) => (float)val/255.0f);
-            yWorkingSet = y.ToCategorical(1.0f, out _);
+            //xWorkingSet = x.Select((n, c, val) => (float)val/255f);
+            yWorkingSet = y.ToCategorical(1f, out _);
         }
         private static void LoadAt(string path, CpuTensor<byte> x, CpuTensor<byte> y, int indexFirst)
         {

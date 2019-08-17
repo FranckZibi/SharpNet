@@ -24,8 +24,9 @@ namespace SharpNet.Layers
 
         #region Fields
 
-        public Tensor a_init;         //(batchSize, aLength)
-        public readonly List<Tensor> a_t = new List<Tensor>();   //vector of length 'timeSteps_x' / each element: (batchSize, aLength)
+        private Tensor a_init;         //(batchSize, aLength)
+
+        private readonly List<Tensor> a_t = new List<Tensor>();   //vector of length 'timeSteps_x' / each element: (batchSize, aLength)
         //a_t(t) hidden state at time step 't' (batchSize, aLength)
         //a_t(t): tanh( x_t(t)*Weights_ax + a_t(t-1)*Weights_aa + Bias_a)
         //x_t(t): (batchSize, _xLength)
@@ -37,7 +38,7 @@ namespace SharpNet.Layers
         public readonly Tensor Bias_a;                  // (1, aLength) 
 
         //vector of length 'timeSteps_y' / each element: (batchSize, yLength)
-        public readonly List<Tensor> y_t = new List<Tensor>();       //y(t) = softmax( a(t)*Weights_ay + Bias_y)
+        private readonly List<Tensor> y_t = new List<Tensor>();       //y(t) = softmax( a(t)*Weights_ay + Bias_y)
         public readonly Tensor Weights_ay;              // (aLength, yLength) 
         //Bias relating the hidden-state to the output
         public readonly Tensor Bias_y;                  // (1, yLength) 
@@ -72,11 +73,11 @@ namespace SharpNet.Layers
             _yLength = yLength;
             _returnSequences = returnSequences;
 
-            Weights_aa = Network.NewNotInitializedTensor(new[] { aLength, aLength }, Weights_aa, nameof(Weights_aa));
-            Weights_ax = Network.NewNotInitializedTensor(new[] { xLength, aLength }, Weights_ax, nameof(Weights_ax));
-            Weights_ay = Network.NewNotInitializedTensor(new[] { aLength, yLength }, Weights_ay, nameof(Weights_ay));
-            Bias_a = Network.NewNotInitializedTensor(new[] { 1, aLength }, Bias_a, nameof(Bias_a));
-            Bias_y = Network.NewNotInitializedTensor(new[] { 1, yLength }, Bias_y, nameof(Bias_y));
+            Weights_aa = Network.NewNotInitializedTensor(new[] { aLength, aLength }, nameof(Weights_aa));
+            Weights_ax = Network.NewNotInitializedTensor(new[] { xLength, aLength }, nameof(Weights_ax));
+            Weights_ay = Network.NewNotInitializedTensor(new[] { aLength, yLength }, nameof(Weights_ay));
+            Bias_a = Network.NewNotInitializedTensor(new[] { 1, aLength }, nameof(Bias_a));
+            Bias_y = Network.NewNotInitializedTensor(new[] { 1, yLength }, nameof(Bias_y));
             //a_init = Network.NewNotInitializedTensor(new[] { batchSize, aLength }, a_init, nameof(a_init));
             ResetWeights(false);
         }
@@ -110,7 +111,7 @@ namespace SharpNet.Layers
             }
             while (a_t.Count < _timeSteps_x)
             {
-                a_t.Add(Network.NewNotInitializedTensor(aShape, null, "a_" + (a_t.Count + 1)));
+                a_t.Add(Network.NewNotInitializedTensor(aShape, "a_" + (a_t.Count + 1)));
             }
             a_t.ForEach(t=>t.ZeroMemory());
 
@@ -122,7 +123,7 @@ namespace SharpNet.Layers
             }
             while (y_t.Count < _timeSteps_x)
             {
-                y_t.Add(Network.NewNotInitializedTensor(yShape, null, "y_" + (a_t.Count + 1)));
+                y_t.Add(Network.NewNotInitializedTensor(yShape, "y_" + (a_t.Count + 1)));
             }
             //y_t.ForEach(t => t.ZeroMemory());
         }
@@ -157,14 +158,11 @@ namespace SharpNet.Layers
                 a_buffer1.Dot(x_at_t_buffer, Weights_ax);
                 var a_prev = (t == 0) ? a_init : a_t[t - 1];
                 a_buffer2.Dot(a_prev, Weights_aa);
-                a_buffer1.AddTensor(1.0, a_buffer2, 1.0);
-                //a_buffer1.AddTensor(1.0, Bias_a, 1.0);
+                a_buffer1.AddTensor(1, a_buffer2, 1);
                 Bias_a.BroadcastAddVectorToOutput(a_buffer1);
                 a_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, a_t[t]);
 
-                //y(t) = softmax( a(t)*Weights_ay + Bias_y)
                 y_buffer1.Dot(a_t[t], Weights_ay);
-                //a_buffer1.AddTensor(1.0, Bias_y, 1.0);
                 Bias_y.BroadcastAddVectorToOutput(y_buffer1);
                 y_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, y_t[t]);
             }

@@ -39,8 +39,6 @@ namespace SharpNet.Networks
         public Random Rand { get; }
         public Logger Logger { get; set; } = Logger.ConsoleLogger;
 
-        public bool UseDoublePrecision { get; set; }
-
         public bool RandomizeOrder { get; set; } = true;
 
         /// <summary>
@@ -78,7 +76,7 @@ namespace SharpNet.Networks
 
         public bool DisableLogging => ReferenceEquals(Logger, Logger.NullLogger);
 
-        public int TypeSize => UseDoublePrecision ? 8 : 4;
+        public int TypeSize => 4;
         public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999)
         {
             Debug.Assert(_beta1 >= 0);
@@ -127,7 +125,6 @@ namespace SharpNet.Networks
 
             equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + ":lambdaL2Regularization", ref errors);
             equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
-            equals &= Utils.Equals(UseDoublePrecision, other.UseDoublePrecision, id + ":UseDoublePrecision", ref errors);
             equals &= Utils.Equals(ForceTensorflowCompatibilityMode, other.ForceTensorflowCompatibilityMode, id + ":ForceTensorflowCompatibilityMode", ref errors);
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
             equals &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
@@ -226,7 +223,6 @@ namespace SharpNet.Networks
                 .Add(nameof(OneCycle_DividerForMinLearningRate), OneCycle_DividerForMinLearningRate).Add(nameof(OneCycle_PercentInAnnealing), OneCycle_PercentInAnnealing)
                 .Add(nameof(DisableReduceLROnPlateau), DisableReduceLROnPlateau).Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau).Add(nameof(LinearLearningRate), LinearLearningRate)
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
-                .Add(nameof(UseDoublePrecision), UseDoublePrecision)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
                 .Add(nameof(ForceTensorflowCompatibilityMode), ForceTensorflowCompatibilityMode)
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
@@ -265,8 +261,6 @@ namespace SharpNet.Networks
             DisableReduceLROnPlateau = (bool)serialized[nameof(DisableReduceLROnPlateau)];
             DivideBy10OnPlateau = (bool)serialized[nameof(DivideBy10OnPlateau)];
             LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
-            UseDoublePrecision = (bool)serialized[nameof(UseDoublePrecision)];
-
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
             ForceTensorflowCompatibilityMode = (bool)serialized[nameof(ForceTensorflowCompatibilityMode)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];

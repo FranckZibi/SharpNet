@@ -185,25 +185,11 @@ namespace SharpNet
             double deltaLearningRate = (y2 - y1);
             return y1 + dEpoch * deltaLearningRate;
         }
-        public static void Randomize(double[] toRandomize, Random rand, double minValue, double maxValue)
-        {
-            for (int j = 0; j < toRandomize.Length; ++j)
-            {
-                toRandomize[j] = minValue + rand.NextDouble() * (maxValue - minValue);
-            }
-        }
         public static void Randomize(float[] toRandomize, Random rand, double minValue, double maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
-            }
-        }
-        public static void RandomizeNormalDistribution(double[] toRandomize, Random rand, double mean, double stdDev)
-        {
-            for (int j = 0; j < toRandomize.Length; ++j)
-            {
-                toRandomize[j] = NextDoubleNormalDistribution(rand, mean, stdDev);
             }
         }
         public static void RandomizeNormalDistribution(float[] toRandomize, Random rand, double mean, double stdDev)
@@ -259,7 +245,7 @@ namespace SharpNet
                 value = (T)resAsObject;
                 return true;
             }
-            value = default(T);
+            value = default;
             return false;
         }
         public static T TryGet<T>(this IDictionary<string, object> serialized, string key)
@@ -268,7 +254,7 @@ namespace SharpNet
             {
                 return (T)resAsObject;
             }
-            return default(T);
+            return default;
         }
 
         private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)

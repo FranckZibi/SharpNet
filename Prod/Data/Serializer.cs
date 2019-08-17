@@ -228,14 +228,7 @@ namespace SharpNet.Data
         }
         private static string Serialize(Tensor t)
         {
-            if (t.UseDoublePrecision)
-            {
-                return Serialize(t.UseGPU, t.Description, typeof(double),t.Shape, ToString(t.ContentAsDoubleArray()));
-            }
-            else
-            {
-                return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(t.ContentAsFloatArray()));
-            }
+            return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(t.ContentAsFloatArray()));
         }
 
         private static string ToString(float[] data)
@@ -269,19 +262,6 @@ namespace SharpNet.Data
                 shape[i] = int.Parse(splitted[startIndex++]);
             }
             int count = Utils.Product(shape);
-            if (string.Equals(typeAsString, "double", StringComparison.OrdinalIgnoreCase))
-            {
-                var data = Deserialize(splitted, count, startIndex, ParseDouble);
-                startIndex += count;
-                if (!isGpu)
-                {
-                    return new CpuTensor<double>(shape, data, description);
-                }
-                using (var m = new HostPinnedMemory<double>(data))
-                {
-                    return new GPUTensor<double>(shape, m.Pointer, description, gpuWrapper);
-                }
-            }
             if (string.Equals(typeAsString, "single", StringComparison.OrdinalIgnoreCase))
             {
                 var data = Deserialize(splitted, count, startIndex, ParseFloat);
