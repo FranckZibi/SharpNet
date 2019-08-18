@@ -99,6 +99,7 @@ namespace SharpNet.Datasets
         }
 
         public abstract int Count { get; }
+        public abstract string ElementIdToDescription(int elementId);
         public int Channels { get; }
         public int Categories { get; }
         public abstract string CategoryIdToDescription(int categoryId);

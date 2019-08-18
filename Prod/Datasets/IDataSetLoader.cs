@@ -53,6 +53,13 @@ namespace SharpNet.Datasets
         /// <returns>id of the associated category (between 0 and 'Categories-1')</returns>
         int ElementIdToCategoryId(int elementId);
         /// <summary>
+        /// element id to associated description
+        /// </summary>
+        /// <param name="elementId">id of the element (between 0 and 'Count-1')</param>
+        /// <returns>description of the associated element id</returns>
+        string ElementIdToDescription(int elementId);
+
+        /// <summary>
         /// number of channels of each elements
         /// </summary>
         int Channels { get; }

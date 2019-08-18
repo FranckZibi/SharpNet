@@ -21,6 +21,7 @@ namespace SharpNet.Datasets
         private readonly List<int> _elementIdToCategoryId;
         private readonly string[] _categoryIdToDescription;
         private readonly List<string> _elementIdToFullName = new List<string>();
+        private readonly List<string> _elementIdToDescription = new List<string>();
         private readonly List<Tuple<double, double>> _meanAndVolatlityForEachChannel = new List<Tuple<double, double>>();
         #endregion
         public override int Height { get; }
@@ -78,7 +79,7 @@ namespace SharpNet.Datasets
                     continue;
                 }
                 _elementIdToCategoryId.Add(categoryId);
-                //_elementIdToDescription.Add(description);
+                _elementIdToDescription.Add(description);
                 _elementIdToFullName.Add(fileNameWithoutExtensionToFullPath[elementFileNameWithoutExtension]);
             }
 
@@ -158,6 +159,12 @@ namespace SharpNet.Datasets
         {
             return _elementIdToCategoryId[elementId];
         }
+
+        public override string ElementIdToDescription(int elementId)
+        {
+            return _elementIdToDescription[elementId];
+        }
+
         public override string CategoryIdToDescription(int categoryId)
         {
             if (_categoryIdToDescription == null)

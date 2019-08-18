@@ -45,6 +45,12 @@ namespace SharpNet.Datasets
         {
             return _elementIdToCategoryId[elementId];
         }
+
+        public override string ElementIdToDescription(int elementId)
+        {
+            return elementId.ToString();
+        }
+
         public override string CategoryIdToDescription(int categoryId)
         {
             if (_categoryIdToDescription == null)

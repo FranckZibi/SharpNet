@@ -13,15 +13,15 @@
         public int Width { get; }
 
 
-        public static DirectoryDataSetLoader ResizeTrainingDirectory(string csvFilename, string trainingSetDirectory, int tagetHeightAndWidth, double percentageInTrainingSet, Logger logger)
+        public static DirectoryDataSetLoader ResizeTrainingDirectory(string csvFilename, string trainingSetDirectory, int targetHeightAndWidth, Logger logger)
         {
-            logger = logger ?? new Logger(csvFilename + ".log", true);
+            logger = logger ?? Logger.ConsoleLogger;
             var trainingSet = new DirectoryDataSetLoader(csvFilename, trainingSetDirectory, logger, Channels, -1, -1, CategoryIdToDescription);
 
             var resizedTrainingSet = trainingSet
                 .CropBorder()
                 .MakeSquarePictures(true)
-                .Resize(32, 32);
+                .Resize(targetHeightAndWidth, targetHeightAndWidth);
             return resizedTrainingSet;
         }
         public static IDataSet ValueOf(int widthAndHeight, double percentageInTrainingSet, Logger logger)
