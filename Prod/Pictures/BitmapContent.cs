@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.CPU;
@@ -11,12 +11,31 @@ namespace SharpNet.Pictures
 {
     public class BitmapContent : CpuTensor<byte>
     {
-        public static BitmapContent ValueOf(string filename, string description)
+        /// <summary>
+        /// Load a RGB bitmap (with 3 channels)
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="description"></param>
+        /// <returns></returns>
+        public static BitmapContent ValueFomSingleRgbBitmap(string filename, string description)
         {
             using (var bmp = new Bitmap(filename))
             {
-                return ValueOf(bmp, description);
+                return ValueFomSingleRgbBitmap(bmp, description);
             }
+        }
+        /// <summary>
+        /// Construct an element stacking several bitmaps, each bitmap containing a single channel
+        /// </summary>
+        /// <param name="singleChannelBitmaps">list of bitmap files, each containing a single channel (meaning R=G=B)</param>
+        /// <param name="description"></param>
+        /// <returns></returns>
+        public static BitmapContent ValueFromSeveralSingleChannelBitmaps(IEnumerable<string> singleChannelBitmaps, string description)
+        {
+            var bmps = singleChannelBitmaps.Select(filename => new Bitmap(filename)).ToList();
+            var result = ValueFromSeveralSingleChannelBitmaps(bmps, description);
+            bmps.ForEach(bmp=>bmp.Dispose());
+            return result;
         }
         private BitmapContent(int[] shape, byte[] data, string description) : base(shape, data, description)
         {
@@ -74,22 +93,29 @@ namespace SharpNet.Pictures
             var cropped = GetBorderCoordinates();
             return Crop(cropped.rowStart, cropped.rowEnd, cropped.colStart, cropped.colEnd);
         }
-        public void Save(string filename)
+        public void Save(List<string> filenames)
         {
-            var bmp = AsBitmap();
-            Save(bmp, filename);
-            bmp.Dispose();
-        }
-        public static void Save(Bitmap bmp, string filename)
-        {
-            var dir = new FileInfo(filename).Directory;
-            if ((dir != null) && (!dir.Exists))
+            if (filenames.Count == 1)
             {
-                dir.Create();
+                Debug.Assert(GetChannels() == 3);
+                var bmp = AsBitmap();
+                PictureTools.SavePng(bmp, filenames[0]);
+                bmp.Dispose();
             }
-            bmp.Save(Utils.UpdateFilePathChangingExtension(filename, "", "", ".png"));
+            else
+            {
+                Debug.Assert(GetChannels() == filenames.Count);
+                for (int channel = 0; channel < GetChannels(); ++channel)
+                {
+                    var bmp = AsBitmapForChannel(channel);
+                    PictureTools.SavePng(bmp, filenames[channel]);
+                    bmp.Dispose();
+                }
+            }
         }
 
+
+      
         /// <summary>
         /// 
         /// </summary>
@@ -99,12 +125,12 @@ namespace SharpNet.Pictures
         /// _Sum_SumSquare_Count_For_Each_Channel[3*channel+2] : count of all elements in channel 'channel'
         /// </param>
         /// <param name="ignoreZeroPixel"></param>
-        public void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(double[] _sum_SumSquare_Count_For_Each_Channel, bool ignoreZeroPixel)
+        public void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(float[] _sum_SumSquare_Count_For_Each_Channel, bool ignoreZeroPixel)
         {
             for (int channel = 0; channel < GetChannels(); ++channel)
             {
-                double sum = 0.0;
-                double sumSquare = 0.0;
+                var sum = 0f;
+                var sumSquare = 0f;
                 int count = 0;
                 for (int row = 0; row < GetHeight(); ++row)
                 {
@@ -115,7 +141,7 @@ namespace SharpNet.Pictures
                         {
                             continue;
                         }
-                        var val = (double)Get(channel, row, col);
+                        var val = Get(channel, row, col);
                         sum += val;
                         sumSquare += val * val;
                         ++count;
@@ -336,9 +362,10 @@ namespace SharpNet.Pictures
         }
         private Bitmap AsBitmap()
         {
+            Debug.Assert(GetChannels() == 3);
             var bmp = new Bitmap(GetWidth(), GetHeight(), PixelFormat.Format24bppRgb);
             var rect = new Rectangle(0, 0, GetWidth(), GetHeight());
-            // Lock the bitmap's bits.  
+            // Lock the bitmap bits.  
             var bmpData = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
             var rgbValues = new byte[bmpData.Stride * bmpData.Height];
             int index = 0;
@@ -358,7 +385,77 @@ namespace SharpNet.Pictures
             bmp.UnlockBits(bmpData);
             return bmp;
         }
-        private static BitmapContent ValueOf(Bitmap bmp, string description)
+        private Bitmap AsBitmapForChannel(int channel)
+        {
+            Debug.Assert(GetChannels() == 3);
+            var bmp = new Bitmap(GetWidth(), GetHeight(), PixelFormat.Format24bppRgb);
+            var rect = new Rectangle(0, 0, GetWidth(), GetHeight());
+            // Lock the bitmap bits.  
+            var bmpData = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+            var rgbValues = new byte[bmpData.Stride * bmpData.Height];
+            int index = 0;
+            for (int row = 0; row < bmpData.Height; row++)
+            {
+                for (int col = 0; col < bmpData.Width; col++)
+                {
+                    var rgbValue = Get(channel, row, col);
+                    rgbValues[index + 2] = rgbValue;    //R
+                    rgbValues[index + 1] = rgbValue;    //G
+                    rgbValues[index] = rgbValue;        //B
+                    index += 3;
+                }
+                index += bmpData.Stride - bmpData.Width * 3;
+            }
+            Marshal.Copy(rgbValues, 0, bmpData.Scan0, rgbValues.Length);
+            // Unlock the bits.
+            bmp.UnlockBits(bmpData);
+            return bmp;
+        }
+
+        /// <summary>
+        /// Construct a Volume from several bitmaps: each contain a single (grey scale) channel
+        /// </summary>
+        /// <param name="bmps">List of bitmap, one per channel</param>
+        /// <param name="description"></param>
+        /// <returns></returns>
+        private static BitmapContent ValueFromSeveralSingleChannelBitmaps(IReadOnlyList<Bitmap> bmps, string description)
+        {
+            var width = bmps[0].Width;
+            var height = bmps[0].Height;
+            var shape = new[] { bmps.Count, height, width };
+            var result = new BitmapContent(shape, null, description);
+
+            for (var channel = 0; channel < bmps.Count; channel++)
+            {
+                var bmpForChannel = bmps[channel];
+                Debug.Assert(bmpForChannel.Height == height);
+                Debug.Assert(bmpForChannel.Width == width);
+                var rect = new Rectangle(0, 0, width, height);
+                var bmpData = bmpForChannel.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                var stride = bmpData.Stride;
+                unsafe
+                {
+                    var imgPtr = (byte*) (bmpData.Scan0);
+                    for (int row = 0; row < height; row++)
+                    {
+                        for (int col = 0; col < width; col++)
+                        {
+                            result.Set(channel, row, col, *(imgPtr + 2)); //R
+                            //We ensure that it is a grey scale bitmap (Red = Green = Blue)
+                            Debug.Assert(*(imgPtr + 2) == *(imgPtr + 1));   //Red byte == Green Byte
+                            Debug.Assert(*(imgPtr + 2) == *(imgPtr));       //Red byte == Blue Byte
+                            imgPtr += 3;
+                        }
+                        imgPtr += stride - width * 3;
+                    }
+                }
+                // Unlock the bits.
+                bmpForChannel.UnlockBits(bmpData);
+            }
+            return result;
+        }
+
+        private static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp, string description)
         {
             var width = bmp.Width;
             var height = bmp.Height;

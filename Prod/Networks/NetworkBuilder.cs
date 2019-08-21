@@ -57,10 +57,16 @@ namespace SharpNet.Networks
 
         protected Network BuildEmptyNetwork(string networkName)
         {
-            Config.Logger = DisableLogging ? Logger.NullLogger : Utils.Logger(networkName + ExtraDescription);
+            var configLogger = NetworkLogger(networkName);
+            Config.Logger = configLogger;
             var network = new Network(Config, DataGenerator(), GpuDeviceId);
             network.Description = networkName + ExtraDescription;
             return network;
+        }
+
+        public Logger NetworkLogger(string networkName)
+        {
+            return DisableLogging ? Logger.NullLogger : Utils.Logger(networkName + ExtraDescription);
         }
 
         private ImageDataGenerator DataGenerator()

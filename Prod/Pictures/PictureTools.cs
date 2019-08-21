@@ -12,6 +12,16 @@ namespace SharpNet.Pictures
 {
     public static class PictureTools
     {
+        public static void SavePng(Bitmap bmp, string filename)
+        {
+            var dir = new FileInfo(filename).Directory;
+            if ((dir != null) && (!dir.Exists))
+            {
+                dir.Create();
+            }
+            bmp.Save(Utils.UpdateFilePathChangingExtension(filename, "", "", ".png"));
+        }
+
         public static List<KeyValuePair<CpuTensor<byte>, int>> ReadInputPictures(string fileData, string fileLabels)
         {
             var result = new List<KeyValuePair<CpuTensor<byte>, int>>();

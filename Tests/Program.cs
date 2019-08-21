@@ -92,13 +92,14 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
-
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_RecursionCellularImageClassification_WRN(x, 10, 4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 10,4,WidthAptos2019);},
 
+                /*
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
-
+                */
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
@@ -110,6 +111,8 @@ namespace SharpNetTests
             {
                 //ref 8-aug-2019: 0 bps
                 (p) =>{},
+
+                //(p) =>{p.RecursionCellularImageClassification();p.ExtraDescription = "_RecursionCellular";},
 
                 //(p) => { p.CutMix = false;p.CutoutPatchPercentage = 0.5;},
                 //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;},
@@ -132,11 +135,23 @@ namespace SharpNetTests
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.RotationRangeInDegrees=180;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Rotation180"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_Rotation90"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_50_noCutMix_Rotation90"+WidthAptos2019;},
-                (p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_"+WidthAptos2019;},
-                (p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_Mixup_Rotation90_"+WidthAptos2019;},
-                (p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=0;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_noRotation"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_Mixup_Rotation90_"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=0;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_noRotation"+WidthAptos2019;},
 
                 #region already performed tests
+                //CutMix V2 : validated on 18-aug-2019 : -4bps (in CutMix V2 we ensure that we keep at least 50% of the original element)
+                //(p) =>{p.ExtraDescription = "_CutMixV2";},
+                //tested on 18-aug-219: 'CutMix + Cutout 10%' : -43bps vs 'CutMix only'
+                //(p) =>{p.CutoutPatchPercentage = 0.1;p.ExtraDescription = "_CutMixV2_Cutout_0_10";},
+                //tested on 16-aug-219: 'Mixup only' : -63bps vs 'CutMix only'
+                //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;p.ExtraDescription = "_only_MixUp";},
+                //tested on 16-aug-219: 'Mixup & CutOut' : -75bps vs 'CutMix only'
+                //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.ExtraDescription = "_MixUp_and_cutout";},
+                //tested on 15-aug-219: 'CutMix & CutOut' : -55bps vs 'CutMix only'
+                //(p) => { p.CutMix = true;p.CutoutPatchPercentage = 0.5;p.ExtraDescription = "_CutMix_Cutout";},
+                //tested on 15-aug-219: 'Cutout only' : -45bps vs 'CutMix only'
+                //(p) => { p.CutMix = false;p.CutoutPatchPercentage = 0.5;p.ExtraDescription = "_noCutMix_Cutout";},
                 //CutMix : tested on 14-aug-2019 : +15 bps
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutMix = true;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_CutMixV2_150epochs";},
                 //CutMix + Cutout : tested on 14-aug-2019 : -15 bps
@@ -273,6 +288,32 @@ namespace SharpNetTests
             }
         }
 
+
+        //"C:\Users\fzibi\AppData\Local\SharpNet\Data\recursion-cellular-image-classification\train"
+        private static void Train_RecursionCellularImageClassification_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
+        {
+            var networkLogger = p.NetworkLogger("WRN-" + WRN_depth + "-" + WRN_k);
+            //var networkLogger = network.Config.Logger;
+
+            //int heightAndWidth = 512;
+            //var originalDirectoryWithElements = @"C:\Users\fzibi\AppData\Local\SharpNet\Data\recursion-cellular-image-classification\train";
+            //var originalCsvFilename = @"C:\Users\fzibi\AppData\Local\SharpNet\Data\recursion-cellular-image-classification\train.csv";
+            //var testSet = new RecursionCellularImageClassificationDataLoader(originalCsvFilename, originalDirectoryWithElements, 512, 512, 0.9, networkLogger);
+
+            int heightAndWidth = 256;
+            var directoryWithElements = @"C:\Users\fzibi\AppData\Local\SharpNet\Data\recursion-cellular-image-classification\train_resize_" + heightAndWidth + "_" + heightAndWidth;
+            var csvFilename = @"C:\Users\fzibi\AppData\Local\SharpNet\Data\recursion-cellular-image-classification\train.csv";
+            var testSet = new RecursionCellularImageClassificationDataLoader(csvFilename, directoryWithElements, heightAndWidth, heightAndWidth, 0.9, networkLogger);
+
+            //dimension of a single element in the training data (in shape (channels,height, width)
+            var inputShape_CHW = new[] { RecursionCellularImageClassificationDataLoader.Channels, heightAndWidth, heightAndWidth };
+
+            //?D var network = p.WRN(WRN_depth, WRN_k, inputShape_CHW, RecursionCellularImageClassificationDataLoader.Categories);
+            var network = p.WRN_ImageNet(WRN_depth, WRN_k, inputShape_CHW, RecursionCellularImageClassificationDataLoader.Categories);
+
+            Train(p, network, testSet.Training, testSet.Test);
+            testSet.Dispose();
+        }
 
         private static void Train_Aptos2019Blindness_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k, int heightAndWidth)
         {

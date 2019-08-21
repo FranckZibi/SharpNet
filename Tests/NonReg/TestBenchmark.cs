@@ -94,7 +94,7 @@ namespace SharpNetTests.NonReg
             var learningRate = 0.01;
             network.Fit(loader.Training, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, loader.Test);
             var elapsedMs = sw.Elapsed.TotalSeconds;
-            var lossAndAccuracy = network.ComputeLossAndAccuracy(batchSize, loader.Test);
+            var lossAndAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, loader.Test);
 
             System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Speed.csv" ), 
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"

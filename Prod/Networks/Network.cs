@@ -34,8 +34,8 @@ namespace SharpNet.Networks
         private readonly Stopwatch _swComputeLossAndAccuracy;
         private readonly Stopwatch _swComputeLoss;
         private readonly Stopwatch _swComputeAccuracy;
-        private Tensor _yPredictedBufferForMiniBatchGradientDescent;
-        private Tensor _yExpectedBufferForMiniBatchGradientDescent;
+        private Tensor _yPredictedBufferForEnitreBatch;
+        private Tensor _yExpectedBufferForEntireBatch;
         private Tensor bufferComputeAccuracy;
         private Tensor bufferComputeLoss;
         private readonly int _gpuDeviceId;
@@ -120,8 +120,8 @@ namespace SharpNet.Networks
             _epochsData.Clear();
             bufferComputeAccuracy?.Dispose();
             bufferComputeLoss?.Dispose();
-            _yPredictedBufferForMiniBatchGradientDescent?.Dispose();
-            _yExpectedBufferForMiniBatchGradientDescent?.Dispose();
+            _yPredictedBufferForEnitreBatch?.Dispose();
+            _yExpectedBufferForEntireBatch?.Dispose();
             _backwardPropagationManager?.Dispose();
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect();
@@ -664,12 +664,12 @@ namespace SharpNet.Networks
                 }
 
                 _swComputeLossAndAccuracy?.Start();
-                var trainLossAndAccuracy = ComputeLossAndAccuracy_From_Expected_vs_Predicted(_yExpectedBufferForMiniBatchGradientDescent, yPredicted);
-                var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracy, "");
+                var trainLossAndAccuracyForEpoch = ComputeLossAndAccuracyForEntireBatch(_yExpectedBufferForEntireBatch, yPredicted);
+                var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracyForEpoch, "");
                 if (testDataSetCpu != null)
                 {
                     //We compute the validation (= test) loss&accuracy
-                    validationLossAndAccuracy = ComputeLossAndAccuracy(miniBatchSize, testDataSetCpu);
+                    validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSize, testDataSetCpu);
                     lossAndAccuracyMsg += " - "+LossAndAccuracyToString(validationLossAndAccuracy, "val_");
                 }
                 _swComputeLossAndAccuracy?.Stop();
@@ -687,7 +687,7 @@ namespace SharpNet.Networks
                 }
 
                 #region we save stats about the just finished epoch
-                var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracy.Item1, trainLossAndAccuracy.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
+                var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracyForEpoch.Item1, trainLossAndAccuracyForEpoch.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
                 _epochsData.Add(currentEpochData);
                 #endregion
 
@@ -768,13 +768,15 @@ namespace SharpNet.Networks
 
         #region compute Loss and Accuracy
         //returns : Tuple<loss, accuracy>
-        public Tuple<double, double> ComputeLossAndAccuracy(int miniBatchSize, IDataSetLoader testDataSet)
+        public Tuple<double, double> ComputeLossAndAccuracyForTestDataSet(int miniBatchSize, IDataSetLoader testDataSet)
         {
-            var yPredicted = MiniBatchGradientDescent(miniBatchSize, testDataSet);
-            return ComputeLossAndAccuracy_From_Expected_vs_Predicted(testDataSet.Y, yPredicted);
+            //We perform a mini batch gradient descent in Testing mode:
+            //  there will be no shuffling/data augmentation.
+            var yPredicted = MiniBatchGradientDescent(miniBatchSize, testDataSet, null, null);
+            return ComputeLossAndAccuracyForEntireBatch(testDataSet.Y, yPredicted);
         }
 
-        private Tuple<double, double> ComputeLossAndAccuracy_From_Expected_vs_Predicted(Tensor yExpected, Tensor yPredicted)
+        private Tuple<double, double> ComputeLossAndAccuracyForEntireBatch(Tensor yExpected, Tensor yPredicted)
         {
             _swComputeAccuracy?.Start();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
@@ -868,8 +870,8 @@ namespace SharpNet.Networks
             int nbMiniBatchBlock = NbBlocksInEpoch(miniBatchSize, entireBatchSize);
             int epoch = _epochsData.Count + 1;
             var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(_epochsData) ?? 1.0;
-            _yPredictedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yPredictedBufferForMiniBatchGradientDescent, nameof(_yPredictedBufferForMiniBatchGradientDescent));
-            _yExpectedBufferForMiniBatchGradientDescent = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForMiniBatchGradientDescent, nameof(_yExpectedBufferForMiniBatchGradientDescent));
+            _yPredictedBufferForEnitreBatch = NewNotInitializedTensor(dataSet.Y_Shape, _yPredictedBufferForEnitreBatch, nameof(_yPredictedBufferForEnitreBatch));
+            _yExpectedBufferForEntireBatch = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForEntireBatch, nameof(_yExpectedBufferForEntireBatch));
             var xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(miniBatchSize), "xMiniBatch");
 
             var orderInCurrentEpoch = Enumerable.Range(0, dataSet.Count).ToList();
@@ -885,12 +887,12 @@ namespace SharpNet.Networks
                 var blockSize = Math.Min(entireBatchSize- nbProcessed, miniBatchSize);
                 xMiniBatch.Reshape(dataSet.XMiniBatch_Shape(blockSize));
 
-                var yExpectedMiniBatch = _yExpectedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);
+                var yExpectedMiniBatch = _yExpectedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 _swCreateInputForEpoch?.Start();
                 dataSet.Load(epoch, isTraining, blockId * miniBatchSize, orderInCurrentEpoch, _imageDataGenerator, ref xMiniBatch, ref yExpectedMiniBatch);
                 _swCreateInputForEpoch?.Stop();
 
-                var yPredictedMiniBatch = _yPredictedBufferForMiniBatchGradientDescent.ExtractSubTensor(blockId * miniBatchSize, blockSize);
+                var yPredictedMiniBatch = _yPredictedBufferForEnitreBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 Layers.Last().Set_y(yPredictedMiniBatch);
                 Predict(xMiniBatch, isTraining);
                 if (isTraining)
@@ -900,8 +902,8 @@ namespace SharpNet.Networks
                 }
                 if (!yPredictedMiniBatch.UseGPU)
                 {
-                    yPredictedMiniBatch.CopyTo(0, _yPredictedBufferForMiniBatchGradientDescent, _yPredictedBufferForMiniBatchGradientDescent.Idx(nbProcessed), yPredictedMiniBatch.Count);
-                    yExpectedMiniBatch.CopyTo(0, _yExpectedBufferForMiniBatchGradientDescent, _yExpectedBufferForMiniBatchGradientDescent.Idx(nbProcessed),  yExpectedMiniBatch.Count);
+                    yPredictedMiniBatch.CopyTo(0, _yPredictedBufferForEnitreBatch, _yPredictedBufferForEnitreBatch.Idx(nbProcessed), yPredictedMiniBatch.Count);
+                    yExpectedMiniBatch.CopyTo(0, _yExpectedBufferForEntireBatch, _yExpectedBufferForEntireBatch.Idx(nbProcessed),  yExpectedMiniBatch.Count);
                 }
                 nbProcessed += blockSize;
                 if (callBackToStop != null && callBackToStop(yExpectedMiniBatch, yPredictedMiniBatch, blockId, nbMiniBatchBlock, epoch))
@@ -910,7 +912,7 @@ namespace SharpNet.Networks
                 }
                 ++blockId;
             }
-            return _yPredictedBufferForMiniBatchGradientDescent;
+            return _yPredictedBufferForEnitreBatch;
         }
         private static int NbBlocksInEpoch(int miniBatchSize, int entireBatchSize)
         {

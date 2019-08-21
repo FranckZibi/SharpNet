@@ -9,34 +9,20 @@
         public IDataSetLoader Test { get; }
 
 
-        public int Height {get; }
-        public int Width { get; }
+        //public static DirectoryDataSetLoader ResizeTrainingDirectory(string csvFilename, string trainingSetDirectory, int targetHeightAndWidth, Logger logger)
+        //{
+        //    logger = logger ?? Logger.ConsoleLogger;
+        //    var trainingSet = new DirectoryDataSetLoader(csvFilename, trainingSetDirectory, logger, Channels, -1, -1, CategoryIdToDescription);
 
-
-        public static DirectoryDataSetLoader ResizeTrainingDirectory(string csvFilename, string trainingSetDirectory, int targetHeightAndWidth, Logger logger)
-        {
-            logger = logger ?? Logger.ConsoleLogger;
-            var trainingSet = new DirectoryDataSetLoader(csvFilename, trainingSetDirectory, logger, Channels, -1, -1, CategoryIdToDescription);
-
-            var resizedTrainingSet = trainingSet
-                .CropBorder()
-                .MakeSquarePictures(true)
-                .Resize(targetHeightAndWidth, targetHeightAndWidth);
-            return resizedTrainingSet;
-        }
-        public static IDataSet ValueOf(int widthAndHeight, double percentageInTrainingSet, Logger logger)
-        {
-            var csvFilename = @"C:\temp\aptos2019-blindness-detection\train_images\train.csv";
-            var trainingSetDirectory = @"C:\temp\aptos2019-blindness-detection\train_images_cropped_square_resize_" + widthAndHeight + "_" + widthAndHeight;
-            return new Aptos2019BlindnessDetectionDataLoader(csvFilename, trainingSetDirectory, widthAndHeight,
-                widthAndHeight, percentageInTrainingSet, logger);
-        }
-
+        //    var resizedTrainingSet = trainingSet
+        //        .CropBorder()
+        //        .MakeSquarePictures(true)
+        //        .Resize(targetHeightAndWidth, targetHeightAndWidth);
+        //    return resizedTrainingSet;
+        //}
         public Aptos2019BlindnessDetectionDataLoader(string csvFilename, string trainingSetDirectory, int height, int width, double percentageInTrainingSet, Logger logger)
         {
-            Height = height;
-            Width = width;
-            var fullTestSet = new DirectoryDataSetLoader(csvFilename, trainingSetDirectory, logger, Channels, height, width, CategoryIdToDescription);
+            var fullTestSet = new DirectoryDataSetLoader(csvFilename, trainingSetDirectory, logger, Channels, height, width, CategoryIdToDescription, true, DirectoryDataSetLoader.DefaultCompute_CategoryId_Description_FullName);
             if (percentageInTrainingSet >= 0.999)
             {
                 Training = fullTestSet;
@@ -54,7 +40,5 @@
             Training?.Dispose();
             Test?.Dispose();
         }
-
-       
     }
 }

@@ -536,7 +536,7 @@ namespace SharpNetTests.NonReg
             network.LogContent();
 
             var trainingDataSet = new InMemoryDataSetLoader(X,Y,null,null);
-            var lossAccuracyBefore = network.ComputeLossAndAccuracy(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             logger.Info("-");
             logger.Info("--------------------------------------------------------------------");
@@ -546,7 +546,7 @@ namespace SharpNetTests.NonReg
             network.LogContent();
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeLossAndAccuracy(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             logger.Info("C# numEpochs= " + numEpochs);
             logger.Info("C# learningRate= " + learningRate);
@@ -573,7 +573,7 @@ namespace SharpNetTests.NonReg
         {
             var batchSize = X.Shape[0];
             var dataSet = new InMemoryDataSetLoader(X, Y_expected, new int[batchSize], null);
-            var observedLossAccuracy = network.ComputeLossAndAccuracy(batchSize, dataSet);
+            var observedLossAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
                 Assert.AreEqual(expectedLoss.Value, observedLossAccuracy.Item1, 1e-6, "expected loss: " + expectedLoss.Value + " but was: " + observedLossAccuracy.Item1);

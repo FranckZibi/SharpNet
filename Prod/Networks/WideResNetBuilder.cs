@@ -8,9 +8,9 @@ using SharpNet.Pictures;
 
 /*
 BatchSize = 128
-EpochCount = 200
+EpochCount = 150
 SGD with momentum = 0.9 & L2 = 0.5* 1-e4
-Cutout 16 / FillMode = Reflect / Disable DivideBy10OnPlateau
+CutMix / no Cutout / no Mixup / FillMode = Reflect / Disable DivideBy10OnPlateau
 AvgPoolingStride = 2
 # ------------------------------------------------------------------------------------------------
 #           |             |    200-epoch  |   150-epoch   |   200-epoch   |   Orig Paper  | sec/epoch
@@ -18,9 +18,9 @@ AvgPoolingStride = 2
 #           |             |   %Accuracy   |   %Accuracy   |   %Accuracy   |   %Accuracy   | 
 #           |             |   (dropout)   |(Ens. Learning)|(Ens. Learning)|   (dropout)   | 
 # -----------------------------------------------------------------------------------------------
-# WRN-16-4  |   2,752,506 | 94.61 (-----) | 95.39 (--.--) | 94.99 (95.69) | 94.98 (94.76) |  27.4
-# WRN-40-4  |   8,959,994 | 95.43 (-----) | 96.15 (96.18) | 95.67 (96.30) | 95.43 (-----) |  77.3
-# WRN-16-8  |  10,968,570 | 95.20 (-----) | 95.57 (--.--) | 95.69 (96.03) | 95.73         |  83.0
+# WRN-16-4  |   2,752,506 | 94.61 (-----) | 95.67 (--.--) | 94.99 (95.69) | 94.98 (94.76) |  27.4
+# WRN-40-4  |   8,959,994 | 95.43 (-----) | 96.29 (96.18) | 95.67 (96.30) | 95.43 (-----) |  77.3
+# WRN-16-8  |  10,968,570 | 95.20 (-----) | 95.99 (--.--) | 95.69 (96.03) | 95.73         |  83.0
 # WRN-16-10 |  17,125,626 | ----- (-----) | ----- (-----) | ----- (-----) | NA            | 136.0
 # WRN-28-8  |  23,369,210 | ----- (-----) | ----- (-----) | ----- (-----) | NA            | 173.0
 # WRN-28-10 |  36,497,146 | 95.28 (-----) | ----- (-----) | ----- (-----) | 96.00 (96.11) | 296.5
@@ -34,6 +34,26 @@ namespace SharpNet.Networks
     /// </summary>
     public class WideResNetBuilder : NetworkBuilder
     {
+
+        public void RecursionCellularImageClassification()
+        {
+            //WidthShiftRange = 0.1;
+            //HeightShiftRange = 0.1;
+            HorizontalFlip = true;
+            VerticalFlip = true;
+            //RotationRangeInDegrees = 180;
+            FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            AlphaCutMix = 0.0; //no cutmix
+            AlphaMixup = 1.0; //with mixup
+            CutoutPatchPercentage = 0.0; //no cutout
+            AvgPoolingSize = 8;
+            NumEpochs = 70;
+            BatchSize = 128;
+            DropOut = 0.0; //by default we disable dropout
+            InitialLearningRate = 0.1;
+        }
+
+
         public WideResNetBuilder()
         {
             Config = new NetworkConfig
@@ -105,6 +125,15 @@ namespace SharpNet.Networks
 
         public Network WRN(int depth, int k, int[] inputShape_CHW, int categories)
         {
+            return WRN(depth, k, inputShape_CHW, categories, false);
+        }
+        public Network WRN_ImageNet(int depth, int k, int[] inputShape_CHW, int categories)
+        {
+            return WRN(depth, k, inputShape_CHW, categories, true);
+        }
+
+        public Network WRN(int depth, int k, int[] inputShape_CHW, int categories, bool reduceInputSize)
+        {
             int convolutionsCountByStage = (depth - 1) / 3;
             int residualBlocksCountByStage = (convolutionsCountByStage-1) / 2;
 
@@ -116,6 +145,12 @@ namespace SharpNet.Networks
             var height = inputShape_CHW[1];
             var width = inputShape_CHW[2];
             net.Input(channelCount, height, width);
+
+            if (reduceInputSize)
+            {
+                net.Convolution_BatchNorm_Activation(64, 7, 2, 3, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                net.MaxPooling(2, 2);
+            }
 
             net.Convolution(16, 3, 1, 1, config.lambdaL2Regularization, false);
 

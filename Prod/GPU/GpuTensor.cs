@@ -466,7 +466,7 @@ namespace SharpNet.GPU
         //this = yExpectedOneHot
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
-             var yExpectedOneHot = this;
+            var yExpectedOneHot = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpectedOneHot, yPredicted }));
             Debug.Assert(yPredicted != null);
             Debug.Assert(buffer != null);
@@ -476,7 +476,7 @@ namespace SharpNet.GPU
                 ? "ComputeBinaryCrossentropyLoss"
                 : "ComputeCategoricalCrossentropyLoss";
             int nbRows = yExpectedOneHot.Shape[0];
-            var categoryCount = yExpectedOneHot.MultDim0;
+            var categoryCount = yExpectedOneHot.Shape[1];
             Wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
             return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
         }
@@ -488,7 +488,7 @@ namespace SharpNet.GPU
         public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBuffer)
         {
             var x = this;
-            Debug.Assert(dropoutMaskBuffer == null); //no need of dropout mask for CPU
+            Debug.Assert(dropoutMaskBuffer == null); //no need of dropout mask for GPU
             if (!isTraining)
             {
                 x.CopyTo(y);
