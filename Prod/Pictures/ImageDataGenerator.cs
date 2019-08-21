@@ -147,7 +147,7 @@ namespace SharpNet.Pictures
             //random rotation in range [-_rotationRangeInDegrees, +_rotationRangeInDegrees]
             var rotationInDegrees = 2 * _rotationRangeInDegrees * rand.NextDouble() - _rotationRangeInDegrees;
 
-            float? mixupLambda = (_alphaMixup > 0.0) ? (float)Utils.BetaDistribution(_alphaMixup, _alphaMixup, rand) : (float?)null;
+            var mixupLambda = (_alphaMixup > 0.0) ? (float)Utils.BetaDistribution(_alphaMixup, _alphaMixup, rand) : (float?)null;
 
             InitializeOutputPicture(
                 xOriginalMiniBatch, 
@@ -361,7 +361,7 @@ namespace SharpNet.Pictures
         }
 
         /// <summary>
-        /// 
+        /// retrieve the area where we should put a part of another (random) element to mix it up with the current one
         /// </summary>
         /// <param name="nbRows"></param>
         /// <param name="nbCols"></param>
@@ -378,12 +378,10 @@ namespace SharpNet.Pictures
                 return;
             }
 
-            var lambda = (float)Utils.BetaDistribution(_alphaCutMix, _alphaCutMix, rand);
-
-            //TODO TO TEST
-            //we must keep at least 50% of the current picture
-            //lambda = 0.5+0.5*rand.NextDouble();
-
+            //CutMix V2 : we ensure that we keep at least 50% of the original image when mixing with another one
+            //validated on 18-aug-2019
+            var lambda = 0.5 + 0.5 * (float)Utils.BetaDistribution(_alphaCutMix, _alphaCutMix, rand);
+            //var lambda = (float)Utils.BetaDistribution(_alphaCutMix, _alphaCutMix, rand);
 
             var cutMixHeight = (int)(nbRows * Math.Sqrt(1.0 - lambda));
             var cutMixWidth = (int)(nbCols * Math.Sqrt(1.0 - lambda));
