@@ -198,17 +198,17 @@ namespace SharpNet.GPU
             SwCopyToHost.Reset();
             _offsetNextSpaceInDeviceMemory = 0;
             //_nbChunksInDeviceMemory = 0;
-            cacheTensorDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyTensorDescriptor(x));
+            cacheTensorDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyTensorDescriptor(x)));
             cacheTensorDesc.Clear();
-            cacheFilterDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyFilterDescriptor(x));
+            cacheFilterDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyFilterDescriptor(x)));
             cacheFilterDesc.Clear();
-            //cacheDropoutDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyDropoutDescriptor(x));
+            //cacheDropoutDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyDropoutDescriptor(x)));
             //cacheDropoutDesc.Clear();
-            cachePoolingDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyPoolingDescriptor(x));
+            cachePoolingDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyPoolingDescriptor(x)));
             cachePoolingDesc.Clear();
-            cacheConvolutionDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyConvolutionDescriptor(x));
+            cacheConvolutionDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyConvolutionDescriptor(x)));
             cacheConvolutionDesc.Clear();
-            cacheActivationDesc.Values.ToList().ForEach(x => CudnnWrapper.cudnnDestroyActivationDescriptor(x));
+            cacheActivationDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyActivationDescriptor(x)));
             cacheActivationDesc.Clear();
         }
         public void LogCopyToDeviceCall(ulong byteCopied)
@@ -340,17 +340,21 @@ namespace SharpNet.GPU
             //unmanaged memory
             if (_preAllocateAllDeviceMemory)
             {
-                NVCudaWrapper.cuMemFree_v2(_pointToDeviceMemory);
+                var cuResult = NVCudaWrapper.cuMemFree_v2(_pointToDeviceMemory);
+                CheckStatus(cuResult);
                 _pointToDeviceMemory = IntPtr.Zero;
                 _sizeInBytesOfAllocatedMemory = 0;
                 _offsetNextSpaceInDeviceMemory = 0;
                 //_nbChunksInDeviceMemory = 0;
             }
-            CublasWrapper.cublasDestroy_v2(_cudaBlasHandle);
+            var cublasRes = CublasWrapper.cublasDestroy_v2(_cudaBlasHandle);
+            CheckStatus(cublasRes);
             _cudaBlasHandle = IntPtr.Zero;
-            CudnnWrapper.cudnnDestroy(_cudnnHandle);
+            var cudnnRes = CudnnWrapper.cudnnDestroy(_cudnnHandle);
+            CheckStatus(cudnnRes);
             _cudnnHandle = IntPtr.Zero;
-            NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
+            var cuRes = NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
+            CheckStatus(cuRes);
             _contextHandle = IntPtr.Zero;
         }
         ~GPUWrapper()
@@ -370,19 +374,19 @@ namespace SharpNet.GPU
 
             _deviceHandle = GetDeviceHandle(deviceId);
 
-            var res = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
-            CheckStatus(res);
+            var cuRes = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
+            CheckStatus(cuRes);
 
 
 
             var devName = new byte[256];
-            res = NVCudaWrapper.cuDeviceGetName(devName, devName.Length, _deviceHandle);
-            CheckStatus(res);
+            cuRes = NVCudaWrapper.cuDeviceGetName(devName, devName.Length, _deviceHandle);
+            CheckStatus(cuRes);
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             _deviceName = enc.GetString(devName).Replace("\0", "");
 
-            res = NVCudaWrapper.cuDriverGetVersion(out int driverVersion);
-            CheckStatus(res);
+            cuRes = NVCudaWrapper.cuDriverGetVersion(out int driverVersion);
+            CheckStatus(cuRes);
             _driverVersion = new Version(driverVersion / 1000, driverVersion % 100);
 
             foreach (var e in Enum.GetValues(typeof(CUdevice_attribute)).Cast<CUdevice_attribute>())

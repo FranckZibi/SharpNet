@@ -77,7 +77,9 @@ namespace SharpNet.GPU
             //unmanaged memory
             if (_isOwnerOfDeviceMemory)
             {
-                NVCudaWrapper.cuMemFree_v2(_pointer);
+                var res = NVCudaWrapper.cuMemFree_v2(_pointer);
+                GPUWrapper.CheckStatus(res);
+
             }
         }
         #endregion

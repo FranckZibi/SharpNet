@@ -155,6 +155,10 @@ namespace SharpNet.Layers
         }
         public override void UpdateWeights(double learningRate)
         {
+            if (!Trainable)
+            {
+                return;
+            }
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Convolution, ConvolutionGradients, ConvolutionBias, ConvolutionBiasGradients);
         }

@@ -90,6 +90,13 @@ namespace SharpNet.Layers
             }
             return result;
         }
+
+        /// <summary>
+        /// true if the layer weights should be updated during training
+        /// false if it is a frozen layer
+        /// </summary>
+        public bool Trainable { get; set; } = true;
+
         public int n_x
         {
             get
@@ -126,8 +133,17 @@ namespace SharpNet.Layers
         public virtual string SummaryName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
         public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
         public ulong BytesIndependantOfBatchSize => Tensor.OccupiedMemoryInBytes(TensorsIndependantOfBatchSize);
+        /// <summary>
+        ///  At this stage, we already know 'x', we want to compute 'y'
+        /// </summary>
+        /// <param name="isTraining">true if we are currently training the network
+        /// false if we are just using it to make a prediction </param>
         public abstract void ForwardPropagation(bool isTraining);
-        //At this stage, we already know dy, we want to compute dx by backward propagation
+        /// <summary>
+        ///  At this stage, we already know 'dy', we want to compute 'dx' by backward propagation
+        /// </summary>
+        /// <param name="dy">the already computed output gradient</param>
+        /// <param name="dx">input gradient (dx) to compute from the output gradient (dy)</param>
         public abstract void BackwardPropagation(Tensor dy, List<Tensor> dx);
         public virtual void UpdateWeights(double learningRate) { }
         public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
@@ -288,6 +304,20 @@ namespace SharpNet.Layers
                 _previousLayerIndexes.Add(previousLayerIndex);
                 Network.Layers[previousLayerIndex]._nextLayerIndexes.Add(LayerIndex);
             }
+        }
+
+        public Layer RemoveFromNetwork()
+        {
+            if ((_nextLayerIndexes.Count != 0) || Network.Layers.Last().LayerIndex != LayerIndex)
+            {
+                throw new Exception("can only remove the last layer from a network");
+            }
+            foreach (var previousLayerIndex in _previousLayerIndexes)
+            {
+                Network.Layers[previousLayerIndex]._nextLayerIndexes.Remove(LayerIndex);
+            }
+            Network.Layers.RemoveAt(Network.Layers.Count-1);
+            return this;
         }
 
         private List<Tensor> TensorsDependantOfBatchSize

@@ -72,7 +72,7 @@ namespace SharpNetTests.NonReg
             const int numEpochs = 5;
             var imageDataGenerator = ImageDataGenerator.NoDataAugmentation;
             var loader = new MNISTDataLoader();
-            var network = new Network(new NetworkConfig() { Logger = logger}.WithAdam(), imageDataGenerator, 0);
+            var network = new Network(new NetworkConfig() { Logger = logger, DisableReduceLROnPlateau =true}.WithAdam(), imageDataGenerator, 0);
             network
                 .Input(loader.Training.Channels, loader.Training.Height, loader.Training.Width)
 
@@ -92,7 +92,8 @@ namespace SharpNetTests.NonReg
 
             var sw = Stopwatch.StartNew();
             var learningRate = 0.01;
-            network.Fit(loader.Training, LearningRateScheduler.Constant(learningRate), null, numEpochs, batchSize, loader.Test);
+            var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
+            network.Fit(loader.Training, learningRateComputer, numEpochs, batchSize, loader.Test);
             var elapsedMs = sw.Elapsed.TotalSeconds;
             var lossAndAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, loader.Test);
 

@@ -9,7 +9,7 @@ namespace SharpNet.Networks
     {
         public string ExtraDescription { get; set; } = "";
         public NetworkConfig Config { get; protected set; }
-        public int GpuDeviceId { private get; set; }
+        public int GpuDeviceId { get; set; }
         public int NumEpochs { get; set; }
         public int BatchSize { get; set; }
         public double InitialLearningRate { get; set; }

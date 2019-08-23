@@ -150,5 +150,18 @@ namespace SharpNet.Pictures
             }
             return matrix;
         }
+
+        public static bool IsPicture(string fullName)
+        {
+            var toLower = (fullName??"").ToLowerInvariant();
+            foreach (var extension in new [] {".jpeg", ".jpg", ".bmp", ".png"})
+            {
+                if (toLower.EndsWith(extension))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }

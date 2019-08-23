@@ -141,6 +141,10 @@ namespace SharpNet.Layers
         {
             Debug.Assert(_bnScale.SameShape(_resultBnScaleDiff));
             Debug.Assert(_bnBias.SameShape(_resultBnBiasDiff));
+            if (!Trainable)
+            {
+                return;
+            }
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, _bnScale, _resultBnScaleDiff, _bnBias, _resultBnBiasDiff);
         }

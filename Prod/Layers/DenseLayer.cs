@@ -19,7 +19,7 @@ namespace SharpNet.Layers
         /// <summary>
         /// regularization hyper parameter. 0 if no L2 regularization
         /// </summary>
-        private readonly double _lambdaL2Regularization;              
+        public readonly double _lambdaL2Regularization;
         private bool UseBias => Bias!=null;
         private readonly Optimizer _optimizer;              //Adam or SGD optimizer or Vanilla SGF
         #endregion
@@ -136,6 +136,10 @@ namespace SharpNet.Layers
         }
         public override void UpdateWeights(double learningRate)
         {
+            if (!Trainable)
+            {
+                return;
+            }
             var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Weights, WeightGradients, Bias, BiasGradients);
         }

@@ -39,7 +39,8 @@ namespace SharpNet.GPU
             _disposed = true;
             if (disposing)
             {
-                NVCudaWrapper.cuStreamDestroy_v2(_streamHandle);
+                var cuRes = NVCudaWrapper.cuStreamDestroy_v2(_streamHandle);
+                GPUWrapper.CheckStatus(cuRes);
             }
         }
     }

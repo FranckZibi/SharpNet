@@ -47,12 +47,15 @@
     <Compile Include="CPU\CpuTensorExtensions.cs" />
     <Compile Include="CPU\HostPinnedMemory.cs" />
     <Compile Include="Datasets\AbstractDataSetLoader.cs" />
-    <Compile Include="Datasets\Aptos2019BlindnessDetectionDataLoader.cs" />
+    <Compile Include="Datasets\Aptos2019BlindnessDetection.cs" />
+    <Compile Include="Datasets\DataLoader.cs" />
     <Compile Include="Datasets\DirectoryDataSetLoader.cs" />
+    <Compile Include="Datasets\DogsVsCats.cs" />
     <Compile Include="Datasets\IDataSet.cs" />
     <Compile Include="Datasets\IDataSetLoader.cs" />
     <Compile Include="Datasets\InMemoryDataSetLoader.cs" />
-    <Compile Include="Datasets\RecursionCellularImageClassificationDataLoader.cs" />
+    <Compile Include="Datasets\RecursionCellularImageClassification.cs" />
+    <Compile Include="Datasets\ShuffledDataSetLoader.cs" />
     <Compile Include="Datasets\SubDataSetLoader.cs" />
     <Compile Include="Data\BlasServices.cs" />
     <Compile Include="Data\EpochData.cs" />

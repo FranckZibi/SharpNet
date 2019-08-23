@@ -5,6 +5,8 @@ using System.IO;
 using SharpNet.Data;
 using SharpNet.Optimizers;
 // ReSharper disable UnusedMember.Global
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Networks
 {
@@ -14,15 +16,17 @@ namespace SharpNet.Networks
 
         #region learning rate scheduler fields
         public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, CyclicCosineAnnealing, Cifar10WideResNet}
-        public LearningRateSchedulerEnum LearningRateSchedulerType { get; set; } = LearningRateSchedulerEnum.Cifar10ResNet;
-        public int CyclicCosineAnnealing_nbEpochsInFirstRun { get; private set; } = 10;
-        public int CyclicCosineAnnealing_nbEpochInNextRunMultiplier { get; private set; } = 2;
+
+        private LearningRateSchedulerEnum LearningRateSchedulerType { get; set; } = LearningRateSchedulerEnum.Cifar10ResNet;
+        private int CyclicCosineAnnealing_nbEpochsInFirstRun { get; set; } = 10;
+
+        private int CyclicCosineAnnealing_nbEpochInNextRunMultiplier { get; set; } = 2;
         //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
-        public int OneCycle_DividerForMinLearningRate { get; set; } = 10;
-        public double OneCycle_PercentInAnnealing { get; set; } = 0.2;
+        private int OneCycle_DividerForMinLearningRate { get; set; } = 10;
+        private double OneCycle_PercentInAnnealing { get; set; } = 0.2;
         public bool DisableReduceLROnPlateau { get; set; }
-        public bool DivideBy10OnPlateau { get; set; } = true; // 'true' : validated on 19-apr-2019: +20 bps
-        public bool LinearLearningRate { get; set; }
+        private bool DivideBy10OnPlateau { get; set; } = true; // 'true' : validated on 19-apr-2019: +20 bps
+        private bool LinearLearningRate { get; set; }
         #endregion
 
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
@@ -54,13 +58,13 @@ namespace SharpNet.Networks
         public bool ProfileApplication { get; } = true;
 
         /// <summary>
-        /// Interval in minuts for saving the network
+        /// Interval in minutes for saving the network
         /// If less then 0
         ///     => this option will be disabled
         /// If == 0
         ///     => the network will be saved after each iteration
         /// </summary>
-        public int AutoSaveIntervalInMinuts { get; set; } = 90;
+        public int AutoSaveIntervalInMinutes { get; set; } = 90;
         public bool SaveNetworkStatsAfterEachEpoch { get; set; }
         public bool SaveLossAfterEachMiniBatch { get; set; }
         public string LogDirectory { get; } = DefaultLogDirectory;
@@ -73,9 +77,9 @@ namespace SharpNet.Networks
             Rand = new Random(0);
         }
 
-
         public bool DisableLogging => ReferenceEquals(Logger, Logger.NullLogger);
 
+        // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4;
         public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999)
         {
@@ -100,8 +104,6 @@ namespace SharpNet.Networks
             return this;
         }
         public Optimizer.OptimizationEnum OptimizerType { get; private set; } = Optimizer.OptimizationEnum.VanillaSGD;
-
-
         public bool Equals(NetworkConfig other, double epsilon, string id, ref string errors)
         {
             var equals = true;
@@ -128,12 +130,11 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(ForceTensorflowCompatibilityMode, other.ForceTensorflowCompatibilityMode, id + ":ForceTensorflowCompatibilityMode", ref errors);
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
             equals &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
-            equals &= Utils.Equals(AutoSaveIntervalInMinuts, other.AutoSaveIntervalInMinuts, id + ":AutoSaveIntervalInMinuts", ref errors);
+            equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + ":AutoSaveIntervalInMinuts", ref errors);
             equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + ":SaveNetworkStatsAfterEachEpoch", ref errors);
             equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + ":SaveLossAfterEachMiniBatch", ref errors);
             return equals;
         }
-
 
         #region Learning Rate Scheduler
         public NetworkConfig WithCyclicCosineAnnealingLearningRateScheduler(int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier)
@@ -176,7 +177,21 @@ namespace SharpNet.Networks
             LinearLearningRate = linearLearningRate;
             return this;
         }
-        public ILearningRateScheduler GetLearningRateScheduler(double initialLearningRate, int numEpochs)
+        public ILearningRateComputer GetLearningRateComputer(double initialLearningRate, int epochCount)
+        {
+            var learningRateScheduler = GetLearningRateScheduler(initialLearningRate, epochCount);
+            return new LearningRateComputer(learningRateScheduler, ReduceLROnPlateau(), MinimumLearningRate);
+        }
+        public ReduceLROnPlateau ReduceLROnPlateau()
+        {
+            if (DisableReduceLROnPlateau)
+            {
+                return null;
+            }
+            var factorForReduceLrOnPlateau = DivideBy10OnPlateau ? 0.1 : Math.Sqrt(0.1);
+            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
+        }
+        private ILearningRateScheduler GetLearningRateScheduler(double initialLearningRate, int numEpochs)
         {
             switch (LearningRateSchedulerType)
             {
@@ -191,20 +206,10 @@ namespace SharpNet.Networks
                         ? LearningRateScheduler.InterpolateByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 200, initialLearningRate / 100)
                         : LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 200, initialLearningRate / 100);
                 case LearningRateSchedulerEnum.Cifar10WideResNet:
-                    return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 60, initialLearningRate/5, 120, initialLearningRate/25, 160, initialLearningRate/125);
+                    return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 60, initialLearningRate / 5, 120, initialLearningRate / 25, 160, initialLearningRate / 125);
                 default:
-                    throw new Exception("unknown LearningRateSchedulerType: "+ LearningRateSchedulerType);
+                    throw new Exception("unknown LearningRateSchedulerType: " + LearningRateSchedulerType);
             }
-        }
-
-        public ReduceLROnPlateau ReduceLROnPlateau()
-        {
-            if (DisableReduceLROnPlateau)
-            {
-                return null;
-            }
-            var factorForReduceLrOnPlateau = DivideBy10OnPlateau ? 0.1 : Math.Sqrt(0.1);
-            return new ReduceLROnPlateau(factorForReduceLrOnPlateau, 5, 5);
         }
         #endregion
 
@@ -228,7 +233,7 @@ namespace SharpNet.Networks
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
                 .Add(nameof(ProfileApplication), ProfileApplication)
                 .Add(nameof(LogDirectory), LogDirectory)
-                .Add(nameof(AutoSaveIntervalInMinuts), AutoSaveIntervalInMinuts)
+                .Add(nameof(AutoSaveIntervalInMinutes), AutoSaveIntervalInMinutes)
                 .Add(nameof(SaveNetworkStatsAfterEachEpoch), SaveNetworkStatsAfterEachEpoch)
                 .Add(nameof(SaveLossAfterEachMiniBatch), SaveLossAfterEachMiniBatch)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
@@ -266,7 +271,7 @@ namespace SharpNet.Networks
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
             ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];
-            AutoSaveIntervalInMinuts = (int)serialized[nameof(AutoSaveIntervalInMinuts)];
+            AutoSaveIntervalInMinutes = (int)serialized[nameof(AutoSaveIntervalInMinutes)];
             SaveNetworkStatsAfterEachEpoch = (bool)serialized[nameof(SaveNetworkStatsAfterEachEpoch)];
             SaveLossAfterEachMiniBatch = (bool)serialized[nameof(SaveLossAfterEachMiniBatch)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
@@ -274,6 +279,7 @@ namespace SharpNet.Networks
             Rand = new Random(0);
         }
         #endregion
+
 
         //conventions: 
         //  the output layer has a shape of (N, C) where:
@@ -291,5 +297,6 @@ namespace SharpNet.Networks
             //Do not support multi labels (each element can belong to exactly 1 category)
             CategoricalCrossentropy
         }
+
     }
 }

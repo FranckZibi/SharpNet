@@ -46,6 +46,7 @@ namespace SharpNet.GPU
         /// <param name="hostPinnedPointer">point to host (pinned) memory (in CPU) </param>
         public void CopyToDevice(IntPtr hostPinnedPointer)
         {
+            Debug.Assert(hostPinnedPointer != IntPtr.Zero);
             Wrapper.SwCopyToDevice.Start();
             Wrapper.LogCopyToDeviceCall(ReallyNeededMemoryInBytes);
             var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, hostPinnedPointer, ReallyNeededMemoryInBytes);
@@ -573,7 +574,8 @@ namespace SharpNet.GPU
             int lda = aW; //number of rows of the matrix y (because order = ColumnMajor)
             int ldc = N; //number of rows of the matrix C (because order = ColumnMajor)
             //Cuda is column major : we have to compute B*y instead of y*B
-            CublasWrapper.cublasSgemm_v2(CublasHandle, transLeft, transRight, N, M, K, ref alpha, b, ldb, a, lda, ref beta, this, ldc);
+            var res = CublasWrapper.cublasSgemm_v2(CublasHandle, transLeft, transRight, N, M, K, ref alpha, b, ldb, a, lda, ref beta, this, ldc);
+            CheckStatus(res);
         }
         public override void CopyTo(Tensor b)
         {
@@ -584,8 +586,8 @@ namespace SharpNet.GPU
             Debug.Assert(AreCompatible(new List<Tensor> { this, other }));
             var thisPointer = (IntPtr)this + (TypeSize * startElement);
             var otherPointer = (IntPtr)other + (TypeSize * otherStartElement);
-            var _status = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, thisPointer, 1, otherPointer, 1);
-            CheckStatus(_status);
+            var res = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, thisPointer, 1, otherPointer, 1);
+            GPUWrapper.CheckStatus(res);
         }
         public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
         {
@@ -624,7 +626,8 @@ namespace SharpNet.GPU
             }
 
             //unmanaged memory
-            CudnnWrapper.cudnnDestroyDropoutDescriptor(_dropoutDescriptor);
+            var res = CudnnWrapper.cudnnDestroyDropoutDescriptor(_dropoutDescriptor);
+            CheckStatus(res);
 
             _randomNumberGeneratorStatesBuffer = null;
             _dropoutReserveSpace = null;

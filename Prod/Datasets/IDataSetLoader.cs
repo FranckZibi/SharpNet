@@ -14,12 +14,12 @@ namespace SharpNet.Datasets
         /// <param name="epoch">index of epoch. The first epoch is 1</param>
         /// <param name="isTraining"></param>
         /// <param name="indexFirstElement">The index of the first element to load (the very first element fo the data set is at index 0</param>
-        /// <param name="orderInCurrentEpoch"></param>
+        /// <param name="elementIdToOrderInCurrentEpoch"></param>
         /// <param name="imageDataGenerator"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
         /// <returns></returns>
-        void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> orderInCurrentEpoch,
+        void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> elementIdToOrderInCurrentEpoch,
             ImageDataGenerator imageDataGenerator, ref Tensor x, ref Tensor y);
 
         /// <summary>

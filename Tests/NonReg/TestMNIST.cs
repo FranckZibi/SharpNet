@@ -24,7 +24,7 @@ namespace SharpNetTests.NonReg
             var imageDataGenerator = new ImageDataGenerator(0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var network = new Network(
-                new NetworkConfig{ Logger = new Logger(logFileName, true)}
+                new NetworkConfig{ Logger = new Logger(logFileName, true), DisableReduceLROnPlateau =true}
                 //.WithAdam()
                 .WithSGD(0.99,true)
                 ,
@@ -67,13 +67,12 @@ namespace SharpNetTests.NonReg
                 .Output(loader.Training.Categories, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
-            
+
             //learningRate = LearningRateScheduler.Constant(network.FindBestLearningRate(xTrain, yTrain, 128));
             //learningRate = LearningRateScheduler.Constant(0.00774263682681115);
 
-
-            network.Fit(loader.Training, learningRate, null, numEpochs, batchSize, loader.Test);
+            var learningRateComputer = new LearningRateComputer(learningRate, network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
+            network.Fit(loader.Training, learningRateComputer, numEpochs, batchSize, loader.Test);
         }
-
     }
 }

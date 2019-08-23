@@ -37,50 +37,40 @@ namespace SharpNet.Pictures
             bmps.ForEach(bmp=>bmp.Dispose());
             return result;
         }
-        private BitmapContent(int[] shape, byte[] data, string description) : base(shape, data, description)
+        public BitmapContent(int[] shape, byte[] data, string description) : base(shape, data, description)
         {
         }
         public int GetChannels() => Shape[0];
         public int GetHeight() => Shape[1];
         public int GetWidth() => Shape[2];
-        public BitmapContent MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, Tuple<byte, byte, byte> fillingColor)
+        public BitmapContent MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor)
         {
-            int height = Math.Max(GetHeight(), GetWidth());
-            int width = height;
-            var content = new byte[3 * height * width];
-            var result = new BitmapContent(new[] { Shape[0], height, width }, content, Description);
-
+            int heightAndWidth = alwaysCropInsidePicture
+                ? Math.Min(GetHeight(), GetWidth())
+                : Math.Max(GetHeight(), GetWidth());
+            var content = new byte[3 * heightAndWidth * heightAndWidth];
+            var result = new BitmapContent(new[] { Shape[0], heightAndWidth, heightAndWidth }, content, Description);
             bool swapWidthAndHeight = alwaysUseBiggestSideForWidthSide && GetHeight() > GetWidth();
-            int startRow = (height - GetHeight()) / 2;
-            int endRow = startRow + GetHeight() - 1;
-            int startCol = (width - GetWidth()) / 2;
-            int endCol = startCol + GetWidth() - 1;
-
+            
             for (int channel = 0; channel < Shape[0]; ++channel)
             {
                 var filling = (channel == 0) ? fillingColor.Item1 : (channel == 1 ? fillingColor.Item2 : fillingColor.Item3);
-                for (int row = 0; row < GetHeight(); ++row)
+                for (int row = 0; row < heightAndWidth; ++row)
                 {
-                    for (int col = 0; col < GetWidth(); ++col)
+                    int originalRow = row + (GetHeight()-heightAndWidth) / 2;
+                    for (int col = 0; col < heightAndWidth; ++col)
                     {
-                        result.Set(channel, row, col, filling);
-                    }
-                }
-            }
-
-            for (int channel = 0; channel < Shape[0]; ++channel)
-            {
-                for (int row = startRow; row <= endRow; ++row)
-                {
-                    for (int col = startCol; col <= endCol; ++col)
-                    {
+                        int originalCol = col + (GetWidth() - heightAndWidth) / 2;
+                        var originalVal = (originalRow >= 0 && originalCol >= 0 && originalRow < GetHeight() && originalCol < GetWidth())
+                            ? Get(channel, originalRow, originalCol)
+                            : filling;
                         if (swapWidthAndHeight)
                         {
-                            result.Set(channel, col, row, Get(channel, row - startRow, col - startCol));
+                            result.Set(channel, col, row, originalVal);
                         }
                         else
                         {
-                            result.Set(channel, row, col, Get(channel, row - startRow, col - startCol));
+                            result.Set(channel, row, col, originalVal);
                         }
                     }
                 }
@@ -117,7 +107,8 @@ namespace SharpNet.Pictures
 
       
         /// <summary>
-        /// 
+        /// Compute Sum / Sum^2 / Count of each channel.
+        /// THis will be used to compute Mean/Volatility of each channel
         /// </summary>
         /// <param name="_sum_SumSquare_Count_For_Each_Channel">
         /// _Sum_SumSquare_Count_For_Each_Channel[3*channel+0] : sum of all elements in channel 'channel'
@@ -127,41 +118,50 @@ namespace SharpNet.Pictures
         /// <param name="ignoreZeroPixel"></param>
         public void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(float[] _sum_SumSquare_Count_For_Each_Channel, bool ignoreZeroPixel)
         {
+            int nbZeroPixelsToRemove = 0;
+
+            if (ignoreZeroPixel)
+            {
+                for (int row = 0; row < GetHeight(); ++row)
+                {
+                    for (int col = 0; col < GetWidth(); ++col)
+                    {
+                        if (IsZeroPixel(row,col))
+                        {
+                            ++nbZeroPixelsToRemove;
+                        }
+                    }
+                }
+            }
+
             for (int channel = 0; channel < GetChannels(); ++channel)
             {
                 var sum = 0f;
                 var sumSquare = 0f;
-                int count = 0;
-                for (int row = 0; row < GetHeight(); ++row)
+                var startIdx = Idx(channel, 0, 0);
+                var endIdxExcluded = Idx(channel+1, 0, 0);
+                for (int idx = startIdx; idx< endIdxExcluded; ++idx)
                 {
-
-                    for (int col = 0; col < GetWidth(); ++col)
-                    {
-                        if (ignoreZeroPixel && IzZeroPixel(row, col))
-                        {
-                            continue;
-                        }
-                        var val = Get(channel, row, col);
-                        sum += val;
-                        sumSquare += val * val;
-                        ++count;
-                    }
+                    var val = Content[idx];
+                    sum += val;
+                    sumSquare += val * val;
                 }
                 lock (_sum_SumSquare_Count_For_Each_Channel)
                 {
                     _sum_SumSquare_Count_For_Each_Channel[3 * channel] += sum;
                     _sum_SumSquare_Count_For_Each_Channel[3 * channel + 1] += sumSquare;
-                    _sum_SumSquare_Count_For_Each_Channel[3 * channel + 2] += count;
+                    _sum_SumSquare_Count_For_Each_Channel[3 * channel + 2] += GetWidth()*GetHeight()- nbZeroPixelsToRemove;
                 }
             }
         }
+
         /// <summary>
         /// returns true if the pixel (r,g,b) at index (row, col) is (0,0,0) (entirely made with zero for each channel
         /// </summary>
         /// <param name="row"></param>
         /// <param name="col"></param>
         /// <returns></returns>
-        public bool IzZeroPixel(int row, int col)
+        public bool IsZeroPixel(int row, int col)
         {
             for (int channel = 0; channel < GetChannels(); ++channel)
             {

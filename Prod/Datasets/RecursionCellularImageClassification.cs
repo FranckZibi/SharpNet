@@ -4,51 +4,25 @@ using System.Linq;
 
 namespace SharpNet.Datasets
 {
-    public class RecursionCellularImageClassificationDataLoader : IDataSet
+    public static class RecursionCellularImageClassification
     {
-        public const int Channels = 6;
-        //?D public const int Categories = 1108;
-        public const int Categories = 4;
-        public IDataSetLoader Training { get; }
-        public IDataSetLoader Test { get; }
+        private const int Channels = 3;
+        private const int Categories = 4;
 
-        public RecursionCellularImageClassificationDataLoader(string csvFilename, string trainingSetDirectory, int height, int width, double percentageInTrainingSet, Logger logger)
-        {
-            var fullTestSet = new DirectoryDataSetLoader(
-                csvFilename, 
-                trainingSetDirectory, 
-                logger, 
-                Channels, 
-                height, 
-                width, 
-                GetCategoryIdToDescription(), 
+        public static DirectoryDataSetLoader ValueOf(string csvFilename, string trainingSetDirectory, int height, int width, Logger logger)
+        { 
+            return new DirectoryDataSetLoader(
+                csvFilename,
+                trainingSetDirectory,
+                logger,
+                Channels,
+                height,
+                width,
+                AbstractDataSetLoader.DefaultGetCategoryIdToDescription(Categories),
                 false, //we do not ignore zero pixels
                 Compute_CategoryId_Description_FullName);
-
-            //fullTestSet.Resize(256, 256); return;
-
-            if (percentageInTrainingSet >= 0.999)
-            {
-                Training = fullTestSet;
-                Test = null;
-            }
-            else
-            {
-                int lastElementIdIncludedInTrainingSet = (int) (percentageInTrainingSet * fullTestSet.Count);
-                Training = new SubDataSetLoader(fullTestSet, id => id<= lastElementIdIncludedInTrainingSet);
-                Test = new SubDataSetLoader(fullTestSet, id => id > lastElementIdIncludedInTrainingSet);
-            }
-        }
-        public void Dispose()
-        {
-            Training?.Dispose();
-            Test?.Dispose();
         }
 
-        private static string[] GetCategoryIdToDescription()
-        {
-            return Enumerable.Range(0, Categories).Select(x => x.ToString()).ToArray();
-        }
         private static void Compute_CategoryId_Description_FullName(
               string csvFileName,
               string directoryWithElements,
@@ -91,7 +65,7 @@ namespace SharpNet.Datasets
                     }
                     else
                     {
-                        //?D elementIdToCategoryId.Add(sirna);
+                        //elementIdToCategoryId.Add(sirna);
                         elementIdToCategoryId.Add(sirna % 4);
                         elementIdToDescription.Add(id_code);
                         elementIdToSubPath.Add(subPaths);
