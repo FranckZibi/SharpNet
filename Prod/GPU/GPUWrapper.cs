@@ -14,6 +14,7 @@ namespace SharpNet.GPU
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
         private readonly IntPtr _deviceHandle;
         private readonly string _deviceName;
+        private readonly Version _cublasVersion;
         private readonly Version _driverVersion;
         private readonly KernelManager _kernelManager;
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
@@ -225,7 +226,7 @@ namespace SharpNet.GPU
         }
         public string DeviceName()
         {
-            return _deviceName + " " + _driverVersion + " (deviceId:" + DeviceId + "/threadId:" + _threadId + ")";
+            return _deviceName + ", driver v" + _driverVersion + ", cublas v"+_cublasVersion+", deviceId:" + DeviceId + ", threadId:" + _threadId;
         }
         public override string ToString()
         {
@@ -372,12 +373,15 @@ namespace SharpNet.GPU
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
 
+            //We retrieve the cublas version
+            cublasRes = CublasWrapper.cublasGetVersion_v2(CudaBlasHandle, out var cublasVersion);
+            CheckStatus(cublasRes);
+            _cublasVersion = NewVersion(cublasVersion);
+
             _deviceHandle = GetDeviceHandle(deviceId);
 
             var cuRes = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
             CheckStatus(cuRes);
-
-
 
             var devName = new byte[256];
             cuRes = NVCudaWrapper.cuDeviceGetName(devName, devName.Length, _deviceHandle);
@@ -387,7 +391,7 @@ namespace SharpNet.GPU
 
             cuRes = NVCudaWrapper.cuDriverGetVersion(out int driverVersion);
             CheckStatus(cuRes);
-            _driverVersion = new Version(driverVersion / 1000, driverVersion % 100);
+            _driverVersion = NewVersion(driverVersion);
 
             foreach (var e in Enum.GetValues(typeof(CUdevice_attribute)).Cast<CUdevice_attribute>())
             {
@@ -417,6 +421,15 @@ namespace SharpNet.GPU
                 }
             }
         }
+
+        private static Version NewVersion(int driverVersion)
+        {
+            var major = driverVersion / 1000;
+            var minor = driverVersion % 100;
+            var build = (driverVersion % 1000)/100;
+            return (build==0)?new Version(major, minor): new Version(major, minor, build);
+        }
+
         private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
         {
             var res = NVCudaWrapper.cuMemGetInfo_v2(out freeMemoryInBytes, out totalMemoryInBytes);

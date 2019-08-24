@@ -326,8 +326,7 @@ namespace SharpNet.GPU
             byte[] fatBinaryObject);
 
         [DllImport(NVCUDA)]
-        public static extern CUresult cuDriverGetVersion(
-            out int driverVersion);
+        public static extern CUresult cuDriverGetVersion(out int driverVersion);
 
         [DllImport(NVCUDA)]
         public static extern CUresult cuDeviceTotalMem_v2(
