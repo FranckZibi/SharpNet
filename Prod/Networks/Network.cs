@@ -21,7 +21,7 @@ namespace SharpNet.Networks
     {
         #region fields
         private readonly ImageDataGenerator _imageDataGenerator;
-        private readonly BackwardPropagationManager _backwardPropagationManager;
+        private BackwardPropagationManager _backwardPropagationManager;
         public NetworkConfig Config { get; }
         public List<Layer> Layers { get; } = new List<Layer>();
         public string Description { private get; set; } = "";
@@ -149,20 +149,32 @@ namespace SharpNet.Networks
         }
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
 
-        public void ClearMemory()
+        public void Dispose()
         {
             LogDebug("Before clearing memory: " + GpuWrapper?.MemoryInfo());
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect();
-            GpuWrapper?.ClearMemory();
             Layers.ForEach(x => x?.Dispose());
             Layers.Clear();
             _epochsData.Clear();
+
             bufferComputeAccuracy?.Dispose();
+            bufferComputeAccuracy = null;
+
             bufferComputeLoss?.Dispose();
+            bufferComputeLoss = null;
+
             _yPredictedBufferForEntireBatch?.Dispose();
+            _yPredictedBufferForEntireBatch = null;
+
             _yExpectedBufferForEntireBatch?.Dispose();
+            _yExpectedBufferForEntireBatch = null;
+
             _backwardPropagationManager?.Dispose();
+            _backwardPropagationManager = null;
+
+            GpuWrapper?.Reset();
+
             GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect();
             LogDebug("After clearing memory: " + GpuWrapper?.MemoryInfo());
@@ -195,7 +207,6 @@ namespace SharpNet.Networks
         #region network construction: adding layers
         public Network Input(int channelCount, int h, int w)
         {
-            ClearMemory();
             Layers.Add(new InputLayer(channelCount, h, w, this));
             return this;
         }
@@ -503,6 +514,7 @@ namespace SharpNet.Networks
             //we check if we can re use the buffer 'bufferIfAny'
             if (bufferIfAny != null)
             {
+                bufferIfAny.AssertIsNotDisposed();
                 bufferIfAny.Reshape(shape);
                 return bufferIfAny;
             }
@@ -902,6 +914,10 @@ namespace SharpNet.Networks
         /// <returns>observed output associated with the input 'x'</returns>
         public Tensor MiniBatchGradientDescent(int miniBatchSize, IDataSetLoader dataSet, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {
+
+
+            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering MiniBatchGradientDescent(" + miniBatchSize + "); epoch="+ (_epochsData.Count + 1));}
+
             bool isTraining = learningRateComputerIfTraining != null;
             var entireBatchSize = dataSet.Count;
             if (miniBatchSize <= 0)
@@ -925,6 +941,8 @@ namespace SharpNet.Networks
             int nbProcessed = 0;
             while(nbProcessed < entireBatchSize)
             {
+                if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("start MiniBatchGradientDescent(" + miniBatchSize + "); epoch=" + (_epochsData.Count + 1)+"; blockId="+blockId);}
+
                 var blockSize = Math.Min(entireBatchSize- nbProcessed, miniBatchSize);
                 xMiniBatch.Reshape(dataSet.XMiniBatch_Shape(blockSize));
 
@@ -951,8 +969,15 @@ namespace SharpNet.Networks
                 {
                     break;
                 }
+
+                if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("end MiniBatchGradientDescent(" + miniBatchSize + "); epoch=" + (_epochsData.Count + 1) + "; blockId=" + blockId);}
+
                 ++blockId;
             }
+
+            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving MiniBatchGradientDescent(" + miniBatchSize + "); epoch=" + (_epochsData.Count + 1));}
+
+
             return _yPredictedBufferForEntireBatch;
         }
         private static int NbBlocksInEpoch(int miniBatchSize, int entireBatchSize)

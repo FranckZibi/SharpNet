@@ -31,6 +31,8 @@ namespace SharpNet.GPU
         public GPUTensor(int[] shape, IntPtr hostMemoryPointer, string description, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
         {
             Wrapper = wrapper;
+            Wrapper.CheckThreadId();
+
             CapacityInBytes = ReallyNeededMemoryInBytes;
             _deviceMemory = Wrapper.NewDeviceMemory(CapacityInBytes);
             if (hostMemoryPointer != IntPtr.Zero)
@@ -46,12 +48,20 @@ namespace SharpNet.GPU
         /// <param name="hostPinnedPointer">point to host (pinned) memory (in CPU) </param>
         public void CopyToDevice(IntPtr hostPinnedPointer)
         {
+            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering CopyToDevice " + ReallyNeededMemoryInBytes + " bytes from Host " + hostPinnedPointer+" to Device " + DevicePointer);}
+
+            AssertIsNotDisposed();
             Debug.Assert(hostPinnedPointer != IntPtr.Zero);
             Wrapper.SwCopyToDevice.Start();
             Wrapper.LogCopyToDeviceCall(ReallyNeededMemoryInBytes);
             var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, hostPinnedPointer, ReallyNeededMemoryInBytes);
-            GPUWrapper.CheckStatus(res);
+            GPUWrapper.CheckStatus(res, ToString);
             Wrapper.SwCopyToDevice.Stop();
+
+
+            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving CopyToDevice " + ReallyNeededMemoryInBytes + " bytes from Host " + hostPinnedPointer + " to Device " + DevicePointer);}
+
+
         }
 
         public void CopyToDevice(T[] data)
@@ -65,6 +75,8 @@ namespace SharpNet.GPU
 
         private T[] DeviceContent()
         {
+            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering CopyToHost " + ReallyNeededMemoryInBytes + " bytes from Device " + DevicePointer+ " to new Host ");}
+
             Debug.Assert(!_disposed);
             Wrapper.SwCopyToHost.Start();
             Wrapper.LogCopyToHostCall(ReallyNeededMemoryInBytes);
@@ -73,12 +85,22 @@ namespace SharpNet.GPU
             var handle = GCHandle.Alloc(_hostMemory, GCHandleType.Pinned);
             var _hostMemoryPointer = handle.AddrOfPinnedObject();
             var res = NVCudaWrapper.cuMemcpyDtoH_v2(_hostMemoryPointer, DevicePointer, ReallyNeededMemoryInBytes);
-            GPUWrapper.CheckStatus(res);
+            GPUWrapper.CheckStatus(res, ToString);
             handle.Free();
             Wrapper.SwCopyToHost.Stop();
+
+            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving CopyToHost " + ReallyNeededMemoryInBytes + " bytes from Device " + DevicePointer + " to Host "+_hostMemoryPointer);}
+
             return _hostMemory;
         }
-        public IntPtr DevicePointer => _deviceMemory.Pointer;
+        public IntPtr DevicePointer
+        {
+            get
+            {
+                AssertIsNotDisposed();
+                return _deviceMemory.Pointer;
+            }
+        }
 
         #region Tensor implementation
         public override void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining)
@@ -134,6 +156,9 @@ namespace SharpNet.GPU
         }
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)
         {
+            AssertIsNotDisposed();
+            y.AssertIsNotDisposed();
+
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> {x, y}));
             Debug.Assert(x.SameShape(y));
@@ -251,14 +276,6 @@ namespace SharpNet.GPU
 #if DEBUG
             CheckConcatenate(a, b);
 #endif
-            /*
-             v1: 1.05ms
-            for (int m = 0; m < Shape[0]; ++m)
-            {
-                a.CopyTo(a.Idx(m), this, Idx(m), a.MultDim0);
-                b.CopyTo(b.Idx(m), this, Idx(m) + a.MultDim0, b.MultDim0);
-            }
-            */
             var concat = this;
             Wrapper.RunKernel("Concatenate", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0});
         }
@@ -292,6 +309,7 @@ namespace SharpNet.GPU
         /// <param name="newShape"></param>
         public override void Reshape(int[] newShape)
         {
+            AssertIsNotDisposed();
             if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
             {
                 //smaller shape
@@ -557,6 +575,9 @@ namespace SharpNet.GPU
         }
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta)
         {
+            AssertIsNotDisposed();
+            a.AssertIsNotDisposed();
+            b.AssertIsNotDisposed();
             Debug.Assert(AreCompatible(new List<Tensor> { this, a, b }));
             Debug.Assert(b.Dimension >= 2);
             Debug.Assert(a.Dimension >= 2);
@@ -575,7 +596,14 @@ namespace SharpNet.GPU
             int ldc = N; //number of rows of the matrix C (because order = ColumnMajor)
             //Cuda is column major : we have to compute B*y instead of y*B
             var res = CublasWrapper.cublasSgemm_v2(CublasHandle, transLeft, transRight, N, M, K, ref alpha, b, ldb, a, lda, ref beta, this, ldc);
-            CheckStatus(res);
+
+            //The lib may return CUBLAS_STATUS_INTERNAL_ERROR (in version 10.0) in some cases => ignored (see Non Reg test that reproduces the issue)
+            if (res == cublasStatus_t.CUBLAS_STATUS_INTERNAL_ERROR)
+            {
+                return;
+            }
+
+            GPUWrapper.CheckStatus(res, ToString);
         }
         public override void CopyTo(Tensor b)
         {
@@ -583,11 +611,15 @@ namespace SharpNet.GPU
         }
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount)
         {
+            AssertIsNotDisposed();
+            other.AssertIsNotDisposed();
+
             Debug.Assert(AreCompatible(new List<Tensor> { this, other }));
             var thisPointer = (IntPtr)this + (TypeSize * startElement);
             var otherPointer = (IntPtr)other + (TypeSize * otherStartElement);
             var res = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, thisPointer, 1, otherPointer, 1);
-            GPUWrapper.CheckStatus(res);
+            GPUWrapper.CheckStatus(res, ToString);
+
         }
         public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
         {
@@ -601,10 +633,21 @@ namespace SharpNet.GPU
         {
             _deviceMemory.ZeroMemory();
         }
-#endregion
+        #endregion
 
-#region Dispose pattern
-        private bool _disposed;
+
+        public override void AssertIsNotDisposed()
+        {
+            if (_disposed)
+            {
+                throw new Exception("Tensor is disposed " + this);
+            }
+            Wrapper.CheckThreadId();
+            _deviceMemory.AssertIsNotDisposed();
+        }
+
+
+        #region Dispose pattern
         public override void Dispose()
         {
             Dispose(true);
@@ -653,13 +696,9 @@ namespace SharpNet.GPU
         private cudnnDataType_t CudaType => cudnnDataType_t.CUDNN_DATA_FLOAT;
         private IntPtr CudnnHandle => Wrapper.CudnnHandle;
         private IntPtr CublasHandle => Wrapper.CudaBlasHandle;
-        private static void CheckStatus(cublasStatus_t _status)
+        private void CheckStatus(cudnnStatus_t _status)
         {
-            GPUWrapper.CheckStatus(_status);
-        }
-        private static void CheckStatus(cudnnStatus_t _status)
-        {
-            GPUWrapper.CheckStatus(_status);
+            GPUWrapper.CheckStatus(_status, ToString);
         }
     }
 }

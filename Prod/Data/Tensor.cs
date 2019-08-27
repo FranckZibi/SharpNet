@@ -237,7 +237,15 @@ namespace SharpNet.Data
         //this = Weights or B
         public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
         public abstract Tensor ExtractSubTensor(int startRowIndex, int nbRows);
+
+        #region Dispose pattern
+        protected bool _disposed;
         public abstract void Dispose();
+        /// <summary>
+        /// ensure the this object is not disposed (will throw an exception if the object is already disposed)
+        /// </summary>
+        public abstract void AssertIsNotDisposed();
+        #endregion
 
         public abstract Tensor Transpose();
         //this = x
@@ -292,11 +300,11 @@ namespace SharpNet.Data
         {
             return (a != null && UseGPU == a.UseGPU);
         }
-        private string ToString(bool displayStartofTensor)
+        private string ToString(bool displayStartOfTensor)
         {
             var result = Description + "(" + string.Join(", ", Shape) + ")";
             result += UseGPU ? "" : "CPU";
-            if (displayStartofTensor && !UseGPU)
+            if (displayStartOfTensor && !UseGPU)
             {
                 result += "(" + string.Join(",", AsCpu<float>().Content.Take(3)) + ",...)";
             }

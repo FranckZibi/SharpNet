@@ -2,12 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 
 namespace SharpNet.GPU
 {
     public enum CUDA_Versions { CUDA_10_0, CUDA_10_1 };
 
+
+    [DebuggerDisplay("{DeviceName()}")]
     public class GPUWrapper : IDisposable
     {
         #region Private fields
@@ -63,10 +66,12 @@ namespace SharpNet.GPU
         public IntPtr CudnnHandle => _cudnnHandle;
         public void RunKernel(string kernelName, int count, object[] parameterLists)
         {
+            CheckThreadId();
             _kernelManager.RunKernel(kernelName, count, parameterLists);
         }
         public IntPtr ActivationDesc(cudnnActivationMode_t activationFunctionType)
         {
+            CheckThreadId();
             if (!cacheActivationDesc.TryGetValue(activationFunctionType, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateActivationDescriptor(out desc);
@@ -92,6 +97,7 @@ namespace SharpNet.GPU
         }
         public IntPtr ConvDesc(cudnnDataType_t cudaType, int padding, int stride)
         {
+            CheckThreadId();
             var key = Tuple.Create(cudaType, padding, stride);
             if (!cacheConvolutionDesc.TryGetValue(key, out var desc))
             {
@@ -105,6 +111,7 @@ namespace SharpNet.GPU
         }
         public IntPtr FilterDesc(cudnnDataType_t cudaType, int[] shape)
         {
+            CheckThreadId();
             var n = shape[0];
             var c = shape[1];
             var h = shape[2];
@@ -122,6 +129,7 @@ namespace SharpNet.GPU
         }
         public IntPtr DropoutDesc(double dropoutRate, IntPtr randomNumberGeneratorStatesBuffer)
         {
+            CheckThreadId();
             var res = CudnnWrapper.cudnnCreateDropoutDescriptor(out IntPtr desc);
             CheckStatus(res);
             res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var stateSize);
@@ -132,6 +140,7 @@ namespace SharpNet.GPU
         }
         public IntPtr TensorDesc(cudnnDataType_t cudaType, int[] shape)
         {
+            CheckThreadId();
             var n = shape[0];
             var c = shape.Length >= 2 ? shape[1] : 1;
             var h = shape.Length >= 3 ? shape[2] : 1;
@@ -155,6 +164,7 @@ namespace SharpNet.GPU
         //returns a buffer storage (in Device memory) with at least 'sizeInBytes' size
         public DeviceMemory StorageBuffer(size_t sizeInBytes)
         {
+            CheckThreadId();
             if (_lazyStorageBuffer == null || _lazyStorageBuffer.SizeInBytes < sizeInBytes)
             {
                 _lazyStorageBuffer?.Dispose();
@@ -186,11 +196,19 @@ namespace SharpNet.GPU
         public DeviceMemory NewDeviceMemory(IntPtr pointer, size_t sizeInBytes)
         {
             CheckThreadId();
-            return new DeviceMemory(pointer, sizeInBytes);
+
+            if (DEBUG_CUDA){LogDebug("entering NewDeviceMemory(" + pointer + ", " + sizeInBytes + ")");}
+
+            var res = new DeviceMemory(pointer, sizeInBytes);
+
+            if (DEBUG_CUDA){LogDebug("leaving NewDeviceMemory(" + pointer + ", " + sizeInBytes + ")");}
+
+            return res;
         }
 
-        public void ClearMemory()
+        public void Reset()
         {
+            CheckThreadId();
             _copyToDeviceCalls = 0;
             _bytesCopiedToDevice = 0;
             _copyToHostCalls = 0;
@@ -252,6 +270,7 @@ namespace SharpNet.GPU
         }
         public size_t AvailableMemoryInBytes()
         {
+            CheckThreadId();
             return (_preAllocateAllDeviceMemory ? FreePreAllocatedMemoryInBytes() : (size_t)FreeMemoryInBytes());
         }
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
@@ -265,6 +284,14 @@ namespace SharpNet.GPU
             }
 
         }
+        public static void CheckStatus(cublasStatus_t _status, Func<string> getComment)
+        {
+            if (_status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
+            {
+                throw new Exception(_status + " " + getComment());
+            }
+
+        }
         public static void CheckStatus(cudnnStatus_t _status)
         {
             if (_status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
@@ -272,11 +299,50 @@ namespace SharpNet.GPU
                 throw new Exception(_status.ToString());
             }
         }
+        public static void CheckStatus(cudnnStatus_t _status, Func<string> getComment)
+        {
+            if (_status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
+            {
+                throw new Exception(_status+" "+ getComment());
+            }
+        }
+        
         public static void CheckStatus(CUresult _status)
         {
             if (_status != CUresult.CUDA_SUCCESS)
             {
                 throw new Exception(_status.ToString());
+            }
+        }
+
+
+#if DEBUG
+        public const bool DEBUG_CUDA = false;
+#else
+        public const bool DEBUG_CUDA = false; //always false in RELEASE Mode
+#endif
+
+        public static void LogDebug(string msg)
+        {
+            var res = CudartWrapper.cudaGetDevice(out int currentDevice);
+            CheckStatus(res);
+            var fileName = Path.Combine(@"c:\temp\SharpNet_" + System.Threading.Thread.CurrentThread.ManagedThreadId +".txt");
+            File.AppendAllText(fileName, DateTime.Now.ToString("HH:mm:ss.ff") + " id:"+ currentDevice+" " +msg +Environment.NewLine);
+        }
+
+
+        public static void CheckStatus(cudaError_t _status)
+        {
+            if (_status != cudaError_t.cudaSuccess)
+            {
+                throw new Exception(_status.ToString());
+            }
+        }
+        public static void CheckStatus(CUresult _status, Func<string> getComment)
+        {
+            if (_status != CUresult.CUDA_SUCCESS)
+            {
+                throw new Exception(_status+" "+ getComment());
             }
         }
         public static void CheckStatus(nvrtcResult _status)
@@ -317,7 +383,7 @@ namespace SharpNet.GPU
             return deviceCount;
         }
 
-        #region Dispose pattern
+#region Dispose pattern
         public void Dispose()
         {
             Dispose(true);
@@ -362,11 +428,16 @@ namespace SharpNet.GPU
         {
             Dispose(false);
         }
-        #endregion
+#endregion
 
 
         private GPUWrapper(int deviceId)
         {
+            CudartWrapper.cudaDeviceReset();
+            CudartWrapper.cudaSetDevice(deviceId);
+
+            if (DEBUG_CUDA){LogDebug("entering GPUWrapper(" + deviceId + ")");}
+
             DeviceId = deviceId;
             _threadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             _preAllocateAllDeviceMemory = false;
@@ -420,6 +491,8 @@ namespace SharpNet.GPU
                     }
                 }
             }
+
+            if (DEBUG_CUDA){LogDebug("leaving GPUWrapper(" + deviceId + ")");}
         }
 
         private static Version NewVersion(int driverVersion)
@@ -470,7 +543,6 @@ namespace SharpNet.GPU
         }
         private ulong FreeMemoryInBytes()
         {
-            CheckThreadId();
             CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
             return freeMemoryInBytes;
         }
@@ -481,7 +553,7 @@ namespace SharpNet.GPU
         /// <summary>
         /// Ensure that the current ThreadId is the same used when creating the 'this' object
         /// </summary>
-        private void CheckThreadId()
+        public void CheckThreadId()
         {
             if (_threadId != System.Threading.Thread.CurrentThread.ManagedThreadId)
             {

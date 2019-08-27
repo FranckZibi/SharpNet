@@ -10,7 +10,7 @@ namespace SharpNet
 {
     public class BackwardPropagationManager : IDisposable
     {
-        private Network _network;
+        private readonly Network _network;
         private readonly List<Tensor> _availableTensorOrderedByCount = new List<Tensor>();
         private const string MockKey = "Mock";
         private ulong _bytesByBatchSizeForGradientComputation;

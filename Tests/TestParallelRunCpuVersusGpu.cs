@@ -155,6 +155,7 @@ namespace SharpNetTests
 	        var a = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "a");
 	        TestAll(new[] { a }, tensors => tensors[0].ZeroMemory());
 	    }
+
         [Test]
 	    public void TestDot()
 	    {
@@ -163,21 +164,37 @@ namespace SharpNetTests
 	        var result = new CpuTensor<float>(new[] { a.Shape[0], b.Shape[1] }, "result");
 	        TestAll(new[] { a, b, result}, tensors => tensors[2].Dot(tensors[0], false, tensors[1], false, 1, 0));
         }
+
 	    [Test]
-	    public void TestDot_v2()
+	    public void TestDotV2()
 	    {
 	        var a = RandomTensor(new[] { 8, 10 }, "a");
 	        var b = RandomTensor(new[] { a.Shape[1], 12 }, "b");
 	        var result = new CpuTensor<float>(new[] { a.Shape[0], b.Shape[1] }, "result");
             TestAll(new[] { a, b, result }, tensors => tensors[2].Dot(tensors[0], tensors[1]));
         }
-	    [Test]
+
+        /// <summary>
+        /// This test was written to reproduce the error: CUBLAS_STATUS_INTERNAL_ERROR (v 10.0)
+        /// Currently this error is ignored
+        /// </summary>
+        [Test]
+        public void TestDotV3()
+        {
+            var a = RandomTensor(new[] { 2, 20000 }, "a");
+            var b = RandomTensor(new[] { a.Shape[1], 2 }, "b");
+            var result = new CpuTensor<float>(new[] { a.Shape[0], b.Shape[1] }, "result");
+            TestAll(new[] { a, b, result }, tensors => tensors[2].Dot(tensors[0], false, tensors[1], false, 1, 0));
+        }
+
+        [Test]
 	    public void TestUpdate_Adding_Alpha_X()
 	    {
 	        var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width}, "y");
 	        var x = RandomTensor(y.Shape, "x");
 	        TestAll(new[] { y, x}, tensors => tensors[0].Update_Adding_Alpha_X(0.5f, tensors[1]));
 	    }
+
         [Test]
         public void TestAddTensor()
         {
@@ -185,7 +202,6 @@ namespace SharpNetTests
             var x = RandomTensor(y.Shape, "x");
             TestAll(new[] { y, x }, tensors => tensors[0].AddTensor(0.5f, tensors[1], 0.75f));
         }
-
 
         [Test]
         public void TestConcatenate()

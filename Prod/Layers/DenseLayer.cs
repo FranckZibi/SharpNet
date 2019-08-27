@@ -90,6 +90,11 @@ namespace SharpNet.Layers
         {
             Allocate_y_if_necessary();
             var x = PrevLayer.y;
+
+            x.AssertIsNotDisposed();
+            Weights.AssertIsNotDisposed();
+            y.AssertIsNotDisposed();
+
             //We compute y = x*Weights+B
             y.Dot(x, Weights);
             if (UseBias)

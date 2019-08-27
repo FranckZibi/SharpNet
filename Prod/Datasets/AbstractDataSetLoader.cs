@@ -29,6 +29,8 @@ namespace SharpNet.Datasets
         public void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> elementIdToOrderInCurrentEpoch,
             ImageDataGenerator imageDataGenerator, ref Tensor xChunkBuffer, ref Tensor yChunkBuffer)
         {
+            xChunkBuffer.AssertIsNotDisposed();
+            yChunkBuffer.AssertIsNotDisposed();
             var miniBatchSize = xChunkBuffer.Shape[0];
             var xMiniBatchShape = xChunkBuffer.Shape;
             var yMiniBatchShape = yChunkBuffer.Shape;

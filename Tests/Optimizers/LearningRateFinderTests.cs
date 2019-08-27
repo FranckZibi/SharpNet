@@ -12,7 +12,7 @@ namespace SharpNetTests.Optimizers
             var network = param.ResNet20V1_CIFAR10();
             var loader = new CIFAR10DataLoader();
             network.FindBestLearningRate(loader.Training, 128);
-            network.ClearMemory();
+            network.Dispose();
             loader.Dispose();
         }
     }

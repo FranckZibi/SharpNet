@@ -94,11 +94,21 @@ namespace SharpNetTests.NonReg
             //};
 
             //96.18 <= 96.15 (150 epochs) + 95.00 (70 epochs)
-            var files_WRN_40_4_CyclicCosineAnnealing_10_2_150epochs = new[]
+            //var files_WRN_40_4_CyclicCosineAnnealing_10_2_150epochs = new[]
+            //{
+            //    @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-40-4_CyclicCosineAnnealing_10_2_150epochs_20190806_2315_150.txt",
+            //    @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-40-4_CyclicCosineAnnealing_10_2_150epochs_20190806_2315_70.txt",
+            //};
+
+
+            //96.79 <= 96.40 (150 epochs) + 96.05 (70 epochs)
+            var files_WRN_28_10_150epochs = new[]
             {
-                @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-40-4_CyclicCosineAnnealing_10_2_150epochs_20190806_2315_150.txt",
-                @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-40-4_CyclicCosineAnnealing_10_2_150epochs_20190806_2315_70.txt",
+                @"C:\Users\Franck\AppData\Local\SharpNet\WRN-28-10_20190824_2117_150.txt",
+                @"C:\Users\Franck\AppData\Local\SharpNet\WRN-28-10_20190824_0947_70.txt",
             };
+
+            
 
             //96.01 <= 95.39 (150 epochs) + 95.19 (70 epochs)
             //var files_WRN_16_8_CyclicCosineAnnealing_10_2_150epochs = new[]
@@ -115,7 +125,7 @@ namespace SharpNetTests.NonReg
             //    @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-28-10_20190529_0709_171.txt",
             //    @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-28-10_20190529_0709_152.txt",
             //};
-            var ensembleLearning = new EnsembleLearning(files_WRN_40_4_CyclicCosineAnnealing_10_2_150epochs);
+            var ensembleLearning = new EnsembleLearning(files_WRN_28_10_150epochs);
             ensembleLearning.Predict(loader.Test);
         }
 

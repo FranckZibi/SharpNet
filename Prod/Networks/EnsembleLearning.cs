@@ -28,7 +28,7 @@ namespace SharpNet.Networks
                 var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);
                 Console.WriteLine("Single Network Accuracy=" + accuracy);
                 yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _files.Length, yCpuPredictedSingleNetwork);
-                network.ClearMemory();
+                network.Dispose();
             }
             var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, null);
             Console.WriteLine("Ensemble Network Accuracy=" + accuracyEnsembleNetwork);

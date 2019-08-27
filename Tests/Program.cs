@@ -41,7 +41,7 @@ namespace SharpNetTests
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);
             //new NonReg.TestMNIST().Test();
-            //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow();
+            ////new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
         }
@@ -100,6 +100,7 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
+
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN_TransferLearning(x);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN(x, 10, 4);},
 
@@ -115,28 +116,27 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
             };
 
+
+
             var modifiers = new List<Action<WideResNetBuilder>>
-            {
-                //ref 8-aug-2019: 0 bps
+                            {
+                ////ref 8-aug-2019: 0 bps
                 (p) =>{},
-                //10-aug-2019: +4 bps
                 (p) =>{p.ZoomRange = 0.1;p.ExtraDescription = "_ZoomRange_0_1";},
                 (p) =>{p.AvgPoolingSize = 8;p.ExtraDescription = "_AvgPoolingSize_8";},
+                (p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;p.ExtraDescription = "_Mixup_only";},
+                (p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 0.0;p.ExtraDescription = "_Cutout_only";},
                 //10-aug-2019: -10 bps
-                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1, 2);p.NumEpochs = 127;p.ExtraDescription = "_CyclicCosineAnnealing_1_2_127Epochs";},
+                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1, 2);p.NumEpochs = 127;p.ExtraDescription = "_CyclicCosineAnnealing_1_2_127Epochs";},
                 
 
-
                 //(p) =>{p.RecursionCellularImageClassification();p.ExtraDescription = "_RecursionCellular";},
-
                 //(p) => { p.CutMix = false;p.CutoutPatchPercentage = 0.5;},
                 //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;},
                 //(p) =>{p.NumEpochs=200;p.ExtraDescription = "_200epochs";},
                 //(p) =>{p.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);p.ExtraDescription = "_WithCifar10WideResNetLearningRateScheduler";},
-
                 //with CutMix: tested on 12-aug-2019: +15 bps
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.CutMix = true;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_CutMix_150epochs";},
-
                 //new formula of cutout : tested on 12-aug-2019: -43 bps
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_CutoutV3_150epochs";},
 
@@ -203,7 +203,7 @@ namespace SharpNetTests
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_150epochs";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(150,1);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_150_1_150epochs";},
                 //(p) =>{p.DropOut = 0.3;p.ExtraDescription = "_030_dropout";},
-                //(p) =>{p.CutoutPatchlength=0;p.ExtraDescription = "_0CutoutPatchlength";},
+                //(p) =>{p.CutoutPatchLength=0;p.ExtraDescription = "_0CutoutPatchlength";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1,2);p.ExtraDescription = "_CyclicCosineAnnealing_1_2";},
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
                 //(p) =>{p.ExtraDescription = "";},
@@ -293,7 +293,7 @@ namespace SharpNetTests
                 var network = buildNetwork();
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(loader.Training, learningRateComputer, p.NumEpochs, p.BatchSize, loader.Test);
-                network.ClearMemory();
+                network.Dispose();
             }
         }
 
@@ -305,7 +305,7 @@ namespace SharpNetTests
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(loader.Training, learningRateComputer, p.NumEpochs, p.BatchSize, loader.Test);
             }
-            network.ClearMemory();
+            network.Dispose();
         }
 
         private static void Train_DogsVsCat_WRN_TransferLearning(WideResNetBuilder p)
@@ -326,7 +326,7 @@ namespace SharpNetTests
             p.NumEpochs = 150;
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.ClearMemory();
+            network.Dispose();
             trainingAndValidationSet.Dispose();
         }
 
@@ -339,7 +339,7 @@ namespace SharpNetTests
             var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories);
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.ClearMemory();
+            network.Dispose();
             trainingAndValidationSet.Dispose();
         }
         private static void Train_RecursionCellularImageClassification_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
@@ -357,7 +357,7 @@ namespace SharpNetTests
             var network = p.WRN_ImageNet(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories);
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.ClearMemory();
+            network.Dispose();
             trainingAndValidationSet.Dispose();
         }
 
@@ -370,7 +370,7 @@ namespace SharpNetTests
             var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories);
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.ClearMemory();
+            network.Dispose();
             trainingAndValidationSet.Dispose();
         }
        

@@ -13,9 +13,18 @@ namespace SharpNet.CPU
     public class CpuTensor<T> : Tensor where T : struct
     {
         #region fields
-
         public T[] Content { get; private set; }
         private HostPinnedMemory<T> _hostPinnedMemory;
+        #endregion
+
+        public CpuTensor(int[] shape, T[] data, string description) : base(shape, Marshal.SizeOf(typeof(T)), false, description)
+        {
+            Content = data ?? new T[Count];
+            CapacityInBytes = (ulong)(Content.Length * TypeSize);
+        }
+        public CpuTensor(int[] shape, string description) : this(shape, null, description)
+        {
+        }
 
         /// <summary>
         /// pointer to (pinned) host memory (in CPU)
@@ -32,16 +41,6 @@ namespace SharpNet.CPU
             }
         }
 
-        #endregion
-
-        public CpuTensor(int[] shape, T[] data, string description) : base(shape, Marshal.SizeOf(typeof(T)), false, description)
-        {
-            Content = data ?? new T[Count];
-            CapacityInBytes = (ulong)(Content.Length * TypeSize);
-        }
-        public CpuTensor(int[] shape, string description) : this(shape, null, description)
-        {
-        }
 
         /// <summary>
         /// resize the current Cpu tensor to a different shape (both bigger or smaller)
@@ -400,7 +399,18 @@ namespace SharpNet.CPU
             Update_Adding_Alpha_X(alpha, x);
         }
 
-        //TODO : add tests
+        public override void AssertIsNotDisposed()
+        {
+            if (_disposed)
+            {
+                throw new Exception("Tensor is disposed " + this);
+            }
+        }
+
+        /// <summary>
+        /// TODO : add tests
+        /// </summary>
+        /// <returns></returns>
         public override Tensor Transpose()
         {
             Debug.Assert(Dimension == 2);
@@ -988,6 +998,11 @@ namespace SharpNet.CPU
 #region Dispose pattern
         public override void Dispose()
         {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
             _hostPinnedMemory?.Dispose();
             _hostPinnedMemory = null;
             Content = null;
@@ -1005,8 +1020,6 @@ namespace SharpNet.CPU
         {
             return Enumerable.Range(0, Shape[1]).Select(c => ComputeMeanAndVolatilityOfChannel(c, toDouble)).ToList();
         }
-
-
 
         /// <summary>
         /// Computes the mean and volatility of the selected channel in the 'this' tensor

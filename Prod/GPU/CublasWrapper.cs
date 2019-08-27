@@ -6,16 +6,16 @@ namespace SharpNet.GPU
 {
     public enum cublasStatus_t
     {
-        CUBLAS_STATUS_SUCCESS,
-        CUBLAS_STATUS_NOT_INITIALIZED,
-        CUBLAS_STATUS_ALLOC_FAILED,
-        CUBLAS_STATUS_INVALID_VALUE,
-        CUBLAS_STATUS_ARCH_MISMATCH,
-        CUBLAS_STATUS_MAPPING_ERROR,
-        CUBLAS_STATUS_EXECUTION_FAILED,
-        CUBLAS_STATUS_INTERNAL_ERROR,
-        CUBLAS_STATUS_NOT_SUPPORTED,
-        CUBLAS_STATUS_LICENSE_ERROR
+        CUBLAS_STATUS_SUCCESS = 0, //The operation completed successfully.
+        CUBLAS_STATUS_NOT_INITIALIZED = 1, //The cuBLAS library was not initialized. This is usually caused by the lack of a prior cublasCreate() call, an error in the CUDA Runtime API called by the cuBLAS routine, or an error in the hardware setup. To correct: call cublasCreate() prior to the function call; and check that the hardware, an appropriate version of the driver, and the cuBLAS library are correctly installed.
+        CUBLAS_STATUS_ALLOC_FAILED = 3, //Resource allocation failed inside the cuBLAS library. This is usually caused by a cudaMalloc() failure. To correct: prior to the function call, deallocate previously allocated memory as much as possible.
+        CUBLAS_STATUS_INVALID_VALUE = 7, //An unsupported value or parameter was passed to the function (a negative vector size, for example).To correct: ensure that all the parameters being passed have valid values.
+        CUBLAS_STATUS_ARCH_MISMATCH = 8, //The function requires a feature absent from the device architecture; usually caused by the lack of support for double precision.To correct: compile and run the application on a device with appropriate compute capability, which is 1.3 for double precision.
+        CUBLAS_STATUS_MAPPING_ERROR = 11, //An access to GPU memory space failed, which is usually caused by a failure to bind a texture.To correct: prior to the function call, unbind any previously bound textures.
+        CUBLAS_STATUS_EXECUTION_FAILED = 13, //The GPU program failed to execute. This is often caused by a launch failure of the kernel on the GPU, which can be caused by multiple reasons. To correct: check that the hardware, an appropriate version of the driver, and the cuBLAS library are correctly installed.
+        CUBLAS_STATUS_INTERNAL_ERROR = 14, //An internal cuBLAS operation failed. This error is usually caused by a cudaMemcpyAsync() failure. To correct: check that the hardware, an appropriate version of the driver, and the cuBLAS library are correctly installed. Also, check that the memory passed as a parameter to the routine is not being deallocated prior to the routine’s completion.
+        CUBLAS_STATUS_NOT_SUPPORTED = 15, //The functionality requested is not supported
+        CUBLAS_STATUS_LICENSE_ERROR =16
     }
 
     public enum cublasOperation_t

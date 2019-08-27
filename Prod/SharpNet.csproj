@@ -63,6 +63,7 @@
     <Compile Include="Data\size_t.cs" />
     <Compile Include="Data\Tensor.cs" />
     <Compile Include="Data\TensorExtensions.cs" />
+    <Compile Include="GPU\CudartWrapper.cs" />
     <Compile Include="Networks\DenseNetBuilder.cs" />
     <Compile Include="GPU\CublasWrapper.cs" />
     <Compile Include="GPU\DeviceMemory.cs" />
