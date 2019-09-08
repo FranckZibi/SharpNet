@@ -196,13 +196,13 @@ namespace SharpNet.GPU
         public DeviceMemory NewDeviceMemory(IntPtr pointer, size_t sizeInBytes)
         {
             CheckThreadId();
-
+#if DEBUG
             if (DEBUG_CUDA){LogDebug("entering NewDeviceMemory(" + pointer + ", " + sizeInBytes + ")");}
-
+#endif
             var res = new DeviceMemory(pointer, sizeInBytes);
-
+#if DEBUG
             if (DEBUG_CUDA){LogDebug("leaving NewDeviceMemory(" + pointer + ", " + sizeInBytes + ")");}
-
+#endif
             return res;
         }
 
@@ -318,8 +318,6 @@ namespace SharpNet.GPU
 
 #if DEBUG
         public const bool DEBUG_CUDA = false;
-#else
-        public const bool DEBUG_CUDA = false; //always false in RELEASE Mode
 #endif
 
         public static void LogDebug(string msg)
@@ -435,9 +433,9 @@ namespace SharpNet.GPU
         {
             CudartWrapper.cudaDeviceReset();
             CudartWrapper.cudaSetDevice(deviceId);
-
+#if DEBUG
             if (DEBUG_CUDA){LogDebug("entering GPUWrapper(" + deviceId + ")");}
-
+#endif
             DeviceId = deviceId;
             _threadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             _preAllocateAllDeviceMemory = false;
@@ -491,8 +489,9 @@ namespace SharpNet.GPU
                     }
                 }
             }
-
+#if DEBUG
             if (DEBUG_CUDA){LogDebug("leaving GPUWrapper(" + deviceId + ")");}
+#endif
         }
 
         private static Version NewVersion(int driverVersion)

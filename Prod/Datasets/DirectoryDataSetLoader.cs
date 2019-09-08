@@ -41,11 +41,11 @@ namespace SharpNet.Datasets
         public override CpuTensor<float> Y { get; }
 
         public DirectoryDataSetLoader(string csvFileName, string dataDirectory, Logger logger,
-            int channels, int height, int width, string[] categoryIdToDescription,
+            string name, int channels, int height, int width, string[] categoryIdToDescription,
             bool ignoreZeroPixel,
             Action<string,string,List<int>,List<string>,List<List<string>>,Logger> Compute_CategoryId_Description_FullName
             )
-            : base(channels, categoryIdToDescription.Length)
+            : base(name, channels, categoryIdToDescription.Length)
         {
             _csvFileName = csvFileName;
             _logger = logger ?? Logger.ConsoleLogger;
@@ -162,7 +162,7 @@ namespace SharpNet.Datasets
             _logger.Info("Cropping " + Count + " elements and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => CropBorder(elementId, targetDirectory, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
+            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Name, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
         }
         // ReSharper disable once UnusedMember.Global
         public DirectoryDataSetLoader Filter(Func<BitmapContent, bool> isIncluded, bool skipIfFileAlreadyExists = true)
@@ -175,7 +175,7 @@ namespace SharpNet.Datasets
             _logger.Info("Filtering " + Count + " elements and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => Filter(elementId, targetDirectory, isIncluded, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
+            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Name, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
         }
         // ReSharper disable once UnusedMember.Global
         public DirectoryDataSetLoader Resize(int newWidth, int newHeight, bool skipIfFileAlreadyExists = true)
@@ -188,7 +188,7 @@ namespace SharpNet.Datasets
             _logger.Info("Resizing " + Count + " elements and copying them in " + targetDirectory);
             var nbPerformed = 0;
             Parallel.For(0, Count, elementId => Resize(elementId, targetDirectory, newWidth, newHeight, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
+            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Name, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
         }
         // ReSharper disable once UnusedMember.Global
         public DirectoryDataSetLoader MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor = null, bool skipIfFileAlreadyExists = true)
@@ -202,7 +202,7 @@ namespace SharpNet.Datasets
             _logger.Info("Making " + Count + " elements square pictures and copying them in " + targetDirectory);
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => MakeSquarePictures(elementId, targetDirectory, alwaysUseBiggestSideForWidthSide, alwaysCropInsidePicture, fillingColor, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
+            return new DirectoryDataSetLoader(_csvFileName, targetDirectory, _logger, Name, Channels, Height, Width, _categoryIdToDescription, _ignoreZeroPixel, _computeCategoryIdDescriptionFullName);
         }
         public override int Count => _elementIdToCategoryId.Count;
         public override int ElementIdToCategoryId(int elementId)

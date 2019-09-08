@@ -48,8 +48,9 @@ namespace SharpNet.GPU
         /// <param name="hostPinnedPointer">point to host (pinned) memory (in CPU) </param>
         public void CopyToDevice(IntPtr hostPinnedPointer)
         {
+#if DEBUG
             if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering CopyToDevice " + ReallyNeededMemoryInBytes + " bytes from Host " + hostPinnedPointer+" to Device " + DevicePointer);}
-
+#endif
             AssertIsNotDisposed();
             Debug.Assert(hostPinnedPointer != IntPtr.Zero);
             Wrapper.SwCopyToDevice.Start();
@@ -57,11 +58,9 @@ namespace SharpNet.GPU
             var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, hostPinnedPointer, ReallyNeededMemoryInBytes);
             GPUWrapper.CheckStatus(res, ToString);
             Wrapper.SwCopyToDevice.Stop();
-
-
+#if DEBUG
             if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving CopyToDevice " + ReallyNeededMemoryInBytes + " bytes from Host " + hostPinnedPointer + " to Device " + DevicePointer);}
-
-
+#endif
         }
 
         public void CopyToDevice(T[] data)
@@ -75,8 +74,9 @@ namespace SharpNet.GPU
 
         private T[] DeviceContent()
         {
+#if DEBUG
             if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering CopyToHost " + ReallyNeededMemoryInBytes + " bytes from Device " + DevicePointer+ " to new Host ");}
-
+#endif
             Debug.Assert(!_disposed);
             Wrapper.SwCopyToHost.Start();
             Wrapper.LogCopyToHostCall(ReallyNeededMemoryInBytes);
@@ -88,9 +88,9 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res, ToString);
             handle.Free();
             Wrapper.SwCopyToHost.Stop();
-
+#if DEBUG
             if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving CopyToHost " + ReallyNeededMemoryInBytes + " bytes from Device " + DevicePointer + " to Host "+_hostMemoryPointer);}
-
+#endif
             return _hostMemory;
         }
         public IntPtr DevicePointer
@@ -102,7 +102,7 @@ namespace SharpNet.GPU
             }
         }
 
-        #region Tensor implementation
+#region Tensor implementation
         public override void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining)
         {
             var x = this;
@@ -633,7 +633,7 @@ namespace SharpNet.GPU
         {
             _deviceMemory.ZeroMemory();
         }
-        #endregion
+#endregion
 
 
         public override void AssertIsNotDisposed()
@@ -647,7 +647,7 @@ namespace SharpNet.GPU
         }
 
 
-        #region Dispose pattern
+#region Dispose pattern
         public override void Dispose()
         {
             Dispose(true);

@@ -113,6 +113,7 @@
     <Compile Include="Utils.cs" />
     <Compile Include="Optimizers\Sgd.cs" />
     <Compile Include="Datasets\CIFAR10DataLoader.cs" />
+    <Compile Include="Datasets\CIFAR100DataLoader.cs" />
     <Compile Include="Datasets\MNISTDataLoader.cs" />
   </ItemGroup>
   <ItemGroup>

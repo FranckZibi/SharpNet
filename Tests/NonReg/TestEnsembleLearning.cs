@@ -60,9 +60,7 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void Test()
         {
-            Console.WriteLine("loading CIFAR10");
-            //CIFAR10.LoadCifar10(out var _, out var _, out var xTestCpu, out var yExpectedCpu);
-
+            Console.WriteLine("loading CIFAR-10");
             IDataSet loader = new CIFAR10DataLoader();
 
             //95.65 <= 95.32 (200 epochs) + 94.02 (70 epochs)

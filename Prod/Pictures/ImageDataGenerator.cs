@@ -27,7 +27,7 @@ namespace SharpNet.Pictures
         private readonly double _fillModeConstantVal;
         /// <summary>
         /// % of the max(width,height) of the zero mask to apply to the input picture (see: https://arxiv.org/pdf/1708.04552.pdf)
-        /// recommended size : 16/32=0.5 (= 16x16) for CIFAR10 / 8/32=0.25 (= 8x8) for CIFAR100 / 20/32 (= 20x20) for SVHN / 32/96 (= 32x32) for STL-10
+        /// recommended size : 16/32=0.5 (= 16x16) for CIFAR-10 / 8/32=0.25 (= 8x8) for CIFAR-100 / 20/32 (= 20x20) for SVHN / 32/96 (= 32x32) for STL-10
         /// less or equal to 0.0 means no cutout
         /// </summary>
         private readonly double _cutoutPatchPercentage;

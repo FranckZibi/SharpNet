@@ -6,5 +6,7 @@ namespace SharpNet.Datasets
     {
         IDataSetLoader Training { get; }
         IDataSetLoader Test { get; }
+
+        string Name { get; }
     }
 }

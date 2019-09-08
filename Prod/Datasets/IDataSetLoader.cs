@@ -75,6 +75,8 @@ namespace SharpNet.Datasets
         int[] XMiniBatch_Shape(int miniBatchSize);
         CpuTensor<float> Y { get; }
 
+        string Name { get; }
+
         void CreatePredictionFile(CpuTensor<float> prediction, string outputFile, string headerIfAny = null);
     }
 }

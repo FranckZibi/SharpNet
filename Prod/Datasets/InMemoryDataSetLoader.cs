@@ -12,8 +12,8 @@ namespace SharpNet.Datasets
         private readonly string[] _categoryIdToDescription;
         #endregion
 
-        public InMemoryDataSetLoader(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryId, string[] categoryIdToDescription)
-            : base(x.Shape[1], y.Shape[1])
+        public InMemoryDataSetLoader(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryId, string[] categoryIdToDescription, string name)
+            : base(name, x.Shape[1], y.Shape[1])
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
             Debug.Assert(elementIdToCategoryId != null);

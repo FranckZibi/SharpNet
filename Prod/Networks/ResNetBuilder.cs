@@ -49,7 +49,7 @@ namespace SharpNet.Networks
             HorizontalFlip = true; // 'true' : validated on 18-apr-2019: +70 bps
             VerticalFlip = false;
             FillMode = ImageDataGenerator.FillModeEnum.Reflect; //validated on 18-apr-2019: +50 bps
-            CutoutPatchPercentage = 0.5; // validated on 17-apr-2019 for CIFAR10: +70 bps (a cutout of the 1/2 of the image width)
+            CutoutPatchPercentage = 0.5; // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
 
             NumEpochs = 160; //64k iterations
             BatchSize = 128;
@@ -123,7 +123,7 @@ namespace SharpNet.Networks
         #endregion
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
-        #region ResNetV1 for CIFAR10
+        #region ResNetV1 for CIFAR-10
         public Network ResNet20V1_CIFAR10() {return ResNetV1_CIFAR10(3);}
         public Network ResNet32V1_CIFAR10() {return ResNetV1_CIFAR10(5);}
         public Network ResNet44V1_CIFAR10() {return ResNetV1_CIFAR10(7);}
@@ -133,7 +133,7 @@ namespace SharpNet.Networks
         public Network ResNet1202V1_CIFAR10() {return ResNetV1_CIFAR10(200);}
         private Network ResNetV1_CIFAR10(int numResBlocks)
         {
-            var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_CIFAR10";
+            var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_CIFAR-10";
             var net = BuildEmptyNetwork(networkName);
             var config = net.Config;
             var layers = net.Layers;
@@ -164,7 +164,7 @@ namespace SharpNet.Networks
         #endregion
 
         //implementation described in: https://arxiv.org/pdf/1603.05027.pdf
-        #region ResNetV2 for CIFAR10
+        #region ResNetV2 for CIFAR-10
         public Network ResNet11V2_CIFAR10() {return ResNetV2_CIFAR10(1);}
         public Network ResNet20V2_CIFAR10() {return ResNetV2_CIFAR10(2);}
         public Network ResNet29V2_CIFAR10() {return ResNetV2_CIFAR10(3);}

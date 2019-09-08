@@ -780,7 +780,8 @@ namespace SharpNet.Networks
                         + Environment.NewLine;
                     if (!Config.DisableLogging)
                     {
-                        File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, "Tests.csv"), line);
+                        var testsCsv = string.IsNullOrEmpty(trainingDataSetCpu.Name)?"Tests.csv": ("Tests_"+ trainingDataSetCpu.Name + ".csv");
+                        File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, testsCsv), line);
                     }
                 }
                 catch (Exception e)
@@ -916,10 +917,9 @@ namespace SharpNet.Networks
             ILearningRateComputer learningRateComputerIfTraining = null,
             Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {
-
-
+#if DEBUG
             if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering MiniBatchGradientDescent(" + miniBatchSize + "); epoch="+ (_epochsData.Count + 1));}
-
+#endif
             bool isTraining = learningRateComputerIfTraining != null;
             var entireBatchSize = dataSet.Count;
             if (miniBatchSize <= 0)
@@ -943,8 +943,9 @@ namespace SharpNet.Networks
             int nbProcessed = 0;
             while(nbProcessed < entireBatchSize)
             {
+#if DEBUG
                 if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("start MiniBatchGradientDescent(" + miniBatchSize + "); epoch=" + (_epochsData.Count + 1)+"; blockId="+blockId);}
-
+#endif
                 var blockSize = Math.Min(entireBatchSize- nbProcessed, miniBatchSize);
                 xMiniBatch.Reshape(dataSet.XMiniBatch_Shape(blockSize));
 
@@ -971,15 +972,14 @@ namespace SharpNet.Networks
                 {
                     break;
                 }
-
+#if DEBUG
                 if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("end MiniBatchGradientDescent(" + miniBatchSize + "); epoch=" + (_epochsData.Count + 1) + "; blockId=" + blockId);}
-
+#endif
                 ++blockId;
             }
-
+#if DEBUG
             if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving MiniBatchGradientDescent(" + miniBatchSize + "); epoch=" + (_epochsData.Count + 1));}
-
-
+#endif
             return _yPredictedBufferForEntireBatch;
         }
         private static int NbBlocksInEpoch(int miniBatchSize, int entireBatchSize)

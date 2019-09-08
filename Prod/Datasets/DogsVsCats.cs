@@ -13,6 +13,7 @@ namespace SharpNet.Datasets
                 "",
                 directory,
                 logger,
+                "DogsVsCats", //Name
                 3, //Channels
                 height,
                 width,

@@ -7,7 +7,8 @@
             return new DirectoryDataSetLoader(
                 csvFilename, 
                 trainingSetDirectory, 
-                logger, 
+                logger,
+                "Aptos2019BlindnessDetection", //Name
                 3, //Channels
                 height, 
                 width, 

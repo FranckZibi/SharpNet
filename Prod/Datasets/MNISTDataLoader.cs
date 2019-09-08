@@ -15,6 +15,8 @@ namespace SharpNet.Datasets
 
         public IDataSetLoader Training { get; }
         public IDataSetLoader Test { get; }
+        public string Name => "MNIST";
+
 
         public MNISTDataLoader()
         {
@@ -24,14 +26,14 @@ namespace SharpNet.Datasets
             var yTrain = trainWorkingSet.Item2;
 
             var trainElementIdToCategoryId = trainingSet.Select(x=>x.Value).ToArray();
-            Training = new InMemoryDataSetLoader(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription);
+            Training = new InMemoryDataSetLoader(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name);
 
             var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
             var testWorkingSet = ToWorkingSet(testSet);
             var xTest = testWorkingSet.Item1;
             var yTest = testWorkingSet.Item2;
             var testElementIdToCategoryId = testSet.Select(x => x.Value).ToArray();
-            Test = new InMemoryDataSetLoader(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription);
+            Test = new InMemoryDataSetLoader(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name);
         }
 
 

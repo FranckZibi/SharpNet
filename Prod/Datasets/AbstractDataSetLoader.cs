@@ -19,8 +19,9 @@ namespace SharpNet.Datasets
         #endregion
 
         #region constructor
-        protected AbstractDataSetLoader(int channels, int categories)
+        protected AbstractDataSetLoader(string name, int channels, int categories)
         {
+            Name = name;
             Channels = channels;
             Categories = categories;
         }
@@ -105,6 +106,7 @@ namespace SharpNet.Datasets
 
         public abstract int Count { get; }
         public abstract string ElementIdToDescription(int elementId);
+        public string Name { get; }
         public int Channels { get; }
         public int Categories { get; }
         public abstract string CategoryIdToDescription(int categoryId);
@@ -137,7 +139,7 @@ namespace SharpNet.Datasets
             int lastElementIdIncludedInTrainingSet = (int)(percentageInTrainingSet * Count);
             var training = new SubDataSetLoader(this, id => id < lastElementIdIncludedInTrainingSet);
             var test = new SubDataSetLoader(this, id => id >= lastElementIdIncludedInTrainingSet);
-            return new DataLoader(training, test);
+            return new DataLoader(training, test, Name);
         }
         public AbstractDataSetLoader Shuffle(Random rand)
         {

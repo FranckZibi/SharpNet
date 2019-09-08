@@ -15,6 +15,7 @@ namespace SharpNet.Datasets
                 csvFilename,
                 trainingSetDirectory,
                 logger,
+                "RecursionCellularImageClassification",
                 Channels,
                 height,
                 width,
