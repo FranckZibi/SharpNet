@@ -1,5 +1,11 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
 using NUnit.Framework;
+using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.Networks;
 
@@ -8,13 +14,56 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class TestEnsembleLearning
     {
+
+        [Test, Explicit]
+        public void TestAptos2019BlindnessDetection()
+        {
+            int heightAndWidth = 128;
+            var csvFilename = @"C:\temp\aptos2019-blindness-detection\train_images\train.csv";
+            var dataDirectory = @"C:\temp\aptos2019-blindness-detection\train_images_cropped_square_resize_" + heightAndWidth + "_" + heightAndWidth;
+            var directoryLoader = Aptos2019BlindnessDetection.ValueOf(csvFilename, dataDirectory, heightAndWidth, heightAndWidth, null).SplitIntoTrainingAndValidation(0.9).Test;
+
+            //var csvFilename = @"C:\temp\aptos2019-blindness-detection\test_images\test.csv";
+            //var dataDirectory = @"C:\temp\aptos2019-blindness-detection\test_images_cropped_square_resize_" + heightAndWidth + "_" + heightAndWidth;
+            //var directoryLoader = Aptos2019BlindnessDetection.ValueOf(csvFilename, dataDirectory, heightAndWidth, heightAndWidth, null);
+
+            var networks = new[]
+            {
+                @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-16-8_Aptos2019_Cutout_0_10_noCutMix_Mixup_Rotation90_20190828_1201_150.txt"
+                //@"C:\Users\fzibi\AppData\Local\SharpNet\WRN-16-8_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_128_20190816_1520_150.txt",
+                //@"C:\Users\fzibi\AppData\Local\SharpNet\WRN-16-8_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_128_20190816_1520_70.txt",
+            };
+            var ensembleLearning = new EnsembleLearning(networks);
+            var predictionsAndAccuracy = ensembleLearning.Predict(directoryLoader);
+
+            var elementIdToPredictedCategory = predictionsAndAccuracy.Item1.ComputePrediction();
+            var categoryIdToElementIdDescriptions = new Dictionary<int, List<string>>();
+            for (int elementId = 0; elementId < directoryLoader.Count; ++elementId)
+            {
+                var categoryId = elementIdToPredictedCategory[elementId];
+                if (!categoryIdToElementIdDescriptions.ContainsKey(categoryId))
+                {
+                    categoryIdToElementIdDescriptions[categoryId] = new List<string>();
+                }
+                categoryIdToElementIdDescriptions[categoryId].Add(directoryLoader.ElementIdToDescription(elementId));
+            }
+
+            var pythonFile = "c:/temp/toto.py";
+            File.Delete(pythonFile);
+            foreach (var e in categoryIdToElementIdDescriptions)
+            {
+                File.AppendAllText(pythonFile, "_"+e.Key+"_set = { "+string.Join(",", e.Value.Select(x=>"'"+x+"'"))+ "}"+Environment.NewLine);
+            }
+            directoryLoader.CreatePredictionFile(predictionsAndAccuracy.Item1, "c:/temp/toto.txt");
+        }
+
         [Test, Explicit]
         public void Test()
         {
             Console.WriteLine("loading CIFAR10");
             //CIFAR10.LoadCifar10(out var _, out var _, out var xTestCpu, out var yExpectedCpu);
 
-            var loader = new CIFAR10DataLoader();
+            IDataSet loader = new CIFAR10DataLoader();
 
             //95.65 <= 95.32 (200 epochs) + 94.02 (70 epochs)
             //var files_WRN_40_4 = new[]

@@ -949,10 +949,28 @@ namespace SharpNet.CPU
             var yPredictedCpu = yPredicted.AsCpu<float>();
             for (int m = 0; m < batchSize; ++m)
             {
-                result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m);
+                result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m, out _);
             }
             return ((double)result)/Shape[0];
         }
+
+
+        /// <summary>
+        /// compute the prediction embedded in the tensor (in each line the index with max value)
+        /// </summary>
+        /// <returns>array with prediction (=category) of each element</returns>
+        public int[] ComputePrediction()
+        {
+            int batchSize = Shape[0];
+            int[] categories = new int[batchSize];
+            var yPredictedCpu = AsCpu<float>();
+            for (int m = 0; m < batchSize; ++m)
+            {
+                ComputeSingleAccuracyCount(yPredictedCpu, yPredictedCpu, m, out categories[m]);
+            }
+            return categories;
+        }
+
         public override void CopyTo(Tensor b)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, b }));
@@ -1194,17 +1212,17 @@ namespace SharpNet.CPU
                 dxContent[i] = (Math.Abs(dyi - 1.0) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
             }
         }
-        private static int ComputeSingleAccuracyCount(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m)
+        private static int ComputeSingleAccuracyCount(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)
         {
             Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
             Debug.Assert(yExpectedOneHot.Dimension == 2);
+            maxIndexPredicted = 0;
             var categoryCount = yExpectedOneHot.Shape[1];
             if (categoryCount == 1)
             {
                 var error = Math.Abs(yExpectedOneHot.Get(m, 0) - yPredicted.Get(m, 0));
                 return (error < 0.5) ? 1 : 0;
             }
-            int maxIndexPredicted = 0;
             int maxIndexExpected = 0;
             for (int j = 1; j < categoryCount; ++j)
             {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SharpNet.CPU;
@@ -61,7 +62,11 @@ namespace SharpNet.Datasets
             yOutputCpuChunkBuffer.ZeroMemory();
             for (int idx = 0; idx < miniBatchSize; ++idx)
             {
-                yOutputCpuChunkBuffer.Set(idx, IndexInMiniBatchToCategoryId(idx), 1);
+                var categoryId = IndexInMiniBatchToCategoryId(idx);
+                if (categoryId >= 0)
+                {
+                    yOutputCpuChunkBuffer.Set(idx, categoryId, 1);
+                }
             }
             if (!imageDataGenerator.UseDataAugmentation || (epoch == 1) || !isTraining)
             {
@@ -154,6 +159,19 @@ namespace SharpNet.Datasets
                                && (Y.Shape.Length == 2);
         }
         public abstract CpuTensor<float> Y { get; }
+        public void CreatePredictionFile(CpuTensor<float> prediction, string outputFile, string headerIfAny = null)
+        {
+            var categories = prediction.ComputePrediction();
+            File.Delete(outputFile);
+            if (!string.IsNullOrEmpty(headerIfAny))
+            {
+                File.AppendAllText(outputFile, headerIfAny + Environment.NewLine);
+            }
+            for (int elementId = 0; elementId < Count; ++elementId)
+            {
+                File.AppendAllText(outputFile, ElementIdToDescription(elementId) + "," + categories[elementId] + Environment.NewLine);
+            }
+        }
 
         public static string[] DefaultGetCategoryIdToDescription(int categoryCount)
         {
@@ -164,8 +182,6 @@ namespace SharpNet.Datasets
             Debug.Assert(!data.UseGPU);
             return data.AsFloatCpuContent.All(x => IsValidY(x));
         }
-
-
    
         private static bool IsValidY(double x)
         {

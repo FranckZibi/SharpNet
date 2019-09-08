@@ -602,7 +602,7 @@ namespace SharpNet.Networks
                 var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, bufferComputeLoss);
                 return learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
-            MiniBatchGradientDescent(miniBatchSize, trainingDataSet, learningRateFinder, CallBackAfterEachMiniBatch);
+            MiniBatchGradientDescent(trainingDataSet, miniBatchSize, learningRateFinder, CallBackAfterEachMiniBatch);
             var fileName = Path.Combine(Config.LogDirectory, UniqueId + "_LearningRateFinder.csv");
             File.WriteAllText(fileName, learningRateFinder.AsCsv());
             Info("Stats stored in: " + fileName);
@@ -701,7 +701,7 @@ namespace SharpNet.Networks
 
                     #region Mini Batch gradient descent
                     var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, nbBlocksInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                    var yPredicted = MiniBatchGradientDescent(miniBatchSize, trainingDataSetCpu, learningRateComputer, callBackAtEachIteration);
+                    var yPredicted = MiniBatchGradientDescent(trainingDataSetCpu, miniBatchSize, learningRateComputer, callBackAtEachIteration);
                     #endregion
 
                     //We display stats about the just finished epoch
@@ -825,7 +825,7 @@ namespace SharpNet.Networks
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
-            var yPredicted = MiniBatchGradientDescent(miniBatchSize, testDataSet, null, null);
+            var yPredicted = MiniBatchGradientDescent(testDataSet, miniBatchSize, null, null);
             return ComputeLossAndAccuracyForEntireBatch(testDataSet.Y, yPredicted);
         }
 
@@ -904,15 +904,17 @@ namespace SharpNet.Networks
         /// <summary>
         /// Perform a mini batch gradient descent for an entire epoch, each mini batch will have 'miniBatchSize' elements
         /// </summary>
-        /// <param name="miniBatchSize"></param>
         /// <param name="dataSet">Expected Input and output (= dataSet.Y) </param>
+        /// <param name="miniBatchSize"></param>
         /// <param name="learningRateComputerIfTraining">null if we are just using the network to predict the results (without updating weights)
         ///     not null if we need to update the weights between each mini batch</param>
         /// <param name="callBackToStop">Optional callback to be called at the end of each mini batch,
         ///     parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         ///     If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
-        public Tensor MiniBatchGradientDescent(int miniBatchSize, IDataSetLoader dataSet, ILearningRateComputer learningRateComputerIfTraining = null, Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
+        public Tensor MiniBatchGradientDescent(IDataSetLoader dataSet, int miniBatchSize = -1,
+            ILearningRateComputer learningRateComputerIfTraining = null,
+            Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {
 
 
@@ -922,7 +924,7 @@ namespace SharpNet.Networks
             var entireBatchSize = dataSet.Count;
             if (miniBatchSize <= 0)
             {
-                throw new Exception("invalid miniBatchSize size (" + miniBatchSize + ")");
+                miniBatchSize = MaxMiniBatchSize();
             }
             int nbMiniBatchBlock = NbBlocksInEpoch(miniBatchSize, entireBatchSize);
             int epoch = _epochsData.Count + 1;

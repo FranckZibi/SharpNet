@@ -26,6 +26,15 @@ namespace SharpNetTests
             //var x = new DenseNetBuilder {NumEpochs = 5,BatchSize = -1, GpuDeviceId=-1};Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());return;
 
 
+            //var csvFilename = @"C:\temp\aptos2019-blindness-detection\test_images\test.csv";
+            //var dataDirectory = @"C:\temp\aptos2019-blindness-detection\test_images";
+            //var testDirectory = Aptos2019BlindnessDetection.ValueOf(csvFilename, dataDirectory, -1, -1, null);
+            //testDirectory.CropBorder(true).MakeSquarePictures(true, false, null, true).Resize(32, 32, true); return;
+
+
+
+
+
             //var dogsVsCatDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train";
             //var original = DogsVsCats.ValueOf(dogsVsCatDirectory, null);
             //var filtered = original.Filter(x => 1.2*Math.Min(x.GetWidth(),x.GetHeight()) > Math.Max(x.GetWidth(), x.GetHeight()));
@@ -105,11 +114,11 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN(x, 10, 4);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_RecursionCellularImageClassification_WRN(x, 10, 4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 10,4,WidthAptos2019);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 16,8,WidthAptos2019);},
 
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
@@ -122,12 +131,12 @@ namespace SharpNetTests
                             {
                 ////ref 8-aug-2019: 0 bps
                 (p) =>{},
-                (p) =>{p.ZoomRange = 0.1;p.ExtraDescription = "_ZoomRange_0_1";},
-                (p) =>{p.AvgPoolingSize = 8;p.ExtraDescription = "_AvgPoolingSize_8";},
-                (p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;p.ExtraDescription = "_Mixup_only";},
-                (p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 0.0;p.ExtraDescription = "_Cutout_only";},
-                //10-aug-2019: -10 bps
-                (p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1, 2);p.NumEpochs = 127;p.ExtraDescription = "_CyclicCosineAnnealing_1_2_127Epochs";},
+                //(p) =>{p.ZoomRange = 0.1;p.ExtraDescription = "_ZoomRange_0_1";},
+                //(p) =>{p.AvgPoolingSize = 8;p.ExtraDescription = "_AvgPoolingSize_8";},
+                //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.AlphaMixup = 1.0;p.ExtraDescription = "_Mixup_only";},
+                //(p) => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 0.0;p.ExtraDescription = "_Cutout_only";},
+                ////10-aug-2019: -10 bps
+                //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1, 2);p.NumEpochs = 127;p.ExtraDescription = "_CyclicCosineAnnealing_1_2_127Epochs";},
                 
 
                 //(p) =>{p.RecursionCellularImageClassification();p.ExtraDescription = "_RecursionCellular";},
@@ -141,7 +150,9 @@ namespace SharpNetTests
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_CutoutV3_150epochs";},
 
 
-                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_noRotation"+WidthAptos2019;},
+                (p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=0;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_noRotation"+WidthAptos2019;},
+                //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix= 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_noRotation"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.CutMix = true;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_noCutout_CutMix_noRotation"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.CutoutPatchPercentage = 0.1;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_noRotation"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.CutoutPatchPercentage = 0.5;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_Cutout_0_50_noCutMix_noRotation"+WidthAptos2019;},
@@ -150,9 +161,7 @@ namespace SharpNetTests
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.RotationRangeInDegrees=180;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Rotation180"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_Rotation90"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_50_noCutMix_Rotation90"+WidthAptos2019;},
-                //(p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_"+WidthAptos2019;},
                 //(p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.1;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_Cutout_0_10_noCutMix_Mixup_Rotation90_"+WidthAptos2019;},
-                //(p) =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=0;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_noRotation"+WidthAptos2019;},
 
                 #region already performed tests
                 //CutMix V2 : validated on 18-aug-2019 : -4bps (in CutMix V2 we ensure that we keep at least 50% of the original element)

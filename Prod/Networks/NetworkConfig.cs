@@ -271,7 +271,10 @@ namespace SharpNet.Networks
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
             ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];
-            AutoSaveIntervalInMinutes = (int)serialized[nameof(AutoSaveIntervalInMinutes)];
+            AutoSaveIntervalInMinutes =
+                serialized.ContainsKey(nameof(AutoSaveIntervalInMinutes))
+                    ? (int) serialized[nameof(AutoSaveIntervalInMinutes)]
+                    : (int) serialized["AutoSaveIntervalInMinuts"];
             SaveNetworkStatsAfterEachEpoch = (bool)serialized[nameof(SaveNetworkStatsAfterEachEpoch)];
             SaveLossAfterEachMiniBatch = (bool)serialized[nameof(SaveLossAfterEachMiniBatch)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];

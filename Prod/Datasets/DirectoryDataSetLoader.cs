@@ -96,20 +96,24 @@ namespace SharpNet.Datasets
             {
                 var lineContent = lines[index].Split(',', ';').ToArray();
                 var description = lineContent[0];
-                var categoryIdAsString = lineContent[1];
 
-                if (!int.TryParse(categoryIdAsString, out var categoryId) || categoryId < 0)
-                {
-                    if (index == 0)
+                int categoryId = -1; //unknown categoryId
+                if (lineContent.Length == 2)
+                { 
+                    var categoryIdAsString = lineContent[1];
+                    if (!int.TryParse(categoryIdAsString, out categoryId) || categoryId < 0)
                     {
-                        _logger.Debug("ignoring (header) first line: " + lines[index]);
+                        if (index == 0)
+                        {
+                            _logger.Debug("ignoring (header) first line: " + lines[index]);
+                        }
+                        else
+                        {
+                            _logger.Info("invalid categoryId in line: " + lines[index]);
+                            throw new ArgumentException("invalid categoryId in line: " + lines[index]);
+                        }
+                        continue;
                     }
-                    else
-                    {
-                        _logger.Info("invalid categoryId in line: " + lines[index]);
-                        throw new ArgumentException("invalid categoryId in line: " + lines[index]);
-                    }
-                    continue;
                 }
                 var elementFileNameWithoutExtension = Path.GetFileNameWithoutExtension(description) ?? "";
                 if (!fileNameWithoutExtensionToSubPath.ContainsKey(elementFileNameWithoutExtension))
