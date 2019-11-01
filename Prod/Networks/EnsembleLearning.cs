@@ -1,6 +1,5 @@
 ﻿using System;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.Datasets;
 
 namespace SharpNet.Networks

@@ -7,13 +7,15 @@ using SharpNet.Networks;
 
 namespace SharpNet.Layers
 {
+    /// <summary>
+    /// x     (batchSize, x.C, x.H, x.W)
+    ///
+    /// y     (batchSize, x.C, y.H, y.W)
+    ///          y.H = (x.H−poolingSize) / poolingStride + 1
+    ///          y.W = (x.W−poolingSize) / poolingStride + 1
+    /// </summary>
     public class PoolingLayer : Layer
     {
-        // x     (batchSize, x.C, x.H, x.W)
-        //
-        // y     (batchSize, x.C, y.H, y.W)
-        //          y.H = (x.H−poolingSize) / poolingStride + 1
-        //          y.W = (x.W−poolingSize) / poolingStride + 1
         #region Fields
         private readonly cudnnPoolingMode_t _poolingMode;
         private readonly int _poolingSize;
@@ -21,7 +23,13 @@ namespace SharpNet.Layers
         public override Tensor y { get; protected set; }
         #endregion
 
-        //No need to configure the number of channels by filter: it is always the same as in previous layer
+        /// <summary>
+        /// No need to configure the number of channels by filter: it is always the same as in previous layer
+        /// </summary>
+        /// <param name="poolingMode"></param>
+        /// <param name="poolingSize"></param>
+        /// <param name="poolingStride"></param>
+        /// <param name="network"></param>
         public PoolingLayer(cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride, Network network) : base(network)
         {
             _poolingMode = poolingMode;
@@ -98,9 +106,28 @@ namespace SharpNet.Layers
         public override int[] OutputShape(int batchSize)
         {
             var xShape = PrevLayer.OutputShape(batchSize);
-            var yShape = Tensor.PoolingOutputShape(xShape, _poolingSize, _poolingStride);
+            var yShape = PoolingOutputShape(xShape, _poolingSize, _poolingStride);
             Debug.Assert(yShape.Min() >= 1);
             return yShape;
+        }
+
+        /// <summary>
+        /// Compute the pooling layer output shape given an input of shape 'shapeInput'
+        /// </summary>
+        /// <param name="shapeInput">(batchSize, x.C, heightInput, widthInput)</param>
+        /// <param name="poolingSize">the pooling size is (poolingSize, poolingSize)</param>
+        /// <param name="poolingStride">pooling stride</param>
+        /// <returns>the output shape: (batchSize, x.C, y.H, y.W)</returns>
+        public static int[] PoolingOutputShape(int[] shapeInput, int poolingSize, int poolingStride)
+        {
+            Debug.Assert(shapeInput.Length == 4);
+            Debug.Assert(poolingStride >= 1);
+            var batchSize = shapeInput[0];
+            var heightInput = shapeInput[2];
+            var widthInput = shapeInput[3];
+            var heightOutput = (heightInput - poolingSize) / poolingStride + 1;
+            var widthOutput = (widthInput - poolingSize) / poolingStride + 1;
+            return new[] { batchSize, shapeInput[1], heightOutput, widthOutput };
         }
     }
 }

@@ -11,8 +11,8 @@ namespace SharpNet.Optimizers
         private int _iterations;
         private readonly double _SGD_momentum;
         private readonly bool _SGD_usenesterov;
-        private readonly Tensor _velocityWeight;    // same as 'Weights'
-        private readonly Tensor _velocityBias;      // same as 'Bias'
+        private readonly Tensor _velocityWeight;    // same dimension as 'Weights'
+        private readonly Tensor _velocityBias;      // same dimension as 'Bias'
         #endregion
 
         public Sgd(Network network, double SGD_momentum, bool SGD_usenesterov, int[] weightShape, int[] biasShapeIfAny)

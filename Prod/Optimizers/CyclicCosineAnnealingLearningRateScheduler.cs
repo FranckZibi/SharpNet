@@ -15,7 +15,7 @@ namespace SharpNet.Optimizers
         private readonly List<Tuple<double, double>> _values = new List<Tuple<double, double>>();
         #endregion
 
-        public List<int> RelevantEpochSnapshot { get; }= new List<int>();
+        private List<int> RelevantEpochSnapshot { get; }= new List<int>();
 
 
         /// <summary>
@@ -57,7 +57,6 @@ namespace SharpNet.Optimizers
             _maxLearningRate = maxLearningRate;
             RelevantEpochSnapshot.Reverse();
         }
-
         public bool ShouldCreateSnapshotForEpoch(int epoch)
         {
             int epochIdx= RelevantEpochSnapshot.IndexOf(epoch);

@@ -38,7 +38,7 @@ namespace SharpNet.Data
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
         public int Count => Shape[0] * MultDim0;
         public int Dimension => Shape.Length;
-        public ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
+        protected ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
         public float[] AsFloatCpuContent => AsCpu<float>().Content;
         public string ContentStats()
@@ -130,40 +130,7 @@ namespace SharpNet.Data
         {
             return (ulong)tensors.Select(x => (long) (x?.CapacityInBytes ?? 0) ).Sum();
         }
-        //shapeInput                [batchSize x channelDepth x x.H x x.Weights]
-        //shapeConvolution          [filtersCount x channelDepth x f x f]
-        //shapeOutput               [batchSize x filtersCount x H[o] x Weights[o]]
-        public static int[] ConvolutionOutputShape(int[] shapeInput, int[] shapeConvolution, int padding, int stride)
-        {
-            Debug.Assert(shapeInput.Length == 4);
-            Debug.Assert(shapeConvolution.Length == 4);
-            Debug.Assert(padding >= 0);
-            Debug.Assert(stride >= 1);
-            Debug.Assert(shapeInput[1] == shapeConvolution[1]); //same channel depth for x and convolution
-            Debug.Assert(shapeConvolution[2] == shapeConvolution[3]); //convolution height == convolution width
-            var f = shapeConvolution[2];
-            Debug.Assert(f % 2 == 1); // F must be odd
-            var hInput = shapeInput[2];
-            var hOutput = (hInput - f + 2 * padding) / stride + 1;
-            var wInput = shapeInput[3];
-            var wOutput = (wInput - f + 2 * padding) / stride + 1;
-            var batchSize = shapeInput[0];
-            var filtersCount = shapeConvolution[0];
-            return new[] { batchSize, filtersCount, hOutput, wOutput };
-        }
-        //shapeInput                (x.N, x.C, x.H, x.W)
-        //pooling                   (poolingSize, poolingSize) with stride 'poolingStride'
-        //shapeOutput               (x.N, x.C, y.H, y.W)
-        public static int[] PoolingOutputShape(int[] shapeInput, int poolingSize, int poolingStride)
-        {
-            Debug.Assert(shapeInput.Length == 4);
-            Debug.Assert(poolingStride >= 1);
-            var hInput = shapeInput[2];
-            var hOutput = (hInput - poolingSize) / poolingStride + 1;
-            var wInput = shapeInput[3];
-            var wOutput = (wInput - poolingSize) / poolingStride + 1;
-            return new[] { shapeInput[0], shapeInput[1], hOutput, wOutput };
-        }
+       
         public static bool AreCompatible(List<Tensor> a)
         {
             a.RemoveAll(x => x == null);
@@ -179,39 +146,75 @@ namespace SharpNet.Data
         }
         public ulong CapacityInBytes { get; protected set; }
         public abstract void ZeroMemory();
-        //this = dy
+        
+        /// <summary>
+        /// this = dy
+        /// </summary>
+        /// <param name="convolutionBackwardBias"></param>
         public abstract void ConvolutionBackwardBias(Tensor convolutionBackwardBias);
-        // this = alpha a*b + beta*this
+
+        /// <summary>
+        /// this = alpha a*b + beta*this 
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="transposeA"></param>
+        /// <param name="b"></param>
+        /// <param name="transposeB"></param>
+        /// <param name="alpha"></param>
+        /// <param name="beta"></param>
         public abstract void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta);
-        //this = singleLineMatrix to add to y
+
+        /// <summary>
+        /// this = singleLineMatrix to add to y
+        /// </summary>
+        /// <param name="y"></param>
         public abstract void BroadcastAddVectorToOutput(Tensor y);
-        //extract channel 'channel' from this tensor and store it in 'tensor_NH'
+
+        /// <summary>
+        /// extract channel 'channel' from this tensor and store it in 'tensor_NH'
+        /// </summary>
+        /// <param name="tensor_NH"></param>
+        /// <param name="channel"></param>
         public abstract void From_NCH_to_NH(Tensor tensor_NH, int channel);
-        // compute: this = alpha * x + this
+
+        /// <summary>
+        /// compute: this = alpha * x + this 
+        /// </summary>
+        /// <param name="alpha"></param>
+        /// <param name="x"></param>
         public abstract void Update_Adding_Alpha_X(float alpha, Tensor x);
-        // compute: this = alpha * x + beta * this
+
+        /// <summary>
+        /// compute: this = alpha * x + beta * this 
+        /// </summary>
+        /// <param name="alpha"></param>
+        /// <param name="x"></param>
+        /// <param name="beta"></param>
         public abstract void AddTensor(float alpha, Tensor x, float beta);
+
         /// <summary>
         /// Concatenate the 2 tensors 'a' & 'b'  (through the 'Channel' dimension) into the 'this' tensor.
-        /// They must have exactly the same geometry apart from the number of channels (at index 1)
-        /// 'this' : Tensor of Dimension [N, Ca+Cb, H, W]
+        /// 'this', 'a' and 'b'  must have exactly the same geometry apart from the number of channels (at index 1)
+        /// 'this' : Tensor of Dimension (N, Ca+Cb, H, W)
         /// </summary>
-        /// <param name="a">Tensor of Dimension [N, Ca, H, W]</param>
-        /// <param name="b">Tensor of Dimension [N, Cb, H, W]</param>
+        /// <param name="a">Tensor of Dimension (N, Ca, H, W)</param>
+        /// <param name="b">Tensor of Dimension (N, Cb, H, W)</param>
         public abstract void Concatenate(Tensor a, Tensor b);
+
         /// <summary>
         /// Clone
         /// </summary>
         /// <param name="gpuWrapper"></param>
         /// <returns></returns>
         public abstract Tensor Clone(GPUWrapper gpuWrapper);
+
         /// <summary>
         /// Split the this tensor into the tensors 'a' & 'b'.
-        /// They must have exactly the same geometry apart from the number of channels (at index 1)
-        /// 'this' : Tensor of Dimension [N, Ca+Cb, H, W]
+        /// 'this', 'a' and 'b' must have exactly the same geometry apart from the number of channels (at index 1)
+        /// 'this' : Tensor of Dimension (N, Ca+Cb, H, W)
         /// </summary>
-        /// <param name="a">Tensor of Dimension [N, Ca, H, W]</param>
-        /// <param name="b">Tensor of Dimension [N, Cb, H, W]</param>
+        /// <param name="a">Tensor of Dimension (N, Ca, H, W)</param>
+        /// <param name="b">Tensor of Dimension (N, Cb, H, W)</param>
         public abstract void Split(Tensor a, Tensor b);
         public abstract void Update_Multiplying_By_Alpha(float alpha);
         //this = Tensor<T> convolutionBiasVector
@@ -248,18 +251,63 @@ namespace SharpNet.Data
         #endregion
 
         public abstract Tensor Transpose();
-        //this = x
+
+        /// <summary>
+        /// this = x
+        /// </summary>
+        /// <param name="y"></param>
+        /// <param name="bnScale"></param>
+        /// <param name="bnBias"></param>
+        /// <param name="exponentialAverageFactor"></param>
+        /// <param name="resultRunningMean"></param>
+        /// <param name="resultRunningVariance"></param>
+        /// <param name="mode"></param>
+        /// <param name="epsilon"></param>
+        /// <param name="resultSaveMean"></param>
+        /// <param name="resultSaveVariance"></param>
+        /// <param name="isTraining"></param>
         public abstract void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining);
-        //this = x
+
+        /// <summary>
+        /// this = x
+        /// </summary>
+        /// <param name="dy"></param>
+        /// <param name="dx"></param>
+        /// <param name="bnScale"></param>
+        /// <param name="resultBnScaleDiff"></param>
+        /// <param name="resultBnBiasDiff"></param>
+        /// <param name="mode"></param>
+        /// <param name="epsilon"></param>
+        /// <param name="resultSaveMean"></param>
+        /// <param name="resultSaveVariance"></param>
         public abstract void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor bnScale, Tensor resultBnScaleDiff, Tensor resultBnBiasDiff, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance);
-        //this = x
+
+        /// <summary>
+        /// this = x
+        /// </summary>
+        /// <param name="y"></param>
+        /// <param name="dropProbability"></param>
+        /// <param name="isTraining"></param>
+        /// <param name="dropoutRandom"></param>
+        /// <param name="dropoutMaskBuffer"></param>
         public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBuffer);
         public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask);
-        //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
-        //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
+
+        /// <summary>
+        /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
+        /// <param name="notUsedBuffer"></param>
+        /// <returns></returns>
         public abstract double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer);
-        //this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
-        //yPredicted : what has been predicted by the ML (in each row the biggest value is the ML favorite)
+
+        /// <summary>
+        /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
         public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
         public abstract void NewSameValueTensor(double sameValue);

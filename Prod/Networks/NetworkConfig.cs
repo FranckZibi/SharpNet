@@ -283,23 +283,27 @@ namespace SharpNet.Networks
         }
         #endregion
 
-
-        //conventions: 
-        //  the output layer has a shape of (N, C) where:
-        //      'N' is the number of batches
-        //      'C' the number of distinct categories
+        /// <summary>
+        /// Conventions: 
+        ///   the output layer has a shape of (N, C) where:
+        ///       'N' is the number of batches
+        ///       'C' the number of distinct categories
+        /// </summary>
         public enum LossFunctionEnum
         {
-            //To be used with sigmoid activation layer.
-            //In a single row, each value will be in [0,1] range
-            //Support of multi labels (one element can belong to several categories at the same time)
+            /// <summary>
+            /// To be used with sigmoid activation layer.
+            /// In a single row, each value will be in [0,1] range
+            /// Support of multi labels (one element can belong to several categories at the same time)
+            /// </summary>
             BinaryCrossentropy,
 
-            //To be used with softmax activation layer.
-            //In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
-            //Do not support multi labels (each element can belong to exactly 1 category)
+            /// <summary>
+            /// To be used with softmax activation layer.
+            /// In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
+            /// Do not support multi labels (each element can belong to exactly 1 category)
+            /// </summary>
             CategoricalCrossentropy
         }
-
     }
 }

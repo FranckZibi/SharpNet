@@ -6,6 +6,7 @@ using SharpNet.GPU;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet.CPU;
+using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.CPU;
 using SharpNetTests.Data;
@@ -43,7 +44,7 @@ namespace SharpNetTests
 	    {
 	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
 	        var convolution = RandomTensor(new[] { BatchSize, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
-	        var y = RandomTensor(Tensor.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
+	        var y = RandomTensor(ConvolutionLayer.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
 	        TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2]));
 	    }
 
@@ -53,7 +54,7 @@ namespace SharpNetTests
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
             x = new CpuTensor<float>(x.Shape, "x");
             var convolution = RandomTensor(new[] { BatchSize, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
-            var dy = RandomTensor(Tensor.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
+            var dy = RandomTensor(ConvolutionLayer.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
             //this will compute 'dx' && 'convolutionGradient'
             var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");
             var convolutionGradient = RandomTensor(convolution.Shape, "convolutionGradient");
@@ -288,7 +289,7 @@ namespace SharpNetTests
 	    public void TestPooling(cudnnPoolingMode_t poolingMode)
 	    {
 	        var aBeforePooling = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "aBeforePooling");
-	        var aAfterPooling = RandomTensor(Tensor.PoolingOutputShape(aBeforePooling.Shape, PoolingSize, PoolingStride), "aAfterPooling");
+	        var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape(aBeforePooling.Shape, PoolingSize, PoolingStride), "aAfterPooling");
 	        TestAll(new[] { aBeforePooling, aAfterPooling }, tensors => tensors[0].Pooling(tensors[1], poolingMode, PoolingSize, PoolingStride));
 	    }
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC)]
@@ -296,7 +297,7 @@ namespace SharpNetTests
 	    public void TestPoolingGradient(cudnnPoolingMode_t poolingMode)
         {
 	        var shapeBeforePooling = new[] { BatchSize, ChannelsCount, Height, Width };
-	        var shapeAfterPooling = Tensor.PoolingOutputShape(shapeBeforePooling, PoolingSize, PoolingStride);
+	        var shapeAfterPooling = PoolingLayer.PoolingOutputShape(shapeBeforePooling, PoolingSize, PoolingStride);
 	        var dy = RandomTensor(shapeAfterPooling, "dy");
 	        var x = RandomTensor(shapeBeforePooling, "x");
 	        var y = RandomTensor(shapeAfterPooling, "y");

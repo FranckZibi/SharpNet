@@ -8,7 +8,9 @@ using SharpNet.Data;
 
 namespace SharpNet.Optimizers
 {
-    //see https://www.jeremyjordan.me/nn-learning-rate/
+    /// <summary>
+    /// see https://www.jeremyjordan.me/nn-learning-rate/
+    /// </summary>
     public class LearningRateFinder : ILearningRateComputer
     {
         #region private fields
@@ -40,6 +42,7 @@ namespace SharpNet.Optimizers
             Debug.Assert(nbBlocksInEpoch >= 1);
             return _minLearningRate * Math.Pow(_multiplicativeCoeff, blockIdInEpoch);
         }
+
         /// <summary>
         /// at the end of each block id, this method is called with the loss computed in the last block
         /// </summary>
@@ -102,6 +105,5 @@ namespace SharpNet.Optimizers
         {
             return false;
         }
-
     }
 }

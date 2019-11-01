@@ -254,7 +254,12 @@ namespace SharpNet.GPU
             AddTensor(alpha, x, 1);
         }
 
-        // compute: this = alpha * x + beta * this
+        /// <summary>
+        /// compute: this = alpha * x + beta * this 
+        /// </summary>
+        /// <param name="alpha"></param>
+        /// <param name="x"></param>
+        /// <param name="beta"></param>
         public override void AddTensor(float alpha, Tensor x, float beta)
         {
             var c = this;
@@ -292,14 +297,6 @@ namespace SharpNet.GPU
 #if DEBUG
             CheckConcatenate(a, b);
 #endif
-            /*
-             v1 : = 1.1ms
-            for (int m = 0; m < Shape[0]; ++m)
-            {
-                CopyTo(Idx(m), a, a.Idx(m), a.MultDim0);
-                CopyTo(Idx(m) + a.MultDim0, b, b.Idx(m), b.MultDim0);
-            } */
-
             var concat = this;
             Wrapper.RunKernel("Split", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0 });
         }
@@ -327,7 +324,10 @@ namespace SharpNet.GPU
             }
         }
 
-        // compute: this = alpha * this
+        /// <summary>
+        /// compute: this = alpha * this 
+        /// </summary>
+        /// <param name="alphaFloat"></param>
         public override void Update_Multiplying_By_Alpha(float alphaFloat)
         {
             var y = this;
@@ -467,7 +467,13 @@ namespace SharpNet.GPU
             var deviceContent = DeviceContent();
             return (deviceContent as float[]);
         }
-        //this = yExpectedOneHot
+
+        /// <summary>
+        /// this = yExpectedOneHot
+        /// </summary>
+        /// <param name="yPredicted"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
         public override double ComputeAccuracy(Tensor yPredicted, Tensor buffer)
         {
             var yExpectedOneHot = this;
@@ -482,7 +488,13 @@ namespace SharpNet.GPU
             var countOk = (int) buffer.ContentAsFloatArray().Sum();
             return ((double)countOk) / Shape[0];
         }
-        //this = yExpectedOneHot
+        /// <summary>
+        /// this = yExpectedOneHot
+        /// </summary>
+        /// <param name="yPredicted"></param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
             var yExpectedOneHot = this;
@@ -530,7 +542,14 @@ namespace SharpNet.GPU
             res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, _dropoutDescriptor, xDesc, x, yDesc, y, _dropoutReserveSpace.Pointer, _dropoutReserveSpace.SizeInBytes);
             CheckStatus(res);
         }
-        //this = x
+
+        /// <summary>
+        /// this = x
+        /// </summary>
+        /// <param name="dy"></param>
+        /// <param name="dx"></param>
+        /// <param name="dropProbability"></param>
+        /// <param name="usedDropoutMask"></param>
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask)
         {
             var dxDesc = TensorDesc(dx);
@@ -570,8 +589,6 @@ namespace SharpNet.GPU
                 //W[i] += velocity[i];
                 W.Update_Adding_Alpha_X(1, velocity);
             }
-
-
         }
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta)
         {
@@ -645,7 +662,6 @@ namespace SharpNet.GPU
             Wrapper.CheckThreadId();
             _deviceMemory.AssertIsNotDisposed();
         }
-
 
 #region Dispose pattern
         public override void Dispose()

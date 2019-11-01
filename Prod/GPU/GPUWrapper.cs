@@ -9,7 +9,6 @@ namespace SharpNet.GPU
 {
     public enum CUDA_Versions { CUDA_10_0, CUDA_10_1 };
 
-
     [DebuggerDisplay("{DeviceName()}")]
     public class GPUWrapper : IDisposable
     {

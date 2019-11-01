@@ -8,6 +8,7 @@ namespace SharpNet.Data
     {
         private readonly UIntPtr value;
 
+        // ReSharper disable once MemberCanBePrivate.Global
         public size_t(ulong value)
         {
             this.value = new UIntPtr(value);

@@ -36,10 +36,12 @@ namespace SharpNet.Datasets
         /// </summary>
         int Count { get; }
         int TypeSize { get; }
+
         /// <summary>
         ///  number of distinct categories in the DataSet
         /// </summary>
         int Categories { get; }
+
         /// <summary>
         /// category id to associated description
         /// </summary>

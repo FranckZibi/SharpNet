@@ -196,9 +196,36 @@ namespace SharpNet.Layers
         }
         public override int[] OutputShape(int batchSize)
         {
-            var result = Tensor.ConvolutionOutputShape(PrevLayer.OutputShape(batchSize), Convolution.Shape, _padding, _stride);
+            var result = ConvolutionOutputShape(PrevLayer.OutputShape(batchSize), Convolution.Shape, _padding, _stride);
             Debug.Assert(result.Min() >= 1);
             return result;
+        }
+
+        /// <summary>
+        /// Compute the output shape fo a convolution layer, given input shape 'shapeInput' and convolution shape 'shapeConvolution'
+        /// </summary>
+        /// <param name="shapeInput">input shape: (batchSize, channelDepth, heightInput, widthInput)</param>
+        /// <param name="shapeConvolution">convolution shape: (filtersCount, channelDepth, f, f)</param>
+        /// <param name="padding"></param>
+        /// <param name="stride"></param>
+        /// <returns>output shape: (batchSize, filtersCount, heightOutput=H[heightInput], weightOutput=H[weightInput])</returns>
+        public static int[] ConvolutionOutputShape(int[] shapeInput, int[] shapeConvolution, int padding, int stride)
+        {
+            Debug.Assert(shapeInput.Length == 4);
+            Debug.Assert(shapeConvolution.Length == 4);
+            Debug.Assert(padding >= 0);
+            Debug.Assert(stride >= 1);
+            Debug.Assert(shapeInput[1] == shapeConvolution[1]); //same channel depth for 'input shape' and 'convolution shape'
+            Debug.Assert(shapeConvolution[2] == shapeConvolution[3]); //convolution height == convolution width
+            var batchSize = shapeInput[0];
+            var heightInput = shapeInput[2];
+            var widthInput = shapeInput[3];
+            var f = shapeConvolution[2];
+            Debug.Assert(f % 2 == 1); // F must be odd
+            var filtersCount = shapeConvolution[0];
+            var heightOutput = (heightInput - f + 2 * padding) / stride + 1;
+            var widthOutput = (widthInput - f + 2 * padding) / stride + 1;
+            return new[] { batchSize, filtersCount, heightOutput, widthOutput };
         }
 
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;

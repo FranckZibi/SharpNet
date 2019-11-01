@@ -44,11 +44,15 @@ namespace SharpNet.Layers
             y.Concatenate(PreviousLayerIndex1.y, PreviousLayerIndex2.y);
         }
 
+        /// <summary>
+        /// At this stage, we already know dy (output layer gradient)
+        /// we want to compute PreviousLayerIndex1.dy (=dx[0]) & PreviousLayerIndex2.dy (=dx[1]) by backward propagation
+        /// </summary>
+        /// <param name="dy">already computed output layer gradient</param>
+        /// <param name="dx">the 2 values to compute (from dy)</param>
         public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(dx.Count == 2);
-            //At this stage, we already know dy
-            //we want to compute PreviousLayerIndex1.dy & PreviousLayerIndex2.dy by backward propagation
             var dx0 = dx[0];
             var dx1 = dx[1];
             if (ReferenceEquals(dx0, dx1))

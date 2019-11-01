@@ -37,8 +37,15 @@ namespace SharpNet.Optimizers
             return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, true);
         }
 
-        //we start with a learning rate of 'initialLearningRate' (epoch = 1)
-        //every 'XEpoch' epochs, we divide the learning rate by 'divideConstant'
+        /// <summary>
+        /// We start with a learning rate of 'initialLearningRate' (epoch = 1)
+        // every 'XEpoch' epochs, we divide the learning rate by 'divideConstant'
+        /// </summary>
+        /// <param name="initialLearningRate"></param>
+        /// <param name="divideConstant"></param>
+        /// <param name="XEpoch"></param>
+        /// <param name="isConstantByInterval"></param>
+        /// <returns></returns>
         public static LearningRateScheduler DivideByConstantEveryXEpoch(double initialLearningRate, int divideConstant, int XEpoch, bool isConstantByInterval)
         {
             var values = new List<Tuple<double, double>> {Tuple.Create(1.0, initialLearningRate)};
@@ -70,8 +77,6 @@ namespace SharpNet.Optimizers
         {
             return Utils.Interpolate(_values, epoch, _constantByInterval);
         }
-
-    
 
         public string Serialize()
         {

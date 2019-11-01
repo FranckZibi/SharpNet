@@ -6,6 +6,10 @@ using SharpNet.Data;
 
 namespace SharpNet.Optimizers
 {
+    /// <summary>
+    /// This class is used for plateau detection (: )several epochs in a row without progress)
+    /// One trick in this case is to reduce the learning rate
+    /// </summary>
     public class ReduceLROnPlateau
     {
         #region fields & properties
@@ -54,7 +58,6 @@ namespace SharpNet.Optimizers
             }
             return nbConsecutiveEpochsWithoutProgress;
         }
-
         public static int NbConsecutiveEpochsWithSameMultiplicativeFactor(List<EpochData> epochData)
         {
             for (int i = epochData.Count - 2; i >= 0; --i)
@@ -67,6 +70,12 @@ namespace SharpNet.Optimizers
             return epochData.Count;
         }
 
+        /// <summary>
+        /// Check if we should reduce the learning rate because we have reached a plateau
+        /// (a plateau: no improvement in several epochs in a row)
+        /// </summary>
+        /// <param name="previousEpochsData">stats associated with the previous computed epochs</param>
+        /// <returns>true if we should reduce the learning rate</returns>
         public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochData)
         {
             var nbConsecutiveEpochWithoutProgress = NbConsecutiveEpochsWithoutProgress(previousEpochData, _patienceForReduceLrOnPlateau+1);
@@ -83,22 +92,5 @@ namespace SharpNet.Optimizers
 
             return true;
         }
-        public string Serialize()
-        {
-            return new Serializer()
-                .Add(nameof(FactorForReduceLrOnPlateau), FactorForReduceLrOnPlateau)
-                .Add(nameof(_patienceForReduceLrOnPlateau), _patienceForReduceLrOnPlateau)
-                .Add(nameof(_cooldownForReduceLrOnPlateau), _cooldownForReduceLrOnPlateau)
-                .ToString();
-        }
-        public static ReduceLROnPlateau ValueOf(IDictionary<string, object> serialized)
-        {
-            return new ReduceLROnPlateau(
-                (double) serialized[nameof(FactorForReduceLrOnPlateau)],
-                (int) serialized[nameof(_patienceForReduceLrOnPlateau)],
-                (int) serialized[nameof(_cooldownForReduceLrOnPlateau)]
-            );
-        }
-
     }
 }

@@ -5,6 +5,7 @@ using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Layers;
 using SharpNetTests.Data;
 
 namespace SharpNetTests.CPU
@@ -90,7 +91,7 @@ namespace SharpNetTests.CPU
             const int stride = 2;
 
             var input = new CpuTensor<float>(new[] { 1, 1, 3, 3 }, new float[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 }, "input");
-            var output = new CpuTensor<float>(Tensor.PoolingOutputShape(input.Shape, poolingSize, stride), "output");
+            var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, stride), "output");
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, stride);
             var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] {5}, "expectedOutput");
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
@@ -101,7 +102,7 @@ namespace SharpNetTests.CPU
                 input[i - 1] = i;
             }
             input[0] = 333;
-            output = new CpuTensor<float>(Tensor.PoolingOutputShape(input.Shape, poolingSize, stride), "output");
+            output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, stride), "output");
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, stride);
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2, 2 }, new float[] { 333, 8, 14, 16, 22, 24, 30, 32, 38, 40, 46, 48 }, "expectedOutput");
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
@@ -114,7 +115,7 @@ namespace SharpNetTests.CPU
         }
         private void TestConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int padding, int stride, CpuTensor<float> expectedOutput)
         {
-            var outputCPU = new CpuTensor<float>(Tensor.ConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
+            var outputCPU = new CpuTensor<float>(ConvolutionLayer.ConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
             input.Convolution(convolution, padding, stride, outputCPU);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }

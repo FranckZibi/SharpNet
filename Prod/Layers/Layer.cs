@@ -24,7 +24,6 @@ namespace SharpNet.Layers
         //gradient of layer output (= null if it is the input layer)
         #endregion
 
-
         /// <summary>
         /// Clone constructor
         /// </summary>
@@ -149,7 +148,11 @@ namespace SharpNet.Layers
         public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
 
 
-        //by default (if not overriden) output shape is the same as the previous layer
+        /// <summary>
+        /// by default (if not overriden) output shape is the same as the previous layer
+        /// </summary>
+        /// <param name="batchSize"></param>
+        /// <returns></returns>
         public virtual int[] OutputShape(int batchSize)
         {
             if (_lazyOutputShape != null)

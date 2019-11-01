@@ -122,6 +122,7 @@ namespace SharpNet.CPU
             Debug.Assert(Dimension == 2);
             this[Idx(n, c)] = t;
         }
+        // ReSharper disable once MemberCanBeProtected.Global
         public void Set(int n, int c, int h, T t)
         {
             Debug.Assert(Dimension == 3);
@@ -408,7 +409,7 @@ namespace SharpNet.CPU
         }
 
         /// <summary>
-        /// TODO : add tests
+        /// Add tests
         /// </summary>
         /// <returns></returns>
         public override Tensor Transpose()

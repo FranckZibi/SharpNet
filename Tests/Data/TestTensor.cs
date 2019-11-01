@@ -4,6 +4,7 @@ using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Layers;
 using SharpNetTests.CPU;
 
 namespace SharpNetTests.Data
@@ -54,8 +55,6 @@ namespace SharpNetTests.Data
             Assert.IsTrue(SameContent(aGpu, aCloned, 1e-5));
         }
 
-
-
         [Test]
         public void TestConvolutionOutputShape()
         {
@@ -72,13 +71,13 @@ namespace SharpNetTests.Data
                         var shapeIntput = new[] { batchSize, channelDepth, h, w };
                         var shapeConvolution = new[] { filtersCount, channelDepth, f, f };
                         // padding = 0 , stride == 1
-                        Assert.IsTrue(Tensor.ConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(Tensor.ConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
                         // padding = 0, stride == 2
-                        Assert.IsTrue(Tensor.ConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(Tensor.ConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }
@@ -97,9 +96,9 @@ namespace SharpNetTests.Data
                     {
                         var shapeIntput = new[] { batchSize, channelDepth, h, w };
                         //stride == 1
-                        Assert.IsTrue(Tensor.PoolingOutputShape(shapeIntput, poolingSizeForPoolingOutputShape, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingSizeForPoolingOutputShape + 1, w - poolingSizeForPoolingOutputShape + 1 }));
+                        Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingSizeForPoolingOutputShape, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingSizeForPoolingOutputShape + 1, w - poolingSizeForPoolingOutputShape + 1 }));
                         // stride == 2
-                        Assert.IsTrue(Tensor.PoolingOutputShape(shapeIntput, poolingSizeForPoolingOutputShape, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingSizeForPoolingOutputShape) / 2 + 1, (w - poolingSizeForPoolingOutputShape) / 2 + 1 }));
+                        Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingSizeForPoolingOutputShape, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingSizeForPoolingOutputShape) / 2 + 1, (w - poolingSizeForPoolingOutputShape) / 2 + 1 }));
                     }
                 }
             }

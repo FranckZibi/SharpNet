@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.GPU
 {
@@ -66,13 +67,6 @@ namespace SharpNet.GPU
         CUDA_ERROR_LAUNCH_FAILED = 719,
         CUDA_ERROR_COOPERATIVE_LAUNCH_TOO_LARGE = 720
     }
-    /*
-    public enum CUcomputemode
-    {
-        CU_COMPUTEMODE_DEFAULT,
-        CU_COMPUTEMODE_EXCLUSIVE,
-        CU_COMPUTEMODE_PROHIBITED
-    }*/
 
     public enum CUdevice_attribute
     {
@@ -184,23 +178,6 @@ namespace SharpNet.GPU
         CU_DEVICE_ATTRIBUTE_DIRECT_MANAGED_MEM_ACCESS_FROM_HOST = 101,
         CU_DEVICE_ATTRIBUTE_MAX
     }
-
-    /*
-    public enum CUfunction_attribute
-    {
-        CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK = 0,
-        CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES = 1,
-        CU_FUNC_ATTRIBUTE_CONST_SIZE_BYTES = 2,
-        CU_FUNC_ATTRIBUTE_LOCAL_SIZE_BYTES = 3,
-        CU_FUNC_ATTRIBUTE_NUM_REGS = 4,
-        CU_FUNC_ATTRIBUTE_PTX_VERSION = 5,
-        CU_FUNC_ATTRIBUTE_BINARY_VERSION = 6,
-        CU_FUNC_ATTRIBUTE_CACHE_MODE_CA = 7,
-        CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES = 8,
-        CU_FUNC_ATTRIBUTE_PREFERRED_SHARED_MEMORY_CARVEOUT = 9,
-        CU_FUNC_ATTRIBUTE_MAX
-    }
-    */
 
     public static class NVCudaWrapper
     {
