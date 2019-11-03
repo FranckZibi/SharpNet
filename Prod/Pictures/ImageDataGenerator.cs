@@ -97,36 +97,36 @@ namespace SharpNet.Pictures
 
         /// <summary>
         /// takes the input picture at index 'indexInMiniBatch' in 'xOriginalMiniBatch'
-        /// and stores a data augmented version of it at index 'indexInMiniBatch' of 'xTransformedMiniBatch'&'yMiniBatch'
+        /// and stores a data augmented version of it at index 'indexInMiniBatch' of 'xTransformedMiniBatch'
+        /// 'yMiniBatch' will only be updated for some data augmentation techniques
         /// </summary>
-        /// <param name="indexInMiniBatch"></param>
-        /// <param name="xOriginalMiniBatch"></param>
-        /// <param name="xDataAugmentedMiniBatch"></param>
-        /// <param name="yMiniBatch"></param>
+        /// <param name="indexInMiniBatch">the index of the picture to process in 'xOriginalMiniBatch' & 'xDataAugmentedMiniBatch'</param>
+        /// <param name="xOriginalMiniBatch">tensor with all original pictures (not augmented) in the current mini batch
+        /// The mini batch size is xOriginalMiniBatch.Shape[0] </param>
+        /// <param name="xDataAugmentedMiniBatch"> tensor where the augmented pictures of the mini batch will be stored
+        /// this method will only update the picture at index 'indexInMiniBatch' of 'xDataAugmentedMiniBatch'
+        /// </param>
+        /// <param name="yMiniBatch">expected categories of the original (not augmented) elements
+        /// Some data augmentation techniques (ex: CutMix, MixUp) will require to update those expected categories
+        /// </param>
         /// <param name="indexInMiniBatchToCategoryId"></param>
         public void DataAugmentationForMiniBatch(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
             CpuTensor<float> xDataAugmentedMiniBatch, CpuTensor<float> yMiniBatch, 
             Func<int,int> indexInMiniBatchToCategoryId)
         {
-            int miniBatchSize = xOriginalMiniBatch.Shape[0];
-
             // NCHW tensors
             Debug.Assert(xOriginalMiniBatch.SameShape(xDataAugmentedMiniBatch));
-            Debug.Assert(xOriginalMiniBatch.Shape.Length == xDataAugmentedMiniBatch.Shape.Length);
-            //same number of channels
-            Debug.Assert(xOriginalMiniBatch.Shape[1] == xDataAugmentedMiniBatch.Shape[1]);
-            //same number of rows
-            Debug.Assert(xOriginalMiniBatch.Shape[2] == xDataAugmentedMiniBatch.Shape[2]);
-            //same number of columns
-            Debug.Assert(xOriginalMiniBatch.Shape[3] == xDataAugmentedMiniBatch.Shape[3]);
+
+            int miniBatchSize = xOriginalMiniBatch.Shape[0];
+
 
             var rand = _rands[indexInMiniBatch % _rands.Length];
 
             //random shift
-            int heightShiftRangeInPixels = GetPadding(xOriginalMiniBatch.Shape[2], _heightShiftRangeInPercentage);
-            int widthShiftRangeInPixels = GetPadding(xOriginalMiniBatch.Shape[3], _widthShiftRangeInPercentage);
-            var heightShift = rand.Next(2 * heightShiftRangeInPixels + 1) - heightShiftRangeInPixels;
-            var widthShift = rand.Next(2 * widthShiftRangeInPixels + 1) - widthShiftRangeInPixels;
+            int verticalShiftRangeInPixels = GetShiftInPixel(xOriginalMiniBatch.Shape[2], _heightShiftRangeInPercentage);
+            int horizontalShiftRangeInPixels = GetShiftInPixel(xOriginalMiniBatch.Shape[3], _widthShiftRangeInPercentage);
+            var verticalShift = rand.Next(2 * verticalShiftRangeInPixels + 1) - verticalShiftRangeInPixels;
+            var horizontalShift = rand.Next(2 * horizontalShiftRangeInPixels + 1) - horizontalShiftRangeInPixels;
 
             //random horizontal and vertical flip
             var horizontalFlip = _horizontalFlip && rand.Next(2) == 0;
@@ -152,7 +152,7 @@ namespace SharpNet.Pictures
             InitializeOutputPicture(
                 xOriginalMiniBatch, 
                 xDataAugmentedMiniBatch, indexInMiniBatch,
-                widthShift, heightShift, _fillMode,
+                horizontalShift, verticalShift, _fillMode,
                 horizontalFlip, verticalFlip,
                 widthMultiplier, heightMultiplier,
                 cutoutRowStart, cutoutRowEnd, cutoutColStart, cutoutColEnd,
@@ -160,28 +160,27 @@ namespace SharpNet.Pictures
                 mixupLambda, indexInMiniBatchForMixup,
                 rotationInDegrees);
 
+            // if CutMix has been used, wee need to update the expected output ('y' tensor)
             if (_alphaCutMix>0.0 && indexInMiniBatchToCategoryId(indexInMiniBatch) != indexInMiniBatchToCategoryId(indexInMiniBatchForCutMix))
             {
-
                 float cutMixLambda = 1f - ((float)((cutMixRowEnd - cutMixRowStart + 1) * (cutMixColEnd - cutMixColStart + 1))) / (nbCols * nbRows);
-
-
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
-                //        'cutMixLambda' % of the category of the element at 'inputPictureIndex'
-                //      '1-cutMixLambda' % of the category of the element at 'inputPictureIndexForCutMix'
+                //        'cutMixLambda' % of the category of the element at 'indexInMiniBatch'
+                //      '1-cutMixLambda' % of the category of the element at 'indexInMiniBatchForCutMix'
                 yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatch), cutMixLambda);
                 yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatchForCutMix), 1f - cutMixLambda);
             }
 
+            // if MixUp has been used, wee need to update the expected output ('y' tensor)
             if (mixupLambda.HasValue && indexInMiniBatchToCategoryId(indexInMiniBatch) != indexInMiniBatchToCategoryId(indexInMiniBatchForMixup))
             {
-                // We need to update the expected y using CutMix lambda
+                // We need to update the expected y using Mixup lambda
                 // the associated y is:
-                //        'cutMixLambda' % of the category of the element at 'inputPictureIndex'
-                //      '1-cutMixLambda' % of the category of the element at 'inputPictureIndexForCutMix'
-                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatch), (float)mixupLambda);
-                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatchForMixup), 1f - (float)mixupLambda);
+                //        'mixupLambda' % of the category of the element at 'indexInMiniBatch'
+                //      '1-mixupLambda' % of the category of the element at 'indexInMiniBatchForMixup'
+                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatch), mixupLambda.Value);
+                yMiniBatch.Set(indexInMiniBatch, indexInMiniBatchToCategoryId(indexInMiniBatchForMixup), 1f - mixupLambda.Value);
             }
 
         }
@@ -203,7 +202,7 @@ namespace SharpNet.Pictures
         }
         public static void InitializeOutputPicture(CpuTensor<float> xInputBufferPictures,
             CpuTensor<float> xOutputBufferPictures, int indexInBuffer,
-            int widthShift, int heightShift, FillModeEnum _fillMode,
+            int horizontalShift, int verticalShift, FillModeEnum _fillMode,
             bool horizontalFlip, bool verticalFlip,
             double widthMultiplier, double heightMultiplier,
             int cutoutRowStart, int cutoutRowEnd, int cutoutColStart, int cutoutColEnd,
@@ -213,7 +212,7 @@ namespace SharpNet.Pictures
         {
             var nbRows = xOutputBufferPictures.Shape[2];
             var nbCols = xOutputBufferPictures.Shape[3];
-            var transformer = new PointTransformer(heightShift, widthShift, horizontalFlip, verticalFlip,
+            var transformer = new PointTransformer(verticalShift, horizontalShift, horizontalFlip, verticalFlip,
                 widthMultiplier, heightMultiplier, rotationInDegrees, nbRows, nbCols);
 
 
@@ -236,7 +235,7 @@ namespace SharpNet.Pictures
                         //this Cutout check must be performed *after* the CutMix check (above)
                         if (rowOutput >= cutoutRowStart && rowOutput <= cutoutRowEnd && colOutput >= cutoutColStart && colOutput <= cutoutColEnd)
                         {
-                            xOutputBufferPictures[outputPictureIdx + colOutput] = default;
+                            xOutputBufferPictures[outputPictureIdx + colOutput] = 0;
                             continue;
                         }
 
@@ -264,17 +263,13 @@ namespace SharpNet.Pictures
                         colInput = Math.Min(Math.Max(0, colInput), nbCols - 1);
                         Debug.Assert(colInput >= 0 && colInput < nbCols);
 
+                        xOutputBufferPictures[outputPictureIdx + colOutput] = xInputBufferPictures.Get(indexInBuffer, channel, rowInput, colInput);
                         if (mixupLambda.HasValue)
                         {
-                            xOutputBufferPictures.Set(indexInBuffer, channel, rowOutput, colOutput,
-                                        mixupLambda.Value * xInputBufferPictures.Get(indexInBuffer, channel, rowInput, colInput)
-                                + (1 - mixupLambda.Value) * xInputBufferPictures.Get(indexInMiniBatchForMixup, channel,rowOutput, colOutput));
+                            xOutputBufferPictures[outputPictureIdx + colOutput] = 
+                                        mixupLambda.Value * xOutputBufferPictures[outputPictureIdx + colOutput]
+                                + (1 - mixupLambda.Value) * xInputBufferPictures.Get(indexInMiniBatchForMixup, channel,rowOutput, colOutput);
                         }
-                        else
-                        {
-                            xOutputBufferPictures[outputPictureIdx + colOutput] = xInputBufferPictures.Get(indexInBuffer, channel, rowInput, colInput);
-                        }
-
                     }
                 }
             }
@@ -396,7 +391,7 @@ namespace SharpNet.Pictures
             colEnd = Math.Min(nbCols - 1, colMiddle + cutMixWidth/2 - 1);
         }
         public bool UseDataAugmentation => !ReferenceEquals(this, NoDataAugmentation);
-        private static int GetPadding(int pictureWidth, double widthShiftRange)
+        private static int GetShiftInPixel(int pictureWidth, double widthShiftRange)
         {
             if (widthShiftRange <= 0)
             {

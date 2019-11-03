@@ -907,11 +907,12 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="dataSet">Expected Input and output (= dataSet.Y) </param>
         /// <param name="miniBatchSize"></param>
-        /// <param name="learningRateComputerIfTraining">null if we are just using the network to predict the results (without updating weights)
-        ///     not null if we need to update the weights between each mini batch</param>
+        /// <param name="learningRateComputerIfTraining">
+        /// null if we are just using the network to predict the results (without updating weights)
+        /// not null if we need to update the weights at the end of each mini batch</param>
         /// <param name="callBackToStop">Optional callback to be called at the end of each mini batch,
-        ///     parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
-        ///     If the callback returns true we should stop the computation</param>
+        /// parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
+        /// If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
         public Tensor MiniBatchGradientDescent(IDataSetLoader dataSet, int miniBatchSize = -1,
             ILearningRateComputer learningRateComputerIfTraining = null,
@@ -926,7 +927,9 @@ namespace SharpNet.Networks
             {
                 miniBatchSize = MaxMiniBatchSize();
             }
+            //number of mini batch block in current epoch
             int nbMiniBatchBlock = NbBlocksInEpoch(miniBatchSize, entireBatchSize);
+            //the first epoch is #1
             int epoch = _epochsData.Count + 1;
             var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(_epochsData) ?? 1.0;
             _yPredictedBufferForEntireBatch = NewNotInitializedTensor(dataSet.Y_Shape, _yPredictedBufferForEntireBatch, nameof(_yPredictedBufferForEntireBatch));

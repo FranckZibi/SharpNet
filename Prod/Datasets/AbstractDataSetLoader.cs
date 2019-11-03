@@ -13,7 +13,13 @@ namespace SharpNet.Datasets
     public abstract class AbstractDataSetLoader : IDataSetLoader
     {
         #region private & protected fields
+        /// <summary>
+        /// buffer with all original elements (no data augmentation) in the order needed for the current mini batch 
+        /// </summary>
         private CpuTensor<float> xInputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(xInputCpuChunkBuffer));
+        /// <summary>
+        /// buffer with all augmented elements in the order needed for the current mini batch 
+        /// </summary>
         private CpuTensor<float> xOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(xOutputCpuChunkBuffer));
         private CpuTensor<float> yOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(yOutputCpuChunkBuffer));
         #endregion

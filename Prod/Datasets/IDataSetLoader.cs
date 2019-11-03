@@ -9,7 +9,12 @@ namespace SharpNet.Datasets
     public interface IDataSetLoader : IDisposable
     {
         /// <summary>
-        /// Load 'elementCount' elements from the one starting at index 'indexFirstElement' and for epoch 'numEpoch'
+        /// Load 'x.Shape[0]' elements from the 'this' DataSet and copy them into 'x' (and 'y') tensors
+        /// The indexes of those 'x.Shape[0]' elements to copy into 'x' are:
+        ///     elementIdToOrderInCurrentEpoch[indexFirstElement]
+        ///     elementIdToOrderInCurrentEpoch[indexFirstElement+1]
+        ///     .../...
+        ///     elementIdToOrderInCurrentEpoch[indexFirstElement+x.Shape[0]-1 ]
         /// </summary>
         /// <param name="epoch">index of epoch. The first epoch is 1</param>
         /// <param name="isTraining"></param>

@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Pictures;
@@ -33,28 +34,31 @@ namespace SharpNet.Networks
 {
     public class ResNetBuilder : NetworkBuilder
     {
-        public ResNetBuilder()
+        public static ResNetBuilder ResNet_CIFAR10()
         {
-            Config = new NetworkConfig
-                {
-                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                    lambdaL2Regularization = 1e-4
-                }
-                .WithSGD(0.9, false) // SGD : validated on 19-apr-2019: +70 bps
-                .WithCifar10ResNetLearningRateScheduler(true, true, false);
+            var builder = new ResNetBuilder {
+                Config = new NetworkConfig
+                    {
+                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        lambdaL2Regularization = 1e-4
+                    }
+                    .WithSGD(0.9, false) // SGD : validated on 19-apr-2019: +70 bps
+                    .WithCifar10ResNetLearningRateScheduler(true, true, false),
 
-            //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2); //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
-            WidthShiftRange = 0.1; //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
-            HeightShiftRange = 0.1;
-            HorizontalFlip = true; // 'true' : validated on 18-apr-2019: +70 bps
-            VerticalFlip = false;
-            FillMode = ImageDataGenerator.FillModeEnum.Reflect; //validated on 18-apr-2019: +50 bps
-            CutoutPatchPercentage = 0.5; // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
+            //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
+            WidthShiftRange = 0.1, //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
+            HeightShiftRange = 0.1,
+            HorizontalFlip = true, // 'true' : validated on 18-apr-2019: +70 bps
+            VerticalFlip = false,
+            FillMode = ImageDataGenerator.FillModeEnum.Reflect, //validated on 18-apr-2019: +50 bps
+            CutoutPatchPercentage =0.5, // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
 
-            NumEpochs = 160; //64k iterations
-            BatchSize = 128;
-            InitialLearningRate = 0.1;
-        }
+            NumEpochs = 160, //64k iterations
+            BatchSize = 128,
+            InitialLearningRate = 0.1,
+        };
+        return builder;
+    }
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         #region ResNet V1

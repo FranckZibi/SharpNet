@@ -35,88 +35,126 @@ namespace SharpNet.Networks
     public class WideResNetBuilder : NetworkBuilder
     {
 
-        public void RecursionCellularImageClassification()
+        /// <summary>
+        /// The default WRN Meta Parameters for Recursion Cellular Image Classification
+        /// </summary>
+        /// <returns></returns>
+        public static WideResNetBuilder RecursionCellularImageClassification()
         {
-            //WidthShiftRange = 0.1;
-            //HeightShiftRange = 0.1;
-            HorizontalFlip = true;
-            VerticalFlip = true;
-            //RotationRangeInDegrees = 180;
-            FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            AlphaCutMix = 0.0; //no cutmix
-            AlphaMixup = 1.0; //with mixup
-            CutoutPatchPercentage = 0.0; //no cutout
-            WRN_AvgPoolingSize = 8;
-            NumEpochs = 70;
-            BatchSize = 128;
-            WRN_DropOut = 0.0; //by default we disable dropout
-            InitialLearningRate = 0.1;
-        }
-
-
-        public WideResNetBuilder()
-        {
-            Config = new NetworkConfig
-                {
-                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                    lambdaL2Regularization = 0.0005
-                }
-                .WithSGD(0.9, false)
-                //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
-                .WithCyclicCosineAnnealingLearningRateScheduler(10, 2) //new default value on 14-aug-2019
-                ;
-
-            //Data augmentation
-            WidthShiftRange = 0.1;
-            HeightShiftRange = 0.1;
-            HorizontalFlip = true;
-            VerticalFlip = false;
-            FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-
-            //We use CutMix, lambda will follow a uniform distribution in [0,1]
-            AlphaCutMix = 1.0; //validated on 14-aug-2019 : +15 bps
-            
-            //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
-            //CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR-10: +75 bps vs no cutout (= 0.0)
-            //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR-10: -60 bps vs 0.5
-
-            NumEpochs = 150; //changed on 8-aug-2019 : new default batch size : 150 (was 200)
-            BatchSize = 128;
-            WRN_DropOut = 0.0; //by default we disable dropout
-            InitialLearningRate = 0.1;
-            WRN_AvgPoolingSize = 2; //validated on 04-june-2019: +37 bps
-
-            //DropOutAfterDenseLayer = 0.3; //discarded on 05-june-2019: -136 bps
-            WRN_DropOutAfterDenseLayer = 0;
-        }
-
-
-        public void WRN_CIFAR100()
-        {
-            Config = new NetworkConfig
+            var builder = new WideResNetBuilder
+            {
+                Config = new NetworkConfig
                     {
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                         lambdaL2Regularization = 0.0005
                     }
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-                ;
+                ,
+
+                //Data augmentation
+                //WidthShiftRange = 0.1,
+                //HeightShiftRange = 0.1,
+                HorizontalFlip = true,
+                VerticalFlip = true,
+                //RotationRangeInDegrees = 180,
+                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+
+                AlphaCutMix = 0.0, //no CutMix
+                AlphaMixup = 1.0, //with mixup
+                CutoutPatchPercentage = 0.0, //no cutout
+                WRN_AvgPoolingSize = 8,
+                NumEpochs = 70,
+                BatchSize = 128,
+                WRN_DropOut = 0.0, //by default we disable dropout
+                InitialLearningRate = 0.1,
+            };
+            return builder;
+        }
+
+        public static WideResNetBuilder WRN_Aptos2019Blindness()
+        {
+            return WRN_CIFAR10();
+        }
+
+
+        /// <summary>
+        /// The default WRN Meta Parameters for CIFAR10
+        /// </summary>
+        /// <returns></returns>
+        public static WideResNetBuilder WRN_CIFAR10()
+        {
+            var builder = new WideResNetBuilder
+            {
+                Config = new NetworkConfig
+                    {
+                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        lambdaL2Regularization = 0.0005
+                    }
+                    .WithSGD(0.9, false)
+                    //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
+                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2) //new default value on 14-aug-2019
+                ,
+
+                //Data augmentation
+                WidthShiftRange = 0.1,
+                HeightShiftRange = 0.1,
+                HorizontalFlip = true,
+                VerticalFlip = false,
+                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+
+                //We use CutMix, lambda will follow a uniform distribution in [0,1]
+                AlphaCutMix = 1.0, //validated on 14-aug-2019 : +15 bps
+
+                //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
+                //CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR-10: +75 bps vs no cutout (= 0.0)
+                //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR-10: -60 bps vs 0.5
+
+                NumEpochs = 150, //changed on 8-aug-2019 : new default batch size : 150 (was 200)
+                BatchSize = 128,
+                WRN_DropOut = 0.0, //by default we disable dropout
+                InitialLearningRate = 0.1,
+                WRN_AvgPoolingSize = 2, //validated on 04-june-2019: +37 bps
+
+                //DropOutAfterDenseLayer = 0.3; //discarded on 05-june-2019: -136 bps
+                WRN_DropOutAfterDenseLayer = 0,
+            };
+            return builder;
+        }
+
+        /// <summary>
+        /// The default WRN Meta Parameters for CIFAR100
+        /// </summary>
+        /// <returns></returns>
+        public static WideResNetBuilder WRN_CIFAR100()
+        {
+            var builder = new WideResNetBuilder
+            {
+                Config = new NetworkConfig
+                    {
+                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        lambdaL2Regularization = 0.0005
+                    }
+                    .WithSGD(0.9, false)
+                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
+                WidthShiftRange = 0.1,
+                HeightShiftRange = 0.1,
+                HorizontalFlip = true,
+                VerticalFlip = false,
+                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+                AlphaMixup = 0.0,
+                AlphaCutMix = 1.0,
+                CutoutPatchPercentage = 0.0,
+                NumEpochs = 150,
+                BatchSize = 128,
+                WRN_DropOut = 0.0,
+                InitialLearningRate = 0.1,
+                WRN_AvgPoolingSize = 2,
+                WRN_DropOutAfterDenseLayer = 0
+            };
 
             //Data augmentation
-            WidthShiftRange = 0.1;
-            HeightShiftRange = 0.1;
-            HorizontalFlip = true;
-            VerticalFlip = false;
-            FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            AlphaMixup = 0.0;
-            AlphaCutMix = 1.0;
-            CutoutPatchPercentage = 0.0;
-            NumEpochs = 150;
-            BatchSize = 128;
-            WRN_DropOut = 0.0;
-            InitialLearningRate = 0.1;
-            WRN_AvgPoolingSize = 2;
-            WRN_DropOutAfterDenseLayer = 0;
+            return builder;
         }
 
         /// <summary>

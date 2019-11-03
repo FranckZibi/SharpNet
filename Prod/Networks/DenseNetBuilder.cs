@@ -32,27 +32,31 @@ namespace SharpNet.Networks
     //DenseNet implementation as described in https://arxiv.org/pdf/1608.06993.pdf
     public class DenseNetBuilder : NetworkBuilder
     {
-        public DenseNetBuilder()
+        public static DenseNetBuilder DenseNet_CIFAR10()
         {
-            Config = new NetworkConfig
-                { 
-                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                    lambdaL2Regularization = 1e-4
-                }
-                .WithSGD(0.9, true)
-                .WithCifar10DenseNetLearningRateScheduler(false, true, false);
+            var builder = new DenseNetBuilder
+            {
+                Config = new NetworkConfig
+                    {
+                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        lambdaL2Regularization = 1e-4
+                    }
+                    .WithSGD(0.9, true)
+                    .WithCifar10DenseNetLearningRateScheduler(false, true, false),
 
-            //Data augmentation
-            WidthShiftRange = 0.1;
-            HeightShiftRange = 0.1;
-            HorizontalFlip = true;
-            VerticalFlip = false;
-            FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            CutoutPatchPercentage = 0.5; //by default we use a cutout of 1/2 of the image width
+                //Data augmentation
+                WidthShiftRange = 0.1,
+                HeightShiftRange = 0.1,
+                HorizontalFlip = true,
+                VerticalFlip = false,
+                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+                CutoutPatchPercentage = 0.5, //by default we use a cutout of 1/2 of the image width
 
-            NumEpochs = 300;
-            BatchSize = 64;
-            InitialLearningRate = 0.1;
+                NumEpochs = 300,
+                BatchSize = 64,
+                InitialLearningRate = 0.1
+            };
+            return builder;
         }
 
         public Network DenseNet_12_40_CIFAR10()
