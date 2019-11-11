@@ -2,9 +2,9 @@
 {
     public static class Aptos2019BlindnessDetection
     {
-        public static DirectoryDataSetLoader ValueOf(string csvFilename, string trainingSetDirectory, int height, int width, Logger logger)
+        public static DirectoryDataSet ValueOf(string csvFilename, string trainingSetDirectory, int height, int width, Logger logger)
         {
-            return new DirectoryDataSetLoader(
+            return new DirectoryDataSet(
                 csvFilename, 
                 trainingSetDirectory, 
                 logger,
@@ -14,7 +14,7 @@
                 width, 
                 new[] { "No DR", "Mild", "Moderate", "Severe", "Proliferative DR" },
                 true,
-                DirectoryDataSetLoader.DefaultCompute_CategoryId_Description_FullName);
+                DirectoryDataSet.DefaultCompute_CategoryId_Description_FullName);
         }
     }
 }

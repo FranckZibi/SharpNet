@@ -8,7 +8,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
-    public class CIFAR10DataLoader : IDataSet
+    public class CIFAR10DataSet : ITrainingAndTestDataSet
     {
         private readonly string[] CategoryIdToDescription = new[] { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
 
@@ -21,10 +21,10 @@ namespace SharpNet.Datasets
         public static readonly int[] InputShape_CHW = { Channels, Height, Width };
 
 
-        public IDataSetLoader Training { get; }
-        public IDataSetLoader Test { get; }
+        public IDataSet Training { get; }
+        public IDataSet Test { get; }
 
-        public CIFAR10DataLoader()
+        public CIFAR10DataSet()
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 
@@ -37,9 +37,9 @@ namespace SharpNet.Datasets
             }
             //We normalize the input with 0 mean / 1 volatility
             //var meanAndVolatilityOfEachChannelInTrainingSet = xTrainingSet.ComputeMeanAndVolatilityOfEachChannel(x=>(double)x);
-            var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
+            var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>> { Tuple.Create(125.306918046875f, 62.9932192781369f), Tuple.Create(122.950394140625f, 62.0887076400142f), Tuple.Create(113.865383183594f, 66.7048996406309f) };
             ToWorkingSet(xTrainingSet, yTrainingSet, out var xTrain, out var yTrain, meanAndVolatilityOfEachChannelInTrainingSet);
-            AbstractDataSetLoader.AreCompatible_X_Y(xTrain, yTrain);
+            AbstractDataSet.AreCompatible_X_Y(xTrain, yTrain);
             int[] trainElementIdToCategoryId = yTrainingSet.Content.Select(x => (int)x).ToArray();
             Debug.Assert(trainElementIdToCategoryId.Length == xTrainingSet.Shape[0]);
 
@@ -49,15 +49,15 @@ namespace SharpNet.Datasets
             LoadAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
             ToWorkingSet(xTestSet, yTestSet, out var xTest, out var yTest, meanAndVolatilityOfEachChannelInTrainingSet);
-            AbstractDataSetLoader.AreCompatible_X_Y(xTest, yTest);
+            AbstractDataSet.AreCompatible_X_Y(xTest, yTest);
             int[] testElementIdToCategoryId = yTestSet.Content.Select(x => (int)x).ToArray();
             Debug.Assert(testElementIdToCategoryId.Length == xTestSet.Shape[0]);
 
             //Uncomment the following line to take only the first elements
             //xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 1000);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, 1000); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSetLoader(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name);
-            Test = new InMemoryDataSetLoader(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name);
+            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
         }
         public void Dispose()
         {
@@ -65,7 +65,7 @@ namespace SharpNet.Datasets
             Test?.Dispose();
         }
 
-        private static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<double, double>> meanAndVolatilityOfEachChannel)
+        private static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
         {
             xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
             //xWorkingSet = x.Select((n, c, val) => (float)val/255f);

@@ -9,11 +9,11 @@ using System.Runtime;
 using System.Text;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Optimizers;
-using SharpNet.Pictures;
 
 namespace SharpNet.Networks
 {
@@ -566,7 +566,7 @@ namespace SharpNet.Networks
         #endregion
 
         [SuppressMessage("ReSharper", "UnusedParameter.Local")]
-        private void CheckInput(IDataSetLoader trainingDateSetCpu, IDataSetLoader testDateSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize)
+        private void CheckInput(IDataSet trainingDateSetCpu, IDataSet testDateSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSize)
         {
             if (trainingDateSetCpu.TypeSize != Config.TypeSize)
             {
@@ -579,7 +579,7 @@ namespace SharpNet.Networks
             
         }
 
-        public double FindBestLearningRate(IDataSetLoader trainingDataSet, int miniBatchSize = -1)
+        public double FindBestLearningRate(IDataSet trainingDataSet, int miniBatchSize = -1)
         {
             Info("Looking for best learning rate...");
             ResetWeights(); //restore weights to there original values
@@ -632,7 +632,7 @@ namespace SharpNet.Networks
         }
 
 
-        public void Fit(IDataSetLoader trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int preferredMiniBatchSize, IDataSetLoader testDataSetCpuIfAny)
+        public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int preferredMiniBatchSize, IDataSet testDataSetCpuIfAny)
         {
             try
             {
@@ -822,7 +822,7 @@ namespace SharpNet.Networks
 
         #region compute Loss and Accuracy
         //returns : Tuple<loss, accuracy>
-        public Tuple<double, double> ComputeLossAndAccuracyForTestDataSet(int miniBatchSize, IDataSetLoader testDataSet)
+        public Tuple<double, double> ComputeLossAndAccuracyForTestDataSet(int miniBatchSize, IDataSet testDataSet)
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
@@ -914,7 +914,7 @@ namespace SharpNet.Networks
         /// parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         /// If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
-        public Tensor MiniBatchGradientDescent(IDataSetLoader dataSet, int miniBatchSize = -1,
+        public Tensor MiniBatchGradientDescent(IDataSet dataSet, int miniBatchSize = -1,
             ILearningRateComputer learningRateComputerIfTraining = null,
             Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {

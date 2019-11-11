@@ -4,11 +4,11 @@ using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
-using SharpNet.Pictures;
 using SharpNetTests.Data;
 // ReSharper disable UnusedMember.Local
 
@@ -535,7 +535,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
             network.LogContent();
 
-            var trainingDataSet = new InMemoryDataSetLoader(X,Y,null,null, "");
+            var trainingDataSet = new InMemoryDataSet(X,Y,null,null, "", null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             logger.Info("-");
@@ -572,7 +572,7 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];
-            var dataSet = new InMemoryDataSetLoader(X, Y_expected, new int[batchSize], null, "");
+            var dataSet = new InMemoryDataSet(X, Y_expected, new int[batchSize], null, "", null);
             var observedLossAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 

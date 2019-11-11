@@ -1,8 +1,8 @@
 ﻿namespace SharpNet.Datasets
 {
-    public class DataLoader : IDataSet
+    public class TrainingAndTestDataLoader : ITrainingAndTestDataSet
     {
-        public DataLoader(IDataSetLoader training, IDataSetLoader test, string name)
+        public TrainingAndTestDataLoader(IDataSet training, IDataSet test, string name)
         {
             Training = training;
             Test = test;
@@ -15,8 +15,8 @@
             Test.Dispose();
         }
 
-        public IDataSetLoader Training { get; }
-        public IDataSetLoader Test { get; }
+        public IDataSet Training { get; }
+        public IDataSet Test { get; }
         public string Name { get; }
     }
 }

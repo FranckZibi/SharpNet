@@ -316,11 +316,11 @@ namespace SharpNetTests
 
         private static void Train_CIFAR100_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
-            var network = p.WRN(WRN_depth, WRN_k, CIFAR100DataLoader.InputShape_CHW, CIFAR100DataLoader.Categories);
-            using (var loader = new CIFAR100DataLoader())
+            var network = p.WRN(WRN_depth, WRN_k, CIFAR100DataSet.InputShape_CHW, CIFAR100DataSet.Categories);
+            using (var cifar100 = new CIFAR100DataSet())
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(loader.Training, learningRateComputer, p.NumEpochs, p.BatchSize, loader.Test);
+                network.Fit(cifar100.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar100.Test);
             }
             network.Dispose();
         }
@@ -332,22 +332,22 @@ namespace SharpNetTests
         /// </summary>
         private static void Train_CIFAR10(NetworkBuilder p, Func<Network> buildNetwork)
         {
-            using (var loader = new CIFAR10DataLoader())
+            using (var cifar10 = new CIFAR10DataSet())
             {
                 var network = buildNetwork();
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(loader.Training, learningRateComputer, p.NumEpochs, p.BatchSize, loader.Test);
+                network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
                 network.Dispose();
             }
         }
 
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
-            var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataLoader.InputShape_CHW, CIFAR10DataLoader.Categories);
-            using (var loader = new CIFAR10DataLoader())
+            var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataSet.InputShape_CHW, CIFAR10DataSet.Categories);
+            using (var cifar10 = new CIFAR10DataSet())
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(loader.Training, learningRateComputer, p.NumEpochs, p.BatchSize, loader.Test);
+                network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
             }
             network.Dispose();
         }

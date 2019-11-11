@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using NUnit.Framework;
-using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.Networks;
 
@@ -61,7 +58,7 @@ namespace SharpNetTests.NonReg
         public void Test()
         {
             Console.WriteLine("loading CIFAR-10");
-            IDataSet loader = new CIFAR10DataLoader();
+            var cifar10 = new CIFAR10DataSet();
 
             //95.65 <= 95.32 (200 epochs) + 94.02 (70 epochs)
             //var files_WRN_40_4 = new[]
@@ -173,7 +170,7 @@ namespace SharpNetTests.NonReg
             //    @"C:\Users\fzibi\AppData\Local\SharpNet\WRN-28-10_20190529_0709_152.txt",
             //};
             var ensembleLearning = new EnsembleLearning(files_WRN_28_10_150epochs);
-            ensembleLearning.Predict(loader.Test);
+            ensembleLearning.Predict(cifar10.Test);
         }
 
     }

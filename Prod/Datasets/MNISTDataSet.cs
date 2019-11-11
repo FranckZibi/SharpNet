@@ -9,16 +9,16 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public class MNISTDataLoader : IDataSet
+    public class MNISTDataSet : ITrainingAndTestDataSet
     {
         private readonly string[] CategoryIdToDescription = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
-        public IDataSetLoader Training { get; }
-        public IDataSetLoader Test { get; }
+        public IDataSet Training { get; }
+        public IDataSet Test { get; }
         public string Name => "MNIST";
 
 
-        public MNISTDataLoader()
+        public MNISTDataSet()
         {
             var trainingSet = PictureTools.ReadInputPictures(FileNameToPath("train-images.idx3-ubyte"), FileNameToPath("train-labels.idx1-ubyte"));
             var trainWorkingSet = ToWorkingSet(trainingSet);
@@ -26,14 +26,14 @@ namespace SharpNet.Datasets
             var yTrain = trainWorkingSet.Item2;
 
             var trainElementIdToCategoryId = trainingSet.Select(x=>x.Value).ToArray();
-            Training = new InMemoryDataSetLoader(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name);
+            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name, null);
 
             var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
             var testWorkingSet = ToWorkingSet(testSet);
             var xTest = testWorkingSet.Item1;
             var yTest = testWorkingSet.Item2;
             var testElementIdToCategoryId = testSet.Select(x => x.Value).ToArray();
-            Test = new InMemoryDataSetLoader(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name);
+            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name, null);
         }
 
 

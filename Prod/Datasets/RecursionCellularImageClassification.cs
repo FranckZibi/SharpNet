@@ -10,9 +10,9 @@ namespace SharpNet.Datasets
         private const int Channels = 3;
         private const int Categories = 4;
 
-        public static DirectoryDataSetLoader ValueOf(string csvFilename, string trainingSetDirectory, int height, int width, Logger logger)
+        public static DirectoryDataSet ValueOf(string csvFilename, string trainingSetDirectory, int height, int width, Logger logger)
         { 
-            return new DirectoryDataSetLoader(
+            return new DirectoryDataSet(
                 csvFilename,
                 trainingSetDirectory,
                 logger,
@@ -20,7 +20,7 @@ namespace SharpNet.Datasets
                 Channels,
                 height,
                 width,
-                AbstractDataSetLoader.DefaultGetCategoryIdToDescription(Categories),
+                AbstractDataSet.DefaultGetCategoryIdToDescription(Categories),
                 false, //we do not ignore zero pixels
                 Compute_CategoryId_Description_FullName);
         }

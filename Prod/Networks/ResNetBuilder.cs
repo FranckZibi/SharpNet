@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
-using SharpNet.Pictures;
+
 // ReSharper disable UnusedMember.Global
 
 
@@ -143,7 +143,7 @@ namespace SharpNet.Networks
             var layers = net.Layers;
 
             Debug.Assert(layers.Count == 0);
-            net.Input(CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width);
+            net.Input(CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width);
 
             net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
@@ -162,7 +162,7 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             net.AvgPooling(8, 8);
-            net.Output(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            net.Output(CIFAR10DataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
         #endregion
@@ -183,7 +183,7 @@ namespace SharpNet.Networks
             var config = net.Config;
             var layers = net.Layers;
 
-            net.Input(CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width);
+            net.Input(CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width);
             net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageCIn = 16; //number of channels for current stage
@@ -212,7 +212,7 @@ namespace SharpNet.Networks
             }
             net.BatchNorm().Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             net.AvgPooling(8, 8);
-            net.Output(CIFAR10DataLoader.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            net.Output(CIFAR10DataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
         #endregion

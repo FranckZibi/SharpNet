@@ -4,18 +4,18 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class SubDataSetLoader : AbstractDataSetLoader
+    public class SubDataSet : AbstractDataSet
     {
-        private readonly IDataSetLoader _original;
+        private readonly IDataSet _original;
         private readonly List<int> subElementIdToOriginalElementId = new List<int>();
 
-        public SubDataSetLoader(IDataSetLoader original, Func<int,bool> elemetIdInOriginaDataSetToIsIncludedInSubDataSet) 
-            : base(original.Name, original.Channels, original.Categories)
+        public SubDataSet(IDataSet original, Func<int,bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet) 
+            : base(original.Name, original.Channels, original.Categories, original.MeanAndVolatilityForEachChannel)
         {
             _original = original;
             for (int originalElementId = 0; originalElementId < _original.Count; ++originalElementId)
             {
-                if (elemetIdInOriginaDataSetToIsIncludedInSubDataSet(originalElementId))
+                if (elementIdInOriginalDataSetToIsIncludedInSubDataSet(originalElementId))
                 {
                     subElementIdToOriginalElementId.Add(originalElementId);
                 }

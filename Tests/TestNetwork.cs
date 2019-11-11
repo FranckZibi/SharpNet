@@ -33,7 +33,7 @@ namespace SharpNetTests
             int nbCategories = 2;
             var xTrain = TestCpuTensor.RandomFloatTensor(new[] { m, 2, 4, 4 }, rand, -1.0, +1.0, "xTrain");
             var yTrain = TestCpuTensor.RandomOneHotTensor(new[] { m, nbCategories }, rand, "yTrain");
-            var param = new DenseNetBuilder();
+            var param = DenseNetBuilder.DenseNet_CIFAR10();
             param.GpuDeviceId = useGPU?0:-1;
             param.DisableLogging = true;
             var network = param.Build(nameof(TestSave), xTrain.Shape, nbCategories, false, new[] { 2, 2 }, true, 8, 1.0, null);
@@ -43,10 +43,10 @@ namespace SharpNetTests
             testToPerform(network);
         }
 
-        public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSetLoader testDataSet = null)
+        public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
-            var trainingDataSet = new InMemoryDataSetLoader(X, Y, Y_to_Categories(Y), null, "");
+            var trainingDataSet = new InMemoryDataSet(X, Y, Y_to_Categories(Y), null, "", null);
             var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
             network.Fit(trainingDataSet, learningRateComputer, numEpochs, batchSize, testDataSet);
         }

@@ -7,9 +7,9 @@ namespace SharpNet.Datasets
 {
     public static class DogsVsCats
     {
-        public static DirectoryDataSetLoader ValueOf(string directory, int height, int width, Logger logger)
+        public static DirectoryDataSet ValueOf(string directory, int height, int width, Logger logger)
         {
-            return new DirectoryDataSetLoader(
+            return new DirectoryDataSet(
                 "",
                 directory,
                 logger,

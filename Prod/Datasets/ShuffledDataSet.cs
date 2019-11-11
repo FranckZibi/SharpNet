@@ -5,13 +5,13 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class ShuffledDataSetLoader : AbstractDataSetLoader
+    public class ShuffledDataSet : AbstractDataSet
     {
-        private readonly IDataSetLoader _original;
+        private readonly IDataSet _original;
         private readonly List<int> _shuffledElementIdToOriginalElementId;
 
-        public ShuffledDataSetLoader(IDataSetLoader original, Random rand)
-            : base(original.Name, original.Channels, original.Categories)
+        public ShuffledDataSet(IDataSet original, Random rand)
+            : base(original.Name, original.Channels, original.Categories, original.MeanAndVolatilityForEachChannel)
         {
             _original = original;
             _shuffledElementIdToOriginalElementId = Enumerable.Range(0, original.Count).ToList();

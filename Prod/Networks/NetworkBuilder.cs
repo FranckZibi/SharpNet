@@ -1,4 +1,5 @@
-﻿using SharpNet.Pictures;
+﻿using SharpNet.DataAugmentation;
+
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBeProtected.Global

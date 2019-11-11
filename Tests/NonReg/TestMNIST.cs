@@ -2,11 +2,11 @@
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
 using SharpNet;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
-using SharpNet.Pictures;
 
 namespace SharpNetTests.NonReg
 {
@@ -32,12 +32,12 @@ namespace SharpNetTests.NonReg
                 useGpu?0:-1
             );
 
-            var loader = new MNISTDataLoader();
+            var mnist = new MNISTDataSet();
 
             double lambdaL2Regularization = 0.0;
 
             network
-                .Input(loader.Training.Channels, loader.Training.Height, loader.Training.Width)
+                .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
 
                 .Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .MaxPooling(2,2)
@@ -64,7 +64,7 @@ namespace SharpNetTests.NonReg
                 .Dropout(0.5)
                 //.AddBatchNorm()
 
-                .Output(loader.Training.Categories, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Output(mnist.Training.Categories, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
 
@@ -72,7 +72,7 @@ namespace SharpNetTests.NonReg
             //learningRate = LearningRateScheduler.Constant(0.00774263682681115);
 
             var learningRateComputer = new LearningRateComputer(learningRate, network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
-            network.Fit(loader.Training, learningRateComputer, numEpochs, batchSize, loader.Test);
+            network.Fit(mnist.Training, learningRateComputer, numEpochs, batchSize, mnist.Test);
         }
     }
 }

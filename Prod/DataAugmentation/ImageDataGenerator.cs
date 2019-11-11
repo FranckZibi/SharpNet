@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.DataAugmentation.Operations;
 
-namespace SharpNet.Pictures
+namespace SharpNet.DataAugmentation
 {
     public class ImageDataGenerator
     {
@@ -95,10 +96,62 @@ namespace SharpNet.Pictures
         }
 
 
+        private List<Operation> GetSubPolicy(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch)
+        {
+            var rand = _rands[indexInMiniBatch % _rands.Length];
+            var result = new List<Operation>();
+
+            var miniBatchShape = xOriginalMiniBatch.Shape;
+            result.Add(Operations.CutMix.ValueOf(_alphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(Operations.Cutout.ValueOf(_cutoutPatchPercentage, rand, miniBatchShape));
+            result.Add(Rotate.ValueOf(_rotationRangeInDegrees, rand, miniBatchShape));
+
+            double widthMultiplier = 1.0;
+            if (_zoomRange > 0)
+            {
+                //random zoom multiplier in range [1.0-zoomRange, 1.0+zoomRange]
+                var zoom = 2 * _zoomRange * rand.NextDouble() - _zoomRange;
+                widthMultiplier = (1.0 + zoom);
+                result.Add(new ShearX(widthMultiplier, miniBatchShape));
+            }
+            result.Add(TranslateX.ValueOf(_heightShiftRangeInPercentage, rand, miniBatchShape));
+
+            if (_zoomRange > 0)
+            {
+                double heightMultiplier = widthMultiplier;
+                result.Add(new ShearY(heightMultiplier, miniBatchShape));
+            }
+
+            var verticalFlip = _verticalFlip && rand.Next(2) == 0;
+            if (verticalFlip)
+            {
+                result.Add(new VerticalFlip(miniBatchShape));
+            }
+            var horizontalFlip = _horizontalFlip && rand.Next(2) == 0;
+            if (horizontalFlip)
+            {
+                result.Add(new HorizontalFlip(miniBatchShape));
+            }
+            result.Add(Mixup.ValueOf(_alphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.RemoveAll(x => x == null);
+            return result;
+        }
+
+        public void DataAugmentationForMiniBatchV2(
+            int indexInMiniBatch, 
+            CpuTensor<float> xOriginalMiniBatch,
+            CpuTensor<float> xDataAugmentedMiniBatch, 
+            CpuTensor<float> yMiniBatch,
+            Func<int, int> indexInMiniBatchToCategoryId)
+        {
+            var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch);
+            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryId, _fillMode);
+        }
+
         /// <summary>
         /// takes the input picture at index 'indexInMiniBatch' in 'xOriginalMiniBatch'
         /// and stores a data augmented version of it at index 'indexInMiniBatch' of 'xTransformedMiniBatch'
-        /// 'yMiniBatch' will only be updated for some data augmentation techniques
+        /// Field 'yMiniBatch' will only be updated for some data augmentation techniques (ex: CutMix, MixUp)
         /// </summary>
         /// <param name="indexInMiniBatch">the index of the picture to process in 'xOriginalMiniBatch' & 'xDataAugmentedMiniBatch'</param>
         /// <param name="xOriginalMiniBatch">tensor with all original pictures (not augmented) in the current mini batch
@@ -110,8 +163,11 @@ namespace SharpNet.Pictures
         /// Some data augmentation techniques (ex: CutMix, MixUp) will require to update those expected categories
         /// </param>
         /// <param name="indexInMiniBatchToCategoryId"></param>
-        public void DataAugmentationForMiniBatch(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
-            CpuTensor<float> xDataAugmentedMiniBatch, CpuTensor<float> yMiniBatch, 
+        public void DataAugmentationForMiniBatch(
+            int indexInMiniBatch, 
+            CpuTensor<float> xOriginalMiniBatch,
+            CpuTensor<float> xDataAugmentedMiniBatch, 
+            CpuTensor<float> yMiniBatch, 
             Func<int,int> indexInMiniBatchToCategoryId)
         {
             // NCHW tensors
@@ -200,6 +256,33 @@ namespace SharpNet.Pictures
             equals &= Utils.Equals(_zoomRange, other._zoomRange, epsilon, id + ":_zoomRange", ref errors);
             return equals;
         }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="xInputBufferPictures"></param>
+        /// <param name="xOutputBufferPictures"></param>
+        /// <param name="indexInBuffer"></param>
+        /// <param name="horizontalShift"></param>
+        /// <param name="verticalShift"></param>
+        /// <param name="_fillMode"></param>
+        /// <param name="horizontalFlip"></param>
+        /// <param name="verticalFlip"></param>
+        /// <param name="widthMultiplier"></param>
+        /// <param name="heightMultiplier"></param>
+        /// <param name="cutoutRowStart"></param>
+        /// <param name="cutoutRowEnd"></param>
+        /// <param name="cutoutColStart"></param>
+        /// <param name="cutoutColEnd"></param>
+        /// <param name="cutMixRowStart"></param>
+        /// <param name="cutMixRowEnd"></param>
+        /// <param name="cutMixColStart"></param>
+        /// <param name="cutMixColEnd"></param>
+        /// <param name="indexInMiniBatchForCutMix"></param>
+        /// <param name="mixupLambda"></param>
+        /// <param name="indexInMiniBatchForMixup"></param>
+        /// <param name="rotationInDegrees"></param>
         public static void InitializeOutputPicture(CpuTensor<float> xInputBufferPictures,
             CpuTensor<float> xOutputBufferPictures, int indexInBuffer,
             int horizontalShift, int verticalShift, FillModeEnum _fillMode,
@@ -263,11 +346,12 @@ namespace SharpNet.Pictures
                         colInput = Math.Min(Math.Max(0, colInput), nbCols - 1);
                         Debug.Assert(colInput >= 0 && colInput < nbCols);
 
-                        xOutputBufferPictures[outputPictureIdx + colOutput] = xInputBufferPictures.Get(indexInBuffer, channel, rowInput, colInput);
+                        var valueInOriginalPicture = xInputBufferPictures.Get(indexInBuffer, channel, rowInput, colInput);
+                        xOutputBufferPictures[outputPictureIdx + colOutput] = valueInOriginalPicture;
                         if (mixupLambda.HasValue)
                         {
                             xOutputBufferPictures[outputPictureIdx + colOutput] = 
-                                        mixupLambda.Value * xOutputBufferPictures[outputPictureIdx + colOutput]
+                                        mixupLambda.Value * valueInOriginalPicture
                                 + (1 - mixupLambda.Value) * xInputBufferPictures.Get(indexInMiniBatchForMixup, channel,rowOutput, colOutput);
                         }
                     }
@@ -347,7 +431,6 @@ namespace SharpNet.Pictures
             //rowEnd = Math.Min(nbRows - 1, rowMiddle + cutoutPatchLength/2 - 1);
             //colStart = Math.Max(0, colMiddle - cutoutPatchLength / 2);
             //colEnd = Math.Min(nbCols - 1, colMiddle + cutoutPatchLength/2 - 1);
-
 
             rowStart = Math.Max(0, rowMiddle - cutoutPatchLength / 2);
             rowEnd = Math.Min(nbRows - 1, rowStart + cutoutPatchLength - 1);

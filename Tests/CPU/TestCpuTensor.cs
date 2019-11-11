@@ -3,7 +3,6 @@ using System.Linq;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNetTests.Data;

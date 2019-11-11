@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using NUnit.Framework;
 using SharpNet.CPU;
-using SharpNet.Pictures;
+using SharpNet.DataAugmentation;
 using SharpNetTests.Data;
 // ReSharper disable RedundantTypeSpecificationInDefaultExpression
 

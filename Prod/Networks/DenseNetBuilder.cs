@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
-using SharpNet.Pictures;
+
 // ReSharper disable UnusedMember.Global
 
 /*
@@ -64,8 +65,8 @@ namespace SharpNet.Networks
             //return Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_15576_14.txt");
             return Build(
                 nameof(DenseNet_12_40_CIFAR10),
-                new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
-                CIFAR10DataLoader.Categories,
+                new[] { 1, CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width },
+                CIFAR10DataSet.Categories,
                 false,
                 new[] { 12, 12, 12 },
                 false,
@@ -77,8 +78,8 @@ namespace SharpNet.Networks
         {
             return Build(
                 nameof(DenseNetBC_12_40_CIFAR10),
-                new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
-                CIFAR10DataLoader.Categories,
+                new[] { 1, CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width },
+                CIFAR10DataSet.Categories,
                 false,
                 new[] { 12 / 2, 12 / 2, 12 / 2 },
                 true,
@@ -90,8 +91,8 @@ namespace SharpNet.Networks
         {
             return Build(
                 nameof(DenseNetBC_12_100_CIFAR10),
-                new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
-                CIFAR10DataLoader.Categories,
+                new[] { 1, CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width },
+                CIFAR10DataSet.Categories,
                 false,
                 new[] { 32 / 2, 32 / 2, 32 / 2 },
                 true,
@@ -119,7 +120,7 @@ namespace SharpNet.Networks
         /// <param name="networkName"></param>
         /// <param name="xShape"></param>
         /// <param name="nbCategories"></param>
-        /// <param name="subsampleInitialBlock"></param>
+        /// <param name="subSampleInitialBlock"></param>
         /// <param name="nbConvBlocksInEachDenseBlock"></param>
         /// <param name="useBottleneckInEachConvBlock"></param>
         /// <param name="growthRate"></param>
@@ -130,7 +131,7 @@ namespace SharpNet.Networks
             string networkName,
             int[] xShape, 
             int nbCategories,
-            bool subsampleInitialBlock,
+            bool subSampleInitialBlock,
             int[] nbConvBlocksInEachDenseBlock,
             bool useBottleneckInEachConvBlock,
             int growthRate,
@@ -142,7 +143,7 @@ namespace SharpNet.Networks
             Debug.Assert(net.Layers.Count == 0);
             net.Input(xShape[1], xShape[2], xShape[3]);
             var filtersCount = 2 * growthRate;
-            if (subsampleInitialBlock)
+            if (subSampleInitialBlock)
             {
                 net.Convolution(filtersCount, 7, 2, 3, Config.lambdaL2Regularization, false)
                     .BatchNorm()

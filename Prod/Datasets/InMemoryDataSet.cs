@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class InMemoryDataSetLoader : AbstractDataSetLoader
+    public class InMemoryDataSet : AbstractDataSet
     {
         #region private fields
         private readonly CpuTensor<float> _x;
@@ -12,8 +13,9 @@ namespace SharpNet.Datasets
         private readonly string[] _categoryIdToDescription;
         #endregion
 
-        public InMemoryDataSetLoader(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryId, string[] categoryIdToDescription, string name)
-            : base(name, x.Shape[1], y.Shape[1])
+        public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryId,
+            string[] categoryIdToDescription, string name, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+            : base(name, x.Shape[1], y.Shape[1], meanAndVolatilityForEachChannel)
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
             Debug.Assert(elementIdToCategoryId != null);

@@ -13,7 +13,7 @@ namespace SharpNet.Networks
             _files = files;
         }
 
-        public Tuple<CpuTensor<float>, double> Predict(IDataSetLoader testDataSet)
+        public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet)
         {
             var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape, "yCpuPredictedAllNetworks");
             foreach (var file in _files)

@@ -6,11 +6,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
 using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public abstract class AbstractDataSetLoader : IDataSetLoader
+    public abstract class AbstractDataSet : IDataSet
     {
         #region private & protected fields
         /// <summary>
@@ -22,14 +23,20 @@ namespace SharpNet.Datasets
         /// </summary>
         private CpuTensor<float> xOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(xOutputCpuChunkBuffer));
         private CpuTensor<float> yOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(yOutputCpuChunkBuffer));
+        /// <summary>
+        /// the mean and volatility used to normalize the 'this' DataSet
+        /// will be null or empty if no normalization occured in the DataSet
+        /// </summary>
+        protected List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
         #endregion
 
         #region constructor
-        protected AbstractDataSetLoader(string name, int channels, int categories)
+        protected AbstractDataSet(string name, int channels, int categories, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
         {
             Name = name;
             Channels = channels;
             Categories = categories;
+            _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
         }
         #endregion
 
@@ -110,11 +117,88 @@ namespace SharpNet.Datasets
         /// </summary>
         public int[] InputShape_CHW => new[] { Channels, Height, Width};
 
+
+        /// <summary>
+        /// original content (no data augmentation/no normalization) of the element at index 'elementId'
+        /// </summary>
+        /// <param name="elementId">the index of element to retrieve (between 0 and Count-1) </param>
+        /// <returns>a byte tensor containing the element at index 'elementId' </returns>
+        public virtual BitmapContent OriginalElementContent(int elementId)
+        {
+            var buffer = LoadSingleElement(elementId);
+            var result = new BitmapContent(InputShape_CHW, new byte[Channels * Height * Width], ElementIdToDescription(elementId));
+            for (int channel = 0; channel < Channels; ++channel)
+            {
+                for (int row = 0; row < Height; ++row)
+                {
+                    for (int col = 0; col < Width; ++col)
+                    {
+                        var originalValue = OriginalValue(buffer.Get(channel, row, col), channel);
+                        result.Set(channel, row, col, originalValue);
+                    }
+                }
+            }
+            return result;
+        }
+
+
+        /// <summary>
+        /// return the element at index 'elementId'
+        /// </summary>
+        /// <param name="elementId">index of the element to load (between 0 and Count-1) </param>
+        /// <returns>the element at index 'elementId'</returns>
+        private CpuTensor<float> LoadSingleElement(int elementId)
+        {
+            var result = new CpuTensor<float>(new[] { 1, Channels, Height, Width }, ElementIdToDescription(elementId));
+            LoadAt(elementId, 0, result);
+            result.Reshape(InputShape_CHW);
+            return result;
+
+        }
+
+        /// <summary>
+        /// return the original (not normalized) value of 'normalizedValue' that is located in channel 'channel'
+        /// </summary>
+        /// <param name="normalizedValue"></param>
+        /// <param name="channel"></param>
+        /// <returns></returns>
+        private byte OriginalValue(float normalizedValue, int channel)
+        {
+            if (!IsNormalized)
+            {
+                return (byte) normalizedValue;
+            }
+            var originalValue = (normalizedValue + OriginalChannelMean(channel)) * OriginalChannelVolatility(channel);
+            originalValue = Math.Min(originalValue, 255);
+            originalValue = Math.Max(originalValue, 0);
+            return (byte) originalValue;
+        }
+
+
+
+
         public abstract int Count { get; }
         public abstract string ElementIdToDescription(int elementId);
         public string Name { get; }
         public int Channels { get; }
         public int Categories { get; }
+
+        public List<Tuple<float, float>> MeanAndVolatilityForEachChannel => _meanAndVolatilityForEachChannel;
+
+
+        public double OriginalChannelMean(int channel)
+        {
+            Debug.Assert(IsNormalized);
+            return MeanAndVolatilityForEachChannel[channel].Item1;
+        }
+        public double OriginalChannelVolatility(int channel)
+        {
+            Debug.Assert(IsNormalized);
+            return MeanAndVolatilityForEachChannel[channel].Item2;
+        }
+
+        public bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
+
         public abstract string CategoryIdToDescription(int categoryId);
         /// <summary>
         /// retrieve the category associated with a specific element
@@ -140,20 +224,20 @@ namespace SharpNet.Datasets
         }
         public int TypeSize => 4; //float size
 
-        public IDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
+        public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
             int lastElementIdIncludedInTrainingSet = (int)(percentageInTrainingSet * Count);
-            var training = new SubDataSetLoader(this, id => id < lastElementIdIncludedInTrainingSet);
-            var test = new SubDataSetLoader(this, id => id >= lastElementIdIncludedInTrainingSet);
-            return new DataLoader(training, test, Name);
+            var training = new SubDataSet(this, id => id < lastElementIdIncludedInTrainingSet);
+            var test = new SubDataSet(this, id => id >= lastElementIdIncludedInTrainingSet);
+            return new TrainingAndTestDataLoader(training, test, Name);
         }
-        public AbstractDataSetLoader Shuffle(Random rand)
+        public AbstractDataSet Shuffle(Random rand)
         {
-            return new ShuffledDataSetLoader(this, rand);
+            return new ShuffledDataSet(this, rand);
         }
-        public AbstractDataSetLoader Take(int count)
+        public AbstractDataSet Take(int count)
         {
-            return new SubDataSetLoader(this, elementId => elementId<count);
+            return new SubDataSet(this, elementId => elementId<count);
         }
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
         {

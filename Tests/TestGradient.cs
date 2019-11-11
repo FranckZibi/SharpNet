@@ -6,9 +6,9 @@ using SharpNet.GPU;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet.CPU;
+using SharpNet.DataAugmentation;
 using SharpNet.Layers;
 using SharpNet.Networks;
-using SharpNet.Pictures;
 using SharpNetTests.NonReg;
 
 namespace SharpNetTests
