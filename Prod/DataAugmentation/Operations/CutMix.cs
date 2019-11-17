@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using SharpNet.CPU;
 
 namespace SharpNet.DataAugmentation.Operations
@@ -12,8 +13,9 @@ namespace SharpNet.DataAugmentation.Operations
         private readonly int _indexInMiniBatchForCutMix;
         private readonly CpuTensor<float> _xOriginalMiniBatch;
 
-        private CutMix(int rowStart, int rowEnd, int colStart, int colEnd, int indexInMiniBatchForCutMix, CpuTensor<float> xOriginalMiniBatch, int[] miniBatchShape) : base(miniBatchShape)
+        public CutMix(int rowStart, int rowEnd, int colStart, int colEnd, int indexInMiniBatchForCutMix, CpuTensor<float> xOriginalMiniBatch)
         {
+            Debug.Assert(indexInMiniBatchForCutMix < xOriginalMiniBatch.Shape[0]);
             _rowStart = rowStart;
             _rowEnd = rowEnd;
             _colStart = colStart;
@@ -51,11 +53,10 @@ namespace SharpNet.DataAugmentation.Operations
             var colEnd = Math.Min(nbCols - 1, colMiddle + cutMixWidth / 2 - 1);
 
             int indexInMiniBatchForCutMix = (indexInMiniBatch + 1) % miniBatchSize;
-            return new CutMix(rowStart, rowEnd, colStart, colEnd, indexInMiniBatchForCutMix, xOriginalMiniBatch, miniBatchShape);
+            return new CutMix(rowStart, rowEnd, colStart, colEnd, indexInMiniBatchForCutMix, xOriginalMiniBatch);
         }
 
-        public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch,
-            Func<int, int> indexInMiniBatchToCategoryId)
+        public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryId)
         {
             // if CutMix has been used, wee need to update the expected output ('y' tensor)
             var originalCategoryId = indexInMiniBatchToCategoryId(indexInMiniBatch);
@@ -84,6 +85,9 @@ namespace SharpNet.DataAugmentation.Operations
             isFinalAugmentedValue = false;
             return originalValue;
         }
+
+        private int NbRows => _xOriginalMiniBatch.Shape[2];
+        private int NbCols => _xOriginalMiniBatch.Shape[3];
 
     }
 }

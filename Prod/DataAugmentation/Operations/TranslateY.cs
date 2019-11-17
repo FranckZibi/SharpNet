@@ -5,7 +5,8 @@ namespace SharpNet.DataAugmentation.Operations
     public class TranslateY : Operation
     {
         private readonly int _verticalShift;
-        private TranslateY(int verticalShift, int[] miniBatchShape) : base(miniBatchShape)
+
+        public TranslateY(int verticalShift)
         {
             _verticalShift = verticalShift;
         }
@@ -14,15 +15,15 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return (row- _verticalShift, col);
         }
-        public static TranslateY ValueOf(double heightShiftRangeInPercentage, Random rand, int[] miniBatchShape)
+        public static TranslateY ValueOf(double heightShiftRangeInPercentage, Random rand, int nbRows)
         {
             if (heightShiftRangeInPercentage <= 0)
             {
                 return null;
             }
-            int verticalShiftRangeInPixels = TranslateX.GetShiftInPixel(miniBatchShape[2], heightShiftRangeInPercentage);
+            int verticalShiftRangeInPixels = TranslateX.GetShiftInPixel(nbRows, heightShiftRangeInPercentage);
             var verticalShift = rand.Next(2 * verticalShiftRangeInPixels + 1) - verticalShiftRangeInPixels;
-            return new TranslateY(verticalShift, miniBatchShape);
+            return new TranslateY(verticalShift);
         }
     }
 }

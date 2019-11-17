@@ -9,7 +9,7 @@ namespace SharpNet.DataAugmentation.Operations
         private readonly int _colStart;
         private readonly int _colEnd;
 
-        private Cutout(int rowStart, int rowEnd, int colStart, int colEnd, int[] miniBatchShape) : base(miniBatchShape)
+        public Cutout(int rowStart, int rowEnd, int colStart, int colEnd)
         {
             _rowStart = rowStart;
             _rowEnd = rowEnd;
@@ -17,9 +17,7 @@ namespace SharpNet.DataAugmentation.Operations
             _colEnd = colEnd;
         }
 
-
-        public override float AugmentedValue(float originalValue, int channelOutput, int rowOutput, int colOutput,
-            out bool isFinalAugmentedValue)
+        public override float AugmentedValue(float originalValue, int channelOutput, int rowOutput, int colOutput, out bool isFinalAugmentedValue)
         {
             //we check if we should apply Cutout to the pixel
             //this Cutout check must be performed *after* the CutMix check (above)
@@ -32,8 +30,7 @@ namespace SharpNet.DataAugmentation.Operations
             return originalValue;
         }
 
-
-        public static Cutout ValueOf(double cutoutPatchPercentage, Random rand, int[] miniBatchShape)
+        public static Cutout ValueOf(double cutoutPatchPercentage, Random rand, int nbRows, int nbCols)
         {
             if (cutoutPatchPercentage <= 0)
             {
@@ -43,8 +40,6 @@ namespace SharpNet.DataAugmentation.Operations
             {
                 throw new ArgumentException("invalid _cutoutPatchPercentage:" + cutoutPatchPercentage);
             }
-            var nbRows = miniBatchShape[2];
-            var nbCols = miniBatchShape[3];
 
             int cutoutPatchLength = (int)Math.Round(cutoutPatchPercentage * Math.Max(nbRows, nbCols), 0.0);
 
@@ -69,7 +64,7 @@ namespace SharpNet.DataAugmentation.Operations
             var colStart = Math.Max(0, colMiddle - cutoutPatchLength / 2);
             var colEnd = Math.Min(nbCols - 1, colStart + cutoutPatchLength - 1);
 
-            return new Cutout(rowStart, rowEnd, colStart, colEnd, miniBatchShape);
+            return new Cutout(rowStart, rowEnd, colStart, colEnd);
         }
     }
 }

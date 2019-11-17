@@ -109,6 +109,33 @@ namespace SharpNet
         }
 
 
+        public static IList<IList<T>> AllPermutations<T>(List<T> data)
+        {
+            var result = new List<IList<T>>();
+            AllPermutationsHelper(data, 0, result);
+            return result;
+        }
+        private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
+        {
+            if (i == data.Count - 1)
+            {
+                result.Add(new List<T>(data));
+                return;
+            }
+            //var alreadyUsed = new HashSet<T>(); //to discard duplicate solutions
+            for (var j = i; j < data.Count; ++j)
+            {
+                //if (!alreadyUsed.Add(data[j])) continue; //to discard duplicate solutions
+                var tmp = data[i];
+                data[i] = data[j];
+                data[j] = tmp;
+                AllPermutationsHelper(data, i + 1, result);
+                tmp = data[i];
+                data[i] = data[j];
+                data[j] = tmp;
+            }
+        }
+
         public static string ShapeToStringWithBacthSize(int[] shape)
         {
             if (shape == null)

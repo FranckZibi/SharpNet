@@ -6,7 +6,7 @@ namespace SharpNet.DataAugmentation.Operations
     {
         private readonly double _widthMultiplier;
 
-        public ShearX(double widthMultiplier, int[] miniBatchShape) : base(miniBatchShape)
+        public ShearX(double widthMultiplier)
         {
             Debug.Assert(widthMultiplier > 0);
             _widthMultiplier = widthMultiplier;

@@ -9,7 +9,7 @@ namespace SharpNet.DataAugmentation.Operations
         private readonly int _indexInMiniBatchForMixup;
         private readonly CpuTensor<float> _xOriginalMiniBatch;
 
-        private Mixup(float mixupLambda, int indexInMiniBatchForMixup, CpuTensor<float> xOriginalMiniBatch, int[] miniBatchShape) : base(miniBatchShape)
+        public Mixup(float mixupLambda, int indexInMiniBatchForMixup, CpuTensor<float> xOriginalMiniBatch)
         {
             _mixupLambda = mixupLambda;
             _indexInMiniBatchForMixup = indexInMiniBatchForMixup;
@@ -26,7 +26,7 @@ namespace SharpNet.DataAugmentation.Operations
             var miniBatchShape = xOriginalMiniBatch.Shape;
             var miniBatchSize = miniBatchShape[0];
             int indexInMiniBatchForMixup = (indexInMiniBatch + 2) % miniBatchSize;
-            return new Mixup(mixupLambda, indexInMiniBatchForMixup, xOriginalMiniBatch, miniBatchShape);
+            return new Mixup(mixupLambda, indexInMiniBatchForMixup, xOriginalMiniBatch);
         }
 
         public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryId)

@@ -5,16 +5,6 @@ namespace SharpNet.DataAugmentation.Operations
 {
     public abstract class Operation
     {
-        private readonly int[] _miniBatchShape;
-        protected int NbRows => _miniBatchShape[2];
-        protected int NbCols => _miniBatchShape[3];
-
-
-        protected Operation(int[] miniBatchShape)
-        {
-            _miniBatchShape = miniBatchShape;
-        }
-
         public virtual (double row, double col) Unconvert_Slow(double row, double col)
         {
             return (row, col);

@@ -6,7 +6,7 @@ namespace SharpNet.DataAugmentation.Operations
     {
         private readonly int _horizontalShift;
 
-        public TranslateX(int horizontalShift, int[] miniBatchShape) : base(miniBatchShape)
+        public TranslateX(int horizontalShift)
         {
             _horizontalShift = horizontalShift;
         }
@@ -15,24 +15,24 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return (row,col- _horizontalShift);
         }
-        public static TranslateX ValueOf(double widthShiftRangeInPercentage, Random rand, int[] miniBatchShape)
+        public static TranslateX ValueOf(double widthShiftRangeInPercentage, Random rand, int nbCols)
         {
             if (widthShiftRangeInPercentage <= 0)
             {
                 return null;
             }
-            int horizontalShiftRangeInPixels = GetShiftInPixel(miniBatchShape[3], widthShiftRangeInPercentage);
+            int horizontalShiftRangeInPixels = GetShiftInPixel(nbCols, widthShiftRangeInPercentage);
             var horizontalShift = rand.Next(2 * horizontalShiftRangeInPixels + 1) - horizontalShiftRangeInPixels;
-            return new TranslateX(horizontalShift, miniBatchShape);
+            return new TranslateX(horizontalShift);
         }
 
-        public static int GetShiftInPixel(int pictureWidth, double widthShiftRange)
+        public static int GetShiftInPixel(int pictureWidth, double widthShiftRangeInPercentage)
         {
-            if (widthShiftRange <= 0)
+            if (widthShiftRangeInPercentage <= 0)
             {
                 return 0;
             }
-            return (int)Math.Ceiling(pictureWidth * widthShiftRange);
+            return (int)Math.Ceiling(pictureWidth * widthShiftRangeInPercentage);
         }
     }
 }

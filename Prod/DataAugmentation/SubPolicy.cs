@@ -6,7 +6,7 @@ using SharpNet.DataAugmentation.Operations;
 
 namespace SharpNet.DataAugmentation
 {
-    public class SubPolicy
+    public static class SubPolicy
     {
         public static void Apply(List<Operation> subPolicy,
             int indexInMiniBatch,
@@ -111,6 +111,5 @@ namespace SharpNet.DataAugmentation
             }
             return res;
         }
-
     }
 }

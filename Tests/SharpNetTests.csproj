@@ -56,8 +56,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CPU\TestCpuTensor.cs" />
+    <Compile Include="DataAugmentation\Operations\CutMixTests.cs" />
+    <Compile Include="DataAugmentation\Operations\CutOutTests.cs" />
+    <Compile Include="DataAugmentation\Operations\MixupTests.cs" />
+    <Compile Include="DataAugmentation\Operations\RotateTests.cs" />
+    <Compile Include="DataAugmentation\Operations\ShearTests.cs" />
+    <Compile Include="DataAugmentation\Operations\TranslateTests.cs" />
     <Compile Include="Data\EpochDataTests.cs" />
     <Compile Include="Data\TestTensor.cs" />
+    <Compile Include="DataAugmentation\ImageDataGeneratorTests.cs" />
+    <Compile Include="DataAugmentation\SubPolicyTests.cs" />
+    <Compile Include="DataAugmentation\Operations\OperationTests.cs" />
+    <Compile Include="DataAugmentation\Operations\FlipTests.cs" />
     <Compile Include="GPU\KernelManagerTests.cs" />
     <Compile Include="GPU\TestGpuTensor.cs" />
     <Compile Include="LearningRateSchedulerTests.cs" />
@@ -67,7 +77,6 @@
     <Compile Include="NonReg\TestNetworkPropagation.cs" />
     <Compile Include="Optimizers\LearningRateFinderTests.cs" />
     <Compile Include="Optimizers\ReduceLROnPlateauTests.cs" />
-    <Compile Include="Pictures\ImageDataGeneratorTests.cs" />
     <Compile Include="Pictures\BitmapContentTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

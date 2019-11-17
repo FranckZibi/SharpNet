@@ -6,7 +6,7 @@ namespace SharpNet.DataAugmentation.Operations
     {
         private readonly double _heightMultiplier;
 
-        public ShearY(double heightMultiplier, int[] miniBatchShape) : base(miniBatchShape)
+        public ShearY(double heightMultiplier)
         {
             Debug.Assert(heightMultiplier > 0);
             _heightMultiplier = heightMultiplier;

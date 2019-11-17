@@ -2,13 +2,16 @@ namespace SharpNet.DataAugmentation.Operations
 {
     public class VerticalFlip : Operation
     {
-        public VerticalFlip(int[] miniBatchShape) : base(miniBatchShape)
+        private readonly int _nbRows;
+
+        public VerticalFlip(int nbRows)
         {
+            _nbRows = nbRows;
         }
 
         public override (double row, double col) Unconvert_Slow(double row, double col)
         {
-            return (NbRows - row - 1, col);
+            return (_nbRows - row - 1, col);
         }
     }
 }
