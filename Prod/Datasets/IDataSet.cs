@@ -11,20 +11,20 @@ namespace SharpNet.Datasets
         /// <summary>
         /// Load 'x.Shape[0]' elements from the 'this' DataSet and copy them into 'x' (and 'y') tensors
         /// The indexes in the 'this' dataset of those 'x.Shape[0]' elements to copy into 'x' are:
-        ///     elementIdToOrderInCurrentEpoch[indexFirstElement]
-        ///     elementIdToOrderInCurrentEpoch[indexFirstElement+1]
+        ///     indexInCurrentEpochToElementId[indexFirstElement]
+        ///     indexInCurrentEpochToElementId[indexFirstElement+1]
         ///     .../...
-        ///     elementIdToOrderInCurrentEpoch[indexFirstElement+x.Shape[0]-1 ]
+        ///     indexInCurrentEpochToElementId[indexFirstElement+x.Shape[0]-1 ]
         /// </summary>
         /// <param name="epoch">index of epoch. The first epoch is 1</param>
         /// <param name="isTraining"></param>
         /// <param name="indexFirstElement">The index of the first element to load (the very first element fo the data set is at index 0</param>
-        /// <param name="elementIdToOrderInCurrentEpoch"></param>
+        /// <param name="indexInCurrentEpochToElementId"></param>
         /// <param name="imageDataGenerator"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
         /// <returns></returns>
-        void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> elementIdToOrderInCurrentEpoch,
+        void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> indexInCurrentEpochToElementId,
             ImageDataGenerator imageDataGenerator, ref Tensor x, ref Tensor y);
 
         /// <summary>
@@ -68,7 +68,6 @@ namespace SharpNet.Datasets
         /// </summary>
         bool IsNormalized { get; }
 
-
         /// <summary>
         /// category id to associated description
         /// </summary>
@@ -87,6 +86,8 @@ namespace SharpNet.Datasets
         /// <param name="elementId">id of the element (between 0 and 'Count-1')</param>
         /// <returns>description of the associated element id</returns>
         string ElementIdToDescription(int elementId);
+
+        ImageStatistic ElementIdToImageStatistic(int elementId);
 
         /// <summary>
         /// number of channels of each elements

@@ -936,10 +936,10 @@ namespace SharpNet.Networks
             _yExpectedBufferForEntireBatch = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForEntireBatch, nameof(_yExpectedBufferForEntireBatch));
             var xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(miniBatchSize), "xMiniBatch");
 
-            var orderInCurrentEpoch = Enumerable.Range(0, dataSet.Count).ToList();
+            var orderInCurrentEpochToElementId = Enumerable.Range(0, dataSet.Count).ToList();
             if (epoch >= 2 && Config.RandomizeOrder && isTraining) 
             {
-                Utils.Shuffle(orderInCurrentEpoch, Config.Rand);
+                Utils.Shuffle(orderInCurrentEpochToElementId, Config.Rand);
             }
 
             int blockId = 0;
@@ -954,7 +954,7 @@ namespace SharpNet.Networks
 
                 var yExpectedMiniBatch = _yExpectedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 _swCreateInputForEpoch?.Start();
-                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, orderInCurrentEpoch, _imageDataGenerator, ref xMiniBatch, ref yExpectedMiniBatch);
+                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, orderInCurrentEpochToElementId, _imageDataGenerator, ref xMiniBatch, ref yExpectedMiniBatch);
                 _swCreateInputForEpoch?.Stop();
 
                 var yPredictedMiniBatch = _yPredictedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);

@@ -14,6 +14,7 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> xDataAugmentedMiniBatch,
             CpuTensor<float> yMiniBatch,
             Func<int, int> indexInMiniBatchToCategoryId,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ImageDataGenerator.FillModeEnum fillMode)
         {
             var unconvertCX = Unconvert_Slow(subPolicy, 0, 0).row;
@@ -66,7 +67,7 @@ namespace SharpNet.DataAugmentation
                         Debug.Assert(colInput >= 0 && colInput < nbCols);
 
                         var valueInOriginalPicture = xOriginalMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
-                        var augmentedValue = AugmentedValue(subPolicy, valueInOriginalPicture, channel, rowOutput, colOutput);
+                        var augmentedValue = AugmentedValue(subPolicy, valueInOriginalPicture, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, channel, rowOutput, colOutput);
                         xDataAugmentedMiniBatch[outputPictureIdx + colOutput] = augmentedValue;
                     }
                 }
@@ -74,12 +75,14 @@ namespace SharpNet.DataAugmentation
             subPolicy.ForEach(x => x.UpdateY(yMiniBatch, indexInMiniBatch, indexInMiniBatchToCategoryId));
         }
 
-        private static float AugmentedValue(IEnumerable<Operation> operations, float originalValue, int channelOutput, int rowOutput, int colOutput)
+        private static float AugmentedValue(IEnumerable<Operation> operations, float originalValue,
+            int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch,
+            int channelOutput, int rowOutput, int colOutput)
         {
             var augmentedValue = originalValue;
             foreach (var o in operations)
             {
-                augmentedValue = o.AugmentedValue(augmentedValue, channelOutput, rowOutput, colOutput, out var isFinalAugmentedValue);
+                augmentedValue = o.AugmentedValue(augmentedValue, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, channelOutput, rowOutput, colOutput, out var isFinalAugmentedValue);
                 if (isFinalAugmentedValue)
                 {
                     break;

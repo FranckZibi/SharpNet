@@ -175,6 +175,32 @@ namespace SharpNet.Pictures
 
 
         /// <summary>
+        /// return the brightness of the pixel at (row,col) (value is between 0 (dark) and 1.0 (white)
+        /// </summary>
+        /// <param name="row"></param>
+        /// <param name="col"></param>
+        /// <returns>brightness (between 0.0 and 1)</returns>
+        public float GetBrightness(int row, int col)
+        {
+            int max = 0;
+            for (int channel = 0; channel < GetChannels(); ++channel)
+            {
+                max = Math.Max(max, Get(channel, row, col));
+            }
+            return max / 255f;
+        }
+        //public float GetBrightness(int row, int col)
+        //{
+        //    var sum = 0f;
+        //    for (int channel = 0; channel < GetChannels(); ++channel)
+        //    {
+        //        sum += Get(channel, row, col);
+        //    }
+        //    return sum / (255f*GetChannels());
+        //}
+
+
+        /// <summary>
         /// compute the volatility of each row
         /// </summary>
         /// <returns></returns>
@@ -196,8 +222,8 @@ namespace SharpNet.Pictures
 
                     var mean = sumRow / GetWidth();
                     var meanSquare = mean * mean;
-                    var rowVolatitily = Math.Sqrt(sumRowSquare / GetWidth() - meanSquare);
-                    result[row] += rowVolatitily;
+                    var rowVolatility = Math.Sqrt(sumRowSquare / GetWidth() - meanSquare);
+                    result[row] += rowVolatility;
                 }
             }
 

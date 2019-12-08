@@ -46,6 +46,7 @@ namespace SharpNet.Networks
                     .WithCifar10ResNetLearningRateScheduler(true, true, false),
 
             //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
+            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
             WidthShiftRange = 0.1, //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
             HeightShiftRange = 0.1,
             HorizontalFlip = true, // 'true' : validated on 18-apr-2019: +70 bps

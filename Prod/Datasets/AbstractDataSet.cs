@@ -41,7 +41,7 @@ namespace SharpNet.Datasets
         #endregion
 
         public abstract void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer);
-        public void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> elementIdToOrderInCurrentEpoch,
+        public void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> indexInCurrentEpochToElementId,
             ImageDataGenerator imageDataGenerator, ref Tensor xChunkBuffer, ref Tensor yChunkBuffer)
         {
             xChunkBuffer.AssertIsNotDisposed();
@@ -56,7 +56,7 @@ namespace SharpNet.Datasets
             //we initialize 'xInputCpuChunkBuffer' with all the input data in the given order
             xInputCpuChunkBuffer.Reshape(xMiniBatchShape);
             //We copy the element Id in the input buffer 'xInputBufferPictures' at index 'indexInBuffer'
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(elementIdToOrderInCurrentEpoch[indexFirstElement + indexInBuffer], indexInBuffer, xInputCpuChunkBuffer));
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(indexInCurrentEpochToElementId[indexFirstElement + indexInBuffer], indexInBuffer, xInputCpuChunkBuffer));
 
             if (xChunkBuffer.UseGPU)
             {
@@ -70,7 +70,8 @@ namespace SharpNet.Datasets
                 yOutputCpuChunkBuffer = yChunkBuffer.AsCpu<float>();
             }
             Debug.Assert(AreCompatible_X_Y(xOutputCpuChunkBuffer, yOutputCpuChunkBuffer));
-            int IndexInMiniBatchToCategoryId(int miniBatchIdx) => ElementIdToCategoryId(elementIdToOrderInCurrentEpoch[indexFirstElement + miniBatchIdx]);
+            int IndexInMiniBatchToCategoryId(int miniBatchIdx) => ElementIdToCategoryId(indexInCurrentEpochToElementId[indexFirstElement + miniBatchIdx]);
+            ImageStatistic IndexInMiniBatchToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(indexInCurrentEpochToElementId[indexFirstElement + miniBatchIdx]);
 
             //We compute the output y vector
             yOutputCpuChunkBuffer.ZeroMemory();
@@ -89,7 +90,7 @@ namespace SharpNet.Datasets
             }
             else
             {
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xInputCpuChunkBuffer, xOutputCpuChunkBuffer, yOutputCpuChunkBuffer, IndexInMiniBatchToCategoryId));
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xInputCpuChunkBuffer, xOutputCpuChunkBuffer, yOutputCpuChunkBuffer, IndexInMiniBatchToCategoryId, IndexInMiniBatchToImageStatistic, MeanAndVolatilityForEachChannel));
             }
 
             if (xChunkBuffer.UseGPU)
@@ -141,6 +142,22 @@ namespace SharpNet.Datasets
             return result;
         }
 
+
+
+        private ImageStatistic[] allImageStatistic;
+
+        public ImageStatistic ElementIdToImageStatistic(int elementId)
+        {
+            if (allImageStatistic == null)
+            {
+                allImageStatistic = new ImageStatistic[Count];
+            }
+            if (allImageStatistic[elementId] == null)
+            {
+                allImageStatistic[elementId] = ImageStatistic.ValueOf(OriginalElementContent(elementId));
+            }
+            return allImageStatistic[elementId];
+        }
 
         /// <summary>
         /// return the element at index 'elementId'

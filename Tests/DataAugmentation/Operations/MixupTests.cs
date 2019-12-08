@@ -12,8 +12,7 @@ namespace SharpNetTests.DataAugmentation.Operations
         [Test]
         public void TestMixup()
         {
-            ////Mixup (mix 2nd picture into 1st picture)
-            /// 
+            //Mixup (mix 2nd picture into 1st picture)
             // 4x4 matrix
             var input = Enumerable.Range(0, 16).Select(x => (float)x).ToArray();
             var inputShape = new[] { 2, 1, 2, 4 };

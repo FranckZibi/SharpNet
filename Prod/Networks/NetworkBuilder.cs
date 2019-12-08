@@ -18,6 +18,7 @@ namespace SharpNet.Networks
 
         #region Data Augmentation
 
+        public ImageDataGenerator.DataAugmentationEnum DataAugmentationType { private get; set; }
         public double WidthShiftRange { private get; set; }
         public double HeightShiftRange { private get; set; }
         public bool HorizontalFlip { private get; set; }
@@ -72,7 +73,7 @@ namespace SharpNet.Networks
 
         private ImageDataGenerator DataGenerator()
         {
-            return new ImageDataGenerator(WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage, AlphaCutMix, AlphaMixup, RotationRangeInDegrees, ZoomRange);
+            return new ImageDataGenerator(DataAugmentationType, WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage, AlphaCutMix, AlphaMixup, RotationRangeInDegrees, ZoomRange);
         }
     }
 }

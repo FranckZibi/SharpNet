@@ -46,6 +46,7 @@ namespace SharpNet.Networks
                     .WithCifar10DenseNetLearningRateScheduler(false, true, false),
 
                 //Data augmentation
+                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
                 WidthShiftRange = 0.1,
                 HeightShiftRange = 0.1,
                 HorizontalFlip = true,

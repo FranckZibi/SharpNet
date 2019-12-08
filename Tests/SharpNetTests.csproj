@@ -56,11 +56,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CPU\TestCpuTensor.cs" />
+    <Compile Include="DataAugmentation\Operations\AutoContrastTests.cs" />
+    <Compile Include="DataAugmentation\Operations\BrightnessTests.cs" />
+    <Compile Include="DataAugmentation\Operations\ColorTests.cs" />
+    <Compile Include="DataAugmentation\Operations\ContrastTests.cs" />
     <Compile Include="DataAugmentation\Operations\CutMixTests.cs" />
     <Compile Include="DataAugmentation\Operations\CutOutTests.cs" />
+    <Compile Include="DataAugmentation\Operations\EqualizeTests.cs" />
+    <Compile Include="DataAugmentation\Operations\InvertTests.cs" />
     <Compile Include="DataAugmentation\Operations\MixupTests.cs" />
+    <Compile Include="DataAugmentation\Operations\PosterizeTests.cs" />
     <Compile Include="DataAugmentation\Operations\RotateTests.cs" />
     <Compile Include="DataAugmentation\Operations\ShearTests.cs" />
+    <Compile Include="DataAugmentation\Operations\SolarizeTests.cs" />
     <Compile Include="DataAugmentation\Operations\TranslateTests.cs" />
     <Compile Include="Data\EpochDataTests.cs" />
     <Compile Include="Data\TestTensor.cs" />

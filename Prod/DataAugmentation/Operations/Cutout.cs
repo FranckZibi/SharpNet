@@ -1,4 +1,5 @@
 using System;
+using SharpNet.CPU;
 
 namespace SharpNet.DataAugmentation.Operations
 {
@@ -17,7 +18,9 @@ namespace SharpNet.DataAugmentation.Operations
             _colEnd = colEnd;
         }
 
-        public override float AugmentedValue(float originalValue, int channelOutput, int rowOutput, int colOutput, out bool isFinalAugmentedValue)
+        public override float AugmentedValue(float initialValue, int indexInMiniBatch,
+            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
+            int colOutput, out bool isFinalAugmentedValue)
         {
             //we check if we should apply Cutout to the pixel
             //this Cutout check must be performed *after* the CutMix check (above)
@@ -27,7 +30,7 @@ namespace SharpNet.DataAugmentation.Operations
                 return 0;
             }
             isFinalAugmentedValue = false;
-            return originalValue;
+            return initialValue;
         }
 
         public static Cutout ValueOf(double cutoutPatchPercentage, Random rand, int nbRows, int nbCols)

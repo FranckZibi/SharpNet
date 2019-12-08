@@ -3,30 +3,7 @@ using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 
 // ReSharper disable MemberCanBePrivate.Global
-
 // ReSharper disable UnusedMember.Global
-
-
-/*
-BatchSize = 128
-EpochCount = 150
-SGD with momentum = 0.9 & L2 = 0.5* 1-e4
-CutMix / no Cutout / no Mixup / FillMode = Reflect / Disable DivideBy10OnPlateau
-AvgPoolingStride = 2
-# ------------------------------------------------------------------------------------------------
-#           |             |    200-epoch  |   150-epoch   |   200-epoch   |   Orig Paper  | sec/epoch
-# Model     |   #Params   |      WRN      |   SGDR 10-2   |   SGDR 10-2   |      WRN      | GTX1080
-#           |             |   %Accuracy   |   %Accuracy   |   %Accuracy   |   %Accuracy   | 
-#           |             |   (dropout)   |(Ens. Learning)|(Ens. Learning)|   (dropout)   | 
-# -----------------------------------------------------------------------------------------------
-# WRN-16-4  |   2,752,506 | 94.61 (-----) | 95.67 (--.--) | 94.99 (95.69) | 94.98 (94.76) |  27.4
-# WRN-40-4  |   8,959,994 | 95.43 (-----) | 96.29 (96.18) | 95.67 (96.30) | 95.43 (-----) |  77.3
-# WRN-16-8  |  10,968,570 | 95.20 (-----) | 95.99 (--.--) | 95.69 (96.03) | 95.73         |  83.0
-# WRN-16-10 |  17,125,626 | ----- (-----) | ----- (-----) | ----- (-----) | NA            | 136.0
-# WRN-28-8  |  23,369,210 | ----- (-----) | ----- (-----) | ----- (-----) | NA            | 173.0
-# WRN-28-10 |  36,497,146 | 95.28 (-----) | 96.40 (96.79) | ----- (-----) | 96.00 (96.11) | 296.5
-# -----------------------------------------------------------------------------------------------
-*/
 
 namespace SharpNet.Networks
 {
@@ -60,10 +37,10 @@ namespace SharpNet.Networks
                 VerticalFlip = true,
                 //RotationRangeInDegrees = 180,
                 FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-
                 AlphaCutMix = 0.0, //no CutMix
                 AlphaMixup = 1.0, //with mixup
                 CutoutPatchPercentage = 0.0, //no cutout
+
                 WRN_AvgPoolingSize = 8,
                 NumEpochs = 70,
                 BatchSize = 128,
@@ -85,7 +62,7 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public static WideResNetBuilder WRN_CIFAR10()
         {
-            var builder = new WideResNetBuilder
+            return new WideResNetBuilder
             {
                 Config = new NetworkConfig
                     {
@@ -98,15 +75,14 @@ namespace SharpNet.Networks
                 ,
 
                 //Data augmentation
+                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
                 WidthShiftRange = 0.1,
                 HeightShiftRange = 0.1,
                 HorizontalFlip = true,
                 VerticalFlip = false,
                 FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-
                 //We use CutMix, lambda will follow a uniform distribution in [0,1]
                 AlphaCutMix = 1.0, //validated on 14-aug-2019 : +15 bps
-
                 //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
                 //CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR-10: +75 bps vs no cutout (= 0.0)
                 //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR-10: -60 bps vs 0.5
@@ -120,7 +96,6 @@ namespace SharpNet.Networks
                 //DropOutAfterDenseLayer = 0.3; //discarded on 05-june-2019: -136 bps
                 WRN_DropOutAfterDenseLayer = 0,
             };
-            return builder;
         }
 
         /// <summary>
@@ -129,7 +104,7 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public static WideResNetBuilder WRN_CIFAR100()
         {
-            var builder = new WideResNetBuilder
+            return new WideResNetBuilder
             {
                 Config = new NetworkConfig
                     {
@@ -138,6 +113,9 @@ namespace SharpNet.Networks
                     }
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
+
+                //Data augmentation
+                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
                 WidthShiftRange = 0.1,
                 HeightShiftRange = 0.1,
                 HorizontalFlip = true,
@@ -146,6 +124,7 @@ namespace SharpNet.Networks
                 AlphaMixup = 0.0,
                 AlphaCutMix = 1.0,
                 CutoutPatchPercentage = 0.0,
+
                 NumEpochs = 150,
                 BatchSize = 128,
                 WRN_DropOut = 0.0,
@@ -153,9 +132,6 @@ namespace SharpNet.Networks
                 WRN_AvgPoolingSize = 2,
                 WRN_DropOutAfterDenseLayer = 0
             };
-
-            //Data augmentation
-            return builder;
         }
 
         /// <summary>

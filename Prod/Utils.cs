@@ -174,6 +174,15 @@ namespace SharpNet
             return bytes + "B";
         }
 
+        public static double Max(double a, double b, double c)
+        {
+            return Math.Max(Math.Max(a, b), c);
+        }
+        public static double Min(double red, double green, double blue)
+        {
+            return Math.Min(Math.Min(red, green), blue);
+        }
+
         //!D TODO Add tests
         public static double Interpolate(List<Tuple<double,double>> values, double x, bool constantByInterval = false)
         {

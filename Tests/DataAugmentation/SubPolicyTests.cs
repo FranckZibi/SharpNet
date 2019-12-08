@@ -1,8 +1,4 @@
-﻿using System.Linq;
-using NUnit.Framework;
-using SharpNet.CPU;
-using SharpNet.DataAugmentation;
-using SharpNetTests.Data;
+﻿using NUnit.Framework;
 
 namespace SharpNetTests.DataAugmentation
 {
@@ -10,8 +6,7 @@ namespace SharpNetTests.DataAugmentation
     public class SubPolicyTests
     {
         [Test]
-
-        public void Test_InitializeOutputPicture()
+        public void Todo()
         {
         }
     }

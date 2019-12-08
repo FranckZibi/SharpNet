@@ -43,8 +43,8 @@ namespace SharpNetTests
 
 
             //new TestEnsembleLearning().Test(); return;
-            //WideResNetTests();
-            CIFAR100Tests(); //?D
+            WideResNetTests();
+            //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
 
@@ -115,15 +115,15 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN(x, 10, 4);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_RecursionCellularImageClassification_WRN(x, 10, 4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 16,8,WidthAptos2019);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 16,8,WidthAptos2019);},
 
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
 
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
             };
 
 
@@ -151,7 +151,7 @@ namespace SharpNetTests
                 //() =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_CutoutV3_150epochs";},
 
 
-                () =>{var p = WideResNetBuilder.WRN_Aptos2019Blindness();p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_"+WidthAptos2019;return p;},
+                //() =>{var p = WideResNetBuilder.WRN_Aptos2019Blindness();p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=90;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_Rotation90_"+WidthAptos2019;return p;},
                 //() =>{p.BatchSize = 32;p.NumEpochs = 150;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 1.0;p.InitialLearningRate = 0.01;p.CutoutPatchPercentage = 0.0;p.RotationRangeInDegrees=0;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_Mixup_noRotation"+WidthAptos2019;},
                 //() =>{p.BatchSize = 32;p.NumEpochs = 70;p.WidthShiftRange = p.HeightShiftRange = 0;p.AlphaCutMix= 0.0;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_noCutout_noCutMix_noRotation"+WidthAptos2019;},
                 //() =>{p.BatchSize = 32;p.NumEpochs = 70;p.CutMix = true;p.WidthShiftRange = p.HeightShiftRange = 0;p.CutMix = false;p.CutoutPatchPercentage = 0.0;p.InitialLearningRate = 0.01;p.ExtraDescription = "_Aptos2019_noCutout_CutMix_noRotation"+WidthAptos2019;},
