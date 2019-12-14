@@ -7,7 +7,7 @@ using SharpNet.DataAugmentation.Operations;
 
 namespace SharpNet.DataAugmentation
 {
-    public partial class ImageDataGenerator
+    public class ImageDataGenerator
     {
         //TODO: add FillModeEnum: Constant
         public enum FillModeEnum { Nearest, Reflect };
@@ -16,6 +16,10 @@ namespace SharpNet.DataAugmentation
             DEFAULT,
             NO_AUGMENTATION,
             AUTO_AUGMENT_CIFAR10,
+            AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP,
+            AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTOUT,
+            AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX,
+            AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP,
             AUTO_AUGMENT_SVHN,
             AUTO_AUGMENT_IMAGENET
         };
@@ -123,7 +127,16 @@ namespace SharpNet.DataAugmentation
                 case DataAugmentationEnum.DEFAULT:
                     return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, rand);
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand,0,0,0).GetSubPolicyCifar10();
+                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP:
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, _cutoutPatchPercentage, _alphaCutMix, _alphaMixup).GetSubPolicyCifar10();
+                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTOUT:
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).GetSubPolicyCifar10();
+                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX:
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 1.0, 0).GetSubPolicyCifar10();
+                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 1.0).GetSubPolicyCifar10();
+
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
                     throw new NotImplementedException("unknown DataAugmentationEnum: " + _dataAugmentationType);
                 case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
@@ -133,12 +146,6 @@ namespace SharpNet.DataAugmentation
                 default:
                     throw new NotImplementedException("unknown DataAugmentationEnum: "+ _dataAugmentationType); 
             }
-        }
-
-        private List<Operation> AutoAugmentCifar10SubPolicy(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)
-        {
-
-            throw new NotImplementedException("unknown DataAugmentationEnum: " + _dataAugmentationType);
         }
 
         private List<Operation> DefaultSubPolicy(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)

@@ -81,11 +81,17 @@ namespace SharpNet.Networks
                 HorizontalFlip = true,
                 VerticalFlip = false,
                 FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+                //Mixup is discarded
+                AlphaMixup = 0.0,
                 //We use CutMix, lambda will follow a uniform distribution in [0,1]
                 AlphaCutMix = 1.0, //validated on 14-aug-2019 : +15 bps
                 //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
+                CutoutPatchPercentage = 0.0,
                 //CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR-10: +75 bps vs no cutout (= 0.0)
                 //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR-10: -60 bps vs 0.5
+
+
+
 
                 NumEpochs = 150, //changed on 8-aug-2019 : new default batch size : 150 (was 200)
                 BatchSize = 128,

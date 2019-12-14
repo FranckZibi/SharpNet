@@ -6,7 +6,7 @@ namespace SharpNet.DataAugmentation
 {
     public class ImageStatistic
     {
-        public ImageStatistic(List<int[]> pixelCountByChannel, int[] shape)
+        private ImageStatistic(List<int[]> pixelCountByChannel, int[] shape)
         {
             PixelCountByChannel = pixelCountByChannel;
             Shape = shape;
@@ -61,30 +61,6 @@ namespace SharpNet.DataAugmentation
             }
             return Tuple.Create(darkThreshold, lightThreshold);
         }
-
-
-        //public Tuple<float, float> GetBrightnessThreshold(double cutoff)
-        //{
-        //    var darkThreshold = 0f;
-        //    for (var lightnessTime1000 =0; lightnessTime1000<ThresholdForLightness.Length;++lightnessTime1000)
-        //    {
-        //        if (ThresholdForLightness[lightnessTime1000] > cutoff)
-        //        {
-        //            darkThreshold = lightnessTime1000 / 1000f;
-        //            break;
-        //        }
-        //    }
-        //    var lightThreshold = 0f;
-        //    for (var lightnessTime1000 = ThresholdForLightness.Length-1; lightnessTime1000 >=0; --lightnessTime1000)
-        //    {
-        //        if ( (1-ThresholdForLightness[lightnessTime1000]) > cutoff)
-        //        {
-        //            lightThreshold = lightnessTime1000 / 1000f;
-        //            break;
-        //        }
-        //    }
-        //    return Tuple.Create(darkThreshold, lightThreshold);
-        //}
 
         public static ImageStatistic ValueOf(BitmapContent bmp)
         {

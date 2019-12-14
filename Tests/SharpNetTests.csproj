@@ -56,6 +56,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CPU\TestCpuTensor.cs" />
+    <Compile Include="Data\EpochDataTests.cs" />
+    <Compile Include="Data\TestTensor.cs" />
     <Compile Include="DataAugmentation\Operations\AutoContrastTests.cs" />
     <Compile Include="DataAugmentation\Operations\BrightnessTests.cs" />
     <Compile Include="DataAugmentation\Operations\ColorTests.cs" />
@@ -70,12 +72,11 @@
     <Compile Include="DataAugmentation\Operations\ShearTests.cs" />
     <Compile Include="DataAugmentation\Operations\SolarizeTests.cs" />
     <Compile Include="DataAugmentation\Operations\TranslateTests.cs" />
-    <Compile Include="Data\EpochDataTests.cs" />
-    <Compile Include="Data\TestTensor.cs" />
     <Compile Include="DataAugmentation\ImageDataGeneratorTests.cs" />
     <Compile Include="DataAugmentation\SubPolicyTests.cs" />
     <Compile Include="DataAugmentation\Operations\OperationTests.cs" />
     <Compile Include="DataAugmentation\Operations\FlipTests.cs" />
+	<Compile Include="Datasets\TestAbstractDataSet.cs" />
     <Compile Include="GPU\KernelManagerTests.cs" />
     <Compile Include="GPU\TestGpuTensor.cs" />
     <Compile Include="LearningRateSchedulerTests.cs" />

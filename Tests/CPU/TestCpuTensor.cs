@@ -112,6 +112,12 @@ namespace SharpNetTests.CPU
             Utils.Randomize(result.Content, rand, minValue, maxValue);
             return result;
         }
+        public static CpuTensor<byte> RandomByteTensor(int[] shape, Random rand, byte minValue, byte maxValue, string description)
+        {
+            var result = new CpuTensor<byte>(shape, description);
+            Utils.Randomize(result.Content, rand, minValue, maxValue);
+            return result;
+        }
         private void TestConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int padding, int stride, CpuTensor<float> expectedOutput)
         {
             var outputCPU = new CpuTensor<float>(ConvolutionLayer.ConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");

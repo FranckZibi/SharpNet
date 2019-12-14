@@ -83,6 +83,7 @@ namespace SharpNet.Datasets
                     yOutputCpuChunkBuffer.Set(idx, categoryId, 1);
                 }
             }
+
             if (!imageDataGenerator.UseDataAugmentation || (epoch == 1) || !isTraining)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
@@ -99,24 +100,23 @@ namespace SharpNet.Datasets
                 yChunkBuffer.AsGPU<float>().CopyToDevice(yOutputCpuChunkBuffer.HostPointer);
             }
 
-            /*
             //uncomment to store data augmented pictures
-            if (isTraining&&(indexFirstElement == 0))
-            { 
-                var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
-                var xCpuChunkBytes = (xCpuChunkBuffer as CpuTensor<float>)?.Select((n, c, val) => (byte)((val*meanAndVolatilityOfEachChannel[c].Item2+ meanAndVolatilityOfEachChannel[c].Item1)));
-                for (int i = indexFirstElement; i < Math.Min((indexFirstElement + miniBatchSize),100); ++i)
-                {
-                    PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Local\SharpNet\Train"), i.ToString("D5")+"_epoch_" + epoch, "");
-                }
-            }
-            */
+            //if (isTraining && (indexFirstElement == 0))
+            //{
+            //    var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
+            //    var xCpuChunkBytes = (xOutputCpuChunkBuffer as CpuTensor<float>)?.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
+            //    for (int i = indexFirstElement; i < Math.Min((indexFirstElement + miniBatchSize), 100); ++i)
+            //    {
+            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, Path.Combine(@"C:\Users\Franck\AppData\Local\SharpNet\Train"), i.ToString("D5") + "_epoch_" + epoch, "");
+            //    }
+            //}
+
         }
 
         /// <summary>
         ///dimension of a single element in the training data (in shape (channels,height, width)
         /// </summary>
-        public int[] InputShape_CHW => new[] { Channels, Height, Width};
+        public int[] InputShape_CHW => new[] { Channels, Height, Width };
 
 
         /// <summary>
@@ -142,21 +142,14 @@ namespace SharpNet.Datasets
             return result;
         }
 
-
-
-        private ImageStatistic[] allImageStatistic;
-
+        /// <summary>
+        /// TODO : check if we should use a cache to avoid recomputing the image stat at each epoch
+        /// </summary>
+        /// <param name="elementId"></param>
+        /// <returns></returns>
         public ImageStatistic ElementIdToImageStatistic(int elementId)
         {
-            if (allImageStatistic == null)
-            {
-                allImageStatistic = new ImageStatistic[Count];
-            }
-            if (allImageStatistic[elementId] == null)
-            {
-                allImageStatistic[elementId] = ImageStatistic.ValueOf(OriginalElementContent(elementId));
-            }
-            return allImageStatistic[elementId];
+            return ImageStatistic.ValueOf(OriginalElementContent(elementId));
         }
 
         /// <summary>
@@ -170,11 +163,10 @@ namespace SharpNet.Datasets
             LoadAt(elementId, 0, result);
             result.Reshape(InputShape_CHW);
             return result;
-
         }
 
         /// <summary>
-        /// return the original (not normalized) value of 'normalizedValue' that is located in channel 'channel'
+        /// return the original (unnormalized) value of 'normalizedValue' that is located in channel 'channel'
         /// </summary>
         /// <param name="normalizedValue"></param>
         /// <param name="channel"></param>
@@ -183,16 +175,14 @@ namespace SharpNet.Datasets
         {
             if (!IsNormalized)
             {
-                return (byte) normalizedValue;
+                //no normalization was performed on the input
+                return (byte)normalizedValue;
             }
-            var originalValue = (normalizedValue + OriginalChannelMean(channel)) * OriginalChannelVolatility(channel);
+            var originalValue = (normalizedValue) * OriginalChannelVolatility(channel) + OriginalChannelMean(channel)+0.5;
             originalValue = Math.Min(originalValue, 255);
             originalValue = Math.Max(originalValue, 0);
-            return (byte) originalValue;
+            return (byte)originalValue;
         }
-
-
-
 
         public abstract int Count { get; }
         public abstract string ElementIdToDescription(int elementId);
@@ -225,7 +215,7 @@ namespace SharpNet.Datasets
         public abstract int ElementIdToCategoryId(int elementId);
         public abstract int Height { get; }
         public abstract int Width { get; }
-        public int[] Y_Shape => new []{Count, Categories};
+        public int[] Y_Shape => new[] { Count, Categories };
         public void Dispose()
         {
             xInputCpuChunkBuffer?.Dispose();
@@ -237,7 +227,7 @@ namespace SharpNet.Datasets
         }
         public int[] XMiniBatch_Shape(int miniBatchSize)
         {
-            return new []{ miniBatchSize , Channels, Height, Width};
+            return new[] { miniBatchSize, Channels, Height, Width };
         }
         public int TypeSize => 4; //float size
 
@@ -254,7 +244,7 @@ namespace SharpNet.Datasets
         }
         public AbstractDataSet Take(int count)
         {
-            return new SubDataSet(this, elementId => elementId<count);
+            return new SubDataSet(this, elementId => elementId < count);
         }
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
         {
@@ -291,7 +281,7 @@ namespace SharpNet.Datasets
             Debug.Assert(!data.UseGPU);
             return data.AsFloatCpuContent.All(x => IsValidY(x));
         }
-   
+
         private static bool IsValidY(double x)
         {
             return Math.Abs(x) <= 1e-9 || Math.Abs(x - 1.0) <= 1e-9;

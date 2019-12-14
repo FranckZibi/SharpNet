@@ -81,6 +81,8 @@ namespace SharpNet.DataAugmentation.Operations
             //this CutMix check must be performed *before* the Cutout check
             if (rowOutput >= _rowStart && rowOutput <= _rowEnd && colOutput >= _colStart && colOutput <= _colEnd)
             {
+                //TODO : check with:
+                //  isFinalAugmentedValue = false;
                 isFinalAugmentedValue = true;
                 return _xOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, channel, rowOutput, colOutput);
             }

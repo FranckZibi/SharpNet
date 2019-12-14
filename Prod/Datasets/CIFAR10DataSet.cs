@@ -73,8 +73,8 @@ namespace SharpNet.Datasets
             int[] testElementIdToCategoryId = yTestSet.Content.Select(x => (int)x).ToArray();
             Debug.Assert(testElementIdToCategoryId.Length == xTestSet.Shape[0]);
 
-            //Uncomment the following line to take only the first elements
-            //xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 1000);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, 1000); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
+            //Uncomment the following line to take only the first 'count' elements
+            //const int count = 10000;xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, count);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, count); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
 
             Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
             Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);

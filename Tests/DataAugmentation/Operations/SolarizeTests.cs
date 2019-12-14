@@ -4,12 +4,15 @@ using System.Linq;
 using NUnit.Framework;
 using SharpNet.DataAugmentation;
 using SharpNet.DataAugmentation.Operations;
+using SharpNet.Pictures;
 
 namespace SharpNetTests.DataAugmentation.Operations
 {
     [TestFixture]
     public class SolarizeTests
     {
+
+
         [Test]
         public void TestSolarize()
         {
@@ -31,5 +34,15 @@ namespace SharpNetTests.DataAugmentation.Operations
             expected = new[] { (253f - 10f) / 5f, (1f - 20f) / 10f, (0f - 40f) / 20f };
             OperationTests.Check(new Solarize(253, meanAndVolatilityForEachChannel), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
         }
+
+        [Test, Explicit]
+        public void TestOnRealPicture()
+        {
+            const string path = @"C:\download\b\srcimg12.jpg";
+            var bmp = BitmapContent.ValueFomSingleRgbBitmap(path, path);
+            var stats = ImageStatistic.ValueOf(bmp);
+            OperationTests.ApplyToPicture(new List<Operation> { new Solarize(128, null) }, path, @"C:\download\b\srcimg12_Solarize.jpg");
+        }
+
     }
 }

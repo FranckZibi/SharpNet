@@ -8,22 +8,30 @@ namespace SharpNet.DataAugmentation
 {
     public class AutoAugment
     {
-        //private readonly int _indexInMiniBatch;
+        private readonly int _indexInMiniBatch;
         private readonly CpuTensor<float> _xOriginalMiniBatch;
         private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
         private readonly ImageStatistic _stats;
         private readonly Random _rand;
+        private readonly double _cutoutPatchPercentage;
+        private readonly double _alphaCutMix;
+        private readonly double _alphaMixup;
         private int NbRows => _xOriginalMiniBatch.Shape[2];
         private int NbCols => _xOriginalMiniBatch.Shape[3];
 
         public AutoAugment(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel, ImageStatistic stats, Random rand)
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel, ImageStatistic stats, Random rand,
+            double cutoutPatchPercentage, double alphaCutMix, double alphaMixup)
         {
-            //_indexInMiniBatch = indexInMiniBatch;
+            Debug.Assert(stats!=null);
+            _indexInMiniBatch = indexInMiniBatch;
             _xOriginalMiniBatch = xOriginalMiniBatch;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             _stats = stats;
             _rand = rand;
+            _cutoutPatchPercentage = cutoutPatchPercentage;
+            _alphaCutMix = alphaCutMix;
+            _alphaMixup = alphaMixup;
         }
 
 
@@ -315,12 +323,20 @@ namespace SharpNet.DataAugmentation
             {
                 return null;
             }
+
             return new Equalize(Operations.Equalize.GetOriginalPixelToEqualizedPixelByChannel(_stats), _meanAndVolatilityForEachChannel);
         }
 
-        private static List<Operation> CreateSubPolicy(Operation op1, Operation op2)
+        private List<Operation> CreateSubPolicy(Operation op1, Operation op2)
         {
-            var subPolicy = new List<Operation> { op1, op2 };
+            var subPolicy = new List<Operation>
+                            {
+                                CutMix.ValueOf(_alphaCutMix, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
+                                Cutout.ValueOf(_cutoutPatchPercentage, _rand, NbRows, NbCols),
+                                op1,
+                                op2,
+                                Mixup.ValueOf(_alphaMixup, _indexInMiniBatch, _xOriginalMiniBatch, _rand)
+                            };
             subPolicy.RemoveAll(x => x == null);
             return subPolicy;
         }

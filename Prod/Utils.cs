@@ -228,6 +228,13 @@ namespace SharpNet
                 toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
             }
         }
+        public static void Randomize(byte[] toRandomize, Random rand, byte minValue, byte maxValue)
+        {
+            for (int j = 0; j < toRandomize.Length; ++j)
+            {
+                toRandomize[j] = (byte)(minValue + rand.Next(maxValue - minValue+1));
+            }
+        }
         public static void RandomizeNormalDistribution(float[] toRandomize, Random rand, double mean, double stdDev)
         {
             for (int j = 0; j < toRandomize.Length; ++j)

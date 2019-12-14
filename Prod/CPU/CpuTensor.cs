@@ -1031,24 +1031,24 @@ namespace SharpNet.CPU
         /// <summary>
         /// Compute the mean and volatility of each channel of the tensor
         /// </summary>
-        /// <param name="toDouble">Function to convert 'T' type to double</param>
+        /// <param name="toFloat">Function to convert 'T' type to double</param>
         /// <returns>A list of Tuple (one Tuple per channel)
         /// In each channel Tuple: Tuple.Item1: mean of the channel / Tuple.Item2: vol of the channel</returns>
         // ReSharper disable once UnusedMember.Global
-        public List<Tuple<double, double>> ComputeMeanAndVolatilityOfEachChannel(Func<T, double> toDouble)
+        public List<Tuple<float, float>> ComputeMeanAndVolatilityOfEachChannel(Func<T, float> toFloat)
         {
-            return Enumerable.Range(0, Shape[1]).Select(c => ComputeMeanAndVolatilityOfChannel(c, toDouble)).ToList();
+            return Enumerable.Range(0, Shape[1]).Select(c => ComputeMeanAndVolatilityOfChannel(c, toFloat)).ToList();
         }
 
         /// <summary>
         /// Computes the mean and volatility of the selected channel in the 'this' tensor
         /// </summary>
         /// <param name="c">The channel to compute in the tensor</param>
-        /// <param name="toDouble">Function to convert 'T' type to double</param>
+        /// <param name="toFloat">Function to convert 'T' type to double</param>
         /// <returns>Tuple.Item1: mean of the channel / Tuple.Item2: vol of the channel</returns>
-        private Tuple<double, double> ComputeMeanAndVolatilityOfChannel(int c, Func<T, double> toDouble)
+        private Tuple<float, float> ComputeMeanAndVolatilityOfChannel(int c, Func<T, float> toFloat)
         {
-            double sum = 0.0;
+            double sum = 0f;
             double sumSquare = 0.0;
             int count = 0;
             for (int m = 0; m < Shape[0]; ++m)
@@ -1056,7 +1056,7 @@ namespace SharpNet.CPU
                 int startIdx = Idx(m, c, 0, 0);
                 for (int idx = startIdx; idx < (startIdx + MultDim1); ++idx)
                 {
-                    var val = toDouble(Content[idx]);
+                    var val = toFloat(Content[idx]);
                     sum += val;
                     sumSquare += val * val;
                     ++count;
@@ -1064,12 +1064,12 @@ namespace SharpNet.CPU
             }
             if (count == 0)
             {
-                return Tuple.Create(0.0, 0.0);
+                return Tuple.Create(0f, 0f);
             }
             var mean = (sum / count);
             var variance = (sumSquare / count) - mean * mean;
             var volatility = Math.Sqrt(Math.Max(0, variance));
-            return Tuple.Create(mean, volatility);
+            return Tuple.Create((float)mean, (float)volatility);
         }
         private CpuTensor<T> Merge(CpuTensor<T> b, Func<T, T, T> func, string description)
         {
