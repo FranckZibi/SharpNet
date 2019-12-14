@@ -19,9 +19,8 @@ namespace SharpNet.DataAugmentation.Operations
 
         public override float AugmentedValue(float initialValue, int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput, out bool isFinalAugmentedValue)
+            int colOutput)
         {
-            isFinalAugmentedValue = false;
             var unnormalizedValue = (int)(UnnormalizedValue(initialValue, channel, _meanAndVolatilityForEachChannel)+0.5f);
             unnormalizedValue = Math.Min(unnormalizedValue, 255);
             unnormalizedValue = Math.Max(unnormalizedValue, 0);

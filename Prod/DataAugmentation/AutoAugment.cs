@@ -180,6 +180,34 @@ namespace SharpNet.DataAugmentation
         }
 
         /// <summary>
+        /// Horizontal Flip of the image
+        /// </summary>
+        /// <param name="probability"></param>
+        /// <returns></returns>
+        private Operation HorizontalFlip(double probability)
+        {
+            if (!IsEnabled(probability, _rand))
+            {
+                return null;
+            }
+            return new HorizontalFlip(NbCols);
+        }
+
+        /// <summary>
+        /// Vertical Flip of the image
+        /// </summary>
+        /// <param name="probability"></param>
+        /// <returns></returns>
+        //private Operation VerticalFlip(double probability)
+        //{
+        //    if (!IsEnabled(probability, _rand))
+        //    {
+        //        return null;
+        //    }
+        //    return new VerticalFlip(NbCols);
+        //}
+
+        /// <summary>
         /// Invert all pixels strictly above a threshold value of magnitude
         /// </summary>
         /// <param name="probability"></param>
@@ -331,13 +359,15 @@ namespace SharpNet.DataAugmentation
         {
             var subPolicy = new List<Operation>
                             {
-                                CutMix.ValueOf(_alphaCutMix, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
-                                Cutout.ValueOf(_cutoutPatchPercentage, _rand, NbRows, NbCols),
+                                HorizontalFlip(0.5),
                                 op1,
                                 op2,
-                                Mixup.ValueOf(_alphaMixup, _indexInMiniBatch, _xOriginalMiniBatch, _rand)
+                                CutMix.ValueOf(_alphaCutMix, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
+                                Mixup.ValueOf(_alphaMixup, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
+                                Cutout.ValueOf(_cutoutPatchPercentage, _rand, NbRows, NbCols)
                             };
             subPolicy.RemoveAll(x => x == null);
+            OperationHelper.CheckIntegrity(subPolicy);
             return subPolicy;
         }
 

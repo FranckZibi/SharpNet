@@ -43,9 +43,8 @@ namespace SharpNet.DataAugmentation.Operations
 
         public override float AugmentedValue(float initialValue, int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput, out bool isFinalAugmentedValue)
+            int colOutput)
         {
-            isFinalAugmentedValue = true;
             return _mixupLambda * initialValue
                    + (1 - _mixupLambda) * _xOriginalMiniBatch.Get(_indexInMiniBatchForMixup, channel, rowOutput, colOutput);
         }

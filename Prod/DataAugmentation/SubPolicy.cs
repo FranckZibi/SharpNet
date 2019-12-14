@@ -82,11 +82,7 @@ namespace SharpNet.DataAugmentation
             var augmentedValue = originalValue;
             foreach (var o in operations)
             {
-                augmentedValue = o.AugmentedValue(augmentedValue, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, channelOutput, rowOutput, colOutput, out var isFinalAugmentedValue);
-                if (isFinalAugmentedValue)
-                {
-                    break;
-                }
+                augmentedValue = o.AugmentedValue(augmentedValue, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, channelOutput, rowOutput, colOutput);
             }
             return augmentedValue;
         }

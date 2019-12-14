@@ -14,9 +14,8 @@ namespace SharpNet.DataAugmentation.Operations
 
         public virtual float AugmentedValue(float initialValue, int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput, out bool isFinalAugmentedValue)
+            int colOutput)
         {
-            isFinalAugmentedValue = false;
             return initialValue;
         }
 

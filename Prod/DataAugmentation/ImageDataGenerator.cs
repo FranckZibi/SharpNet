@@ -17,7 +17,6 @@ namespace SharpNet.DataAugmentation
             NO_AUGMENTATION,
             AUTO_AUGMENT_CIFAR10,
             AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP,
-            AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTOUT,
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX,
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP,
             AUTO_AUGMENT_SVHN,
@@ -127,11 +126,9 @@ namespace SharpNet.DataAugmentation
                 case DataAugmentationEnum.DEFAULT:
                     return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, rand);
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand,0,0,0).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP:
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, _cutoutPatchPercentage, _alphaCutMix, _alphaMixup).GetSubPolicyCifar10();
-                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTOUT:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX:
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 1.0, 0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
@@ -154,8 +151,6 @@ namespace SharpNet.DataAugmentation
 
             var nbRows = xOriginalMiniBatch.Shape[2];
             var nbCols = xOriginalMiniBatch.Shape[3];
-            result.Add(CutMix.ValueOf(_alphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
-            result.Add(Cutout.ValueOf(_cutoutPatchPercentage, rand, nbRows, nbCols));
             result.Add(Rotate.ValueOf(_rotationRangeInDegrees, rand, nbRows, nbCols));
 
             double widthMultiplier = 1.0;
@@ -185,8 +180,11 @@ namespace SharpNet.DataAugmentation
             {
                 result.Add(new HorizontalFlip(nbCols));
             }
+            result.Add(CutMix.ValueOf(_alphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
             result.Add(Mixup.ValueOf(_alphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(Cutout.ValueOf(_cutoutPatchPercentage, rand, nbRows, nbCols));
             result.RemoveAll(x => x == null);
+            OperationHelper.CheckIntegrity(result);
             return result;
         }
 
@@ -201,6 +199,7 @@ namespace SharpNet.DataAugmentation
         {
             var rand = _rands[indexInMiniBatch % _rands.Length];
             var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, indexInMiniBatchToImageStatistic, meanAndVolatilityForEachChannel, rand);
+            OperationHelper.CheckIntegrity(subPolicy);
             SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryId, meanAndVolatilityForEachChannel, _fillMode);
         }
 

@@ -75,18 +75,14 @@ namespace SharpNet.DataAugmentation.Operations
 
         public override float AugmentedValue(float initialValue, int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput, out bool isFinalAugmentedValue)
+            int colOutput)
         {
             //we check if we should apply cutMix to the pixel
             //this CutMix check must be performed *before* the Cutout check
             if (rowOutput >= _rowStart && rowOutput <= _rowEnd && colOutput >= _colStart && colOutput <= _colEnd)
             {
-                //TODO : check with:
-                //  isFinalAugmentedValue = false;
-                isFinalAugmentedValue = true;
                 return _xOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, channel, rowOutput, colOutput);
             }
-            isFinalAugmentedValue = false;
             return initialValue;
         }
 
