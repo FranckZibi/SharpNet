@@ -81,8 +81,8 @@ namespace SharpNetTests
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 150; p.ExtraDescription = "_Adam";},
                 //(p) =>{ p.ExtraDescription = "_OrigPaper";},
 
-                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";return p;},
-                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.ForceTensorflowCompatibilityMode = true;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";return p;},
+                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.ForceTensorflowCompatibilityMode = true;p.DA.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";return p;},
+                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.ForceTensorflowCompatibilityMode = true;p.DA.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";return p;},
 
 
                 //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchPercentage0_25;},
@@ -118,11 +118,9 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_RecursionCellularImageClassification_WRN(x, 10, 4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 16,8,WidthAptos2019);},
 
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
-
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
-
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
@@ -130,11 +128,27 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT; p.ExtraDescription = "";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5; p.ExtraDescription = "_Equalize_0_50";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.AutoContrastOperationProbability = 0.5; p.ExtraDescription = "_AutoContrast_0_50";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.InvertOperationProbability = 0.5; p.ExtraDescription = "_Invert_0_50";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Color_0_50_1_00";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.ContrastOperationProbability = 0.5;p.DA.ContrastOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Contrast_0_50_1_10";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5;p.DA.AutoContrastOperationProbability = 0.5; p.ExtraDescription = "_Equalize_0_50_AutoContrast_0_50";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5;p.DA.AutoContrastOperationProbability = 0.5;p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Equalize_0_50_AutoContrast_0_50_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
+
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 0.5; p.ExtraDescription = "_CutoutOnly";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 1.0;p.DA.CutoutPatchPercentage = 0.5; p.ExtraDescription = "_CutMix_Cutout";return p;},
+
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10";return p;},
+
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP";return p;},
 
                 //() =>{p.ZoomRange = 0.1;p.ExtraDescription = "_ZoomRange_0_1";},
                 //() =>{p.AvgPoolingSize = 8;p.ExtraDescription = "_AvgPoolingSize_8";},
@@ -311,9 +325,9 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () => {var p = WideResNetBuilder.WRN_CIFAR100();p.AlphaMixup = 0.0;p.AlphaCutMix = 1.0;p.CutoutPatchPercentage = 0.0; p.ExtraDescription = "CutMix";return p;},
-                () => {var p = WideResNetBuilder.WRN_CIFAR100();p.AlphaMixup = 1.0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0; p.ExtraDescription = "Mixup";return p;},
-                () => {var p = WideResNetBuilder.WRN_CIFAR100();p.AlphaMixup = 0.0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 20.0/32.0; p.ExtraDescription = "Cutout_0_625";return p;},
+                () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 1.0;p.DA.CutoutPatchPercentage = 0.0; p.ExtraDescription = "CutMix";return p;},
+                () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 1.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 0.0; p.ExtraDescription = "Mixup";return p;},
+                () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 20.0/32.0; p.ExtraDescription = "Cutout_0_625";return p;},
             };
             PerformTestSet(modifiers, todo);
         }
