@@ -46,18 +46,19 @@ namespace SharpNet.Networks
                     .WithCifar10ResNetLearningRateScheduler(true, true, false),
 
             //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
-            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-            WidthShiftRange = 0.1, //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
-            HeightShiftRange = 0.1,
-            HorizontalFlip = true, // 'true' : validated on 18-apr-2019: +70 bps
-            VerticalFlip = false,
-            FillMode = ImageDataGenerator.FillModeEnum.Reflect, //validated on 18-apr-2019: +50 bps
-            CutoutPatchPercentage =0.5, // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
-
             NumEpochs = 160, //64k iterations
             BatchSize = 128,
             InitialLearningRate = 0.1,
         };
+
+        var da = builder.Config.DataAugmentation;
+        da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+        da.WidthShiftRangeInPercentage = 0.1; //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
+        da.HeightShiftRangeInPercentage = 0.1;
+        da.HorizontalFlip = true; // 'true' : validated on 18-apr-2019: +70 bps
+        da.VerticalFlip = false;
+        da.FillMode = ImageDataGenerator.FillModeEnum.Reflect; //validated on 18-apr-2019: +50 bps
+        da.CutoutPatchPercentage = 0.5; // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
         return builder;
     }
 

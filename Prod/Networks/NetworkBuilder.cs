@@ -16,52 +16,11 @@ namespace SharpNet.Networks
         public double InitialLearningRate { get; set; }
         public bool DisableLogging { private get; set; }
 
-        #region Data Augmentation
-
-        public ImageDataGenerator.DataAugmentationEnum DataAugmentationType { private get; set; }
-        public double WidthShiftRange { private get; set; }
-        public double HeightShiftRange { private get; set; }
-        public bool HorizontalFlip { private get; set; }
-        public bool VerticalFlip { private get; set; }
-        public ImageDataGenerator.FillModeEnum FillMode { private get; set; }
-
-        /// <summary>
-        /// The cutout to use in % of the longest length ( = Max(height, width) )
-        /// If less or equal to 0 , Cutout will be disabled
-        /// </summary>
-        public double CutoutPatchPercentage { private get; set; }
-
-        /// <summary>
-        /// The alpha coefficient used to compute lambda in CutMix
-        /// If less or equal to 0 , CutMix will be disabled
-        /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
-        /// </summary>
-        public double AlphaCutMix { private get; set; }
-
-        /// <summary>
-        /// The alpha coefficient used to compute lambda in Mixup
-        /// A value less or equal to 0.0 wil disable Mixup
-        /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
-        /// </summary>
-        public double AlphaMixup { get; set; }
-
-        /// <summary>
-        /// rotation range in degrees, in [0,180] range.
-        /// The actual rotation will be a random number in [-_rotationRangeInDegrees,+_rotationRangeInDegrees]
-        /// </summary>
-        public double RotationRangeInDegrees { private get; set; }
-
-        /// <summary>
-        /// Range for random zoom. [lower, upper] = [1 - _zoomRange, 1 + _zoomRange].
-        /// </summary>
-        public double ZoomRange { private get; set; }
-        #endregion
-
         protected Network BuildEmptyNetwork(string networkName)
         {
             var configLogger = NetworkLogger(networkName);
             Config.Logger = configLogger;
-            var network = new Network(Config, DataGenerator(), GpuDeviceId);
+            var network = new Network(Config, GpuDeviceId);
             network.Description = networkName + ExtraDescription;
             return network;
         }
@@ -70,10 +29,6 @@ namespace SharpNet.Networks
         {
             return DisableLogging ? Logger.NullLogger : Utils.Logger(networkName + ExtraDescription);
         }
-
-        private ImageDataGenerator DataGenerator()
-        {
-            return new ImageDataGenerator(DataAugmentationType, WidthShiftRange, HeightShiftRange, HorizontalFlip, VerticalFlip, FillMode, 0.0, CutoutPatchPercentage, AlphaCutMix, AlphaMixup, RotationRangeInDegrees, ZoomRange);
-        }
+        public DataAugmentationConfig DA => Config.DataAugmentation;
     }
 }

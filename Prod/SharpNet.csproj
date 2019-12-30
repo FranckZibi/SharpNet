@@ -47,6 +47,7 @@
     <Compile Include="CPU\CpuTensorExtensions.cs" />
     <Compile Include="CPU\HostPinnedMemory.cs" />
     <Compile Include="DataAugmentation\AutoAugment.cs" />
+    <Compile Include="DataAugmentation\DataAugmentationConfig.cs" />
     <Compile Include="DataAugmentation\HSBColor.cs" />
     <Compile Include="DataAugmentation\ImageDataGenerator.cs" />
     <Compile Include="DataAugmentation\ImageStatistic.cs" />

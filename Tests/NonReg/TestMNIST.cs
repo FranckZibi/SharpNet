@@ -21,16 +21,23 @@ namespace SharpNetTests.NonReg
             int batchSize = 32;
             const int numEpochs = 1000;
 
-            var imageDataGenerator = new ImageDataGenerator(ImageDataGenerator.DataAugmentationEnum.DEFAULT, 0.1, 0.1, false, false, ImageDataGenerator.FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var network = new Network(
-                new NetworkConfig{ Logger = new Logger(logFileName, true), DisableReduceLROnPlateau =true}
+                new NetworkConfig
+                    {
+                        Logger = new Logger(logFileName, true), 
+                        DisableReduceLROnPlateau =true
+                }
                 //.WithAdam()
                 .WithSGD(0.99,true)
                 ,
-                imageDataGenerator,
                 useGpu?0:-1
             );
+
+            //Data Augmentation
+            var da = network.Config.DataAugmentation;
+            da.WidthShiftRangeInPercentage = 0.1;
+            da.HeightShiftRangeInPercentage = 0.1;
 
             var mnist = new MNISTDataSet();
 

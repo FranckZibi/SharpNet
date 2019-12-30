@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
 using SharpNet.Optimizers;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
@@ -10,6 +11,8 @@ using SharpNet.Optimizers;
 
 namespace SharpNet.Networks
 {
+    
+
     public class NetworkConfig
     {
         #region fields
@@ -43,6 +46,10 @@ namespace SharpNet.Networks
         public Random Rand { get; }
         public Logger Logger { get; set; } = Logger.ConsoleLogger;
 
+
+        public DataAugmentationConfig DataAugmentation { get; set; }
+
+
         public bool RandomizeOrder { get; set; } = true;
 
         /// <summary>
@@ -75,6 +82,7 @@ namespace SharpNet.Networks
         public NetworkConfig()
         {
             Rand = new Random(0);
+            DataAugmentation = new DataAugmentationConfig();
         }
 
         public bool DisableLogging => ReferenceEquals(Logger, Logger.NullLogger);
@@ -133,6 +141,7 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + ":AutoSaveIntervalInMinuts", ref errors);
             equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + ":SaveNetworkStatsAfterEachEpoch", ref errors);
             equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + ":SaveLossAfterEachMiniBatch", ref errors);
+            equals &= DataAugmentation.Equals(other.DataAugmentation, epsilon, id + ":DataAugmentation", ref errors);
             return equals;
         }
 
@@ -238,6 +247,7 @@ namespace SharpNet.Networks
                 .Add(nameof(SaveLossAfterEachMiniBatch), SaveLossAfterEachMiniBatch)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
                 .Add(Logger.Serialize())
+                .Add(DataAugmentation.Serialize())
                 .ToString();
         }
         public static NetworkConfig ValueOf(IDictionary<string, object> serialized)
@@ -279,6 +289,7 @@ namespace SharpNet.Networks
             SaveLossAfterEachMiniBatch = (bool)serialized[nameof(SaveLossAfterEachMiniBatch)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
             Logger = Logger.ValueOf(serialized);
+            DataAugmentation = DataAugmentationConfig.ValueOf(serialized);
             Rand = new Random(0);
         }
         #endregion

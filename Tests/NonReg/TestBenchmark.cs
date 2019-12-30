@@ -70,9 +70,8 @@ namespace SharpNetTests.NonReg
             var logger = new Logger(LogFileName, true);
             const int batchSize = 64;
             const int numEpochs = 5;
-            var imageDataGenerator = ImageDataGenerator.NoDataAugmentation;
             var mnist = new MNISTDataSet();
-            var network = new Network(new NetworkConfig() { Logger = logger, DisableReduceLROnPlateau =true}.WithAdam(), imageDataGenerator, 0);
+            var network = new Network(new NetworkConfig() { Logger = logger, DisableReduceLROnPlateau =true}.WithAdam(), 0);
             network
                 .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
 

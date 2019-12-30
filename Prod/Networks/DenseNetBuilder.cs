@@ -45,19 +45,22 @@ namespace SharpNet.Networks
                     .WithSGD(0.9, true)
                     .WithCifar10DenseNetLearningRateScheduler(false, true, false),
 
-                //Data augmentation
-                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-                WidthShiftRange = 0.1,
-                HeightShiftRange = 0.1,
-                HorizontalFlip = true,
-                VerticalFlip = false,
-                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                CutoutPatchPercentage = 0.5, //by default we use a cutout of 1/2 of the image width
 
                 NumEpochs = 300,
                 BatchSize = 64,
                 InitialLearningRate = 0.1
             };
+
+            //Data augmentation
+            var da = builder.Config.DataAugmentation;
+            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+            da.WidthShiftRangeInPercentage = 0.1;
+            da.HeightShiftRangeInPercentage = 0.1;
+            da.HorizontalFlip = true;
+            da.VerticalFlip = false;
+            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            //by default we use a cutout of 1/2 of the image width
+            da.CutoutPatchPercentage = 0.5; 
             return builder;
         }
 

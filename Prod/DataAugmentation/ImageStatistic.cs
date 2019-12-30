@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SharpNet.DataAugmentation.Operations;
 using SharpNet.Pictures;
 
 namespace SharpNet.DataAugmentation
@@ -102,6 +103,27 @@ namespace SharpNet.DataAugmentation
             //    }
             //}
             return new ImageStatistic(pixelCountByChannel, bmp.Shape);
+        }
+
+        public float GreyMean(List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+        {
+            //we compute the average of grey
+            var ponderedAverageByChannel = new List<float>();
+            var pixelCount = Shape[1] * Shape[2];
+            for (var channel = 0; channel < PixelCountByChannel.Count; channel++)
+            {
+                var count = PixelCountByChannel[channel];
+                float sum = 0;
+                for (int i = 0; i < count.Length; ++i)
+                {
+                    sum += i * count[i];
+                }
+
+                var normalizedValue = Operation.NormalizedValue(sum / pixelCount, channel, meanAndVolatilityForEachChannel);
+                ponderedAverageByChannel.Add(normalizedValue);
+            }
+            var greyMean = Operation.GetGreyScale(ponderedAverageByChannel[0], ponderedAverageByChannel[1], ponderedAverageByChannel[2]);
+            return greyMean;
         }
     }
 }

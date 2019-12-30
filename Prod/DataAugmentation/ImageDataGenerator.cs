@@ -2,13 +2,14 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.DataAugmentation.Operations;
 
 namespace SharpNet.DataAugmentation
 {
     public class ImageDataGenerator
     {
+        private readonly DataAugmentationConfig _config;
+
         //TODO: add FillModeEnum: Constant
         public enum FillModeEnum { Nearest, Reflect };
         public enum DataAugmentationEnum
@@ -23,166 +24,120 @@ namespace SharpNet.DataAugmentation
             AUTO_AUGMENT_IMAGENET
         };
 
-
-        #region private fields
-        private readonly Random[] _rands;
-
-        private readonly DataAugmentationEnum _dataAugmentationType;
-
-        //randomly shift images horizontally
-        private readonly double _widthShiftRangeInPercentage;
-        //randomly shift images vertically
-        private readonly double _heightShiftRangeInPercentage;
-        //randomly flip images
-        private readonly bool _horizontalFlip;
-        //randomly flip images
-        private readonly bool _verticalFlip;
-        //set mode for filling points outside the input boundaries
-        private readonly FillModeEnum _fillMode;
-        //value used for fill_mode  {get;set;} = "constant"
-        private readonly double _fillModeConstantVal;
-        /// <summary>
-        /// % of the max(width,height) of the zero mask to apply to the input picture (see: https://arxiv.org/pdf/1708.04552.pdf)
-        /// recommended size : 16/32=0.5 (= 16x16) for CIFAR-10 / 8/32=0.25 (= 8x8) for CIFAR-100 / 20/32 (= 20x20) for SVHN / 32/96 (= 32x32) for STL-10
-        /// less or equal to 0.0 means no cutout
-        /// </summary>
-        private readonly double _cutoutPatchPercentage;
-        /// <summary>
-        /// The alpha coefficient used for CutMix
-        /// A value less or equal then 0 will disable CutMix
-        /// Alpha will be used as an input of the beta law to compute lambda
-        /// lambda is the % of the original to keep (1-lambda will be taken from another element and mixed with current)
-        /// the % of the max(width,height) of the CutMix mask to apply to the input picture (see: https://arxiv.org/pdf/1905.04899.pdf)
-        /// </summary>
-        private readonly double _alphaCutMix;
-        /// <summary>
-        /// The alpha coefficient used for Mixup
-        /// A value less or equal then 0 will disable Mixup (see: https://arxiv.org/pdf/1710.09412.pdf)
-        /// </summary>
-        private readonly double _alphaMixup;
-
-
-        /// <summary>
-        /// rotation range in degrees, in [0,180] range.
-        /// The actual rotation will be a random number in [-_rotationRangeInDegrees,+_rotationRangeInDegrees]
-        /// </summary>
-        private readonly double _rotationRangeInDegrees;
-        /// <summary>
-        /// Range for random zoom. [lower, upper] = [1 - _zoomRange, 1 + _zoomRange].
-        /// </summary>
-        private readonly double _zoomRange;
-        #endregion
-
-        public static readonly ImageDataGenerator NoDataAugmentation = new ImageDataGenerator(DataAugmentationEnum.NO_AUGMENTATION, 0, 0, false, false, FillModeEnum.Nearest, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-
-        public ImageDataGenerator(
-            DataAugmentationEnum dataAugmentationType,
-            double widthShiftRangeInPercentage, double heightShiftRangeInPercentage,
-            bool horizontalFlip, bool verticalFlip, FillModeEnum fillMode, double fillModeConstantVal,
-            double cutoutPatchPercentage,
-            double alphaCutMix,
-            double alphaMixup,
-            double rotationRangeInDegrees,
-            double zoomRange)
+        public ImageDataGenerator(DataAugmentationConfig config)
         {
-            Debug.Assert(widthShiftRangeInPercentage >= 0);
-            Debug.Assert(widthShiftRangeInPercentage <= 1.0);
-            Debug.Assert(heightShiftRangeInPercentage >= 0);
-            Debug.Assert(heightShiftRangeInPercentage <= 1.0);
-            Debug.Assert(cutoutPatchPercentage <= 1.0);
-            Debug.Assert(rotationRangeInDegrees >= 0);
-            Debug.Assert(rotationRangeInDegrees <= 180.0);
-            Debug.Assert(zoomRange >= 0);
-            Debug.Assert(zoomRange <= 1.0);
-            _dataAugmentationType = dataAugmentationType;
-            _widthShiftRangeInPercentage = widthShiftRangeInPercentage;
-            _heightShiftRangeInPercentage = heightShiftRangeInPercentage;
-            _horizontalFlip = horizontalFlip;
-            _verticalFlip = verticalFlip;
-            _fillMode = fillMode;
-            _fillModeConstantVal = fillModeConstantVal;
-            _cutoutPatchPercentage = cutoutPatchPercentage;
-            _alphaCutMix = alphaCutMix;
-            _alphaMixup = alphaMixup;
-            _rotationRangeInDegrees = rotationRangeInDegrees;
-            _zoomRange = zoomRange;
-            _rands = new Random[2 * Environment.ProcessorCount];
-            for (int i = 0; i < _rands.Length; ++i)
-            {
-                _rands[i] = new Random(i);
-            }
+            _config = config;
         }
 
-
-        private List<Operation> GetSubPolicy(
-            int indexInMiniBatch, 
-            CpuTensor<float> xOriginalMiniBatch, 
-            Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
+        private List<Operation> GetSubPolicy(int indexInMiniBatch,
+            CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
+            Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
             Random rand)
         {
-            switch (_dataAugmentationType)
+            Debug.Assert(_config.WidthShiftRangeInPercentage >= 0);
+            Debug.Assert(_config.WidthShiftRangeInPercentage <= 1.0);
+            Debug.Assert(_config.HeightShiftRangeInPercentage >= 0);
+            Debug.Assert(_config.HeightShiftRangeInPercentage <= 1.0);
+            Debug.Assert(_config.CutoutPatchPercentage <= 1.0);
+            Debug.Assert(_config.RotationRangeInDegrees >= 0);
+            Debug.Assert(_config.RotationRangeInDegrees <= 180.0);
+            Debug.Assert(_config.ZoomRange >= 0);
+            Debug.Assert(_config.ZoomRange <= 1.0);
+
+            switch (_config.DataAugmentationType)
             {
                 case DataAugmentationEnum.DEFAULT:
-                    return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, rand);
+                    return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic, rand);
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10:
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, _cutoutPatchPercentage, _alphaCutMix, _alphaMixup).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, _config.CutoutPatchPercentage, _config.AlphaCutMix, _config.AlphaMixup).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX:
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 1.0, 0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 1.0).GetSubPolicyCifar10();
-
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
-                    throw new NotImplementedException("unknown DataAugmentationEnum: " + _dataAugmentationType);
+                    throw new NotImplementedException("unknown DataAugmentationEnum: " + _config.DataAugmentationType);
                 case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
-                    throw new NotImplementedException("unknown DataAugmentationEnum: " + _dataAugmentationType);
+                    throw new NotImplementedException("unknown DataAugmentationEnum: " + _config.DataAugmentationType);
                 case DataAugmentationEnum.NO_AUGMENTATION:
                     return new List<Operation>();
                 default:
-                    throw new NotImplementedException("unknown DataAugmentationEnum: "+ _dataAugmentationType); 
+                    throw new NotImplementedException("unknown DataAugmentationEnum: "+ _config.DataAugmentationType); 
             }
         }
 
-        private List<Operation> DefaultSubPolicy(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)
+
+        private List<Operation> DefaultSubPolicy(
+            int indexInMiniBatch,
+            CpuTensor<float> xOriginalMiniBatch,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
+            Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
+            Random rand)
         {
             var result = new List<Operation>();
 
+            var lazyStats = new Lazy<ImageStatistic>(() => indexInMiniBatchToImageStatistic(indexInMiniBatch));
+
             var nbRows = xOriginalMiniBatch.Shape[2];
             var nbCols = xOriginalMiniBatch.Shape[3];
-            result.Add(Rotate.ValueOf(_rotationRangeInDegrees, rand, nbRows, nbCols));
+            result.Add(Rotate.ValueOf(_config.RotationRangeInDegrees, rand, nbRows, nbCols));
 
             double widthMultiplier = 1.0;
-            if (_zoomRange > 0)
+            if (_config.ZoomRange > 0)
             {
                 //random zoom multiplier in range [1.0-zoomRange, 1.0+zoomRange]
-                var zoom = 2 * _zoomRange * rand.NextDouble() - _zoomRange;
+                var zoom = 2 * _config.ZoomRange * rand.NextDouble() - _config.ZoomRange;
                 widthMultiplier = (1.0 + zoom);
                 result.Add(new ShearX(widthMultiplier));
             }
-            result.Add(TranslateX.ValueOf(_widthShiftRangeInPercentage, rand, nbCols));
+            result.Add(TranslateX.ValueOf(_config.WidthShiftRangeInPercentage, rand, nbCols));
 
-            if (_zoomRange > 0)
+            if (_config.ZoomRange > 0)
             {
                 double heightMultiplier = widthMultiplier;
                 result.Add(new ShearY(heightMultiplier));
             }
-            result.Add(TranslateY.ValueOf(_heightShiftRangeInPercentage, rand, nbRows));
+            result.Add(TranslateY.ValueOf(_config.HeightShiftRangeInPercentage, rand, nbRows));
 
-            var verticalFlip = _verticalFlip && rand.Next(2) == 0;
+            var verticalFlip = _config.VerticalFlip && rand.Next(2) == 0;
             if (verticalFlip)
             {
                 result.Add(new VerticalFlip(nbRows));
             }
-            var horizontalFlip = _horizontalFlip && rand.Next(2) == 0;
+            var horizontalFlip = _config.HorizontalFlip && rand.Next(2) == 0;
             if (horizontalFlip)
             {
                 result.Add(new HorizontalFlip(nbCols));
             }
-            result.Add(CutMix.ValueOf(_alphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
-            result.Add(Mixup.ValueOf(_alphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
-            result.Add(Cutout.ValueOf(_cutoutPatchPercentage, rand, nbRows, nbCols));
+            if (IsEnabled(_config.EqualizeOperationProbability, rand))
+            {
+                result.Add(new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(lazyStats.Value), meanAndVolatilityForEachChannel));
+            }
+            if (IsEnabled(_config.AutoContrastOperationProbability, rand))
+            {
+                result.Add(new AutoContrast(lazyStats.Value.GetPixelThresholdByChannel(0), meanAndVolatilityForEachChannel));
+            }
+            if (IsEnabled(_config.InvertOperationProbability, rand))
+            {
+                result.Add(new Invert(meanAndVolatilityForEachChannel));
+            }
+            if (IsEnabled(_config.BrightnessOperationProbability, rand))
+            {
+                result.Add(new Brightness((float)_config.BrightnessOperationEnhancementFactor, BlackMean(meanAndVolatilityForEachChannel)));
+            }
+            if (IsEnabled(_config.ColorOperationProbability, rand))
+            {
+                result.Add(new Color((float)_config.ColorOperationEnhancementFactor));
+            }
+            if (IsEnabled(_config.ContrastOperationProbability, rand))
+            {
+                result.Add(new Contrast((float)_config.ContrastOperationEnhancementFactor, lazyStats.Value.GreyMean(meanAndVolatilityForEachChannel)));
+            }
+            result.Add(CutMix.ValueOf(_config.AlphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(Mixup.ValueOf(_config.AlphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(Cutout.ValueOf(_config.CutoutPatchPercentage, rand, nbRows, nbCols));
             result.RemoveAll(x => x == null);
             OperationHelper.CheckIntegrity(result);
             return result;
@@ -195,76 +150,34 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> yMiniBatch,
             Func<int, int> indexInMiniBatchToCategoryId,
             Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
+            Random rand)
         {
-            var rand = _rands[indexInMiniBatch % _rands.Length];
-            var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, indexInMiniBatchToImageStatistic, meanAndVolatilityForEachChannel, rand);
+            var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic, rand);
             OperationHelper.CheckIntegrity(subPolicy);
-            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryId, meanAndVolatilityForEachChannel, _fillMode);
+            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryId, meanAndVolatilityForEachChannel, _config.FillMode);
         }
 
-        public bool Equals(ImageDataGenerator other, double epsilon, string id, ref string errors)
+        public static bool IsEnabled(double probability, Random rand)
         {
-            var equals = true;
-            equals &= Utils.Equals(_dataAugmentationType, other._dataAugmentationType, id + ":_dataAugmentationType", ref errors);
-            equals &= Utils.Equals(_widthShiftRangeInPercentage, other._widthShiftRangeInPercentage, epsilon, id + ":_widthShiftRange", ref errors);
-            equals &= Utils.Equals(_heightShiftRangeInPercentage, other._heightShiftRangeInPercentage, epsilon, id + ":_heightShiftRange", ref errors);
-            equals &= Utils.Equals(_horizontalFlip, other._horizontalFlip, id + ":_horizontalFlip", ref errors);
-            equals &= Utils.Equals(_verticalFlip, other._verticalFlip, id + ":_verticalFlip", ref errors);
-            equals &= Utils.Equals(_fillMode, other._fillMode, id + ":_fillMode", ref errors);
-            equals &= Utils.Equals(_fillModeConstantVal, other._fillModeConstantVal, epsilon, id + ":_fillModeConstantVal", ref errors);
-            equals &= Utils.Equals(_cutoutPatchPercentage, other._cutoutPatchPercentage, epsilon, id + ":_cutoutPatchPercentage", ref errors);
-            equals &= Utils.Equals(_alphaCutMix, other._alphaCutMix, epsilon, id + ":_alphaCutMix", ref errors);
-            equals &= Utils.Equals(_alphaMixup, other._alphaMixup, epsilon, id + ":_AlphaMixup", ref errors);
-            equals &= Utils.Equals(_rotationRangeInDegrees, other._rotationRangeInDegrees, epsilon, id + ":_rotationRangeInDegrees", ref errors);
-            equals &= Utils.Equals(_zoomRange, other._zoomRange, epsilon, id + ":_zoomRange", ref errors);
-            return equals;
+            if (probability < 1e-6)
+            {
+                return false;
+            }
+            if (probability > (1.0 - 1e-6))
+            {
+                return true;
+            }
+            return rand.NextDouble() >= probability;
+        }
+        public static float BlackMean(List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+        {
+            var blackMean = Operation.GetGreyScale(
+                Operation.NormalizedValue(0f, 0, meanAndVolatilityForEachChannel),
+                Operation.NormalizedValue(0f, 1, meanAndVolatilityForEachChannel),
+                Operation.NormalizedValue(0f, 2, meanAndVolatilityForEachChannel));
+            return blackMean;
         }
 
-        #region serialization
-        public string Serialize()
-        {
-            if (!UseDataAugmentation)
-            {
-                return "";
-            }
-            return new Serializer()
-                .Add(nameof(_dataAugmentationType), (int)_dataAugmentationType)
-                .Add(nameof(_widthShiftRangeInPercentage), _widthShiftRangeInPercentage)
-                .Add(nameof(_heightShiftRangeInPercentage), _heightShiftRangeInPercentage)
-                .Add(nameof(_horizontalFlip), _horizontalFlip)
-                .Add(nameof(_verticalFlip), _verticalFlip)
-                .Add(nameof(_fillMode), (int)_fillMode)
-                .Add(nameof(_fillModeConstantVal), _fillModeConstantVal)
-                .Add(nameof(_cutoutPatchPercentage), _cutoutPatchPercentage)
-                .Add(nameof(_alphaCutMix), _alphaCutMix)
-                .Add(nameof(_alphaMixup), _alphaMixup)
-                .Add(nameof(_rotationRangeInDegrees), _rotationRangeInDegrees)
-                .Add(nameof(_zoomRange), _zoomRange)
-                .ToString();
-        }
-        public static ImageDataGenerator ValueOf(IDictionary<string, object> serialized)
-        {
-            if (!serialized.ContainsKey(nameof(_widthShiftRangeInPercentage)))
-            {
-                return NoDataAugmentation;
-            }
-            return new ImageDataGenerator(
-                (DataAugmentationEnum)serialized[nameof(_dataAugmentationType)],
-                (double)serialized[nameof(_widthShiftRangeInPercentage)],
-                (double)serialized[nameof(_heightShiftRangeInPercentage)],
-                (bool)serialized[nameof(_horizontalFlip)],
-                (bool)serialized[nameof(_verticalFlip)],
-                (FillModeEnum)serialized[nameof(_fillMode)],
-                (double)serialized[nameof(_fillModeConstantVal)],
-                (double)serialized[nameof(_cutoutPatchPercentage)],
-                (double)serialized[nameof(_alphaCutMix)],
-                (double)serialized[nameof(_alphaMixup)], 
-                (double)serialized[nameof(_rotationRangeInDegrees)], 
-                (double)serialized[nameof(_zoomRange)]);
-        }
-        #endregion
- 
-        public bool UseDataAugmentation => !ReferenceEquals(this, NoDataAugmentation);
     }
 }

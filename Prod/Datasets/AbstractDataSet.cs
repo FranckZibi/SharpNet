@@ -23,6 +23,7 @@ namespace SharpNet.Datasets
         /// </summary>
         private CpuTensor<float> xOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(xOutputCpuChunkBuffer));
         private CpuTensor<float> yOutputCpuChunkBuffer = new CpuTensor<float>(new[] { 1 }, nameof(yOutputCpuChunkBuffer));
+        private readonly Random[] _rands;
         /// <summary>
         /// the mean and volatility used to normalize the 'this' DataSet
         /// will be null or empty if no normalization occured in the DataSet
@@ -37,12 +38,24 @@ namespace SharpNet.Datasets
             Channels = channels;
             Categories = categories;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
+            _rands = new Random[2 * Environment.ProcessorCount];
+            for (int i = 0; i < _rands.Length; ++i)
+            {
+                _rands[i] = new Random(i);
+            }
         }
         #endregion
 
+        private Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
+        {
+            var rand = _rands[indexInMiniBatch % _rands.Length];
+            return rand;
+        }
+
         public abstract void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer);
-        public void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> indexInCurrentEpochToElementId,
-            ImageDataGenerator imageDataGenerator, ref Tensor xChunkBuffer, ref Tensor yChunkBuffer)
+        public void Load(int epoch, bool isTraining, int indexFirstElement,
+            IReadOnlyList<int> indexInCurrentEpochToElementId,
+            DataAugmentationConfig dataAugmentationConfig, ref Tensor xChunkBuffer, ref Tensor yChunkBuffer)
         {
             xChunkBuffer.AssertIsNotDisposed();
             yChunkBuffer.AssertIsNotDisposed();
@@ -84,14 +97,15 @@ namespace SharpNet.Datasets
                 }
             }
 
-            if (!imageDataGenerator.UseDataAugmentation || (epoch == 1) || !isTraining)
+            if (!dataAugmentationConfig.UseDataAugmentation || (epoch == 1) || !isTraining)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
                 xInputCpuChunkBuffer.CopyTo(xOutputCpuChunkBuffer);
             }
             else
             {
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xInputCpuChunkBuffer, xOutputCpuChunkBuffer, yOutputCpuChunkBuffer, IndexInMiniBatchToCategoryId, IndexInMiniBatchToImageStatistic, MeanAndVolatilityForEachChannel));
+                var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xInputCpuChunkBuffer, xOutputCpuChunkBuffer, yOutputCpuChunkBuffer, IndexInMiniBatchToCategoryId, IndexInMiniBatchToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
             }
 
             if (xChunkBuffer.UseGPU)

@@ -20,7 +20,6 @@ namespace SharpNet.Networks
     public class Network
     {
         #region fields
-        private readonly ImageDataGenerator _imageDataGenerator;
         private BackwardPropagationManager _backwardPropagationManager;
         public NetworkConfig Config { get; }
         public List<Layer> Layers { get; } = new List<Layer>();
@@ -51,7 +50,6 @@ namespace SharpNet.Networks
         /// 
         /// </summary>
         /// <param name="config"></param>
-        /// <param name="imageDataGenerator"></param>
         /// <param name="gpuDeviceId">
         /// if -1
         ///     run the network on CPU (no GPU usage)
@@ -59,10 +57,9 @@ namespace SharpNet.Networks
         ///     run the network on the GPU with device Id 'gpuDeviceId'
         /// </param>
         /// <param name="epochData"></param>
-        public Network(NetworkConfig config, ImageDataGenerator imageDataGenerator, int gpuDeviceId, List<EpochData> epochData = null)
+        public Network(NetworkConfig config, int gpuDeviceId, List<EpochData> epochData = null)
         {
             Config = config;
-            _imageDataGenerator = imageDataGenerator??ImageDataGenerator.NoDataAugmentation;
             _epochsData = epochData ?? new List<EpochData>();
             _gpuDeviceId = gpuDeviceId;
             GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(gpuDeviceId) : null;
@@ -131,7 +128,7 @@ namespace SharpNet.Networks
         public Network Clone(GPUWrapper newGpuWrapper)
         {
             var clonedNetworkGpuDeviceId = newGpuWrapper?.DeviceId ?? -1;
-            var clonedNetwork = new Network(Config, _imageDataGenerator, clonedNetworkGpuDeviceId, new List<EpochData>(_epochsData));
+            var clonedNetwork = new Network(Config, clonedNetworkGpuDeviceId, new List<EpochData>(_epochsData));
             clonedNetwork.Description = Description;
             foreach (var l in Layers)
             {
@@ -194,7 +191,6 @@ namespace SharpNet.Networks
             var equals = true;
             equals &= Utils.Equals(Description, other.Description, id + ":Description", ref errors);
             equals &= Config.Equals(other.Config, epsilon, id, ref errors);
-            equals &= _imageDataGenerator.Equals(other._imageDataGenerator, epsilon, id, ref errors);
             equals &= Utils.Equals(other._gpuDeviceId, _gpuDeviceId, id, ref errors);
             equals &= Utils.Equals(Layers.Count, other.Layers.Count, id + ":Layers.Count", ref errors);
             for (int i = 0; i < Math.Min(Layers.Count, other.Layers.Count); ++i)
@@ -533,10 +529,9 @@ namespace SharpNet.Networks
             var content = File.ReadAllLines(path);
             var dicoFirstLine = Serializer.Deserialize(content[0], null);
             var config = NetworkConfig.ValueOf(dicoFirstLine);
-            var imageDataGenerator = ImageDataGenerator.ValueOf(dicoFirstLine);
             var gpuDeviceId = overrideGpuDeviceId ?? (int)dicoFirstLine[nameof(_gpuDeviceId)];
             var epochsData = (EpochData[])dicoFirstLine[nameof(_epochsData)];
-            var network = new Network(config, imageDataGenerator, gpuDeviceId, epochsData.ToList());
+            var network = new Network(config, gpuDeviceId, epochsData.ToList());
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
             for (int i = 1; i < content.Length; ++i)
             {
@@ -549,7 +544,6 @@ namespace SharpNet.Networks
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
-                .Add(_imageDataGenerator.Serialize())
                 .Add(nameof(_gpuDeviceId), _gpuDeviceId)
                 .Add(nameof(_epochsData), _epochsData.ToArray())
                 .ToString();
@@ -954,7 +948,7 @@ namespace SharpNet.Networks
 
                 var yExpectedMiniBatch = _yExpectedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 _swCreateInputForEpoch?.Start();
-                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, orderInCurrentEpochToElementId, _imageDataGenerator, ref xMiniBatch, ref yExpectedMiniBatch);
+                dataSet.Load(epoch, isTraining, blockId * miniBatchSize, orderInCurrentEpochToElementId, Config.DataAugmentation, ref xMiniBatch, ref yExpectedMiniBatch);
                 _swCreateInputForEpoch?.Stop();
 
                 var yPredictedMiniBatch = _yPredictedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);

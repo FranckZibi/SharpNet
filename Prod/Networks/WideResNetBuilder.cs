@@ -30,16 +30,6 @@ namespace SharpNet.Networks
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                 ,
 
-                //Data augmentation
-                //WidthShiftRange = 0.1,
-                //HeightShiftRange = 0.1,
-                HorizontalFlip = true,
-                VerticalFlip = true,
-                //RotationRangeInDegrees = 180,
-                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                AlphaCutMix = 0.0, //no CutMix
-                AlphaMixup = 1.0, //with mixup
-                CutoutPatchPercentage = 0.0, //no cutout
 
                 WRN_AvgPoolingSize = 8,
                 NumEpochs = 70,
@@ -47,6 +37,20 @@ namespace SharpNet.Networks
                 WRN_DropOut = 0.0, //by default we disable dropout
                 InitialLearningRate = 0.1,
             };
+
+            //Data augmentation
+            var da = builder.Config.DataAugmentation;
+            //da.WidthShiftRangeInPercentage = 0.1;
+            //da.HeightShiftRangeInPercentage = 0.1;
+            da.HorizontalFlip = true;
+            da.VerticalFlip = true;
+            //da.RotationRangeInDegrees = 180;
+            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            da.AlphaCutMix = 0.0; //no CutMix
+            da.AlphaMixup = 1.0; //with mixup
+            da.CutoutPatchPercentage = 0.0; //no cutout
+
+
             return builder;
         }
 
@@ -62,7 +66,7 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public static WideResNetBuilder WRN_CIFAR10()
         {
-            return new WideResNetBuilder
+            var builder = new WideResNetBuilder
             {
                 Config = new NetworkConfig
                     {
@@ -74,25 +78,6 @@ namespace SharpNet.Networks
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2) //new default value on 14-aug-2019
                 ,
 
-                //Data augmentation
-                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-                WidthShiftRange = 0.1,
-                HeightShiftRange = 0.1,
-                HorizontalFlip = true,
-                VerticalFlip = false,
-                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                //Mixup is discarded
-                AlphaMixup = 0.0,
-                //We use CutMix, lambda will follow a uniform distribution in [0,1]
-                AlphaCutMix = 1.0, //validated on 14-aug-2019 : +15 bps
-                //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
-                CutoutPatchPercentage = 0.0,
-                //CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR-10: +75 bps vs no cutout (= 0.0)
-                //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR-10: -60 bps vs 0.5
-
-
-
-
                 NumEpochs = 150, //changed on 8-aug-2019 : new default batch size : 150 (was 200)
                 BatchSize = 128,
                 WRN_DropOut = 0.0, //by default we disable dropout
@@ -102,6 +87,26 @@ namespace SharpNet.Networks
                 //DropOutAfterDenseLayer = 0.3; //discarded on 05-june-2019: -136 bps
                 WRN_DropOutAfterDenseLayer = 0,
             };
+
+            //Data augmentation
+            var da = builder.Config.DataAugmentation;
+            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+            da.WidthShiftRangeInPercentage = 0.1;
+            da.HeightShiftRangeInPercentage = 0.1;
+            da.HorizontalFlip = true;
+            da.VerticalFlip = false;
+            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            //Mixup is discarded
+            da.AlphaMixup = 0.0;
+            //We use CutMix, lambda will follow a uniform distribution in [0,1]
+            da.AlphaCutMix = 1.0; //validated on 14-aug-2019 : +15 bps
+            //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
+            da.CutoutPatchPercentage = 0.0;
+            //da.CutoutPatchPercentage = 0.5; //validated on 04-aug-2019 for CIFAR-10: +75 bps vs no cutout (= 0.0)
+            //da.CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR-10: -60 bps vs 0.5
+
+
+            return builder;
         }
 
         /// <summary>
@@ -110,7 +115,7 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public static WideResNetBuilder WRN_CIFAR100()
         {
-            return new WideResNetBuilder
+            var builder = new WideResNetBuilder
             {
                 Config = new NetworkConfig
                     {
@@ -120,17 +125,6 @@ namespace SharpNet.Networks
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
 
-                //Data augmentation
-                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-                WidthShiftRange = 0.1,
-                HeightShiftRange = 0.1,
-                HorizontalFlip = true,
-                VerticalFlip = false,
-                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                AlphaMixup = 0.0,
-                AlphaCutMix = 1.0,
-                CutoutPatchPercentage = 0.0,
-
                 NumEpochs = 150,
                 BatchSize = 128,
                 WRN_DropOut = 0.0,
@@ -138,6 +132,20 @@ namespace SharpNet.Networks
                 WRN_AvgPoolingSize = 2,
                 WRN_DropOutAfterDenseLayer = 0
             };
+
+            //Data augmentation
+            var da = builder.Config.DataAugmentation;
+            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+            da.WidthShiftRangeInPercentage = 0.1;
+            da.HeightShiftRangeInPercentage = 0.1;
+            da.HorizontalFlip = true;
+            da.VerticalFlip = false;
+            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            da.AlphaMixup = 0.0;
+            da.AlphaCutMix = 1.0;
+            da.CutoutPatchPercentage = 0.0;
+
+            return builder;
         }
 
         /// <summary>

@@ -483,8 +483,7 @@ namespace SharpNetTests.NonReg
             var gpuDeviceId = -1;
             var network = new Network(new NetworkConfig{ Logger = logger, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, RandomizeOrder = false }
                        //.WithAdam(0.9,0.999)
-                       .WithSGD(momentum, false)
-                        ,ImageDataGenerator.NoDataAugmentation, 
+                       .WithSGD(momentum, false),
                         gpuDeviceId
                 );
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
@@ -561,7 +560,7 @@ namespace SharpNetTests.NonReg
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction)
         {
             var gpuDeviceId = -1;
-            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, LossFunction = lossFunction, RandomizeOrder = false, ForceTensorflowCompatibilityMode = true}, ImageDataGenerator.NoDataAugmentation, gpuDeviceId);
+            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, LossFunction = lossFunction, RandomizeOrder = false, ForceTensorflowCompatibilityMode = true}, gpuDeviceId);
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {

@@ -77,7 +77,7 @@ namespace SharpNet.DataAugmentation
         // ReSharper disable once UnusedMember.Local
         private Operation ShearX(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -92,7 +92,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation ShearY(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -108,7 +108,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation TranslateX(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -125,7 +125,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation TranslateY(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -142,7 +142,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Rotate(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -157,7 +157,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation AutoContrast(double probability)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -172,7 +172,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Invert(double probability)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -186,18 +186,13 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation HorizontalFlip(double probability)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
             return new HorizontalFlip(NbCols);
         }
 
-        /// <summary>
-        /// Vertical Flip of the image
-        /// </summary>
-        /// <param name="probability"></param>
-        /// <returns></returns>
         //private Operation VerticalFlip(double probability)
         //{
         //    if (!IsEnabled(probability, _rand))
@@ -215,7 +210,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Solarize(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -242,7 +237,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Posterize(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -259,25 +254,12 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Contrast(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
-            var ponderedAverageByChannel =  new List<float>();
-            var pixelCount = _stats.Shape[1] * _stats.Shape[2];
-            for (var channel = 0; channel < _stats.PixelCountByChannel.Count; channel++)
-            {
-                var count = _stats.PixelCountByChannel[channel];
-                float sum = 0;
-                for (int i = 0; i < count.Length; ++i)
-                {
-                    sum += i * count[i];
-                }
-                var normalizedValue = Operation.NormalizedValue(sum / pixelCount, channel, _meanAndVolatilityForEachChannel);
-                ponderedAverageByChannel.Add(normalizedValue);
-            }
-            var greyMean = Operation.GetGreyScale(ponderedAverageByChannel[0], ponderedAverageByChannel[1], ponderedAverageByChannel[2]);
             var enhancementFactor = MagnitudeToRange(magnitude_0_9, 0.1f, 1.9f);
+            var greyMean = _stats.GreyMean(_meanAndVolatilityForEachChannel);
             return new Contrast(enhancementFactor, greyMean);
         }
 
@@ -291,7 +273,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Color(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -308,18 +290,16 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Brightness(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
             var enhancementFactor = MagnitudeToRange(magnitude_0_9, 0.1f, 1.9f);
-            var blackMean = Operation.GetGreyScale(
-                Operation.NormalizedValue(0f, 0, _meanAndVolatilityForEachChannel),
-                Operation.NormalizedValue(0f, 1, _meanAndVolatilityForEachChannel),
-                Operation.NormalizedValue(0f, 2, _meanAndVolatilityForEachChannel));
+            var blackMean = ImageDataGenerator.BlackMean(_meanAndVolatilityForEachChannel);
             return new Brightness(enhancementFactor, blackMean);
         }
 
+    
         /// <summary>
         /// Adjust the sharpness of the image. A magnitude=0 gives a
         /// blurred image, whereas magnitude=1 gives the original image.
@@ -329,7 +309,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Sharpness(double probability, int magnitude_0_9)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -347,7 +327,7 @@ namespace SharpNet.DataAugmentation
         /// <returns></returns>
         private Operation Equalize(double probability)
         {
-            if (!IsEnabled(probability, _rand))
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
             {
                 return null;
             }
@@ -369,19 +349,6 @@ namespace SharpNet.DataAugmentation
             subPolicy.RemoveAll(x => x == null);
             OperationHelper.CheckIntegrity(subPolicy);
             return subPolicy;
-        }
-
-        private static bool IsEnabled(double probability, Random rand)
-        {
-            if (probability < 1e-6)
-            {
-                return false;
-            }
-            if (probability > (1.0 - 1e-6))
-            {
-                return true;
-            }
-            return rand.NextDouble() >= probability;
         }
 
         ///// <summary>

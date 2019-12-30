@@ -56,6 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CPU\TestCpuTensor.cs" />
+    <Compile Include="DataAugmentation\DataAugmentationConfigTests.cs" />
     <Compile Include="DataAugmentation\Operations\OperationHelperTests.cs" />
     <Compile Include="Data\EpochDataTests.cs" />
     <Compile Include="Data\TestTensor.cs" />
@@ -73,7 +74,6 @@
     <Compile Include="DataAugmentation\Operations\ShearTests.cs" />
     <Compile Include="DataAugmentation\Operations\SolarizeTests.cs" />
     <Compile Include="DataAugmentation\Operations\TranslateTests.cs" />
-    <Compile Include="DataAugmentation\ImageDataGeneratorTests.cs" />
     <Compile Include="DataAugmentation\SubPolicyTests.cs" />
     <Compile Include="DataAugmentation\Operations\OperationTests.cs" />
     <Compile Include="DataAugmentation\Operations\FlipTests.cs" />

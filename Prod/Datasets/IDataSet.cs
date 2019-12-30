@@ -20,12 +20,12 @@ namespace SharpNet.Datasets
         /// <param name="isTraining"></param>
         /// <param name="indexFirstElement">The index of the first element to load (the very first element fo the data set is at index 0</param>
         /// <param name="indexInCurrentEpochToElementId"></param>
-        /// <param name="imageDataGenerator"></param>
+        /// <param name="dataAugmentationConfig"></param>
         /// <param name="x"></param>
         /// <param name="y"></param>
         /// <returns></returns>
         void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> indexInCurrentEpochToElementId,
-            ImageDataGenerator imageDataGenerator, ref Tensor x, ref Tensor y);
+            DataAugmentationConfig dataAugmentationConfig, ref Tensor x, ref Tensor y);
 
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
