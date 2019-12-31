@@ -279,7 +279,7 @@ namespace SharpNet.DataAugmentation
             }
             var enhancementFactor = MagnitudeToRange(magnitude_0_9, 0.1f, 1.9f);
             return new Color(enhancementFactor);
-}
+        }
 
         /// <summary>
         /// Adjust the brightness of the image. A magnitude=0 gives a
@@ -314,7 +314,7 @@ namespace SharpNet.DataAugmentation
             }
             var enhancementFactor = MagnitudeToRange(magnitude_0_9, 0.1f, 1.9f);
             //https://hhsprings.bitbucket.io/docs/programming/examples/python/PIL/ImageEnhance.html
-            return new Sharpness(_meanAndVolatilityForEachChannel, enhancementFactor);
+            return new Sharpness(enhancementFactor);
         }
 
         /// <summary>

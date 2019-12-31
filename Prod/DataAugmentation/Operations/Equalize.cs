@@ -9,8 +9,7 @@ namespace SharpNet.DataAugmentation.Operations
         private readonly List<int[]> _originalPixelToEqualizedPixelByChannel;
         private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
 
-        /// <summary>
-        /// </summary>
+
         public Equalize(List<int[]> originalPixelToEqualizedPixelByChannel, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
         {
             _originalPixelToEqualizedPixelByChannel = originalPixelToEqualizedPixelByChannel;
@@ -59,7 +58,5 @@ namespace SharpNet.DataAugmentation.Operations
             }
             return originalPixelToEqualizedPixelByChannel;
         }
-
-
     }
 }

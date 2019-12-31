@@ -42,15 +42,6 @@ namespace SharpNet.DataAugmentation.Operations
             return (unnormalizedValue - meanAndVolatility.Item1) / meanAndVolatility.Item2;
         }
 
-        public static float GetGreyScale(CpuTensor<float> xDataAugmentedMiniBatch, int rowOutput, int colOutput)
-        {
-            Debug.Assert(xDataAugmentedMiniBatch.Shape.Length == 3);    // (n, h, w)
-            Debug.Assert(xDataAugmentedMiniBatch.Shape[0] == 3);        // (R, G, B)
-            var r = xDataAugmentedMiniBatch.Get(0, rowOutput, colOutput);
-            var g = xDataAugmentedMiniBatch.Get(1, rowOutput, colOutput);
-            var b = xDataAugmentedMiniBatch.Get(2, rowOutput, colOutput);
-            return GetGreyScale(r, g, b);
-        }
         public static float GetGreyScale(float r, float g, float b)
         {
             return r * 0.299f + g * 0.587f + b * 0.114f;

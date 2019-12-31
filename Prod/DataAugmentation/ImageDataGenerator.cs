@@ -155,7 +155,7 @@ namespace SharpNet.DataAugmentation
         {
             var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic, rand);
             OperationHelper.CheckIntegrity(subPolicy);
-            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryId, meanAndVolatilityForEachChannel, _config.FillMode);
+            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryId, _config.FillMode);
         }
 
         public static bool IsEnabled(double probability, Random rand)

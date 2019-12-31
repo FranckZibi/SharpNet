@@ -14,7 +14,6 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> xDataAugmentedMiniBatch,
             CpuTensor<float> yMiniBatch,
             Func<int, int> indexInMiniBatchToCategoryId,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ImageDataGenerator.FillModeEnum fillMode)
         {
             var unconvertCX = Unconvert_Slow(subPolicy, 0, 0).row;

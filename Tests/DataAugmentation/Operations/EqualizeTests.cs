@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using SharpNet.CPU;
 using SharpNet.DataAugmentation;
 using SharpNet.DataAugmentation.Operations;
 using SharpNet.Pictures;
@@ -10,7 +11,6 @@ namespace SharpNetTests.DataAugmentation.Operations
     [TestFixture]
     public class EqualizeTests
     {
-
         [Test]
         public void TestGetOriginalPixelToEqualizedPixelByChannel()
         {
@@ -32,7 +32,9 @@ namespace SharpNetTests.DataAugmentation.Operations
             const string path = @"C:\download\b\srcimg07.jpg";
             var bmp = BitmapContent.ValueFomSingleRgbBitmap(path, path);
             var stats = ImageStatistic.ValueOf(bmp);
-            OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), null) }, path, @"C:\download\b\srcimg07_Equalize2.jpg");
+            OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), null) }, path, @"C:\download\b\srcimg07_Equalize2.jpg", false);
+            var meanAndVolatilityForEachChannel = new CpuTensor<byte>(new[] { 1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2] }, bmp.Content, "").ComputeMeanAndVolatilityOfEachChannel(x => (float)x);
+            OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), meanAndVolatilityForEachChannel) }, path, @"C:\download\b\srcimg07_Equalize2_true.jpg", true);
         }
 
         [Test]
