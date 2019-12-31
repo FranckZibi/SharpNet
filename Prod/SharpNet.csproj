@@ -64,6 +64,7 @@
     <Compile Include="DataAugmentation\Operations\Operation.cs" />
     <Compile Include="DataAugmentation\Operations\OperationHelper.cs" />
     <Compile Include="DataAugmentation\Operations\Posterize.cs" />
+    <Compile Include="DataAugmentation\Operations\Sharpness.cs" />
     <Compile Include="DataAugmentation\Operations\Solarize.cs" />
     <Compile Include="DataAugmentation\PointTransformer.cs" />
     <Compile Include="DataAugmentation\Operations\Rotate.cs" />

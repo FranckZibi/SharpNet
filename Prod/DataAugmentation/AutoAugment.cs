@@ -298,7 +298,6 @@ namespace SharpNet.DataAugmentation
             var blackMean = ImageDataGenerator.BlackMean(_meanAndVolatilityForEachChannel);
             return new Brightness(enhancementFactor, blackMean);
         }
-
     
         /// <summary>
         /// Adjust the sharpness of the image. A magnitude=0 gives a
@@ -313,12 +312,10 @@ namespace SharpNet.DataAugmentation
             {
                 return null;
             }
-            //?D TODO
-            return null;
+            var enhancementFactor = MagnitudeToRange(magnitude_0_9, 0.1f, 1.9f);
             //https://hhsprings.bitbucket.io/docs/programming/examples/python/PIL/ImageEnhance.html
-            //throw new NotImplementedException();
+            return new Sharpness(_meanAndVolatilityForEachChannel, enhancementFactor);
         }
-
 
         /// <summary>
         /// Equalize the image histogram.
