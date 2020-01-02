@@ -4,7 +4,6 @@ using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;

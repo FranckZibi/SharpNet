@@ -118,9 +118,9 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_RecursionCellularImageClassification_WRN(x, 10, 4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 16,8,WidthAptos2019);},
 
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
@@ -128,17 +128,24 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT; p.ExtraDescription = "";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP";return p;},
+
+
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5; p.ExtraDescription = "_Equalize_0_50";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.AutoContrastOperationProbability = 0.5; p.ExtraDescription = "_AutoContrast_0_50";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.InvertOperationProbability = 0.5; p.ExtraDescription = "_Invert_0_50";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Color_0_50_1_00";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.ContrastOperationProbability = 0.5;p.DA.ContrastOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Contrast_0_50_1_10";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5;p.DA.AutoContrastOperationProbability = 0.5; p.ExtraDescription = "_Equalize_0_50_AutoContrast_0_50";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5;p.DA.AutoContrastOperationProbability = 0.5;p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Equalize_0_50_AutoContrast_0_50_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5; p.ExtraDescription = "_Equalize_0_50";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.AutoContrastOperationProbability = 0.5; p.ExtraDescription = "_AutoContrast_0_50";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.InvertOperationProbability = 0.5; p.ExtraDescription = "_Invert_0_50";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Color_0_50_1_00";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.ContrastOperationProbability = 0.5;p.DA.ContrastOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Contrast_0_50_1_10";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5;p.DA.AutoContrastOperationProbability = 0.5; p.ExtraDescription = "_Equalize_0_50_AutoContrast_0_50";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.EqualizeOperationProbability = 0.5;p.DA.AutoContrastOperationProbability = 0.5;p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Equalize_0_50_AutoContrast_0_50_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.BrightnessOperationProbability = 0.5;p.DA.BrightnessOperationEnhancementFactor = 1.0;p.DA.ColorOperationProbability = 0.5;p.DA.ColorOperationEnhancementFactor = 1.0; p.ExtraDescription = "_Brightness_0_50_1_00_Color_0_50_1_00";return p;},
 
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 0.5; p.ExtraDescription = "_CutoutOnly";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 1.0;p.DA.CutoutPatchPercentage = 0.5; p.ExtraDescription = "_CutMix_Cutout";return p;},
@@ -156,7 +163,7 @@ namespace SharpNetTests
                 //() => { p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.5;p.AlphaMixup = 0.0;p.ExtraDescription = "_Cutout_only";},
                 ////10-aug-2019: -10 bps
                 //() =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(1, 2);p.NumEpochs = 127;p.ExtraDescription = "_CyclicCosineAnnealing_1_2_127Epochs";},
-                
+
 
                 //() =>{p.RecursionCellularImageClassification();p.ExtraDescription = "_RecursionCellular";},
                 //() => { p.CutMix = false;p.CutoutPatchPercentage = 0.5;},

@@ -58,12 +58,15 @@ namespace SharpNet.DataAugmentation.Operations
 
         public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryId)
         {
+            int nbRows = _xOriginalMiniBatch.Shape[2];
+            int nbCols = _xOriginalMiniBatch.Shape[3];
+
             // if CutMix has been used, wee need to update the expected output ('y' tensor)
             var originalCategoryId = indexInMiniBatchToCategoryId(indexInMiniBatch);
             var cutMixCategoryId = indexInMiniBatchToCategoryId(_indexInMiniBatchForCutMix);
             if (originalCategoryId != cutMixCategoryId)
             {
-                float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (NbCols * NbRows);
+                float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
                 //        'cutMixLambda' % of the category of the element at 'indexInMiniBatch'
@@ -73,21 +76,17 @@ namespace SharpNet.DataAugmentation.Operations
             }
         }
 
-        public override float AugmentedValue(float initialValue, int indexInMiniBatch,
-            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput)
+        public override float AugmentedValue(int indexInMiniBatch, int channel,
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
+            CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
             //we check if we should apply cutMix to the pixel
             //this CutMix check must be performed *before* the Cutout check
             if (rowOutput >= _rowStart && rowOutput <= _rowEnd && colOutput >= _colStart && colOutput <= _colEnd)
             {
-                return _xOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, channel, rowOutput, colOutput);
+                return _xOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, channel, rowInput, colInput);
             }
-            return initialValue;
+            return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
-
-        private int NbRows => _xOriginalMiniBatch.Shape[2];
-        private int NbCols => _xOriginalMiniBatch.Shape[3];
-
     }
 }

@@ -41,12 +41,12 @@ namespace SharpNet.DataAugmentation.Operations
             yMiniBatch.Set(indexInMiniBatch, mixupCategoryId, 1f - _mixupLambda);
         }
 
-        public override float AugmentedValue(float initialValue, int indexInMiniBatch,
-            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput)
+        public override float AugmentedValue(int indexInMiniBatch, int channel,
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
+            CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
-            return _mixupLambda * initialValue
-                   + (1 - _mixupLambda) * _xOriginalMiniBatch.Get(_indexInMiniBatchForMixup, channel, rowOutput, colOutput);
+            var initialValue = xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
+            return _mixupLambda * initialValue + (1 - _mixupLambda) * _xOriginalMiniBatch.Get(_indexInMiniBatchForMixup, channel, rowInput, colInput);
         }
     }
 }

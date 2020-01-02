@@ -18,17 +18,19 @@ namespace SharpNet.DataAugmentation.Operations
             _colEnd = colEnd;
         }
 
-        public override float AugmentedValue(float initialValue, int indexInMiniBatch,
-            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput)
+        public override float AugmentedValue(int indexInMiniBatch,
+            int channel,
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
+            CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
             //we check if we should apply Cutout to the pixel
             //this Cutout must be the last performed operation (so must be after the CutMix operation if any)
             if (rowOutput >= _rowStart && rowOutput <= _rowEnd && colOutput >= _colStart && colOutput <= _colEnd)
             {
+                //TODO check if we should return the mean instead
                 return 0;
             }
-            return initialValue;
+            return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
 
         public static Cutout ValueOf(double cutoutPatchPercentage, Random rand, int nbRows, int nbCols)

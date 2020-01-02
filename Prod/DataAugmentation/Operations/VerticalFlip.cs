@@ -1,3 +1,4 @@
+
 namespace SharpNet.DataAugmentation.Operations
 {
     public class VerticalFlip : Operation

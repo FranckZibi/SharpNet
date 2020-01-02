@@ -14,17 +14,17 @@ namespace SharpNet.DataAugmentation.Operations
             }
             var dico = operations.GroupBy(x => x.GetType()).ToDictionary(x => x.Key, x => x.Count());
 
-            //the following types are allowed to be duplicates in a list
-            var allowedDuplicates = new HashSet<Type> {typeof(TranslateX), typeof(TranslateY), typeof(Equalize)};
+            ////the following types are allowed to be duplicates in a list
+            //var allowedDuplicates = new HashSet<Type> {typeof(TranslateX), typeof(TranslateY), typeof(Equalize), typeof(Sharpness) };
+            ////no duplicates operations
+            //foreach (var e in dico)
+            //{
+            //    if (e.Value >= 2 && !allowedDuplicates.Contains(e.Key))
+            //    {
+            //        throw new ArgumentException(e.Value + " operations of type " + e.Key);
+            //    }
+            //}
 
-            //no duplicates operations
-            foreach (var e in dico)
-            {
-                if (e.Value >= 2 && !allowedDuplicates.Contains(e.Key))
-                {
-                    throw new ArgumentException(e.Value + " operations of type " + e.Key);
-                }
-            }
             //the Cutout operation (whe it is used) must be the last one in the least
             if (dico.ContainsKey(typeof(Cutout)) && operations.Last().GetType() != typeof(Cutout))
             {

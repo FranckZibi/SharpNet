@@ -12,12 +12,13 @@ namespace SharpNet.DataAugmentation.Operations
             _enhancementFactor = enhancementFactor;
         }
 
-        public override float AugmentedValue(float initialValue, int indexInMiniBatch,
-            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput)
+        public override float AugmentedValue(int indexInMiniBatch, int channel,
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
+            CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
-            var nbRows = xDataAugmentedMiniBatch.Shape[2];
-            var nbCols = xDataAugmentedMiniBatch.Shape[3];
+            var initialValue = xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
+            var nbRows = xInputMiniBatch.Shape[2];
+            var nbCols = xInputMiniBatch.Shape[3];
             int count = 0;
             var smoothValue = 0f;
             /*
@@ -31,7 +32,7 @@ namespace SharpNet.DataAugmentation.Operations
                 for (int col = Math.Max(colOutput - 1, 0); col <= Math.Min(colOutput + 1, nbCols - 1); ++col)
                 {
                     int weight = (row == rowOutput && col == colOutput) ? 5 : 1;
-                    smoothValue += weight * xDataAugmentedMiniBatch.Get(indexInMiniBatch, channel, row, col);
+                    smoothValue += weight * xInputMiniBatch.Get(indexInMiniBatch, channel, row, col);
                     count += weight;
                 }
             }

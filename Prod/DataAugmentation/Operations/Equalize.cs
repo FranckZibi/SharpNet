@@ -16,10 +16,11 @@ namespace SharpNet.DataAugmentation.Operations
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
         }
 
-        public override float AugmentedValue(float initialValue, int indexInMiniBatch,
-            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput)
+        public override float AugmentedValue(int indexInMiniBatch, int channel,
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput,
+            CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
+            var initialValue = xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
             var unnormalizedValue = (int)(UnnormalizedValue(initialValue, channel, _meanAndVolatilityForEachChannel)+0.5f);
             unnormalizedValue = Math.Min(unnormalizedValue, 255);
             unnormalizedValue = Math.Max(unnormalizedValue, 0);

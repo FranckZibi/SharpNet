@@ -20,8 +20,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             OperationTests.Check(new Sharpness(1.0f), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
 
             expected = new [] { 27.5f, 32.5f, 37.5f, 42.5f, 127.5f, 132.5f, 137.5f, 142.5f, 227.5f, 232.5f, 237.5f, 242.5f };
-            //TODO re enable test
-            //OperationTests.Check(new Sharpness(0.0f), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+            OperationTests.Check(new Sharpness(0.0f), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
         }
 
         [Test, Explicit]

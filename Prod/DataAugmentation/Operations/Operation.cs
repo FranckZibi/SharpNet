@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using SharpNet.CPU;
 
 namespace SharpNet.DataAugmentation.Operations
@@ -12,11 +11,11 @@ namespace SharpNet.DataAugmentation.Operations
             return (row, col);
         }
 
-        public virtual float AugmentedValue(float initialValue, int indexInMiniBatch,
-            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput)
+        public virtual float AugmentedValue(int indexInMiniBatch, int channel,
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
+            CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
-            return initialValue;
+            return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
 
         public virtual void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryId)

@@ -9,20 +9,17 @@ namespace SharpNet.DataAugmentation.Operations
         private readonly List<Tuple<int, int>> _pixelThresholdByChannel;
         private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
 
-        /// <summary>
-        /// </summary>
-        /// <param name="pixelThresholdByChannel"></param>
-        /// <param name="meanAndVolatilityForEachChannel"></param>
         public AutoContrast(List<Tuple<int, int>> pixelThresholdByChannel, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
         {
             _pixelThresholdByChannel = pixelThresholdByChannel;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
         }
 
-        public override float AugmentedValue(float initialValue, int indexInMiniBatch,
-            CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> xDataAugmentedMiniBatch, int channel, int rowOutput,
-            int colOutput)
+        public override float AugmentedValue(int indexInMiniBatch, int channel,
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
+            CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
+            var initialValue = xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
             var bounds = _pixelThresholdByChannel[channel];
             if (bounds.Item1 >= bounds.Item2)
             {
