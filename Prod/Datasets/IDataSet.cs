@@ -9,23 +9,24 @@ namespace SharpNet.Datasets
     public interface IDataSet : IDisposable
     {
         /// <summary>
-        /// Load 'x.Shape[0]' elements from the 'this' DataSet and copy them into 'x' (and 'y') tensors
-        /// The indexes in the 'this' dataset of those 'x.Shape[0]' elements to copy into 'x' are:
-        ///     indexInCurrentEpochToElementId[indexFirstElement]
-        ///     indexInCurrentEpochToElementId[indexFirstElement+1]
+        /// Load 'xMiniBatch.Shape[0]' elements from the 'this' DataSet and copy them into 'xMiniBatch' (and 'yMiniBatch') tensors
+        /// The indexes in the 'this' dataset of those 'xMiniBatch.Shape[0]' elements to copy into 'xMiniBatch' are:
+        ///     shuffledElementId[firstIndexInShuffledElementId]
+        ///     shuffledElementId[firstIndexInShuffledElementId+1]
         ///     .../...
-        ///     indexInCurrentEpochToElementId[indexFirstElement+x.Shape[0]-1 ]
+        ///     shuffledElementId[firstIndexInShuffledElementId+xMiniBatch.Shape[0]-1 ]
         /// </summary>
         /// <param name="epoch">index of epoch. The first epoch is 1</param>
         /// <param name="isTraining"></param>
-        /// <param name="indexFirstElement">The index of the first element to load (the very first element fo the data set is at index 0</param>
-        /// <param name="indexInCurrentEpochToElementId"></param>
+        /// <param name="shuffledElementId">list of all elementId in 'random' (shuffled) order</param>
+        /// <param name="firstIndexInShuffledElementId"></param>
         /// <param name="dataAugmentationConfig"></param>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
+        /// <param name="xMiniBatch">buffer where all elements (associated with the mini batch) will be stored</param>
+        /// <param name="yMiniBatch">buffer where all categories (associated with the mini batch) will be stored</param>
         /// <returns></returns>
-        void Load(int epoch, bool isTraining, int indexFirstElement, IReadOnlyList<int> indexInCurrentEpochToElementId,
-            DataAugmentationConfig dataAugmentationConfig, ref Tensor x, ref Tensor y);
+        void Load(int epoch, bool isTraining, 
+            int[] shuffledElementId, int firstIndexInShuffledElementId,
+            DataAugmentationConfig dataAugmentationConfig, Tensor xMiniBatch, Tensor yMiniBatch);
 
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
