@@ -93,8 +93,8 @@ namespace SharpNet.Datasets
 
             if (xMiniBatch.UseGPU)
             {
-                xMiniBatch.AsGPU<float>().CopyToDevice(xMiniBatchCpu.HostPointer);
-                yMiniBatch.AsGPU<float>().CopyToDevice(yMiniBatchCpu.HostPointer);
+                xMiniBatch.AsGPU<float>().CopyToDevice(xMiniBatchCpu.HostPointer, false);
+                yMiniBatch.AsGPU<float>().CopyToDevice(yMiniBatchCpu.HostPointer, false);
             }
             else
             {

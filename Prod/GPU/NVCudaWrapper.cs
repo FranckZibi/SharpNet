@@ -227,6 +227,13 @@ namespace SharpNet.GPU
             size_t byteCount);
 
         [DllImport(NVCUDA)]
+        public static extern CUresult cuMemcpyHtoDAsync_v2(
+            IntPtr dstDevice,
+            [In] IntPtr srcHost,
+            size_t byteCount,
+            IntPtr hStream);
+
+        [DllImport(NVCUDA)]
         public static extern CUresult cuMemcpyDtoH_v2(
             IntPtr dstHost,
             IntPtr srcDevice,

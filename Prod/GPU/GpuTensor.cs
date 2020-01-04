@@ -37,7 +37,7 @@ namespace SharpNet.GPU
             _deviceMemory = Wrapper.NewDeviceMemory(CapacityInBytes);
             if (hostMemoryPointer != IntPtr.Zero)
             {
-                CopyToDevice(hostMemoryPointer);
+                CopyToDevice(hostMemoryPointer, false);
             }
         }
 
@@ -46,7 +46,9 @@ namespace SharpNet.GPU
         /// copy from CPU (Host) to GPU (Device) memory
         /// </summary>
         /// <param name="hostPinnedPointer">point to host (pinned) memory (in CPU) </param>
-        public void CopyToDevice(IntPtr hostPinnedPointer)
+        /// <param name="useSynchronousCall">true if we want to make a synchronous copy from hsot to device
+        /// false for asynchronous copy</param>
+        public void CopyToDevice(IntPtr hostPinnedPointer, bool useSynchronousCall)
         {
 #if DEBUG
             if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering CopyToDevice " + ReallyNeededMemoryInBytes + " bytes from Host " + hostPinnedPointer+" to Device " + DevicePointer);}
@@ -55,7 +57,11 @@ namespace SharpNet.GPU
             Debug.Assert(hostPinnedPointer != IntPtr.Zero);
             Wrapper.SwCopyToDevice.Start();
             Wrapper.LogCopyToDeviceCall(ReallyNeededMemoryInBytes);
-            var res = NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, hostPinnedPointer, ReallyNeededMemoryInBytes);
+
+            var res =useSynchronousCall
+                    ?NVCudaWrapper.cuMemcpyHtoD_v2(DevicePointer, hostPinnedPointer, ReallyNeededMemoryInBytes)
+                    :NVCudaWrapper.cuMemcpyHtoDAsync_v2(DevicePointer, hostPinnedPointer, ReallyNeededMemoryInBytes, Wrapper.DefaultStream.StreamHandle);
+
             GPUWrapper.CheckStatus(res, ToString);
             Wrapper.SwCopyToDevice.Stop();
 #if DEBUG
@@ -68,7 +74,7 @@ namespace SharpNet.GPU
             Debug.Assert(data.Length == Count);
             using (var m = new HostPinnedMemory<T>(data))
             {
-                CopyToDevice(m.Pointer);
+                CopyToDevice(m.Pointer, false);
             }
         }
 
