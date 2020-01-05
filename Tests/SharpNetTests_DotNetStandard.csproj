@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{69735A6E-6C5D-4CF5-BA01-EEB4AEBE4943}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>SharpNetTests</RootNamespace>
+    <AssemblyName>SharpNetTests</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+    <ReferencePath>$(ProgramFiles)\Common Files\microsoft shared\VSTT\$(VisualStudioVersion)\UITestExtensionPackages</ReferencePath>
+    <IsCodedUITest>False</IsCodedUITest>
+    <TestProjectType>UnitTest</TestProjectType>
+    <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="HDF5DotNet, Version=1.8.9.0, Culture=neutral, PublicKeyToken=a4952c8df86d6e8c, processorArchitecture=AMD64">
+      <HintPath>..\packages\HDF5DotNet.x64.1.8.9\lib\Net40\HDF5DotNet.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework, Version=2.6.4.14350, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
+      <HintPath>..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="CPU\TestCpuTensor.cs" />
+    <Compile Include="DataAugmentation\DataAugmentationConfigTests.cs" />
+    <Compile Include="DataAugmentation\Operations\OperationHelperTests.cs" />
+    <Compile Include="DataAugmentation\Operations\SharpnessTests.cs" />
+    <Compile Include="Data\EpochDataTests.cs" />
+    <Compile Include="Data\TestTensor.cs" />
+    <Compile Include="DataAugmentation\Operations\AutoContrastTests.cs" />
+    <Compile Include="DataAugmentation\Operations\BrightnessTests.cs" />
+    <Compile Include="DataAugmentation\Operations\ColorTests.cs" />
+    <Compile Include="DataAugmentation\Operations\ContrastTests.cs" />
+    <Compile Include="DataAugmentation\Operations\CutMixTests.cs" />
+    <Compile Include="DataAugmentation\Operations\CutOutTests.cs" />
+    <Compile Include="DataAugmentation\Operations\EqualizeTests.cs" />
+    <Compile Include="DataAugmentation\Operations\InvertTests.cs" />
+    <Compile Include="DataAugmentation\Operations\MixupTests.cs" />
+    <Compile Include="DataAugmentation\Operations\PosterizeTests.cs" />
+    <Compile Include="DataAugmentation\Operations\RotateTests.cs" />
+    <Compile Include="DataAugmentation\Operations\ShearTests.cs" />
+    <Compile Include="DataAugmentation\Operations\SolarizeTests.cs" />
+    <Compile Include="DataAugmentation\Operations\TranslateTests.cs" />
+    <Compile Include="DataAugmentation\SubPolicyTests.cs" />
+    <Compile Include="DataAugmentation\Operations\OperationTests.cs" />
+    <Compile Include="DataAugmentation\Operations\FlipTests.cs" />
+    <Compile Include="Datasets\TestAbstractDataSet.cs" />
+    <Compile Include="GPU\KernelManagerTests.cs" />
+    <Compile Include="GPU\TestGpuTensor.cs" />
+    <Compile Include="LearningRateSchedulerTests.cs" />
+    <Compile Include="NonReg\TestBenchmark.cs" />
+    <Compile Include="NonReg\TestEnsembleLearning.cs" />
+    <Compile Include="NonReg\TestMNIST.cs" />
+    <Compile Include="NonReg\TestNetworkPropagation.cs" />
+    <Compile Include="Optimizers\LearningRateFinderTests.cs" />
+    <Compile Include="Optimizers\ReduceLROnPlateauTests.cs" />
+    <Compile Include="Pictures\BitmapContentTests.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestParallelRunCpuVersusGpu.cs" />
+    <Compile Include="TestGradient.cs" />
+    <Compile Include="TestNetwork.cs" />
+    <Compile Include="TestUtils.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Prod\SharpNet_DotNetStandard.csproj">
+      <Project>{2562D66B-9583-4034-A01E-809E33D08310}</Project>
+      <Name>SharpNet</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

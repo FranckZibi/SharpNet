@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.136
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpNet", "Prod\SharpNet.csproj", "{2562D66B-9583-4034-A01E-809E33D08310}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpNet_DotNetStandard", "Prod\SharpNet_DotNetStandard.csproj", "{2562D66B-9583-4034-A01E-809E33D08310}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpNetTests", "Tests\SharpNetTests.csproj", "{69735A6E-6C5D-4CF5-BA01-EEB4AEBE4943}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpNetTests_DotNetStandard", "Tests\SharpNetTests_DotNetStandard.csproj", "{69735A6E-6C5D-4CF5-BA01-EEB4AEBE4943}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

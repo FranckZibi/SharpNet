@@ -15,9 +15,10 @@ It is targeted to make a good use of the GPU (even if it is not currently as fas
  - on ResNet18 v1, it is between 1.5x (batch size = 128) and 3x time (batch size = 32) faster then TensorFlow
 
 It requires:
-- [Visual Studio 2017 or 2019](https://visualstudio.microsoft.com/downloads/)
+- [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/)
+- [DotNetCore 3.1](https://dotnet.microsoft.com/download/dotnet-core/3.1)
 - [CUDA Toolkit 10.0 or 10.1](https://developer.nvidia.com/cuda-downloads)
-- [CuDNN 7.5](https://developer.nvidia.com/rdp/cudnn-download)
+- [CuDNN 7.6](https://developer.nvidia.com/rdp/cudnn-download)
 - [Intel MKL](https://software.intel.com/en-us/mkl)
 
 Next Targets:
