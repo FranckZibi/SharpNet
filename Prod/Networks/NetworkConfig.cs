@@ -71,7 +71,7 @@ namespace SharpNet.Networks
         /// If == 0
         ///     => the network will be saved after each iteration
         /// </summary>
-        public int AutoSaveIntervalInMinutes { get; set; } = 90;
+        public int AutoSaveIntervalInMinutes { get; set; } = 600;
         public bool SaveNetworkStatsAfterEachEpoch { get; set; }
         public bool SaveLossAfterEachMiniBatch { get; set; }
         public string LogDirectory { get; } = DefaultLogDirectory;

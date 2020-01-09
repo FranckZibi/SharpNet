@@ -93,8 +93,10 @@ namespace SharpNet.Datasets
 
             if (xMiniBatch.UseGPU)
             {
-                xMiniBatch.AsGPU<float>().CopyToDevice(xMiniBatchCpu.HostPointer, false);
-                yMiniBatch.AsGPU<float>().CopyToDevice(yMiniBatchCpu.HostPointer, false);
+                //validated on 4-jan-2020 : 2% speed up (vs useSynchronousCall = true)
+                const bool useSynchronousCall = false;
+                xMiniBatch.AsGPU<float>().CopyToDevice(xMiniBatchCpu.HostPointer, useSynchronousCall);
+                yMiniBatch.AsGPU<float>().CopyToDevice(yMiniBatchCpu.HostPointer, useSynchronousCall);
             }
             else
             {
@@ -377,6 +379,7 @@ namespace SharpNet.Datasets
         }
 
         #region Processing Thread management
+        // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
         private bool UseBackgroundThread => true;
         private readonly Thread thread;
         private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT };

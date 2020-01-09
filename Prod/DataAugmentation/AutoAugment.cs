@@ -13,6 +13,8 @@ namespace SharpNet.DataAugmentation
         private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
         private readonly ImageStatistic _stats;
         private readonly Random _rand;
+        private readonly double _widthShiftRangeInPercentage;
+        private readonly double _heightShiftRangeInPercentage;
         private readonly double _cutoutPatchPercentage;
         private readonly double _alphaCutMix;
         private readonly double _alphaMixup;
@@ -21,7 +23,7 @@ namespace SharpNet.DataAugmentation
 
         public AutoAugment(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel, ImageStatistic stats, Random rand,
-            double cutoutPatchPercentage, double alphaCutMix, double alphaMixup)
+            double widthShiftRangeInPercentage, double heightShiftRangeInPercentage, double cutoutPatchPercentage, double alphaCutMix, double alphaMixup)
         {
             Debug.Assert(stats!=null);
             _indexInMiniBatch = indexInMiniBatch;
@@ -29,6 +31,8 @@ namespace SharpNet.DataAugmentation
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             _stats = stats;
             _rand = rand;
+            _widthShiftRangeInPercentage = widthShiftRangeInPercentage;
+            _heightShiftRangeInPercentage= heightShiftRangeInPercentage;
             _cutoutPatchPercentage = cutoutPatchPercentage;
             _alphaCutMix = alphaCutMix;
             _alphaMixup = alphaMixup;
@@ -336,6 +340,8 @@ namespace SharpNet.DataAugmentation
         {
             var subPolicy = new List<Operation>
                             {
+                                Operations.TranslateX.ValueOf(_widthShiftRangeInPercentage, _rand, NbCols),
+                                Operations.TranslateY.ValueOf(_heightShiftRangeInPercentage, _rand, NbRows),
                                 HorizontalFlip(0.5),
                                 op1,
                                 op2,

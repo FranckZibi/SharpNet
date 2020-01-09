@@ -46,7 +46,7 @@ namespace SharpNet.GPU
         /// copy from CPU (Host) to GPU (Device) memory
         /// </summary>
         /// <param name="hostPinnedPointer">point to host (pinned) memory (in CPU) </param>
-        /// <param name="useSynchronousCall">true if we want to make a synchronous copy from hsot to device
+        /// <param name="useSynchronousCall">true if we want to make a synchronous copy from host to device
         /// false for asynchronous copy</param>
         public void CopyToDevice(IntPtr hostPinnedPointer, bool useSynchronousCall)
         {
