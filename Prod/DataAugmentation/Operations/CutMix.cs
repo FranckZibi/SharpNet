@@ -56,23 +56,23 @@ namespace SharpNet.DataAugmentation.Operations
             return new CutMix(rowStart, rowEnd, colStart, colEnd, indexInMiniBatchForCutMix, xOriginalMiniBatch);
         }
 
-        public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryId)
+        public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
             int nbRows = _xOriginalMiniBatch.Shape[2];
             int nbCols = _xOriginalMiniBatch.Shape[3];
 
             // if CutMix has been used, wee need to update the expected output ('y' tensor)
-            var originalCategoryId = indexInMiniBatchToCategoryId(indexInMiniBatch);
-            var cutMixCategoryId = indexInMiniBatchToCategoryId(_indexInMiniBatchForCutMix);
-            if (originalCategoryId != cutMixCategoryId)
+            var originalCategoryIndex = indexInMiniBatchToCategoryIndex(indexInMiniBatch);
+            var cutMixCategoryIndex = indexInMiniBatchToCategoryIndex(_indexInMiniBatchForCutMix);
+            if (originalCategoryIndex != cutMixCategoryIndex)
             {
                 float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
                 //        'cutMixLambda' % of the category of the element at 'indexInMiniBatch'
                 //      '1-cutMixLambda' % of the category of the element at 'indexInMiniBatchForCutMix'
-                yMiniBatch.Set(indexInMiniBatch, originalCategoryId, cutMixLambda);
-                yMiniBatch.Set(indexInMiniBatch, cutMixCategoryId, 1f - cutMixLambda);
+                yMiniBatch.Set(indexInMiniBatch, originalCategoryIndex, cutMixLambda);
+                yMiniBatch.Set(indexInMiniBatch, cutMixCategoryIndex, 1f - cutMixLambda);
             }
         }
 

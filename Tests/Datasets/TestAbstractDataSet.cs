@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Datasets;
@@ -37,26 +36,21 @@ namespace SharpNetTests.Datasets
         {
             var tensorY = TestCpuTensor.RandomByteTensor(new[] { tensorX.Shape[0], 1 }, rand, 0, 1, "tensorY");
 
-            var categoryIdToDescription = new string[nbCategories];
-            for (int i = 0; i < nbCategories; ++i)
+            //var categoryIndexToDescription = new string[nbCategories];
+            //for (int i = 0; i < nbCategories; ++i)
+            //{
+            //    categoryIndexToDescription[i] = rand.Next(nbCategories).ToString();
+            //}
+            var elementIdToCategoryIndex = new int[tensorX.Shape[0]];
+            for (int i = 0; i < elementIdToCategoryIndex.Length; ++i)
             {
-                categoryIdToDescription[i] = rand.Next(nbCategories).ToString();
-            }
-            var elementIdToCategoryId = new int[tensorX.Shape[0]];
-            for (int i = 0; i < elementIdToCategoryId.Length; ++i)
-            {
-                elementIdToCategoryId[i] = i % nbCategories;
+                elementIdToCategoryIndex[i] = i % nbCategories;
             }
             string name = "TestAbstractDataSet";
-            var meanAndVolatilityForEachChannel = tensorX.ComputeMeanAndVolatilityOfEachChannel(t => (float)t);
-            ToWorkingSet(tensorX, tensorY, out CpuTensor<float> x, out CpuTensor<float> y, meanAndVolatilityForEachChannel);
-            return new InMemoryDataSet(x, y, elementIdToCategoryId, categoryIdToDescription, name, meanAndVolatilityForEachChannel);
-        }
-
-        private static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
-        {
-            xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
-            yWorkingSet = y.ToCategorical(1f, out _);
+            var meanAndVolatilityForEachChannel = tensorX.ComputeMeanAndVolatilityOfEachChannel(t => t);
+            var x = AbstractDataSet.ToXWorkingSet(tensorX, meanAndVolatilityForEachChannel);
+            var y = AbstractDataSet.ToYWorkingSet(tensorY, nbCategories, categoryByte=>categoryByte);
+            return new InMemoryDataSet(x, y, elementIdToCategoryIndex, name, meanAndVolatilityForEachChannel);
         }
     }
 }

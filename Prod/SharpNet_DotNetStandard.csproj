@@ -42,6 +42,9 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" Version="2019.1.3" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="BackwardPropagationManager.cs" />
     <Compile Include="CPU\CpuTensor.cs" />
     <Compile Include="CPU\CpuTensorExtensions.cs" />
@@ -76,7 +79,10 @@
     <Compile Include="DataAugmentation\Operations\XYCoordinateRotater.cs" />
     <Compile Include="DataAugmentation\SubPolicy.cs" />
     <Compile Include="Datasets\AbstractDataSet.cs" />
+    <Compile Include="Datasets\AbstractTrainingAndTestDataSet.cs" />
     <Compile Include="Datasets\Aptos2019BlindnessDetection.cs" />
+    <Compile Include="Datasets\SplittedFileDataSet.cs" />
+    <Compile Include="Datasets\SVHNDataSet.cs" />
     <Compile Include="Datasets\TrainingAndTestDataLoader.cs" />
     <Compile Include="Datasets\DirectoryDataSet.cs" />
     <Compile Include="Datasets\DogsVsCats.cs" />
@@ -145,7 +151,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

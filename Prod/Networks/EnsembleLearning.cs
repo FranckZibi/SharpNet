@@ -19,18 +19,19 @@ namespace SharpNet.Networks
             foreach (var file in _files)
             {
                 Console.WriteLine("Loading " + file + " ...");
-                var network = Network.ValueOf(file, 0);
-                Console.WriteLine("File loaded");
-                Console.WriteLine("Computing accuracy for single network...");
-                
-                var yPredictedSingleNetwork = network.MiniBatchGradientDescent(testDataSet);
+                using(var network = Network.ValueOf(file, 0))
+                { 
+                    Console.WriteLine("File loaded");
+                    Console.WriteLine("Computing accuracy for single network...");
+                    
+                    var yPredictedSingleNetwork = network.MiniBatchGradientDescent(testDataSet);
 
-                var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
-                var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);
-                Console.WriteLine("Single Network Accuracy=" + accuracy);
+                    var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
+                    var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);
+                    Console.WriteLine("Single Network Accuracy=" + accuracy);
 
-                yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _files.Length, yCpuPredictedSingleNetwork);
-                network.Dispose();
+                    yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _files.Length, yCpuPredictedSingleNetwork);
+                }
             }
             var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, null);
 

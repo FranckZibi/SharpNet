@@ -11,32 +11,23 @@ namespace SharpNet.Datasets
         private readonly List<int> _shuffledElementIdToOriginalElementId;
 
         public ShuffledDataSet(IDataSet original, Random rand)
-            : base(original.Name, original.Channels, original.Categories, original.MeanAndVolatilityForEachChannel)
+            : base(original.Name, original.Channels, original.Categories, original.MeanAndVolatilityForEachChannel, original.Logger)
         {
             _original = original;
             _shuffledElementIdToOriginalElementId = Enumerable.Range(0, original.Count).ToList();
             Utils.Shuffle(_shuffledElementIdToOriginalElementId, rand);
             //We compute Y 
-            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryId, _shuffledElementIdToOriginalElementId.Count, Categories);
+            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _shuffledElementIdToOriginalElementId.Count, Categories);
         }
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
-            _original.LoadAt(_shuffledElementIdToOriginalElementId[elementId], indexInBuffer, buffer);
-        }
-        public override string CategoryIdToDescription(int categoryId)
-        {
-            return _original.CategoryIdToDescription(categoryId);
+            _original.LoadAt(_shuffledElementIdToOriginalElementId[elementId], indexInBuffer, xBuffer, yBuffer);
         }
         public override int Count => _shuffledElementIdToOriginalElementId.Count;
-        public override int ElementIdToCategoryId(int elementId)
+        public override int ElementIdToCategoryIndex(int elementId)
         {
-            return _original.ElementIdToCategoryId(_shuffledElementIdToOriginalElementId[elementId]);
+            return _original.ElementIdToCategoryIndex(_shuffledElementIdToOriginalElementId[elementId]);
         }
-        public override string ElementIdToDescription(int elementId)
-        {
-            return _original.ElementIdToDescription(_shuffledElementIdToOriginalElementId[elementId]);
-        }
-
         public override int Height => _original.Height;
         public override int Width => _original.Width;
         public override CpuTensor<float> Y { get; }

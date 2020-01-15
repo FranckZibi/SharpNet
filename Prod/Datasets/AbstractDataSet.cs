@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
@@ -22,10 +24,10 @@ namespace SharpNet.Datasets
         /// <summary>
         /// buffer with all augmented elements in the order needed for the current mini batch 
         /// </summary>
-        private CpuTensor<float> xMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, nameof(xMiniBatchCpu));
-        private CpuTensor<float> yMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, nameof(yMiniBatchCpu));
+        private CpuTensor<float> xBufferMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, nameof(xBufferMiniBatchCpu));
+        private CpuTensor<float> yBufferMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, nameof(yBufferMiniBatchCpu));
         /// <summary>
-        /// the miniBatch Id associated with the above xMiniBatchCpu & yMiniBatchCpu tensors
+        /// the miniBatch Id associated with the above xBufferMiniBatchCpu & yBufferMiniBatchCpu tensors
         /// or -1 if those tensors are empty
         /// </summary>
         private long alreadyComputedMiniBatchId = -1;
@@ -35,15 +37,19 @@ namespace SharpNet.Datasets
         /// will be null or empty if no normalization occured in the DataSet
         /// </summary>
         protected List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
+
+        public Logger Logger { get; }
+
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, int categories, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+        protected AbstractDataSet(string name, int channels, int categories, List<Tuple<float, float>> meanAndVolatilityForEachChannel, Logger logger)
         {
             Name = name;
             Channels = channels;
             Categories = categories;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
+            Logger = logger ?? Logger.ConsoleLogger;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -58,10 +64,10 @@ namespace SharpNet.Datasets
         }
         #endregion
 
-        public abstract void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer);
-        public void Load(int epoch, bool isTraining,
+        public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer, [CanBeNull] CpuTensor<float> yBuffer);
+        public void LoadMiniBatch(int epoch, bool isTraining,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
-            DataAugmentationConfig dataAugmentationConfig, Tensor xMiniBatch, Tensor yMiniBatch)
+            DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
         {
             Debug.Assert(xMiniBatch != null);
             Debug.Assert(yMiniBatch != null);
@@ -77,7 +83,7 @@ namespace SharpNet.Datasets
                 {
                     Thread.Sleep(1);
                 }
-                //we initialize 'xMiniBatchCpu' & 'yMiniBatchCpu' tensors
+                //we initialize 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors
                 threadParameters = Tuple.Create(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementId,
                     dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
                 _backgroundThreadStatus = BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT;
@@ -91,27 +97,22 @@ namespace SharpNet.Datasets
                 LoadMiniBatchInCpu(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
             }
 
-            if (xMiniBatch.UseGPU)
-            {
-                //validated on 4-jan-2020 : 2% speed up (vs useSynchronousCall = true)
-                const bool useSynchronousCall = false;
-                xMiniBatch.AsGPU<float>().CopyToDevice(xMiniBatchCpu.HostPointer, useSynchronousCall);
-                yMiniBatch.AsGPU<float>().CopyToDevice(yMiniBatchCpu.HostPointer, useSynchronousCall);
-            }
-            else
-            {
-                xMiniBatchCpu.CopyTo(xMiniBatch.AsCpu<float>());
-                yMiniBatchCpu.CopyTo(yMiniBatch.AsCpu<float>());
-            }
+            xBufferMiniBatchCpu.CopyTo(xMiniBatch.AsCpu<float>());
+            yBufferMiniBatchCpu.CopyTo(yMiniBatch.AsCpu<float>());
 
             //uncomment to store data augmented pictures
-            //if (isTraining && (indexFirstElement == 0))
+            //if (isTraining && (firstIndexInShuffledElementId == 0))
             //{
-            //    var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
-            //    var xCpuChunkBytes = (xMiniBatchCpu as CpuTensor<float>)?.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
-            //    for (int i = indexFirstElement; i < Math.Min((indexFirstElement + miniBatchSize), 100); ++i)
+            //    //CIFAR10
+            //    //var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
+            //    //SVHN
+            //    var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
+            //    var xCpuChunkBytes = xBufferMiniBatchCpu.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
+            //    for (int i = firstIndexInShuffledElementId; i < Math.Min((firstIndexInShuffledElementId + xMiniBatch.Shape[0]), 100); ++i)
             //    {
-            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, Path.Combine(@"C:\Users\Franck\AppData\Local\SharpNet\Train"), i.ToString("D5") + "_epoch_" + epoch, "");
+            //        int elementId = shuffledElementId[i];
+            //        var categoryIndex = ElementIdToCategoryIndex(elementId);
+            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, Path.Combine(@"C:\Users\Franck\AppData\Local\SharpNet\Train"), elementId.ToString("D5") + "_cat" + categoryIndex + "_epoch_" + epoch.ToString("D3"), "");
             //    }
             //}
 
@@ -134,6 +135,27 @@ namespace SharpNet.Datasets
         public int[] InputShape_CHW => new[] { Channels, Height, Width };
 
 
+        public static CpuTensor<float> ToXWorkingSet(CpuTensor<byte> x, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
+        {
+            var xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
+            //xWorkingSet = x.Select((n, c, val) => (float)val/255f);
+            return xWorkingSet;
+        }
+
+        public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int categories , Func<byte, int> categoryByteToCategoryIndex)
+        {
+            Debug.Assert(categoryBytes.MultDim0 == 1);
+            var batchSize = categoryBytes.Shape[0];
+            var newShape = new[] { batchSize, categories };
+            var newY = new CpuTensor<float>(newShape, categoryBytes.Description);
+            for (int n = 0; n < batchSize; ++n)
+            {
+                newY.Set(n, categoryByteToCategoryIndex(categoryBytes.Get(n, 0)), 1f);
+            }
+            return newY;
+        }
+
+
         /// <summary>
         /// original content (no data augmentation/no normalization) of the element at index 'elementId'
         /// </summary>
@@ -142,7 +164,7 @@ namespace SharpNet.Datasets
         public virtual BitmapContent OriginalElementContent(int elementId)
         {
             var buffer = LoadSingleElement(elementId);
-            var result = new BitmapContent(InputShape_CHW, new byte[Channels * Height * Width], ElementIdToDescription(elementId));
+            var result = new BitmapContent(InputShape_CHW, new byte[Channels * Height * Width], elementId.ToString());
             for (int channel = 0; channel < Channels; ++channel)
             {
                 for (int row = 0; row < Height; ++row)
@@ -169,7 +191,6 @@ namespace SharpNet.Datasets
 
 
         public abstract int Count { get; }
-        public abstract string ElementIdToDescription(int elementId);
         public string Name { get; }
         public int Channels { get; }
         public int Categories { get; }
@@ -187,13 +208,12 @@ namespace SharpNet.Datasets
         }
         public bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
 
-        public abstract string CategoryIdToDescription(int categoryId);
         /// <summary>
         /// retrieve the category associated with a specific element
         /// </summary>
         /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
         /// <returns>the associated category id, or -1 if the category is not known</returns>
-        public abstract int ElementIdToCategoryId(int elementId);
+        public abstract int ElementIdToCategoryIndex(int elementId);
         public abstract int Height { get; }
         public abstract int Width { get; }
         public int[] Y_Shape => new[] { Count, Categories };
@@ -201,10 +221,10 @@ namespace SharpNet.Datasets
         {
             xOriginalNotAugmentedMiniBatchCpu?.Dispose();
             xOriginalNotAugmentedMiniBatchCpu = null;
-            xMiniBatchCpu?.Dispose();
-            xMiniBatchCpu = null;
-            yMiniBatchCpu?.Dispose();
-            yMiniBatchCpu = null;
+            xBufferMiniBatchCpu?.Dispose();
+            xBufferMiniBatchCpu = null;
+            yBufferMiniBatchCpu?.Dispose();
+            yBufferMiniBatchCpu = null;
             threadParameters = null;
             thread?.Abort();
         }
@@ -212,6 +232,11 @@ namespace SharpNet.Datasets
         {
             return new[] { miniBatchSize, Channels, Height, Width };
         }
+        public int[] YMiniBatch_Shape(int miniBatchSize)
+        {
+            return new[] { miniBatchSize, Categories };
+        }
+
         public int TypeSize => 4; //float size
 
         public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
@@ -219,7 +244,7 @@ namespace SharpNet.Datasets
             int lastElementIdIncludedInTrainingSet = (int)(percentageInTrainingSet * Count);
             var training = new SubDataSet(this, id => id < lastElementIdIncludedInTrainingSet);
             var test = new SubDataSet(this, id => id >= lastElementIdIncludedInTrainingSet);
-            return new TrainingAndTestDataLoader(training, test, Name);
+            return new TrainingAndTestDataLoader(training, test, this);
         }
         public AbstractDataSet Shuffle(Random rand)
         {
@@ -251,22 +276,57 @@ namespace SharpNet.Datasets
             }
             for (int elementId = 0; elementId < Count; ++elementId)
             {
-                File.AppendAllText(outputFile, ElementIdToDescription(elementId) + "," + categories[elementId] + Environment.NewLine);
+                File.AppendAllText(outputFile, elementId + "," + categories[elementId] + Environment.NewLine);
             }
         }
 
-        public static string[] DefaultGetCategoryIdToDescription(int categoryCount)
+        public static string[] DefaultGetCategoryIndexToDescription(int categoryCount)
         {
             return Enumerable.Range(0, categoryCount).Select(x => x.ToString()).ToArray();
         }
+
         protected static bool IsValidYSet(Tensor data)
         {
             Debug.Assert(!data.UseGPU);
             return data.AsFloatCpuContent.All(x => IsValidY(x));
         }
+        protected List<Tuple<float, float>> Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(float[] sumSumSquareCountForEachChannel)
+        {
+            const int DistinctValuesToComputeInEachChannel = 3; //sum + sumSquare + count
+            var result = new List<Tuple<float, float>>();
+            for (int channel = 0; channel < Channels; ++channel)
+            {
+                var sum = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel];
+                var sumSquare = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel + 1];
+                var count = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel + 2];
+                var mean = (sum / count);
+                var variance = (sumSquare / count) - mean * mean;
+                var volatility = (float)Math.Sqrt(Math.Max(0, variance));
+                Logger?.Info("Mean and volatility for channel#" + channel + " : " + mean.ToString(CultureInfo.InvariantCulture) + " ; " + volatility.ToString(CultureInfo.InvariantCulture));
+                result.Add(Tuple.Create(mean, volatility));
+            }
+            return result;
+        }
+        protected void UpdateStatus(ref int nbPerformed)
+        {
+            int delta = Math.Max(Count / 100, 1);
+            var newNbPerformed = Interlocked.Increment(ref nbPerformed);
+            if ((newNbPerformed % delta == 0) || (newNbPerformed == Count))
+            {
+                Logger.Info("Done: " + (100 * newNbPerformed) / Count + "%");
+            }
+        }
+        protected void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(int elementId, float[] _sum_SumSquare_Count_For_Each_Channel, bool ignoreZeroPixel, ref int nbPerformed)
+        {
+            UpdateStatus(ref nbPerformed);
+            OriginalElementContent(elementId).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, ignoreZeroPixel);
+        }
+
+
+
 
         /// <summary>
-        /// Load in 'xMiniBatchCpu' & 'yMiniBatchCpu' tensors the data related to the minni batch starting
+        /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the minni batch starting
         /// at 'firstIndexInShuffledElementId'
         /// </summary>
         /// <param name="epoch"></param>
@@ -286,44 +346,36 @@ namespace SharpNet.Datasets
             var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, miniBatchSize);
             if (miniBatchId == alreadyComputedMiniBatchId)
             {
-                //nothing to do, the mini batch data is already stored in 'xMiniBatchCpu' & 'yMiniBatchCpu' tensors
+                //nothing to do, the mini batch data is already stored in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors
                 return;
             }
 
             //we initialize 'xOriginalNotAugmentedMiniBatchCpu' with all the original (not augmented elements)
             //contained in the mini batch
             xOriginalNotAugmentedMiniBatchCpu.Reshape(xMiniBatchShape);
-            int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstIndexInShuffledElementId + miniBatchIdx];
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu));
-
             //we'll first create mini batch input in a local CPU buffer, then copy them in xMiniBatch/yMiniBatch
-            xMiniBatchCpu.Reshape(xMiniBatchShape);
-            yMiniBatchCpu.Reshape(yMiniBatchShape);
+            xBufferMiniBatchCpu.Reshape(xMiniBatchShape);
+            yBufferMiniBatchCpu.Reshape(yMiniBatchShape);
+            yBufferMiniBatchCpu.ZeroMemory();
 
-            Debug.Assert(AreCompatible_X_Y(xMiniBatchCpu, yMiniBatchCpu));
-            int MiniBatchIdxToCategoryId(int miniBatchIdx) => ElementIdToCategoryId(MiniBatchIdxToElementId(miniBatchIdx));
+            int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstIndexInShuffledElementId + miniBatchIdx];
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu));
+
+            Debug.Assert(AreCompatible_X_Y(xBufferMiniBatchCpu, yBufferMiniBatchCpu));
+            int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
             ImageStatistic MiniBatchIdxToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx));
 
-            //We compute the output y vector
-            yMiniBatchCpu.ZeroMemory();
-            for (int idx = 0; idx < miniBatchSize; ++idx)
-            {
-                var categoryId = MiniBatchIdxToCategoryId(idx);
-                if (categoryId >= 0)
-                {
-                    yMiniBatchCpu.Set(idx, categoryId, 1);
-                }
-            }
+    
 
             if (!dataAugmentationConfig.UseDataAugmentation || (epoch == 1) || !isTraining)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
-                xOriginalNotAugmentedMiniBatchCpu.CopyTo(xMiniBatchCpu);
+                xOriginalNotAugmentedMiniBatchCpu.CopyTo(xBufferMiniBatchCpu);
             }
             else
             {
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xMiniBatchCpu, yMiniBatchCpu, MiniBatchIdxToCategoryId, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
             }
             alreadyComputedMiniBatchId = miniBatchId;
         }
@@ -339,10 +391,10 @@ namespace SharpNet.Datasets
         /// <returns>the element at index 'elementId'</returns>
         private CpuTensor<float> LoadSingleElement(int elementId)
         {
-            var result = new CpuTensor<float>(new[] { 1, Channels, Height, Width }, ElementIdToDescription(elementId));
-            LoadAt(elementId, 0, result);
-            result.Reshape(InputShape_CHW);
-            return result;
+            var xBuffer = new CpuTensor<float>(new[] { 1, Channels, Height, Width }, elementId.ToString());
+            LoadAt(elementId, 0, xBuffer, null);
+            xBuffer.Reshape(InputShape_CHW);
+            return xBuffer;
         }
 
         /// <summary>

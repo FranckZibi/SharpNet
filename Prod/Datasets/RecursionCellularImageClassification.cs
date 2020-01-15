@@ -20,20 +20,20 @@ namespace SharpNet.Datasets
                 Channels,
                 height,
                 width,
-                AbstractDataSet.DefaultGetCategoryIdToDescription(Categories),
+                AbstractDataSet.DefaultGetCategoryIndexToDescription(Categories),
                 false, //we do not ignore zero pixels
-                Compute_CategoryId_Description_FullName);
+                Compute_CategoryIndex_Description_FullName);
         }
 
-        private static void Compute_CategoryId_Description_FullName(
+        private static void Compute_CategoryIndex_Description_FullName(
               string csvFileName,
               string directoryWithElements,
-              List<int> elementIdToCategoryId,
+              List<int> elementIdToCategoryIndex,
               List<string> elementIdToDescription,
               List<List<string>> elementIdToSubPath,
               Logger _logger)
         {
-            elementIdToCategoryId.Clear();
+            elementIdToCategoryIndex.Clear();
             elementIdToDescription.Clear();
             elementIdToSubPath.Clear();
             var lines = File.ReadAllLines(csvFileName);
@@ -67,8 +67,8 @@ namespace SharpNet.Datasets
                     }
                     else
                     {
-                        //elementIdToCategoryId.Add(sirna);
-                        elementIdToCategoryId.Add(sirna % 4);
+                        //elementIdToCategoryIndex.Add(sirna);
+                        elementIdToCategoryIndex.Add(sirna % 4);
                         elementIdToDescription.Add(id_code);
                         elementIdToSubPath.Add(subPaths);
                     }

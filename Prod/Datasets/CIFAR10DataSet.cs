@@ -28,23 +28,14 @@ AvgPoolingStride = 2
 
 namespace SharpNet.Datasets
 {
-    public class CIFAR10DataSet : ITrainingAndTestDataSet
+    public class CIFAR10DataSet : AbstractTrainingAndTestDataSet
     {
-        private readonly string[] CategoryIdToDescription = new[] { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
+        //private readonly string[] CategoryIndexToDescription = { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
 
-        public string Name => "CIFAR-10";
-        public const int Channels = 3;
-        public const int Height = 32;
-        public const int Width = Height;
-        public const int Categories = 10;
+        public override IDataSet Training { get; }
+        public override IDataSet Test { get; }
 
-        public static readonly int[] InputShape_CHW = { Channels, Height, Width };
-
-
-        public IDataSet Training { get; }
-        public IDataSet Test { get; }
-
-        public CIFAR10DataSet()
+        public CIFAR10DataSet() : base("CIFAR-10", 3, 32, 32, 10)
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 
@@ -53,58 +44,56 @@ namespace SharpNet.Datasets
             var yTrainingSet = new CpuTensor<byte>(new[] { 50000, 1, 1, 1 }, "yTrainingSet");
             for (int i = 0; i < 5; ++i)
             {
-                LoadAt(Path.Combine(path, "data_batch_" + (i + 1) + ".bin"), xTrainingSet, yTrainingSet, 10000 * i);
+                LoaAllFileAt(Path.Combine(path, "data_batch_" + (i + 1) + ".bin"), xTrainingSet, yTrainingSet, 10000 * i);
             }
             //We normalize the input with 0 mean / 1 volatility
             //var meanAndVolatilityOfEachChannelInTrainingSet = xTrainingSet.ComputeMeanAndVolatilityOfEachChannel(x=>(double)x);
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>> { Tuple.Create(125.306918046875f, 62.9932192781369f), Tuple.Create(122.950394140625f, 62.0887076400142f), Tuple.Create(113.865383183594f, 66.7048996406309f) };
-            ToWorkingSet(xTrainingSet, yTrainingSet, out var xTrain, out var yTrain, meanAndVolatilityOfEachChannelInTrainingSet);
+            var xTrain = AbstractDataSet.ToXWorkingSet(xTrainingSet, meanAndVolatilityOfEachChannelInTrainingSet);
+            var yTrain = AbstractDataSet.ToYWorkingSet(yTrainingSet, Categories, CategoryByteToCategoryIndex);
+
             AbstractDataSet.AreCompatible_X_Y(xTrain, yTrain);
-            int[] trainElementIdToCategoryId = yTrainingSet.Content.Select(x => (int)x).ToArray();
-            Debug.Assert(trainElementIdToCategoryId.Length == xTrainingSet.Shape[0]);
+            int[] trainElementIdToCategoryIndex = yTrainingSet.Content.Select(x => (int)x).ToArray();
+            Debug.Assert(trainElementIdToCategoryIndex.Length == xTrainingSet.Shape[0]);
 
             //We load the test set
             var xTestSet = new CpuTensor<byte>(new[] { 10000, Channels, Height, Width }, "xTestSet");
             var yTestSet = new CpuTensor<byte>(new[] { 10000, 1, 1, 1 }, "yTestSet");
-            LoadAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
+            LoaAllFileAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
-            ToWorkingSet(xTestSet, yTestSet, out var xTest, out var yTest, meanAndVolatilityOfEachChannelInTrainingSet);
+            var xTest = AbstractDataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
+            var yTest = AbstractDataSet.ToYWorkingSet(yTestSet, Categories, CategoryByteToCategoryIndex);
+
             AbstractDataSet.AreCompatible_X_Y(xTest, yTest);
-            int[] testElementIdToCategoryId = yTestSet.Content.Select(x => (int)x).ToArray();
-            Debug.Assert(testElementIdToCategoryId.Length == xTestSet.Shape[0]);
+            int[] testElementIdToCategoryIndex = yTestSet.Content.Select(x => (int)x).ToArray();
+            Debug.Assert(testElementIdToCategoryIndex.Length == xTestSet.Shape[0]);
 
             //Uncomment the following line to take only the first 'count' elements
             //const int count = 10000;xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, count);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, count); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
-            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
-        }
-        public void Dispose()
-        {
-            Training?.Dispose();
-            Test?.Dispose();
+            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
         }
 
-        private static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
+        public static void LoaAllFileAt(string path, CpuTensor<byte> x, CpuTensor<byte> categoryBytes, int indexFirst)
         {
-            xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
-            //xWorkingSet = x.Select((n, c, val) => (float)val/255f);
-            yWorkingSet = y.ToCategorical(1f, out _);
-        }
-        private static void LoadAt(string path, CpuTensor<byte> x, CpuTensor<byte> y, int indexFirst)
-        {
+            int bytesInSingleElement = x.MultDim0 + 1;
+
+            int elementCountInPath = (int)(Utils.FileLength(path) / bytesInSingleElement);
             var b = File.ReadAllBytes(path);
-            for (int count = 0; count < 10000; ++count)
+            for (int count = 0; count < elementCountInPath; ++count)
             {
-                int bIndex = count * (1 + Height * Width * Channels);
+                int bIndex = count * bytesInSingleElement;
                 int xIndex = (count + indexFirst) * x.MultDim0;
-                int yIndex = (count + indexFirst) * y.MultDim0;
-                y[yIndex] = b[bIndex];
-                for (int j = 0; j < Height * Width * Channels; ++j)
+                int yIndex = (count + indexFirst) * categoryBytes.MultDim0;
+                categoryBytes[yIndex] = b[bIndex];
+                for (int j = 0; j < (bytesInSingleElement - 1); ++j)
                 {
                     x[xIndex + j] = b[bIndex + 1 + j];
                 }
             }
         }
+
     }
+
 }

@@ -29,16 +29,16 @@ namespace SharpNet.DataAugmentation.Operations
             return new Mixup(mixupLambda, indexInMiniBatchForMixup, xOriginalMiniBatch);
         }
 
-        public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryId)
+        public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
             // We need to update the expected y using Mixup lambda
             // the associated y is:
             //        'mixupLambda' % of the category of the element at 'indexInMiniBatch'
             //      '1-mixupLambda' % of the category of the element at 'indexInMiniBatchForMixup'
-            var originalCategoryId = indexInMiniBatchToCategoryId(indexInMiniBatch);
-            var mixupCategoryId = indexInMiniBatchToCategoryId(_indexInMiniBatchForMixup);
-            yMiniBatch.Set(indexInMiniBatch, originalCategoryId, _mixupLambda);
-            yMiniBatch.Set(indexInMiniBatch, mixupCategoryId, 1f - _mixupLambda);
+            var originalCategoryIndex = indexInMiniBatchToCategoryIndex(indexInMiniBatch);
+            var mixupCategoryIndex = indexInMiniBatchToCategoryIndex(_indexInMiniBatchForMixup);
+            yMiniBatch.Set(indexInMiniBatch, originalCategoryIndex, _mixupLambda);
+            yMiniBatch.Set(indexInMiniBatch, mixupCategoryIndex, 1f - _mixupLambda);
         }
 
         public override float AugmentedValue(int indexInMiniBatch, int channel,

@@ -9,39 +9,31 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public class MNISTDataSet : ITrainingAndTestDataSet
+    public class MNISTDataSet : AbstractTrainingAndTestDataSet
     {
-        private readonly string[] CategoryIdToDescription = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+        //private readonly string[] CategoryIndexToDescription = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
-        public IDataSet Training { get; }
-        public IDataSet Test { get; }
-        public string Name => "MNIST";
+        public override IDataSet Training { get; }
+        public override IDataSet Test { get; }
 
-
-        public MNISTDataSet()
+        public MNISTDataSet() : base ("MNIST", 3,32,32,10)
         {
             var trainingSet = PictureTools.ReadInputPictures(FileNameToPath("train-images.idx3-ubyte"), FileNameToPath("train-labels.idx1-ubyte"));
             var trainWorkingSet = ToWorkingSet(trainingSet);
             var xTrain = trainWorkingSet.Item1;
             var yTrain = trainWorkingSet.Item2;
 
-            var trainElementIdToCategoryId = trainingSet.Select(x=>x.Value).ToArray();
-            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name, null);
+            var trainElementIdToCategoryIndex = trainingSet.Select(x=>x.Value).ToArray();
+            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, Name, null);
 
             var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
             var testWorkingSet = ToWorkingSet(testSet);
             var xTest = testWorkingSet.Item1;
             var yTest = testWorkingSet.Item2;
-            var testElementIdToCategoryId = testSet.Select(x => x.Value).ToArray();
-            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name, null);
+            var testElementIdToCategoryIndex = testSet.Select(x => x.Value).ToArray();
+            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, Name, null);
         }
 
-
-        public void Dispose()
-        {
-            Training?.Dispose();
-            Test?.Dispose();
-        }
 
         private static Tuple<CpuTensor<float>, CpuTensor<float>> ToWorkingSet(List<KeyValuePair<CpuTensor<byte>, int>> t)
         {

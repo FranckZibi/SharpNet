@@ -151,9 +151,5 @@ namespace SharpNetTests.CPU
             }
             return result;
         }
-
-
-
-
     }
 }

@@ -148,14 +148,14 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> xOriginalMiniBatch,
             CpuTensor<float> xDataAugmentedMiniBatch, 
             CpuTensor<float> yMiniBatch,
-            Func<int, int> indexInMiniBatchToCategoryId,
+            Func<int, int> indexInMiniBatchToCategoryIndex,
             Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             Random rand)
         {
             var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic, rand);
             OperationHelper.CheckIntegrity(subPolicy);
-            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryId, _config.FillMode);
+            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryIndex, _config.FillMode);
         }
 
         public static bool IsEnabled(double probability, Random rand)

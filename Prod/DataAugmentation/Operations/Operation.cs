@@ -18,7 +18,7 @@ namespace SharpNet.DataAugmentation.Operations
             return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
 
-        public virtual void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryId)
+        public virtual void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
         }
 

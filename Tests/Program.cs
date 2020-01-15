@@ -17,34 +17,15 @@ namespace SharpNetTests
     {
         private static void Main()
         {
-            /*
-            Console.WriteLine("Epoch1");
-            Console.WriteLine(Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_19064_1.txt").ContentStats());
-            Console.WriteLine("Epoch7");
-            Console.WriteLine(Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_19064_7.txt").ContentStats());
-            return;
-            */
-            //var x = new DenseNetBuilder {NumEpochs = 5,BatchSize = -1, GpuDeviceId=-1};Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10());return;
-
-
-            //var csvFilename = @"C:\temp\aptos2019-blindness-detection\test_images\test.csv";
-            //var dataDirectory = @"C:\temp\aptos2019-blindness-detection\test_images";
-            //var testDirectory = Aptos2019BlindnessDetection.ValueOf(csvFilename, dataDirectory, -1, -1, null);
-            //testDirectory.CropBorder(true).MakeSquarePictures(true, false, null, true).Resize(32, 32, true); return;
-
-
-
-
-
             //var dogsVsCatDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train";
             //var original = DogsVsCats.ValueOf(dogsVsCatDirectory, null);
             //var filtered = original.Filter(x => 1.2*Math.Min(x.GetWidth(),x.GetHeight()) > Math.Max(x.GetWidth(), x.GetHeight()));
             //var resized = filtered.Resize(32, 32);
             //return;
 
-
             //new TestEnsembleLearning().Test(); return;
             WideResNetTests();
+            //SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -62,12 +43,12 @@ namespace SharpNetTests
         {
             var todo = new List<Action<DenseNetBuilder, int>>
             {
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_100_CIFAR10);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_100);},
             /*(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_Fast_CIFAR10);},
             (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_10_CIFAR10);},
-            (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40_CIFAR10);},
-            (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_40_CIFAR10);},
+            (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNet_12_40);},
+            (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.DenseNetBC_12_40);},
             //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_NoNesterov_20190512_0743_200.txt"));},
             //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\SharpNet\DenseNet_12_40_CIFAR10_200Epochs_20190511_1946_154.txt"));},
              */
@@ -119,7 +100,7 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 16,8,WidthAptos2019);},
 
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
@@ -128,11 +109,11 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10";return p;},
                 () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT; p.ExtraDescription = "";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP";return p;},
 
 
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();return p;},
@@ -341,40 +322,71 @@ namespace SharpNetTests
 
         private static void Train_CIFAR100_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
-            var network = p.WRN(WRN_depth, WRN_k, CIFAR100DataSet.InputShape_CHW, CIFAR100DataSet.Categories);
             using (var cifar100 = new CIFAR100DataSet())
+            using (var network = p.WRN(WRN_depth, WRN_k, cifar100.InputShape_CHW, cifar100.Categories))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar100.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar100.Test);
             }
-            network.Dispose();
         }
         #endregion
+
+        #region SVHN Training
+        private static void SVHNTests()
+        {
+            var todo = new List<Action<WideResNetBuilder, int>>
+            {
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,4);},
+
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 40,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,8);},
+
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,10);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,8);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,10);},
+            };
+
+            var modifiers = new List<Func<WideResNetBuilder>>
+            {
+                () => {var p = WideResNetBuilder.WRN_SVHN();return p;},
+            };
+            PerformTestSet(modifiers, todo);
+        }
+
+        private static void Train_SVHN_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
+        {
+            using (var svhn = new SVHNDataSet())
+            using (var network = p.WRN(WRN_depth, WRN_k, svhn.InputShape_CHW, svhn.Categories))
+            {
+                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+                network.Fit(svhn.Training, learningRateComputer, p.NumEpochs, p.BatchSize, svhn.Test);
+            }
+        }
+        #endregion
+
 
 
         /// <summary>
         /// Train a network on CIFAR-10 data set 
         /// </summary>
-        private static void Train_CIFAR10(NetworkBuilder p, Func<Network> buildNetwork)
+        private static void Train_CIFAR10(NetworkBuilder p, Func<AbstractTrainingAndTestDataSet, Network> buildNetwork)
         {
             using (var cifar10 = new CIFAR10DataSet())
+            using (var network = buildNetwork(cifar10))
             {
-                var network = buildNetwork();
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
-                network.Dispose();
             }
         }
 
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
-            var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataSet.InputShape_CHW, CIFAR10DataSet.Categories);
             using (var cifar10 = new CIFAR10DataSet())
+            using (var network = p.WRN(WRN_depth, WRN_k, cifar10.InputShape_CHW, cifar10.Categories))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
             }
-            network.Dispose();
         }
 
         private static void Train_DogsVsCat_WRN_TransferLearning(WideResNetBuilder p)
@@ -382,21 +394,19 @@ namespace SharpNetTests
             int heightAndWidth = 32;
             var dataDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train_filter_resize_32_32";
             var trainingDirectory = DogsVsCats.ValueOf(dataDirectory, heightAndWidth, heightAndWidth, null).Shuffle(new Random(0)).Take(2000);
-            var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5);
-
-            var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-4_20190816_1810_150.txt", p.GpuDeviceId);
-            //network.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);
-            network.ChangeNumberOfCategoriesForTransferLearning(trainingDirectory.Categories);
-
-            network.Info("training only last layer");
-            network.Layers.ForEach(l=>l.Trainable = false);
-            network.LastFrozenLayer().Trainable = true;
-            network.EpochDatas.Clear();
-            p.NumEpochs = 150;
-            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-            network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.Dispose();
-            trainingAndValidationSet.Dispose();
+            using(var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
+            using(var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-4_20190816_1810_150.txt", p.GpuDeviceId))
+            { 
+                //network.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);
+                network.ChangeNumberOfCategoriesForTransferLearning(trainingDirectory.Categories);
+                network.Info("training only last layer");
+                network.Layers.ForEach(l=>l.Trainable = false);
+                network.LastFrozenLayer().Trainable = true;
+                network.EpochDatas.Clear();
+                p.NumEpochs = 150;
+                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+                network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
+            }
         }
 
         private static void Train_DogsVsCat_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
@@ -404,12 +414,12 @@ namespace SharpNetTests
             int heightAndWidth = 32;
             var dataDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train_filter_resize_32_32";
             var trainingDirectory = DogsVsCats.ValueOf(dataDirectory, heightAndWidth, heightAndWidth, null).Shuffle(new Random(0)).Take(2000);
-            var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5);
-            var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories);
-            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-            network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.Dispose();
-            trainingAndValidationSet.Dispose();
+            using(var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
+            using(var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories))
+            { 
+                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+                network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
+            }
         }
         private static void Train_RecursionCellularImageClassification_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
@@ -421,13 +431,13 @@ namespace SharpNetTests
             var dataDirectory = @"C:\Users\fzibi\AppData\Local\SharpNet\Data\recursion-cellular-image-classification\train_resize_" + heightAndWidth + "_" + heightAndWidth;
             var csvFilename = @"C:\Users\fzibi\AppData\Local\SharpNet\Data\recursion-cellular-image-classification\train.csv";
             var trainingDirectory = RecursionCellularImageClassification.ValueOf(csvFilename, dataDirectory, heightAndWidth, heightAndWidth, p.NetworkLogger("WRN-" + WRN_depth + "-" + WRN_k));
-            var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.9);
-            //var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories);
-            var network = p.WRN_ImageNet(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories);
-            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-            network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.Dispose();
-            trainingAndValidationSet.Dispose();
+            using(var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.9))
+            //using(var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories))
+            using (var network = p.WRN_ImageNet(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories))
+            { 
+                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+                network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
+            }
         }
 
         private static void Train_Aptos2019Blindness_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k, int heightAndWidth)
@@ -435,12 +445,12 @@ namespace SharpNetTests
             var csvFilename = @"C:\temp\aptos2019-blindness-detection\train_images\train.csv";
             var dataDirectory = @"C:\temp\aptos2019-blindness-detection\train_images_cropped_square_resize_" + heightAndWidth + "_" + heightAndWidth;
             var trainingDirectory = Aptos2019BlindnessDetection.ValueOf(csvFilename, dataDirectory, heightAndWidth, heightAndWidth, p.NetworkLogger("WRN-" + WRN_depth + "-" + WRN_k));
-            var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.9);
-            var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories);
-            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-            network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            network.Dispose();
-            trainingAndValidationSet.Dispose();
+            using (var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.9))
+            using (var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories))
+            { 
+                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+                network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
+            }
         }
        
         private static void ConsumersLaunchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)

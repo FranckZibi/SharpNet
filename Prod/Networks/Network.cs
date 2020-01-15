@@ -9,7 +9,6 @@ using System.Runtime;
 using System.Text;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -17,7 +16,7 @@ using SharpNet.Optimizers;
 
 namespace SharpNet.Networks
 {
-    public class Network
+    public class Network : IDisposable
     {
         #region fields
         private BackwardPropagationManager _backwardPropagationManager;
@@ -930,8 +929,11 @@ namespace SharpNet.Networks
             _yExpectedBufferForEntireBatch = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForEntireBatch, nameof(_yExpectedBufferForEntireBatch));
             var xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(miniBatchSize), "xMiniBatch");
 
+            var xMiniBatchCpu = new CpuTensor<float>(xMiniBatch.Shape, null, "xMiniBatchCpu");
+            var yExpectedMiniBatchCpu = new CpuTensor<float>(dataSet.YMiniBatch_Shape(miniBatchSize), null, "yExpectedMiniBatchCpu");
+
             var shuffledElementId = Enumerable.Range(0, dataSet.Count).ToArray();
-            if (epoch >= 2 && Config.RandomizeOrder && isTraining) 
+            if (epoch >= 2 && Config.RandomizeOrder && isTraining)
             {
                 Utils.Shuffle(shuffledElementId, Config.Rand);
             }
@@ -945,11 +947,27 @@ namespace SharpNet.Networks
 #endif
                 var blockSize = Math.Min(entireBatchSize- nbProcessed, miniBatchSize);
                 xMiniBatch.Reshape(dataSet.XMiniBatch_Shape(blockSize));
-
                 var yExpectedMiniBatch = _yExpectedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
+                xMiniBatchCpu.Reshape(xMiniBatch.Shape);
+                yExpectedMiniBatchCpu.Reshape(yExpectedMiniBatch.Shape);
                 _swCreateInputForEpoch?.Start();
-                dataSet.Load(epoch, isTraining, shuffledElementId, blockId * miniBatchSize, Config.DataAugmentation, xMiniBatch, yExpectedMiniBatch);
+                dataSet.LoadMiniBatch(epoch, isTraining, shuffledElementId, blockId * miniBatchSize, Config.DataAugmentation, xMiniBatchCpu, yExpectedMiniBatchCpu);
                 _swCreateInputForEpoch?.Stop();
+
+                //we copy mini batch content from CPU to appropriate target (CPU or GPU)
+                if (xMiniBatch.UseGPU)
+                {
+                    //validated on 4-jan-2020 : 2% speed up (vs useSynchronousCall = true)
+                    const bool useSynchronousCall = false;
+                    xMiniBatch.AsGPU<float>().CopyToDevice(xMiniBatchCpu.HostPointer, useSynchronousCall);
+                    yExpectedMiniBatch.AsGPU<float>().CopyToDevice(yExpectedMiniBatchCpu.HostPointer, useSynchronousCall);
+                }
+                else
+                {
+                    xMiniBatchCpu.CopyTo(xMiniBatch.AsCpu<float>());
+                    yExpectedMiniBatchCpu.CopyTo(yExpectedMiniBatch.AsCpu<float>());
+                }
+
 
                 var yPredictedMiniBatch = _yPredictedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 Layers.Last().Set_y(yPredictedMiniBatch);

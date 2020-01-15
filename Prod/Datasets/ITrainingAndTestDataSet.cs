@@ -8,5 +8,8 @@ namespace SharpNet.Datasets
         IDataSet Test { get; }
 
         string Name { get; }
+
+        int CategoryByteToCategoryIndex(byte categoryByte);
+        byte CategoryIndexToCategoryByte(int categoryIndex);
     }
 }

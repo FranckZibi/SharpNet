@@ -446,17 +446,17 @@ namespace SharpNet.CPU
             }
             System.Threading.Tasks.Parallel.For(0, Shape[0], SplitSingleRow);
         }
-        public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryId, int elementCount, int categoriesCount)
+        public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryIndex, int elementCount, int categoriesCount)
         {
             var Y = new CpuTensor<float>(new[] { elementCount, categoriesCount }, "YOneHot");
             for (int elementId = 0; elementId < elementCount; ++elementId)
             {
-                var category = elementIdToCategoryId(elementId);
-                if (category < 0)
+                var categoryIndex = elementIdToCategoryIndex(elementId);
+                if (categoryIndex < 0)
                 {
                     continue;
                 }
-                Y.Content[elementId * categoriesCount + category] = 1f;
+                Y.Content[elementId * categoriesCount + categoryIndex] = 1f;
             }
             return Y;
         }

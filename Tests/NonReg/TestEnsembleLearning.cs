@@ -34,20 +34,20 @@ namespace SharpNetTests.NonReg
             var predictionsAndAccuracy = ensembleLearning.Predict(directoryLoader);
 
             var elementIdToPredictedCategory = predictionsAndAccuracy.Item1.ComputePrediction();
-            var categoryIdToElementIdDescriptions = new Dictionary<int, List<string>>();
+            var categoryIndexToElementIdDescriptions = new Dictionary<int, List<string>>();
             for (int elementId = 0; elementId < directoryLoader.Count; ++elementId)
             {
-                var categoryId = elementIdToPredictedCategory[elementId];
-                if (!categoryIdToElementIdDescriptions.ContainsKey(categoryId))
+                var categoryIndex = elementIdToPredictedCategory[elementId];
+                if (!categoryIndexToElementIdDescriptions.ContainsKey(categoryIndex))
                 {
-                    categoryIdToElementIdDescriptions[categoryId] = new List<string>();
+                    categoryIndexToElementIdDescriptions[categoryIndex] = new List<string>();
                 }
-                categoryIdToElementIdDescriptions[categoryId].Add(directoryLoader.ElementIdToDescription(elementId));
+                categoryIndexToElementIdDescriptions[categoryIndex].Add(elementId.ToString());
             }
 
             var pythonFile = "c:/temp/toto.py";
             File.Delete(pythonFile);
-            foreach (var e in categoryIdToElementIdDescriptions)
+            foreach (var e in categoryIndexToElementIdDescriptions)
             {
                 File.AppendAllText(pythonFile, "_"+e.Key+"_set = { "+string.Join(",", e.Value.Select(x=>"'"+x+"'"))+ "}"+Environment.NewLine);
             }

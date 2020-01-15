@@ -64,13 +64,13 @@ namespace SharpNet.Networks
             return builder;
         }
 
-        public Network DenseNet_12_40_CIFAR10()
+        public Network DenseNet_12_40(AbstractTrainingAndTestDataSet dataSet)
         {
             //return Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_15576_14.txt");
             return Build(
-                nameof(DenseNet_12_40_CIFAR10),
-                new[] { 1, CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width },
-                CIFAR10DataSet.Categories,
+                nameof(DenseNet_12_40) + "_" + dataSet.Name,
+                new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
+                dataSet.Categories,
                 false,
                 new[] { 12, 12, 12 },
                 false,
@@ -78,12 +78,12 @@ namespace SharpNet.Networks
                 1.0,
                 null);
         }
-        public Network DenseNetBC_12_40_CIFAR10()
+        public Network DenseNetBC_12_40(AbstractTrainingAndTestDataSet dataSet)
         {
             return Build(
-                nameof(DenseNetBC_12_40_CIFAR10),
-                new[] { 1, CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width },
-                CIFAR10DataSet.Categories,
+                nameof(DenseNetBC_12_40)+"_"+dataSet.Name,
+                new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
+                dataSet.Categories,
                 false,
                 new[] { 12 / 2, 12 / 2, 12 / 2 },
                 true,
@@ -91,12 +91,12 @@ namespace SharpNet.Networks
                 0.5,
                 null);
         }
-        public Network DenseNetBC_12_100_CIFAR10()
+        public Network DenseNetBC_12_100(AbstractTrainingAndTestDataSet dataSet)
         {
             return Build(
-                nameof(DenseNetBC_12_100_CIFAR10),
-                new[] { 1, CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width },
-                CIFAR10DataSet.Categories,
+                nameof(DenseNetBC_12_100) + "_" + dataSet.Name,
+                new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
+                dataSet.Categories,
                 false,
                 new[] { 32 / 2, 32 / 2, 32 / 2 },
                 true,
@@ -104,20 +104,7 @@ namespace SharpNet.Networks
                 0.5,
                 null);
         }
-        //public Network DenseNet_Fast_CIFAR10()
-        //{
-        //    return AddDenseNet(
-        //        nameof(DenseNet_Fast_CIFAR10),
-        //        new[] { 1, CIFAR10DataLoader.Channels, CIFAR10DataLoader.Height, CIFAR10DataLoader.Width },
-        //        CIFAR10DataLoader.Categories,
-        //        false,
-        //        new[] { 2, 2},
-        //        false,
-        //        12,
-        //        0.5,
-        //        null);
-        //}
-
+      
         /// <summary>
         /// build a DenseNet
         /// </summary>

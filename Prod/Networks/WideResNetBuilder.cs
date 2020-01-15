@@ -148,6 +148,47 @@ namespace SharpNet.Networks
             return builder;
         }
 
+
+        /// <summary>
+        /// The default WRN Meta Parameters for SVHN
+        /// </summary>
+        /// <returns></returns>
+        public static WideResNetBuilder WRN_SVHN()
+        {
+            var builder = new WideResNetBuilder
+                          {
+                              Config = new NetworkConfig
+                                       {
+                                           LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                                           lambdaL2Regularization = 0.0005
+                                       }
+                                  .WithSGD(0.9, false)
+                                  .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
+
+                              NumEpochs = 70,
+                              BatchSize = 128,
+                              WRN_DropOut = 0.0,
+                              InitialLearningRate = 0.1,
+                              WRN_AvgPoolingSize = 2,
+                              WRN_DropOutAfterDenseLayer = 0
+                          };
+
+            //Data augmentation
+            var da = builder.Config.DataAugmentation;
+            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+            da.WidthShiftRangeInPercentage = 0.1;
+            da.HeightShiftRangeInPercentage = 0.1;
+            da.HorizontalFlip = false;
+            da.VerticalFlip = false;
+            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            da.AlphaMixup = 0.0;
+            da.AlphaCutMix = 0.0;
+            da.CutoutPatchPercentage = 0.0;
+
+            return builder;
+        }
+
+
         /// <summary>
         /// 0 to disable dropout
         /// any value > 0 will enable dropout

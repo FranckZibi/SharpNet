@@ -19,18 +19,18 @@ namespace SharpNet.Datasets
                 width,
                 new[] {"cat", "dog"},
                 false, //we do not ignore zero pixels
-                ComputeCategoryIdDescriptionFullName);
+                ComputeCategoryIndexDescriptionFullName);
         }
 
-        private static void ComputeCategoryIdDescriptionFullName(
+        private static void ComputeCategoryIndexDescriptionFullName(
             string csvFileName,
             string dataDirectory,
-            List<int> elementIdToCategoryId,
+            List<int> elementIdToCategoryIndex,
             List<string> elementIdToDescription,
             List<List<string>> elementIdToSubPath,
             Logger logger)
         {
-            elementIdToCategoryId.Clear();
+            elementIdToCategoryIndex.Clear();
             elementIdToDescription.Clear();
             elementIdToSubPath.Clear();
 
@@ -39,8 +39,8 @@ namespace SharpNet.Datasets
                 var fullName = fileinfo.FullName;
                 var description = Path.GetFileNameWithoutExtension(fullName);
                 elementIdToDescription.Add(description);
-                int categoryId = description.StartsWith("dog") ? 1 : 0;
-                elementIdToCategoryId.Add(categoryId);
+                int categoryIndex = description.StartsWith("dog") ? 1 : 0;
+                elementIdToCategoryIndex.Add(categoryIndex);
                 elementIdToSubPath.Add(new List<string> {fileinfo.Name});
             }
         }

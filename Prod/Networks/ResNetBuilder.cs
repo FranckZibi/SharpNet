@@ -130,22 +130,22 @@ namespace SharpNet.Networks
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         #region ResNetV1 for CIFAR-10
-        public Network ResNet20V1_CIFAR10() {return ResNetV1_CIFAR10(3);}
-        public Network ResNet32V1_CIFAR10() {return ResNetV1_CIFAR10(5);}
-        public Network ResNet44V1_CIFAR10() {return ResNetV1_CIFAR10(7);}
-        public Network ResNet56V1_CIFAR10() {return ResNetV1_CIFAR10(9);}
-        public Network ResNet110V1_CIFAR10() {return ResNetV1_CIFAR10(18);}
-        public Network ResNet164V1_CIFAR10() {return ResNetV1_CIFAR10(27);}
-        public Network ResNet1202V1_CIFAR10() {return ResNetV1_CIFAR10(200);}
-        private Network ResNetV1_CIFAR10(int numResBlocks)
+        public Network ResNet20V1_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV1_CIFAR10(3, dataSet);}
+        public Network ResNet32V1_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV1_CIFAR10(5, dataSet);}
+        public Network ResNet44V1_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV1_CIFAR10(7, dataSet);}
+        public Network ResNet56V1_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV1_CIFAR10(9, dataSet);}
+        public Network ResNet110V1_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV1_CIFAR10(18, dataSet);}
+        public Network ResNet164V1_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV1_CIFAR10(27, dataSet);}
+        public Network ResNet1202V1_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV1_CIFAR10(200, dataSet);}
+        private Network ResNetV1_CIFAR10(int numResBlocks, AbstractTrainingAndTestDataSet dataSet)
         {
-            var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_CIFAR-10";
+            var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_"+dataSet.Name;
             var net = BuildEmptyNetwork(networkName);
             var config = net.Config;
             var layers = net.Layers;
 
             Debug.Assert(layers.Count == 0);
-            net.Input(CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width);
+            net.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
 
             net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
@@ -164,28 +164,28 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             net.AvgPooling(8, 8);
-            net.Output(CIFAR10DataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            net.Output(dataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
         #endregion
 
         //implementation described in: https://arxiv.org/pdf/1603.05027.pdf
         #region ResNetV2 for CIFAR-10
-        public Network ResNet11V2_CIFAR10() {return ResNetV2_CIFAR10(1);}
-        public Network ResNet20V2_CIFAR10() {return ResNetV2_CIFAR10(2);}
-        public Network ResNet29V2_CIFAR10() {return ResNetV2_CIFAR10(3);}
-        public Network ResNet56V2_CIFAR10() {return ResNetV2_CIFAR10(6);}
-        public Network ResNet110V2_CIFAR10() {return ResNetV2_CIFAR10(12);}
-        public Network ResNet164V2_CIFAR10() {return ResNetV2_CIFAR10(18);}
-        public Network ResNet1001V2_CIFAR10() {return ResNetV2_CIFAR10(111);}
-        private Network ResNetV2_CIFAR10(int numResBlocks)
+        public Network ResNet11V2_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV2_CIFAR10(1, dataSet);}
+        public Network ResNet20V2_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV2_CIFAR10(2, dataSet);}
+        public Network ResNet29V2_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV2_CIFAR10(3, dataSet);}
+        public Network ResNet56V2_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV2_CIFAR10(6, dataSet);}
+        public Network ResNet110V2_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV2_CIFAR10(12, dataSet);}
+        public Network ResNet164V2_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV2_CIFAR10(18, dataSet);}
+        public Network ResNet1001V2_CIFAR10(AbstractTrainingAndTestDataSet dataSet) {return ResNetV2_CIFAR10(111, dataSet);}
+        private Network ResNetV2_CIFAR10(int numResBlocks, AbstractTrainingAndTestDataSet dataSet)
         {
-            var networkName = "ResNet" + (9 * numResBlocks + 2) + "V2_CIFAR10";
+            var networkName = "ResNet" + (9 * numResBlocks + 2) + "V2_"+ dataSet.Name;
             var net = BuildEmptyNetwork(networkName);
             var config = net.Config;
             var layers = net.Layers;
 
-            net.Input(CIFAR10DataSet.Channels, CIFAR10DataSet.Height, CIFAR10DataSet.Width);
+            net.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
             net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageCIn = 16; //number of channels for current stage
@@ -214,7 +214,7 @@ namespace SharpNet.Networks
             }
             net.BatchNorm().Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             net.AvgPooling(8, 8);
-            net.Output(CIFAR10DataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            net.Output(dataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
         #endregion

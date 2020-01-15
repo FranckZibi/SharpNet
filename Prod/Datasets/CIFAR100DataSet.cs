@@ -29,66 +29,57 @@ AvgPoolingStride = 2
 
 namespace SharpNet.Datasets
 {
-    public class CIFAR100DataSet : ITrainingAndTestDataSet
+    public class CIFAR100DataSet : AbstractTrainingAndTestDataSet
     {
-        private readonly string[] CategoryIdToDescription = new[] { "beaver", "dolphin", "otter", "seal", "whale",
-            "aquarium fish", "flatfish", "ray", "shark", "trout",
-            "orchids", "poppies", "roses", "sunflowers", "tulips",
-            "bottles", "bowls", "cans", "cups", "plates",
-            "apples", "mushrooms", "oranges", "pears", "sweet peppers",
-            "clock", "computer keyboard", "lamp", "telephone", "television",
-            "bed", "chair", "couch", "table", "wardrobe",
-            "bee", "beetle", "butterfly", "caterpillar", "cockroach",
-            "bear", "leopard", "lion", "tiger", "wolf",
-            "bridge", "castle", "house", "road", "skyscraper",
-            "cloud", "forest", "mountain", "plain", "sea",
-            "camel", "cattle", "chimpanzee", "elephant", "kangaroo",
-            "fox", "porcupine", "possum", "raccoon", "skunk",
-            "crab", "lobster", "snail", "spider", "worm",
-            "baby", "boy", "girl", "man", "woman",
-            "crocodile", "dinosaur", "lizard", "snake", "turtle",
-            "hamster", "mouse", "rabbit", "shrew", "squirrel",
-            "maple", "oak", "palm", "pine", "willow",
-            "bicycle", "bus", "motorcycle", "pickup truck", "train",
-            "lawn-mower", "rocket", "streetcar", "tank", "tractor" };
+        //private readonly string[] CategoryIndexToDescription = new[] { "beaver", "dolphin", "otter", "seal", "whale",
+        //    "aquarium fish", "flatfish", "ray", "shark", "trout",
+        //    "orchids", "poppies", "roses", "sunflowers", "tulips",
+        //    "bottles", "bowls", "cans", "cups", "plates",
+        //    "apples", "mushrooms", "oranges", "pears", "sweet peppers",
+        //    "clock", "computer keyboard", "lamp", "telephone", "television",
+        //    "bed", "chair", "couch", "table", "wardrobe",
+        //    "bee", "beetle", "butterfly", "caterpillar", "cockroach",
+        //    "bear", "leopard", "lion", "tiger", "wolf",
+        //    "bridge", "castle", "house", "road", "skyscraper",
+        //    "cloud", "forest", "mountain", "plain", "sea",
+        //    "camel", "cattle", "chimpanzee", "elephant", "kangaroo",
+        //    "fox", "porcupine", "possum", "raccoon", "skunk",
+        //    "crab", "lobster", "snail", "spider", "worm",
+        //    "baby", "boy", "girl", "man", "woman",
+        //    "crocodile", "dinosaur", "lizard", "snake", "turtle",
+        //    "hamster", "mouse", "rabbit", "shrew", "squirrel",
+        //    "maple", "oak", "palm", "pine", "willow",
+        //    "bicycle", "bus", "motorcycle", "pickup truck", "train",
+        //    "lawn-mower", "rocket", "streetcar", "tank", "tractor" };
 
-        private readonly string[] SuperclassIdToDescription = new[]
-        {
-            "aquatic mammals",
-            "fish",
-            "flowers",
-            "food containers",
-            "fruit and vegetables",
-            "household electrical devices",
-            "household furniture",
-            "insects",
-            "large carnivores",
-            "large man-made outdoor things",
-            "large natural outdoor scenes",
-            "large omnivores and herbivores",
-            "medium-sized mammals",
-            "non-insect invertebrates",
-            "people",
-            "reptiles",
-            "small mammals",
-            "trees",
-            "vehicles 1",
-            "vehicles 2"
-        };
+        //private readonly string[] SuperclassIdToDescription = new[]
+        //{
+        //    "aquatic mammals",
+        //    "fish",
+        //    "flowers",
+        //    "food containers",
+        //    "fruit and vegetables",
+        //    "household electrical devices",
+        //    "household furniture",
+        //    "insects",
+        //    "large carnivores",
+        //    "large man-made outdoor things",
+        //    "large natural outdoor scenes",
+        //    "large omnivores and herbivores",
+        //    "medium-sized mammals",
+        //    "non-insect invertebrates",
+        //    "people",
+        //    "reptiles",
+        //    "small mammals",
+        //    "trees",
+        //    "vehicles 1",
+        //    "vehicles 2"
+        //};
 
-        public string Name => "CIFAR-100";
-        public const int Channels = 3;
-        public const int Height = 32;
-        public const int Width = Height;
-        public const int Categories = 100;
+        public override IDataSet Training { get; }
+        public override IDataSet Test { get; }
 
-        public static readonly int[] InputShape_CHW = { Channels, Height, Width };
-
-
-        public IDataSet Training { get; }
-        public IDataSet Test { get; }
-
-        public CIFAR100DataSet()
+        public CIFAR100DataSet() : base("CIFAR-100", 3, 32, 32, 100)
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 
@@ -98,50 +89,42 @@ namespace SharpNet.Datasets
             Load(Path.Combine(path, "train.bin"), xTrainingSet, yTrainingSet);
             //We normalize the input with 0 mean / 1 volatility
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>>{Tuple.Create(129.304165605469f, 68.1702428992064f),Tuple.Create(124.069962695312f, 65.3918080438575f),Tuple.Create(112.434050058594f, 70.4183701880494f)};
-            ToWorkingSet(xTrainingSet, yTrainingSet, out var xTrain, out var yTrain, meanAndVolatilityOfEachChannelInTrainingSet);
+            var xTrain = AbstractDataSet.ToXWorkingSet(xTrainingSet, meanAndVolatilityOfEachChannelInTrainingSet);
+            var yTrain = AbstractDataSet.ToYWorkingSet(yTrainingSet, Categories, CategoryByteToCategoryIndex);
+
             AbstractDataSet.AreCompatible_X_Y(xTrain, yTrain);
-            int[] trainElementIdToCategoryId = yTrainingSet.Content.Select(x => (int)x).ToArray();
-            Debug.Assert(trainElementIdToCategoryId.Length == xTrainingSet.Shape[0]);
+            int[] trainElementIdToCategoryIndex = yTrainingSet.Content.Select(x => (int)x).ToArray();
+            Debug.Assert(trainElementIdToCategoryIndex.Length == xTrainingSet.Shape[0]);
 
             //We load the test set
             var xTestSet = new CpuTensor<byte>(new[] { 10000, Channels, Height, Width }, "xTestSet");
             var yTestSet = new CpuTensor<byte>(new[] { 10000, 1, 1, 1 }, "yTestSet");
             Load(Path.Combine(path, "test.bin"), xTestSet, yTestSet);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
-            ToWorkingSet(xTestSet, yTestSet, out var xTest, out var yTest, meanAndVolatilityOfEachChannelInTrainingSet);
+            var xTest = AbstractDataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
+            var yTest = AbstractDataSet.ToYWorkingSet(yTestSet, Categories, CategoryByteToCategoryIndex);
+
             AbstractDataSet.AreCompatible_X_Y(xTest, yTest);
-            int[] testElementIdToCategoryId = yTestSet.Content.Select(x => (int)x).ToArray();
-            Debug.Assert(testElementIdToCategoryId.Length == xTestSet.Shape[0]);
+            int[] testElementIdToCategoryIndex = yTestSet.Content.Select(x => (int)x).ToArray();
+            Debug.Assert(testElementIdToCategoryIndex.Length == xTestSet.Shape[0]);
 
             //Uncomment the following line to take only the first elements
             //xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, 1000);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, 1000); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
-            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryId, CategoryIdToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
         }
 
-        public void Dispose()
-        {
-            Training?.Dispose();
-            Test?.Dispose();
-        }
-
-        private static void ToWorkingSet(CpuTensor<byte> x, CpuTensor<byte> y, out CpuTensor<float> xWorkingSet, out CpuTensor<float> yWorkingSet, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
-        {
-            xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
-            //xWorkingSet = x.Select((n, c, val) => (float)val/255f);
-            yWorkingSet = y.ToCategorical(1f, out _);
-        }
         private static void Load(string path, CpuTensor<byte> x, CpuTensor<byte> y)
         {
             var b = File.ReadAllBytes(path);
             for (int count = 0; count < x.Shape[0]; ++count)
             {
-                int bIndex = count * (2 + Height * Width * Channels);
+                int bIndex = count * (2 + x.MultDim0);
                 int xIndex = (count) * x.MultDim0;
                 int yIndex = (count) * y.MultDim0;
-                y[yIndex] = b[bIndex+1]; //fine label . The coarse label is at b[bIndex]
-                for (int j = 0; j < Height * Width * Channels; ++j)
+                y[yIndex] = b[bIndex + 1]; //fine label . The coarse label is at b[bIndex]
+                for (int j = 0; j < x.MultDim0; ++j)
                 {
                     x[xIndex + j] = b[bIndex + 2 + j];
                 }

@@ -24,17 +24,18 @@ namespace SharpNet.Datasets
         /// <param name="xMiniBatch">buffer where all elements (associated with the mini batch) will be stored</param>
         /// <param name="yMiniBatch">buffer where all categories (associated with the mini batch) will be stored</param>
         /// <returns></returns>
-        void Load(int epoch, bool isTraining, 
+        void LoadMiniBatch(int epoch, bool isTraining, 
             int[] shuffledElementId, int firstIndexInShuffledElementId,
-            DataAugmentationConfig dataAugmentationConfig, Tensor xMiniBatch, Tensor yMiniBatch);
+            DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch);
 
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
         /// </summary>
         /// <param name="elementId">id of element to store, in range [0, Count-1] </param>
         /// <param name="indexInBuffer">where to store the element in the buffer</param>
-        /// <param name="buffer">buffer where to store elementId (with a capacity of 'buffer.Shape[0]' elements) </param>
-        void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> buffer);
+        /// <param name="xBuffer">buffer where to store elementId (with a capacity of 'xBuffer.Shape[0]' elements) </param>
+        /// <param name="yBuffer">buffer where to store the associate category (with a capacity of 'yBuffer.Shape[0]' elements) </param>
+        void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer);
 
 
         /// <summary>
@@ -63,6 +64,7 @@ namespace SharpNet.Datasets
         double OriginalChannelVolatility(int channel);
 
         List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
+        Logger Logger { get; }
 
         /// <summary>
         /// true if the current data set is normalized (with mean=0 and volatility=1 in each channel)
@@ -70,23 +72,11 @@ namespace SharpNet.Datasets
         bool IsNormalized { get; }
 
         /// <summary>
-        /// category id to associated description
-        /// </summary>
-        /// <param name="categoryId">id of the category (between 0 and 'Categories-1')</param>
-        /// <returns></returns>
-        string CategoryIdToDescription(int categoryId);
-        /// <summary>
-        /// element id to associated category id 
+        /// element id to associated category index
         /// </summary>
         /// <param name="elementId">id of the element (between 0 and 'Count-1')</param>
-        /// <returns>id of the associated category (between 0 and 'Categories-1')</returns>
-        int ElementIdToCategoryId(int elementId);
-        /// <summary>
-        /// element id to associated description
-        /// </summary>
-        /// <param name="elementId">id of the element (between 0 and 'Count-1')</param>
-        /// <returns>description of the associated element id</returns>
-        string ElementIdToDescription(int elementId);
+        /// <returns>index of the associated category (between 0 and 'Categories-1')</returns>
+        int ElementIdToCategoryIndex(int elementId);
 
         ImageStatistic ElementIdToImageStatistic(int elementId);
 
@@ -104,6 +94,7 @@ namespace SharpNet.Datasets
         int Width { get; }
         int[] Y_Shape { get; }
         int[] XMiniBatch_Shape(int miniBatchSize);
+        int[] YMiniBatch_Shape(int miniBatchSize);
         CpuTensor<float> Y { get; }
 
         string Name { get; }

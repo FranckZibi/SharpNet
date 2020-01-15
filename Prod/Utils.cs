@@ -281,6 +281,32 @@ namespace SharpNet
             }
             return result;
         }
+
+        public static long FileLength(string path)
+        {
+            return new FileInfo(path).Length;
+        }
+
+
+        /// <summary>
+        /// read a part of a binary file, starting at position 'startIndex' in the file
+        /// </summary>
+        /// <param name="fileName">file to read</param>
+        /// <param name="startIndex">the fistIndex to read in the file</param>
+        /// <param name="byteCount">number of bytes to read</param>
+        /// <returns>an array of 'byteCount' bytes</returns>
+        public static byte[] ReadPartOfFile(string fileName, int startIndex, int byteCount)
+        {
+            // Open file with a BinaryReader
+            using (var b = new BinaryReader(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read)))
+            {
+                // Seek to our required position 'startIndex'
+                b.BaseStream.Seek(startIndex, SeekOrigin.Begin);
+                // Read the next 'byteCount' bytes.
+                return b.ReadBytes(byteCount);
+            }
+        }
+
         public static bool TryGet<T>(this IDictionary<string, object> serialized, string key, out T value)
         {
             if (serialized.TryGetValue(key, out var resAsObject))

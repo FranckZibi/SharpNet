@@ -14,7 +14,7 @@
                 width, 
                 new[] { "No DR", "Mild", "Moderate", "Severe", "Proliferative DR" },
                 true,
-                DirectoryDataSet.DefaultCompute_CategoryId_Description_FullName);
+                DirectoryDataSet.DefaultCompute_CategoryIndex_Description_FullName);
         }
     }
 }

@@ -127,7 +127,7 @@ namespace SharpNet.GPU
             if (_isOwnerOfDeviceMemory)
             {
                 var res = NVCudaWrapper.cuMemFree_v2(_pointer);
-                GPUWrapper.CheckStatus(res);
+                //GPUWrapper.CheckStatus(res);
                 _pointer = IntPtr.Zero;
 #if DEBUG
                 if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving DeviceMemory.Dispose(" + SizeInBytes + "), Pointer=" + _pointer + ", Disposed=" + _disposed);}

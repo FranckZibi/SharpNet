@@ -1,22 +1,15 @@
 ﻿namespace SharpNet.Datasets
 {
-    public class TrainingAndTestDataLoader : ITrainingAndTestDataSet
+    public class TrainingAndTestDataLoader : AbstractTrainingAndTestDataSet
     {
-        public TrainingAndTestDataLoader(IDataSet training, IDataSet test, string name)
+        public TrainingAndTestDataLoader(IDataSet training, IDataSet test, AbstractDataSet parent)
+            : base(parent.Name, parent.Channels, parent.Height, parent.Width, parent.Categories)
         {
             Training = training;
             Test = test;
-            Name = name;
         }
 
-        public void Dispose()
-        {
-            Training.Dispose();
-            Test.Dispose();
-        }
-
-        public IDataSet Training { get; }
-        public IDataSet Test { get; }
-        public string Name { get; }
+        public override IDataSet Training { get; }
+        public override IDataSet Test { get; }
     }
 }

@@ -59,25 +59,5 @@ namespace SharpNet.CPU
         {
             return x as CpuTensor<float>;
         }
-        public static CpuTensor<TY> ToCategorical<TX, TY>(this CpuTensor<TX> y, TY one, out IDictionary<TX, int> categoryToIndex) where TX : struct where TY : struct
-        {
-            Debug.Assert(y.MultDim0 == 1);
-            var batchSize = y.Shape[0];
-
-            categoryToIndex = new Dictionary<TX, int>();
-            var distinctCategories = new HashSet<TX>(y.Content).ToList();
-            distinctCategories.Sort();
-            for (int i = 0; i < distinctCategories.Count; ++i)
-            {
-                categoryToIndex[distinctCategories[i]] = i;
-            }
-            var newShape = new[] { batchSize, distinctCategories.Count };
-            var newY = new CpuTensor<TY>(newShape, y.Description);
-            for (int n = 0; n < batchSize; ++n)
-            {
-                newY.Set(n, categoryToIndex[y.Get(n, 0)], one);
-            }
-            return newY;
-        }
     }
 }
