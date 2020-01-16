@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
@@ -24,8 +21,8 @@ namespace SharpNetTests
             //return;
 
             //new TestEnsembleLearning().Test(); return;
-            WideResNetTests();
-            //SVHNTests();
+            //WideResNetTests();
+            SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -81,7 +78,7 @@ namespace SharpNetTests
                 #region already performed tests
             #endregion
             };
-            PerformTestSet(metaParametersModifiers, todo);
+            PerformAllActionsInAllGpu(metaParametersModifiers, todo);
         }
         #endregion
 
@@ -227,7 +224,7 @@ namespace SharpNetTests
                 //(p) =>{p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 150;p.WidthShiftRange = 0.0;p.HeightShiftRange = 0.0;p.ExtraDescription = "_CyclicCosineAnnealing_10_2_WidthShiftRange_0_0_150epochs";},
                 #endregion
             };
-            PerformTestSet(modifiers, todo);
+            PerformAllActionsInAllGpu(modifiers, todo);
         }
         #endregion
 
@@ -291,7 +288,7 @@ namespace SharpNetTests
                 */
                 #endregion
             };
-            PerformTestSet(modifiers, todo);
+            PerformAllActionsInAllGpu(modifiers, todo);
         }
         #endregion
 
@@ -317,7 +314,7 @@ namespace SharpNetTests
                 () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 1.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 0.0; p.ExtraDescription = "Mixup";return p;},
                 () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 20.0/32.0; p.ExtraDescription = "Cutout_0_625";return p;},
             };
-            PerformTestSet(modifiers, todo);
+            PerformAllActionsInAllGpu(modifiers, todo);
         }
 
         private static void Train_CIFAR100_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
@@ -337,20 +334,19 @@ namespace SharpNetTests
             var todo = new List<Action<WideResNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,4);},
-
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,8);},
-
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,10);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,8);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,10);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,10);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,10);},
             };
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () => {var p = WideResNetBuilder.WRN_SVHN();return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=30;p.ExtraDescription = "_30Epochs";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.BatchSize = -1;p.NumEpochs=30;p.ExtraDescription = "_30Epochs_AutoBatchSize";return p;},
             };
-            PerformTestSet(modifiers, todo);
+            PerformAllActionsInAllGpu(modifiers, todo);
         }
 
         private static void Train_SVHN_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
@@ -452,42 +448,61 @@ namespace SharpNetTests
                 network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
             }
         }
-       
-        private static void ConsumersLaunchingTests(int gpuDeviceId, BlockingCollection<Action<int>> produced)
+
+
+        /// <summary>
+        /// perform as much actions as possible among 'allActionsToPerform'
+        /// </summary>
+        /// <param name="gpuId"></param>
+        /// <param name="allActionsToPerform"></param>
+        private static void PerformActionsInSingleGpu(int gpuId, List<Action<int>> allActionsToPerform)
         {
-            Console.WriteLine("Computations on GPU " + gpuDeviceId+" have started (ThreadId"+Thread.CurrentThread.ManagedThreadId+")");
-            foreach (var action in produced.GetConsumingEnumerable())
+            for (;;)
             {
-                action(gpuDeviceId);
-            }
-            Console.WriteLine("Last computation on GPU " + gpuDeviceId+ " is in progress");
-        }
-        private static void PerformTestSet<T>(List<Func<T>> networkDeformers, List<Action<T, int>> networks) where T: NetworkBuilder, new()
-        {
-            int nbGPUs = GPUWrapper.GetDeviceCount();
-            var totalTests = networkDeformers.Count * networks.Count;
-            nbGPUs = Math.Min(nbGPUs, totalTests);
-            Console.WriteLine("Computation will be done on "+nbGPUs+" GPU(s)");
-            var taskToBePerformed = new BlockingCollection<Action<int>>(1);
-            var consumers = Enumerable.Range(0, nbGPUs).Select(gpuDeviceId => Task.Run(() => ConsumersLaunchingTests(gpuDeviceId, taskToBePerformed))).ToArray();
-            var nbPerformedTests = 0;
-            for (int networkDeformerIndex = 0; networkDeformerIndex < networkDeformers.Count; ++networkDeformerIndex)
-            {
-                for (int networkIndex = 0; networkIndex < networks.Count; ++networkIndex)
+                Action<int> nexActionToPerform;
+                lock (allActionsToPerform)
                 {
-                    var network = networks[networkIndex];
-                    int testIdx = networkDeformerIndex* networks.Count + networkIndex+1;
-                    var networkMetaParameters = networkDeformers[networkDeformerIndex]();
-                    Console.WriteLine("Adding test " + (networkDeformerIndex + 1) + "." + (networkIndex + 1) + " (#" + testIdx + "/" + totalTests + ") in queue  ('" + networkMetaParameters.ExtraDescription + "')");
-                    taskToBePerformed.Add(gpuDeviceId => network(networkMetaParameters, gpuDeviceId));
-                    ++nbPerformedTests;
-                    Console.WriteLine(new string('-', 80));
-                    Console.WriteLine("Progress: " + ((100.0 * nbPerformedTests) / totalTests));
-                    Console.WriteLine(new string('-', 80));
+                    Console.WriteLine("GpuId#"+gpuId+" : "+ allActionsToPerform.Count+" remaining computation(s)");
+                    if (allActionsToPerform.Count == 0)
+                    {
+                        return;
+                    }
+                    nexActionToPerform = allActionsToPerform[0];
+                    allActionsToPerform.RemoveAt(0);
+                }
+                try
+                {
+                    Console.WriteLine("GpuId#" + gpuId + " : starting new computation");
+                    nexActionToPerform(gpuId);
+                    Console.WriteLine("GpuId#" + gpuId + " : ended new computation");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("GpuId#" + gpuId + " : " + e);
+                    Console.WriteLine("GpuId#" + gpuId + " : ignoring error");
                 }
             }
-            taskToBePerformed.CompleteAdding();
-            Task.WaitAll(consumers);
+        }
+        private static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkDeformers, List<Action<T, int>> networks) where T : NetworkBuilder, new()
+        {
+            var taskToBePerformed = new List<Action<int>>();
+            foreach (var networkDeformer in networkDeformers)
+            {
+                foreach (var network in networks)
+                {
+                    taskToBePerformed.Add(gpuDeviceId => network(networkDeformer(), gpuDeviceId));
+                }
+            }
+            int nbGPUs = Math.Min(GPUWrapper.GetDeviceCount(), taskToBePerformed.Count);
+            Console.WriteLine(taskToBePerformed.Count+ " computation(s) will be done on " + nbGPUs + " GPU(s)");
+            var gpuTasks = new Task[nbGPUs];
+            for (int i= 0; i< nbGPUs; ++i)
+            {
+                var gpuId = i;
+                gpuTasks[i] = new Task(()=> PerformActionsInSingleGpu(gpuId, taskToBePerformed));
+                gpuTasks[i].Start();
+            }
+            Task.WaitAll(gpuTasks);
         }
     }
 }

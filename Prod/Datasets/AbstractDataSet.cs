@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -226,7 +227,19 @@ namespace SharpNet.Datasets
             yBufferMiniBatchCpu?.Dispose();
             yBufferMiniBatchCpu = null;
             threadParameters = null;
-            thread?.Abort();
+            for (int i = 0; i < 1000; ++i)
+            {
+                _backgroundThreadStatus = BackgroundThreadStatus.TO_ABORT;
+                if (thread == null || !thread.IsAlive)
+                {
+                    break;
+                }
+                Thread.Sleep(1);
+                if (i + 1 == 1000)
+                {
+                    Logger.Info("fail to stop BackgroundThread in "+Name);
+                }
+            }
         }
         public int[] XMiniBatch_Shape(int miniBatchSize)
         {
@@ -434,7 +447,7 @@ namespace SharpNet.Datasets
         // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
         private bool UseBackgroundThread => true;
         private readonly Thread thread;
-        private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT };
+        private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT, TO_ABORT };
         private BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;
         private Tuple<int, bool, int[], int, DataAugmentationConfig, int[], int[]> threadParameters;
         private void BackgroundThread()
@@ -443,6 +456,10 @@ namespace SharpNet.Datasets
             {
                 while (_backgroundThreadStatus != BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT)
                 {
+                    if (_backgroundThreadStatus == BackgroundThreadStatus.TO_ABORT)
+                    {
+                        return;
+                    }
                     Thread.Sleep(1);
                 }
                 _backgroundThreadStatus = BackgroundThreadStatus.PROCESSING_INPUT;
