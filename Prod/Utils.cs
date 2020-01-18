@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using SharpNet.Data;
 using SharpNet.Networks;
@@ -435,5 +436,16 @@ namespace SharpNet
             }
             return w / (b + w);
         }
+
+        public static string LoadResourceContent(Assembly assembly, string resourceName)
+        {
+            using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
+            // ReSharper disable once AssignNullToNotNullAttribute
+            using (var reader = new StreamReader(resourceStream, Encoding.UTF8))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+
     }
 }

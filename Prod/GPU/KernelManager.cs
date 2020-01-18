@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
 
@@ -35,7 +34,7 @@ namespace SharpNet.GPU
         public KernelManager(GPUWrapper gpu)
         {
             _gpu = gpu;
-            bool success =TryLoadKernel(new[]
+            bool success = TryLoadKernel(new[]
                 {
                     "Sum",
                     "UpdateAdamOptimizer",
@@ -45,7 +44,7 @@ namespace SharpNet.GPU
                     "Concatenate",
                     "Split"
                 },
-                @"C:\Projects\SharpNet\Prod\GPU\Kernels\SinglePrecision.cu",
+                "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);
             if (!success)
             {
@@ -143,10 +142,12 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        private bool TryLoadKernel(string[] kernelNames, string pathSinglePrecision, out string errorMsg)
+        private bool TryLoadKernel(string[] kernelNames, string embeddedResourceWithCudaSourceCode, out string errorMsg)
         {
-            var path = pathSinglePrecision;
-            using (var rtc = new CudaRuntimeCompiler(File.ReadAllText(path), Path.GetFileName(path)))
+            //We load the embedded resource containing the CUDA source code
+            var cudaSourceCode = Utils.LoadResourceContent(typeof(KernelManager).Assembly, embeddedResourceWithCudaSourceCode);
+
+            using (var rtc = new CudaRuntimeCompiler(cudaSourceCode, nameof(_kernelSinglePrecision)))
             {
                 try
                 {
