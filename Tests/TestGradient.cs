@@ -6,7 +6,6 @@ using SharpNet.GPU;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet.CPU;
-using SharpNet.DataAugmentation;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.NonReg;
@@ -66,29 +65,29 @@ namespace SharpNetTests
             }
         }
 
-        [TestCase(true, false), Ignore]
-        [TestCase(false, true)]
-        public void TestGradientForBatchNormLayer(bool testWeights, bool testBias)
-        {
-            var X = FromNumpyArray(TestNetworkPropagation.X_2_1_4_4, "X");
-            var Y = FromNumpyArray(TestNetworkPropagation.Y_2_1_4_4, "Y");
-            var n = GetNetwork();
-            n
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .BatchNorm(1.0)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
-            n.Predict(X, false);
-            //n.SaveLayers();
-            var batchNormLayer = (BatchNormalizationLayer)n.Layers[1];
-            if (testWeights)
-            {
-                CompareExpectedVsObservedGradients(n, batchNormLayer.Weights as CpuTensor<float>, batchNormLayer.WeightGradients as CpuTensor<float>, X, Y, _rand, 1);
-            }
-            if (testBias)
-            {
-                CompareExpectedVsObservedGradients(n, batchNormLayer.Bias as CpuTensor<float>, batchNormLayer.BiasGradients as CpuTensor<float>, X, Y, _rand, 1);
-            }
-        }
+        //[TestCase(true, false)]
+        //[TestCase(false, true)]
+        //public void TestGradientForBatchNormLayer(bool testWeights, bool testBias)
+        //{
+        //    var X = FromNumpyArray(TestNetworkPropagation.X_2_1_4_4, "X");
+        //    var Y = FromNumpyArray(TestNetworkPropagation.Y_2_1_4_4, "Y");
+        //    var n = GetNetwork();
+        //    n
+        //        .Input(X.Shape[1], X.Shape[2], X.Shape[3])
+        //        .BatchNorm(1.0)
+        //        .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
+        //    n.Predict(X, false);
+        //    //n.SaveLayers();
+        //    var batchNormLayer = (BatchNormalizationLayer)n.Layers[1];
+        //    if (testWeights)
+        //    {
+        //        CompareExpectedVsObservedGradients(n, batchNormLayer.Weights as CpuTensor<float>, batchNormLayer.WeightGradients as CpuTensor<float>, X, Y, _rand, 1);
+        //    }
+        //    if (testBias)
+        //    {
+        //        CompareExpectedVsObservedGradients(n, batchNormLayer.Bias as CpuTensor<float>, batchNormLayer.BiasGradients as CpuTensor<float>, X, Y, _rand, 1);
+        //    }
+        //}
 
         private static CpuTensor<float> FromNumpyArray(string s, string description)
         {

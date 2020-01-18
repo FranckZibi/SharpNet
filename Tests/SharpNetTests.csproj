@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+	<GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -14,8 +15,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NUnit" version="2.6.4" />
-    <PackageReference Include="NUnitTestAdapter" version="2.1.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.4.0" />
+    <PackageReference Include="NUnit" version="3.12.0" />
+    <PackageReference Include="NUnit3TestAdapter" version="3.16.1" />
 	<PackageReference Include="JetBrains.Annotations" Version="2019.1.3" />	
     <ProjectReference Include="..\Prod\SharpNet.csproj" />
     <Compile Remove="Properties\AssemblyInfo.cs" />

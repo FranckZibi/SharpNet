@@ -427,7 +427,7 @@ namespace SharpNetTests
 
         private void TestAllForReturnValue(CpuTensor<int>[] cpuInt, CpuTensor<float>[] cpuFloat, Func<Tensor[], double> work, List<int> tensorIdsToIgnore = null)
         {
-            var gpuInt = cpuInt.Select(x => CloneToGPU(x, GpuWrapper)).ToList(); ;
+            var gpuInt = cpuInt.Select(x => CloneToGPU(x, GpuWrapper)).ToList();
             var gpuFloat = cpuFloat.Select(x => CloneToGPU(x, GpuWrapper)).ToList();
             var cpu = cpuInt.Select(x => (Tensor) x).Union(cpuFloat.Select(x => (Tensor) x)).ToArray();
             var resultCpuFloat = work(cpu);
