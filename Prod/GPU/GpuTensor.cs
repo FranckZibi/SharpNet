@@ -99,7 +99,7 @@ namespace SharpNet.GPU
 #endif
             return _hostMemory;
         }
-        public IntPtr DevicePointer
+        public override IntPtr DevicePointer
         {
             get
             {
@@ -470,8 +470,7 @@ namespace SharpNet.GPU
         }
         public override float[] ContentAsFloatArray()
         {
-            var deviceContent = DeviceContent();
-            return (deviceContent as float[]);
+            return (DeviceContent() as float[]);
         }
 
         /// <summary>
@@ -494,6 +493,22 @@ namespace SharpNet.GPU
             var countOk = (int) buffer.ContentAsFloatArray().Sum();
             return ((double)countOk) / Shape[0];
         }
+
+        public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor buffer)
+        {
+            var categoryIndexes = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { categoryIndexes, yPredicted }));
+            Debug.Assert(yPredicted != null);
+            Debug.Assert(buffer != null);
+            Debug.Assert(categoryIndexes.Dimension == 1);
+            int nbRows = yPredicted.Shape[0];
+            var categoryCount = yPredicted.Shape[1];
+            Debug.Assert(categoryIndexes.Shape[0] == nbRows);
+            Wrapper.RunKernel("ComputeAccuracyFromCategoryIndexes", nbRows, new object[] { categoryCount, buffer, categoryIndexes, yPredicted });
+            var countOk = (int)buffer.ContentAsFloatArray().Sum();
+            return ((double)countOk) / Shape[0];
+        }
+
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
@@ -518,6 +533,30 @@ namespace SharpNet.GPU
             return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
         }
 
+
+        /// <summary>
+        /// this = expected Category Indexes
+        /// </summary>
+        /// <param name="yPredicted"></param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
+        public override double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
+        {
+            var categoryIndexes = this;
+            int nbRows = yPredicted.Shape[0];
+            Debug.Assert(AreCompatible(new List<Tensor> { categoryIndexes, yPredicted }));
+            Debug.Assert(yPredicted != null);
+            Debug.Assert(buffer != null);
+            Debug.Assert(categoryIndexes.Dimension == 1);
+            Debug.Assert(nbRows == categoryIndexes.Shape[0]);
+            var kernelName = (lossFunction == NetworkConfig.LossFunctionEnum.BinaryCrossentropy)
+                ? "ComputeBinaryCrossentropyLossFromCategoryIndexes"
+                : "ComputeCategoricalCrossentropyLossFromCategoryIndexes";
+            var categoryCount = yPredicted.Shape[1];
+            Wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, categoryIndexes, yPredicted });
+            return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
+        }
 
         private DeviceMemory _randomNumberGeneratorStatesBuffer;
         private DeviceMemory _dropoutReserveSpace;

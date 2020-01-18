@@ -101,7 +101,7 @@ namespace SharpNet.Data
         }
         public static implicit operator IntPtr(Tensor t)
         {
-            return t.AsGPU<float>().DevicePointer;
+            return t.DevicePointer;
         }
         public CpuTensor<T> AsCpu<T>() where T : struct
         {
@@ -301,6 +301,18 @@ namespace SharpNet.Data
         /// <returns></returns>
         public abstract double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer);
 
+
+        /// <summary>
+        /// this = expected category index for each element
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
+        /// <param name="notUsedBuffer"></param>
+        /// <returns></returns>
+        public abstract double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer);
+
+        public abstract IntPtr DevicePointer { get; }
+
+
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         /// </summary>
@@ -309,6 +321,16 @@ namespace SharpNet.Data
         /// <param name="buffer"></param>
         /// <returns></returns>
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
+
+        /// <summary>
+        /// this = expected Category Indexes (int Tensor)
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
+        public abstract double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
+
         public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
         public abstract void NewSameValueTensor(double sameValue);
         public abstract float[] ContentAsFloatArray();

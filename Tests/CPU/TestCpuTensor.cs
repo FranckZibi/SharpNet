@@ -134,6 +134,17 @@ namespace SharpNetTests.CPU
             return result;
         }
 
+        public static CpuTensor<int> RandomCategoryIndexTensor(int nbRows, int nbCategories, Random rand)
+        {
+            var data = new int[nbRows];
+            for (int i = 0; i < nbRows; ++i)
+            {
+                data[i] = rand.Next(nbCategories);
+            }
+            return new CpuTensor<int>(new[]{nbRows}, data, "RandomOneHotTensorCategoryIndex");
+        }
+
+
         //random tensor
         //in each row: only 2 elements with non zero value, the sum of the 2 elements is always = 1.0
         public static CpuTensor<float> RandomTwoHotTensor(int[] shape, Random rand, string description)

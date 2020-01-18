@@ -42,6 +42,9 @@ namespace SharpNet.GPU
                     "ComputeCategoricalCrossentropyLoss",
                     "ComputeBinaryCrossentropyLoss",
                     "Concatenate",
+                    "ComputeAccuracyFromCategoryIndexes",
+                    "ComputeCategoricalCrossentropyLossFromCategoryIndexes",
+                    "ComputeBinaryCrossentropyLossFromCategoryIndexes",
                     "Split"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",

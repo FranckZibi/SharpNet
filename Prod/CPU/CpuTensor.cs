@@ -918,6 +918,54 @@ namespace SharpNet.CPU
             return cost;
         }
 
+        public override double ComputeLossFromCategoryIndexes(Tensor yPredictedTensor, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
+        {
+            var categoryIndexes = AsCpu<int>().Content;
+            Debug.Assert(yPredictedTensor != null);
+            Debug.Assert(!yPredictedTensor.UseGPU);
+            var batchSize = yPredictedTensor.Shape[0];
+            Debug.Assert(categoryIndexes.Length == batchSize);
+            var categoryCount = yPredictedTensor.Shape[1];
+            var yPredicted = yPredictedTensor.AsCpu<float>().Content;
+
+            switch (lossFunction)
+            {
+                case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
+                    double binaryCrossentropyLoss= 0.0;
+                    for (int i = 0; i < batchSize; ++i)
+                    {
+                        int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
+                        int startIndex = i * categoryCount;
+                        for (int category = 0; category < categoryCount; ++category)
+                        {
+                            float predicted = yPredicted[startIndex + category];
+                            float error = (category == categoryIndex) ? predicted : (1.0f - predicted);
+                            if (error > 0)
+                            {
+                                binaryCrossentropyLoss -= Math.Log(error);
+                            }
+                        }
+                    }
+                    return binaryCrossentropyLoss / (batchSize * categoryCount);
+                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
+                    //cost = (-1.0 / (batchSize)) * yPredicted.AsCpu<float>().Merge(categoryIndexes.AsCpu<int>(), (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
+                    double categoricalCrossentropyLoss = 0.0;
+                    for (int i=0;i< batchSize ;++i)
+                    {
+                        int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
+                        int startIndex = i * categoryCount;
+                        float predictedForExpectedCategory = yPredicted[startIndex + categoryIndex];
+                        if (predictedForExpectedCategory > 0)
+                        {
+                            categoricalCrossentropyLoss -= Math.Log(predictedForExpectedCategory);
+                        }
+                    }
+                    return categoricalCrossentropyLoss / (batchSize);
+                default:
+                    throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
+            }
+        }
+
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
             Utils.RandomizeNormalDistribution(AsFloatCpuContent, rand, mean, stdDev);
@@ -954,6 +1002,27 @@ namespace SharpNet.CPU
             }
             return ((double)result)/Shape[0];
         }
+
+
+        //this method is only called for display / logging testing
+        //this = category indexes
+        public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer)
+        {
+            var categoryIndexes = AsCpu<int>().Content;
+            int batchSize = yPredicted.Shape[0];
+            Debug.Assert(batchSize == categoryIndexes.Length);
+            Debug.Assert(!yPredicted.UseGPU);
+            int result = 0;
+
+            var yPredictedCpu = yPredicted.AsCpu<float>();
+            for (int m = 0; m < batchSize; ++m)
+            {
+                result += ComputeSingleAccuracyCountFromCategoryIndexes(categoryIndexes, yPredictedCpu, m, out _);
+            }
+            return ((double)result) / Shape[0];
+        }
+
+        public override IntPtr DevicePointer => throw new NotImplementedException("not available for CPU");
 
 
         /// <summary>
@@ -1242,5 +1311,22 @@ namespace SharpNet.CPU
             }
             return 0;
         }
+        private static int ComputeSingleAccuracyCountFromCategoryIndexes(int[] categoryIndexes, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)
+        {
+            Debug.Assert(categoryIndexes.Length == yPredicted.Shape[0]);
+            Debug.Assert(yPredicted.Dimension == 2);
+            maxIndexPredicted = 0;
+            var categoryCount = yPredicted.Shape[1];
+            int categoryIndex = categoryIndexes[m]; /* the expected category index for element at index 'i' */
+            for (int j = 1; j < categoryCount; ++j)
+            {
+                if (yPredicted.Get(m, j) > yPredicted.Get(m, maxIndexPredicted))
+                {
+                    maxIndexPredicted = j;
+                }
+            }
+            return categoryIndex == maxIndexPredicted ? 1 : 0;
+        }
+
     }
 }

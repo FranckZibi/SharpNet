@@ -49,7 +49,6 @@
 			float loss = 0.0f;
 			int startIndex = i * categoryCount;
 			int endIndexExcluded = startIndex + categoryCount;
-			int maxIndex = startIndex;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float predicted = yPredicted[j];
@@ -68,7 +67,6 @@
 			float loss = 0.0f;
 			int startIndex = i * categoryCount;
 			int endIndexExcluded = startIndex + categoryCount;
-			int maxIndex = startIndex;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float predicted = yPredicted[j];
@@ -78,6 +76,60 @@
 					loss -= (expected*logf(predicted) + (1.0f-expected)*logf(1.0f-predicted))/ categoryCount;
 			}
 			losses[i] = loss;
+		}
+	}
+
+
+
+
+	__global__ void ComputeAccuracyFromCategoryIndexes(int N, int categoryCount, float *countOk, const int* __restrict categoryIndexes, const float* __restrict yPredicted) 
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			int maxIndexPredicted = startIndex;
+			for (int j = startIndex+1; j < endIndexExcluded; ++j)
+			{
+				if (yPredicted[j] > yPredicted[maxIndexPredicted])
+					maxIndexPredicted = j;
+			}
+			countOk[i] = ( (maxIndexPredicted-startIndex) == categoryIndex) ? 1.0f : 0.0f;
+		}
+	}
+
+	__global__ void ComputeCategoricalCrossentropyLossFromCategoryIndexes(int N, int categoryCount, float *losses, const int* __restrict categoryIndexes, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
+			int startIndex = i * categoryCount;
+			float predictedForExpectedCategory = yPredicted[startIndex+categoryIndex];
+			if (predictedForExpectedCategory > 0)
+				losses[i] = -logf(predictedForExpectedCategory);
+			else
+				losses[i] = 0.0f;
+		}
+	}
+
+	__global__ void ComputeBinaryCrossentropyLossFromCategoryIndexes(int N, int categoryCount, float *losses, const int* __restrict categoryIndexes, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
+			int startIndex = i * categoryCount;
+			float loss = 0.0f;
+			for (int category = 0; category < categoryCount; ++category)
+			{
+				float predicted = yPredicted[startIndex+category];
+				float error = (category == categoryIndex)? predicted : (1.0f-predicted);
+				if (error > 0)
+				{
+					loss -= logf(error);
+				}
+			}
+			losses[i] = loss/ categoryCount;
 		}
 	}
 

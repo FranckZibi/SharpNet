@@ -350,6 +350,19 @@ namespace SharpNetTests
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
         }
 
+        [TestCase(2, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
+        [TestCase(2, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
+        [TestCase(10, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
+        [TestCase(10, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
+        public void TestComputeLossFromCategoryIndexes(int nbCategories, NetworkConfig.LossFunctionEnum lossFunction)
+        {
+            const int nbRows = 10000;
+            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
+            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, nbCategories, _rand);
+            var buffer = RandomTensor(new[] { nbRows }, "buffer");
+            TestAllForReturnValue(new[] { categoryIndexes }, new[] { yPredicted, buffer }, tensors => tensors[0].ComputeLossFromCategoryIndexes(tensors[1], lossFunction, tensors[2]), new List<int> { 1 });
+        }
+
         [TestCase(10)]
         [TestCase(1)]
         public void TestComputeAccuracyOneHot(int nbCategories)
@@ -372,6 +385,16 @@ namespace SharpNetTests
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
 
+        [Test]
+        public void TestComputeAccuracyFromCategoryIndexes()
+        {
+            const int nbRows = 10000;
+            const int nbCategories = 10;
+            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
+            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, nbCategories, _rand);
+            var buffer = RandomTensor(new[] { nbRows }, "buffer");
+            TestAllForReturnValue(new[] { categoryIndexes }, new[] { yPredicted, buffer }, tensors => tensors[0].ComputeAccuracyFromCategoryIndexes(tensors[1], tensors[2]), new List<int> { 1 });
+        }
 
         private CpuTensor<float> RandomTensor(int[] shape, string description)
 	    {
@@ -397,16 +420,21 @@ namespace SharpNetTests
 	        }
 	    }
 
-        private void TestAllForReturnValue(CpuTensor<float>[] data, Func<Tensor[], double> work, List<int> tensorIdsToIgnore = null)
+        private void TestAllForReturnValue(CpuTensor<float>[] cpuFloat, Func<Tensor[], double> work, List<int> tensorIdsToIgnore = null)
         {
-            var cpuFloat = new List<CpuTensor<float>>();
-            cpuFloat.AddRange(data.Select(x => x.ToSinglePrecision()));
-            var gpuFloat = new List<GPUTensor<float>>();
-            gpuFloat.AddRange(cpuFloat.Select(x => CloneToGPU(x, GpuWrapper)));
-            var resultCpuFloat = work(cpuFloat.Select(x => (Tensor)x).ToArray());
-            var resultGPUFloat = work(gpuFloat.Select(x => (Tensor)x).ToArray());
-            Assert.AreEqual(resultCpuFloat, resultGPUFloat, 1e-5, cpuFloat.Last().Content.Min() + " vs "+gpuFloat.Last().ContentAsFloatArray().Min());
-            for (var i = 0; i < cpuFloat.Count; ++i)
+            TestAllForReturnValue(new CpuTensor<int>[0], cpuFloat, work, tensorIdsToIgnore);
+        }
+
+        private void TestAllForReturnValue(CpuTensor<int>[] cpuInt, CpuTensor<float>[] cpuFloat, Func<Tensor[], double> work, List<int> tensorIdsToIgnore = null)
+        {
+            var gpuInt = cpuInt.Select(x => CloneToGPU(x, GpuWrapper)).ToList(); ;
+            var gpuFloat = cpuFloat.Select(x => CloneToGPU(x, GpuWrapper)).ToList();
+            var cpu = cpuInt.Select(x => (Tensor) x).Union(cpuFloat.Select(x => (Tensor) x)).ToArray();
+            var resultCpuFloat = work(cpu);
+            var gpu = gpuInt.Select(x => (Tensor)x).Union(gpuFloat.Select(x => (Tensor)x)).ToArray();
+            var resultGPUFloat = work(gpu);
+            Assert.AreEqual(resultCpuFloat, resultGPUFloat, 1e-5, cpuFloat.Last().Content.Min() + " vs " + gpuFloat.Last().ContentAsFloatArray().Min());
+            for (var i = 0; i < cpuFloat.Length; ++i)
             {
                 if (tensorIdsToIgnore != null && tensorIdsToIgnore.Contains(i))
                 {
