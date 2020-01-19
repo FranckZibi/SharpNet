@@ -14,5 +14,10 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return (_nbRows - row - 1, col);
         }
+        public override bool ChangeCoordinates()
+        {
+            return true;
+        }
+
     }
 }

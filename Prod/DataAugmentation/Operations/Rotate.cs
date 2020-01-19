@@ -20,6 +20,10 @@ namespace SharpNet.DataAugmentation.Operations
             return XYCoordinateRotater.RotateInTopLeftReferential(row, col, _nbRows, _nbCols, _nbRows, _nbCols,
                 -_rotationInDegrees);
         }
+        public override bool ChangeCoordinates()
+        {
+            return true;
+        }
 
         public static Rotate ValueOf(double rotationRangeInDegrees, Random rand, int nbRows, int nbCols)
         {

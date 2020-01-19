@@ -60,7 +60,7 @@ namespace SharpNet.DataAugmentation
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
                     throw new NotImplementedException("unknown DataAugmentationEnum: " + _config.DataAugmentationType);
                 case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
-                    throw new NotImplementedException("unknown DataAugmentationEnum: " + _config.DataAugmentationType);
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicySVHN();
                 case DataAugmentationEnum.NO_AUGMENTATION:
                     return new List<Operation>();
                 default:
@@ -139,7 +139,9 @@ namespace SharpNet.DataAugmentation
             result.Add(Mixup.ValueOf(_config.AlphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
             result.Add(Cutout.ValueOf(_config.CutoutPatchPercentage, rand, nbRows, nbCols));
             result.RemoveAll(x => x == null);
+#if DEBUG
             OperationHelper.CheckIntegrity(result);
+#endif
             return result;
         }
 
@@ -154,7 +156,9 @@ namespace SharpNet.DataAugmentation
             Random rand)
         {
             var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic, rand);
+#if DEBUG
             OperationHelper.CheckIntegrity(subPolicy);
+#endif
             SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryIndex, _config.FillMode);
         }
 

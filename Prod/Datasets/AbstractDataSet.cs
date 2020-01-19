@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -84,13 +83,18 @@ namespace SharpNet.Datasets
                 {
                     Thread.Sleep(1);
                 }
-                //we initialize 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors
-                threadParameters = Tuple.Create(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementId,
+
+                var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, xMiniBatch.Shape[0]);
+                if (miniBatchId != alreadyComputedMiniBatchId)
+                { 
+                    //we initialize 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors
+                    threadParameters = Tuple.Create(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementId,
                     dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
-                _backgroundThreadStatus = BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT;
-                while (_backgroundThreadStatus != BackgroundThreadStatus.IDLE)
-                {
-                    Thread.Sleep(1);
+                    _backgroundThreadStatus = BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT;
+                    while (_backgroundThreadStatus != BackgroundThreadStatus.IDLE)
+                    {
+                        Thread.Sleep(1);
+                    }
                 }
             }
             else
@@ -165,16 +169,30 @@ namespace SharpNet.Datasets
         public virtual BitmapContent OriginalElementContent(int elementId)
         {
             var buffer = LoadSingleElement(elementId);
-            var result = new BitmapContent(InputShape_CHW, new byte[Channels * Height * Width], elementId.ToString());
+            var resultContent = new byte[Channels * Height * Width];
+            int idxInResultContent = 0;
+            var result = new BitmapContent(InputShape_CHW, resultContent, elementId.ToString());
+
+            int nbBytesByChannel = Height * Width;
+            var isNormalized = IsNormalized;
             for (int channel = 0; channel < Channels; ++channel)
             {
-                for (int row = 0; row < Height; ++row)
+                var originalChannelVolatility = OriginalChannelVolatility(channel);
+                var originalChannelMean = OriginalChannelMean(channel);
+                for (int i = 0; i < nbBytesByChannel; ++i)
                 {
-                    for (int col = 0; col < Width; ++col)
+                    byte originalValue;
+                    float normalizedValue = buffer.Content[idxInResultContent];
+                    if (!isNormalized)
                     {
-                        var originalValue = OriginalValue(buffer.Get(channel, row, col), channel);
-                        result.Set(channel, row, col, originalValue);
+                        //no normalization was performed on the input
+                        originalValue = (byte)normalizedValue;
                     }
+                    else
+                    {
+                        originalValue = (byte) ((normalizedValue) * originalChannelVolatility + originalChannelMean + 0.1);
+                    }
+                    resultContent[idxInResultContent++] = originalValue;
                 }
             }
             return result;
@@ -393,6 +411,69 @@ namespace SharpNet.Datasets
             alreadyComputedMiniBatchId = miniBatchId;
         }
 
+        //public void BenchmarkDataAugmentation(int miniBatchSize, bool useMultiThreading)
+        //{
+        //    var conf = WideResNetBuilder.WRN_CIFAR10();
+        //    var dataAugmentationConfig = conf.DA;
+        //    //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
+        //    var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
+        //    var xMiniBatchShape = XMiniBatch_Shape(miniBatchSize);
+        //    var yMiniBatchShape = YMiniBatch_Shape(miniBatchSize);
+        //    var rand = new Random(0);
+        //    var shuffledElementId = Enumerable.Range(0, Count).ToArray();
+        //    Utils.Shuffle(shuffledElementId, rand);
+
+        //    xOriginalNotAugmentedMiniBatchCpu.Reshape(xMiniBatchShape);
+        //    xBufferMiniBatchCpu.Reshape(xMiniBatchShape);
+        //    yBufferMiniBatchCpu.Reshape(yMiniBatchShape);
+        //    yBufferMiniBatchCpu.ZeroMemory();
+        //    var swLoad = new Stopwatch();
+        //    var swDA = new Stopwatch();
+
+
+        //    int count = 0;
+        //    for(int firstELementId=0; firstELementId <= (Count-miniBatchSize); firstELementId+=miniBatchSize)
+        //    {
+        //        count += miniBatchSize;
+        //        int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstELementId + miniBatchIdx];
+        //        int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
+        //        ImageStatistic MiniBatchIdxToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx));
+
+        //        swLoad.Start();
+
+        //        if (useMultiThreading)
+        //        {
+        //            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu));
+        //        }
+        //        else
+        //        {
+        //            for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
+        //            {
+        //                LoadAt(MiniBatchIdxToElementId(indexInMiniBatch), indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu);
+        //            }
+        //        }
+        //        swLoad.Stop();
+        //        swDA.Start();
+        //        if (useMultiThreading)
+        //        {
+        //            Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
+        //        }
+        //        else
+        //        {
+        //            for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
+        //            {
+        //                imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch));
+        //            }
+
+        //        }
+        //        swDA.Stop();
+        //    }
+        //    var comment = "count=" + count.ToString("D4") + ",miniBatchSize=" + miniBatchSize.ToString("D4") + ", useMultiThreading=" + (useMultiThreading ? 1 : 0);
+        //    comment += " ; load into memory took " + swLoad.ElapsedMilliseconds.ToString("D4") + " ms";
+        //    comment += " ; data augmentation took " + swDA.ElapsedMilliseconds.ToString("D4") + " ms";
+        //    Console.WriteLine(comment);
+        //}
+
         private static bool IsValidY(double x)
         {
             return Math.Abs(x) <= 1e-9 || Math.Abs(x - 1.0) <= 1e-9;
@@ -410,24 +491,6 @@ namespace SharpNet.Datasets
             return xBuffer;
         }
 
-        /// <summary>
-        /// return the original (unnormalized) value of 'normalizedValue' that is located in channel 'channel'
-        /// </summary>
-        /// <param name="normalizedValue"></param>
-        /// <param name="channel"></param>
-        /// <returns></returns>
-        private byte OriginalValue(float normalizedValue, int channel)
-        {
-            if (!IsNormalized)
-            {
-                //no normalization was performed on the input
-                return (byte)normalizedValue;
-            }
-            var originalValue = (normalizedValue) * OriginalChannelVolatility(channel) + OriginalChannelMean(channel) + 0.5;
-            originalValue = Math.Min(originalValue, 255);
-            originalValue = Math.Max(originalValue, 0);
-            return (byte)originalValue;
-        }
         private Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
         {
             var rand = _rands[indexInMiniBatch % _rands.Length];
@@ -464,6 +527,7 @@ namespace SharpNet.Datasets
                 }
                 _backgroundThreadStatus = BackgroundThreadStatus.PROCESSING_INPUT;
                 Debug.Assert(threadParameters != null);
+                // ReSharper disable once PossibleNullReferenceException
                 LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6, threadParameters.Item7);
                 threadParameters = null;
                 _backgroundThreadStatus = BackgroundThreadStatus.IDLE;

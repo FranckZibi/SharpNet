@@ -65,43 +65,17 @@ namespace SharpNet.DataAugmentation
 
         public static ImageStatistic ValueOf(BitmapContent bmp)
         {
-            var nbRows = bmp.Shape[1];
-            var nbCols = bmp.Shape[2];
-
             var pixelCountByChannel = new List<int[]>();
+            int bmpIdx = 0;
             for (int channel = 0; channel < bmp.Shape[0]; ++channel)
             {
                 var count = new int[256];
-                for (int row = 0; row < nbRows; ++row)
+                for (int indexInChannel = 0; indexInChannel < bmp.MultDim0; ++indexInChannel)
                 {
-                    for (int col = 0; col < nbCols; ++col)
-                    {
-                        ++count[bmp.Get(channel,row,col)];
-                    }
+                    ++count[bmp.Content[bmpIdx++]];
                 }
                 pixelCountByChannel.Add(count);
             }
-
-
-            //var thresholdForLightness = new float[1001];
-            //for (int row = 0; row < nbRows; ++row)
-            //{
-            //    for (int col = 0; col < nbCols; ++col)
-            //    {
-            //        var b = (int)(1000*bmp.GetBrightness(row, col));
-            //        b = Math.Min(b, 1000);
-            //        ++thresholdForLightness[b];
-            //    }
-            //}
-
-            //for (int i = 0; i < thresholdForLightness.Length; ++i)
-            //{
-            //    thresholdForLightness[i] /= (nbRows * nbCols);
-            //    if (i != 0)
-            //    {
-            //        thresholdForLightness[i] += thresholdForLightness[i - 1];
-            //    }
-            //}
             return new ImageStatistic(pixelCountByChannel, bmp.Shape);
         }
 

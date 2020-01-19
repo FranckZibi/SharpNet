@@ -10,6 +10,15 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return (row, col);
         }
+        /// <summary>
+        /// true if the operation may change the coordinate of the pixel in the input (ex: rotation)
+        /// false if it doesn't change the position of pixels (for example it if will only change pixel value)
+        /// </summary>
+        /// <returns></returns>
+        public virtual bool ChangeCoordinates()
+        {
+            return false;
+        }
 
         public virtual float AugmentedValue(int indexInMiniBatch, int channel,
             CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
@@ -17,6 +26,9 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
+
+
+       
 
         public virtual void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {

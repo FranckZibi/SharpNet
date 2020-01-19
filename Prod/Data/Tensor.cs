@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using SharpNet.CPU;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -27,12 +28,14 @@ namespace SharpNet.Data
         {
             return ToString(false);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Idx(int n) { return MultDim0 * n; }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Idx(int n, int c)
         {
             return MultDim0 * n + MultDim1 * c;
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }

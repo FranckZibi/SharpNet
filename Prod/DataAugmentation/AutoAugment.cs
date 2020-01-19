@@ -72,6 +72,72 @@ namespace SharpNet.DataAugmentation
             }
         }
 
+        public List<Operation> GetSubPolicySVHN()
+        {
+            switch (_rand.Next(25))
+            {
+                case 0: return CreateSubPolicy(ShearX(0.9, 4), Invert(0.2));
+                case 1: return CreateSubPolicy(ShearY(0.9, 8), Invert(0.7));
+                case 2: return CreateSubPolicy(Invert(0.6), Solarize(0.6, 6));
+                case 3: return CreateSubPolicy(Invert(0.9), Invert(0.6));
+                case 4: return CreateSubPolicy(Invert(0.6), Rotate(0.9, 3));
+                case 5: return CreateSubPolicy(ShearX(0.9, 4), AutoContrast(0.8));
+                case 6: return CreateSubPolicy(ShearY(0.9, 8), Invert(0.4));
+                case 7: return CreateSubPolicy(ShearY(0.9, 5), Solarize(0.2, 6));
+                case 8: return CreateSubPolicy(Invert(0.9), AutoContrast(0.8));
+                case 9: return CreateSubPolicy(Invert(0.6), Rotate(0.9, 3));
+                case 10: return CreateSubPolicy(ShearX(0.9, 4), Solarize(0.3, 3));
+                case 11: return CreateSubPolicy(ShearY(0.8, 8), Invert(0.7));
+                case 12: return CreateSubPolicy(Invert(0.9), TranslateY(0.6, 6));
+                case 13: return CreateSubPolicy(Invert(0.9), Invert(0.6));
+                case 14: return CreateSubPolicy(Contrast(0.3, 3), Rotate(0.8, 4));
+                case 15: return CreateSubPolicy(Invert(0.8), TranslateY(0.0, 2));
+                case 16: return CreateSubPolicy(ShearY(0.7, 6), Solarize(0.4, 8));
+                case 17: return CreateSubPolicy(Invert(0.6), Rotate(0.8, 4));
+                case 18: return CreateSubPolicy(ShearY(0.3, 7), TranslateX(0.9, 3));
+                case 19: return CreateSubPolicy(ShearX(0.1, 6), Invert(0.6));
+                case 20: return CreateSubPolicy(Solarize(0.7, 2), TranslateY(0.6, 7));
+                case 21: return CreateSubPolicy(ShearY(0.8, 4), Invert(0.8));
+                case 22: return CreateSubPolicy(ShearX(0.7, 9), TranslateY(0.8, 3));
+                case 23: return CreateSubPolicy(ShearY(0.8, 5), AutoContrast(0.7));
+                case 24: return CreateSubPolicy(ShearX(0.7, 2), Invert(0.1));
+                default: throw new Exception("Invalid random returned value");
+            }
+        }
+
+        public List<Operation> GetSubPolicyImageNet()
+        {
+            switch (_rand.Next(25))
+            {
+                case 0: return CreateSubPolicy(Posterize(0.4, 8), Rotate(0.6, 9));
+                case 1: return CreateSubPolicy(Solarize(0.6, 5), AutoContrast(0.6));
+                case 2: return CreateSubPolicy(Equalize(0.8), Equalize(0.6));
+                case 3: return CreateSubPolicy(Posterize(0.6, 7), Posterize(0.6, 6));
+                case 4: return CreateSubPolicy(Equalize(0.4), Solarize(0.2, 4));
+                case 5: return CreateSubPolicy(Equalize(0.4), Rotate(0.8, 8));
+                case 6: return CreateSubPolicy(Solarize(0.6, 3), Equalize(0.6));
+                case 7: return CreateSubPolicy(Posterize(0.8, 5), Equalize(1.0));
+                case 8: return CreateSubPolicy(Rotate(0.2, 3), Solarize(0.6, 8));
+                case 9: return CreateSubPolicy(Equalize(0.6), Posterize(0.4, 6));
+                case 10: return CreateSubPolicy(Rotate(0.8, 8), Color(0.4, 0));
+                case 11: return CreateSubPolicy(Rotate(0.4, 9), Equalize(0.6));
+                case 12: return CreateSubPolicy(Equalize(0.0), Equalize(0.8));
+                case 13: return CreateSubPolicy(Invert(0.6), Equalize(1.0));
+                case 14: return CreateSubPolicy(Color(0.6, 4), Contrast(1.0, 8));
+                case 15: return CreateSubPolicy(Rotate(0.8, 8), Color(1.0, 2));
+                case 16: return CreateSubPolicy(Color(0.8, 8), Solarize(0.8, 7));
+                case 17: return CreateSubPolicy(Sharpness(0.4, 7), Invert(0.6));
+                case 18: return CreateSubPolicy(ShearX(0.6, 5), Equalize(1.0));
+                case 19: return CreateSubPolicy(Color(0.4, 0), Equalize(0.6));
+                case 20: return CreateSubPolicy(Equalize(0.4), Solarize(0.2, 4));
+                case 21: return CreateSubPolicy(Solarize(0.6, 5), AutoContrast(0.6));
+                case 22: return CreateSubPolicy(Invert(0.6), Equalize(1.0));
+                case 23: return CreateSubPolicy(Color(0.6, 4), Contrast(1.0, 8));
+                case 24: return CreateSubPolicy(Equalize(0.8), Equalize(0.6));
+                default: throw new Exception("Invalid random returned value");
+            }
+        }
+
         /// <summary>
         /// Shear the image along the horizontal 'X' axis with rate magnitude
         /// </summary>
@@ -350,7 +416,9 @@ namespace SharpNet.DataAugmentation
                                 Cutout.ValueOf(_cutoutPatchPercentage, _rand, NbRows, NbCols)
                             };
             subPolicy.RemoveAll(x => x == null);
+#if DEBUG
             OperationHelper.CheckIntegrity(subPolicy);
+#endif
             return subPolicy;
         }
 

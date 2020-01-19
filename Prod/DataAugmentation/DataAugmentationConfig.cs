@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using SharpNet.Data;
-using SharpNet.DataAugmentation.Operations;
 
 namespace SharpNet.DataAugmentation
 {
