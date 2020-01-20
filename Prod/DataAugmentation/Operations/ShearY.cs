@@ -16,10 +16,5 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return (row/ _heightMultiplier, col);
         }
-        public override bool ChangeCoordinates()
-        {
-            return true;
-        }
-
     }
 }

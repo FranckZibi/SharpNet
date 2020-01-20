@@ -39,7 +39,10 @@ namespace SharpNetTests.DataAugmentation.Operations
 
             //clockwise rotation of 90° (-90.0)
             expected = new[] { 12f, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 };
-            OperationTests.Check(new Rotate(-90, inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+            var operation = new Rotate(-90, inputShape[2], inputShape[3]);
+            OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            Assert.IsTrue(operation.ChangeCoordinates());
         }
     }
 }

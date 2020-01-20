@@ -33,7 +33,10 @@ namespace SharpNetTests.DataAugmentation.Operations
 
             //top right cutout
             expected = new[] { 0f, 1, default(int), default(int), 4, 5, default(int), default(int), 8, 9, 10, 11, 12, 13, 14, 15 };
-            OperationTests.Check(new Cutout(0, 1, 2, 3), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
+            var operation = new Cutout(0, 1, 2, 3);
+            OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
+
+            Assert.IsFalse(operation.ChangeCoordinates());
         }
     }
 }

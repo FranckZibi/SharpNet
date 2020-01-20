@@ -37,8 +37,11 @@ namespace SharpNetTests.DataAugmentation.Operations
             yExpected.Set(0, 0, 0.25f);
             yExpected.Set(0, 4, 0.75f);
             //2nd picture categoryIndex = 4 (100%)
-            yExpected.Set(1, 4, 1f); 
-            OperationTests.Check(new Mixup(0.25f, 1, xOriginalMiniBatch), input, inputShape, expected, (x => x == 0 ? 0 : 4), ImageDataGenerator.FillModeEnum.Nearest, yOriginal, yExpected);
+            yExpected.Set(1, 4, 1f);
+            var operation = new Mixup(0.25f, 1, xOriginalMiniBatch);
+            OperationTests.Check(operation, input, inputShape, expected, (x => x == 0 ? 0 : 4), ImageDataGenerator.FillModeEnum.Nearest, yOriginal, yExpected);
+
+            Assert.IsFalse(operation.ChangeCoordinates());
         }
     }
 }

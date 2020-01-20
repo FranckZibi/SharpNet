@@ -22,10 +22,14 @@ namespace SharpNetTests
 
             //new TestEnsembleLearning().Test(); return;
             //WideResNetTests();
-            SVHNTests();
+            //SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
+
+            //((AbstractDataSet) new CIFAR10DataSet().Training).BenchmarkDataAugmentation(128, false);
+
+
 
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);

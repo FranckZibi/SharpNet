@@ -15,11 +15,6 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return (row,col- _horizontalShift);
         }
-        public override bool ChangeCoordinates()
-        {
-            return true;
-        }
-
         public static TranslateX ValueOf(double widthShiftRangeInPercentage, Random rand, int nbCols)
         {
             if (widthShiftRangeInPercentage <= 0)

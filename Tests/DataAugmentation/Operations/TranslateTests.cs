@@ -36,7 +36,10 @@ namespace SharpNetTests.DataAugmentation.Operations
             OperationTests.Check(new TranslateX(1), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Reflect);
             //2 to the left
             expected = new[] { 2f, 3, 3, 2, 6, 7, 7, 6, 10, 11, 11, 10, 14, 15, 15, 14 };
-            OperationTests.Check(new TranslateX(-2), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Reflect);
+            var operation = new TranslateX(-2);
+            OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Reflect);
+
+            Assert.IsTrue(operation.ChangeCoordinates());
         }
 
         [Test]
@@ -61,7 +64,11 @@ namespace SharpNetTests.DataAugmentation.Operations
             //shift with FillModeEnum.Reflect
             //3 to the top
             expected = new[] { 12f, 13, 14, 15, 12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7 };
-            OperationTests.Check(new TranslateY(-3), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Reflect);
+            var operation = new TranslateY(-3);
+            OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Reflect);
+
+            Assert.IsTrue(operation.ChangeCoordinates());
+
         }
 
         [Test]

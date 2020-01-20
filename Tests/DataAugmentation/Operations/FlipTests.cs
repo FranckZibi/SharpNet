@@ -90,7 +90,12 @@ namespace SharpNetTests.DataAugmentation.Operations
             input = Enumerable.Range(0, 16).Select(x => (float)x).ToArray();
             inputShape = new[] { 1, 1, 4, 4 };
             expected = new[] { 15f, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
-            OperationTests.CheckAllPermutations(new VerticalFlip(inputShape[2]), new HorizontalFlip(inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+            var verticalFlip = new VerticalFlip(inputShape[2]);
+            var horizontalFlip = new HorizontalFlip(inputShape[3]);
+            OperationTests.CheckAllPermutations(verticalFlip, horizontalFlip, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            Assert.IsTrue(verticalFlip.ChangeCoordinates());
+            Assert.IsTrue(horizontalFlip.ChangeCoordinates());
         }
     }
 }

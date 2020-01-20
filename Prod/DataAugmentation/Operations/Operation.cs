@@ -10,13 +10,25 @@ namespace SharpNet.DataAugmentation.Operations
         {
             return (row, col);
         }
+
         /// <summary>
         /// true if the operation may change the coordinate of the pixel in the input (ex: rotation)
         /// false if it doesn't change the position of pixels (for example it if will only change pixel value)
         /// </summary>
         /// <returns></returns>
-        public virtual bool ChangeCoordinates()
+        public bool ChangeCoordinates()
         {
+            foreach (var outputRow in new[] {-10.0, 0, 10.0})
+            {
+                foreach (var outputCol in new[] {-10.0, 0, 10.0})
+                {
+                    var (inputRow, inputCol) = Unconvert_Slow(outputRow, outputCol);
+                    if (Math.Abs(inputRow - outputRow) > 1e-6 || Math.Abs(inputCol - outputCol) > 1e-6)
+                    {
+                        return true;
+                    }
+                }
+            }
             return false;
         }
 

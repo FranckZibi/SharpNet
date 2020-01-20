@@ -413,7 +413,7 @@ namespace SharpNet.Datasets
 
         //public void BenchmarkDataAugmentation(int miniBatchSize, bool useMultiThreading)
         //{
-        //    var conf = WideResNetBuilder.WRN_CIFAR10();
+        //    var conf = Networks.WideResNetBuilder.WRN_CIFAR10();
         //    var dataAugmentationConfig = conf.DA;
         //    //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
         //    var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
@@ -432,7 +432,7 @@ namespace SharpNet.Datasets
 
 
         //    int count = 0;
-        //    for(int firstELementId=0; firstELementId <= (Count-miniBatchSize); firstELementId+=miniBatchSize)
+        //    for (int firstELementId = 0; firstELementId <= (Count - miniBatchSize); firstELementId += miniBatchSize)
         //    {
         //        count += miniBatchSize;
         //        int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstELementId + miniBatchIdx];

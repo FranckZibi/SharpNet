@@ -24,7 +24,10 @@ namespace SharpNetTests.DataAugmentation.Operations
             inputShape = new[] { 1, 1, 4, 4 };
             //2* width zoom
             expected = new[] { 0f, 0, 1, 1, 4, 4, 5, 5, 8, 8, 9, 9, 12, 12, 13, 13 };
-            OperationTests.Check(new ShearX(2.0), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+            var operation = new ShearX(2.0);
+            OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            Assert.IsTrue(operation.ChangeCoordinates());
         }
 
         [Test]
@@ -43,7 +46,10 @@ namespace SharpNetTests.DataAugmentation.Operations
             inputShape = new[] { 1, 1, 4, 4 };
             //2* height zoom
             expected = new[] { 0f, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7 };
-            OperationTests.Check(new ShearY(2.0), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+            var operation = new ShearY(2.0);
+            OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            Assert.IsTrue(operation.ChangeCoordinates());
         }
 
         [Test]

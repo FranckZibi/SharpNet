@@ -58,7 +58,10 @@ namespace SharpNetTests.DataAugmentation.Operations
             input = new[] { (250f - 10f) / 5f, (150f - 20f) / 10f, (50f - 40f) / 20f };
             var meanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(10f, 5f), Tuple.Create(20f, 10f), Tuple.Create(40f, 20f) };
             expected = new[] { (25f - 10f) / 5f, (15f - 20f) / 10f, (5f - 40f) / 20f };
-            OperationTests.Check(new Equalize(originalPixelToEqualizedPixelByChannel, meanAndVolatilityForEachChannel), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+            var operation = new Equalize(originalPixelToEqualizedPixelByChannel, meanAndVolatilityForEachChannel);
+            OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            Assert.IsFalse(operation.ChangeCoordinates());
         }
     }
 }
