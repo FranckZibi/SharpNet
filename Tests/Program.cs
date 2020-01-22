@@ -22,7 +22,7 @@ namespace SharpNetTests
 
             //new TestEnsembleLearning().Test(); return;
             //WideResNetTests();
-            //SVHNTests();
+            SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -337,25 +337,34 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 40,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,8);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 16,10);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,8);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, 28,10);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 40,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,8);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,10);},
+
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 16,8);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 16,10);},
+
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 28,8);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 28,10);},
             };
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=30;p.ExtraDescription = "_30Epochs";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.ExtraDescription = "_150Epochs_smallTrain";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.ExtraDescription = "_150Epochs_AutoAugment_smallTrain";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 150;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;  p.ExtraDescription = "_30Epochs_AutoAugment";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.ExtraDescription = "_30Epochs";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.BatchSize = -1;p.NumEpochs=30;p.ExtraDescription = "_30Epochs_AutoBatchSize";return p;},
             };
             PerformAllActionsInAllGpu(modifiers, todo);
         }
 
-        private static void Train_SVHN_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
+        private static void Train_SVHN_WRN(WideResNetBuilder p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
-            using (var svhn = new SVHNDataSet())
+            using (var svhn = new SVHNDataSet(loadExtraFileForTraining))
             using (var network = p.WRN(WRN_depth, WRN_k, svhn.InputShape_CHW, svhn.Categories))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);

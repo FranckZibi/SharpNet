@@ -3,6 +3,26 @@ using System.Collections.Generic;
 using System.IO;
 using SharpNet.Networks;
 
+/*
+BatchSize = 128
+EpochCount = 30
+SGD with momentum = 0.9 & L2 = 0.5* 1-e4
+CutMix / no Cutout / no Mixup / FillMode = Reflect / Disable DivideBy10OnPlateau
+AvgPoolingStride = 2
+# --------------------------------------------------------------------------------
+#           |             |    30-epoch   |   150-epoch   |   Orig Paper  | sec/epoch
+# Model     |   #Params   |   SGDR 10-2   |   SGDR 10-2   |      WRN      | GTX1080
+#           |             |   %Accuracy   |   %Accuracy   |   %Accuracy   | 
+#           |             |(Ens. Learning)|(Ens. Learning)|   (dropout)   | 
+# -------------------------------------------------------------------------------
+# WRN-16-4  |   2,790,906 | 98.24 (98.33) | ----- (-----) | NA            |   314
+# WRN-40-4  |   8,998,394 | 98.36 (98.38) | ----- (-----) | NA            |   927
+# WRN-16-8  |  11,045,370 | 98.13 (98.28) | ----- (-----) | NA            |  1072
+# WRN-16-10 |  17,221,626 | 98.22 (98.40) | ----- (-----) | NA            |  1715
+# -------------------------------------------------------------------------------
+*/
+
+
 namespace SharpNet.Datasets
 {
     //http://ufldl.stanford.edu/housenumbers/
@@ -30,13 +50,19 @@ namespace SharpNet.Datasets
             return (categoryIndex == 0) ? (byte)10 : (byte)categoryIndex;
         }
 
-        public SVHNDataSet() : base("SVHN", 3,32,32,10)
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="loadExtraFileForTraining">
+        /// true if we should load both the train file (73.257 entries) and the extra file (531.131 entries) for training
+        /// false if we should only load the train file (73.257 entries) for training</param>
+        public SVHNDataSet(bool loadExtraFileForTraining = true) : base("SVHN", 3,32,32,10)
         {
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
             
             var directory = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
-
-            var trainFiles = SplittedFileDataSet.AllBinFilesInDirectory(directory, "data_batch", "extra_batch");
+            var trainFiles = SplittedFileDataSet.AllBinFilesInDirectory(directory, loadExtraFileForTraining?new []{ "data_batch", "extra_batch"} : new [] { "data_batch"});
             Training = new SplittedFileDataSet(trainFiles, Name, Categories, InputShape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
             //to recompute the mean and volatility of each channel, uncomment the following line
             //meanAndVolatilityOfEachChannelInTrainingSet = ((SplittedFileDataSet)Training).ComputeMeanAndVolatilityForEachChannel();
