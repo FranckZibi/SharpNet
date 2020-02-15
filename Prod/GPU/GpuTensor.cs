@@ -50,9 +50,6 @@ namespace SharpNet.GPU
         /// false for asynchronous copy</param>
         public void CopyToDevice(IntPtr hostPinnedPointer, bool useSynchronousCall)
         {
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering CopyToDevice " + ReallyNeededMemoryInBytes + " bytes from Host " + hostPinnedPointer+" to Device " + DevicePointer);}
-#endif
             AssertIsNotDisposed();
             Debug.Assert(hostPinnedPointer != IntPtr.Zero);
             Wrapper.SwCopyToDevice.Start();
@@ -64,9 +61,6 @@ namespace SharpNet.GPU
 
             GPUWrapper.CheckStatus(res, ToString);
             Wrapper.SwCopyToDevice.Stop();
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving CopyToDevice " + ReallyNeededMemoryInBytes + " bytes from Host " + hostPinnedPointer + " to Device " + DevicePointer);}
-#endif
         }
 
         public void CopyToDevice(T[] data)
@@ -80,9 +74,6 @@ namespace SharpNet.GPU
 
         private T[] DeviceContent()
         {
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering CopyToHost " + ReallyNeededMemoryInBytes + " bytes from Device " + DevicePointer+ " to new Host ");}
-#endif
             Debug.Assert(!_disposed);
             Wrapper.SwCopyToHost.Start();
             Wrapper.LogCopyToHostCall(ReallyNeededMemoryInBytes);
@@ -94,9 +85,6 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res, ToString);
             handle.Free();
             Wrapper.SwCopyToHost.Stop();
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving CopyToHost " + ReallyNeededMemoryInBytes + " bytes from Device " + DevicePointer + " to Host "+_hostMemoryPointer);}
-#endif
             return _hostMemory;
         }
         public override IntPtr DevicePointer

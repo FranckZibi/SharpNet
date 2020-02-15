@@ -24,16 +24,10 @@ namespace SharpNet.GPU
         /// <param name="sizeInBytes">size in byte to allocate on device</param>
         public DeviceMemory(size_t sizeInBytes)
         {
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering DeviceMemory(" + sizeInBytes + ")");}
-#endif
             SizeInBytes = sizeInBytes;
             var res = NVCudaWrapper.cuMemAlloc_v2(out _pointer, SizeInBytes);
             GPUWrapper.CheckStatus(res);
             _isOwnerOfDeviceMemory = true;
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving DeviceMemory(" + sizeInBytes + "), Pointer="+_pointer);}
-#endif
         }
         /// <summary>
         /// Pointer to an already allocated memory on device.
@@ -43,15 +37,9 @@ namespace SharpNet.GPU
         /// <param name="sizeInBytes">size in bytes already allocated on device</param>
         public DeviceMemory(IntPtr pointer, size_t sizeInBytes)
         {
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering DeviceMemory(" + pointer+", "+sizeInBytes + ")");}
-#endif
             SizeInBytes = sizeInBytes;
             _pointer = pointer;
             _isOwnerOfDeviceMemory = false;
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving DeviceMemory(" + pointer + ", " + sizeInBytes + ")");}
-#endif
         }
 
         public IntPtr Pointer
@@ -97,13 +85,7 @@ namespace SharpNet.GPU
             {
                 return;
             }
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering ~DeviceMemory(" + SizeInBytes + "), Pointer=" + _pointer + ", Disposed=" + _disposed);}
-#endif
             Dispose(false);
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving ~DeviceMemory(" + SizeInBytes + "), Pointer=" + _pointer + ", Disposed=" + _disposed);}
-#endif
         }
 
 
@@ -112,14 +94,8 @@ namespace SharpNet.GPU
         // ReSharper disable once UnusedParameter.Local
         private void Dispose(bool disposing)
         {
-#if DEBUG
-            if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("entering DeviceMemory.Dispose(" + SizeInBytes + "), Pointer=" + _pointer+", Disposed="+_disposed);}
-#endif
             if (_disposed)
             {
-#if DEBUG
-                if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving DeviceMemory.Dispose(" + SizeInBytes + "), Pointer=" + _pointer + ", Disposed=" + _disposed);}
-#endif
                 return;
             }
             _disposed = true;
@@ -129,9 +105,6 @@ namespace SharpNet.GPU
                 var res = NVCudaWrapper.cuMemFree_v2(_pointer);
                 //GPUWrapper.CheckStatus(res);
                 _pointer = IntPtr.Zero;
-#if DEBUG
-                if (GPUWrapper.DEBUG_CUDA){GPUWrapper.LogDebug("leaving DeviceMemory.Dispose(" + SizeInBytes + "), Pointer=" + _pointer + ", Disposed=" + _disposed);}
-#endif
             }
 
 
