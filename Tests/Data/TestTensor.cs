@@ -92,13 +92,16 @@ namespace SharpNetTests.Data
             {
                 foreach (var w in new[] { 3, 33, 50, 100, 200, 201 })
                 {
-                    foreach (var poolingSizeForPoolingOutputShape in new[] { 2, 3, 5, 7, 8 })
-                    {
-                        var shapeIntput = new[] { batchSize, channelDepth, h, w };
-                        //stride == 1
-                        Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingSizeForPoolingOutputShape, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingSizeForPoolingOutputShape + 1, w - poolingSizeForPoolingOutputShape + 1 }));
-                        // stride == 2
-                        Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingSizeForPoolingOutputShape, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingSizeForPoolingOutputShape) / 2 + 1, (w - poolingSizeForPoolingOutputShape) / 2 + 1 }));
+                    foreach (var poolingHeight in new[] { 2, 3, 5, 7, 8 })
+                    { 
+                        foreach (var poolingWidth in new[] { 2, 3, 5, 7, 8 })
+                        {
+                            var shapeIntput = new[] { batchSize, channelDepth, h, w };
+                            //stride == 1
+                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingHeight, poolingWidth, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingHeight + 1, w - poolingWidth+ 1 }));
+                            // stride == 2
+                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingHeight, poolingWidth, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingHeight) / 2 + 1, (w - poolingWidth) / 2 + 1 }));
+                        }
                     }
                 }
             }

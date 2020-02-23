@@ -21,7 +21,7 @@ namespace SharpNet.GPU
         private readonly KernelManager _kernelManager;
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
-        private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int>, IntPtr>();
+        private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int>, IntPtr>();
         private readonly IDictionary<cudnnActivationMode_t, IntPtr> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, IntPtr>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
@@ -81,14 +81,14 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
+        public IntPtr PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
-            var key = Tuple.Create(poolingMode, poolingSize, poolingStride);
+            var key = Tuple.Create(poolingMode, poolingHeight, poolingWidth, poolingStride);
             if (!cachePoolingDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreatePoolingDescriptor(out desc);
                 CheckStatus(res);
-                res = CudnnWrapper.cudnnSetPooling2dDescriptor(desc, poolingMode, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, poolingSize, poolingSize, 0, 0, poolingStride, poolingStride);
+                res = CudnnWrapper.cudnnSetPooling2dDescriptor(desc, poolingMode, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, poolingHeight, poolingWidth, 0, 0, poolingStride, poolingStride);
                 CheckStatus(res);
                 cachePoolingDesc[key] = desc;
             }

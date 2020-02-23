@@ -295,29 +295,25 @@ namespace SharpNet.Networks
             Layers.Add(new ActivationLayer(activationFunction, this));
             return this;
         }
-        public Network MaxPooling(int poolingSize, int poolingStride)
+        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingStride,
-                this));
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, poolingStride, this));
             return this;
         }
-        public Network AvgPooling(int poolingSize, int poolingStride)
+        public Network AvgPooling(int poolingHeight, int poolingWidth, int poolingStride)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingSize,
-                poolingStride, this));
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingHeight, poolingWidth, poolingStride, this));
             return this;
         }
         public Network GlobalAvgPooling()
         {
             var lastLayerShape = Layers.Last().OutputShape(1);
-            var lastLayerShapeHeight = lastLayerShape[2];
-            //We ensure that weight and height are the same
-            Debug.Assert(lastLayerShapeHeight == lastLayerShape[3]);
-            int poolingSize = lastLayerShapeHeight;
-            int poolingStride = lastLayerShapeHeight;
-            return AvgPooling(poolingSize, poolingStride);
+            var lastLayerHeight = lastLayerShape[2];
+            var lastLayerWidth = lastLayerShape[3];
+            var poolingStride = Math.Max(lastLayerHeight, lastLayerWidth);
+            return AvgPooling(lastLayerHeight, lastLayerWidth, poolingStride);
         }
         public Network BatchNorm(double momentum = 0.99, double epsilon = 1e-5)
         {

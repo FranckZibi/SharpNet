@@ -205,11 +205,11 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
-        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
+        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
-            var poolingDesc = PoolingDesc(poolingMode, poolingSize, poolingStride);
+            var poolingDesc = PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
 
@@ -220,11 +220,11 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnPoolingForward(CudnnHandle, poolingDesc, one, xDesc, x, zero, yDesc, y);
             CheckStatus(res);
         }
-        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
+        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             var dy = this;
             Debug.Assert(AreCompatible(new List<Tensor> { dy, y, x, dx }));
-            var poolingDesc = PoolingDesc(poolingMode, poolingSize, poolingStride);
+            var poolingDesc = PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
             var xDesc = TensorDesc(x);
             var dxDesc = TensorDesc(dx);
             var yDesc = TensorDesc(y);
@@ -737,9 +737,9 @@ namespace SharpNet.GPU
         {
             return Wrapper.ActivationDesc(activationFunctionType);
         }
-        private IntPtr PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
+        private IntPtr PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
-            return Wrapper.PoolingDesc(poolingMode, poolingSize, poolingStride);
+            return Wrapper.PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
         }
         private IntPtr ConvDesc(int padding, int stride) { return Wrapper.ConvDesc(CudaType, padding, stride); }
         private cudnnDataType_t CudaType => cudnnDataType_t.CUDNN_DATA_FLOAT;

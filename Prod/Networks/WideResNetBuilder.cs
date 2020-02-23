@@ -196,6 +196,17 @@ namespace SharpNet.Networks
         public double WRN_DropOut { get; set; }
         public double WRN_DropOutAfterDenseLayer { get; set; }
 
+        /// <summary>
+        /// if true:
+        ///     we'll use a Global Average Pooling (= GAP) layer just before the last Dense (= fully connected) Layer
+        ///     This GAP layer will transform the input feature map of shape (n,c,h,w)
+        ///     to an output feature map of shape (n,c,1,1),
+        ///     so that this output feature map is independent of the the size of the input
+        /// if false
+        ///     we'll use the default Average Pooling layer (with a size of 'WRN_AvgPoolingSize')
+        /// </summary>
+        public bool WRN_Use_GlobalAvgPooling_BeforeDenseLayer { get; set; }
+
         public int WRN_AvgPoolingSize { get; set; }
 
         /// <summary>
@@ -248,7 +259,7 @@ namespace SharpNet.Networks
             if (reduceInputSize)
             {
                 net.Convolution_BatchNorm_Activation(64, 7, 2, 3, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                net.MaxPooling(2, 2);
+                net.MaxPooling(2, 2, 2);
             }
 
             net.Convolution(16, 3, 1, 1, config.lambdaL2Regularization, false);
@@ -278,9 +289,17 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             net.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-            if (WRN_AvgPoolingSize>=1)
-            { 
-                net.AvgPooling(WRN_AvgPoolingSize, WRN_AvgPoolingSize);
+
+            if (WRN_Use_GlobalAvgPooling_BeforeDenseLayer)
+            {
+                net.GlobalAvgPooling();
+            }
+            else
+            {
+                if (WRN_AvgPoolingSize>=1)
+                { 
+                    net.AvgPooling(WRN_AvgPoolingSize, WRN_AvgPoolingSize, WRN_AvgPoolingSize);
+                }
             }
 
             if (WRN_DropOutAfterDenseLayer > 0)

@@ -468,7 +468,7 @@ namespace SharpNet.CPU
             MKL_BLAS.cblas_sscal(Count, alpha, AsFloatCpuContent, 1);
         }
         #region pooling layers
-        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
+        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             var x = this;
 #if DEBUG
@@ -481,22 +481,22 @@ namespace SharpNet.CPU
             Debug.Assert(y.Dimension == 4);
             Debug.Assert(x.Shape[0] == y.Shape[0]); //same batch size
             Debug.Assert(x.Shape[1] == y.Shape[1]); //same number of channels
-            int hExpected = (hInput - poolingSize) / poolingStride + 1;
+            int hExpected = (hInput - poolingHeight) / poolingStride + 1;
             Debug.Assert(hOutput == hExpected);
-            int wExpected = (wInput - poolingSize) / poolingStride + 1;
+            int wExpected = (wInput - poolingWidth) / poolingStride + 1;
             Debug.Assert(wOutput == wExpected);
 #endif
             int batchSize = x.Shape[0];
             if (PoolingLayer.IsMaxPooling(poolingMode))
             {
-                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => MaxPoolingForSingleElement(y, poolingSize, poolingStride, elementIndex ));
+                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => MaxPoolingForSingleElement(y, poolingHeight, poolingWidth, poolingStride, elementIndex ));
             }
             else
             {
-                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => AvgPoolingForSingleElement(y, poolingSize, poolingStride, elementIndex));
+                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => AvgPoolingForSingleElement(y, poolingHeight, poolingWidth, poolingStride, elementIndex));
             }
         }
-        private void AvgPoolingForSingleElement(Tensor y, int poolingSize, int poolingStride, int elementIndex)
+        private void AvgPoolingForSingleElement(Tensor y, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
@@ -515,9 +515,9 @@ namespace SharpNet.CPU
                         //it is computed by applying an avg filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                         float outputPointSum = 0f;
                         int count = 0;
-                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
+                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
                         {
-                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
+                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingWidth); ++colBeforePooling)
                             {
                                 outputPointSum += x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling);
                                 ++count;
@@ -530,7 +530,7 @@ namespace SharpNet.CPU
                 }
             }
         }
-        private void MaxPoolingForSingleElement(Tensor y, int poolingSize, int poolingStride, int elementIndex)
+        private void MaxPoolingForSingleElement(Tensor y, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var x = this;
             int hOutput = y.Shape[2];
@@ -547,9 +547,9 @@ namespace SharpNet.CPU
                         //we want to compute the point in y[n, channelId, row_output, col_output]
                         //it is computed by applying a max filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                         float outputPointResult = float.MinValue;
-                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
+                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
                         {
-                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
+                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingWidth); ++colBeforePooling)
                             {
                                 outputPointResult = Math.Max(outputPointResult, x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling));
                             }
@@ -561,7 +561,8 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride)
+        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode,
+            int poolingHeight, int poolingWidth, int poolingStride)
         {
             int batchSize = x.Shape[0];
 #if DEBUG
@@ -573,25 +574,25 @@ namespace SharpNet.CPU
             Debug.Assert(dx.SameShape(x));
             int hOutput = dy.Shape[2];
             int wOutput = dy.Shape[3];
-            Debug.Assert(hOutput == ((x.Shape[2] - poolingSize) / poolingStride + 1));
-            Debug.Assert(wOutput == ((x.Shape[3] - poolingSize) / poolingStride + 1));
+            Debug.Assert(hOutput == ((x.Shape[2] - poolingHeight) / poolingStride + 1));
+            Debug.Assert(wOutput == ((x.Shape[3] - poolingWidth) / poolingStride + 1));
 #endif
             dx.ZeroMemory();
             if (PoolingLayer.IsMaxPooling(poolingMode))
             {
-                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => MaxPoolingGradientForSingleElement(x, dx, poolingSize, poolingStride, elementIndex));
+                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => MaxPoolingGradientForSingleElement(x, dx, poolingHeight, poolingWidth, poolingStride, elementIndex));
             }
             else
             {
-                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => AvgPoolingGradientForSingleElement(x, dx, poolingSize, poolingStride, elementIndex));
+                System.Threading.Tasks.Parallel.For(0, batchSize, elementIndex => AvgPoolingGradientForSingleElement(x, dx, poolingHeight, poolingWidth, poolingStride, elementIndex));
             }
         }
-        private void AvgPoolingGradientForSingleElement(Tensor x, Tensor dx, int poolingSize, int poolingStride, int elementIndex)
+        private void AvgPoolingGradientForSingleElement(Tensor x, Tensor dx, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var dy = this;
             int hOutput = dy.Shape[2];
             int wOutput = dy.Shape[3];
-            double doubleMultiplier = 1.0 / (poolingSize * poolingSize);
+            double doubleMultiplier = 1.0 / (poolingHeight * poolingWidth);
             float floatMultiplier = (float)doubleMultiplier;
 
             for (int c = 0; c < x.Shape[1]; ++c)
@@ -602,9 +603,9 @@ namespace SharpNet.CPU
                     int col_filter_start = 0;
                     for (int colAfterPooling = 0; colAfterPooling < wOutput; ++colAfterPooling)
                     {
-                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
+                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
                         {
-                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
+                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingWidth); ++colBeforePooling)
                             {
                                 var pointGradient = dy.AsFloatCpu.Get(elementIndex, c, rowAfterPooling, colAfterPooling);
                                 dx.AsFloatCpu.Set(elementIndex, c, rowBeforePooling, colBeforePooling, floatMultiplier * pointGradient);
@@ -617,7 +618,7 @@ namespace SharpNet.CPU
             }
         }
         //compute 'dx' from ('dy' and 'x')
-        private void MaxPoolingGradientForSingleElement(Tensor x, Tensor dx, int poolingSize, int poolingStride, int elementIndex)
+        private void MaxPoolingGradientForSingleElement(Tensor x, Tensor dx, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var dy = this;
             int hOutput = dy.Shape[2];
@@ -635,9 +636,9 @@ namespace SharpNet.CPU
                         double outputPointResult = double.MinValue;
                         int maxRowBeforePooling = 0;
                         int maxColBeforePooling = 0;
-                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingSize); ++rowBeforePooling)
+                        for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
                         {
-                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingSize); ++colBeforePooling)
+                            for (int colBeforePooling = col_filter_start; colBeforePooling < (col_filter_start + poolingWidth); ++colBeforePooling)
                             {
                                 var currentPointValue = x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling, colBeforePooling);
                                 if (currentPointValue > outputPointResult)

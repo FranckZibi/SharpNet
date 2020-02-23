@@ -94,7 +94,7 @@ namespace SharpNet.Networks
             net.Input(xShape[1], xShape[2], xShape[3]);
 
             net.Convolution(64, 7, 2, 3, config.lambdaL2Regularization, true);
-            net.MaxPooling(2, 2);
+            net.MaxPooling(2, 2, 2);
 
             int stageC = 64; //number of channels for current stage
             for (int stageId = 0; stageId < nbResBlocks.Length; ++stageId)
@@ -163,7 +163,7 @@ namespace SharpNet.Networks
                 }
                 stageC *= 2;
             }
-            net.AvgPooling(8, 8);
+            net.AvgPooling(8, 8, 8);
             net.Output(dataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
@@ -213,7 +213,7 @@ namespace SharpNet.Networks
                 stageCOut = 2 * stageCIn;
             }
             net.BatchNorm().Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-            net.AvgPooling(8, 8);
+            net.AvgPooling(8, 8, 8);
             net.Output(dataSet.Categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }

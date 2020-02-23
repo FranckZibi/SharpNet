@@ -79,7 +79,7 @@ namespace SharpNetTests.NonReg
                 .BatchNorm()
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
-                .MaxPooling(2, 2)
+                .MaxPooling(2, 2, 2)
 
                 .Convolution(32, 3, 1, 1, 0.0, true)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)

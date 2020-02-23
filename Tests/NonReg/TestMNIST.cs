@@ -47,14 +47,14 @@ namespace SharpNetTests.NonReg
                 .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
 
                 .Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .MaxPooling(2,2)
+                .MaxPooling(2,2,2)
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)
 
                 //.AddDropout(0.2)
 
                 .Convolution_BatchNorm_Activation(32, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .MaxPooling(2, 2)
+                .MaxPooling(2, 2,  2)
 
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)

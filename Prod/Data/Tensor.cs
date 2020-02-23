@@ -229,9 +229,11 @@ namespace SharpNet.Data
         //this = x
         public abstract void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient);
         //this = x
-        public abstract void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride);
+        public abstract void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride);
         //this = dy
-        public abstract void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingSize, int poolingStride);
+        public abstract void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode,
+            int poolingHeight,
+            int poolingWidth, int poolingStride);
         public abstract void CopyTo(Tensor b);
         public abstract void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount);
         //this  = y
