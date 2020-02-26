@@ -295,16 +295,23 @@ namespace SharpNet.Networks
             Layers.Add(new ActivationLayer(activationFunction, this));
             return this;
         }
+
         public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride)
         {
+            return MaxPooling(poolingHeight, poolingWidth, poolingStride, Layers.Count-1);
+        }
+
+        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex)
+        {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, poolingStride, this));
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this));
             return this;
         }
         public Network AvgPooling(int poolingHeight, int poolingWidth, int poolingStride)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingHeight, poolingWidth, poolingStride, this));
+            int previousLayerIndex = Layers.Count-1;
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this));
             return this;
         }
         public Network GlobalAvgPooling()
@@ -315,6 +322,26 @@ namespace SharpNet.Networks
             var poolingStride = Math.Max(lastLayerHeight, lastLayerWidth);
             return AvgPooling(lastLayerHeight, lastLayerWidth, poolingStride);
         }
+
+        public Network GlobalMaxPooling(int previousLayerIndex)
+        {
+            var previousLayerShape = Layers[previousLayerIndex].OutputShape(1);
+            var previousLayerHeight = previousLayerShape[2];
+            var previousLayerWidth = previousLayerShape[3];
+            var poolingStride = Math.Max(previousLayerHeight, previousLayerWidth);
+            return MaxPooling(previousLayerHeight, previousLayerWidth, poolingStride, previousLayerIndex);
+        }
+
+        public Network GlobalAvgPooling_And_GlobalMaxPooling()
+        {
+            int lastLayerIndex = Layers.Last().LayerIndex;
+            GlobalAvgPooling();
+            int globalAvgPoolingLayerIndex = Layers.Last().LayerIndex;
+            GlobalMaxPooling(lastLayerIndex);
+            int globalMaxPoolingLayerIndex = Layers.Last().LayerIndex;
+            return ConcatenateLayer(globalAvgPoolingLayerIndex, globalMaxPoolingLayerIndex);
+        }
+
         public Network BatchNorm(double momentum = 0.99, double epsilon = 1e-5)
         {
             Debug.Assert(Layers.Count >= 1);
@@ -475,7 +502,8 @@ namespace SharpNet.Networks
         private static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
         {
             freeMemoryInBytes -= bytesIndependantOfBatchSize;
-            freeMemoryInBytes = (80* freeMemoryInBytes)/100;
+            //?D freeMemoryInBytes = (80* freeMemoryInBytes)/100;
+            freeMemoryInBytes = (85 * freeMemoryInBytes) / 100;
             ulong miniBatchSize = 1;
             while ( (2UL * miniBatchSize * bytesByBatchSize) < freeMemoryInBytes)
             {

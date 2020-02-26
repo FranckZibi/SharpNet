@@ -1,3 +1,7 @@
+//TODO:
+// Test Time Augmentation  : validation
+// test rotation data augmentation
+
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -21,8 +25,8 @@ namespace SharpNetTests
             //return;
 
             //new TestEnsembleLearning().Test(); return;
-            //WideResNetTests();
-            SVHNTests();
+            WideResNetTests();
+            //SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -93,24 +97,27 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN_TransferLearning(x);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN(x, 10, 4);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_RecursionCellularImageClassification_WRN(x, 10, 4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_Aptos2019Blindness_WRN(x, 16,8,WidthAptos2019);},
-
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
             };
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT; p.ExtraDescription = "";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.AveragePooling;p.WRN_AvgPoolingSize=2;p.ExtraDescription = "_AvgPoolingSize_2";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling;p.ExtraDescription = "_GlobalAveragePooling";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling; p.ExtraDescription = "_GAP_and_MAX";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling; p.ExtraDescription = "_GlobalMaxPooling";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT; p.ExtraDescription = "";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX";return p;},
