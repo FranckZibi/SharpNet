@@ -30,9 +30,7 @@ namespace SharpNet.Networks
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                 ,
-
-
-                WRN_AvgPoolingSize = 8,
+                WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_8,
                 NumEpochs = 70,
                 BatchSize = 128,
                 WRN_DropOut = 0.0, //by default we disable dropout
@@ -135,7 +133,7 @@ namespace SharpNet.Networks
                 BatchSize = 128,
                 WRN_DropOut = 0.0,
                 InitialLearningRate = 0.1,
-                WRN_AvgPoolingSize = 2,
+                WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2,
                 WRN_DropOutAfterDenseLayer = 0
             };
 
@@ -175,7 +173,16 @@ namespace SharpNet.Networks
                               BatchSize = 128,
                               WRN_DropOut = 0.0,
                               InitialLearningRate = 0.1,
-                              WRN_AvgPoolingSize = 2,
+
+                              //discarded on 7-march-2020 : -5bps vs GlobalAveragePooling_And_GlobalMaxPooling
+                              //WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2,
+                              //discarded on 7-march-2020 : no change vs GlobalAveragePooling_And_GlobalMaxPooling
+                              //WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling,
+                              //discarded on 7-march-2020 : -5bps vs GlobalAveragePooling_And_GlobalMaxPooling
+                              //WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling,
+                              //validated on 7-march-2020 : +5bps vs AveragePooling_2
+                              WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling,
+                
                               WRN_DropOutAfterDenseLayer = 0
                           };
 
@@ -204,8 +211,10 @@ namespace SharpNet.Networks
 
         public enum POOLING_BEFORE_DENSE_LAYER
         {
-            /* we'll use an Average Pooling layer of size [WRN_AvgPoolingSize x WRN_AvgPoolingSize] before the Dense layer*/
-            AveragePooling,
+            /* we'll use an Average Pooling layer of size [2 x 2] before the Dense layer*/
+            AveragePooling_2,
+            /* we'll use an Average Pooling layer of size [8 x 8] before the Dense layer*/
+            AveragePooling_8,
 
             /* We'll use a Global Average Pooling (= GAP) layer just before the last Dense (= fully connected) Layer
             This GAP layer will transform the input feature map of shape (n,c,h,w)
@@ -225,11 +234,8 @@ namespace SharpNet.Networks
             so that this output feature map is independent of the the size of the input */
             GlobalMaxPooling
         };
-        public POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeDenseLayer { get; set; }
-        /// <summary>
-        /// When WRN_PoolingBeforeDenseLayer == AveragePooling, the size of this Pooling
-        /// </summary>
-        public int WRN_AvgPoolingSize { get; set; }
+
+        public POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeDenseLayer { get; set; } = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;
 
         /// <summary>
         /// returns a Wide Residual network, as described in https://arxiv.org/pdf/1605.07146.pdf
@@ -312,12 +318,13 @@ namespace SharpNet.Networks
             }
             net.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
-            if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling)
+            if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_2)
             {
-                if (WRN_AvgPoolingSize >= 1)
-                {
-                    net.AvgPooling(WRN_AvgPoolingSize, WRN_AvgPoolingSize, WRN_AvgPoolingSize);
-                }
+                net.AvgPooling(2, 2, 2);
+            }
+            else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_8)
+            {
+                net.AvgPooling(8, 8, 8);
             }
             else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling)
             {

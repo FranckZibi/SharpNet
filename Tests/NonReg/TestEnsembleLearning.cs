@@ -158,6 +158,14 @@ namespace SharpNetTests.NonReg
             //    @"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-10_30Epochs_20200120_1954_10.txt",
             //};
 
+            //WRN 16-10 30 epochs
+            //98.40 <= 98.33 (30 epochs) + 98.26 (10 epochs)
+            var files = new[]
+            {
+                @"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-10_GAP_AND_GlobalMaxPooling_30Epochs_20200306_2040_30.txt",
+                @"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-10_GAP_AND_GlobalMaxPooling_30Epochs_20200306_2040_10.txt",
+            };
+
             //WRN 16-4 30 epochs AutoAugment
             //97.93<= 97.87 (30 epochs) + 97.57 (10 epochs)
             //var files = new[]
@@ -193,11 +201,11 @@ namespace SharpNetTests.NonReg
 
             //WRN 16-8 150 epochs AutoAugment small training dataSet
             //97.30<= 96.88 (150 epochs) + 96.83 (70 epochs)
-            var files = new[]
-            {
-                @"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-8_150Epochs_AutoAugment_smallTrain_20200122_0624_150.txt",
-                @"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-8_150Epochs_AutoAugment_smallTrain_20200122_0624_70.txt",
-            };
+            //var files = new[]
+            //{
+            //    @"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-8_150Epochs_AutoAugment_smallTrain_20200122_0624_150.txt",
+            //    @"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-8_150Epochs_AutoAugment_smallTrain_20200122_0624_70.txt",
+            //};
 
             var ensembleLearning = new EnsembleLearning(files);
             ensembleLearning.Predict(svhn.Test);

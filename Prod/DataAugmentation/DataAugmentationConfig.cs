@@ -5,7 +5,8 @@ namespace SharpNet.DataAugmentation
 {
     public class DataAugmentationConfig
     {
-        public ImageDataGenerator.DataAugmentationEnum DataAugmentationType { get; set; } = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
+        public ImageDataGenerator.DataAugmentationEnum DataAugmentationType { get; set; } 
+            = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
         /// <summary>
         ///randomly shift images horizontally
         /// </summary>
@@ -72,45 +73,62 @@ namespace SharpNet.DataAugmentation
         /// <summary>
         /// Probability to apply Equalize operation
         /// </summary>
-        public double EqualizeOperationProbability { get; set; } = 0.0;
+        public double EqualizeOperationProbability { get; private set; } = 0.0;
 
         /// <summary>
         /// Probability to apply AutoContrast operation
         /// </summary>
-        public double AutoContrastOperationProbability { get; set; } = 0.0;
+        public double AutoContrastOperationProbability { get; private set; } = 0.0;
 
         /// <summary>
         /// Probability to apply Invert operation
         /// </summary>
-        public double InvertOperationProbability { get; set; } = 0.0;
+        public double InvertOperationProbability { get; private set; } = 0.0;
 
         /// <summary>
         /// Probability to apply Brightness operation
         /// </summary>
-        public double BrightnessOperationProbability { get; set; } = 0.0;
+        public double BrightnessOperationProbability { get; private set; } = 0.0;
         /// <summary>
         /// The enhancement factor used for Brightness operation (between [0.1,1.9]
         /// </summary>
-        public double BrightnessOperationEnhancementFactor { get; set; } = 0.0;
+        public double BrightnessOperationEnhancementFactor { get; private set; } = 0.0;
 
         /// <summary>
         /// Probability to apply Color operation
         /// </summary>
-        public double ColorOperationProbability { get; set; } = 0.0;
+        public double ColorOperationProbability { get; private set; } = 0.0;
         /// <summary>
         /// The enhancement factor used for Color operation (between [0.1,1.9]
         /// </summary>
-        public double ColorOperationEnhancementFactor { get; set; } = 0.0;
+        public double ColorOperationEnhancementFactor { get; private set; } = 0.0;
 
         /// <summary>
         /// Probability to apply Contrast operation
         /// </summary>
-        public double ContrastOperationProbability { get; set; } = 0.0;
+        public double ContrastOperationProbability { get; private set; } = 0.0;
         /// <summary>
         /// The enhancement factor used for Contrast operation (between [0.1,1.9]
         /// </summary>
-        public double ContrastOperationEnhancementFactor { get; set; } = 0.0;
+        public double ContrastOperationEnhancementFactor { get; private set; } = 0.0;
 
+        /// <summary>
+        /// The number of operations for the RandAugment
+        /// Only used when DataAugmentationType = DataAugmentationEnum.RAND_AUGMENT
+        /// </summary>
+        public int RandAugment_N { get; set; } = 0;
+        /// <summary>
+        /// The magnitude of operations for the RandAugment
+        /// Only used when DataAugmentationType = DataAugmentationEnum.RAND_AUGMENT
+        /// </summary>
+        public int RandAugment_M { get; set; } = 0;
+
+        public void WithRandAugment(int N, int M)
+        {
+            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.RAND_AUGMENT;
+            RandAugment_N = N;
+            RandAugment_M = M;
+        }
 
         private static readonly DataAugmentationConfig NoDataAugmentation = new DataAugmentationConfig();
 
@@ -138,6 +156,8 @@ namespace SharpNet.DataAugmentation
             equals &= Utils.Equals(ColorOperationEnhancementFactor, other.ColorOperationEnhancementFactor, epsilon, id + ":ColorOperationEnhancementFactor", ref errors);
             equals &= Utils.Equals(ContrastOperationProbability, other.ContrastOperationProbability, epsilon, id + ":ContrastOperationProbability", ref errors);
             equals &= Utils.Equals(ContrastOperationEnhancementFactor, other.ContrastOperationEnhancementFactor, epsilon, id + ":ContrastOperationEnhancementFactor", ref errors);
+            equals &= Utils.Equals(RandAugment_N, other.RandAugment_N, id + ":RandAugment_N", ref errors);
+            equals &= Utils.Equals(RandAugment_M, other.RandAugment_M, id + ":RandAugment_M", ref errors);
             return equals;
         }
 
@@ -168,6 +188,8 @@ namespace SharpNet.DataAugmentation
                 .Add(nameof(ColorOperationEnhancementFactor), ColorOperationEnhancementFactor)
                 .Add(nameof(ContrastOperationProbability), ContrastOperationProbability)
                 .Add(nameof(ContrastOperationEnhancementFactor), ContrastOperationEnhancementFactor)
+                .Add(nameof(RandAugment_N), RandAugment_N)
+                .Add(nameof(RandAugment_M), RandAugment_M)
                 .ToString();
         }
         public static DataAugmentationConfig ValueOf(IDictionary<string, object> serialized)
@@ -198,6 +220,8 @@ namespace SharpNet.DataAugmentation
             da.ColorOperationEnhancementFactor = (double)serialized[nameof(ColorOperationEnhancementFactor)];
             da.ContrastOperationProbability = (double)serialized[nameof(ContrastOperationProbability)];
             da.ContrastOperationEnhancementFactor = (double)serialized[nameof(ContrastOperationEnhancementFactor)];
+            da.RandAugment_N = (int)serialized[nameof(RandAugment_N)];
+            da.RandAugment_M = (int)serialized[nameof(RandAugment_M)];
             return da;
         }
         #endregion

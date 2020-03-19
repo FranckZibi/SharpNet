@@ -1,6 +1,8 @@
 //TODO:
 // Test Time Augmentation  : validation
-// test rotation data augmentation
+// fix shearx/sheary operation https://github.com/tensorflow/models/blob/903194c51d4798df25334dd5ccecc2604974efd9/research/autoaugment/augmentation_transforms.py
+// add randaugment
+// re test autoaugment after fix
 
 using System;
 using System.Collections.Generic;
@@ -24,9 +26,9 @@ namespace SharpNetTests
             //var resized = filtered.Resize(32, 32);
             //return;
 
-            //new TestEnsembleLearning().Test(); return;
-            WideResNetTests();
-            //SVHNTests();
+            new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
+            //WideResNetTests();
+            SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -98,11 +100,11 @@ namespace SharpNetTests
             var todo = new List<Action<WideResNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
+//                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN_TransferLearning(x);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN(x, 10, 4);},
@@ -113,10 +115,17 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.AveragePooling;p.WRN_AvgPoolingSize=2;p.ExtraDescription = "_AvgPoolingSize_2";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling;p.ExtraDescription = "_GlobalAveragePooling";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling; p.ExtraDescription = "_GAP_and_MAX";return p;},
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling; p.ExtraDescription = "_GlobalMaxPooling";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(3,5); p.ExtraDescription = "_RandAugment_3_5_";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(3,3); p.ExtraDescription = "_RandAugment_3_3_";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(2,4); p.ExtraDescription = "_RandAugment_2_4_";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(4,4); p.ExtraDescription = "_RandAugment_4_4_";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(3,4); p.ExtraDescription = "_RandAugment_3_4_";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AutoAugment";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;p.ExtraDescription = "_AvgPoolingSize_2";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;p.ExtraDescription = "_AvgPoolingSize_2";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling;p.ExtraDescription = "_GlobalAveragePooling";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling; p.ExtraDescription = "_GAP_and_MAX";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling; p.ExtraDescription = "_GlobalMaxPooling";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT; p.ExtraDescription = "";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP; p.ExtraDescription = "_AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP";return p;},
@@ -349,10 +358,10 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,10);},
 
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 16,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 40,4);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 16,8);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 16,10);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 40,4);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,10);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 28,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 28,10);},
@@ -360,9 +369,14 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.ExtraDescription = "_150Epochs_smallTrain";return p;},
-                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.ExtraDescription = "_150Epochs_AutoAugment_smallTrain";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 150;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;  p.ExtraDescription = "_30Epochs_AutoAugment";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;  p.ExtraDescription = "_30Epochs";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;  p.ExtraDescription = "_30Epochs_AutoAugment";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.DA.WithRandAugment(3,9);  p.ExtraDescription = "_30Epochs_RandAugment_3_9";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling;  p.ExtraDescription = "_GlobalMaxPooling_30Epochs";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling;  p.ExtraDescription = "_GAP_AND_GlobalMaxPooling_30Epochs";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.WRN_PoolingBeforeDenseLayer = WideResNetBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling;  p.ExtraDescription = "_GAP_30Epochs";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.ExtraDescription = "_150Epochs_smallTrain";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.ExtraDescription = "_150Epochs_AutoAugment_smallTrain";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.ExtraDescription = "_30Epochs";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.BatchSize = -1;p.NumEpochs=30;p.ExtraDescription = "_30Epochs_AutoBatchSize";return p;},
             };

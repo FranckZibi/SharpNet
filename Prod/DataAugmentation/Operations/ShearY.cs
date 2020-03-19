@@ -4,17 +4,16 @@ namespace SharpNet.DataAugmentation.Operations
 {
     public class ShearY : Operation
     {
-        private readonly double _heightMultiplier;
+        private readonly double _level;
 
-        public ShearY(double heightMultiplier)
+        public ShearY(double level)
         {
-            Debug.Assert(heightMultiplier > 0);
-            _heightMultiplier = heightMultiplier;
+            _level = level;
         }
 
         public override (double row, double col) Unconvert_Slow(double row, double col)
         {
-            return (row/ _heightMultiplier, col);
+            return (row - col*_level, col );
         }
     }
 }

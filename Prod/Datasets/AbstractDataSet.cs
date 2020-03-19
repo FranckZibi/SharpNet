@@ -71,8 +71,10 @@ namespace SharpNet.Datasets
         {
             Debug.Assert(xMiniBatch != null);
             Debug.Assert(yMiniBatch != null);
+            Debug.Assert(xMiniBatch.Shape.Length>=1);
             Debug.Assert(xMiniBatch.TypeSize == TypeSize);
             Debug.Assert(AreCompatible_X_Y(xMiniBatch, yMiniBatch));
+
             xMiniBatch.AssertIsNotDisposed();
             yMiniBatch.AssertIsNotDisposed();
 
@@ -102,7 +104,9 @@ namespace SharpNet.Datasets
                 LoadMiniBatchInCpu(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
             }
 
+            Debug.Assert(xMiniBatch.Shape.Length >= 1);
             xBufferMiniBatchCpu.CopyTo(xMiniBatch.AsCpu<float>());
+            Debug.Assert(xMiniBatch.Shape.Length >= 1);
             yBufferMiniBatchCpu.CopyTo(yMiniBatch.AsCpu<float>());
 
             //uncomment to store data augmented pictures
@@ -121,7 +125,7 @@ namespace SharpNet.Datasets
             //    }
             //}
 
-            //we check if we can start to compute the next mini batch content in advance
+            //we check if we can start compute the next mini batch content in advance
             int firstIndexInShuffledElementIdForNextMiniBatch = firstIndexInShuffledElementId + xMiniBatch.Shape[0];
             int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, xMiniBatch.Shape[0]);
             if (UseBackgroundThread && nextMiniBatchSize > 0)
@@ -508,7 +512,8 @@ namespace SharpNet.Datasets
 
         #region Processing Thread management
         // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
-        private bool UseBackgroundThread => true;
+        //?D private bool UseBackgroundThread => true;
+        private bool UseBackgroundThread => false;
         private readonly Thread thread;
         private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT, TO_ABORT };
         private BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;

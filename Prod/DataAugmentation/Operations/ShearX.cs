@@ -4,17 +4,16 @@ namespace SharpNet.DataAugmentation.Operations
 {
     public class ShearX : Operation
     {
-        private readonly double _widthMultiplier;
+        private readonly double _level;
 
-        public ShearX(double widthMultiplier)
+        public ShearX(double level)
         {
-            Debug.Assert(widthMultiplier > 0);
-            _widthMultiplier = widthMultiplier;
+            _level = level;
         }
 
         public override (double row, double col) Unconvert_Slow(double row, double col)
         {
-            return (row, col/ _widthMultiplier );
+            return (row, col - row * _level );
         }
     }
 }

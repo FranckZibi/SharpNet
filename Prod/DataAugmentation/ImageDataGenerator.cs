@@ -21,7 +21,8 @@ namespace SharpNet.DataAugmentation
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX,
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP,
             AUTO_AUGMENT_SVHN,
-            AUTO_AUGMENT_IMAGENET
+            AUTO_AUGMENT_IMAGENET,
+            RAND_AUGMENT
         };
 
         public ImageDataGenerator(DataAugmentationConfig config)
@@ -58,9 +59,11 @@ namespace SharpNet.DataAugmentation
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 0, 1.0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
-                    throw new NotImplementedException("unknown DataAugmentationEnum: " + _config.DataAugmentationType);
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicyImageNet();
                 case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicySVHN();
+                case DataAugmentationEnum.RAND_AUGMENT:
+                    return new RandAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).CreateSubPolicy(_config.RandAugment_N, _config.RandAugment_M);
                 case DataAugmentationEnum.NO_AUGMENTATION:
                     return new List<Operation>();
                 default:
