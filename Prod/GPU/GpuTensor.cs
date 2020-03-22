@@ -416,10 +416,10 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, bias);
             CheckStatus(res);
         }
-        public override void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
+        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { x, conv, dy, dx, convGradient }));
+            Debug.Assert(AreCompatible(new List<Tensor> { x, convolution, dy, dx, convGradient }));
             var xDesc = TensorDesc(x);
             var dyDesc = TensorDesc(dy);
             var dwDesc = FilterDesc(convGradient, isDepthwiseConvolution);
@@ -444,7 +444,7 @@ namespace SharpNet.GPU
                 return;
             }
             var dxDesc = TensorDesc(dx);
-            var wDesc = FilterDesc(conv, isDepthwiseConvolution);
+            var wDesc = FilterDesc(convolution, isDepthwiseConvolution);
             res = CudnnWrapper.cudnnGetConvolutionBackwardDataAlgorithm(CudnnHandle, wDesc, dyDesc, convDesc, dxDesc, cudnnConvolutionBwdDataPreference_t.CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST, 0, out cudnnConvolutionBwdDataAlgo_t dataAlgo);
             CheckStatus(res);
 
@@ -452,7 +452,7 @@ namespace SharpNet.GPU
             CheckStatus(res);
 
             storageBuffer = Wrapper.StorageBuffer(dataWorkspaceSize);
-            res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, conv, dyDesc, dy, convDesc, dataAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dxDesc, dx);
+            res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, convolution, dyDesc, dy, convDesc, dataAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dxDesc, dx);
             CheckStatus(res);
         }
         #endregion

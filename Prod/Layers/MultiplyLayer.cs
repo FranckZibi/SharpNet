@@ -41,7 +41,7 @@ namespace SharpNet.Layers
                 || layerShape2 == null 
                 || layerShape1.Length != layerShape2.Length
                 || layerShape1[0] != layerShape2[0] //must have same number of elements
-                || layerShape1[1] != layerShape2[1] //must have same number of channels
+                //|| layerShape1[1] != layerShape2[1] //must have same number of channels
                 )
             {
                 return false;

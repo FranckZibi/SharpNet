@@ -277,7 +277,7 @@ namespace SharpNet.Data
         public abstract void ConvolutionBackwardBias(Tensor bias);
 
         //this = x
-        public abstract void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution);
+        public abstract void ConvolutionGradient(Tensor convolution, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution);
         #endregion
 
         //this = x
