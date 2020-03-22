@@ -42,6 +42,23 @@
 		}
 	}
 
+	__global__ void MultiplyEachRowIntoSingleValue(int nbRows, int nbCols, float *result, const float* __restrict a, const float* __restrict b) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < nbRows) {
+			a += row*nbCols;
+			b += row*nbCols;
+			float sumInRow = 0;
+			for(int i=0;i<nbCols;++i)
+			{
+				sumInRow += (*a)*(*b);
+				++a;
+				++b;
+			}
+			result[row] = sumInRow;
+		}
+	}
+
 	__global__ void ComputeCategoricalCrossentropyLoss(int N, int categoryCount, float *losses, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;

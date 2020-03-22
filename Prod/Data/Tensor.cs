@@ -149,13 +149,6 @@ namespace SharpNet.Data
         }
         public ulong CapacityInBytes { get; protected set; }
         public abstract void ZeroMemory();
-        
-        /// <summary>
-        /// this = dy
-        /// </summary>
-        /// <param name="convolutionBackwardBias"></param>
-        public abstract void ConvolutionBackwardBias(Tensor convolutionBackwardBias);
-
         /// <summary>
         /// this = alpha a*b + beta*this 
         /// </summary>
@@ -166,6 +159,24 @@ namespace SharpNet.Data
         /// <param name="alpha"></param>
         /// <param name="beta"></param>
         public abstract void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta);
+
+        /// <summary>
+        /// Compute the element wise multiplication:
+        ///     this = a (element_wise_multiplication) Diag(c)
+        ///     where c is a vector containing a diagonal matrix
+        /// </summary>
+        /// <param name="a">a matrix</param>
+        /// <param name="x">a vector containing a diagonal matrix
+        /// (only the diagonal of the diagonal matrix is contained in vector 'x'</param>
+        public abstract void MultiplyTensor(Tensor a, Tensor x);
+
+        /// <summary>
+        /// For each row of matrix a and b , compute the element wise product and this row, and store the result in this[row]
+        /// this = a vector of size (m)
+        /// </summary>
+        /// <param name="a">a matrix of size (m,n) </param>
+        /// <param name="b">a matrix of size (m,n) </param>
+        public abstract void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b);
 
         /// <summary>
         /// this = singleLineMatrix to add to y
@@ -181,7 +192,7 @@ namespace SharpNet.Data
         public abstract void From_NCH_to_NH(Tensor tensor_NH, int channel);
 
         /// <summary>
-        /// compute: this = alpha * x + this 
+        /// compute: this += alpha * x
         /// </summary>
         /// <param name="alpha"></param>
         /// <param name="x"></param>
@@ -220,14 +231,55 @@ namespace SharpNet.Data
         /// <param name="b">Tensor of Dimension (N, Cb, H, W)</param>
         public abstract void Split(Tensor a, Tensor b);
         public abstract void Update_Multiplying_By_Alpha(float alpha);
-        //this = Tensor<T> convolutionBiasVector
-        public abstract void BroadcastConvolutionBiasToOutput(Tensor y);
+
         //this = x
         public abstract void ActivationForward(cudnnActivationMode_t activationType, Tensor y);
+
+
+        #region Convolution
+        /// <summary>
+        /// this = x (N, C, x.H, x.W)
+        /// if isDepthwiseConvolution is true
+        ///             Compute:      y = x (depthwise convolution) convolution (with padding / stride)
+        ///             Both, x (= this), depthwiseConvolution and y must have the same number of channels.
+        /// else
+        ///             Compute:      y = x (convolution) convolution (with padding / stride)
+        /// <param name="depthwiseConvolution">
+        /// if isDepthwiseConvolution is true
+        ///             (depthMultiplier=1, inputChannels=outputChannels, f1, f2)
+        /// else
+        ///             (filtersCount=outputChannels, inputChannels, f1,f2)
+        /// </param>
+        /// <param name="y">
+        /// if isDepthwiseConvolution is true
+        ///             (N, depthMultiplier*C, y.H, y.W)
+        /// else
+        ///             (N, conv.filtersCount, y.H, y.W)
+        /// </param>
+        /// </summary>
+        public abstract void Convolution(Tensor convolution, int padding, int stride, Tensor y, bool isDepthwiseConvolution);
+
+        /// <summary>
+        /// this = bias tensor of dimension (1, channels, 1, 1)
+        /// For each channel, will retrieve the single associated value and add it to each element of 'y' in the same channel 
+        /// </summary>
+        /// <param name="convolutionBackwardBias">a bias tensor (1, channel, 1, 1) </param>
+        public abstract void BroadcastConvolutionBiasToOutput(Tensor y);
+
+        /// <summary>
+        /// this = dy, a tensor of dimension (n, channels, h, w)
+        /// For each channel:
+        ///     1/ compute the sum of all elements of 'y' in this channel
+        ///     2/ add this sum to the channel bias (there is one bias scalar value by channel)
+        /// </summary>
+        /// <param name="bias">the bias tensor to update, with dimension (1, channels, 1, 1) </param>
+        /// <summary>
+        public abstract void ConvolutionBackwardBias(Tensor bias);
+
         //this = x
-        public abstract void Convolution(Tensor convolution, int padding, int stride, Tensor y);
-        //this = x
-        public abstract void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient);
+        public abstract void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution);
+        #endregion
+
         //this = x
         public abstract void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride);
         //this = dy

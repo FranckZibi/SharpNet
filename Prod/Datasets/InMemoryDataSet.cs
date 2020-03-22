@@ -17,7 +17,10 @@ namespace SharpNet.Datasets
             : base(name, x.Shape[1], y.Shape[1], meanAndVolatilityForEachChannel, null)
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
-            Debug.Assert(elementIdToCategoryIndex != null);
+            if (elementIdToCategoryIndex == null)
+            {
+                throw new ArgumentException("elementIdToCategoryIndex must be provided");
+            }
             if (!IsValidYSet(y))
             {
                 throw new Exception("Invalid Training Set 'y' : must contain only 0 and 1");

@@ -54,20 +54,12 @@ namespace SharpNet.Data
     public static class MKL_BLAS
     {
         [DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
-        //public static extern void cblas_dgemm(int Order, int TransA, int TransB, int M, int N, int K, double alpha, [In] double[] A, int lda, [In] double[] B, int ldb, double beta, [In, Out] double[] C, int ldc);
-        //[DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
         public static extern void cblas_sgemm(int Order, int TransA, int TransB, int M, int N, int K, float alpha, [In] float[] A, int lda, [In] float[] B, int ldb, float beta, [In, Out] float[] C, int ldc);
         [DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
-        //public static extern void cblas_daxpy(int n, double alpha, [In] double[] x, int incx, [In, Out] double[] y, int incy);
-        //[DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
         public static extern void cblas_saxpy(int n, float alpha, [In] float[] x, int incx, [In, Out] float[] y, int incy);
         [DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
-        //public static extern void cblas_dscal(int n, double alpha, [In] double[] x, int incx);
-        //[DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
         public static extern void cblas_sscal(int n, float alpha, [In] float[] x, int incx);
         [DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
-        //public static extern void cblas_dcopy(int n, [In] double[] x, int incx, [Out] double[] y, int incy);
-        //[DllImport("mkl_rt.dll", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true, SetLastError = false)]
         public static extern void cblas_scopy(int n, [In] float[] x, int incx, [Out] float[] y, int incy);
     }
 }

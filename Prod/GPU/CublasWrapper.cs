@@ -25,6 +25,12 @@ namespace SharpNet.GPU
         CUBLAS_OP_C
     }
 
+    public enum cublasSideMode_t
+    {
+        CUBLAS_SIDE_LEFT, //the matrix is on the left side in the equation
+        CUBLAS_SIDE_RIGHT //he matrix is on the left side in the equation
+    }
+
     public static class CublasWrapper
     {
         private static readonly CUDA_Versions InstalledCudaVersion;
@@ -64,26 +70,6 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_100.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
             }
         }
-        public static cublasStatus_t cublasDcopy_v2(IntPtr cublasHandle, int n, IntPtr x, int incx, IntPtr y, int incy)
-        {
-            switch (InstalledCudaVersion)
-            {
-                case CUDA_Versions.CUDA_10_1:
-                    return CublasWrapper_cublas64_10.cublasDcopy_v2(cublasHandle, n, x, incx, y, incy);
-                default:
-                    return CublasWrapper_cublas64_100.cublasDcopy_v2(cublasHandle, n, x, incx, y, incy);
-            }
-        }
-        public static cublasStatus_t cublasDgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref double alpha, IntPtr A, int lda, IntPtr B, int ldb, ref double beta, IntPtr C, int ldc)
-        {
-            switch (InstalledCudaVersion)
-            {
-                case CUDA_Versions.CUDA_10_1:
-                    return CublasWrapper_cublas64_10.cublasDgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
-                default:
-                    return CublasWrapper_cublas64_100.cublasDgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
-            }
-        }
         public static cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref float alpha, IntPtr A, int lda, IntPtr B, int ldb, ref float beta, IntPtr C, int ldc)
         {
             switch (InstalledCudaVersion)
@@ -92,6 +78,16 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_10.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 default:
                     return CublasWrapper_cublas64_100.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
+            }
+        }
+        public static cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return CublasWrapper_cublas64_10.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
+                default:
+                    return CublasWrapper_cublas64_100.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc); ;
             }
         }
         public static cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion)
@@ -117,11 +113,9 @@ namespace SharpNet.GPU
         [DllImport(CUBLAS64_100)]
         public static extern cublasStatus_t cublasScopy_v2(IntPtr cublasHandle,int n,IntPtr x,int incx,IntPtr y,int incy);
         [DllImport(CUBLAS64_100)]
-        public static extern cublasStatus_t cublasDcopy_v2(IntPtr cublasHandle,int n,IntPtr x,int incx,IntPtr y,int incy);
-        [DllImport(CUBLAS64_100)]
-        public static extern cublasStatus_t cublasDgemm_v2(IntPtr cublasHandle,cublasOperation_t transa,cublasOperation_t transb,int m,int n,int k,ref double alpha,IntPtr A,int lda,IntPtr B,int ldb,ref double beta,IntPtr C,int ldc);
-        [DllImport(CUBLAS64_100)]
         public static extern cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle,cublasOperation_t transa,cublasOperation_t transb,int m,int n,int k,ref float alpha,IntPtr A,int lda,IntPtr B,int ldb,ref float beta,IntPtr C,int ldc);
+        [DllImport(CUBLAS64_100)]
+        public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
         [DllImport(CUBLAS64_100)]
         public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
     }
@@ -135,11 +129,9 @@ namespace SharpNet.GPU
         [DllImport(CUBLAS64_10)]
         public static extern cublasStatus_t cublasScopy_v2(IntPtr cublasHandle, int n, IntPtr x, int incx, IntPtr y, int incy);
         [DllImport(CUBLAS64_10)]
-        public static extern cublasStatus_t cublasDcopy_v2(IntPtr cublasHandle, int n, IntPtr x, int incx, IntPtr y, int incy);
-        [DllImport(CUBLAS64_10)]
-        public static extern cublasStatus_t cublasDgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref double alpha, IntPtr A, int lda, IntPtr B, int ldb, ref double beta, IntPtr C, int ldc);
-        [DllImport(CUBLAS64_10)]
         public static extern cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref float alpha, IntPtr A, int lda, IntPtr B, int ldb, ref float beta, IntPtr C, int ldc);
+        [DllImport(CUBLAS64_10)]
+        public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
         [DllImport(CUBLAS64_10)]
         public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
     }

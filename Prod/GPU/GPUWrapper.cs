@@ -22,7 +22,7 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr>();
-        private readonly IDictionary<Tuple<cudnnDataType_t, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int>, IntPtr>();
+        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int>, IntPtr>();
         private readonly IDictionary<cudnnActivationMode_t, IntPtr> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, IntPtr>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private IntPtr _cudaBlasHandle;
@@ -94,33 +94,52 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr ConvDesc(cudnnDataType_t cudaType, int padding, int stride)
+        public IntPtr ConvDesc(cudnnDataType_t cudaType, int padding, int stride, int groupCount)
         {
             CheckThreadId();
-            var key = Tuple.Create(cudaType, padding, stride);
+            var key = Tuple.Create(cudaType, padding, stride, groupCount);
             if (!cacheConvolutionDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateConvolutionDescriptor(out desc);
                 CheckStatus(res);
+                if (groupCount != 1)
+                {
+                    res = CudnnWrapper.cudnnSetConvolutionGroupCount(desc, groupCount);
+                    CheckStatus(res);
+                }
                 res = CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, padding, padding, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
                 CheckStatus(res);
                 cacheConvolutionDesc[key] = desc;
             }
             return desc;
         }
-        public IntPtr FilterDesc(cudnnDataType_t cudaType, int[] shape)
+        public IntPtr FilterDesc(cudnnDataType_t cudaType, int[] shape, bool isDepthwiseConvolution)
         {
             CheckThreadId();
-            var n = shape[0];
-            var c = shape[1];
-            var h = shape[2];
-            var w = shape[3];
-            var key = Tuple.Create(cudaType, n, c, h, w);
+
+            int inputChannels; //Number of input channels
+            int outputChannels; //number of output channels
+            if (isDepthwiseConvolution)
+            {
+                //the depthwise Convolution shape: (depthMultiplier=1, channels, F, F)
+                inputChannels = 1;
+                outputChannels = shape[1];
+            }
+            else
+            {
+                //the Convolution shape: (outputChannels, inputChannels, f1,f2)
+                inputChannels = shape[1];
+                outputChannels = shape[0];
+            }
+            var h = shape[2]; //Height of each filter
+            var w = shape[3]; //Width of each filter
+
+            var key = Tuple.Create(cudaType, outputChannels, inputChannels, h, w);
             if (!cacheFilterDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateFilterDescriptor(out desc);
                 CheckStatus(res);
-                res = CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, n, c, h, w);
+                res = CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, outputChannels, inputChannels, h, w);
                 CheckStatus(res);
                 cacheFilterDesc[key] = desc;
             }

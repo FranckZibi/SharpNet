@@ -205,6 +205,8 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
+
+
         public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             var x = this;
@@ -249,7 +251,9 @@ namespace SharpNet.GPU
         }
 
         /// <summary>
-        /// compute: this = alpha * x + beta * this 
+        /// compute: this = alpha * x + beta * this
+        /// Each dimension of the 'x' tensor must match the corresponding dimension of the destination tensor 'this' or must be equal to 1.
+        /// In the latter case, the same value from 'x' for those dimensions will be used to blend into the 'this' tensor.
         /// </summary>
         /// <param name="alpha"></param>
         /// <param name="x"></param>
@@ -329,6 +333,7 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnScaleTensor(CudnnHandle, yDesc, y, &alphaFloat);
             CheckStatus(res);
         }
+
         public override void BroadcastAddVectorToOutput(Tensor y)
         {
             var bias = this;
@@ -352,21 +357,35 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, biasGradient);
             CheckStatus(res);
         }
-        public override void Convolution(Tensor filters, int padding, int stride, Tensor y)
+
+        #region Convolution
+        public override void Convolution(Tensor filters, int padding, int stride, Tensor y, bool isDepthwiseConvolution)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, filters, y }));
-            var convDesc = ConvDesc(padding, stride);
-            var filterDesc = FilterDesc(filters);
+            int inputChannelCount = x.Shape[1];
+            Debug.Assert(inputChannelCount == filters.Shape[1]);
+
+            if (isDepthwiseConvolution)
+            {
+                int depthMultiplier = filters.Shape[0];
+                if (depthMultiplier != 1)
+                {
+                    throw new NotImplementedException("only depthMultiplier=1 is supported");
+                }
+                Debug.Assert(inputChannelCount == y.Shape[1]);
+            }
+
+            int groupCount = isDepthwiseConvolution ? inputChannelCount : 1;
+            var convDesc = ConvDesc(padding, stride, groupCount);
+            var filterDesc = FilterDesc(filters, isDepthwiseConvolution);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
 
-            var res = CudnnWrapper.cudnnGetConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc,
-                cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0,
-                out cudnnConvolutionFwdAlgo_t algo);
+
+            var res = CudnnWrapper.cudnnGetConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0, out cudnnConvolutionFwdAlgo_t algo);
             CheckStatus(res);
-            res = CudnnWrapper.cudnnGetConvolutionForwardWorkspaceSize(CudnnHandle, xDesc, filterDesc, convDesc, yDesc,
-                algo, out size_t workspaceSize);
+            res = CudnnWrapper.cudnnGetConvolutionForwardWorkspaceSize(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, algo, out size_t workspaceSize); 
             CheckStatus(res);
             var storageBuffer = Wrapper.StorageBuffer(workspaceSize);
 
@@ -374,38 +393,42 @@ namespace SharpNet.GPU
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            res = CudnnWrapper.cudnnConvolutionForward(CudnnHandle, one, xDesc, x, filterDesc, filters, convDesc, algo,
-                storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, yDesc, y);
+            res = CudnnWrapper.cudnnConvolutionForward(CudnnHandle, one, xDesc, x, filterDesc, filters, convDesc, algo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, yDesc, y);
             CheckStatus(res);
         }
-        public override void ConvolutionBackwardBias(Tensor convolutionBackwardBias)
+        public override void BroadcastConvolutionBiasToOutput(Tensor y)
+        {
+            var convolutionBias = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { convolutionBias, y }));
+            y.Update_Adding_Alpha_X(1, convolutionBias);
+        }
+        public override void ConvolutionBackwardBias(Tensor bias)
         {
             var dy = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { dy, convolutionBackwardBias }));
+            Debug.Assert(AreCompatible(new List<Tensor> { dy, bias }));
             var dyDesc = TensorDesc(dy);
-            var dbDesc = TensorDesc(convolutionBackwardBias);
+            var dbDesc = TensorDesc(bias);
 
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, convolutionBackwardBias);
+            var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, bias);
             CheckStatus(res);
         }
-        public override void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient)
+        public override void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {x, conv, dy, dx, convGradient}));
+            Debug.Assert(AreCompatible(new List<Tensor> { x, conv, dy, dx, convGradient }));
             var xDesc = TensorDesc(x);
             var dyDesc = TensorDesc(dy);
-            var dwDesc = FilterDesc(convGradient);
-            var convDesc = ConvDesc(padding, stride);
-            var res = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc,
-                dwDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0,
-                out cudnnConvolutionBwdFilterAlgo_t filterAlgo);
+            var dwDesc = FilterDesc(convGradient, isDepthwiseConvolution);
+            int inputChannelCount = x.Shape[1];
+            int groupCount = isDepthwiseConvolution ? inputChannelCount : 1;
+            var convDesc = ConvDesc(padding, stride, groupCount);
+            var res = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, dwDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0, out cudnnConvolutionBwdFilterAlgo_t filterAlgo);
             CheckStatus(res);
-            res = CudnnWrapper.cudnnGetConvolutionBackwardFilterWorkspaceSize(CudnnHandle, xDesc, dyDesc, convDesc,
-                dwDesc, filterAlgo, out size_t filterWorkspaceSize);
+            res = CudnnWrapper.cudnnGetConvolutionBackwardFilterWorkspaceSize(CudnnHandle, xDesc, dyDesc, convDesc, dwDesc, filterAlgo, out size_t filterWorkspaceSize);
             CheckStatus(res);
             var storageBuffer = Wrapper.StorageBuffer(Math.Max(1, filterWorkspaceSize));
 
@@ -413,9 +436,7 @@ namespace SharpNet.GPU
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            res = CudnnWrapper.cudnnConvolutionBackwardFilter(CudnnHandle, one, xDesc, x, dyDesc, 
-                dy, convDesc, filterAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes,
-                zero, dwDesc, convGradient);
+            res = CudnnWrapper.cudnnConvolutionBackwardFilter(CudnnHandle, one, xDesc, x, dyDesc, dy, convDesc, filterAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dwDesc, convGradient);
             CheckStatus(res);
 
             if (dx == null)
@@ -423,22 +444,18 @@ namespace SharpNet.GPU
                 return;
             }
             var dxDesc = TensorDesc(dx);
-            var wDesc = FilterDesc(conv);
-            res = CudnnWrapper.cudnnGetConvolutionBackwardDataAlgorithm(CudnnHandle, wDesc, dyDesc, convDesc, dxDesc,
-                cudnnConvolutionBwdDataPreference_t.CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST, 0,
-                out cudnnConvolutionBwdDataAlgo_t dataAlgo);
+            var wDesc = FilterDesc(conv, isDepthwiseConvolution);
+            res = CudnnWrapper.cudnnGetConvolutionBackwardDataAlgorithm(CudnnHandle, wDesc, dyDesc, convDesc, dxDesc, cudnnConvolutionBwdDataPreference_t.CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST, 0, out cudnnConvolutionBwdDataAlgo_t dataAlgo);
             CheckStatus(res);
 
-            res = CudnnWrapper.cudnnGetConvolutionBackwardDataWorkspaceSize(CudnnHandle, dwDesc, dyDesc, convDesc,
-                dxDesc, dataAlgo, out size_t dataWorkspaceSize);
+            res = CudnnWrapper.cudnnGetConvolutionBackwardDataWorkspaceSize(CudnnHandle, dwDesc, dyDesc, convDesc, dxDesc, dataAlgo, out size_t dataWorkspaceSize);
             CheckStatus(res);
 
             storageBuffer = Wrapper.StorageBuffer(dataWorkspaceSize);
-            res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, conv, dyDesc, dy, convDesc,
-                dataAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dxDesc, dx);
+            res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, conv, dyDesc, dy, convDesc, dataAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dxDesc, dx);
             CheckStatus(res);
         }
-       
+        #endregion
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
             var array = new float[Count];
@@ -591,12 +608,6 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnDropoutBackward(CudnnHandle, _dropoutDescriptor, dyDesc, dy, dxDesc, dx, _dropoutReserveSpace.Pointer, _dropoutReserveSpace.SizeInBytes);
             CheckStatus(res);
         }
-        public override void BroadcastConvolutionBiasToOutput(Tensor y)
-        {
-            var convolutionBias = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { convolutionBias, y}));
-            y.Update_Adding_Alpha_X(1, convolutionBias);
-        }
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep)
         {
             var W = this;
@@ -655,6 +666,35 @@ namespace SharpNet.GPU
 
             GPUWrapper.CheckStatus(res, ToString);
         }
+
+
+        public override void MultiplyTensor(Tensor a, Tensor x)
+        {
+            var c = this;
+            var mode = cublasSideMode_t.CUBLAS_SIDE_RIGHT;
+            Debug.Assert(Count%x.Count == 0);
+            int m = Count/x.Count; //number of rows of matrix A and C.
+            int n = x.Count; //number of columns of matrix A and C.
+            //IntPtr A; //input<type> array of dimensions lda x n with lda >= max(1, m)
+            int lda = m; //leading dimension of two-dimensional array used to store the matrix A.
+            //IntPtr x; //input one-dimensional < type > array of size | i n c | × m if mode == CUBLAS_SIDE_LEFT and | i n c | × n if mode == CUBLAS_SIDE_RIGHT
+            int incx = 1; //stride of one - dimensional array x.
+            //IntPtr C; //in/out	< type > array of dimensions ldc x n with ldc >= max(1, m).
+            int ldc = lda; ///leading dimension of a two - dimensional array used to store the matrix C.
+            var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, x, incx, c, ldc);
+            GPUWrapper.CheckStatus(res, ToString);
+        }
+
+        public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b)
+        {
+            Debug.Assert(a.SameShape(b));
+            int nbRows = Count;
+            Debug.Assert(nbRows <= a.Count);
+            Debug.Assert(a.Count % nbRows == 0);
+            int nbColumns_in_a_and_b = a.Count / nbRows;
+            Wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
+        }
+
         public override void CopyTo(Tensor b)
         {
             CopyTo(0, b, 0, Count);
@@ -732,7 +772,7 @@ namespace SharpNet.GPU
 #endregion
 
         private IntPtr TensorDesc(Tensor a) { return Wrapper.TensorDesc(CudaType, a.Shape); }
-        private IntPtr FilterDesc(Tensor a) { return Wrapper.FilterDesc(CudaType, a.Shape); }
+        private IntPtr FilterDesc(Tensor a, bool isDepthwiseConvolution) { return Wrapper.FilterDesc(CudaType, a.Shape, isDepthwiseConvolution); }
         private IntPtr ActivationDesc(cudnnActivationMode_t activationFunctionType)
         {
             return Wrapper.ActivationDesc(activationFunctionType);
@@ -741,7 +781,7 @@ namespace SharpNet.GPU
         {
             return Wrapper.PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
         }
-        private IntPtr ConvDesc(int padding, int stride) { return Wrapper.ConvDesc(CudaType, padding, stride); }
+        private IntPtr ConvDesc(int padding, int stride, int groupCount) { return Wrapper.ConvDesc(CudaType, padding, stride, groupCount); }
         private cudnnDataType_t CudaType => cudnnDataType_t.CUDNN_DATA_FLOAT;
         private IntPtr CudnnHandle => Wrapper.CudnnHandle;
         private IntPtr CublasHandle => Wrapper.CudaBlasHandle;

@@ -253,6 +253,11 @@ namespace SharpNet.Networks
             Layers.Add(new ConcatenateLayer(previousLayerIndex1, previousLayerIndex2, this));
             return this;
         }
+        public Network MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2)
+        {
+            Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndex2, this));
+            return this;
+        }
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
         public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int filtersCount, int stride, double lambdaL2Regularization)
         {
@@ -281,6 +286,16 @@ namespace SharpNet.Networks
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new ConvolutionLayer(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this));
+            return this;
+        }
+        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias)
+        {
+            return DepthwiseConvolution(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, Layers.Count - 1);
+        }
+        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, int previousLayerIndex)
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Layers.Add(new DepthwiseConvolutionLayer(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, previousLayerIndex, this));
             return this;
         }
         public Network Dropout(double dropProbability)
@@ -502,7 +517,7 @@ namespace SharpNet.Networks
         private static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
         {
             freeMemoryInBytes -= bytesIndependantOfBatchSize;
-            //?D freeMemoryInBytes = (80* freeMemoryInBytes)/100;
+            //freeMemoryInBytes = (80* freeMemoryInBytes)/100;
             freeMemoryInBytes = (85 * freeMemoryInBytes) / 100;
             ulong miniBatchSize = 1;
             while ( (2UL * miniBatchSize * bytesByBatchSize) < freeMemoryInBytes)

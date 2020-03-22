@@ -45,14 +45,39 @@ namespace SharpNet.GPU
     }
     public enum cudnnConvolutionFwdAlgo_t
     {
+        //This algorithm expresses the convolution as a matrix product without actually explicitly
+        //form the matrix that holds the input tensor data.
         CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM,
+
+        //This algorithm expresses the convolution as a matrix product without actually explicitly
+        //form the matrix that holds the input tensor data, but still needs some memory workspace
+        //to precompute some indices in order to facilitate the implicit construction of the matrix that holds the input tensor data
         CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_​PRECOMP_GEMM,
+
+        //This algorithm expresses the convolution as an explicit matrix product.
+        //A significant memory workspace is needed to store the matrix that holds the input tensor data.
         CUDNN_CONVOLUTION_FWD_ALGO_GEMM,
+
+        //This algorithm expresses the convolution as a direct convolution
+        //(e.g without implicitly or explicitly doing a matrix multiplication).
         CUDNN_CONVOLUTION_FWD_ALGO_DIRECT,
+
+        //This algorithm uses the Fast-Fourier Transform approach to compute the convolution.
+        //A significant memory workspace is needed to store intermediate results.
         CUDNN_CONVOLUTION_FWD_ALGO_FFT,
+
+        //This algorithm uses the Fast-Fourier Transform approach but splits the inputs into tiles.
+        //A significant memory workspace is needed to store intermediate results but less than CUDNN_CONVOLUTION_FWD_ALGO_FFT for large size images.
         CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING,
+
+        //This algorithm uses the Winograd Transform approach to compute the convolution.
+        //A reasonably sized workspace is needed to store intermediate results.
         CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD,
+
+        //This algorithm uses the Winograd Transform approach to compute the convolution.
+        //Significant workspace may be needed to store intermediate results.
         CUDNN_CONVOLUTION_FWD_ALGO_​WINOGRAD_NONFUSED
+
     }
     public enum cudnnConvolutionFwdPreference_t
     {
@@ -62,13 +87,33 @@ namespace SharpNet.GPU
     }
     public enum cudnnConvolutionBwdFilterAlgo_t
     {
-
+        //This algorithm expresses the convolution as a sum of matrix product without actually explicitly f
+        //orm the matrix that holds the input tensor data. The sum is done using atomic adds operation,
+        //thus the results are non-deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0,
+
+        //This algorithm expresses the convolution as a matrix product without actually explicitly
+        //form the matrix that holds the input tensor data. The results are deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
+
+        //This algorithm uses the Fast-Fourier Transform approach to compute the convolution.
+        //Significant workspace is needed to store intermediate results. The results are deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT,
+
+        //This algorithm is similar to CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0 but uses some small workspace
+        //to precomputes some indices. The results are also non-deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3,
+
+        //This algorithm uses the Winograd Transform approach to compute the convolution.
+        //Significant workspace may be needed to store intermediate results.
+        //The results are deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_​WINOGRAD_NONFUSED,
-        CUDNN_CONVOLUTION_BWD_FILTER_ALGO_​FFT_TILING
+
+        //This algorithm uses the Fast-Fourier Transform approach to compute the convolution but splits
+        //the input tensor into tiles. Significant workspace may be needed to store intermediate results.
+        //The results are deterministic.
+        CUDNN_CONVOLUTION_BWD_FILTER_ALGO_​FFT_TILING,
+
     }
     public enum cudnnConvolutionBwdFilterPreference_t
     {
@@ -498,8 +543,10 @@ namespace SharpNet.GPU
             IntPtr poolingDesc);
 
         [DllImport(CUDNN64_7)]
-        public static extern cudnnStatus_t cudnnCreateConvolutionDescriptor(
-            out IntPtr convDesc);
+        public static extern cudnnStatus_t cudnnCreateConvolutionDescriptor(out IntPtr convDesc);
+
+        [DllImport(CUDNN64_7)]
+        public static extern cudnnStatus_t cudnnSetConvolutionGroupCount(IntPtr convDesc, int groupCount);
 
         [DllImport(CUDNN64_7)]
         public static extern cudnnStatus_t cudnnSetConvolution2dDescriptor(

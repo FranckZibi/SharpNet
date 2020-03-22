@@ -25,28 +25,29 @@ namespace SharpNetTests
         private const int ConvolutionF = 5;
 	    private const int ConvolutionPadding = 2;
 	    private const int ConvolutionStride = 1;
-        private const int PoolingSize = 2;
         private const int PoolingStride = 2;
 	    private readonly Random _rand = new Random(0);
         private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
-        [Test]
-	    public void TestConvolutionBackwardBias()
-	    {
-	        var dxShape = new [] { BatchSize, FiltersCount, Height, Width };
-            var biasShape = new [] { 1, FiltersCount, 1, 1};
-            var dx = RandomTensor(dxShape, "dx");
-	        var convolutionBackwardBias = new CpuTensor<float>(biasShape, "convolutionBackwardBias");
-	        TestAll(new[] {dx, convolutionBackwardBias}, tensors => tensors[0].ConvolutionBackwardBias(tensors[1]));
-	    }
 	    [Test]
 	    public void TestConvolution()
 	    {
 	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
-	        var convolution = RandomTensor(new[] { BatchSize, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
+            int filterCount = 128;
+	        var convolution = RandomTensor(new[] { filterCount, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
 	        var y = RandomTensor(ConvolutionLayer.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
-	        TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2]));
+	        TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2], false));
 	    }
+
+        [Test]
+        public void TestConvolutionBackwardBias()
+        {
+            var dxShape = new[] { BatchSize, FiltersCount, Height, Width };
+            var biasShape = new[] { 1, FiltersCount, 1, 1 };
+            var dx = RandomTensor(dxShape, "dx");
+            var convolutionBackwardBias = new CpuTensor<float>(biasShape, "convolutionBackwardBias");
+            TestAll(new[] { dx, convolutionBackwardBias }, tensors => tensors[0].ConvolutionBackwardBias(tensors[1]));
+        }
 
         [Test]
         public void TestConvolutionGradient()
@@ -58,7 +59,32 @@ namespace SharpNetTests
             //this will compute 'dx' && 'convolutionGradient'
             var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");
             var convolutionGradient = RandomTensor(convolution.Shape, "convolutionGradient");
-            TestAll(new[] { x, convolution, dy, dx, convolutionGradient}, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], ConvolutionPadding, ConvolutionStride, tensors[3], tensors[4]));
+            TestAll(new[] { x, convolution, dy, dx, convolutionGradient}, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], ConvolutionPadding, ConvolutionStride, tensors[3], tensors[4], false));
+        }
+
+        [Test]
+        public void TestDephtwiseConvolution()
+        {
+            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
+            const int depthMultiplier  = 1;
+            var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
+            var y = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionsOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
+            TestAll(new[] { x, depthwiseConvolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2], true));
+        }
+
+        [Test]
+        public void TestDepthwiseConvolutionGradient()
+        {
+            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
+            x = new CpuTensor<float>(x.Shape, "x");
+            const int depthMultiplier = 1;
+            var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
+            var dy = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionsOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
+
+            //this will compute 'dx' && 'convolutionGradient'
+            var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");
+            var depthwiseConvolutionGradient = RandomTensor(depthwiseConvolution.Shape, "depthwiseConvolutionGradient");
+            TestAll(new[] { x, depthwiseConvolution, dy, dx, depthwiseConvolutionGradient }, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], ConvolutionPadding, ConvolutionStride, tensors[3], tensors[4], true));
         }
 
         [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, BatchSize)]
@@ -189,6 +215,35 @@ namespace SharpNetTests
         }
 
         [Test]
+        public void TestMultiplyTensorSameShape()
+        {
+            var result = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "result");
+            var a = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "a");
+            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "diagonal_vector_of_matrix");
+            TestAll(new[] { result, a, x }, tensors => tensors[0].MultiplyTensor(tensors[1], tensors[2]));
+        }
+
+        [Test]
+        public void TestMultiplyTensorDifferentShape()
+        {
+            var result = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "result");
+            var a = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "a");
+            var x = RandomTensor(new[] { BatchSize, ChannelsCount, 1, 1 }, "diagonal_vector_of_matrix");
+            TestAll(new[] { result, a, x }, tensors => tensors[0].MultiplyTensor(tensors[1], tensors[2]));
+        }
+
+        [Test]
+        public void TestMultiplyEachRowIntoSingleValue()
+        {
+            var result = RandomTensor(new[] { BatchSize, ChannelsCount, 1, 1 }, "vector");
+            var a = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "a");
+            var b = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "b");
+            TestAll(new[] { result, a, b }, tensors => tensors[0].MultiplyEachRowIntoSingleValue(tensors[1], tensors[2]));
+        }
+        
+
+
+       [Test]
 	    public void TestUpdate_Adding_Alpha_X()
 	    {
 	        var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width}, "y");

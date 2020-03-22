@@ -361,7 +361,7 @@ namespace SharpNet.Datasets
 
 
         /// <summary>
-        /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the minni batch starting
+        /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the mini batch starting
         /// at 'firstIndexInShuffledElementId'
         /// </summary>
         /// <param name="epoch"></param>

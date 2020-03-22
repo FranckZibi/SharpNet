@@ -3,6 +3,7 @@ using System.Linq;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNetTests.Data;
@@ -64,6 +65,53 @@ namespace SharpNetTests.CPU
             TestConvolution(input, convolution, padding, stride, expectedOutput);
         }
 
+        [Test]
+        public void TestMultiplyTensor()
+        {
+            var rand = new Random(0);
+            var shape = new[] {32, 1157, 7, 7};
+            var maxValue = 10.0;
+            var c = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            var a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            var x = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            var expected = new CpuTensor<float>(shape, null, "");
+            for (int i = 0; i < expected.Count; ++i)
+            {
+                expected.Content[i] = a.Content[i]*x.Content[i];
+            }
+            c.MultiplyTensor(a, x);
+            Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
+            c = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            x = RandomFloatTensor(new[] { 32, 1157, 1, 1 }, rand, -maxValue, maxValue, "");
+            expected = new CpuTensor<float>(shape, null, "");
+            for (int i = 0; i < expected.Count; ++i)
+            {
+                expected.Content[i] = a.Content[i] * x.Content[i/(7*7)];
+            }
+            c.MultiplyTensor(a, x);
+            Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
+        }
+
+
+
+        [Test]
+        public void TestMultiplyEachRowIntoSingleValue()
+        {
+            var rand = new Random(0);
+            var shape = new[] { 32, 1157, 7, 7 };
+            var maxValue = 10.0;
+            var a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            var b = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            var result = new CpuTensor<float>(new[] { 32, 1157, 1, 1 }, null, "");
+            result.MultiplyEachRowIntoSingleValue(a,b);
+            var expected = new CpuTensor<float>(result.Shape, null, "");
+            for (int i = 0; i < a.Count; ++i)
+            {
+                expected.Content[i/(7*7)] += a.Content[i] * b.Content[i];
+            }
+            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-6));
+        }
 
         [TestCase(100000, 0.5, false, 0, 0)] //when not training, dropout is disabled
         [TestCase(100000, 0.0, true, 0, 0)] // no 0 if drop proba = 0%
@@ -120,7 +168,7 @@ namespace SharpNetTests.CPU
         private void TestConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int padding, int stride, CpuTensor<float> expectedOutput)
         {
             var outputCPU = new CpuTensor<float>(ConvolutionLayer.ConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
-            input.Convolution(convolution, padding, stride, outputCPU);
+            input.Convolution(convolution, padding, stride, outputCPU, false);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }
         public static CpuTensor<float> RandomOneHotTensor(int[] shape, Random rand, string description)

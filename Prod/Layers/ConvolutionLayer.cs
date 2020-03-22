@@ -8,14 +8,14 @@ using SharpNet.Optimizers;
 
 namespace SharpNet.Layers
 {
-/*
-  x                 (batchSize, x.C, x.H, x.W)
-  Convolution       (FiltersCount, x.C, F, F)
-  ConvolutionBias   (1, FiltersCount, 1, 1)
-  y                 (batchSize, FiltersCount, H_output, W_output)
-                        y.H = (x.H−F+2×pads) /Stride + 1
-                        y.W = (x.W−F+2×pads) /Stride + 1
-*/
+    /*
+      x                 (batchSize, x.C, x.H, x.W)
+      Convolution       (FiltersCount, x.C, F, F)
+      ConvolutionBias   (1, FiltersCount, 1, 1)
+      y                 (batchSize, FiltersCount, H_output, W_output)
+                            y.H = (x.H−F+2×pads) /Stride + 1
+                            y.W = (x.W−F+2×pads) /Stride + 1
+    */
     public sealed class ConvolutionLayer : Layer
     {
         #region Private fields
@@ -125,7 +125,7 @@ namespace SharpNet.Layers
             Allocate_y_if_necessary();
             var x = PrevLayer.y;
             //We compute y = x (conv) Convolution + ConvolutionBias
-            x.Convolution(Convolution, _padding, _stride, y);
+            x.Convolution(Convolution, _padding, _stride, y, false);
             if (UseBias)
             {
                 ConvolutionBias.BroadcastConvolutionBiasToOutput(y);
@@ -145,7 +145,7 @@ namespace SharpNet.Layers
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
             var x = PrevLayer.y;
-            x.ConvolutionGradient(Convolution, dy, _padding, _stride, dx[0], ConvolutionGradients);
+            x.ConvolutionGradient(Convolution, dy, _padding, _stride, dx[0], ConvolutionGradients, false);
             if (UseL2Regularization)
             {
                 var batchSize = y.Shape[0];

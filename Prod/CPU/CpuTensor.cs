@@ -87,6 +87,43 @@ namespace SharpNet.CPU
             }
             return result;
         }
+
+        public CpuTensor<T> ChangeAxis(int[] newAxis)
+        {
+            Debug.Assert(newAxis.Length == Dimension);
+            Debug.Assert(newAxis.Min() == 0);
+            Debug.Assert(newAxis.Max() == Dimension-1);
+
+            var transformedShape = new int[Dimension];
+            for (int i = 0; i < Dimension; ++i)
+            {
+                transformedShape[newAxis[i]] = Shape[i];
+            }
+
+            var result = new CpuTensor<T>(transformedShape, Description);
+
+            var newIndexes =  new int[Dimension];
+            for (int n = 0; n < Shape[0]; ++n)
+            {
+                newIndexes[newAxis[0]] = n;
+                for (int h = 0; h < Shape[1]; ++h)
+                {
+                    newIndexes[newAxis[1]] = h;
+                    for (int w = 0; w < Shape[2]; ++w)
+                    {
+                        newIndexes[newAxis[2]] = w;
+                        for (int c = 0; c < Shape[3]; ++c)
+                        {
+                            newIndexes[newAxis[3]] = c;
+                            result.Set(newIndexes[0], newIndexes[1], newIndexes[2], newIndexes[3], Get(n, h, w, c));
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+     
         public override void From_NCH_to_NH(Tensor tensor_NH, int channel)
         {
             Debug.Assert(Shape[0] == tensor_NH.Shape[0]);  //N
@@ -309,32 +346,7 @@ namespace SharpNet.CPU
             dx.AsCpu<float>().BuildEntirelyFromInput(dy, usedDropoutMask, (dOutput, prob) => prob < _dropProbabilityFloat ? 0f : dOutput / (1 - _dropProbabilityFloat));
         }
         //this = dy
-        public override void ConvolutionBackwardBias(Tensor convolutionBackwardBias)
-        {
-            var dy = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {dy, convolutionBackwardBias}));
-            Debug.Assert(convolutionBackwardBias.Dimension == 4);
-            Debug.Assert(convolutionBackwardBias.Shape[1] == convolutionBackwardBias.Count);
-            Debug.Assert(dy.Shape[1] == convolutionBackwardBias.Shape[1]); // number of distinct filters
-            Debug.Assert(dy.Dimension == 4);
 
-            convolutionBackwardBias.ZeroMemory();
-            var batchSize = dy.Shape[0];
-            for (int n = 0; n < batchSize; ++n)
-            {
-                for (int filterId = 0; filterId < dy.Shape[1]; ++filterId)
-                {
-                    int startIndex = n * dy.MultDim0 + filterId * dy.MultDim1;
-                    var endIndex = startIndex + dy.MultDim1;
-                    var convolutionBackwardBiasContent = convolutionBackwardBias.AsFloatCpuContent;
-                    var dyContent = dy.AsFloatCpuContent;
-                    for (int i = startIndex; i < endIndex; ++i)
-                    {
-                        convolutionBackwardBiasContent[filterId] += dyContent[i];
-                    }
-                }
-            }
-        }
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)
         {
             var x = this;
@@ -382,7 +394,7 @@ namespace SharpNet.CPU
                     throw new ArgumentException("invalid activation mode " + activationType);
             }
         }
-        // compute:  this += alpha * x
+        
         public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
             var y = this;
@@ -398,6 +410,64 @@ namespace SharpNet.CPU
             Update_Multiplying_By_Alpha(beta);
             // this = alpha * x + beta * this
             Update_Adding_Alpha_X(alpha, x);
+        }
+
+        public override void MultiplyTensor(Tensor a, Tensor x)
+        {
+            Debug.Assert(this.SameShape(a));
+            Debug.Assert(a.Count >= x.Count);
+            Debug.Assert(Count % x.Count == 0);
+
+            var aFloat = a.AsFloatCpuContent;
+            var xFloat = x.AsFloatCpuContent;
+            var thisFloat = AsFloatCpuContent;
+            if (a.Count == x.Count)
+            {
+                for (int i = 0; i < x.Count; ++i)
+                {
+                    thisFloat[i] = aFloat[i] * xFloat[i];
+                }
+            }
+            else
+            {
+                Debug.Assert(x.Shape[0]*x.Shape[1] == x.Count);
+                int indexInX = 0;
+                int indexInThis = 0;
+                int toAddInThis = a.Count / x.Count;
+                while(indexInThis<Count)
+                {
+                    int endIndexInThis = indexInThis + toAddInThis;
+                    var alphaFromX = xFloat[indexInX++];
+                    while (indexInThis< endIndexInThis)
+                    {
+                        thisFloat[indexInThis] = aFloat[indexInThis] * alphaFromX;
+                        indexInThis++;
+                    }
+                }
+            }
+        }
+
+        public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b)
+        {
+            Debug.Assert(a.SameShape(b));
+            int nbRows = Count;
+            Debug.Assert(nbRows <= a.Count);
+            Debug.Assert(a.Count%nbRows == 0);
+            int nbColumns_in_a_and_b = b.Count / nbRows;
+            var thisFloat = AsFloatCpuContent;
+            var aFloat = a.AsFloatCpuContent;
+            var bFloat = b.AsFloatCpuContent;
+            int indexIn_a_or_b = 0;
+            for (int row = 0; row < nbRows; ++row)
+            {
+                float rowSum = 0;
+                for (int col = 0; col < nbColumns_in_a_and_b; ++col)
+                {
+                    rowSum += aFloat[indexIn_a_or_b] * bFloat[indexIn_a_or_b];
+                    ++indexIn_a_or_b;
+                }
+                thisFloat[row] = rowSum;
+            }
         }
 
         public override void AssertIsNotDisposed()
@@ -468,6 +538,8 @@ namespace SharpNet.CPU
             MKL_BLAS.cblas_sscal(Count, alpha, AsFloatCpuContent, 1);
         }
         #region pooling layers
+
+
         public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             var x = this;
@@ -678,33 +750,22 @@ namespace SharpNet.CPU
                 }
             }
         }
-        // x = (batchSize, ChannelsDepth, H_beforePooling, W_beforePooling)
-        public override void BroadcastConvolutionBiasToOutput(Tensor y)
-        {
-            var convolutionBias = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {convolutionBias, y}));
-            Debug.Assert(y.Dimension >= 2);
-            Debug.Assert(convolutionBias.Dimension == 4);
-            Debug.Assert(y.Shape[1] == convolutionBias.Shape[1]); // number of distinct filters
 
-            var batchSize = y.Shape[0];
-            for (int n = 0; n < batchSize; ++n)
-            {
-                int startIndex = n * y.MultDim0;
-                for (int filterId = 0; filterId < y.Shape[1]; ++filterId, startIndex += y.MultDim1)
-                {
-                    var yContent = y.AsFloatCpuContent;
-                    var toAdd = convolutionBias.AsFloatCpuContent[filterId];
-                    for (int i = startIndex; i < (startIndex + y.MultDim1); ++i)
-                    {
-                        yContent[i] += toAdd;
-                    }
-                }
-            }
-        }
+        /// <summary>
+        /// this = x = (batchSize, ChannelsDepth, H_beforePooling, W_beforePooling) 
+        /// </summary>
+        /// <param name="y"></param>
+
+
+        #region Convolution
         //Compute:      y = x (conv) Convolution  (with padding / stride)
-        public override void Convolution(Tensor convolution, int padding, int stride, Tensor y)
+        public override void Convolution(Tensor convolution, int padding, int stride, Tensor y, bool isDepthwiseConvolution)
         {
+            if (isDepthwiseConvolution)
+            {
+                DepthwiseConvolution(convolution, padding, stride, y);
+                return;
+            }
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> {x, convolution, y}));
             int batchSize = x.Shape[0];
@@ -713,9 +774,9 @@ namespace SharpNet.CPU
             int wInput = x.Shape[3];
             int fitlerCount = convolution.Shape[0];
             int F = convolution.Shape[2];
+            Debug.Assert(F == convolution.Shape[3]);
             int hOutput = y.Shape[2];
             int wOutput = y.Shape[3];
-            Debug.Assert(F == convolution.Shape[3]);
             Debug.Assert(channelCount == convolution.Shape[1]);
             Debug.Assert(fitlerCount == y.Shape[1]);
             Debug.Assert(batchSize == y.Shape[0]);
@@ -774,10 +835,39 @@ namespace SharpNet.CPU
 
             System.Threading.Tasks.Parallel.For(0, batchSize, ComputeForBatch);
         }
-        public override void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient)
+
+        public override void BroadcastConvolutionBiasToOutput(Tensor y)
         {
+            var convolutionBias = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { convolutionBias, y }));
+            Debug.Assert(y.Dimension >= 2);
+            Debug.Assert(convolutionBias.Shape.SequenceEqual(new []{1, y.Shape[1], 1, 1}));
+            var batchSize = y.Shape[0];
+            var yContent = y.AsFloatCpuContent;
+            for (int n = 0; n < batchSize; ++n)
+            {
+                int startIndex = n * y.MultDim0;
+                for (int filterId = 0; filterId < y.Shape[1]; ++filterId, startIndex += y.MultDim1)
+                {
+                    var toAdd = convolutionBias.AsFloatCpuContent[filterId];
+                    for (int i = startIndex; i < (startIndex + y.MultDim1); ++i)
+                    {
+                        yContent[i] += toAdd;
+                    }
+                }
+            }
+        }
+
+        public override void ConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
+        {
+            if (isDepthwiseConvolution)
+            {
+                DepthwiseConvolutionGradient(conv, dy, padding, stride, dx, convGradient);
+                return;
+            }
+
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {x, conv, dy, dx, convGradient}));
+            Debug.Assert(AreCompatible(new List<Tensor> { x, conv, dy, dx, convGradient }));
             int batchSize = x.Shape[0];
             int channelCount = x.Shape[1];
             int hInput = x.Shape[2];
@@ -830,12 +920,10 @@ namespace SharpNet.CPU
                                     var APrevLayerIdx = APrevLayerIdxStartRow;
                                     for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
                                     {
-                                        convolutionGradientForLocalThreadFloat[convIdx] +=
-                                            x.AsFloatCpuContent[APrevLayerIdx] * chainGradientFloat;
+                                        convolutionGradientForLocalThreadFloat[convIdx] += x.AsFloatCpuContent[APrevLayerIdx] * chainGradientFloat;
                                         if (dx != null)
                                         {
-                                            dx.AsFloatCpuContent[APrevLayerIdx] +=
-                                                conv.AsFloatCpuContent[convIdx] * chainGradientFloat;
+                                            dx.AsFloatCpuContent[APrevLayerIdx] += conv.AsFloatCpuContent[convIdx] * chainGradientFloat;
                                         }
                                         ++convIdx;
                                         ++APrevLayerIdx;
@@ -860,6 +948,200 @@ namespace SharpNet.CPU
 
             System.Threading.Tasks.Parallel.For(0, batchSize, ComputeForBatch);
         }
+        public override void ConvolutionBackwardBias(Tensor bias)
+        {
+            var dy = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { dy, bias }));
+            Debug.Assert(bias.Dimension == 4);
+            Debug.Assert(bias.Shape[1] == bias.Count);
+            Debug.Assert(dy.Shape[1] == bias.Shape[1]); // number of distinct filters
+            Debug.Assert(dy.Dimension == 4);
+
+            bias.ZeroMemory();
+            var batchSize = dy.Shape[0];
+            for (int n = 0; n < batchSize; ++n)
+            {
+                for (int filterId = 0; filterId < dy.Shape[1]; ++filterId)
+                {
+                    int startIndex = n * dy.MultDim0 + filterId * dy.MultDim1;
+                    var endIndex = startIndex + dy.MultDim1;
+                    var convolutionBackwardBiasContent = bias.AsFloatCpuContent;
+                    var dyContent = dy.AsFloatCpuContent;
+                    for (int i = startIndex; i < endIndex; ++i)
+                    {
+                        convolutionBackwardBiasContent[filterId] += dyContent[i];
+                    }
+                }
+            }
+        }
+        #endregion
+
+
+
+        #region Depthwise Convolution
+
+        /// this = x (N, C, x.H, x.W)
+        /// <param name="depthwiseConvolution"> (1, C, f, f) </param>
+        /// <param name="y">  (N, depthMultiplier*C, y.H, y.W) </param>
+        private void DepthwiseConvolution(Tensor depthwiseConvolution, int padding, int stride, Tensor y)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, depthwiseConvolution, y }));
+
+            var depthMultiplier = depthwiseConvolution.Shape[0];
+            if (depthMultiplier != 1)
+            {
+                throw new NotImplementedException("only depthMultiplier=1 is supported");
+            }
+
+            int batchSize = x.Shape[0];
+            int channelCount = x.Shape[1];
+            Debug.Assert(channelCount == depthwiseConvolution.Shape[1]);
+            Debug.Assert(channelCount == y.Shape[1]);
+            int hInput = x.Shape[2];
+            int wInput = x.Shape[3];
+            int F = depthwiseConvolution.Shape[2];
+            Debug.Assert(F == depthwiseConvolution.Shape[3]);
+            int hOutput = y.Shape[2];
+            int wOutput = y.Shape[3];
+            Debug.Assert(batchSize == y.Shape[0]);
+            Debug.Assert(hOutput == ((hInput - F + 2 * padding) / stride + 1));
+            Debug.Assert(wOutput == ((x.Shape[3] - F + 2 * padding) / stride + 1));
+
+            //the first (top left) point in 'y' is computed from a filter starting at (-padding,-padding)
+            void ComputeForBatch(int m)
+            {
+                var convolutionContentAsFloat = depthwiseConvolution.AsFloatCpuContent;
+                var xContentAsFloat = x.AsFloatCpuContent;
+
+                for (int channelId = 0; channelId < channelCount; ++channelId)
+                {
+                    int rowFilterStart = -padding;
+                    for (int rowOutput = 0; rowOutput < hOutput; ++rowOutput)
+                    {
+                        int colFilterStart = -padding;
+                        var rowInputStart = Math.Max(0, rowFilterStart);
+                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + F);
+                        for (int colOutput = 0; colOutput < wOutput; ++colOutput)
+                        {
+                            //we want to compute the point in y[m, filterId, row_output, col_output]
+                            //it is computed by applying a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
+                            double outputPointResult = 0.0;
+                            var colInputStart = Math.Max(0, colFilterStart);
+                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + F);
+
+                            var convolutionIdxForStartRow = depthwiseConvolution.Idx(0, channelId, rowInputStart - rowFilterStart, colInputStart - colFilterStart);
+                            var xIdxForStartRow = x.Idx(m, channelId, rowInputStart, colInputStart);
+                            for (int rowInput = rowInputStart; rowInput < rowInputEndExcluded; ++rowInput)
+                            {
+                                var convolutionIdx = convolutionIdxForStartRow;
+                                var xIdx = xIdxForStartRow;
+                                for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
+                                {
+                                    outputPointResult += convolutionContentAsFloat[convolutionIdx] *xContentAsFloat[xIdx];
+                                    ++convolutionIdx;
+                                    ++xIdx;
+                                }
+                                convolutionIdxForStartRow += depthwiseConvolution.Shape[3];
+                                xIdxForStartRow += x.Shape[3];
+                            }
+
+                            y.AsFloatCpu.Set(m, channelId, rowOutput, colOutput, (float)outputPointResult);
+                            colFilterStart += stride;
+                        }
+                        rowFilterStart += stride;
+                    }
+                }
+            }
+
+            System.Threading.Tasks.Parallel.For(0, batchSize, ComputeForBatch);
+        }
+
+        //this = x
+        private void DepthwiseConvolutionGradient(Tensor conv, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, conv, dy, dx, convGradient }));
+            int batchSize = x.Shape[0];
+            int channelCount = x.Shape[1];
+            int hInput = x.Shape[2];
+            int wInput = x.Shape[3];
+            int F = conv.Shape[2];
+            Debug.Assert(F == conv.Shape[3]);
+            Debug.Assert(channelCount == conv.Shape[1]);
+            Debug.Assert(batchSize == dy.Shape[0]);
+            int hOutput = dy.Shape[2];
+            Debug.Assert(hOutput == ((hInput - F + 2 * padding) / stride + 1));
+            int wOutput = dy.Shape[3];
+            Debug.Assert(wOutput == ((wInput - F + 2 * padding) / stride + 1));
+            dx?.ZeroMemory();
+            convGradient.ZeroMemory();
+
+            //the first (top left) point in 'y' is computed from a filter starting at (-padding,-padding)
+
+            void ComputeForBatch(int m)
+            {
+                //every thread needs to update 'convolutionGradient'
+                //to be thread safe, each thread will update a local object 'convolutionGradientContent' and at the end
+                //will update the object 'convolutionGradient' with a local
+                float[] convolutionGradientForLocalThreadFloat = new float[convGradient.Count];
+                for (int channelId = 0; channelId < channelCount; ++channelId)
+                {
+                    int rowFilterStart = -padding;
+                    for (int rowOutput = 0; rowOutput < hOutput; ++rowOutput)
+                    {
+                        int colFilterStart = -padding;
+                        var rowInputStart = Math.Max(0, rowFilterStart);
+                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + F);
+                        for (int colOutput = 0; colOutput < wOutput; ++colOutput)
+                        {
+                            //we want to compute the point in y[m, filterId, rowOutput, colOutput]
+                            //it is computed by applying a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
+                            // and centered at this particular location
+                            var chainGradientFloat = dy.AsFloatCpu.Get(m, channelId, rowOutput, colOutput);
+                            var colInputStart = Math.Max(0, colFilterStart);
+                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + F);
+
+                                int convIdxStartRow = convGradient.Idx(0, channelId,rowInputStart - rowFilterStart, colInputStart - colFilterStart);
+                                int APrevLayerIdxStartRow = x.Idx(m, channelId, rowInputStart, colInputStart);
+                                for (int rowInput = rowInputStart; rowInput < rowInputEndExcluded; ++rowInput)
+                                {
+                                    var convIdx = convIdxStartRow;
+                                    var APrevLayerIdx = APrevLayerIdxStartRow;
+                                    for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
+                                    {
+                                        convolutionGradientForLocalThreadFloat[convIdx] += x.AsFloatCpuContent[APrevLayerIdx] * chainGradientFloat;
+                                        if (dx != null)
+                                        {
+                                            dx.AsFloatCpuContent[APrevLayerIdx] += conv.AsFloatCpuContent[convIdx] * chainGradientFloat;
+                                        }
+                                        ++convIdx;
+                                        ++APrevLayerIdx;
+                                    }
+                                    convIdxStartRow += convGradient.Shape[3];
+                                    APrevLayerIdxStartRow += wInput;
+                                }
+
+                            colFilterStart += stride;
+                        }
+                        rowFilterStart += stride;
+                    }
+                }
+                lock (convGradient)
+                {
+                    for (int i = 0; i < convGradient.Count; ++i)
+                    {
+                        convGradient.AsFloatCpuContent[i] += convolutionGradientForLocalThreadFloat[i];
+                    }
+                }
+            }
+
+            System.Threading.Tasks.Parallel.For(0, batchSize, ComputeForBatch);
+        }
+        #endregion
+
+
+
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient)
         {
             ComputeSumByColumn(biasGradient);
