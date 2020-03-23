@@ -87,16 +87,8 @@ namespace SharpNet.GPU
             Wrapper.SwCopyToHost.Stop();
             return _hostMemory;
         }
-        public override IntPtr DevicePointer
-        {
-            get
-            {
-                AssertIsNotDisposed();
-                return _deviceMemory.Pointer;
-            }
-        }
 
-#region Tensor implementation
+        #region Tensor implementation
         public override void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining)
         {
             var x = this;
@@ -166,8 +158,14 @@ namespace SharpNet.GPU
             cudnnStatus_t res;
             if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
             {
-                res = CudnnWrapper.cudnnSoftmaxForward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE,
-                    cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, xDesc, x, zero, yDesc, y);
+                res = CudnnWrapper.cudnnSoftmaxForward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, xDesc, x, zero, yDesc, y);
+            }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
+            {
+                // y = x * sigmoid(x) 
+                ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, y);
+                y.Update_Multiply_By_x(this);
+                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
             else
             {
@@ -185,7 +183,6 @@ namespace SharpNet.GPU
             var xDesc = TensorDesc(x);
             var dyDesc = TensorDesc(dy);
             var dxDesc = TensorDesc(dx);
-            var activationDesc = ActivationDesc(activationType);
 
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;
@@ -194,14 +191,17 @@ namespace SharpNet.GPU
             cudnnStatus_t res;
             if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
             {
-                res = CudnnWrapper.cudnnSoftmaxBackward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE,
-                    cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE,
-                    one, yDesc, y, dyDesc, dy, zero, dxDesc, dx);
+                res = CudnnWrapper.cudnnSoftmaxBackward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, yDesc, y, dyDesc, dy, zero, dxDesc, dx);
+            }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
+            {
+                Wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx});
+                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
             else
             {
-                res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy,
-                    xDesc, x, zero, dxDesc, dx);
+                var activationDesc = ActivationDesc(activationType);
+                res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
             }
             CheckStatus(res);
         }
@@ -244,29 +244,6 @@ namespace SharpNet.GPU
             throw new NotImplementedException(); //TODO
         }
 
-        // compute: this += alpha * bias
-        public override void Update_Adding_Alpha_X(float alpha, Tensor x)
-        {
-            AddTensor(alpha, x, 1);
-        }
-
-        /// <summary>
-        /// compute: this = alpha * x + beta * this
-        /// Each dimension of the 'x' tensor must match the corresponding dimension of the destination tensor 'this' or must be equal to 1.
-        /// In the latter case, the same value from 'x' for those dimensions will be used to blend into the 'this' tensor.
-        /// </summary>
-        /// <param name="alpha"></param>
-        /// <param name="x"></param>
-        /// <param name="beta"></param>
-        public override void AddTensor(float alpha, Tensor x, float beta)
-        {
-            var c = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { c, x }));
-            var cDesc = TensorDesc(c);
-            var xDesc = TensorDesc(x);
-            var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, &alpha, xDesc, x, &beta, cDesc, c);
-            CheckStatus(res);
-        }
 
         //TODO
         public override Tensor Transpose()
@@ -668,6 +645,31 @@ namespace SharpNet.GPU
         }
 
 
+        // compute: this += alpha * bias
+        public override void Update_Adding_Alpha_X(float alpha, Tensor x)
+        {
+            AddTensor(alpha, x, 1);
+        }
+
+        /// <summary>
+        /// compute: this = alpha * x + beta * this
+        /// Each dimension of the 'x' tensor must match the corresponding dimension of the destination tensor 'this' or must be equal to 1.
+        /// In the latter case, the same value from 'x' for those dimensions will be used to blend into the 'this' tensor.
+        /// </summary>
+        /// <param name="alpha"></param>
+        /// <param name="x"></param>
+        /// <param name="beta"></param>
+        public override void AddTensor(float alpha, Tensor x, float beta)
+        {
+            var c = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { c, x }));
+            var cDesc = TensorDesc(c);
+            var xDesc = TensorDesc(x);
+            var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, &alpha, xDesc, x, &beta, cDesc, c);
+            CheckStatus(res);
+        }
+
+
         public override void MultiplyTensor(Tensor a, Tensor x)
         {
             var c = this;
@@ -684,7 +686,6 @@ namespace SharpNet.GPU
             var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, x, incx, c, ldc);
             GPUWrapper.CheckStatus(res, ToString);
         }
-
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b)
         {
             Debug.Assert(a.SameShape(b));
@@ -694,7 +695,6 @@ namespace SharpNet.GPU
             int nbColumns_in_a_and_b = a.Count / nbRows;
             Wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
         }
-
         public override void CopyTo(Tensor b)
         {
             CopyTo(0, b, 0, Count);
@@ -723,7 +723,7 @@ namespace SharpNet.GPU
         {
             _deviceMemory.ZeroMemory();
         }
-#endregion
+        #endregion
 
 
         public override void AssertIsNotDisposed()
@@ -736,7 +736,7 @@ namespace SharpNet.GPU
             _deviceMemory.AssertIsNotDisposed();
         }
 
-#region Dispose pattern
+        #region Dispose pattern
         public override void Dispose()
         {
             Dispose(true);
@@ -769,7 +769,16 @@ namespace SharpNet.GPU
         {
             Dispose(false);
         }
-#endregion
+        #endregion
+
+        protected override IntPtr DevicePointer
+        {
+            get
+            {
+                AssertIsNotDisposed();
+                return _deviceMemory.Pointer;
+            }
+        }
 
         private IntPtr TensorDesc(Tensor a) { return Wrapper.TensorDesc(CudaType, a.Shape); }
         private IntPtr FilterDesc(Tensor a, bool isDepthwiseConvolution) { return Wrapper.FilterDesc(CudaType, a.Shape, isDepthwiseConvolution); }

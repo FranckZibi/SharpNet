@@ -10,10 +10,13 @@ namespace SharpNet
 {
     public class BackwardPropagationManager : IDisposable
     {
+        #region Private fields
         private readonly Network _network;
         private readonly List<Tensor> _availableTensorOrderedByCount = new List<Tensor>();
         private const string MockKey = "Mock";
         private ulong _bytesByBatchSizeForGradientComputation;
+        private Tensor _dyOfLastLayer;
+        #endregion
 
         public BackwardPropagationManager(Network network)
         {
@@ -43,8 +46,6 @@ namespace SharpNet
                 return _bytesByBatchSizeForGradientComputation;
             }
         }
-
-
         public Tensor dyOfLastLayer
         {
             get
@@ -56,9 +57,6 @@ namespace SharpNet
                 return _dyOfLastLayer;
             }
         }
-
-        private Tensor _dyOfLastLayer;
-
         public void BackwardPropagation()
         {
             bool isMock = IsMock(_dyOfLastLayer);
@@ -102,6 +100,13 @@ namespace SharpNet
                 _layerTensor_dY[i] = null;
             }
         }
+        public void Dispose()
+        {
+            _availableTensorOrderedByCount.ForEach(t => t?.Dispose());
+            _availableTensorOrderedByCount.Clear();
+            _dyOfLastLayer?.Dispose();
+            _dyOfLastLayer = null;
+        }
 
         private void AddInCache(Tensor t)
         {
@@ -128,8 +133,6 @@ namespace SharpNet
             var newTensor = NewNotInitializedTensor(shape, isMock);
             return newTensor;
         }
-
-
         private ulong NeededMemoryInBytes(int[] shape)
         {
             return (ulong)(Utils.Product(shape) * _network.Config.TypeSize);
@@ -142,7 +145,6 @@ namespace SharpNet
             }
             return t.CapacityInBytes;
         }
-
         private static bool IsMock(Tensor t)
         {
             return t.Description == MockKey;
@@ -154,14 +156,6 @@ namespace SharpNet
                 return new CpuTensor<float>(new[] {1}, new float[]{ NeededMemoryInBytes(shape) }, MockKey);
             }
             return _network.NewNotInitializedTensor(shape, "dy");
-        }
-
-        public void Dispose()
-        {
-            _availableTensorOrderedByCount.ForEach(t=>t?.Dispose());
-            _availableTensorOrderedByCount.Clear();
-            _dyOfLastLayer?.Dispose();
-            _dyOfLastLayer = null;
         }
     }
 }

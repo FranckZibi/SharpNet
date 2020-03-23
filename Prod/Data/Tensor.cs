@@ -171,6 +171,22 @@ namespace SharpNet.Data
         public abstract void MultiplyTensor(Tensor a, Tensor x);
 
         /// <summary>
+        /// Update the value of the 'this( tensor by multiplying it by 'x'
+        /// if 'this' and 'x' have the same size:
+        ///     will perform an element wise multiplication of vector 'this' and vector 'x' (and store the result in 'this')
+        /// else
+        ///     will consider 'x' has a vector containing the diagonal of a diagonal matrix,
+        ///     and will multiply 'this' with the associated diagonal matrix
+        /// </summary>
+        /// <param name="x"></param>
+        public void Update_Multiply_By_x(Tensor x)
+        {
+            MultiplyTensor(this, x);
+        }
+
+
+
+        /// <summary>
         /// For each row of matrix a and b , compute the element wise product and this row, and store the result in this[row]
         /// this = a vector of size (m)
         /// </summary>
@@ -367,7 +383,7 @@ namespace SharpNet.Data
         /// <returns></returns>
         public abstract double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer);
 
-        public abstract IntPtr DevicePointer { get; }
+        protected abstract IntPtr DevicePointer { get; }
 
 
         /// <summary>

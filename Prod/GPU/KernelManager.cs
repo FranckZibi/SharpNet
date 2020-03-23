@@ -46,7 +46,8 @@ namespace SharpNet.GPU
                     "ComputeCategoricalCrossentropyLossFromCategoryIndexes",
                     "ComputeBinaryCrossentropyLossFromCategoryIndexes",
                     "Split",
-                    "MultiplyEachRowIntoSingleValue"
+                    "MultiplyEachRowIntoSingleValue",
+                    "SwishGradient"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

@@ -143,7 +143,6 @@ namespace SharpNet.Layers
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
             var x = PrevLayer.y;
-            //?D
             x.ConvolutionGradient(DepthwiseConvolution, dy, _padding, _stride, dx[0], DepthwiseConvolutionGradients, true);
             if (UseL2Regularization)
             {
@@ -195,12 +194,11 @@ namespace SharpNet.Layers
         }
         public override int[] OutputShape(int batchSize)
         {
-            var result = DepthwiseConvolutionsOutputShape(PrevLayer.OutputShape(batchSize), DepthwiseConvolution.Shape, _padding, _stride);
+            var result = DepthwiseConvolutionOutputShape(PrevLayer.OutputShape(batchSize), DepthwiseConvolution.Shape, _padding, _stride);
             Debug.Assert(result.Min() >= 1);
             return result;
         }
 
-        //?D TODO ADD TESTS
         /// <summary>
         /// Compute the output shape fo a convolution layer, given input shape 'shapeInput' and convolution shape 'shapeConvolution'
         /// </summary>
@@ -209,7 +207,7 @@ namespace SharpNet.Layers
         /// <param name="padding"></param>
         /// <param name="stride"></param>
         /// <returns>output shape: (batchSize, filtersCount, heightOutput=H[heightInput], weightOutput=H[weightInput])</returns>
-        public static int[] DepthwiseConvolutionsOutputShape(int[] shapeInput, int[] shapeConvolution, int padding, int stride)
+        public static int[] DepthwiseConvolutionOutputShape(int[] shapeInput, int[] shapeConvolution, int padding, int stride)
         {
             Debug.Assert(shapeInput.Length == 4);
             Debug.Assert(shapeConvolution.Length == 4);

@@ -512,8 +512,7 @@ namespace SharpNet.Datasets
 
         #region Processing Thread management
         // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
-        //?D private bool UseBackgroundThread => true;
-        private bool UseBackgroundThread => false;
+        private bool UseBackgroundThread => true;
         private readonly Thread thread;
         private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT, TO_ABORT };
         private BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;

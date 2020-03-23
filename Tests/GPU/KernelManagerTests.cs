@@ -30,8 +30,8 @@ namespace SharpNetTests.GPU
             }
 
             //GPU single precision test
-            Tensor a = aCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
-            Tensor b = bCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
+            Tensor a = aCpu.ToGPU<float>(GpuWrapper);
+            Tensor b = bCpu.ToGPU<float>(GpuWrapper);
             Tensor resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
             Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-2));
@@ -86,15 +86,6 @@ namespace SharpNetTests.GPU
                 km.RunKernel("Sum", resultGpu.Count, new object[] {a, b, resultGpu});
             }
             Console.WriteLine("1 GPU Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
-            a = aCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
-            b = bCpu.ToSinglePrecision().ToGPU<float>(GpuWrapper);
-            resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
-            sw = Stopwatch.StartNew();
-            for (int batchid = 0; batchid < nbBatchGPU; ++batchid)
-            {
-                km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
-            }
-            Console.WriteLine("1 GPU Float Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
         }
 
         private CpuTensor<float> RandomTensor(int[] shape, string description)

@@ -138,14 +138,14 @@ namespace SharpNet.GPU
     }
     public enum cudnnActivationMode_t
     {
-        CUDNN_ACTIVATION_SIGMOID,
-        CUDNN_ACTIVATION_RELU,
-        CUDNN_ACTIVATION_TANH,
-        CUDNN_ACTIVATION_CLIPPED_RELU,
-        CUDNN_ACTIVATION_ELU,
+        CUDNN_ACTIVATION_SIGMOID,       //Selects the sigmoid function.
+        CUDNN_ACTIVATION_RELU,          //Selects the rectified linear function.
+        CUDNN_ACTIVATION_TANH,          //Selects the hyperbolic tangent function.
+        CUDNN_ACTIVATION_CLIPPED_RELU,  //Selects the clipped rectified linear function
+        CUDNN_ACTIVATION_ELU,           //Selects the exponential linear function
         CUDNN_ACTIVATION_IDENTITY,
         CUDNN_ACTIVATION_SOFTMAX=1000,
-
+        CUDNN_ACTIVATION_SWISH= 1001     //Selects the swish function ( f(x) = x*sigmoid(x) , see https://arxiv.org/abs/1710.05941)
     }
     public enum cudnnBatchNormMode_t
     {

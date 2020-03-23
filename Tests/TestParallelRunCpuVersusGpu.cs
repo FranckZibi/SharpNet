@@ -68,7 +68,7 @@ namespace SharpNetTests
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
             const int depthMultiplier  = 1;
             var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
-            var y = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionsOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
+            var y = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
             TestAll(new[] { x, depthwiseConvolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2], true));
         }
 
@@ -79,7 +79,7 @@ namespace SharpNetTests
             x = new CpuTensor<float>(x.Shape, "x");
             const int depthMultiplier = 1;
             var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
-            var dy = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionsOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
+            var dy = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
 
             //this will compute 'dx' && 'convolutionGradient'
             var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");
@@ -312,11 +312,12 @@ namespace SharpNetTests
             TestAll(new[] { src, dest }, tensors => tensors[0].CopyTo(20,tensors[1],60,40));
         }
 
-        //TODO [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)]
 	    public void TestActivationForward(cudnnActivationMode_t activationMode)
 	    {
 	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
@@ -324,12 +325,12 @@ namespace SharpNetTests
 	        TestAll(new[] { x, y }, tensors => tensors[0].ActivationForward(activationMode, tensors[1]));
 	    }
 
-        //TODO [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)]
-        //!D TODO : re enable test 
-        //[TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)]
 	    public void TestActivationBackward(cudnnActivationMode_t activationMode)
 	    {
             var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "y");

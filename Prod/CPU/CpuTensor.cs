@@ -354,19 +354,22 @@ namespace SharpNet.CPU
             switch (activationType)
             {
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU:
-                    x.Relu(y);
+                    CpuTensorActivationFunctions.Relu(x, y);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
-                    x.Elu(y, 1.0);
+                    CpuTensorActivationFunctions.Elu(x, y, 1.0);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_TANH:
-                    x.Tanh(y);
+                    CpuTensorActivationFunctions.Tanh(x, y);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID:
-                    x.Sigmoid(y);
+                    CpuTensorActivationFunctions.Sigmoid(x, y);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX:
-                    x.Softmax(y);
+                    CpuTensorActivationFunctions.Softmax(x, y);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
+                    CpuTensorActivationFunctions.Swish(x, y);
                     return;
                 default:
                     throw new ArgumentException("invalid activation mode " + activationType);
@@ -379,22 +382,28 @@ namespace SharpNet.CPU
             switch (activationType)
             {
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU:
-                    ReluGradient(dy, x, dx);
+                    CpuTensorActivationFunctions.ReluGradient(dy, x, dx);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
-                    EluGradient(y, dy, x, dx, 1f);
+                    CpuTensorActivationFunctions.EluGradient(y, dy, x, dx, 1f);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_TANH:
+                    CpuTensorActivationFunctions.TanhGradient(y, dy, dx);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID:
-                    SigmoidGradient(y, dy, dx);
+                    CpuTensorActivationFunctions.SigmoidGradient(y, dy, dx);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX:
-                    SoftmaxGradient(y, dy, dx);
+                    CpuTensorActivationFunctions.SoftmaxGradient(y, dy, dx);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
+                    CpuTensorActivationFunctions.SwishGradient(y, dy, x, dx);
                     return;
                 default:
                     throw new ArgumentException("invalid activation mode " + activationType);
             }
         }
-        
+
         public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
             var y = this;
@@ -1168,7 +1177,7 @@ namespace SharpNet.CPU
             return ((double)result) / Shape[0];
         }
 
-        public override IntPtr DevicePointer => throw new NotImplementedException("not available for CPU");
+        protected override IntPtr DevicePointer => throw new NotImplementedException("not available for CPU");
 
 
         /// <summary>
@@ -1227,9 +1236,9 @@ namespace SharpNet.CPU
             //var tmpTranspose = new double[b.Count];
             //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
         }
-#endregion
+        #endregion
 
-#region Dispose pattern
+        #region Dispose pattern
         public override void Dispose()
         {
             if (_disposed)
@@ -1322,24 +1331,24 @@ namespace SharpNet.CPU
                 this[i] = funcInput(this[i], bCpu[i]);
             }
         }
-        private void BuildEntirelyFromInput(Tensor a, Tensor b, Func<T, T, T> funcInput)
+        public void BuildEntirelyFromInput(Tensor a, Tensor b, Func<T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> {this, a, b}));
             Debug.Assert(SameShape(a, b));
-            var aCpu = a.AsCpu<T>();
-            var bCpu = b.AsCpu<T>();
+            var aCpu = a.AsCpu<T>().Content;
+            var bCpu = b.AsCpu<T>().Content;
             for (int i = 0; i < a.Count; ++i)
             {
                 this[i] = funcInput(aCpu[i], bCpu[i]);
             }
         }
-        private void BuildEntirelyFromInput(Tensor a, Tensor b, Tensor c, Func<T, T, T, T> funcInput)
+        public void BuildEntirelyFromInput(Tensor a, Tensor b, Tensor c, Func<T, T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, a, b, c }));
             Debug.Assert(SameShape(a, b));
-            var aCpu = a.AsCpu<T>();
-            var bCpu = b.AsCpu<T>();
-            var cCpu = c.AsCpu<T>();
+            var aCpu = a.AsCpu<T>().Content;
+            var bCpu = b.AsCpu<T>().Content;
+            var cCpu = c.AsCpu<T>().Content;
             for (int i = 0; i < a.Count; ++i)
             {
                 this[i] = funcInput(aCpu[i], bCpu[i], cCpu[i]);
@@ -1398,34 +1407,6 @@ namespace SharpNet.CPU
                 //Variance(X) = E(X^2) - E(X) ^2
                 //varianceContent[i] = varianceContent[i]/meanDivider - meanContent[i] * meanContent[i];
                 varianceContent[i] = (meanDivider <= 1) ? 1f : (varianceContent[i] - meanDivider * meanContent[i] * meanContent[i]) / (meanDivider - 1);
-            }
-        }
-        private static void ReluGradient(Tensor dy, Tensor x, Tensor dx)
-        {
-            Debug.Assert(AreCompatible(new List<Tensor> { dy, x, dx }));
-            dx.AsFloatCpu.BuildEntirelyFromInput(dy, x, (da, z) => (z >= 0f ? da : 0f));
-        }
-        private static void EluGradient(Tensor y, Tensor dy, Tensor x, Tensor dx, float alpha)
-        {
-            Debug.Assert(AreCompatible(new List<Tensor> { dy, x, dx }));
-            dx.AsFloatCpu.BuildEntirelyFromInput(y, dy, x, (a, da, z) => (z >= 0.0 ? da : da * (a + alpha)));
-        }
-        private static void SigmoidGradient(Tensor y, Tensor dy, Tensor dx)
-        {
-            Debug.Assert(AreCompatible(new List<Tensor> { y, dy, dx }));
-            dx.AsFloatCpu.BuildEntirelyFromInput(y, dy, (a, da) => da * a * (1f - a));
-        }
-        private static void SoftmaxGradient(Tensor y, Tensor dy, Tensor dx)
-        {
-            Debug.Assert(AreCompatible(new List<Tensor> { y, dy, dx }));
-            var yContent = y.AsFloatCpuContent;
-            var dyContent = dy.AsFloatCpuContent;
-            var dxContent = dx.AsFloatCpuContent;
-            for (int i = 0; i < dx.Count; ++i)
-            {
-                var yi = yContent[i];
-                var dyi = dyContent[i];
-                dxContent[i] = (Math.Abs(dyi - 1.0) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
             }
         }
         private static int ComputeSingleAccuracyCount(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)

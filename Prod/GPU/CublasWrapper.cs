@@ -87,7 +87,7 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_10_1:
                     return CublasWrapper_cublas64_10.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
                 default:
-                    return CublasWrapper_cublas64_100.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc); ;
+                    return CublasWrapper_cublas64_100.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
             }
         }
         public static cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion)
