@@ -15,7 +15,7 @@ namespace SharpNet.Layers
         private readonly Random _dropOutRandomForCpuOnly = new Random(0);
         #endregion
 
-        public DropoutLayer(double dropProbability, Network network) : base(network)
+        public DropoutLayer(double dropProbability, Network network, string layerName) : base(network, layerName)
         {
             _dropProbability = dropProbability;
         }

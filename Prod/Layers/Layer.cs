@@ -12,6 +12,7 @@ namespace SharpNet.Layers
     {
         #region fields
         public int LayerIndex { get; }
+        public string LayerName { get; }
         protected readonly Network Network;
         private readonly List<int> _previousLayerIndexes = new List<int>();
         private readonly List<int> _nextLayerIndexes = new List<int>();
@@ -33,6 +34,7 @@ namespace SharpNet.Layers
         {
             Network = newNetwork;
             LayerIndex = toClone.LayerIndex;
+            LayerName = toClone.LayerName;
             _previousLayerIndexes.Clear();
             _previousLayerIndexes.AddRange(toClone._previousLayerIndexes);
             _nextLayerIndexes.Clear();
@@ -43,13 +45,15 @@ namespace SharpNet.Layers
             }
         }
 
-        protected Layer(Network network) :this(network, network.Layers.Count-1) 
+        protected Layer(Network network, string layerName) :this(network, network.Layers.Count-1, layerName) 
         {
         }
-        protected Layer(Network network, int previousLayerIndex)
+        protected Layer(Network network, int previousLayerIndex, string layerName)
         {
             Network = network;
             LayerIndex = network.Layers.Count;
+            // ReSharper disable once VirtualMemberCallInConstructor
+            LayerName = string.IsNullOrEmpty(layerName) ? DefaultLayerName() : layerName;
             AddPreviousLayer(previousLayerIndex);
         }
 
@@ -68,13 +72,13 @@ namespace SharpNet.Layers
         public virtual bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
             bool equals = true;
-            equals &= Utils.Equals(SummaryName(), b.SummaryName(), id + ":SummaryName", ref errors);
-            id += ":" + SummaryName();
+            id += ":" + LayerName;
             equals &= Utils.Equals(LayerIndex, b.LayerIndex, id+":LayerIndex", ref errors);
+            equals &= Utils.Equals(LayerName, b.LayerName, id+":LayerName", ref errors);
             equals &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
             equals &= Utils.EqualsList(_previousLayerIndexes, b._previousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
             equals &= Utils.EqualsList(_nextLayerIndexes, b._nextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
-            equals &= Utils.EqualsList(TensorsIndependantOfBatchSize, b.TensorsIndependantOfBatchSize, epsilon, id+ ":TensorsIndependantOfBatchSize", ref errors);
+            equals &= Utils.EqualsList(TensorsIndependentOfBatchSize, b.TensorsIndependentOfBatchSize, epsilon, id+ ":TensorsIndependantOfBatchSize", ref errors);
             return equals;
         }
         protected int NbLayerOfSameTypeBefore()
@@ -129,9 +133,9 @@ namespace SharpNet.Layers
         }
       
         public ulong BytesByBatchSize => (ulong)(Utils.Product(OutputShape(1)) * Network.Config.TypeSize); //y
-        public virtual string SummaryName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
+        protected virtual string DefaultLayerName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
         public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
-        public ulong BytesIndependantOfBatchSize => Tensor.OccupiedMemoryInBytes(TensorsIndependantOfBatchSize);
+        public ulong BytesIndependentOfBatchSize => Tensor.OccupiedMemoryInBytes(TensorsIndependentOfBatchSize);
         /// <summary>
         ///  At this stage, we already know 'x', we want to compute 'y'
         /// </summary>
@@ -186,9 +190,9 @@ namespace SharpNet.Layers
         }
         public override string ToString()
         {
-            return SummaryName() + ": " + ShapeChangeDescription() + " ("+ MemoryDescription()+")";
+            return LayerName + ": " + ShapeChangeDescription() + " ("+ MemoryDescription()+")";
         }
-        public virtual List<Tensor> TensorsIndependantOfBatchSize => new List<Tensor>();
+        public virtual List<Tensor> TensorsIndependentOfBatchSize => new List<Tensor>();
 
         public string ContentStats()
         {
@@ -217,6 +221,7 @@ namespace SharpNet.Layers
         {
             return new Serializer().Add(nameof(Layer), GetType())
                     .Add(nameof(LayerIndex), LayerIndex)
+                    .Add(nameof(LayerName), LayerName)
                     .Add(nameof(_previousLayerIndexes), _previousLayerIndexes.ToArray())
                     .Add(nameof(_nextLayerIndexes), _nextLayerIndexes.ToArray())
                 ;
@@ -225,6 +230,7 @@ namespace SharpNet.Layers
         {
             Network = network;
             LayerIndex = (int)serialized[nameof(LayerIndex)];
+            LayerName = (string)serialized[nameof(LayerName)];
             _previousLayerIndexes = ((int[])serialized[nameof(_previousLayerIndexes)]).ToList();
             _nextLayerIndexes = ((int[])serialized[nameof(_nextLayerIndexes)]).ToList();
         }
@@ -281,7 +287,7 @@ namespace SharpNet.Layers
                 result += TotalParams + " neurons / ";
             }
             result += Utils.MemoryBytesToString(OccupiedMemoryInBytes) + ": ";
-            result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependantOfBatchSize);
+            result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependentOfBatchSize);
             return result;
         }
         protected string ShapeChangeDescription()
@@ -292,8 +298,8 @@ namespace SharpNet.Layers
         {
             get
             {
-                var result = TensorsIndependantOfBatchSize;
-                result.AddRange(TensorsDependantOfBatchSize);
+                var result = TensorsIndependentOfBatchSize;
+                result.AddRange(TensorsDependentOfBatchSize);
                 result.RemoveAll(t => t == null);
                 return result;
             }
@@ -323,7 +329,7 @@ namespace SharpNet.Layers
             return this;
         }
 
-        private List<Tensor> TensorsDependantOfBatchSize
+        private List<Tensor> TensorsDependentOfBatchSize
         {
             get
             {

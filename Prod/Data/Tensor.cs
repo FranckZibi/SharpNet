@@ -133,7 +133,13 @@ namespace SharpNet.Data
         {
             return (ulong)tensors.Select(x => (long) (x?.CapacityInBytes ?? 0) ).Sum();
         }
-       
+
+        /// <summary>
+        /// Ensure that all tensors are stored in the same device (Cpu or GPU)
+        /// </summary>
+        /// <param name="a">lit of tensors</param>
+        /// <returns>true if all tensors are stored in the same device
+        /// false if some tensors are stored and Cpu and other on GPU</returns>
         public static bool AreCompatible(List<Tensor> a)
         {
             a.RemoveAll(x => x == null);
@@ -183,8 +189,6 @@ namespace SharpNet.Data
         {
             MultiplyTensor(this, x);
         }
-
-
 
         /// <summary>
         /// For each row of matrix a and b , compute the element wise product and this row, and store the result in this[row]

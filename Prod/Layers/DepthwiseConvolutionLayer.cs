@@ -26,8 +26,8 @@ namespace SharpNet.Layers
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public DepthwiseConvolutionLayer(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network)
-            : base(network, previousLayerIndex)
+        public DepthwiseConvolutionLayer(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network, string layerName)
+            : base(network, previousLayerIndex, layerName)
         {
             _f = f;
             _stride = stride;
@@ -185,7 +185,7 @@ namespace SharpNet.Layers
 
         public override string ToString()
         {
-            var result = SummaryName() + ": " + ShapeChangeDescription();
+            var result = LayerName + ": " + ShapeChangeDescription();
             result += " padding=" + _padding + " stride=" + _stride;
             result += " Filter" + Utils.ShapeToString(DepthwiseConvolution?.Shape);
             result += (UseBias) ? " with Bias" : " no Bias";
@@ -229,7 +229,7 @@ namespace SharpNet.Layers
         }
 
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
-        public override List<Tensor> TensorsIndependantOfBatchSize
+        public override List<Tensor> TensorsIndependentOfBatchSize
         {
             get
             {

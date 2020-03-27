@@ -11,12 +11,15 @@ namespace SharpNet.Layers
     public sealed class BatchNormalizationLayer : Layer
     {
         #region Private fields
-
         private readonly double _momentum;
         private readonly double _epsilon;
+        //Weights
         private readonly Tensor _bnScale;                       // (1, C, H, W) or (1, C, 1, 1) : depending on previous layer
+        //WeightGradients
         private readonly Tensor _resultBnScaleDiff;             // same as '_bnScale"
+        //Bias
         private readonly Tensor _bnBias;                        // same as '_bnScale"
+        //BiasGradients
         private readonly Tensor _resultBnBiasDiff;              // same as '_bnScale"
         private readonly Tensor _resultRunningMean;             // same as '_bnScale"
         private readonly Tensor _resultRunningVariance;         // same as '_bnScale"
@@ -27,7 +30,7 @@ namespace SharpNet.Layers
         public override Tensor y { get; protected set; }        // (batchSize, C, H, W)
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public BatchNormalizationLayer(double momentum, double epsilon, Network network) : base(network)
+        public BatchNormalizationLayer(double momentum, double epsilon, Network network, string layerName = "") : base(network, layerName)
         {
             _momentum = momentum;
             _epsilon = epsilon;
@@ -47,7 +50,7 @@ namespace SharpNet.Layers
             var nbDisabledWeights = PreviousLayers.Select(l=>l.DisableBias()).Sum();
             if (nbDisabledWeights != 0)
             {
-                Network.LogDebug(nbDisabledWeights + " weights (bias) disabled thanks to batchNorm layer " + SummaryName());
+                Network.LogDebug(nbDisabledWeights + " weights (bias) disabled thanks to batchNorm layer " + LayerName);
             }
         }
 
@@ -66,7 +69,6 @@ namespace SharpNet.Layers
             _resultSaveVariance = other._resultSaveVariance?.Clone(newNetwork.GpuWrapper);
             _optimizer = other._optimizer?.Clone(newNetwork);
         }
-
 
         public Tensor Weights => _bnScale;
         public Tensor WeightGradients => _resultBnScaleDiff;
@@ -164,9 +166,9 @@ namespace SharpNet.Layers
             }
         }
         public override int TotalParams => _bnScale.Count + _resultBnScaleDiff.Count + _bnBias.Count + _resultBnBiasDiff.Count;
-        public override string SummaryName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
-        public override string Type() {return "BatchNorm";}
-        public override List<Tensor> TensorsIndependantOfBatchSize
+        protected override string DefaultLayerName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
+        public override string Type() {return "BatchNormalization"; }
+        public override List<Tensor> TensorsIndependentOfBatchSize
         {
             get
             {

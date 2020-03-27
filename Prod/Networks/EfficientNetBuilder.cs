@@ -1,0 +1,387 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using SharpNet.DataAugmentation;
+using SharpNet.GPU;
+
+namespace SharpNet.Networks
+{
+    /// <summary>
+    /// EfficientNet support, as described in https://arxiv.org/abs/1905.11946
+    /// </summary>
+    public class EfficientNetBuilder : NetworkBuilder
+    {
+        /// <summary>
+        /// The default WRN Meta Parameters for ImageNet
+        /// </summary>
+        /// <returns></returns>
+        public static EfficientNetBuilder EfficientNet_ImageNet()
+        {
+            var builder = new EfficientNetBuilder
+            {
+                Config = new NetworkConfig
+                {
+                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    lambdaL2Regularization = 0.0005
+                }
+                    .WithSGD(0.9, false)
+                    //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
+                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2) //new default value on 14-aug-2019
+                ,
+                NumEpochs = 150,
+                BatchSize = 128,
+                InitialLearningRate = 0.1,
+            };
+            return builder;
+        }
+
+
+        /// <summary>
+        /// The default EfficientNet Meta Parameters for CIFAR10
+        /// </summary>
+        /// <returns></returns>
+        public static EfficientNetBuilder CIFAR10()
+        {
+            var builder = new EfficientNetBuilder
+            {
+                Config = new NetworkConfig
+                {
+                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    lambdaL2Regularization = 0.0005
+                }
+                    .WithSGD(0.9, false)
+                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+                ,
+                NumEpochs = 150,
+                BatchSize = 128,
+                InitialLearningRate = 0.1,
+            };
+
+            //Data augmentation
+            var da = builder.Config.DataAugmentation;
+            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+            da.WidthShiftRangeInPercentage = 0.1;
+            da.HeightShiftRangeInPercentage = 0.1;
+            da.HorizontalFlip = true;
+            da.VerticalFlip = false;
+            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            //Mixup is discarded
+            da.AlphaMixup = 0.0;
+            da.AlphaCutMix = 1.0;
+            da.CutoutPatchPercentage = 0.0;
+            return builder;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="widthCoefficient">scaling coefficient for network width</param>
+        /// <param name="depthCoefficient">scaling coefficient for network depth</param>
+        /// <param name="defaultResolution">default input image size</param>
+        /// <param name="dropoutRate">dropout rate before final classifier layer</param>
+        /// <param name="blocks">A list of BlockDescription to construct block modules</param>
+        /// <param name="dropConnectRate">dropout rate at skip connections</param>
+        /// <param name="depthDivisor"></param>
+        /// <param name="modelName">model name</param>
+        /// <param name="includeTop">whether to include the fully-connected layer at the top of the network</param>
+        /// <param name="inputShape_CHW">optional shape tuple, only to be specified if `includeTop` is False.</param>
+        /// <param name="pooling">pooling: optional pooling mode for feature extraction
+        /// when `includeTop` is false:
+        ///       - `None`
+        ///                 means that the output of the model will be the 4D tensor output of the last convolutional layer.
+        ///       - `avg`
+        ///                 means that global average pooling will be applied to the output of the last convolutional layer,
+        ///                 and thus the output of the model will be a 2D tensor.
+        ///       - `max`
+        ///                 means that global max pooling will be applied
+        /// </param>
+        /// <param name="categories">optional number of classes to classify images  into, only to be specified if `include_top` is True, and if no `weights` argument is specified</param>
+        /// <returns></returns>
+        public Network EfficientNet(
+            float widthCoefficient,
+            float depthCoefficient,
+            int defaultResolution,
+            float dropoutRate, //= 0.2,
+            float dropConnectRate, // = 0.2,
+            int depthDivisor, //= 8,
+            List<MobileBlocksDescription> blocks,
+            string modelName, //= "efficientnet",
+            bool includeTop, //= true,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW,
+            POOLING_BEFORE_DENSE_LAYER pooling,
+            int categories //= 1000
+            )
+
+        {
+            blocks = blocks.Select(x => x.ApplyScaling(widthCoefficient, depthDivisor, depthCoefficient)).ToList();
+            var net = BuildEmptyNetwork(modelName);
+            var config = net.Config;
+
+            ///TODO compute actual inputShape_CHW
+            //inputShape_CHW = _obtain_input_shape(inputShape_CHW, default_size=defaultResolution, min_size=32, data_format="NCHW", require_flatten=includeTop, weights=weights)
+
+            var channelCount = inputShape_CHW[0];
+            var height = inputShape_CHW[1];
+            var width = inputShape_CHW[2];
+            net.Input(channelCount, height, width);
+
+            var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
+            //var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
+
+            //Build stem
+            var stemChannels = MobileBlocksDescription.RoundFilters(32, widthCoefficient, depthDivisor);
+            var stemStide = 2;
+            if (Math.Min(height, width) <= 32)
+            {
+                stemStide = 1;
+            }
+            net.Convolution(stemChannels, 3, stemStide, 1, config.lambdaL2Regularization, false, "stem_conv")
+                .BatchNorm("stem_bn")
+                .Activation(activation, "stem_activation");
+
+            //Build blocks
+            int numBlocksTotal = blocks.Select(x => x.NumRepeat).Sum();
+            int blockNum = 0;
+            for (int idx = 0; idx < blocks.Count ;++idx)
+            {
+                var block_arg = blocks[idx];
+                for (int bidx = 0; bidx < block_arg.NumRepeat; ++bidx)
+                {
+                    var layerPrefix = "block" + (idx + 1) + (char)('a' + bidx) + "_";
+                    var dropRate = (dropConnectRate * blockNum) / numBlocksTotal;
+                    if (bidx == 0)
+                    {
+                        //The first block needs to take care of stride and filter size increase.
+                        AddMBConvBlock(net, block_arg, dropRate, layerPrefix);
+                    }
+                    else
+                    {
+                        AddMBConvBlock(net, block_arg.WithStride(1, 1), dropRate, layerPrefix);
+                    }
+                    ++blockNum;
+                }
+            }
+
+            //# Build top
+            var outputChannelsTop = MobileBlocksDescription.RoundFilters(1280, widthCoefficient, depthDivisor);
+            net.Convolution(outputChannelsTop, 1, 1, 0, config.lambdaL2Regularization, false, "top_conv");
+            net.BatchNorm("top_bn");
+            net.Activation(activation, "top_activation");
+            if (includeTop)
+            {
+                net.GlobalAvgPooling("avg_pool");
+                if (dropoutRate > 0)
+                {
+                    net.Dropout(dropoutRate, "top_dropout");
+                }
+                net.Dense(categories, config.lambdaL2Regularization, "probs");
+                net.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            }
+            else
+            {
+                if (pooling == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling)
+                {
+                    net.GlobalAvgPooling("avg_pool");
+                }
+                else if (pooling == POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)
+                {
+                    net.GlobalMaxPooling("max_pool");
+                }
+            }
+
+            return net;
+        }
+
+        /// <summary>
+        /// Mobile Inverted Residual Bottleneck
+        /// </summary>
+        /// <param name="net"></param>
+        /// <param name="block_args"></param>
+        /// <param name="dropRate"></param>
+        /// <param name="inputChannels"></param>
+        private void AddMBConvBlock(Network net, MobileBlocksDescription block_args, float dropRate, string layerPrefix)
+        {
+            int inputChannels = net.Layers.Last().OutputShape(1)[1];
+            var inputLayerIndex = net.Layers.Last().LayerIndex;
+            
+            
+            var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
+            //var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
+
+            //Expansion phase
+            var config = net.Config;
+            var filters = inputChannels * block_args.ExpandRatio;
+            if (block_args.ExpandRatio != 1)
+            {
+                net.Convolution(filters, 1, 1, 0, config.lambdaL2Regularization, false, layerPrefix+"expand_conv")
+                    .BatchNorm(layerPrefix+"expand_bn")
+                    .Activation(activation, layerPrefix+ "expand_activation");
+            }
+
+            //Depthwise Convolution
+            net.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, block_args.KernelSize / 2, 1, config.lambdaL2Regularization, false, layerPrefix+"dwconv")
+                .BatchNorm(layerPrefix + "bn")
+                .Activation(activation, layerPrefix + "activation");
+
+            //Squeeze and Excitation phase
+            bool hasSe = block_args.SeRatio > 0 && block_args.SeRatio <= 1.0;
+            if (hasSe)
+            {
+                var xLayerIndex = net.Layers.Last().LayerIndex;
+                var num_reduced_filters = Math.Max(1, (int) (inputChannels * block_args.SeRatio));
+                net.GlobalAvgPooling(layerPrefix + "se_squeeze");
+                net.Convolution(num_reduced_filters, 1, 1, 0, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
+                    .Activation(activation);
+                net.Convolution(filters, 1, 1, 0, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
+                    .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                net.MultiplyLayer(net.Layers.Last().LayerIndex, xLayerIndex, layerPrefix + "se_excite");
+            }
+
+            //Output phase
+            net.Convolution(block_args.OutputFilters, 1, 1, 0, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
+            net.BatchNorm(layerPrefix + "project_bn");
+            if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels && dropRate > 0.00001)
+            {
+                net.Dropout(dropRate, layerPrefix + "drop");
+                net.AddLayer(net.Layers.Last().LayerIndex, inputLayerIndex, layerPrefix + "add");
+            }
+        }
+
+
+        public Network EfficientNetBX_CIFAR10(float widthCoefficient,
+                float depthCoefficient,
+                float dropoutRate,
+                float dropConnectRate,
+                string modelName)
+        {
+            return EfficientNet(widthCoefficient, depthCoefficient, 32 /*defaultResolution*/, dropoutRate,
+                dropConnectRate, 8, 
+                MobileBlocksDescription.Default(),
+                //BlocksDescription.Default().Select(x=>x.WithStride(1,1)).ToList(),
+                //BlocksDescription.Default().Select(x=>x.WithStride(1,1)).Take(1).ToList(),
+                //BlocksDescription.Default().Select(x=>x.WithKernelSize(3)).Take(4).ToList(),
+                //BlocksDescription.Default().Take(4).ToList(),
+                modelName,
+                true, //includeTop,
+                null, //weights,
+                new[] { 3, 32, 32 },
+                POOLING_BEFORE_DENSE_LAYER.NONE, // pooling,
+                10
+            );
+        }
+        public Network EfficientNetB0_CIFAR10()
+        {
+            return EfficientNetBX_CIFAR10(1.0f, 1.0f, 0.2f,
+                0.2f, "efficientnet-b0_CIFAR10");
+        }
+
+        public Network EfficientNetB0(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(1.0f, 1.0f, 224, 0.2f, 
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b0", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+
+        public Network EfficientNetB1(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(1.0f, 1.0f, 224, 0.2f,
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b1", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+
+        public Network EfficientNetB2(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(1.1f, 1.2f,  260, 0.3f, 
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b2", includeTop, weights, inputShape_CHW,  pooling, categories);
+        }
+
+        public Network EfficientNetB3(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(1.2f, 1.4f, 300, 0.3f,
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b3", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+
+        public Network EfficientNetB4(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(1.4f, 1.8f, 380, 0.4f,
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b4", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+
+        public Network EfficientNetB5(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(1.6f, 2.2f, 456, 0.4f,
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b5", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+
+        public Network EfficientNetB6(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(1.8f, 2.6f, 528, 0.5f,
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b6", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+
+        public Network EfficientNetB7(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(2.0f, 3.1f, 600, 0.5f,
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b7", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+
+        public Network EfficientNetL2(
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
+            int categories //= 1000
+        )
+        {
+            return EfficientNet(4.3f, 5.3f, 800, 0.5f,
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-l2", includeTop, weights, inputShape_CHW, pooling, categories);
+        }
+    }
+}

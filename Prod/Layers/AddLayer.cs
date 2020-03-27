@@ -11,7 +11,7 @@ namespace SharpNet.Layers
     {
         public override Tensor y { get; protected set; }
 
-        public AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network) : base(network, previousResidualLayerIndex)
+        public AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network, string layerName = "") : base(network, previousResidualLayerIndex, layerName)
         {
             Debug.Assert(LayerIndex>=2);
             Debug.Assert(previousIdentityLayerIndex >= 0);

@@ -15,7 +15,7 @@ namespace SharpNet.Layers
         public cudnnActivationMode_t ActivationFunction { get; }
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public ActivationLayer(cudnnActivationMode_t activationFunctionType, Network network) : base(network)
+        public ActivationLayer(cudnnActivationMode_t activationFunctionType, Network network, string layerName) : base(network, layerName)
         {
             ActivationFunction = activationFunctionType;
         }
@@ -78,9 +78,6 @@ namespace SharpNet.Layers
         {
             EmbeddedTensors.ForEach(x => x?.Dispose());
         }
-
-        public override string SummaryName() { return "activation_" + (1 + NbLayerOfSameTypeBefore()); }
-        public override string Type() { return ToString(ActivationFunction); }
         private static string ToString(cudnnActivationMode_t activationFunction)
         {
             return activationFunction.ToString().Replace("CUDNN_ACTIVATION_", "");

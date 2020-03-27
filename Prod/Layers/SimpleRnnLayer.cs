@@ -65,7 +65,7 @@ namespace SharpNet.Layers
         #endregion
 
         //No need to configure the number of x time step : it is always the same as in previous layer number of channels
-        public SimpleRnnLayer(int xLength, int aLength, int yLength, bool returnSequences, Network network) : base(network)
+        public SimpleRnnLayer(int xLength, int aLength, int yLength, bool returnSequences, Network network, string layerName) : base(network, layerName)
         {
             _timeSteps_x = PrevLayer.OutputShape(1)[1];
             _xLength = xLength;

@@ -11,7 +11,7 @@ namespace SharpNet.Layers
     {
         public override Tensor y { get; protected set; }
 
-        public MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2, Network network) : base(network, previousLayerIndex2)
+        public MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2, Network network, string layerName) : base(network, previousLayerIndex2, layerName)
         {
             Debug.Assert(LayerIndex >= 2);
             Debug.Assert(previousLayerIndex1 >= 0);
@@ -19,8 +19,6 @@ namespace SharpNet.Layers
             //we add the identity shortcut connection
             AddPreviousLayer(previousLayerIndex1);
 
-            var result1 = PreviousLayer1.OutputShape(1);
-            var result2 = PreviousLayer2.OutputShape(1);
             if (!ValidLayerShapeToMultiply(PreviousLayer1.OutputShape(1), PreviousLayer2.OutputShape(1)))
             {
                 throw new ArgumentException("invalid layers to multiply between " + PreviousLayer1 + " and " + previousLayerIndex2);
@@ -61,7 +59,6 @@ namespace SharpNet.Layers
             }
             return layerShape1.SequenceEqual(layerShape2);
         }
-
 
         public override Layer Clone(Network newNetwork) { return new MultiplyLayer(this, newNetwork); }
         private MultiplyLayer(MultiplyLayer toClone, Network newNetwork) : base(toClone, newNetwork) { }

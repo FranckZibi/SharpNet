@@ -1,14 +1,16 @@
-﻿using SharpNet.Datasets;
+﻿using NUnit.Framework;
+using SharpNet.Datasets;
 using SharpNet.Networks;
 
 namespace SharpNetTests.Optimizers
 {
-    // ReSharper disable once UnusedMember.Global
-    public static class LearningRateFinderTests
+    [TestFixture]
+    public class LearningRateFinderTests
     {
-        // ReSharper disable once UnusedMember.Global
-        public static void TestLearningRateFinderTests_ResNet20V1_CIFAR10(ResNetBuilder param)
+        [Test, Explicit]
+        public void TestLearningRateFinderTests_ResNet20V1_CIFAR10()
         {
+            var param = new ResNetBuilder();
             using (var cifar10 = new CIFAR10DataSet())
             using (var network = param.ResNet20V1_CIFAR10(cifar10))
             {

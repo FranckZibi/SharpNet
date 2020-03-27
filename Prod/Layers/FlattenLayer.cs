@@ -8,7 +8,7 @@ namespace SharpNet.Layers
     public class FlattenLayer : Layer
     {
         public override Tensor y { get; protected set; }
-        public FlattenLayer(Network network) : base(network)
+        public FlattenLayer(Network network, string layerName = "") : base(network, layerName)
         {
         }
 
@@ -37,6 +37,6 @@ namespace SharpNet.Layers
             dy.CopyTo(dx[0]);
         }
         public override int[] OutputShape(int batchSize) {return new []{batchSize, PrevLayer.n_x};}
-        public override List<Tensor> TensorsIndependantOfBatchSize => new List<Tensor>();
+        public override List<Tensor> TensorsIndependentOfBatchSize => new List<Tensor>();
     }
 }

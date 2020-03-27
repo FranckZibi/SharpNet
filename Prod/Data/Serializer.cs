@@ -38,6 +38,7 @@ namespace SharpNet.Data
         }
         public Serializer Add(string description, string value)
         {
+            value = (value ?? "").Replace(';', '_');
             _sb.Append("string;" + description + ";" + value + ";");
             return this;
         }

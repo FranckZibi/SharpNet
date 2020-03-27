@@ -14,7 +14,7 @@ namespace SharpNet.Layers
         public override Tensor y { get; protected set; }            // (batchSize, InputLayer.ChannelCount, InputLayer.H, InputLayer.Weights)
         #endregion
 
-        public InputLayer(int channelCount, int h, int w, Network network) : base(network)
+        public InputLayer(int channelCount, int h, int w, Network network, string layerName) : base(network, layerName)
         {
             this.ChannelCount = channelCount;
             this.H = h;
@@ -65,16 +65,16 @@ namespace SharpNet.Layers
         public override int[] OutputShape(int batchSize) { return new[] { batchSize, ChannelCount, H, W }; }
         public override string ToString()
         {
-            var result = SummaryName() + ": " + Utils.ShapeToStringWithBacthSize(OutputShape(1));
+            var result = LayerName + ": " + Utils.ShapeToStringWithBacthSize(OutputShape(1));
             result += " ("+MemoryDescription()+")";
             return result;
         }
 
-        public override string SummaryName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
+        protected override string DefaultLayerName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
         public override string Type() { return "InputLayer"; }
         public override void Dispose()
         {
-            //do not dipose y
+            //do not dispose y
         }
     }
 }

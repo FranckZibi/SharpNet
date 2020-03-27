@@ -1,5 +1,4 @@
 ﻿using System.Linq;
-using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 
@@ -208,33 +207,7 @@ namespace SharpNet.Networks
         /// </summary>
         public double WRN_DropOut { get; set; }
         public double WRN_DropOutAfterDenseLayer { get; set; }
-
-        public enum POOLING_BEFORE_DENSE_LAYER
-        {
-            /* we'll use an Average Pooling layer of size [2 x 2] before the Dense layer*/
-            AveragePooling_2,
-            /* we'll use an Average Pooling layer of size [8 x 8] before the Dense layer*/
-            AveragePooling_8,
-
-            /* We'll use a Global Average Pooling (= GAP) layer just before the last Dense (= fully connected) Layer
-            This GAP layer will transform the input feature map of shape (n,c,h,w)
-            to an output feature map of shape (n,c,1,1),
-            so that this output feature map is independent of the the size of the input */
-            GlobalAveragePooling,
-
-            /* we'll use a Global Average Pooling layer concatenated with a Global Max Pooling layer before the Dense Layer
-            This will transform the input feature map of shape (n,c,h,w)
-            to an output feature map of shape (n, 2*c, 1, 1),
-            so that this output feature map is independent of the the size of the input */
-            GlobalAveragePooling_And_GlobalMaxPooling,
-
-            /* We'll use a Global Max Pooling layer just before the last Dense (= fully connected) Layer
-            This will transform the input feature map of shape (n,c,h,w)
-            to an output feature map of shape (n,c,1,1),
-            so that this output feature map is independent of the the size of the input */
-            GlobalMaxPooling
-        };
-
+        
         public POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeDenseLayer { get; set; } = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;
 
         /// <summary>

@@ -34,8 +34,8 @@ namespace SharpNet.Layers
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public ConvolutionLayer(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network)
-            : base(network, previousLayerIndex)
+        public ConvolutionLayer(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network, string layerName)
+            : base(network, previousLayerIndex, layerName)
         {
             _filtersCount = filtersCount;
             _f = f;
@@ -187,7 +187,7 @@ namespace SharpNet.Layers
 
         public override string ToString()
         {
-            var result = SummaryName()+": " + ShapeChangeDescription();
+            var result = LayerName+": " + ShapeChangeDescription();
             result += " padding=" + _padding + " stride=" + _stride;
             result += " Filter"+ Utils.ShapeToString(Convolution?.Shape);
             result += (UseBias)?" with Bias":" no Bias";
@@ -229,7 +229,7 @@ namespace SharpNet.Layers
         }
 
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
-        public override List<Tensor> TensorsIndependantOfBatchSize
+        public override List<Tensor> TensorsIndependentOfBatchSize
         {
             get
             {

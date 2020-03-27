@@ -26,7 +26,7 @@ namespace SharpNet.Layers
 
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
 
-        public DenseLayer(int n_x, double lambdaL2Regularization, Network network) : base(network)
+        public DenseLayer(int n_x, double lambdaL2Regularization, Network network, string layerName) : base(network, layerName)
         {
             _n_x = n_x;
             _lambdaL2Regularization = lambdaL2Regularization;
@@ -174,8 +174,7 @@ namespace SharpNet.Layers
         }
         public override string ToString()
         {
-            string layerName = SummaryName();
-            string result = layerName+": "+ShapeChangeDescription();
+            var result = LayerName+": "+ShapeChangeDescription();
             if (UseL2Regularization)
             {
                 result += " with L2Regularization[lambdaValue=" + _lambdaL2Regularization + "]";
@@ -190,7 +189,7 @@ namespace SharpNet.Layers
         }
         public override int TotalParams => (Weights?.Count??0) + (Bias?.Count??0);
 
-        public override List<Tensor> TensorsIndependantOfBatchSize
+        public override List<Tensor> TensorsIndependentOfBatchSize
         {
             get
             {

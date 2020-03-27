@@ -12,7 +12,7 @@ namespace SharpNet.Layers
     {
         public override Tensor y { get; protected set; }
 
-        public ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2, Network network) : base(network, previousLayerIndex1)
+        public ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2, Network network, string layerName) : base(network, previousLayerIndex1, layerName)
         {
             Debug.Assert(LayerIndex>=2);
             Debug.Assert(previousLayerIndex1 >= 0);

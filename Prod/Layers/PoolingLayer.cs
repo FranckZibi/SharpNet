@@ -33,7 +33,7 @@ namespace SharpNet.Layers
         /// <param name="poolingStride"></param>
         /// <param name="previousLayerIndex"></param>
         /// <param name="network"></param>
-        public PoolingLayer(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, Network network) : base(network, previousLayerIndex)
+        public PoolingLayer(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, Network network, string layerName) : base(network, previousLayerIndex, layerName)
         {
             _poolingMode = poolingMode;
             _poolingHeight = poolingHeight;
@@ -95,7 +95,7 @@ namespace SharpNet.Layers
             _poolingStride = (int)serialized[nameof(_poolingStride)];
         }
         #endregion
-        public override string SummaryName()
+        protected override string DefaultLayerName()
         {
             return (IsMaxPooling(_poolingMode) ? "max_pooling2d_" : "average_pooling2d_") + (1 + NbLayerOfSameTypeBefore());
         }
@@ -107,7 +107,7 @@ namespace SharpNet.Layers
         }
         public override string ToString()
         {
-            var result = SummaryName()+": " + ShapeChangeDescription() + " size=["+_poolingHeight+"x"+_poolingWidth+"] stride="+_poolingStride;
+            var result = LayerName +": " + ShapeChangeDescription() + " size=["+_poolingHeight+"x"+_poolingWidth+"] stride="+_poolingStride;
             result += " (" + MemoryDescription() + ")";
             return result;
         }

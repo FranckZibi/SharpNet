@@ -200,30 +200,30 @@ namespace SharpNet.Networks
         }
 
         #region network construction: adding layers
-        public Network Input(int channelCount, int h, int w)
+        public Network Input(int channelCount, int h, int w, string layerName = "")
         {
-            Layers.Add(new InputLayer(channelCount, h, w, this));
+            Layers.Add(new InputLayer(channelCount, h, w, this, layerName));
             return this;
         }
         
-        public Network SimpleRnnLayer(int xLength, int aLength, int yLength, bool returnSequences)
+        public Network SimpleRnnLayer(int xLength, int aLength, int yLength, bool returnSequences, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var simpleRnnLayer = new SimpleRnnLayer(xLength, aLength, yLength, returnSequences, this);
+            var simpleRnnLayer = new SimpleRnnLayer(xLength, aLength, yLength, returnSequences, this, layerName);
             Layers.Add(simpleRnnLayer);
             return this;
         }
-        public Network Dense(int n_x, double lambdaL2Regularization)
+        public Network Dense(int n_x, double lambdaL2Regularization, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(n_x, lambdaL2Regularization, this);
+            var fullyConnectedLayer = new DenseLayer(n_x, lambdaL2Regularization, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
 
         public Network Convolution_BatchNorm(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
         {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, true)
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, false)
                 .BatchNorm();
         }
         public Network Convolution_BatchNorm_Activation(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
@@ -242,20 +242,20 @@ namespace SharpNet.Networks
                 .Activation(activationFunction)
                 .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, useBias);
         }
-        public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex)
+        public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, string layerName = "")
         {
-            Layers.Add(new AddLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this));
+            Layers.Add(new AddLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this, layerName));
             Debug.Assert(Layers[previousIdentityLayerIndex].SameOutputShape(Layers[previousResidualLayerIndex]));
             return this;
         }
-        public Network ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2)
+        public Network ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2, string layerName = "")
         {
-            Layers.Add(new ConcatenateLayer(previousLayerIndex1, previousLayerIndex2, this));
+            Layers.Add(new ConcatenateLayer(previousLayerIndex1, previousLayerIndex2, this, layerName));
             return this;
         }
-        public Network MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2)
+        public Network MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2, string layerName = "")
         {
-            Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndex2, this));
+            Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndex2, this, layerName));
             return this;
         }
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
@@ -278,73 +278,78 @@ namespace SharpNet.Networks
             }
             return this;
         }
-        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias)
+        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, Layers.Count - 1);
+            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
         }
-        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex)
+        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this));
+            Layers.Add(new ConvolutionLayer(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
             return this;
         }
-        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias)
+        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
-            return DepthwiseConvolution(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, Layers.Count - 1);
+            return DepthwiseConvolution(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
         }
-        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, int previousLayerIndex)
+        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new DepthwiseConvolutionLayer(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, previousLayerIndex, this));
+            Layers.Add(new DepthwiseConvolutionLayer(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
             return this;
         }
-        public Network Dropout(double dropProbability)
+        public Network Dropout(double dropProbability, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new DropoutLayer(dropProbability, this));
+            Layers.Add(new DropoutLayer(dropProbability, this, layerName));
             return this;
         }
-        public Network Activation(cudnnActivationMode_t activationFunction)
+        public Network Activation(cudnnActivationMode_t activationFunction, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ActivationLayer(activationFunction, this));
+            Layers.Add(new ActivationLayer(activationFunction, this, layerName));
             return this;
         }
 
-        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride)
+        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, string layerName = "")
         {
-            return MaxPooling(poolingHeight, poolingWidth, poolingStride, Layers.Count-1);
+            return MaxPooling(poolingHeight, poolingWidth, poolingStride, Layers.Count-1, layerName);
         }
 
-        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex)
+        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, string layerName)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this));
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this, layerName));
             return this;
         }
-        public Network AvgPooling(int poolingHeight, int poolingWidth, int poolingStride)
+        public Network AvgPooling(int poolingHeight, int poolingWidth, int poolingStride, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             int previousLayerIndex = Layers.Count-1;
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this));
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this, layerName));
             return this;
         }
-        public Network GlobalAvgPooling()
+        public Network GlobalAvgPooling(string layerName = "")
         {
             var lastLayerShape = Layers.Last().OutputShape(1);
             var lastLayerHeight = lastLayerShape[2];
             var lastLayerWidth = lastLayerShape[3];
             var poolingStride = Math.Max(lastLayerHeight, lastLayerWidth);
-            return AvgPooling(lastLayerHeight, lastLayerWidth, poolingStride);
+            return AvgPooling(lastLayerHeight, lastLayerWidth, poolingStride, layerName);
         }
 
-        public Network GlobalMaxPooling(int previousLayerIndex)
+        public Network GlobalMaxPooling(string layerName = "")
+        {
+            return GlobalMaxPooling(Layers.Count - 1, layerName);
+        }
+
+        public Network GlobalMaxPooling(int previousLayerIndex, string layerName = "")
         {
             var previousLayerShape = Layers[previousLayerIndex].OutputShape(1);
             var previousLayerHeight = previousLayerShape[2];
             var previousLayerWidth = previousLayerShape[3];
             var poolingStride = Math.Max(previousLayerHeight, previousLayerWidth);
-            return MaxPooling(previousLayerHeight, previousLayerWidth, poolingStride, previousLayerIndex);
+            return MaxPooling(previousLayerHeight, previousLayerWidth, poolingStride, previousLayerIndex, layerName);
         }
 
         public Network GlobalAvgPooling_And_GlobalMaxPooling()
@@ -357,10 +362,10 @@ namespace SharpNet.Networks
             return ConcatenateLayer(globalAvgPoolingLayerIndex, globalMaxPoolingLayerIndex);
         }
 
-        public Network BatchNorm(double momentum = 0.99, double epsilon = 1e-5)
+        public Network BatchNorm(string layerName = "", double momentum = 0.99, double epsilon = 1e-5)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new BatchNormalizationLayer(momentum, epsilon, this));
+            Layers.Add(new BatchNormalizationLayer(momentum, epsilon, this, layerName));
             return this;
         }
         public Network Dense_Activation(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
@@ -441,7 +446,7 @@ namespace SharpNet.Networks
             foreach (var l in Layers)
             {
                 var outputShape = Utils.ShapeToStringWithBacthSize(l.OutputShape(1));
-                var firstColumn = l.SummaryName()+" ("+l.Type()+")";
+                var firstColumn = l.LayerName+" ("+l.Type()+")";
                 if (firstColumn.Length > firstColumnWidth - 1)
                 {
                     firstColumn = firstColumn.Substring(0, firstColumnWidth-1);
@@ -471,17 +476,17 @@ namespace SharpNet.Networks
             foreach (var l in Layers)
             {
                 var outputShape = Utils.ShapeToStringWithBacthSize(l.OutputShape(1));
-                var firstColumn = l.SummaryName() + " (" + l.Type() + ")";
+                var firstColumn = l.LayerName + " (" + l.Type() + ")";
                 if (firstColumn.Length > firstColumnWidth - 1)
                 {
                     firstColumn = firstColumn.Substring(0, firstColumnWidth - 1);
                 }
                 var previousLayers = l.PreviousLayers.OrderBy(x=>x.LayerIndex).ToList();
-                var firstPreviousLayer = (previousLayers.Count == 0 ? "" : previousLayers[0].SummaryName()+"[0][0]");
+                var firstPreviousLayer = (previousLayers.Count == 0 ? "" : previousLayers[0].LayerName+"[0][0]");
                 result += ($"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}{firstPreviousLayer,-forthColumnWidth}").TrimEnd() + Environment.NewLine;
                 for (int i = 1; i < previousLayers.Count; ++i)
                 {
-                    result += ($"{"",-(firstColumnWidth+secondColumnWidth+thirdColumnWidth)}{previousLayers[i].SummaryName() + "[0][0]",-forthColumnWidth}").TrimEnd() + Environment.NewLine;
+                    result += ($"{"",-(firstColumnWidth+secondColumnWidth+thirdColumnWidth)}{previousLayers[i].LayerName + "[0][0]",-forthColumnWidth}").TrimEnd() + Environment.NewLine;
                 }
                 result += (l.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
@@ -538,7 +543,7 @@ namespace SharpNet.Networks
         }
         public List<Tensor> TensorsIndependantOfBatchSize
         {
-            get { return Layers.SelectMany(x => x.TensorsIndependantOfBatchSize).Where(x => x != null).ToList(); }
+            get { return Layers.SelectMany(x => x.TensorsIndependentOfBatchSize).Where(x => x != null).ToList(); }
         }
         public int TotalParams => Layers.Select(x => x.TotalParams).Sum();
       
@@ -842,7 +847,7 @@ namespace SharpNet.Networks
             foreach (var l in Layers)
             {
                 sb.Append(new string('-',80)+Environment.NewLine);
-                sb.Append("Layer:" + l.SummaryName() + Environment.NewLine);
+                sb.Append("Layer:" + l.LayerName + Environment.NewLine);
                 var contentStats = l.ContentStats();
                 if (!string.IsNullOrEmpty(contentStats))
                 {
@@ -891,7 +896,7 @@ namespace SharpNet.Networks
             }
         }
 
-        private ulong BytesIndependantOfBatchSize => Layers.Select(x => x.BytesIndependantOfBatchSize).Sum();
+        private ulong BytesIndependantOfBatchSize => Layers.Select(x => x.BytesIndependentOfBatchSize).Sum();
 
         private Tensor ReformatToCorrectDevice_GPU_or_CPU(Tensor X)
         {

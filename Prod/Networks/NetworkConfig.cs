@@ -62,7 +62,7 @@ namespace SharpNet.Networks
         /// Used only for debugging 
         /// </summary>
         public bool DisplayTensorContentStats{ get; set; }
-        public bool ProfileApplication { get; } = true;
+        public bool ProfileApplication { get; set; } = true;
 
         /// <summary>
         /// Interval in minutes for saving the network
