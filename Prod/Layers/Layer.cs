@@ -240,15 +240,17 @@ namespace SharpNet.Layers
             switch (layerType)
             {
                 case nameof(ActivationLayer): return new ActivationLayer(serialized, network);
+                case nameof(AddLayer): return new AddLayer(serialized, network);
                 case nameof(BatchNormalizationLayer): return new BatchNormalizationLayer(serialized, network);
+                case nameof(ConcatenateLayer): return new ConcatenateLayer(serialized, network);
                 case nameof(ConvolutionLayer): return new ConvolutionLayer(serialized, network);
                 case nameof(DenseLayer): return new DenseLayer(serialized, network);
+                case nameof(DepthwiseConvolutionLayer): return new DepthwiseConvolutionLayer(serialized, network);
                 case nameof(DropoutLayer): return new DropoutLayer(serialized, network);
+                case nameof(FlattenLayer): return new FlattenLayer(serialized, network);
                 case nameof(InputLayer): return new InputLayer(serialized, network);
                 case nameof(PoolingLayer): return new PoolingLayer(serialized, network);
-                case nameof(FlattenLayer): return new FlattenLayer(serialized, network);
-                case nameof(AddLayer): return new AddLayer(serialized, network);
-                case nameof(ConcatenateLayer): return new ConcatenateLayer(serialized, network);
+                case nameof(MultiplyLayer): return new MultiplyLayer(serialized, network);
                 default: throw new NotImplementedException("don't know how to deserialize " + layerType);
             }
         }

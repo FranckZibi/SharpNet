@@ -8,6 +8,7 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>TRACE;HDF5_VER1_10</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -23,6 +24,13 @@
 	<PackageReference Include="HDF.PInvoke" Version="1.10.6.1" />
     <Compile Remove="Properties\AssemblyInfo.cs" />
     <None Remove="packages.config" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="HDF.PInvoke">
+      <HintPath>..\Dependencies\HDF.PInvoke.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>

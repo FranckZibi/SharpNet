@@ -14,11 +14,6 @@ namespace SharpNet.GPU
             var res = NVCudaWrapper.cuStreamCreate(out _streamHandle, 0);
             GPUWrapper.CheckStatus(res);
         }
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
         public IntPtr StreamHandle => _streamHandle;
         public void Synchronize()
         {
@@ -26,6 +21,12 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res);
         }
 
+        #region Dispose pattern
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
         ~StreamWrapper()
         {
             Dispose(false);
@@ -39,9 +40,12 @@ namespace SharpNet.GPU
             _disposed = true;
             if (disposing)
             {
-                var cuRes = NVCudaWrapper.cuStreamDestroy_v2(_streamHandle);
-                GPUWrapper.CheckStatus(cuRes);
+                //managed memory
             }
+            //unmanaged memory
+            var cuRes = NVCudaWrapper.cuStreamDestroy_v2(_streamHandle);
+            GPUWrapper.CheckStatus(cuRes);
         }
+        #endregion
     }
 }

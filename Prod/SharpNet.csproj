@@ -22,5 +22,13 @@
     <Compile Remove="Properties\AssemblyInfo.cs" />
     <None Remove="packages.config" />
   </ItemGroup>
+  
+  <ItemGroup>
+		<Reference Include="HDF.PInvoke">
+		  <HintPath>..\Dependencies\HDF.PInvoke.dll</HintPath>
+		  <Private>true</Private>
+		</Reference>
+  </ItemGroup>
+
 
 </Project>

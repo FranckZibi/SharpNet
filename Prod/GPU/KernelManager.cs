@@ -129,6 +129,7 @@ namespace SharpNet.GPU
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
         ~KernelManager()
         {
@@ -138,12 +139,9 @@ namespace SharpNet.GPU
         {
             if (disposing)
             {
-                GC.SuppressFinalize(this);
+                //managed Memory
             }
-
-            if (disposing)
-            {
-            }
+            //unmanaged memory
         }
         #endregion
 

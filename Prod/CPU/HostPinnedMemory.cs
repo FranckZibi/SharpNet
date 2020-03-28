@@ -41,6 +41,7 @@ namespace SharpNet.CPU
                     _handle.Free();
                 }
             }
+            //unmanaged memory
             Pointer = IntPtr.Zero;
         }
         ~HostPinnedMemory()
