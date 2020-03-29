@@ -2,10 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using HDF.PInvoke;
-
+using H5FileId = System.Int64;
 using H5GroupId = System.Int64;
-using H5DatasetId = System.Int64;
-using H5ObjectId = System.Int64;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Data
 {
@@ -13,7 +12,7 @@ namespace SharpNet.Data
     {
         #region private fields
         private readonly string _filePath;
-        private Int64 _fileId;
+        private readonly H5FileId _fileId;
         private bool _disposed;
         #endregion
 
@@ -23,88 +22,60 @@ namespace SharpNet.Data
             {
                 throw new ArgumentException("missing file "+filePath);
             }
-
             _filePath = filePath;
             _fileId = H5F.open(filePath, H5F.ACC_RDONLY);
         }
 
         /// <summary>
-        /// return all dataSets contained in the current file starting for 'groupPath'
+        /// list of all dataset objects paths contained in a specific group.
+        /// only the names (paths) of the dataset are returned (not the dataset content)
         /// </summary>
-        /// <returns>
-        /// A list of dataset. for each element of the list:
-        ///     Item1: full path to the data set
-        ///     Item2: shape of the data set
-        /// </returns>
+        /// <param name="groupPath">group where to look for datasets</param>
+        /// <returns>list of all dataset paths contained in the group</returns>
+        // ReSharper disable once MemberCanBePrivate.Global
         public List<string> DatasetPaths(string groupPath = "/")
         {
             H5GroupId groupId = H5G.open(_fileId, groupPath);
             var result = new List<string>();
-            foreach (var objectName in HDFUtils.ObjectPaths(groupId))
+            foreach (var objectName in HDFUtils.ObjectNames(groupId))
             {
-                var objectType = HDFUtils.GetObjectType(groupId, objectName);
                 var objectPath = HDFUtils.Join(groupPath, objectName);
+                var objectType = HDFUtils.GetObjectType(groupId, objectName);
                 if (objectType == H5O.type_t.DATASET)
                 {
-                    H5DatasetId datasetId = H5D.open(_fileId, objectPath);
                     result.Add(objectPath);
-                    H5D.close(datasetId);
                 }
                 else if (objectType == H5O.type_t.GROUP)
                 {
                     result.AddRange(DatasetPaths(objectPath));
                 }
+                else
+                {
+                    throw new NotImplementedException("can't process object type "+objectType+" for path "+objectPath+" in file "+_filePath );
+                }
             }
             H5G.close(groupId);
             return result;
         }
 
         /// <summary>
-        /// content of value dataset (dataset with float/double/byte/long/int, excluding string)
+        /// all dataset objects in the provided group path
         /// </summary>
-        /// <param name="groupPath"></param>
-        /// <returns></returns>
-        public List<Tuple<string, Tensor>> ValueDatasetsContent(string groupPath = "/")
+        /// <param name="groupPath">group where to look for datasets</param>
+        /// <returns>the  list of all datasets contained in the group</returns>
+        public List<Tuple<string, Tensor>> Datasets(string groupPath = "/")
         {
             H5GroupId groupId = H5G.open(_fileId, groupPath);
             var result = new List<Tuple<string, Tensor>>();
-            foreach (var objectPath in DatasetPaths(groupPath))
-            {
-                H5DatasetId datasetId = H5D.open(_fileId, objectPath);
-                if (!HDFUtils.IsStringDataSet(datasetId))
-                {
-                    Tensor tensor = HDFUtils.LoadTensor<float>(_fileId, objectPath);
-                    result.Add(Tuple.Create(objectPath, tensor));
-                }
-                H5D.close(datasetId);
-            }
-            H5G.close(groupId);
-            return result;
-        }
-
-
-        /// <summary>
-        /// content of label dataset 
-        /// </summary>
-        /// <param name="groupPath"></param>
-        /// <returns></returns>
-        public List<Tuple<string, List<string>>> LabelDatasetsContent(string groupPath = "/")
-        {
-            H5GroupId groupId = H5G.open(_fileId, groupPath);
-            var result = new List<Tuple<string, List<string>>>();
             foreach (var datasetPath in DatasetPaths(groupPath))
             {
-                H5DatasetId datasetId = H5D.open(_fileId, datasetPath);
-                if (HDFUtils.IsStringDataSet(datasetId))
-                {
-                    var labelNames = HDFUtils.LoadLabelDataset(groupId, datasetPath);
-                    result.Add(Tuple.Create(datasetPath, labelNames));
-                }
-                H5D.close(datasetId);
+                var tensor = HDFUtils.SingleDataset(groupId, datasetPath);
+                result.Add(Tuple.Create(datasetPath, tensor));
             }
             H5G.close(groupId);
             return result;
         }
+
         public override string ToString()
         {
             return _filePath;
@@ -131,7 +102,6 @@ namespace SharpNet.Data
             if (_fileId != 0)
             {
                 H5F.close(_fileId);
-                _fileId = 0;
             }
         }
         ~H5File()
@@ -139,6 +109,5 @@ namespace SharpNet.Data
             Dispose(false);
         }
         #endregion
-
     }
 }

@@ -13,6 +13,13 @@ namespace SharpNetTests
     {
         private static void Main()
         {
+
+            //var catvnoncat = new SharpNet.Data.H5File(@"C:\Download\train_catvnoncat.h5").Datasets();
+            //var signs = new SharpNet.Data.H5File(@"C:\Download\train_signs.h5").Datasets();
+            //var efficientnetb0 = new SharpNet.Data.H5File(@"C:\Users\fzibi\.keras\models\efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5").Datasets();
+
+
+
             //var dogsVsCatDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train";
             //var original = DogsVsCats.ValueOf(dogsVsCatDirectory, null);
             //var filtered = original.Filter(x => 1.2*Math.Min(x.GetWidth(),x.GetHeight()) > Math.Max(x.GetWidth(), x.GetHeight()));
@@ -25,7 +32,7 @@ namespace SharpNetTests
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
-            EfficientNetTests();
+            //EfficientNetTests();
 
             //((AbstractDataSet) new CIFAR10DataSet().Training).BenchmarkDataAugmentation(128, false);
 

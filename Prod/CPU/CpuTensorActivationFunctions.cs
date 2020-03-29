@@ -8,7 +8,7 @@ namespace SharpNet.CPU
     public static class CpuTensorActivationFunctions
     {
         #region Softmax
-        public static void Softmax<T>(CpuTensor<T> X, Tensor Y) where T : struct
+        public static void Softmax<T>(CpuTensor<T> X, Tensor Y)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {X, Y}));
             var batchSize = X.Shape[0];
@@ -52,7 +52,7 @@ namespace SharpNet.CPU
         #endregion
 
         #region Swish
-        public static void Swish<T>(CpuTensor<T> X, Tensor Y) where T : struct
+        public static void Swish<T>(CpuTensor<T> X, Tensor Y)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> { X, Y }));
             X.AsFloatCpu.Map(x => (float)(x / (1 + Math.Exp(-x))), Y.AsFloatCpu);
@@ -70,7 +70,7 @@ namespace SharpNet.CPU
         #endregion
 
         #region Tanh
-        public static void Tanh<T>(CpuTensor<T> X, Tensor Y) where T : struct
+        public static void Tanh<T>(CpuTensor<T> X, Tensor Y)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {X, Y}));
             //X.AsFloatCpu.Map(x => (float) (1.7159 * Math.Tanh(0.66666667 * x)), Y.AsFloatCpu);
@@ -84,7 +84,7 @@ namespace SharpNet.CPU
         #endregion
 
         #region Relu
-        public static void Relu<T>(CpuTensor<T> X, Tensor Y) where T : struct
+        public static void Relu<T>(CpuTensor<T> X, Tensor Y)
         {
             X.AsFloatCpu.Map(x => Math.Max(0, x), Y.AsFloatCpu);
         }
@@ -96,7 +96,7 @@ namespace SharpNet.CPU
         #endregion
 
         #region Elu
-        public static void Elu<T>(CpuTensor<T> X, Tensor Y, double alpha) where T : struct
+        public static void Elu<T>(CpuTensor<T> X, Tensor Y, double alpha)
         {
             X.AsFloatCpu.Map(x => (x >= 0) ? x : (float)(alpha * (Math.Exp(x) - 1)), Y.AsFloatCpu);
         }
@@ -108,7 +108,7 @@ namespace SharpNet.CPU
         #endregion
 
         #region Sigmoid
-        public static void Sigmoid<T>(CpuTensor<T> X, Tensor Y) where T : struct
+        public static void Sigmoid<T>(CpuTensor<T> X, Tensor Y)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {X, Y}));
             X.AsFloatCpu.Map(x => (float) (1 / (1 + Math.Exp(-x))), Y.AsFloatCpu);

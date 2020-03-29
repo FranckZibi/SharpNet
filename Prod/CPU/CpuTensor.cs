@@ -10,17 +10,21 @@ using SharpNet.Networks;
 
 namespace SharpNet.CPU
 {
-    public class CpuTensor<T> : Tensor where T : struct
+    public class CpuTensor<T> : Tensor
     {
         #region fields
         public T[] Content { get; private set; }
         private HostPinnedMemory<T> _hostPinnedMemory;
         #endregion
 
-        public CpuTensor(int[] shape, T[] data, string description) : base(shape, Marshal.SizeOf(typeof(T)), false, description)
+        public CpuTensor(int[] shape, T[] data, int typeSize, string description) : base(shape, typeSize, false, description)
         {
             Content = data ?? new T[Count];
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
+        }
+
+        public CpuTensor(int[] shape, T[] data, string description) : this(shape, data, Marshal.SizeOf(typeof(T)), description)
+        {
         }
         public CpuTensor(int[] shape, string description) : this(shape, null, description)
         {

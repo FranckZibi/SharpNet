@@ -40,7 +40,7 @@ namespace SharpNet.Pictures
             return result;
         }
         // ReSharper disable once UnusedMember.Global
-        public static void SaveBitmap<T>(CpuTensor<T> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix) where T : struct
+        public static void SaveBitmap<T>(CpuTensor<T> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
         {
             switch (Marshal.SizeOf(typeof(T)))
             {

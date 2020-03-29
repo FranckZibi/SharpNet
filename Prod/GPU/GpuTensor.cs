@@ -9,7 +9,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.GPU
 {
-    public sealed unsafe class GPUTensor<T> : Tensor where T : struct
+    public sealed unsafe class GPUTensor<T> : Tensor
     {
         #region Private fields
         private GPUWrapper Wrapper { get; }

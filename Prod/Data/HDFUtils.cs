@@ -15,19 +15,45 @@ namespace SharpNet.Data
 {
     public static unsafe class HDFUtils
     {
-        /// <summary>
-        /// Paths of all objects in the group
-        /// </summary>
-        /// <param name="groupId"></param>
-        /// <returns></returns>
-        public static List<string> ObjectPaths(H5GroupId groupId)
+        public static Tensor SingleDataset(H5ObjectId objectId, string datasetPath)
         {
-            var objectPaths = new List<string>();
-            var groupNamesHandle = GCHandle.Alloc(objectPaths);
-            ulong pos = 0;
-            H5L.iterate(groupId, H5.index_t.NAME, H5.iter_order_t.NATIVE, ref pos, SubGroupNamesDelegateMethod, (IntPtr)groupNamesHandle);
-            groupNamesHandle.Free();
-            return objectPaths;
+            var datasetId = H5D.open(objectId, datasetPath);
+            var shape = DatasetShape(datasetId);
+            var type = H5D.get_type(datasetId);
+            H5T.class_t typeClass = H5T.get_class(type);
+            var typeSize = H5T.get_size(type).ToInt32();
+
+            switch (typeClass)
+            {
+                case H5T.class_t.STRING:
+                    shape = shape.Append(typeSize).ToArray();
+                    return ToStringListTensor(LoadDataSet<byte>(objectId, datasetPath, shape));
+                case H5T.class_t.FLOAT:
+                    if (typeSize == 4)
+                    {
+                        return LoadDataSet<float>(objectId, datasetPath, shape);
+                    }
+                    if (typeSize == 8)
+                    {
+                        return LoadDataSet<double>(objectId, datasetPath, shape);
+                    }
+                    break;
+                case H5T.class_t.INTEGER:
+                    if (typeSize == 1)
+                    {
+                        return LoadDataSet<byte>(objectId, datasetPath, shape);
+                    }
+                    if (typeSize == 4)
+                    {
+                        return LoadDataSet<int>(objectId, datasetPath, shape);
+                    }
+                    if (typeSize == 8)
+                    {
+                        return LoadDataSet<long>(objectId, datasetPath, shape);
+                    }
+                    break;
+            }
+            throw new NotImplementedException("can't load tensor of type:" + type + "/typeClass:" + typeClass+"/typeSize:" + typeSize + " for dataset path " + datasetPath);
         }
         public static H5O.type_t GetObjectType(H5GroupId groupId, string path)
         {
@@ -39,43 +65,17 @@ namespace SharpNet.Data
             }
             return objectInfo.type;
         }
-        public static CpuTensor<T> LoadTensor<T>(H5ObjectId objectId, string datasetPath) where T : struct
+        private static CpuTensor<string> ToStringListTensor(CpuTensor<byte> byteTensor)
         {
-            var datasetId = H5D.open(objectId, datasetPath);
-            var shape = DatasetShape(datasetId);
-
-            var dataType = H5D.get_type(datasetId);
-            if (H5T.get_class(dataType) == H5T.class_t.STRING)
-            {
-                var typeSize = H5T.get_size(dataType).ToInt32();
-                shape = shape.Append(typeSize).ToArray();
-            }
-
-            long entireDataSetLength = Utils.Product(shape);
-            var result = new T[entireDataSetLength];
-            var resultHandle = GCHandle.Alloc(result, GCHandleType.Pinned);
-            H5D.read(datasetId, dataType, H5S.ALL, H5S.ALL, H5P.DEFAULT, resultHandle.AddrOfPinnedObject());
-            resultHandle.Free();
-            H5D.close(datasetId);
-            return new CpuTensor<T>(shape, result, datasetPath);
-        }
-        public static List<string> LoadLabelDataset(H5ObjectId objectId, string datasetPath)
-        {
-            var byteTensor = LoadTensor<byte>(objectId, datasetPath);
             Debug.Assert(byteTensor.Shape.Length == 2);
-            var result = new List<string>();
+            var result = new string[byteTensor.Shape[0]];
             var stringMaxLength = byteTensor.Shape[1];
             for (int stringIndex = 0; stringIndex < byteTensor.Shape[0];++stringIndex)
             {
-                result.Add(ExtractString(byteTensor.Content, stringIndex, stringMaxLength));
+                result[stringIndex] = ExtractString(byteTensor.Content, stringIndex, stringMaxLength);
             }
-            return result;
+            return new CpuTensor<string>(new []{ byteTensor.Shape[0]}, result, IntPtr.Size, byteTensor.Description );
         }
-        public static bool IsStringDataSet(H5DatasetId datasetId)
-        {
-            return GetClass(datasetId) == H5T.class_t.STRING;
-        }
-
         public static string Join(string path1, string path2)
         {
             path1 = path1.TrimEnd('/');
@@ -91,12 +91,24 @@ namespace SharpNet.Data
             }
             return path1 + "/" + path2;
         }
-        public static string ExtractString(byte[] dDim, int stringIndex, int stringMaxLength)
+        /// <summary>
+        /// extract the string at index 'stringIndex' from the buffer 'byteBuffer'
+        /// the byteBuffer contains exactly 'byteBuffer.Length/stringMaxLength' strings
+        ///  the first string starts at byteBuffer[0]
+        ///  the 2nd string starts at byteBuffer[1*stringMaxLength]
+        ///  etc...
+        /// this method is public for testing only
+        /// </summary>
+        /// <param name="byteBuffer"></param>
+        /// <param name="stringIndex"></param>
+        /// <param name="stringMaxLength">max length of each string in the buffer</param>
+        /// <returns></returns>
+        public static string ExtractString(byte[] byteBuffer, int stringIndex, int stringMaxLength)
         {
             var sb = new StringBuilder();
             for (int i = 0; i < stringMaxLength; ++i)
             {
-                var c = (char)dDim[stringIndex * stringMaxLength + i];
+                var c = (char)byteBuffer[stringIndex * stringMaxLength + i];
                 if (c == 0)
                 {
                     break;
@@ -119,6 +131,11 @@ namespace SharpNet.Data
             list.Add(Encoding.UTF8.GetString(nameBuffer));
             return 0;
         }
+        /// <summary>
+        /// retrieves the shape of the dataset 'datasetId'
+        /// </summary>
+        /// <param name="datasetId"></param>
+        /// <returns></returns>
         private static int[] DatasetShape(H5DatasetId datasetId)
         {
             var dataSpace = H5D.get_space(datasetId);
@@ -130,11 +147,31 @@ namespace SharpNet.Data
             H5S.close(dataSpace);
             return datasetShape.Select(x => (int)x).ToArray();
         }
-        private static H5T.class_t GetClass(H5DatasetId datasetId)
+        private static CpuTensor<T> LoadDataSet<T>(H5DatasetId objectId, string datasetPath, int[] datasetShape)
         {
+            var datasetId = H5D.open(objectId, datasetPath);
             var dataType = H5D.get_type(datasetId);
-            return H5T.get_class(dataType);
+            long entireDataSetLength = Utils.Product(datasetShape);
+            var result = new T[entireDataSetLength];
+            var resultHandle = GCHandle.Alloc(result, GCHandleType.Pinned);
+            H5D.read(datasetId, dataType, H5S.ALL, H5S.ALL, H5P.DEFAULT, resultHandle.AddrOfPinnedObject());
+            resultHandle.Free();
+            H5D.close(datasetId);
+            return new CpuTensor<T>(datasetShape, result, datasetPath);
         }
-
+        /// <summary>
+        /// name of all objects in the group
+        /// </summary>
+        /// <param name="groupId"></param>
+        /// <returns></returns>
+        public static List<string> ObjectNames(H5GroupId groupId)
+        {
+            var objectPaths = new List<string>();
+            var groupNamesHandle = GCHandle.Alloc(objectPaths);
+            ulong pos = 0;
+            H5L.iterate(groupId, H5.index_t.NAME, H5.iter_order_t.NATIVE, ref pos, SubGroupNamesDelegateMethod, (IntPtr)groupNamesHandle);
+            groupNamesHandle.Free();
+            return objectPaths;
+        }
     }
 }

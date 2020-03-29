@@ -106,7 +106,7 @@ namespace SharpNet.Data
         {
             return t.DevicePointer;
         }
-        public CpuTensor<T> AsCpu<T>() where T : struct
+        public CpuTensor<T> AsCpu<T>()
         {
             if (this is CpuTensor<T> result)
             {
@@ -115,7 +115,7 @@ namespace SharpNet.Data
             throw new Exception("fail to convert " + this + " this to a CpuTensor<" + typeof(T)+">");
         }
 
-        public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper) where T : struct
+        public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper)
         {
             return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
         }
@@ -458,7 +458,7 @@ namespace SharpNet.Data
 
             return result;
         }
-        public GPUTensor<T> AsGPU<T>() where T : struct
+        public GPUTensor<T> AsGPU<T>()
         {
             if (this is GPUTensor<T> result)
             {

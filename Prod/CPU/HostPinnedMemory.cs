@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace SharpNet.CPU
 {
-    public class HostPinnedMemory<T> : IDisposable where T : struct
+    public class HostPinnedMemory<T> : IDisposable
     {
         #region private fields
         private GCHandle _handle;

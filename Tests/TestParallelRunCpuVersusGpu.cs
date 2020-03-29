@@ -63,7 +63,7 @@ namespace SharpNetTests
         }
 
         [Test]
-        public void TestDephtwiseConvolution()
+        public void TestDepthwiseConvolution()
         {
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
             const int depthMultiplier  = 1;
@@ -539,7 +539,7 @@ namespace SharpNetTests
             }
         }
 
-        private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper) where T : struct
+        private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper)
         {
             var result =  new GPUTensor<T>(cpuTensor.Shape, cpuTensor.Description, gpuWrapper);
             result.CopyToDevice(cpuTensor.Content);
