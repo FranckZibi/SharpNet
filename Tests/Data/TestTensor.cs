@@ -56,7 +56,7 @@ namespace SharpNetTests.Data
         }
 
         [Test]
-        public void TestConvolutionOutputShape()
+        public void TestStandardConvolutionOutputShape()
         {
             var batchSize = 666;
             var inputChannels = 1313;
@@ -71,13 +71,13 @@ namespace SharpNetTests.Data
                         var shapeIntput = new[] { batchSize, inputChannels, h, w };
                         var shapeConvolution = new[] { filtersCount, inputChannels, f, f };
                         // padding = 0 , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
                         // padding = 0, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.ConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }
@@ -97,13 +97,13 @@ namespace SharpNetTests.Data
                         var shapeIntput = new[] { batchSize, inputChannels, h, w };
                         var shapeConvolution = new[] { depthMultiplier, inputChannels, f, f };
                         // padding = 0 , stride == 1
-                        Assert.IsTrue(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, inputChannels, h - f + 1, w - f + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, inputChannels, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, inputChannels, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, inputChannels, h, w }));
                         // padding = 0, stride == 2
-                        Assert.IsTrue(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, inputChannels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, inputChannels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, inputChannels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, inputChannels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }

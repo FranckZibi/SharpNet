@@ -63,11 +63,11 @@ namespace SharpNetTests
                 .DepthwiseConvolution(3, 1, 1, 1, 0.0, true )
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, false);
-            var convLayer = (DepthwiseConvolutionLayer)network.Layers[1];
+            var convLayer = (ConvolutionLayer)network.Layers[1];
             //We test the gradients computation for weights
-            CompareExpectedVsObservedGradients(network, convLayer.DepthwiseConvolution as CpuTensor<float>, convLayer.DepthwiseConvolutionGradients as CpuTensor<float>, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, convLayer.Convolution as CpuTensor<float>, convLayer.ConvolutionGradients as CpuTensor<float>, X, Y, _rand);
             //We test the gradients computation for bias
-            CompareExpectedVsObservedGradients(network, convLayer.DepthwiseConvolutionBias as CpuTensor<float>, convLayer.DepthwiseConvolutionBiasGradients as CpuTensor<float>, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, convLayer.ConvolutionBias as CpuTensor<float>, convLayer.ConvolutionBiasGradients as CpuTensor<float>, X, Y, _rand);
         }
 
         [Test, Ignore("fail to compute the expected gradients")]

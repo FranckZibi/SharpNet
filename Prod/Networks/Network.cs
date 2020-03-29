@@ -285,7 +285,7 @@ namespace SharpNet.Networks
         public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
+            Layers.Add(new ConvolutionLayer(false, filtersCount, -1, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
             return this;
         }
         public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, string layerName = "")
@@ -295,7 +295,7 @@ namespace SharpNet.Networks
         public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new DepthwiseConvolutionLayer(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
+            Layers.Add(new ConvolutionLayer(true, -1, depthMultiplier, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
             return this;
         }
         public Network Dropout(double dropProbability, string layerName = "")

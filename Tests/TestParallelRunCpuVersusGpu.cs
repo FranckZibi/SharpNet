@@ -30,12 +30,12 @@ namespace SharpNetTests
         private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
 	    [Test]
-	    public void TestConvolution()
+	    public void TestStandardConvolution()
 	    {
 	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
             int filterCount = 128;
 	        var convolution = RandomTensor(new[] { filterCount, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
-	        var y = RandomTensor(ConvolutionLayer.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
+	        var y = RandomTensor(ConvolutionLayer.StandardConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
 	        TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2], false));
 	    }
 
@@ -55,7 +55,7 @@ namespace SharpNetTests
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
             x = new CpuTensor<float>(x.Shape, "x");
             var convolution = RandomTensor(new[] { BatchSize, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
-            var dy = RandomTensor(ConvolutionLayer.ConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
+            var dy = RandomTensor(ConvolutionLayer.StandardConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
             //this will compute 'dx' && 'convolutionGradient'
             var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");
             var convolutionGradient = RandomTensor(convolution.Shape, "convolutionGradient");
@@ -68,7 +68,7 @@ namespace SharpNetTests
             var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
             const int depthMultiplier  = 1;
             var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
-            var y = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
+            var y = RandomTensor(ConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
             TestAll(new[] { x, depthwiseConvolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2], true));
         }
 
@@ -79,7 +79,7 @@ namespace SharpNetTests
             x = new CpuTensor<float>(x.Shape, "x");
             const int depthMultiplier = 1;
             var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
-            var dy = RandomTensor(DepthwiseConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
+            var dy = RandomTensor(ConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
 
             //this will compute 'dx' && 'convolutionGradient'
             var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");

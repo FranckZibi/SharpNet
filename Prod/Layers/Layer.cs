@@ -245,7 +245,6 @@ namespace SharpNet.Layers
                 case nameof(ConcatenateLayer): return new ConcatenateLayer(serialized, network);
                 case nameof(ConvolutionLayer): return new ConvolutionLayer(serialized, network);
                 case nameof(DenseLayer): return new DenseLayer(serialized, network);
-                case nameof(DepthwiseConvolutionLayer): return new DepthwiseConvolutionLayer(serialized, network);
                 case nameof(DropoutLayer): return new DropoutLayer(serialized, network);
                 case nameof(FlattenLayer): return new FlattenLayer(serialized, network);
                 case nameof(InputLayer): return new InputLayer(serialized, network);

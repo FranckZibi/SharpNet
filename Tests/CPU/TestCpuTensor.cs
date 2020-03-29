@@ -41,12 +41,12 @@ namespace SharpNetTests.CPU
             var padding = 0;
             var stride = 1;
             var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] { -6 }, "expectedOutput");
-            TestConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
 
             padding = f/2;
             stride = 1;
             expectedOutput = new CpuTensor<float>(new[] { 1, 1, 3, 3}, new float[] { -7,-4,7,-15,-6,15,-13,-4,13 }, "expectedOutput");
-            TestConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
 
             input = new CpuTensor<float>(new[] { 3, 1, 3, 3 }, "input");
             for (int i = 1; i <= input.Count; ++i)
@@ -57,12 +57,12 @@ namespace SharpNetTests.CPU
             padding = 0;
             stride = 1;
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 1, 1 }, new float[] {-340,-6, -6 }, "expectedOutput");
-            TestConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
 
             padding = f / 2;
             stride = 1;
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 3, 3 }, new float[] { -7, -338, 7, -15, -340, 15, -13, -4, 13, -25, -4, 25, -42, -6, 42, -31, -4, 31, -43, -4, 43, -69, -6, 69, -49, -4, 49 }, "expectedOutput");
-            TestConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
         }
 
         [Test]
@@ -165,9 +165,9 @@ namespace SharpNetTests.CPU
             Utils.Randomize(result.Content, rand, minValue, maxValue);
             return result;
         }
-        private void TestConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int padding, int stride, CpuTensor<float> expectedOutput)
+        private void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int padding, int stride, CpuTensor<float> expectedOutput)
         {
-            var outputCPU = new CpuTensor<float>(ConvolutionLayer.ConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
+            var outputCPU = new CpuTensor<float>(ConvolutionLayer.StandardConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
             input.Convolution(convolution, padding, stride, outputCPU, false);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }
