@@ -15,7 +15,15 @@ namespace SharpNet.Data
             var tContent = t.ContentAsFloatArray();
 
             NumpyArrayHelper(t, tContent, 0, ref idx, sb);
-            return sb.ToString();
+            var res = sb.ToString();
+
+            //int maxLength = 4000;
+            //if (res.Length > maxLength)
+            //{
+            //    res = res.Substring(0, maxLength/2)+ " .../... " + res.Substring(res.Length - maxLength/2);
+            //}
+
+            return res; 
         }
 
         public static Tensor FromNumpyArray(string s, string description)

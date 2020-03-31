@@ -113,7 +113,7 @@ namespace SharpNet.Layers
             //we compute dW
             var x = PrevLayer.y;
             var multiplier = 1f / batchSize;
-            if (Network.Config.ForceTensorflowCompatibilityMode)
+            if (Network.Config.TensorFlowCompatibilityMode)
             {
                 multiplier = 1f; //used only for tests and parallel run
             }

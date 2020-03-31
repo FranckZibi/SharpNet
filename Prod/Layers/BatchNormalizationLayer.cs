@@ -30,7 +30,7 @@ namespace SharpNet.Layers
         public override Tensor y { get; protected set; }        // (batchSize, C, H, W)
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public BatchNormalizationLayer(double momentum, double epsilon, Network network, string layerName = "") : base(network, layerName)
+        public BatchNormalizationLayer(double momentum, double epsilon, Network network, string layerName) : base(network, layerName)
         {
             _momentum = momentum;
             _epsilon = epsilon;

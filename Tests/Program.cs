@@ -13,19 +13,7 @@ namespace SharpNetTests
     {
         private static void Main()
         {
-            //var catvnoncat = new SharpNet.Data.H5File(@"C:\Download\train_catvnoncat.h5").Datasets();
-            //var signs = new SharpNet.Data.H5File(@"C:\Download\train_signs.h5").Datasets();
-            //var efficientnetb0 = new SharpNet.Data.H5File(@"C:\Users\fzibi\.keras\models\efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5").Datasets();
             //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Efficientnet(); return;
-            //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Convolution(); return;
-
-
-            //var dogsVsCatDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train";
-            //var original = DogsVsCats.ValueOf(dogsVsCatDirectory, null);
-            //var filtered = original.Filter(x => 1.2*Math.Min(x.GetWidth(),x.GetHeight()) > Math.Max(x.GetWidth(), x.GetHeight()));
-            //var resized = filtered.Resize(32, 32);
-            //return;
-
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
             //SVHNTests();
@@ -33,33 +21,8 @@ namespace SharpNetTests
             //ResNetTests();
             //DenseNetTests();
             //EfficientNetTests();
-
-            //((AbstractDataSet) new CIFAR10DataSet().Training).BenchmarkDataAugmentation(128, false);
-
-            //var net = EfficientNetBuilder.EfficientNet_ImageNet().EfficientNetB2(
-            //    true,
-            //    null,
-            //    new[] { 3, 240, 240},
-            //    NetworkBuilder.POOLING_BEFORE_DENSE_LAYER.NONE,
-            //    1000
-            //);
-
-            //var net = EfficientNetBuilder.CIFAR10().EfficientNetB0_CIFAR10();
-
-
-            //var net = EfficientNetBuilder.EfficientNet_ImageNet().EfficientNetB0(
-            //    true,
-            //    null,
-            //    new[] { 3, 224, 224 },
-            //    NetworkBuilder.POOLING_BEFORE_DENSE_LAYER.NONE,
-            //    1000
-            //);
-            //Console.WriteLine(net.ToString());
-
-
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);
-            //new NonReg.TestMNIST().Test();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
         }
@@ -85,20 +48,20 @@ namespace SharpNetTests
                 //(p) =>{p.UseNesterov = false; p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov";},
                 //(p) =>{p.UseAdam = true; p.NumEpochs = 5; p.ExtraDescription = "_50Epoch_Adam";},
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = true; p.ExtraDescription = "_Adam_with_l2_inConv";},
-                //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 150; p.ExtraDescription = "_Adam";},
+                //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.NumEpochs = 150; p.ExtraDescription = "_Adam";},
                 //(p) =>{ p.ExtraDescription = "_OrigPaper";},
 
-                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.ForceTensorflowCompatibilityMode = true;p.DA.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";return p;},
-                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.ForceTensorflowCompatibilityMode = true;p.DA.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_ForceTensorflowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";return p;},
+                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1;p.DA.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";return p;},
+                () =>{var p = DenseNetBuilder.DenseNet_CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1;p.DA.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";return p;},
 
 
                 //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchPercentage = 0.25;p.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchPercentage0_25;},
                 //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_200Epochs_L2_InDense_CutoutPatchPercentage0";},
                 //(p) =>{p.NumEpochs = 200;p.Config.WithSGD(0.9,false);p.ExtraDescription = "_200Epochs_NoNesterov";},
 
-                //(p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.Config.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
-                //(p) =>{p.UseAdam = false;p.UseNesterov = true;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 300; p.ExtraDescription = "_SGDNesterov";},
-                //(p) =>{p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.ForceTensorflowCompatibilityMode = false;p.NumEpochs = 200;p.InitialLearningRate = 0.001;p.ExtraDescription = "_Adam_0_001";},
+                //(p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
+                //(p) =>{p.UseAdam = false;p.UseNesterov = true;p.BatchSize = -1;p.NumEpochs = 300; p.ExtraDescription = "_SGDNesterov";},
+                //(p) =>{p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.NumEpochs = 200;p.InitialLearningRate = 0.001;p.ExtraDescription = "_Adam_0_001";},
                 //(p) =>{p.UseAdam = true;p.BatchSize = 50;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_with_l2_inConv";},
                 //(p) =>{p.UseAdam = true; p.lambdaL2Regularization = 0.0;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_no_l2_inConv";},
 
@@ -318,40 +281,6 @@ namespace SharpNetTests
             var modifiers = new List<Func<ResNetBuilder>>
             {
                 () =>{var p = ResNetBuilder.ResNet_CIFAR10();p.Config.WithSGD(0.9,true);p.ExtraDescription = "";return p;},
-                /*
-                () =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
-                () =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2";},
-                () =>{p.Config.WithSGD(0.9,true);p.NumEpochs=300;p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2_300Epochs";},
-                () =>{p.Config.WithSGD(0.9,true);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(200,1);p.ExtraDescription = "_CyclicCosineAnnealing_200_1";},
-                () =>{p.Config.WithSGD(0.9,false);p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10,2);p.ExtraDescription = "_CyclicCosineAnnealing_10_2_NoNesterov";},
-                */
-                /*
-                () =>{p.Config.WithSGD(0.9,true);p.ExtraDescription = "";},
-                () =>{p.Config.WithSGD(0.9, true);p.BatchSize = -1;p.ExtraDescription = "_AutoMiniBatchSize";},
-                () =>{p.Config.WithSGD(0.9, true);p.NumEpochs=300;p.ExtraDescription = "_300Epochs";}, */
-                #region already performed tests
-                /*
-                (p) =>{p.Config.WithSGD(0.9,true);p.Config.ForceTensorflowCompatibilityMode = true;p.ExtraDescription = "_SGD_WithNesterov_ForceTensorflowCompatibilityMode_EnhancedMemory";},
-                (p) =>{p.Config.WithSGD(0.9,false);p.ExtraDescription = "_SGD_NoNesterov_EnhancedMemory";},
-                (p) =>{p.Config.WithSGD(0.9,false);p.Config.ForceTensorflowCompatibilityMode = true;p.ExtraDescription = "_SGD_NoNesterov_ForceTensorflowCompatibilityMode_EnhancedMemory";},
-                //https://sgugger.github.io/the-1cycle-policy.html
-                //(param) => {}, //used to check new speed
-                //(param) => {param.UseAdam=true;param.ExtraDescription = "_UseAdam";},
-                //(param) => {param.WidthShiftRange=param.HeightShiftRange=0.2;param.ExtraDescription = "_ShiftRange_0_20";},
-                //(param) => {param.DivideBy10OnPlateau=true;param.ExtraDescription = "_DivideBy10OnPlateau";},
-                (param) =>{param.OneCycleLearningRate =true;param.NumEpochs = 70;param.BatchSize = -1;param.InitialLearningRate = 0.8;param.OneCycleDividerForMinLearningRate = 10;param.ExtraDescription = "_OneCycle_080_008_70Epochs";},
-                (param) =>{param.OneCycleLearningRate =true;param.NumEpochs = 100;param.BatchSize = -1;param.InitialLearningRate = 0.8;param.OneCycleDividerForMinLearningRate = 10;param.ExtraDescription = "_OneCycle_080_008_100Epochs";},
-                (param) =>{param.BatchSize=-1;param.ExtraDescription = "_Auto_BatchSize";},
-                (param) =>{param.FillMode=ImageDataGenerator.FillModeEnum.Reflect;param.ExtraDescription = "_FillMode_Reflect";},
-                (param) =>{param.HorizontalFlip=false;param.ExtraDescription = "_no_HorizontalFlip";},
-                (param) =>{param.lambdaL2Regularization=0.0005;param.ExtraDescription = "_lambdaL2Regularization_0_0005";},
-                (param) =>{param.WidthShiftRange=0.0;param.HeightShiftRange=0.0;param.HorizontalFlip=false;param.ExtraDescription = "_no_DataAugmentation_onlyShuffling";},
-                //https://sgugger.github.io/the-1cycle-policy.html
-                (param) =>{param.OneCycleLearningRate =true;param.NumEpochs = 50;param.BatchSize = -1;param.InitialLearningRate = 3.0;param.OneCycleDividerForMinLearningRate = 20;param.ExtraDescription = "_OneCycle_300_015_50Epochs";},
-                //https://sgugger.github.io/the-1cycle-policy.html
-                (param) =>{param.OneCycleLearningRate =true;param.NumEpochs = 70;param.BatchSize = -1;param.InitialLearningRate = 3.0;param.OneCycleDividerForMinLearningRate = 20;param.ExtraDescription = "_OneCycle_300_015_70Epochs";},
-                */
-                #endregion
             };
             PerformAllActionsInAllGpu(modifiers, todo);
         }

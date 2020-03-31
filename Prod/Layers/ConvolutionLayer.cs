@@ -49,13 +49,7 @@ namespace SharpNet.Layers
         public Tensor ConvolutionBiasGradients { get; private set; }        // same as 'ConvolutionBias'  or null is no bias should be used
         #endregion
 
-
-        /// <summary>
-        /// SAME_NON_SYMMETRICAL is the "same" padding used in Keras/Tensorflow
-        /// SAME_SYMMETRICAL is the "same" padding used in Cafe
-        /// </summary>
-        public enum PADDING_TYPE { VALID, SAME_SYMMETRICAL, SAME_NON_SYMMETRICAL}
-
+        public enum PADDING_TYPE { VALID, SAME}
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
         public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network, string layerName)
@@ -159,7 +153,7 @@ namespace SharpNet.Layers
         }
 
 
-        private Tensor _tmpXReshaped;
+        private Tensor _paddedX;
 
 
         public override void ForwardPropagation(bool isTraining)
@@ -168,20 +162,21 @@ namespace SharpNet.Layers
             var x = PrevLayer.y;
             //We compute y = x (conv) Convolution + ConvolutionBias
 
-            Padding(out int topPadding, out int bottomPadding, out int leftPadding, out int rightPadding);
+            Padding(out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
 
-            if (topPadding != bottomPadding || leftPadding != rightPadding)
+            if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
-                //not symmetrical padding
-                var newShape = new[]{x.Shape[0], x.Shape[1], topPadding+x.Shape[2]+bottomPadding, leftPadding+x.Shape[3]+rightPadding};
-                _tmpXReshaped = Network.NewNotInitializedTensor(newShape, _tmpXReshaped, nameof(_tmpXReshaped));
-                _tmpXReshaped.ZeroPadding(x, topPadding, bottomPadding, leftPadding, rightPadding);
-                _tmpXReshaped.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution);
+                // cuDNN 7.x doesn't support asymmetric padding
+                // we'll pad the input tensor 'x' so that we can use a symmetric padding
+                var paddedXShape = new[]{x.Shape[0], x.Shape[1], paddingTop+x.Shape[2]+paddingBottom, paddingLeft+x.Shape[3]+paddingRight};
+                _paddedX = Network.NewNotInitializedTensor(paddedXShape, _paddedX, nameof(_paddedX));
+                _paddedX.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                _paddedX.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution);
             }
             else
             {
-                //symmetrical padding
-                x.Convolution(Convolution, topPadding, bottomPadding, leftPadding, rightPadding, _stride, y, _isDepthwiseConvolution);
+                //symmetric padding
+                x.Convolution(Convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution);
             }
 
             if (UseBias)
@@ -205,17 +200,17 @@ namespace SharpNet.Layers
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
             var x = PrevLayer.y;
-            Padding(out int topPadding, out int bottomPadding, out int leftPadding, out int rightPadding);
+            Padding(out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
 
-            if (topPadding != bottomPadding || leftPadding != rightPadding)
+            if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
-                //not symmetrical padding
-                _tmpXReshaped.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+                // cuDNN 7.x doesn't support asymmetric padding, we'll use the padded version of input tensor 'x'
+                _paddedX.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
             }
             else
             {
-                //symmetrical padding
-                x.ConvolutionGradient(Convolution, dy, topPadding, bottomPadding, leftPadding, rightPadding, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+                //symmetric padding
+                x.ConvolutionGradient(Convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
             }
 
             if (UseL2Regularization)
@@ -274,13 +269,11 @@ namespace SharpNet.Layers
 
         public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
         {
-            LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 0, 1 }, new[] { 0, 1, 3, 2 });
-            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 0, 1 });
-            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 1, 0 });
-            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 1, 0 }, new[] { 0, 1, 3, 2 });
-            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution);
+            string weightDatasetName = _isDepthwiseConvolution ? "depthwise_kernel:0" : "kernel:0";
+            LoadFromH5Dataset(h5FileDataset, weightDatasetName, Convolution, new[] { 3, 2, 1, 0 });
             //we load bias if necessary
-            var biasDatasetPath = DatasetNameToDatasetPath("bias:0");
+            string biasDatasetName = _isDepthwiseConvolution ? "depthwise_bias:0" : "bias:0";
+            var biasDatasetPath = DatasetNameToDatasetPath(biasDatasetName);
             if (UseBias)
             {
                 var cpuTensor = (CpuTensor<float>)h5FileDataset[biasDatasetPath];
@@ -363,9 +356,8 @@ namespace SharpNet.Layers
             switch (paddingType)
             {
                 case PADDING_TYPE.VALID:  
-                    return (inputLength - f) / stride + 1;
-                case PADDING_TYPE.SAME_NON_SYMMETRICAL:
-                case PADDING_TYPE.SAME_SYMMETRICAL:
+                    return (inputLength - f) / stride + 1; 
+                case PADDING_TYPE.SAME:
                     return (inputLength - 1) / stride + 1;
                 default:
                     throw new NotImplementedException("unknown padding type "+paddingType);
@@ -376,20 +368,25 @@ namespace SharpNet.Layers
         {
             get
             {
-                var result = new List<Tensor> { y, _tmpXReshaped };
+                var result = new List<Tensor> { y, _paddedX };
                 result.RemoveAll(t => t == null);
                 return result;
             }
         }
 
-        private void Padding(out int topPadding, out int bottomPadding, out int leftPadding, out int rightPadding)
+        private void Padding(out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight)
         {
             var x = PrevLayer.y;
-            Padding(x.Shape[2], _f, _stride, _paddingType, out topPadding, out bottomPadding);
-            Padding(x.Shape[3], _f, _stride, _paddingType, out leftPadding, out rightPadding);
+            Padding(x.Shape[2], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingTop, out paddingBottom);
+            Padding(x.Shape[3], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingLeft, out paddingRight);
         }
 
-        public static void Padding(int inputLength, int f, int stride, PADDING_TYPE paddingType, out int paddingStart, out int paddingEnd)
+        public static bool IsAsymmetricPadding(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
+        {
+            return (paddingTop != paddingBottom || paddingLeft != paddingRight);
+        }
+
+        public static void Padding(int inputLength, int f, int stride, PADDING_TYPE paddingType, NetworkConfig.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
         {
             int outputLength = OutputLength(inputLength, f, stride, paddingType);
             int totalPadding = Math.Max((outputLength - 1) * stride + f - inputLength, 0);
@@ -398,15 +395,20 @@ namespace SharpNet.Layers
                 case PADDING_TYPE.VALID:
                     paddingStart = paddingEnd = 0;
                     return;
-                case PADDING_TYPE.SAME_NON_SYMMETRICAL:
-                    //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python
-                    paddingStart = totalPadding / 2;
-                    paddingEnd = totalPadding-paddingStart;
-                    return;
-                case PADDING_TYPE.SAME_SYMMETRICAL:
-                    //TODO check formula
-                    paddingStart = (totalPadding + 1)/2;
-                    paddingEnd = paddingStart;
+                case PADDING_TYPE.SAME:
+
+                    if (compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
+                    {
+                        //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python
+                        paddingStart = totalPadding / 2;
+                        paddingEnd = totalPadding - paddingStart;
+                    }
+                    else
+                    {
+                        //TODO check formula
+                        paddingStart = (totalPadding + 1) / 2;
+                        paddingEnd = paddingStart;
+                    }
                     return;
                 default:
                     throw new NotImplementedException("unknown padding type " + paddingType);

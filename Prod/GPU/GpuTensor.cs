@@ -12,7 +12,6 @@ namespace SharpNet.GPU
     public sealed unsafe class GPUTensor<T> : Tensor
     {
         #region Private fields
-        private GPUWrapper Wrapper { get; }
         private DeviceMemory _deviceMemory;
         #endregion
 
@@ -41,6 +40,7 @@ namespace SharpNet.GPU
             }
         }
 
+        public GPUWrapper Wrapper { get; }
 
         /// <summary>
         /// copy from CPU (Host) to GPU (Device) memory
@@ -696,21 +696,21 @@ namespace SharpNet.GPU
             Wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
         }
 
-        public override void ZeroPadding(Tensor src, int topPadding, int bottomPadding, int leftPadding, int rightPadding)
+        public override void ZeroPadding(Tensor src, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, src }));
             Debug.Assert(Dimension == 4);
             Debug.Assert(Dimension == src.Dimension);
             Debug.Assert(Shape[0] == src.Shape[0]); //same batch size
             Debug.Assert(Shape[1] == src.Shape[1]); //same number of channels
-            Debug.Assert(Shape[2] == (topPadding + src.Shape[2] + bottomPadding)); //valid height for destination
-            Debug.Assert(Shape[3] == (leftPadding + src.Shape[3] + rightPadding)); //valid width destination
+            Debug.Assert(Shape[2] == (paddingTop + src.Shape[2] + paddingBottom)); //valid height for destination
+            Debug.Assert(Shape[3] == (paddingLeft + src.Shape[3] + paddingRight)); //valid width destination
             ZeroMemory();
             int h_src = src.Shape[2];
             int w_src = src.Shape[3];
             // number of distinct rows in tensor 'src' (n, c, h_src, w_src)
             int srcNbRowId = src.Shape[0] * src.Shape[1] * h_src;
-            Wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, topPadding, bottomPadding, leftPadding, rightPadding, this, src});
+            Wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, paddingTop, paddingBottom, paddingLeft, paddingRight, this, src});
         }
 
         public override void CopyTo(Tensor b)

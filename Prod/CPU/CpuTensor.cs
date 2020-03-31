@@ -101,34 +101,40 @@ namespace SharpNet.CPU
             return result;
         }
 
-        public CpuTensor<T> ChangeAxis(int[] newAxis)
+        public CpuTensor<T> ChangeAxis(int[] newToOldAxis)
         {
-            Debug.Assert(newAxis.Length == Dimension);
-            Debug.Assert(newAxis.Min() == 0);
-            Debug.Assert(newAxis.Max() == Dimension-1);
+            Debug.Assert(newToOldAxis.Length == Dimension);
+            Debug.Assert(newToOldAxis.Min() == 0);
+            Debug.Assert(newToOldAxis.Max() == Dimension-1);
+
+            int[] oldToNewAxis = new int[newToOldAxis.Length];
+            for (int newAxis = 0; newAxis < oldToNewAxis.Length; ++newAxis)
+            {
+                oldToNewAxis[newToOldAxis[newAxis]] = newAxis;
+            }
 
             var transformedShape = new int[Dimension];
-            for (int i = 0; i < Dimension; ++i)
+            for (int newAxis = 0; newAxis < Dimension; ++newAxis)
             {
-                transformedShape[newAxis[i]] = Shape[i];
+                transformedShape[newAxis] = Shape[newToOldAxis[newAxis]];
             }
 
             var result = new CpuTensor<T>(transformedShape, Description);
 
-            var newIndexes =  new int[Dimension];
+            var indexesInNewAxis =  new int[Dimension];
             for (int n = 0; n < Shape[0]; ++n)
             {
-                newIndexes[newAxis[0]] = n;
-                for (int h = 0; h < Shape[1]; ++h)
+                indexesInNewAxis[oldToNewAxis[0]] = n;
+                for (int c = 0; c < Shape[1]; ++c)
                 {
-                    newIndexes[newAxis[1]] = h;
-                    for (int w = 0; w < Shape[2]; ++w)
+                    indexesInNewAxis[oldToNewAxis[1]] = c;
+                    for (int h = 0; h < Shape[2]; ++h)
                     {
-                        newIndexes[newAxis[2]] = w;
-                        for (int c = 0; c < Shape[3]; ++c)
+                        indexesInNewAxis[oldToNewAxis[2]] = h;
+                        for (int w = 0; w < Shape[3]; ++w)
                         {
-                            newIndexes[newAxis[3]] = c;
-                            result.Set(newIndexes[0], newIndexes[1], newIndexes[2], newIndexes[3], Get(n, h, w, c));
+                            indexesInNewAxis[oldToNewAxis[3]] = w;
+                            result.Set(indexesInNewAxis[0], indexesInNewAxis[1], indexesInNewAxis[2], indexesInNewAxis[3], Get(n, c, h, w));
                         }
                     }
                 }
@@ -492,15 +498,15 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void ZeroPadding(Tensor src, int topPadding, int bottomPadding, int leftPadding, int rightPadding)
+        public override void ZeroPadding(Tensor src, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, src }));
             Debug.Assert(Dimension == 4);
             Debug.Assert(Dimension == src.Dimension);
             Debug.Assert(Shape[0] == src.Shape[0]); //same batch size
             Debug.Assert(Shape[1] == src.Shape[1]); //same number of channels
-            Debug.Assert(Shape[2] == (topPadding + src.Shape[2] + bottomPadding)); //valid height for destination
-            Debug.Assert(Shape[3] == (leftPadding + src.Shape[3] + rightPadding)); //valid width destination
+            Debug.Assert(Shape[2] == (paddingTop + src.Shape[2] + paddingBottom)); //valid height for destination
+            Debug.Assert(Shape[3] == (paddingLeft + src.Shape[3] + paddingRight)); //valid width destination
             ZeroMemory();
             int h_src = src.Shape[2];
             int w_src = src.Shape[3];
@@ -511,7 +517,7 @@ namespace SharpNet.CPU
                 // 0 <= srcRowId < n*c*h_src
                 int row_src = (srcRowId % h_src);
                 int srcRowIndex = srcRowId * w_src;
-                int destRowIndex = ((srcRowId / h_src) * Shape[2] + row_src + topPadding) * Shape[3] + leftPadding;
+                int destRowIndex = ((srcRowId / h_src) * Shape[2] + row_src + paddingTop) * Shape[3] + paddingLeft;
                 src.CopyTo(srcRowIndex, this, destRowIndex, w_src);
             }
             System.Threading.Tasks.Parallel.For(0, src.Shape[0] * src.Shape[1] * src.Shape[2], ApplyZeroPaddingForRowId);
@@ -1218,6 +1224,12 @@ namespace SharpNet.CPU
 
         public override void CopyTo(Tensor b)
         {
+            if (b.UseGPU)
+            {
+                //copy from CPU ('this' tensor) to GPU ('b' tensor)
+                this.ToGPU<T>( ((GPUTensor<T>)b).Wrapper).CopyTo(b);
+                return;
+            }
             Debug.Assert(AreCompatible(new List<Tensor> { this, b }));
             Debug.Assert(Count == b.Count);
             MKL_BLAS.cblas_scopy(AsFloatCpuContent.Length, AsFloatCpuContent, 1, b.AsFloatCpuContent, 1);

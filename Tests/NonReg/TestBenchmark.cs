@@ -75,13 +75,13 @@ namespace SharpNetTests.NonReg
             network
                 .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
 
-                .Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 0.0, true)
-                .BatchNorm()
+                .Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
+                .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
                 .MaxPooling(2, 2, 2)
 
-                .Convolution(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 0.0, true)
+                .Convolution(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
 
                 .Dense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)

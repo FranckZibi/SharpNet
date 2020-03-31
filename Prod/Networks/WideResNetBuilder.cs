@@ -254,11 +254,11 @@ namespace SharpNet.Networks
 
             if (reduceInputSize)
             {
-                net.Convolution_BatchNorm_Activation(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                net.Convolution_BatchNorm_Activation(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 net.MaxPooling(2, 2, 2);
             }
 
-            net.Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, false);
+            net.Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
 
             int stageC = 16* k; //number of channels for current stage
             for (int stageId = 0; stageId < 3; ++stageId)
@@ -273,13 +273,13 @@ namespace SharpNet.Networks
                     {
                         startOfBlockLayerIndex = layers.Last().LayerIndex;
                     }
-                    net.Convolution(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, false);
+                    net.Convolution(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
                     if ((WRN_DropOut > 0.0)&& (residualBlockId != 0))
                     {
                         net.Dropout(WRN_DropOut);
                     }
 
-                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, false);
+                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
                     net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
                 }
                 stageC *= 2;

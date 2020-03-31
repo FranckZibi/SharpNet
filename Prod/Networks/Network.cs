@@ -224,7 +224,7 @@ namespace SharpNet.Networks
         public Network Convolution_BatchNorm(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
         {
             return Convolution(filtersCount, f, stride, paddingType, lambdaL2Regularization, false)
-                .BatchNorm();
+                .BatchNorm(0.99, 1e-5);
         }
         public Network Convolution_BatchNorm_Activation(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
         {
@@ -233,12 +233,12 @@ namespace SharpNet.Networks
         }
         public Network BatchNorm_Activation(cudnnActivationMode_t activationFunction)
         {
-            return BatchNorm().Activation(activationFunction);
+            return BatchNorm(0.99, 1e-5).Activation(activationFunction);
         }
         public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias)
         {
             return 
-                BatchNorm()
+                BatchNorm(0.99, 1e-5)
                 .Activation(activationFunction)
                 .Convolution(filtersCount, f, stride, paddingType, lambdaL2Regularization, useBias);
         }
@@ -357,7 +357,7 @@ namespace SharpNet.Networks
             return ConcatenateLayer(globalAvgPoolingLayerIndex, globalMaxPoolingLayerIndex);
         }
 
-        public Network BatchNorm(string layerName = "", double momentum = 0.99, double epsilon = 1e-5)
+        public Network BatchNorm(double momentum, double epsilon, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new BatchNormalizationLayer(momentum, epsilon, this, layerName));
@@ -594,15 +594,7 @@ namespace SharpNet.Networks
         }
         public void LogContent()
         {
-            Layers.Take(20).ToList().ForEach(l => l.LogContent());
-
-            for (var i = 0; i < Layers.Count; i++)
-            {
-                if (i <= 20 || i >= Layers.Count - 10)
-                {
-                    Layers[i].LogContent();
-                }
-            }
+            Layers.ForEach(l => l.LogContent());
         }
         #endregion
 

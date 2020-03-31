@@ -180,11 +180,11 @@ namespace SharpNet.Data
         /// Stores in the 'this' tensor a zero padded version of the 'src' tensor
         /// </summary>
         /// <param name="src">the tensor to which we want to add zero padding</param>
-        /// <param name="topPadding">padding to add to the top of 'src' tensor</param>
-        /// <param name="bottomPadding">padding to add to the bottom of 'src' tensor</param>
-        /// <param name="leftPadding">padding to add to the left of 'src' tensor</param>
-        /// <param name="rightPadding">padding to add to the right of 'src' tensor</param>
-        public abstract void ZeroPadding(Tensor src, int topPadding, int bottomPadding, int leftPadding, int rightPadding);
+        /// <param name="paddingTop">padding to add to the top of 'src' tensor</param>
+        /// <param name="paddingBottom">padding to add to the bottom of 'src' tensor</param>
+        /// <param name="paddingLeft">padding to add to the left of 'src' tensor</param>
+        /// <param name="paddingRight">padding to add to the right of 'src' tensor</param>
+        public abstract void ZeroPadding(Tensor src, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight);
 
         /// <summary>
         /// Update the value of the 'this( tensor by multiplying it by 'x'

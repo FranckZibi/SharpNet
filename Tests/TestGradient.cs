@@ -42,7 +42,7 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 0.0, true)
+                .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, false);
             var convLayer = (ConvolutionLayer)network.Layers[1];
@@ -60,7 +60,7 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1, 0.0, true )
+                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, 0.0, true )
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, false);
             var convLayer = (ConvolutionLayer)network.Layers[1];
@@ -78,7 +78,7 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .BatchNorm("", 1.0)
+                .BatchNorm(1.0, 1e-5)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
             network.Predict(X, false);
             //n.SaveLayers();
@@ -161,11 +161,11 @@ namespace SharpNetTests
         private static Network GetNetwork()
         {
             var gpuDeviceId = -1;
-            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, ForceTensorflowCompatibilityMode = true}, gpuDeviceId);
+            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1 }, gpuDeviceId);
         }
         private static CpuTensor<float> GetY()
         {
-            return FromNumpyArray(TestNetworkPropagation.Y_2_1_4_4, "Y");
+            return FromNumpyArray(TestNetworkPropagation.Y_2_3, "Y");
         }
 
         private static CpuTensor<float> GetX()

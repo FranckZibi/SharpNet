@@ -25,16 +25,14 @@ namespace SharpNetTests
 	    private readonly Random _rand = new Random(0);
         private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
-        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID, 1)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID, 2)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 2)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL, 1)]
-        //[TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL, 2)]
-        public void TestConvolution(ConvolutionLayer.PADDING_TYPE paddingType, int stride)
+        [Test]
+        public void TestConvolution()
         {
-            foreach(var isDepthwiseConvolution in new[] { true,false})
-            { 
+            foreach(ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
+            foreach(NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
+            foreach(int stride in new[]{1,2})
+            foreach (var isDepthwiseConvolution in new[] { true,false})
+            {
                 var channelsCount = 3;
                 var height = 17;
                 var width = 32;
@@ -46,9 +44,13 @@ namespace SharpNetTests
                         : new[] { filterCount, channelsCount, f, f };
                 var convolution = RandomTensor(convolutionShape, "convolution");
 	            var y = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution), "y");
-                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, out int topPadding, out int bottomPadding);
-                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, out int leftPadding, out int rightPadding);
-	            TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], topPadding, bottomPadding, leftPadding, rightPadding, stride, tensors[2], isDepthwiseConvolution));
+                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
+                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
+                if (ConvolutionLayer.IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
+                {
+                    continue; //asymmetric padding is not supported by cuDNN
+                }
+                TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[2], isDepthwiseConvolution));
             }
         }
 
@@ -62,14 +64,12 @@ namespace SharpNetTests
             TestAll(new[] { dx, convolutionBackwardBias }, tensors => tensors[0].ConvolutionBackwardBias(tensors[1]));
         }
 
-        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID,1)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID,2)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL,1)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL,2)]
-        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL,1)]
-        //[TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL,2)]
-        public void TestConvolutionGradient(ConvolutionLayer.PADDING_TYPE paddingType, int stride)
+        [Test]
+        public void TestConvolutionGradient()
         {
+            foreach (ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
+            foreach (NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
+            foreach (int stride in new[] { 1, 2 })
             foreach (var isDepthwiseConvolution in new[] { true, false })
             {
                 var channelsCount = 3;
@@ -86,9 +86,13 @@ namespace SharpNetTests
                 //this will compute 'dx' && 'convolutionGradient'
                 var dx = RandomTensor(x.Shape, "dx");
                 var convolutionGradient = RandomTensor(convolution.Shape, "convolutionGradient");
-                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, out int topPadding, out int bottomPadding);
-                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, out int leftPadding, out int rightPadding);
-                TestAll(new[] { x, convolution, dy, dx, convolutionGradient}, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], topPadding, bottomPadding, leftPadding, rightPadding, stride, tensors[3], tensors[4], isDepthwiseConvolution));
+                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
+                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
+                if (ConvolutionLayer.IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
+                {
+                    continue; //asymmetric padding is not supported by cuDNN
+                }
+                TestAll(new[] { x, convolution, dy, dx, convolutionGradient}, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], isDepthwiseConvolution));
             }
         }
 

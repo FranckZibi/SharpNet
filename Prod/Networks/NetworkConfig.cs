@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
-using SharpNet.Layers;
 using SharpNet.Optimizers;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
@@ -35,29 +34,6 @@ namespace SharpNet.Networks
 
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
         public CompatibilityModeEnum CompatibilityMode { get; set;} = CompatibilityModeEnum.SharpNet;
-
-        public ConvolutionLayer.PADDING_TYPE SamePadding
-        {
-            get
-            {
-                switch (CompatibilityMode)
-                {
-                    case CompatibilityModeEnum.TensorFlow1:
-                    case CompatibilityModeEnum.TensorFlow2:
-                        return ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL;
-                    default:
-                        return ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL;
-                }
-            }
-        }
-        public ConvolutionLayer.PADDING_TYPE ValidPadding
-        {
-            get
-            {
-                return ConvolutionLayer.PADDING_TYPE.VALID;
-            }
-        }
-
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
         public double Adam_epsilon { get; private set; }
@@ -78,10 +54,9 @@ namespace SharpNet.Networks
         public bool RandomizeOrder { get; set; } = true;
 
         /// <summary>
-        /// true if we should use exactly the same conventions then Tensorflow
-        /// used only for // run and testing
+        /// true if we should use the same conventions then TensorFlow
         /// </summary>
-        public bool ForceTensorflowCompatibilityMode { get; set; }
+        public bool TensorFlowCompatibilityMode => CompatibilityMode == CompatibilityModeEnum.TensorFlow1 || CompatibilityMode == CompatibilityModeEnum.TensorFlow2;
         /// <summary>
         /// true if we want t display statistics about the weights tensors.
         /// Used only for debugging 
@@ -160,7 +135,7 @@ namespace SharpNet.Networks
 
             equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + ":lambdaL2Regularization", ref errors);
             equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
-            equals &= Utils.Equals(ForceTensorflowCompatibilityMode, other.ForceTensorflowCompatibilityMode, id + ":ForceTensorflowCompatibilityMode", ref errors);
+            equals &= Utils.Equals(CompatibilityMode, other.CompatibilityMode, id + ":CompatibilityMode", ref errors);
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
             equals &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
             equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + ":AutoSaveIntervalInMinuts", ref errors);
@@ -263,7 +238,7 @@ namespace SharpNet.Networks
                 .Add(nameof(DisableReduceLROnPlateau), DisableReduceLROnPlateau).Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau).Add(nameof(LinearLearningRate), LinearLearningRate)
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
-                .Add(nameof(ForceTensorflowCompatibilityMode), ForceTensorflowCompatibilityMode)
+                .Add(nameof(CompatibilityMode), (int)CompatibilityMode)
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
                 .Add(nameof(ProfileApplication), ProfileApplication)
                 .Add(nameof(LogDirectory), LogDirectory)
@@ -302,7 +277,7 @@ namespace SharpNet.Networks
             DivideBy10OnPlateau = (bool)serialized[nameof(DivideBy10OnPlateau)];
             LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
-            ForceTensorflowCompatibilityMode = (bool)serialized[nameof(ForceTensorflowCompatibilityMode)];
+            CompatibilityMode = (CompatibilityModeEnum)serialized[nameof(CompatibilityMode)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
             ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];
@@ -322,8 +297,8 @@ namespace SharpNet.Networks
         public enum CompatibilityModeEnum
         {
             SharpNet,
-            TensorFlow1, //Tensorflow v1
-            TensorFlow2, //Tensorflow v2
+            TensorFlow1, //TensorFlow v1
+            TensorFlow2, //TensorFlow v2
             PyTorch,
             Caffe,
             MXNet

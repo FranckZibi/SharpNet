@@ -99,7 +99,7 @@ namespace SharpNet.GPU
 
             if ((paddingTop != paddingBottom) || (paddingLeft != paddingRight))
             {
-                throw new NotImplementedException("only symmetrical padding is supported (padding=[" + paddingTop + "," + paddingBottom + "," + paddingLeft + "," + paddingRight + "])");
+                throw new NotImplementedException("only symmetric padding is supported (padding=[" + paddingTop + "," + paddingBottom + "," + paddingLeft + "," + paddingRight + "])");
             }
 
             var key = Tuple.Create(cudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);

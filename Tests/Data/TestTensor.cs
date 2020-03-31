@@ -73,11 +73,11 @@ namespace SharpNetTests.Data
                         // padding = 0 , stride == 1
                         Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, false).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1, false).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 1, false).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
                         // padding = 0, stride == 2
                         Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, false).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 2, false).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 2, false).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }
@@ -99,11 +99,11 @@ namespace SharpNetTests.Data
                         // padding = 0 , stride == 1
                         Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, true).SequenceEqual(new[] { batchSize, inputChannels, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1, true).SequenceEqual(new[] { batchSize, inputChannels, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 1, true).SequenceEqual(new[] { batchSize, inputChannels, h, w }));
                         // padding = 0, stride == 2
                         Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, true).SequenceEqual(new[] { batchSize, inputChannels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 2, true).SequenceEqual(new[] { batchSize, inputChannels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 2, true).SequenceEqual(new[] { batchSize, inputChannels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }

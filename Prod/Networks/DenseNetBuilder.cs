@@ -137,14 +137,14 @@ namespace SharpNet.Networks
             var filtersCount = 2 * growthRate;
             if (subSampleInitialBlock)
             {
-                net.Convolution(filtersCount, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, Config.lambdaL2Regularization, false)
-                    .BatchNorm()
+                net.Convolution(filtersCount, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, Config.lambdaL2Regularization, false)
+                    .BatchNorm(0.99, 1e-5)
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                     .MaxPooling(3, 3, 2);
             }
             else
             {
-                net.Convolution(filtersCount, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, Config.lambdaL2Regularization, false);
+                net.Convolution(filtersCount, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, Config.lambdaL2Regularization, false);
                 //net.Convolution(filtersCount, 3, 1, 1, 0.0, false);
             }
 
@@ -161,7 +161,7 @@ namespace SharpNet.Networks
 
             //we add the classification layer part
             net
-                .BatchNorm()
+                .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
                 //.Dense(nbCategories, 0.0) //!D check if lambdaL2Regularization should be 0
@@ -212,7 +212,7 @@ namespace SharpNet.Networks
                 network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 4 * growthRate, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true);
             }
             //network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, lambdaL2Regularization, true);
-            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 0.0, true);
+            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true);
             if (dropProbability.HasValue)
             {
                 network.Dropout(dropProbability.Value);
