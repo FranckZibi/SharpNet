@@ -221,26 +221,26 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network Convolution_BatchNorm(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization)
+        public Network Convolution_BatchNorm(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
         {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, false)
+            return Convolution(filtersCount, f, stride, paddingType, lambdaL2Regularization, false)
                 .BatchNorm();
         }
-        public Network Convolution_BatchNorm_Activation(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
+        public Network Convolution_BatchNorm_Activation(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
         {
-            return Convolution_BatchNorm(filtersCount, f, stride, padding, lambdaL2Regularization)
+            return Convolution_BatchNorm(filtersCount, f, stride, paddingType, lambdaL2Regularization)
                 .Activation(activationFunction);
         }
         public Network BatchNorm_Activation(cudnnActivationMode_t activationFunction)
         {
             return BatchNorm().Activation(activationFunction);
         }
-        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias)
+        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias)
         {
             return 
                 BatchNorm()
                 .Activation(activationFunction)
-                .Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, useBias);
+                .Convolution(filtersCount, f, stride, paddingType, lambdaL2Regularization, useBias);
         }
         public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, string layerName = "")
         {
@@ -278,24 +278,20 @@ namespace SharpNet.Networks
             }
             return this;
         }
-        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, string layerName = "")
+        public Network Convolution(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
-            return Convolution(filtersCount, f, stride, padding, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
+            return Convolution(filtersCount, f, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
         }
-        public Network Convolution(int filtersCount, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
+        public Network Convolution(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(false, filtersCount, -1, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
+            Layers.Add(new ConvolutionLayer(false, filtersCount, -1, f, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
             return this;
         }
-        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, string layerName = "")
-        {
-            return DepthwiseConvolution(f, stride, padding, depthMultiplier, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
-        }
-        public Network DepthwiseConvolution(int f, int stride, int padding, int depthMultiplier, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
+        public Network DepthwiseConvolution(int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, int depthMultiplier, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(true, -1, depthMultiplier, f, stride, padding, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
+            Layers.Add(new ConvolutionLayer(true, -1, depthMultiplier, f, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, this, layerName));
             return this;
         }
         public Network Dropout(double dropProbability, string layerName = "")
@@ -315,8 +311,7 @@ namespace SharpNet.Networks
         {
             return MaxPooling(poolingHeight, poolingWidth, poolingStride, Layers.Count-1, layerName);
         }
-
-        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, string layerName)
+        private Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, string layerName)
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this, layerName));
@@ -506,22 +501,22 @@ namespace SharpNet.Networks
         public override string ToString()
         {
             var result = Summary() + Environment.NewLine;
-            result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependantOfBatchSize);
+            result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependentOfBatchSize);
             return result;
         }
 
         private int MaxMiniBatchSize()
         {
             var freeMemoryInBytes = UseGPU?(ulong)GpuWrapper.AvailableMemoryInBytes() : Utils.AvailableRamMemoryInBytes();
-            int maxMiniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependantOfBatchSize, freeMemoryInBytes);
+            int maxMiniBatchSize = MaxMiniBatchSize(BytesByBatchSize, BytesIndependentOfBatchSize, freeMemoryInBytes);
             LogDebug("Max MiniBatchSize=" + maxMiniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
             return maxMiniBatchSize;
         }
 
         //TODO add tests
-        private static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependantOfBatchSize, ulong freeMemoryInBytes)
+        private static int MaxMiniBatchSize(ulong bytesByBatchSize, ulong bytesIndependentOfBatchSize, ulong freeMemoryInBytes)
         {
-            freeMemoryInBytes -= bytesIndependantOfBatchSize;
+            freeMemoryInBytes -= bytesIndependentOfBatchSize;
             //freeMemoryInBytes = (80* freeMemoryInBytes)/100;
             freeMemoryInBytes = (85 * freeMemoryInBytes) / 100;
             ulong miniBatchSize = 1;
@@ -541,7 +536,7 @@ namespace SharpNet.Networks
                 default: return VanillaSgd.Instance;
             }
         }
-        public List<Tensor> TensorsIndependantOfBatchSize
+        public List<Tensor> TensorsIndependentOfBatchSize
         {
             get { return Layers.SelectMany(x => x.TensorsIndependentOfBatchSize).Where(x => x != null).ToList(); }
         }
@@ -565,6 +560,7 @@ namespace SharpNet.Networks
                 ? (Tensor)new GPUTensor<float>(shape, description, GpuWrapper)
                 : new CpuTensor<float>(shape, null, description);
         }
+
         #region serialization
         // ReSharper disable once UnusedMember.Global
         public static Network ValueOf(string path, int?overrideGpuDeviceId = null)
@@ -598,7 +594,15 @@ namespace SharpNet.Networks
         }
         public void LogContent()
         {
-            Layers.ForEach(l => l.LogContent());
+            Layers.Take(20).ToList().ForEach(l => l.LogContent());
+
+            for (var i = 0; i < Layers.Count; i++)
+            {
+                if (i <= 20 || i >= Layers.Count - 10)
+                {
+                    Layers[i].LogContent();
+                }
+            }
         }
         #endregion
 
@@ -896,7 +900,7 @@ namespace SharpNet.Networks
             }
         }
 
-        private ulong BytesIndependantOfBatchSize => Layers.Select(x => x.BytesIndependentOfBatchSize).Sum();
+        private ulong BytesIndependentOfBatchSize => Layers.Select(x => x.BytesIndependentOfBatchSize).Sum();
 
         private Tensor ReformatToCorrectDevice_GPU_or_CPU(Tensor X)
         {
@@ -936,6 +940,36 @@ namespace SharpNet.Networks
             }
             _swUpdateWeights?.Stop();
         }
+
+
+        public void LoadFromH5Dataset(List<Tuple<string, Tensor>> h5FileDatasetAsList)
+        {
+            var h5FileDataset = new Dictionary<string, Tensor>();
+            foreach (var e in h5FileDatasetAsList)
+            {
+                if (h5FileDataset.ContainsKey(e.Item1))
+                {
+                    throw new ArgumentException("duplicate dataset path for "+e.Item1);
+                }
+                h5FileDataset[e.Item1] = e.Item2;
+            }
+
+            foreach (var l in Layers.Skip(1)) //we skip the input layer
+            {
+                l.LoadFromH5Dataset(h5FileDataset);
+            }
+        }
+
+        public List<Tuple<string, Tensor>> SaveToH5Dataset()
+        {
+            var result = new List<Tuple<string, Tensor>>();
+            foreach (var l in Layers.Skip(1)) //we skip the input layer
+            {
+                l.SaveToH5Dataset(result);
+            }
+            return result;
+        }
+
         public void Info(string msg) { Config.Logger.Info(msg); }
         public void LogDebug(string msg) { Config.Logger.Debug(msg); }
 

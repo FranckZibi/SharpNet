@@ -170,7 +170,6 @@ namespace SharpNetTests.NonReg
             return result;
         }
 
-
         [Test]
         public void TestReluActivation_NCHW_2_1_4_4()
         {
@@ -208,7 +207,7 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3, 1, 1, 0.0, true)
+                .Convolution(3, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 0.0, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray("[[[[-0.10066611, -0.22584948,  0.1257661 ]],[[ 0.00622791, -0.02702722, -0.19816945]],[[-0.00094005, -0.12673107,  0.10199177]]],[[[-0.05160269,  0.36979204, -0.38235503]],[[-0.25580615, -0.23532738, -0.18486507]],[[-0.18581466, -0.03875312, -0.18673505]]],[[[-0.1438927 , -0.05969113,  0.22153592]],[[ 0.02154535,  0.143184  ,  0.2194677 ]],[[-0.17963122,  0.14435953,  0.18853426]]]]", "Convolution");
@@ -253,7 +252,7 @@ namespace SharpNetTests.NonReg
         }
 
         [Test]
-        public void TestBatchNormalisation_NCHW_2_1_4_4()
+        public void TestBatchNormalization_NCHW_2_1_4_4()
         {
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_1_4_4, "y");
@@ -288,8 +287,8 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, 0.0, true)
-                .Convolution(1, 1, 1, 0, 0.0, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
                 .AddLayer(1, 2)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
@@ -325,9 +324,9 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, 0.0, true)
-                .Convolution(1, 1, 1, 0, 0.0, true); //left
-            network.Convolution(1, 1, 1, 0, 0.0, true, 1); //right (identity shortcut)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true); //left
+            network.Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true, 1); //right (identity shortcut)
             network.AddLayer(3, 2)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
                 ;
@@ -363,7 +362,7 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_1_4_4, "y");
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, lambdaL2Regularization, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             Tensor w = FromNumpyArray("[[[[-0.7714059]]]]", "Convolution0");
@@ -458,7 +457,6 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, null /*0.4707931876182556*/, 1.0);
         }
 
-        //TODO add Concatenate test with bigger input 'x'
         [Test]
         public void TestConcatenate_NCHW_1_1_1_1()
         {
@@ -471,8 +469,8 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, lambdaL2Regularization, true)
-                .Convolution(1, 1, 1, 0, lambdaL2Regularization, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .ConcatenateLayer(1, 2)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -503,8 +501,8 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, 0, lambdaL2Regularization, true)
-                .Convolution(1, 1, 1, 0, lambdaL2Regularization, true, 0)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
                 .MultiplyLayer(2, 1)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -537,8 +535,8 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(2, 1, 1, 0, lambdaL2Regularization, true)
-                .Convolution(2, 1, 1, 0, lambdaL2Regularization, true, 0)
+                .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
+                .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
                 .MultiplyLayer(2, 1)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -569,8 +567,8 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(2, 1, 1, 0, lambdaL2Regularization, true)
-                .Convolution(1, 1, 1, 0, lambdaL2Regularization, true, 0)
+                .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
                 .MultiplyLayer(2, 1)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -602,7 +600,7 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .DepthwiseConvolution(3, 1, 1, 1, lambdaL2Regularization, true)
+                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1, lambdaL2Regularization, true)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             var w = FromDepthwiseConvNumpyArray("[[[[-1.8182212e-01],[-2.4118826e-01],[-4.1797549e-02]],[[ 8.9864373e-02],[-2.0126545e-01],[-3.0578366e-01]],[[ 3.1133693e-01],[ 2.8887171e-01],[-1.8024862e-01]]],[[[ 2.5361568e-01],[ 2.5364757e-04],[ 3.7667376e-01]],[[ 2.5444084e-01],[-1.6983339e-01],[ 3.4809512e-01]],[[ 1.6018957e-01],[-1.4399531e-01],[ 4.0002191e-01]]],[[[ 6.4367443e-02],[ 3.8731194e-01],[-3.4315154e-01]],[[-1.1633310e-01],[ 1.9787598e-01],[ 3.6543274e-01]],[[-1.5561658e-01],[ 2.6152426e-01],[-1.7792954e-01]]]]", "depthwiseConv2D_1");
@@ -619,31 +617,96 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.12463792413473129, 1.0);
         }
 
+
+
+
         [Test, Explicit]
-        public void TestParallelRunWithTensorFlow_DepthwiseConv2D()
+        public void TestParallelRunWithTensorFlow_Efficientnet()
         {
-            const int numEpochs = 10;
-            const double learningRate = 0.01;
+            const int numEpochs = 1;
+            const double learningRate = 1.0;
+            const double lambdaL2Regularization = 0.00;
+            const double momentum = 0.9;
+
+            var efficientnet = new H5File(@"C:\Users\fzibi\.keras\models\efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5") .Datasets();
+            var networkBuilder = EfficientNetBuilder.CIFAR10();
+            networkBuilder.GpuDeviceId = -1;
+            
+            //networkBuilder.GpuDeviceId = 0; //?D
+            
+            var network = networkBuilder.EfficientNetB0_CIFAR10();
+
+            network.LoadFromH5Dataset(efficientnet);
+
+
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "Efficientnet_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            var logger = new Logger(logFileName, true);
+
+            var X = new CpuTensor<float>(new [] {1, 3, 32, 32}, null, "input_1");
+            for (int i = 0; i < X.Content.Length; ++i)
+            {
+                X.Content[i] = 0.0f;
+            }
+            X.Content[0] = 1.0f;
+
+            int batchSize = X.Shape[0];
+            var Y = new CpuTensor<float>(new [] { 1, 10000 }, null, "Y_train");
+            Y.Content[0] = 1;
+
+            logger.Info(network.Summary() + Environment.NewLine);
+
+            var predict_before = network.Predict(X, false).ToNumpy();
+            network.LogContent();
+
+            var trainingDataSet = new InMemoryDataSet(X, Y, new int[1], "", null);
+            Tuple<double, double> lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            //logger.Info("-");
+            //logger.Info("--------------------------------------------------------------------");
+            //logger.Info("-");
+
+            //TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+            //network.LogContent();
+
+            //var predict_after = network.Predict(X, false).ToNumpy();
+            //var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            logger.Info("C# numEpochs= " + numEpochs);
+            logger.Info("C# learningRate= " + learningRate);
+            logger.Info("C# l2regularizer= " + lambdaL2Regularization);
+            logger.Info("C# momentum= " + momentum);
+            logger.Info("C# prediction_before= " + predict_before);
+            logger.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
+            //logger.Info("C# prediction_after= " + predict_after);
+            //logger.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
+        }
+
+
+        [Test, Explicit]
+        public void TestParallelRunWithTensorFlow_Convolution()
+        {
+            const int numEpochs = 1;
+            const double learningRate = 1;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var logger = new Logger(logFileName, true);
 
-            var X = FromNumpyArray("[[[[0.0,0.1],[0.2,0.3]],[[0.4,0.5],[0.6,0.7]],[[0.8,0.9],[0.95,1.0]]]]", "x");
+            var X = FromNumpyArray("[[[[1,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]]]", "x");
             //var X = FromNumpyArray("[[[[0.0,0.0],[0.0,0.0]] , [[0.0,0.0],[0,0]], [[0.0,0],[0.0,1]]]]", "x");
             //var X = FromNumpyArray("[[[[0,0],[0,1]]]]", "x");
             var Y = FromNumpyArray("[[1,0]]", "y");
 
             int batchSize = X.Shape[0];
-            var gpuDeviceId = -1;
+            //var gpuDeviceId = -1;
+            var gpuDeviceId = 0;
             var network = new Network(new NetworkConfig { Logger = logger, LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, RandomizeOrder = false }
-                       //.WithAdam(0.9,0.999)
                        .WithSGD(momentum, false),
                         gpuDeviceId
                 );
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 //.Convolution(1,3, 1, 1, lambdaL2Regularization, true)
-                .DepthwiseConvolution(3, 1, 1, 1, lambdaL2Regularization, true)
+                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL, lambdaL2Regularization, false)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
@@ -660,9 +723,11 @@ namespace SharpNetTests.NonReg
 
             logger.Info(network.Summary() + Environment.NewLine);
 
-            var w = FromDepthwiseConvNumpyArray("[[[[-1.8182212e-01],[-2.4118826e-01],[-4.1797549e-02]],[[ 8.9864373e-02],[-2.0126545e-01],[-3.0578366e-01]],[[ 3.1133693e-01],[ 2.8887171e-01],[-1.8024862e-01]]],[[[ 2.5361568e-01],[ 2.5364757e-04],[ 3.7667376e-01]],[[ 2.5444084e-01],[-1.6983339e-01],[ 3.4809512e-01]],[[ 1.6018957e-01],[-1.4399531e-01],[ 4.0002191e-01]]],[[[ 6.4367443e-02],[ 3.8731194e-01],[-3.4315154e-01]],[[-1.1633310e-01],[ 1.9787598e-01],[ 3.6543274e-01]],[[-1.5561658e-01],[ 2.6152426e-01],[-1.7792954e-01]]]]","depthwiseConv2D_1");
+            var w = FromDepthwiseConvNumpyArray("[[[[-0.2571353 ]],[[-0.3410917 ]],[[-0.05911064]]],[[[ 0.12708741]],[[-0.28463233]],[[-0.43244338]]],[[[ 0.4402969 ]],[[ 0.40852624]],[[-0.25491002]]]]", "conv")
+                    .ToGPU<float>(network.GpuWrapper);
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Convolution);
-            w = FromNumpyArray("[[-0.2895949 , -0.1177094 ],[ 0.23789662,  0.3767377 ],[ 0.41499782,  0.2744642 ], [ 0.00143611,  0.4848951 ], [-0.49549383, -0.20193446], [-0.6493831 ,  0.06595588], [-0.28986678,  0.05255955], [-0.27410832, -0.3834508 ], [ 0.05772114, -0.02405858], [ 0.18792003, -0.33073252], [-0.2710427 ,  0.09345931], [ 0.12703902, -0.14722306]]", "dense");
+            w = FromNumpyArray("[[ 0.33020973,  0.5251229 ], [-0.5495825 ,  0.85642433], [-0.98543835 ,-0.46893334], [-0.16511512 ,-0.8770349 ]]", "dense")
+                .ToGPU<float>(network.GpuWrapper);
             w.CopyTo(((DenseLayer)network.Layers[3]).Weights);
             //w.CopyTo(((DenseLayer)network.Layers[6]).Weights);
 

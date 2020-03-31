@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
+using SharpNet.Layers;
 using SharpNet.Optimizers;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
@@ -33,6 +34,30 @@ namespace SharpNet.Networks
         #endregion
 
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
+        public CompatibilityModeEnum CompatibilityMode { get; set;} = CompatibilityModeEnum.SharpNet;
+
+        public ConvolutionLayer.PADDING_TYPE SamePadding
+        {
+            get
+            {
+                switch (CompatibilityMode)
+                {
+                    case CompatibilityModeEnum.TensorFlow1:
+                    case CompatibilityModeEnum.TensorFlow2:
+                        return ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL;
+                    default:
+                        return ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL;
+                }
+            }
+        }
+        public ConvolutionLayer.PADDING_TYPE ValidPadding
+        {
+            get
+            {
+                return ConvolutionLayer.PADDING_TYPE.VALID;
+            }
+        }
+
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
         public double Adam_epsilon { get; private set; }
@@ -293,6 +318,16 @@ namespace SharpNet.Networks
             Rand = new Random(0);
         }
         #endregion
+
+        public enum CompatibilityModeEnum
+        {
+            SharpNet,
+            TensorFlow1, //Tensorflow v1
+            TensorFlow2, //Tensorflow v2
+            PyTorch,
+            Caffe,
+            MXNet
+        }
 
         /// <summary>
         /// Conventions: 

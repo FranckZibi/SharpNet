@@ -13,11 +13,11 @@ namespace SharpNetTests
     {
         private static void Main()
         {
-
             //var catvnoncat = new SharpNet.Data.H5File(@"C:\Download\train_catvnoncat.h5").Datasets();
             //var signs = new SharpNet.Data.H5File(@"C:\Download\train_signs.h5").Datasets();
             //var efficientnetb0 = new SharpNet.Data.H5File(@"C:\Users\fzibi\.keras\models\efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5").Datasets();
-
+            //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Efficientnet(); return;
+            //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Convolution(); return;
 
 
             //var dogsVsCatDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train";
@@ -60,7 +60,6 @@ namespace SharpNetTests
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);
             //new NonReg.TestMNIST().Test();
-            ////new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
         }
@@ -113,6 +112,7 @@ namespace SharpNetTests
         #endregion
 
         #region EfficientNet Training
+
         private static void EfficientNetTests()
         {
             var todo = new List<Action<EfficientNetBuilder, int>>

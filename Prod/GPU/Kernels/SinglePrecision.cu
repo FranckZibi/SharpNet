@@ -52,7 +52,6 @@
 		}
 	}
     
-
 	__global__ void MultiplyEachRowIntoSingleValue(int nbRows, int nbCols, float *result, const float* __restrict a, const float* __restrict b) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
@@ -67,6 +66,26 @@
 				++b;
 			}
 			result[row] = sumInRow;
+		}
+	}
+
+	// src tensor has shape (n, c, h_src, w_src)
+	// dest tensor has shape (n, c, h_dest, w_dest) with:
+    //		h_dest = top_pad + h_src + bottom_pad;
+    //      w_dest = left_pad + w_src + right_pad;
+	// N = n*c*h_src = number of distinct rows in 'src' tensor
+	__global__ void ApplyZeroPaddingForRowId(int N, int h_src, int w_src, int top_pad, int bottom_pad, int left_pad, int right_pad, float* dest, const float* __restrict src) 
+	{
+		// 'rowId' is the index of the row in 'src' tensor (0 <= rowId < N with N=n*c*h_src)
+		int rowId = blockIdx.x * blockDim.x + threadIdx.x;
+		if (rowId < N) {
+			//we'll copy the row 'rowId' from 'src' tensor (n, c, h_src, w_src) to 'dest' tensor (n, c, h_dest, w_dest)
+            int h_dest = top_pad + h_src + bottom_pad;
+            int w_dest = left_pad + w_src + right_pad;
+            int row_in = (rowId % h_src);
+            int destRowIdx = ((rowId / h_src) * h_dest + row_in + top_pad) * w_dest + left_pad;
+            int rowIdx = rowId * w_src;
+			memcpy(dest+destRowIdx, src+rowIdx, sizeof(float)*w_src);
 		}
 	}
 

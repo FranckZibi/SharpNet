@@ -177,6 +177,16 @@ namespace SharpNet.Data
         public abstract void MultiplyTensor(Tensor a, Tensor x);
 
         /// <summary>
+        /// Stores in the 'this' tensor a zero padded version of the 'src' tensor
+        /// </summary>
+        /// <param name="src">the tensor to which we want to add zero padding</param>
+        /// <param name="topPadding">padding to add to the top of 'src' tensor</param>
+        /// <param name="bottomPadding">padding to add to the bottom of 'src' tensor</param>
+        /// <param name="leftPadding">padding to add to the left of 'src' tensor</param>
+        /// <param name="rightPadding">padding to add to the right of 'src' tensor</param>
+        public abstract void ZeroPadding(Tensor src, int topPadding, int bottomPadding, int leftPadding, int rightPadding);
+
+        /// <summary>
         /// Update the value of the 'this( tensor by multiplying it by 'x'
         /// if 'this' and 'x' have the same size:
         ///     will perform an element wise multiplication of vector 'this' and vector 'x' (and store the result in 'this')
@@ -258,26 +268,35 @@ namespace SharpNet.Data
 
         #region Convolution
         /// <summary>
-        /// this = x (N, C, x.H, x.W)
+        /// this = x (N, inputChannels, x.H, x.W)
         /// if isDepthwiseConvolution is true
         ///             Compute:      y = x (depthwise convolution) convolution (with padding / stride)
         ///             Both, x (= this), depthwiseConvolution and y must have the same number of channels.
         /// else
         ///             Compute:      y = x (convolution) convolution (with padding / stride)
-        /// <param name="depthwiseConvolution">
+        /// <param name="convolution">
         /// if isDepthwiseConvolution is true
-        ///             (depthMultiplier=1, inputChannels=outputChannels, f1, f2)
+        ///             convolution shape is (depthMultiplier=1, inputChannels, f1, f2)
+        ///             outputChannels = inputChannels*depthMultiplier
         /// else
-        ///             (filtersCount=outputChannels, inputChannels, f1,f2)
+        ///             convolution shape is (filtersCount=outputChannels, inputChannels, f1,f2)
+        /// </param>
+        /// <param name="paddingTop">zero-padding height: number of rows of zeros implicitly concatenated onto the top of input images</param>
+        /// <param name="paddingBottom">zero-padding height: number of rows of zeros implicitly concatenated onto the bottom of input images</param>
+        /// <param name="paddingLeft">zero-padding width: number of columns of zeros implicitly concatenated onto the left of input images</param>
+        /// <param name="paddingRight">zero-padding width: number of columns of zeros implicitly concatenated onto the right of input images</param>
+        /// <param name="isDepthwiseConvolution">
+        /// true if depthwise convolution, false for standard convolution
         /// </param>
         /// <param name="y">
         /// if isDepthwiseConvolution is true
-        ///             (N, depthMultiplier*C, y.H, y.W)
+        ///             y shape is (N, depthMultiplier*inputChannels, y.H, y.W)
         /// else
-        ///             (N, conv.filtersCount, y.H, y.W)
+        ///             y shape is (N, outputChannels, y.H, y.W)
         /// </param>
         /// </summary>
-        public abstract void Convolution(Tensor convolution, int padding, int stride, Tensor y, bool isDepthwiseConvolution);
+        ///
+        public abstract void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution);
 
         /// <summary>
         /// this = bias tensor of dimension (1, channels, 1, 1)
@@ -297,7 +316,21 @@ namespace SharpNet.Data
         public abstract void ConvolutionBackwardBias(Tensor bias);
 
         //this = x
-        public abstract void ConvolutionGradient(Tensor convolution, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="convolution"></param>
+        /// <param name="dy"></param>
+        /// <param name="paddingTop">zero-padding height: number of rows of zeros implicitly concatenated onto the top of input images</param>
+        /// <param name="paddingBottom">zero-padding height: number of rows of zeros implicitly concatenated onto the bottom of input images</param>
+        /// <param name="paddingLeft">zero-padding width: number of columns of zeros implicitly concatenated onto the left of input images</param>
+        /// <param name="paddingRight">zero-padding width: number of columns of zeros implicitly concatenated onto the right of input images</param>
+        /// <param name="stride"></param>
+        /// <param name="dx"></param>
+        /// <param name="convGradient"></param>
+        /// <param name="isDepthwiseConvolution"></param>
+        public abstract void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution);
         #endregion
 
         //this = x
@@ -440,7 +473,7 @@ namespace SharpNet.Data
         protected void RecomputeMultDim()
         {
             _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;
-            MultDim1 = Shape.Length >= 3 ? Shape[2] * _multDim2 : 1;
+            MultDim1 = Shape.Length >= 3 ? Shape[2] * _multDim2  : 1;
             MultDim0 = Shape.Length >= 2 ? Shape[1] * MultDim1 : 1;
         }
         private bool IsCompatible(Tensor a)

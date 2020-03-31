@@ -78,18 +78,19 @@ namespace SharpNet.Data
         }
         public static string Join(string path1, string path2)
         {
-            path1 = path1.TrimEnd('/');
-            path2 = path2.TrimStart('/');
-
-            if (string.IsNullOrEmpty(path1))
-            {
-                return path2;
-            }
             if (string.IsNullOrEmpty(path2))
             {
                 return path1;
             }
-            return path1 + "/" + path2;
+            if (path1.EndsWith("/") && path2.StartsWith("/"))
+            {
+                return path1+path2.TrimStart('/');
+            }
+            if (!path1.EndsWith("/") && !path2.StartsWith("/"))
+            {
+                return path1 + "/" + path2;
+            }
+            return path1 + path2;
         }
         /// <summary>
         /// extract the string at index 'stringIndex' from the buffer 'byteBuffer'

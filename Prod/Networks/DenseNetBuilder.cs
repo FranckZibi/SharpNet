@@ -4,6 +4,7 @@ using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Layers;
 
 // ReSharper disable UnusedMember.Global
 
@@ -136,14 +137,14 @@ namespace SharpNet.Networks
             var filtersCount = 2 * growthRate;
             if (subSampleInitialBlock)
             {
-                net.Convolution(filtersCount, 7, 2, 3, Config.lambdaL2Regularization, false)
+                net.Convolution(filtersCount, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, Config.lambdaL2Regularization, false)
                     .BatchNorm()
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                     .MaxPooling(3, 3, 2);
             }
             else
             {
-                net.Convolution(filtersCount, 3, 1, 1, Config.lambdaL2Regularization, false);
+                net.Convolution(filtersCount, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, Config.lambdaL2Regularization, false);
                 //net.Convolution(filtersCount, 3, 1, 1, 0.0, false);
             }
 
@@ -208,10 +209,10 @@ namespace SharpNet.Networks
         {
             if (bottleneck)
             {
-                network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 4 * growthRate, 1, 1, 0, lambdaL2Regularization, true);
+                network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 4 * growthRate, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true);
             }
             //network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, lambdaL2Regularization, true);
-            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, 0.0, true);
+            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 0.0, true);
             if (dropProbability.HasValue)
             {
                 network.Dropout(dropProbability.Value);
@@ -227,7 +228,7 @@ namespace SharpNet.Networks
         private void AddTransitionBlock(Network network, double compression, double lambdaL2Regularization)
         {
             var filtersCount = network.Layers.Last().OutputShape(1)[1];
-            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(filtersCount * compression), 1, 1, 0, lambdaL2Regularization, true)
+            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(filtersCount * compression), 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .AvgPooling(2, 2, 2);
         }
     }

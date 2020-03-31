@@ -2,9 +2,9 @@
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
 using SharpNet;
-using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
 
@@ -46,14 +46,14 @@ namespace SharpNetTests.NonReg
             network
                 .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
 
-                .Convolution_BatchNorm_Activation(16, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .MaxPooling(2,2,2)
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)
 
                 //.AddDropout(0.2)
 
-                .Convolution_BatchNorm_Activation(32, 3, 1, 1, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Convolution_BatchNorm_Activation(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .MaxPooling(2, 2,  2)
 
                 //.AddBatchNorm()

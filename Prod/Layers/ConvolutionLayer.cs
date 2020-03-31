@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
@@ -26,7 +27,7 @@ namespace SharpNet.Layers
         private readonly int _depthMultiplier;                  //only valid on depthwise convolution (_isDepthwiseConvolution=true)
         private readonly int _f;
         private readonly int _stride;
-        private readonly int _padding;
+        private readonly PADDING_TYPE _paddingType;
         private readonly double _lambdaL2Regularization;
         private readonly Optimizer _optimizer;                  //Adam optimization or SGD optimization or null
         private bool UseBias => ConvolutionBias != null;
@@ -48,8 +49,16 @@ namespace SharpNet.Layers
         public Tensor ConvolutionBiasGradients { get; private set; }        // same as 'ConvolutionBias'  or null is no bias should be used
         #endregion
 
+
+        /// <summary>
+        /// SAME_NON_SYMMETRICAL is the "same" padding used in Keras/Tensorflow
+        /// SAME_SYMMETRICAL is the "same" padding used in Cafe
+        /// </summary>
+        public enum PADDING_TYPE { VALID, SAME_SYMMETRICAL, SAME_NON_SYMMETRICAL}
+
+
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, int padding, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network, string layerName)
+        public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network, string layerName)
             : base(network, previousLayerIndex, layerName)
         {
             _isDepthwiseConvolution = isDepthwiseConvolution;
@@ -57,11 +66,11 @@ namespace SharpNet.Layers
             _depthMultiplier = depthMultiplier;
             if (_isDepthwiseConvolution && depthMultiplier != 1)
             {
-                throw new NotImplementedException("only depthMultiplier=1 is supported");
+                throw new NotImplementedException("only depthMultiplier=1 is supported in depthwise convolution");
             }
             _f = f;
             _stride = stride;
-            _padding = padding;
+            _paddingType = paddingType;
             _lambdaL2Regularization = lambdaL2Regularization;
             Convolution = Network.NewNotInitializedTensor(ConvolutionShape, nameof(Convolution));
             ConvolutionGradients = Network.NewNotInitializedTensor(Convolution.Shape, nameof(ConvolutionGradients));
@@ -82,7 +91,7 @@ namespace SharpNet.Layers
             _depthMultiplier = toClone._depthMultiplier;
             _f = toClone._f;
             _stride = toClone._stride;
-            _padding = toClone._padding;
+            _paddingType = toClone._paddingType;
             _lambdaL2Regularization = toClone._lambdaL2Regularization;
             Convolution = toClone.Convolution?.Clone(newNetwork.GpuWrapper);
             ConvolutionGradients = toClone.ConvolutionGradients?.Clone(newNetwork.GpuWrapper);
@@ -104,7 +113,7 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(_depthMultiplier, other._depthMultiplier, id + ":_depthMultiplier", ref errors);
             equals &= Utils.Equals(_f, other._f, id+":_f", ref errors);
             equals &= Utils.Equals(_stride, other._stride, id + ":_stride", ref errors);
-            equals &= Utils.Equals(_padding, other._padding, id + ":_padding", ref errors);
+            equals &= Utils.Equals((int)_paddingType, (int)other._paddingType, id + ":_paddingType", ref errors);
             equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id + ":_lambdaL2Regularization", ref errors);
             equals &= _optimizer.Equals(other._optimizer, epsilon, id+":Optimizer", ref errors);
             return equals;
@@ -115,7 +124,7 @@ namespace SharpNet.Layers
             return  RootSerializer()
                 .Add(nameof(_isDepthwiseConvolution), _isDepthwiseConvolution).Add(nameof(_filtersCount), _filtersCount).Add(nameof(_depthMultiplier), _depthMultiplier)
                 .Add(nameof(_f), _f).Add(nameof(_stride), _stride)
-                .Add(nameof(_padding), _padding)
+                .Add(nameof(_paddingType), (int)_paddingType)
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
                 .Add(Convolution).Add(ConvolutionGradients)
                 .Add(ConvolutionBias).Add(ConvolutionBiasGradients)
@@ -129,7 +138,7 @@ namespace SharpNet.Layers
             _depthMultiplier = (int)serialized[nameof(_depthMultiplier)];
             _f = (int)serialized[nameof(_f)];
             _stride = (int)serialized[nameof(_stride)];
-            _padding = (int)serialized[nameof(_padding)];
+            _paddingType = (PADDING_TYPE)serialized[nameof(_paddingType)];
             _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
             Convolution = (Tensor)serialized[nameof(Convolution)];
             ConvolutionGradients = (Tensor)serialized[nameof(ConvolutionGradients)];
@@ -148,17 +157,40 @@ namespace SharpNet.Layers
             ConvolutionBiasGradients = null;
             return nbDisabledWeights;
         }
+
+
+        private Tensor _tmpXReshaped;
+
+
         public override void ForwardPropagation(bool isTraining)
         {
             Allocate_y_if_necessary();
             var x = PrevLayer.y;
             //We compute y = x (conv) Convolution + ConvolutionBias
-            x.Convolution(Convolution, _padding, _stride, y, _isDepthwiseConvolution);
+
+            Padding(out int topPadding, out int bottomPadding, out int leftPadding, out int rightPadding);
+
+            if (topPadding != bottomPadding || leftPadding != rightPadding)
+            {
+                //not symmetrical padding
+                var newShape = new[]{x.Shape[0], x.Shape[1], topPadding+x.Shape[2]+bottomPadding, leftPadding+x.Shape[3]+rightPadding};
+                _tmpXReshaped = Network.NewNotInitializedTensor(newShape, _tmpXReshaped, nameof(_tmpXReshaped));
+                _tmpXReshaped.ZeroPadding(x, topPadding, bottomPadding, leftPadding, rightPadding);
+                _tmpXReshaped.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution);
+            }
+            else
+            {
+                //symmetrical padding
+                x.Convolution(Convolution, topPadding, bottomPadding, leftPadding, rightPadding, _stride, y, _isDepthwiseConvolution);
+            }
+
             if (UseBias)
             {
                 ConvolutionBias.BroadcastConvolutionBiasToOutput(y);
             }
         }
+
+
         // dy => ConvolutionGradient & dx
         public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
@@ -173,7 +205,19 @@ namespace SharpNet.Layers
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
             var x = PrevLayer.y;
-            x.ConvolutionGradient(Convolution, dy, _padding, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+            Padding(out int topPadding, out int bottomPadding, out int leftPadding, out int rightPadding);
+
+            if (topPadding != bottomPadding || leftPadding != rightPadding)
+            {
+                //not symmetrical padding
+                _tmpXReshaped.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+            }
+            else
+            {
+                //symmetrical padding
+                x.ConvolutionGradient(Convolution, dy, topPadding, bottomPadding, leftPadding, rightPadding, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+            }
+
             if (UseL2Regularization)
             {
                 var batchSize = y.Shape[0];
@@ -220,78 +264,156 @@ namespace SharpNet.Layers
         public override string ToString()
         {
             var result = LayerName+": " + ShapeChangeDescription();
-            result += " padding=" + _padding + " stride=" + _stride;
+            result += " padding=" + _paddingType +" stride=" + _stride;
             result += " Filter"+ Utils.ShapeToString(Convolution?.Shape);
             result += (UseBias)?" with Bias":" no Bias";
             result += " ("+ MemoryDescription()+")";
             return result;
         }
 
+
+        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
+        {
+            LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 0, 1 }, new[] { 0, 1, 3, 2 });
+            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 0, 1 });
+            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 1, 0 });
+            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution, new[] { 3, 2, 1, 0 }, new[] { 0, 1, 3, 2 });
+            //LoadFromH5Dataset(h5FileDataset, "kernel:0", Convolution);
+            //we load bias if necessary
+            var biasDatasetPath = DatasetNameToDatasetPath("bias:0");
+            if (UseBias)
+            {
+                var cpuTensor = (CpuTensor<float>)h5FileDataset[biasDatasetPath];
+                var reshapedCpuTensor = cpuTensor.WithNewShape(new[] { 1, cpuTensor.Shape[0], 1, 1 });
+                LoadFromH5Dataset(reshapedCpuTensor, ConvolutionBias);
+            }
+            else
+            {
+                //we ensure that no bias was provided in input
+                if (h5FileDataset.ContainsKey(biasDatasetPath))
+                {
+                    throw new ArgumentException("found bias tensor " + biasDatasetPath + "for layer " + LayerName + " although bias is disabled");
+
+                }
+            }
+        }
+
+
+
+
         public override int[] OutputShape(int batchSize)
         {
-            var result =
-                _isDepthwiseConvolution
-                    ? DepthwiseConvolutionOutputShape(PrevLayer.OutputShape(batchSize), Convolution.Shape, _padding, _stride)
-                    : StandardConvolutionOutputShape(PrevLayer.OutputShape(batchSize), Convolution.Shape, _padding, _stride);
+            var inputShape = PrevLayer.OutputShape(batchSize);
+            var result = OutputShape(inputShape, Convolution.Shape, _paddingType, _stride, _isDepthwiseConvolution);
             Debug.Assert(result.Min() >= 1);
             return result;
         }
 
+
+
         /// <summary>
-        /// Compute the output shape fo a convolution layer, given input shape 'shapeInput' and convolution shape 'shapeConvolution'
+        /// Compute the output shape fo a convolution layer, given input shape 'inputShape' and convolution shape 'convolutionShape'
         /// </summary>
-        /// <param name="shapeInput">input shape: (batchSize, channelDepth, heightInput, widthInput)</param>
-        /// <param name="shapeConvolution">convolution shape: (filtersCount, channelDepth, f, f)</param>
-        /// <param name="padding"></param>
+        /// <param name="inputShape">input shape: (batchSize, inputChannels, heightInput, widthInput)</param>
+        /// <param name="convolutionShape">
+        /// if isDepthwiseConvolution = true
+        ///     convolution shape: (depthMultiplier, inputChannels, f, f)</param>
+        /// else
+        ///     convolution shape: (filtersCount, inputChannels, f, f)
+        /// <param name="paddingType"></param>
         /// <param name="stride"></param>
-        /// <returns>output shape: (batchSize, filtersCount, heightOutput=H[heightInput], weightOutput=H[weightInput])</returns>
-        public static int[] StandardConvolutionOutputShape(int[] shapeInput, int[] shapeConvolution, int padding, int stride)
+        /// <param name="isDepthwiseConvolution"></param>
+        /// <returns>output shape:
+        /// if isDepthwiseConvolution = true
+        ///     shape is (batchSize, inputChannels * depthMultiplier, heightOutput=H[heightInput], weightOutput=H[weightInput])
+        ///else
+        ///     shape is (batchSize, filtersCount, heightOutput=H[heightInput], weightOutput=H[weightInput])
+        /// </returns>
+        public static int[] OutputShape(int[] inputShape, int[] convolutionShape, PADDING_TYPE paddingType, int stride, bool isDepthwiseConvolution)
         {
-            Debug.Assert(shapeInput.Length == 4);
-            Debug.Assert(shapeConvolution.Length == 4);
-            Debug.Assert(padding >= 0);
+            Debug.Assert(inputShape.Length == 4);
+            Debug.Assert(convolutionShape.Length == 4);
             Debug.Assert(stride >= 1);
-            Debug.Assert(shapeInput[1] == shapeConvolution[1]); //same channel depth for 'input shape' and 'convolution shape'
-            Debug.Assert(shapeConvolution[2] == shapeConvolution[3]); //convolution height == convolution width
-            var batchSize = shapeInput[0];
-            var heightInput = shapeInput[2];
-            var widthInput = shapeInput[3];
-            var f = shapeConvolution[2];
+            Debug.Assert(inputShape[1] == convolutionShape[1]); //same channel depth for 'input shape' and 'convolution shape'
+            Debug.Assert(convolutionShape[2] == convolutionShape[3]); //convolution height == convolution width
+            var batchSize = inputShape[0];
+            var inputChannels = inputShape[1];
+            var inputHeight = inputShape[2];
+            var inputWidth = inputShape[3];
+            var f = convolutionShape[2];
             Debug.Assert(f % 2 == 1); // F must be odd
-            var filtersCount = shapeConvolution[0];
-            var heightOutput = (heightInput - f + 2 * padding) / stride + 1;
-            var widthOutput = (widthInput - f + 2 * padding) / stride + 1;
-            return new[] { batchSize, filtersCount, heightOutput, widthOutput };
+            var outputHeight = OutputLength(inputHeight, f, stride, paddingType);
+            var outputWidth = OutputLength(inputWidth, f, stride, paddingType);
+            int outputChannels = isDepthwiseConvolution
+                ? inputChannels * convolutionShape[0]
+                : convolutionShape[0];
+            return new[] { batchSize, outputChannels, outputHeight, outputWidth };
         }
 
         /// <summary>
-        /// Compute the output shape fo a convolution layer, given input shape 'shapeInput' and convolution shape 'shapeConvolution'
+        /// //TODO add tests
         /// </summary>
-        /// <param name="shapeInput">input shape: (batchSize, channelDepth, heightInput, widthInput)</param>
-        /// <param name="shapeConvolution">depthwise convolution shape: (1, channelDepth, f, f)</param>
-        /// <param name="padding"></param>
+        /// <param name="inputLength"></param>
+        /// <param name="f"></param>
         /// <param name="stride"></param>
-        /// <returns>output shape: (batchSize, filtersCount, heightOutput=H[heightInput], weightOutput=H[weightInput])</returns>
-        public static int[] DepthwiseConvolutionOutputShape(int[] shapeInput, int[] shapeConvolution, int padding, int stride)
+        /// <param name="paddingType"></param>
+        /// <returns></returns>
+        public static int OutputLength(int inputLength, int f, int stride, PADDING_TYPE paddingType)
         {
-            Debug.Assert(shapeInput.Length == 4);
-            Debug.Assert(shapeConvolution.Length == 4);
-            Debug.Assert(padding >= 0);
-            Debug.Assert(stride >= 1);
-            Debug.Assert(1 == shapeConvolution[0]);             //filter count is always 1 for depthwise convolution
-            Debug.Assert(shapeInput[1] == shapeConvolution[1]); //same channel depth for 'input shape' and 'convolution shape'
-            Debug.Assert(shapeConvolution[2] == shapeConvolution[3]); //convolution height == convolution width
-            var batchSize = shapeInput[0];
-            var channelDepth = shapeInput[1];
-            var heightInput = shapeInput[2];
-            var widthInput = shapeInput[3];
-            var f = shapeConvolution[2];
-            Debug.Assert(f % 2 == 1); // F must be odd
-            var heightOutput = (heightInput - f + 2 * padding) / stride + 1;
-            var widthOutput = (widthInput - f + 2 * padding) / stride + 1;
-            int depthMultiplier = shapeConvolution[0];
-            return new[] { batchSize, channelDepth * depthMultiplier, heightOutput, widthOutput };
+            switch (paddingType)
+            {
+                case PADDING_TYPE.VALID:  
+                    return (inputLength - f) / stride + 1;
+                case PADDING_TYPE.SAME_NON_SYMMETRICAL:
+                case PADDING_TYPE.SAME_SYMMETRICAL:
+                    return (inputLength - 1) / stride + 1;
+                default:
+                    throw new NotImplementedException("unknown padding type "+paddingType);
+            }
         }
+
+        protected override List<Tensor> TensorsDependentOfBatchSize
+        {
+            get
+            {
+                var result = new List<Tensor> { y, _tmpXReshaped };
+                result.RemoveAll(t => t == null);
+                return result;
+            }
+        }
+
+        private void Padding(out int topPadding, out int bottomPadding, out int leftPadding, out int rightPadding)
+        {
+            var x = PrevLayer.y;
+            Padding(x.Shape[2], _f, _stride, _paddingType, out topPadding, out bottomPadding);
+            Padding(x.Shape[3], _f, _stride, _paddingType, out leftPadding, out rightPadding);
+        }
+
+        public static void Padding(int inputLength, int f, int stride, PADDING_TYPE paddingType, out int paddingStart, out int paddingEnd)
+        {
+            int outputLength = OutputLength(inputLength, f, stride, paddingType);
+            int totalPadding = Math.Max((outputLength - 1) * stride + f - inputLength, 0);
+            switch (paddingType)
+            {
+                case PADDING_TYPE.VALID:
+                    paddingStart = paddingEnd = 0;
+                    return;
+                case PADDING_TYPE.SAME_NON_SYMMETRICAL:
+                    //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python
+                    paddingStart = totalPadding / 2;
+                    paddingEnd = totalPadding-paddingStart;
+                    return;
+                case PADDING_TYPE.SAME_SYMMETRICAL:
+                    //TODO check formula
+                    paddingStart = (totalPadding + 1)/2;
+                    paddingEnd = paddingStart;
+                    return;
+                default:
+                    throw new NotImplementedException("unknown padding type " + paddingType);
+            }
+        }
+
+
 
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
         public override List<Tensor> TensorsIndependentOfBatchSize
@@ -325,8 +447,8 @@ namespace SharpNet.Layers
             {
                 if (_isDepthwiseConvolution)
                 {
-                    var channels = PrevLayer.OutputShape(1)[1];
-                    return new[] { _depthMultiplier, channels, 1, 1 };
+                    var inputChannels = PrevLayer.OutputShape(1)[1];
+                    return new[] { _depthMultiplier, inputChannels, 1, 1 };
                 }
                 else
                 {

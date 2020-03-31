@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -78,7 +79,7 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
             equals &= Utils.EqualsList(_previousLayerIndexes, b._previousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
             equals &= Utils.EqualsList(_nextLayerIndexes, b._nextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
-            equals &= Utils.EqualsList(TensorsIndependentOfBatchSize, b.TensorsIndependentOfBatchSize, epsilon, id+ ":TensorsIndependantOfBatchSize", ref errors);
+            equals &= Utils.EqualsList(TensorsIndependentOfBatchSize, b.TensorsIndependentOfBatchSize, epsilon, id+ ":TensorsIndependentOfBatchSize", ref errors);
             return equals;
         }
         protected int NbLayerOfSameTypeBefore()
@@ -150,6 +151,65 @@ namespace SharpNet.Layers
         public abstract void BackwardPropagation(Tensor dy, List<Tensor> dx);
         public virtual void UpdateWeights(double learningRate) { }
         public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
+
+
+
+        #region *.h5 file (HDF) management
+
+        /// <summary>
+        /// Initialize layer weights & bias from datasets objects extracted from a *.h5 (HDF) file
+        /// </summary>
+        /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
+        public virtual void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
+        {
+        }
+
+        /// <summary>
+        /// Save layer weights & bias in Tensor(s) so that they can be stored in datasets objects in a *.h5 (HDF) file
+        /// </summary>
+        /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
+        public virtual void SaveToH5Dataset(List<Tuple<string, Tensor>> h5FileDataset)
+        {
+            throw new NotImplementedException(); //TODO
+        }
+
+        protected string DatasetNameToDatasetPath(string datasetName)
+        {
+            return "/" + LayerName + "/" + LayerName + "/" + datasetName;
+        }
+        protected void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, string datasetName, Tensor destination, params int[][] axisChanges)
+        {
+            var datasetPath = DatasetNameToDatasetPath(datasetName);
+            if (!h5FileDataset.ContainsKey(datasetPath))
+            {
+                throw new ArgumentException("missing dataset for path " + datasetPath + " to initialize " + destination.Description + " in layer " + LayerName);
+            }
+            var cpuTensor = h5FileDataset[datasetPath] as CpuTensor<float>;
+            if (cpuTensor == null)
+            {
+                throw new ArgumentException("invalid dataset for path " + DatasetNameToDatasetPath(datasetName) + " to initialize " + destination.Description + " in layer " + LayerName + ": expecting CpuTensor<float> but received " + h5FileDataset[datasetPath].GetType());
+            }
+            LoadFromH5Dataset(cpuTensor, destination, axisChanges);
+        }
+        protected void LoadFromH5Dataset(CpuTensor<float> cpuTensor, Tensor destination, params int[][] axisChanges)
+        {
+            foreach (var axisChange in axisChanges)
+            {
+                cpuTensor = cpuTensor.ChangeAxis(axisChange);
+            }
+
+            if (destination.UseGPU)
+            {
+                var gpuDestination = (GPUTensor<float>)destination;
+                gpuDestination.CopyToDevice(cpuTensor.Content);
+            }
+            else
+            {
+                cpuTensor.CopyTo(destination);
+            }
+        }
+
+        #endregion
 
 
         /// <summary>
@@ -330,7 +390,7 @@ namespace SharpNet.Layers
             return this;
         }
 
-        private List<Tensor> TensorsDependentOfBatchSize
+        protected virtual List<Tensor> TensorsDependentOfBatchSize
         {
             get
             {

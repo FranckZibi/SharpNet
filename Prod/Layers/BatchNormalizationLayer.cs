@@ -13,11 +13,11 @@ namespace SharpNet.Layers
         #region Private fields
         private readonly double _momentum;
         private readonly double _epsilon;
-        //Weights
+        //Weights (gammas, scale)
         private readonly Tensor _bnScale;                       // (1, C, H, W) or (1, C, 1, 1) : depending on previous layer
         //WeightGradients
         private readonly Tensor _resultBnScaleDiff;             // same as '_bnScale"
-        //Bias
+        //Bias (betas, offset)
         private readonly Tensor _bnBias;                        // same as '_bnScale"
         //BiasGradients
         private readonly Tensor _resultBnBiasDiff;              // same as '_bnScale"
@@ -44,6 +44,7 @@ namespace SharpNet.Layers
             _resultSaveMean = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultSaveMean));
             _resultSaveVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultSaveVariance));
             _optimizer = Network.GetOptimizer(_bnScale.Shape, _bnBias.Shape);
+            //no need to reset optimizer weights: it has just been done above
             ResetWeights(false);
 
             //We disable bias for the previous layers
@@ -165,6 +166,15 @@ namespace SharpNet.Layers
                 _optimizer.ZeroMemory();
             }
         }
+        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
+        {
+            LoadFromH5Dataset(h5FileDataset, "beta:0", _bnBias);
+            LoadFromH5Dataset(h5FileDataset, "moving_mean:0", _resultRunningMean);
+            LoadFromH5Dataset(h5FileDataset, "gamma:0", _bnScale);
+            LoadFromH5Dataset(h5FileDataset, "moving_variance:0", _resultRunningVariance);
+        }
+
+     
         public override int TotalParams => _bnScale.Count + _resultBnScaleDiff.Count + _bnBias.Count + _resultBnBiasDiff.Count;
         protected override string DefaultLayerName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
         public override string Type() {return "BatchNormalization"; }

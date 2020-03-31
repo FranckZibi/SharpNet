@@ -120,23 +120,23 @@ namespace SharpNet.Layers
         }
 
         /// <summary>
-        /// Compute the pooling layer output shape given an input of shape 'shapeInput'
+        /// Compute the pooling layer output shape given an input of shape 'inputShape'
         /// </summary>
-        /// <param name="shapeInput">(batchSize, x.C, heightInput, widthInput)</param>
+        /// <param name="inputShape">(batchSize, x.C, heightInput, widthInput)</param>
         /// <param name="poolingHeight">the pooling size is (poolingHeight, poolingWidth)</param>
         /// <param name="poolingWidth">the pooling size is (poolingHeight, poolingWidth)</param>
         /// <param name="poolingStride">pooling stride</param>
         /// <returns>the output shape: (batchSize, x.C, y.H, y.W)</returns>
-        public static int[] PoolingOutputShape(int[] shapeInput, int poolingHeight, int poolingWidth, int poolingStride)
+        public static int[] PoolingOutputShape(int[] inputShape, int poolingHeight, int poolingWidth, int poolingStride)
         {
-            Debug.Assert(shapeInput.Length == 4);
+            Debug.Assert(inputShape.Length == 4);
             Debug.Assert(poolingStride >= 1);
-            var batchSize = shapeInput[0];
-            var heightInput = shapeInput[2];
-            var widthInput = shapeInput[3];
+            var batchSize = inputShape[0];
+            var heightInput = inputShape[2];
+            var widthInput = inputShape[3];
             var heightOutput = (heightInput - poolingHeight) / poolingStride + 1;
             var widthOutput = (widthInput - poolingWidth) / poolingStride + 1;
-            return new[] { batchSize, shapeInput[1], heightOutput, widthOutput };
+            return new[] { batchSize, inputShape[1], heightOutput, widthOutput };
         }
     }
 }

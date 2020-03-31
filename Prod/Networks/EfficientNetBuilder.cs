@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Networks
 {
@@ -22,6 +23,7 @@ namespace SharpNet.Networks
                 Config = new NetworkConfig
                 {
                     LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                     lambdaL2Regularization = 0.0005
                 }
                     .WithSGD(0.9, false)
@@ -47,6 +49,7 @@ namespace SharpNet.Networks
                 Config = new NetworkConfig
                 {
                     LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                     lambdaL2Regularization = 0.0005
                 }
                     .WithSGD(0.9, false)
@@ -101,24 +104,23 @@ namespace SharpNet.Networks
             float widthCoefficient,
             float depthCoefficient,
             int defaultResolution,
-            float dropoutRate, //= 0.2,
-            float dropConnectRate, // = 0.2,
-            int depthDivisor, //= 8,
+            float dropoutRate,
+            float dropConnectRate,
+            int depthDivisor,
             List<MobileBlocksDescription> blocks,
-            string modelName, //= "efficientnet",
-            bool includeTop, //= true,
-            string weights, //= 'imagenet',
+            string modelName,
+            bool includeTop,
+            string weights,
             int[] inputShape_CHW,
             POOLING_BEFORE_DENSE_LAYER pooling,
             int categories //= 1000
             )
-
         {
             blocks = blocks.Select(x => x.ApplyScaling(widthCoefficient, depthDivisor, depthCoefficient)).ToList();
             var net = BuildEmptyNetwork(modelName);
             var config = net.Config;
 
-            ///TODO compute actual inputShape_CHW
+            //TODO compute actual inputShape_CHW
             //inputShape_CHW = _obtain_input_shape(inputShape_CHW, default_size=defaultResolution, min_size=32, data_format="NCHW", require_flatten=includeTop, weights=weights)
 
             var channelCount = inputShape_CHW[0];
@@ -131,12 +133,13 @@ namespace SharpNet.Networks
 
             //Build stem
             var stemChannels = MobileBlocksDescription.RoundFilters(32, widthCoefficient, depthDivisor);
-            var stemStide = 2;
-            if (Math.Min(height, width) <= 32)
-            {
-                stemStide = 1;
-            }
-            net.Convolution(stemChannels, 3, stemStide, 1, config.lambdaL2Regularization, false, "stem_conv")
+            var stemStride = 2;
+
+            //if (Math.Min(height, width) <= 32)
+            //{
+            //    stemStride = 1;
+            //}
+            net.Convolution(stemChannels, 3, stemStride, config.SamePadding, config.lambdaL2Regularization, false, "stem_conv")
                 .BatchNorm("stem_bn")
                 .Activation(activation, "stem_activation");
 
@@ -150,22 +153,16 @@ namespace SharpNet.Networks
                 {
                     var layerPrefix = "block" + (idx + 1) + (char)('a' + bidx) + "_";
                     var dropRate = (dropConnectRate * blockNum) / numBlocksTotal;
-                    if (bidx == 0)
-                    {
-                        //The first block needs to take care of stride and filter size increase.
-                        AddMBConvBlock(net, block_arg, dropRate, layerPrefix);
-                    }
-                    else
-                    {
-                        AddMBConvBlock(net, block_arg.WithStride(1, 1), dropRate, layerPrefix);
-                    }
+                    //The first block needs to take care of stride and filter size increase.
+                    var mobileBlocksDescription = bidx == 0 ? block_arg : block_arg.WithStride(1, 1);
+                    AddMBConvBlock(net, mobileBlocksDescription, dropRate, layerPrefix);
                     ++blockNum;
                 }
             }
 
             //# Build top
             var outputChannelsTop = MobileBlocksDescription.RoundFilters(1280, widthCoefficient, depthDivisor);
-            net.Convolution(outputChannelsTop, 1, 1, 0, config.lambdaL2Regularization, false, "top_conv");
+            net.Convolution(outputChannelsTop, 1, 1, config.SamePadding, config.lambdaL2Regularization, false, "top_conv");
             net.BatchNorm("top_bn");
             net.Activation(activation, "top_activation");
             if (includeTop)
@@ -214,13 +211,13 @@ namespace SharpNet.Networks
             var filters = inputChannels * block_args.ExpandRatio;
             if (block_args.ExpandRatio != 1)
             {
-                net.Convolution(filters, 1, 1, 0, config.lambdaL2Regularization, false, layerPrefix+"expand_conv")
+                net.Convolution(filters, 1, 1, config.SamePadding, config.lambdaL2Regularization, false, layerPrefix+"expand_conv")
                     .BatchNorm(layerPrefix+"expand_bn")
                     .Activation(activation, layerPrefix+ "expand_activation");
             }
 
             //Depthwise Convolution
-            net.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, block_args.KernelSize / 2, 1, config.lambdaL2Regularization, false, layerPrefix+"dwconv")
+            net.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, config.SamePadding, 1, config.lambdaL2Regularization, false, layerPrefix+"dwconv")
                 .BatchNorm(layerPrefix + "bn")
                 .Activation(activation, layerPrefix + "activation");
 
@@ -231,15 +228,15 @@ namespace SharpNet.Networks
                 var xLayerIndex = net.Layers.Last().LayerIndex;
                 var num_reduced_filters = Math.Max(1, (int) (inputChannels * block_args.SeRatio));
                 net.GlobalAvgPooling(layerPrefix + "se_squeeze");
-                net.Convolution(num_reduced_filters, 1, 1, 0, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
+                net.Convolution(num_reduced_filters, 1, 1, config.SamePadding, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
                     .Activation(activation);
-                net.Convolution(filters, 1, 1, 0, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
+                net.Convolution(filters, 1, 1, config.SamePadding, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
                 net.MultiplyLayer(net.Layers.Last().LayerIndex, xLayerIndex, layerPrefix + "se_excite");
             }
 
             //Output phase
-            net.Convolution(block_args.OutputFilters, 1, 1, 0, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
+            net.Convolution(block_args.OutputFilters, 1, 1, config.SamePadding, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
             net.BatchNorm(layerPrefix + "project_bn");
             if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels && dropRate > 0.00001)
             {
@@ -249,7 +246,7 @@ namespace SharpNet.Networks
         }
 
 
-        public Network EfficientNetBX_CIFAR10(float widthCoefficient,
+        private Network EfficientNetBX_CIFAR10(float widthCoefficient,
                 float depthCoefficient,
                 float dropoutRate,
                 float dropConnectRate,
@@ -257,7 +254,9 @@ namespace SharpNet.Networks
         {
             return EfficientNet(widthCoefficient, depthCoefficient, 32 /*defaultResolution*/, dropoutRate,
                 dropConnectRate, 8, 
-                MobileBlocksDescription.Default(),
+
+                MobileBlocksDescription.Default(), 
+
                 //BlocksDescription.Default().Select(x=>x.WithStride(1,1)).ToList(),
                 //BlocksDescription.Default().Select(x=>x.WithStride(1,1)).Take(1).ToList(),
                 //BlocksDescription.Default().Select(x=>x.WithKernelSize(3)).Take(4).ToList(),
@@ -267,7 +266,8 @@ namespace SharpNet.Networks
                 null, //weights,
                 new[] { 3, 32, 32 },
                 POOLING_BEFORE_DENSE_LAYER.NONE, // pooling,
-                10
+                
+                1000 //10
             );
         }
         public Network EfficientNetB0_CIFAR10()

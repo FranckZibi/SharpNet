@@ -20,24 +20,37 @@ namespace SharpNetTests
         private const int FiltersCount = 8;
         private const int ChannelsCount = 3;
         private const int Height = 17;
-        private const int Width = 33;
+        private const int Width = 32;
         private const int Nx = Height * Width * ChannelsCount;
-        private const int ConvolutionF = 5;
-	    private const int ConvolutionPadding = 2;
-	    private const int ConvolutionStride = 1;
-        private const int PoolingStride = 2;
 	    private readonly Random _rand = new Random(0);
         private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
-	    [Test]
-	    public void TestStandardConvolution()
-	    {
-	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
-            int filterCount = 128;
-	        var convolution = RandomTensor(new[] { filterCount, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
-	        var y = RandomTensor(ConvolutionLayer.StandardConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
-	        TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2], false));
-	    }
+        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID, 1)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID, 2)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 2)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL, 1)]
+        //[TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL, 2)]
+        public void TestConvolution(ConvolutionLayer.PADDING_TYPE paddingType, int stride)
+        {
+            foreach(var isDepthwiseConvolution in new[] { true,false})
+            { 
+                var channelsCount = 3;
+                var height = 17;
+                var width = 32;
+                var f = 3;
+                int filterCount = 128;
+                var x = RandomTensor(new[] { BatchSize, channelsCount, height, width }, "x");
+                var convolutionShape = isDepthwiseConvolution
+                        ? new[] { 1, channelsCount, f, f }
+                        : new[] { filterCount, channelsCount, f, f };
+                var convolution = RandomTensor(convolutionShape, "convolution");
+	            var y = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution), "y");
+                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, out int topPadding, out int bottomPadding);
+                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, out int leftPadding, out int rightPadding);
+	            TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], topPadding, bottomPadding, leftPadding, rightPadding, stride, tensors[2], isDepthwiseConvolution));
+            }
+        }
 
         [Test]
         public void TestConvolutionBackwardBias()
@@ -49,42 +62,34 @@ namespace SharpNetTests
             TestAll(new[] { dx, convolutionBackwardBias }, tensors => tensors[0].ConvolutionBackwardBias(tensors[1]));
         }
 
-        [Test]
-        public void TestConvolutionGradient()
+        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID,1)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.VALID,2)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL,1)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL,2)]
+        [TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL,1)]
+        //[TestCase(ConvolutionLayer.PADDING_TYPE.SAME_NON_SYMMETRICAL,2)]
+        public void TestConvolutionGradient(ConvolutionLayer.PADDING_TYPE paddingType, int stride)
         {
-            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
-            x = new CpuTensor<float>(x.Shape, "x");
-            var convolution = RandomTensor(new[] { BatchSize, ChannelsCount, ConvolutionF, ConvolutionF }, "convolution");
-            var dy = RandomTensor(ConvolutionLayer.StandardConvolutionOutputShape(x.Shape, convolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
-            //this will compute 'dx' && 'convolutionGradient'
-            var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");
-            var convolutionGradient = RandomTensor(convolution.Shape, "convolutionGradient");
-            TestAll(new[] { x, convolution, dy, dx, convolutionGradient}, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], ConvolutionPadding, ConvolutionStride, tensors[3], tensors[4], false));
-        }
-
-        [Test]
-        public void TestDepthwiseConvolution()
-        {
-            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
-            const int depthMultiplier  = 1;
-            var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
-            var y = RandomTensor(ConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "y");
-            TestAll(new[] { x, depthwiseConvolution, y }, tensors => tensors[0].Convolution(tensors[1], ConvolutionPadding, ConvolutionStride, tensors[2], true));
-        }
-
-        [Test]
-        public void TestDepthwiseConvolutionGradient()
-        {
-            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "x");
-            x = new CpuTensor<float>(x.Shape, "x");
-            const int depthMultiplier = 1;
-            var depthwiseConvolution = RandomTensor(new[] { depthMultiplier, ChannelsCount, ConvolutionF, ConvolutionF }, "depthwiseConvolution");
-            var dy = RandomTensor(ConvolutionLayer.DepthwiseConvolutionOutputShape(x.Shape, depthwiseConvolution.Shape, ConvolutionPadding, ConvolutionStride), "dy");
-
-            //this will compute 'dx' && 'convolutionGradient'
-            var dx = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "dx");
-            var depthwiseConvolutionGradient = RandomTensor(depthwiseConvolution.Shape, "depthwiseConvolutionGradient");
-            TestAll(new[] { x, depthwiseConvolution, dy, dx, depthwiseConvolutionGradient }, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], ConvolutionPadding, ConvolutionStride, tensors[3], tensors[4], true));
+            foreach (var isDepthwiseConvolution in new[] { true, false })
+            {
+                var channelsCount = 3;
+                var height = 17;
+                var width = 32;
+                var f = 3;
+                var x = RandomTensor(new[] { BatchSize, channelsCount, height, width }, "x");
+                x = new CpuTensor<float>(x.Shape, "x");
+                var convolutionShape = isDepthwiseConvolution
+                    ? new[] { 1, channelsCount, f, f }
+                    : new[] { 9, channelsCount, f, f };
+                var convolution = RandomTensor(convolutionShape, "convolution");
+                var dy = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution), "dy");
+                //this will compute 'dx' && 'convolutionGradient'
+                var dx = RandomTensor(x.Shape, "dx");
+                var convolutionGradient = RandomTensor(convolution.Shape, "convolutionGradient");
+                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, out int topPadding, out int bottomPadding);
+                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, out int leftPadding, out int rightPadding);
+                TestAll(new[] { x, convolution, dy, dx, convolutionGradient}, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], topPadding, bottomPadding, leftPadding, rightPadding, stride, tensors[3], tensors[4], isDepthwiseConvolution));
+            }
         }
 
         [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, BatchSize)]
@@ -240,10 +245,26 @@ namespace SharpNetTests
             var b = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "b");
             TestAll(new[] { result, a, b }, tensors => tensors[0].MultiplyEachRowIntoSingleValue(tensors[1], tensors[2]));
         }
-        
 
+        [Test]
+        public void TestZeroPadding()
+        {
+            foreach (var shape in new[] { new[] { 7, 3, 7, 8 }, new[] { 4, 5, 12, 5 } })
+            {
+                var src = RandomTensor(shape, "");
+                foreach (var top_pad in new[] { 0, 1, 3 })
+                foreach (var bottom_pad in new[] { 0, 1, 3 })
+                foreach (var left_pad in new[] { 0, 1, 3 })
+                foreach (var right_pad in new[] { 0, 1, 3 })
+                {
+                    var destShape = new[] { shape[0], shape[1], top_pad + shape[2] + bottom_pad, left_pad + shape[3] + right_pad };
+                    var dest = RandomTensor(destShape, "");
+                    TestAll(new[] { dest, src }, tensors => tensors[0].ZeroPadding(tensors[1], top_pad, bottom_pad, left_pad, right_pad));
+                }
+            }
+        }
 
-       [Test]
+        [Test]
 	    public void TestUpdate_Adding_Alpha_X()
 	    {
 	        var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width}, "y");
@@ -340,17 +361,19 @@ namespace SharpNetTests
 	        x.ActivationForward(activationMode, y);
             TestAll(new[] { y, dy, x, dx }, tensors => tensors[0].ActivationBackward(tensors[1], tensors[2], activationMode, tensors[3]));
 	    }
-        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC)]
-        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING)]
-	    public void TestPooling(cudnnPoolingMode_t poolingMode)
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 1)]
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 2)]
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 1)]
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 2)]
+	    public void TestPooling(cudnnPoolingMode_t poolingMode, int stride)
 	    {
             foreach(int poolingHeight in new[]{ 2,4})
             { 
                 foreach(int poolingWidth in new[]{ 2,4})
                 { 
 	                var aBeforePooling = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width }, "aBeforePooling");
-	                var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape(aBeforePooling.Shape, poolingHeight, poolingWidth, PoolingStride), "aAfterPooling");
-	                TestAll(new[] { aBeforePooling, aAfterPooling }, tensors => tensors[0].Pooling(tensors[1], poolingMode, poolingHeight, poolingWidth, PoolingStride));
+	                var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape(aBeforePooling.Shape, poolingHeight, poolingWidth, stride), "aAfterPooling");
+	                TestAll(new[] { aBeforePooling, aAfterPooling }, tensors => tensors[0].Pooling(tensors[1], poolingMode, poolingHeight, poolingWidth, stride));
                 }
             }
 	    }

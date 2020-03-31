@@ -3,6 +3,7 @@ using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Layers;
 
 // ReSharper disable UnusedMember.Global
 
@@ -93,7 +94,7 @@ namespace SharpNet.Networks
             var activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
             net.Input(xShape[1], xShape[2], xShape[3]);
 
-            net.Convolution(64, 7, 2, 3, config.lambdaL2Regularization, true);
+            net.Convolution(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, true);
             net.MaxPooling(2, 2, 2);
 
             int stageC = 64; //number of channels for current stage
@@ -106,16 +107,16 @@ namespace SharpNet.Networks
                     var startOfBlockLayerIndex = layers.Last().LayerIndex;
                     if (useBottleNeck)
                     {
-                        net.Convolution_BatchNorm_Activation(stageC, 1, stride, 0, config.lambdaL2Regularization, activationFunction);
-                        net.Convolution_BatchNorm_Activation(stageC, 3, 1, 1, config.lambdaL2Regularization, activationFunction);
-                        net.Convolution_BatchNorm(4 * stageC, 1, 1, 0, config.lambdaL2Regularization);
+                        net.Convolution_BatchNorm_Activation(stageC, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, activationFunction);
+                        net.Convolution_BatchNorm_Activation(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, activationFunction);
+                        net.Convolution_BatchNorm(4 * stageC, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization);
                         net.Shortcut_IdentityConnection(startOfBlockLayerIndex, 4 * stageC, stride, config.lambdaL2Regularization);
                         net.Activation(activationFunction);
                     }
                     else
                     {
-                        net.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, config.lambdaL2Regularization, activationFunction);
-                        net.Convolution_BatchNorm(stageC, 3, 1, 1, config.lambdaL2Regularization);
+                        net.Convolution_BatchNorm_Activation(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, activationFunction);
+                        net.Convolution_BatchNorm(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization);
                         net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
                         net.Activation(activationFunction);
                     }
@@ -147,7 +148,7 @@ namespace SharpNet.Networks
             Debug.Assert(layers.Count == 0);
             net.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
 
-            net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            net.Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageC = 16; //number of channels for current stage
             for (int stageId = 0; stageId < 3; ++stageId)
@@ -156,8 +157,8 @@ namespace SharpNet.Networks
                 {
                     int stride = (res_block == 0 && stageId != 0) ? 2 : 1;
                     var startOfBlockLayerIndex = layers.Last().LayerIndex;
-                    net.Convolution_BatchNorm_Activation(stageC, 3, stride, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                    net.Convolution_BatchNorm(stageC, 3, 1, 1, config.lambdaL2Regularization);
+                    net.Convolution_BatchNorm_Activation(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    net.Convolution_BatchNorm(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization);
                     net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
                     net.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 }
@@ -186,7 +187,7 @@ namespace SharpNet.Networks
             var layers = net.Layers;
 
             net.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
-            net.Convolution_BatchNorm_Activation(16, 3, 1, 1, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            net.Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageCIn = 16; //number of channels for current stage
             int stageCOut = 4 * stageCIn;
@@ -199,14 +200,14 @@ namespace SharpNet.Networks
                     var startOfBlockLayerIndex = layers.Last().LayerIndex;
                     if (stageId == 0 && resBlock == 0)
                     {
-                        net.Convolution(stageCIn, 1, stride, 0, config.lambdaL2Regularization, true);
+                        net.Convolution(stageCIn, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
                     }
                     else
                     {
-                        net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, 0, config.lambdaL2Regularization, true);
+                        net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
                     }
-                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, 1, config.lambdaL2Regularization, true);
-                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, 0, config.lambdaL2Regularization, true);
+                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, config.lambdaL2Regularization, true);
+                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
                     net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, config.lambdaL2Regularization);
                 }
                 stageCIn = stageCOut;

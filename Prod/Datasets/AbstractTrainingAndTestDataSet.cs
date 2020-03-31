@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using SharpNet.CPU;
-
-namespace SharpNet.Datasets
+﻿namespace SharpNet.Datasets
 {
     public abstract class AbstractTrainingAndTestDataSet : ITrainingAndTestDataSet
     {
@@ -41,7 +36,5 @@ namespace SharpNet.Datasets
         {
             return (byte)categoryIndex;
         }
-
-
     }
 }

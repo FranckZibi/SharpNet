@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.DataAugmentation;
 
 namespace SharpNet.Datasets

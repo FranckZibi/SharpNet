@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace SharpNet.DataAugmentation.Operations
 {
     public class ShearY : Operation

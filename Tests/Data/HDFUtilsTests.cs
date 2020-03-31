@@ -18,9 +18,10 @@ namespace SharpNetTests.Data
         [Test]
         public void TestJoin()
         {
-            Assert.AreEqual("foo", HDFUtils.Join("/", "foo"));
-            Assert.AreEqual("foo", HDFUtils.Join("", "foo"));
-            Assert.AreEqual("foo", HDFUtils.Join("foo", "/"));
+            Assert.AreEqual("/foo", HDFUtils.Join("/", "foo"));
+            Assert.AreEqual("/foo/test", HDFUtils.Join("/", "foo/test"));
+            Assert.AreEqual("/foo", HDFUtils.Join("", "foo"));
+            Assert.AreEqual("foo/", HDFUtils.Join("foo", "/"));
             Assert.AreEqual("foo", HDFUtils.Join("foo", ""));
             Assert.AreEqual("foo/test", HDFUtils.Join("foo", "test"));
             Assert.AreEqual("/foo/test", HDFUtils.Join("/foo/", "/test"));

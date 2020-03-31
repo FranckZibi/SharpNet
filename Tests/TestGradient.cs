@@ -42,7 +42,7 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3,1,1, 0.0, true)
+                .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 0.0, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, false);
             var convLayer = (ConvolutionLayer)network.Layers[1];
@@ -60,7 +60,7 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .DepthwiseConvolution(3, 1, 1, 1, 0.0, true )
+                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1, 0.0, true )
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, false);
             var convLayer = (ConvolutionLayer)network.Layers[1];
@@ -108,7 +108,7 @@ namespace SharpNetTests
         }
         private static void AbsWeightsWithMinimum(Network n, float min)
         {
-            foreach (var l in n.TensorsIndependantOfBatchSize.OfType<CpuTensor<float>>())
+            foreach (var l in n.TensorsIndependentOfBatchSize.OfType<CpuTensor<float>>())
             {
                 for (int i = 0; i < l.Content.Length; ++i)
                 {

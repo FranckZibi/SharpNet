@@ -69,6 +69,15 @@ namespace SharpNet.CPU
             RecomputeMultDim();
         }
 
+        public CpuTensor<T> WithNewShape(int[] newShape)
+        {
+            if (Utils.Product(newShape) != Count)
+            {
+                throw new ArgumentException("invalid shape " + string.Join(",", newShape) + " for " + this+" : must have the same size");
+            }
+            return new CpuTensor<T>(newShape, Content, Description);
+        }
+
 
         public T this[int i]
         {
@@ -465,7 +474,7 @@ namespace SharpNet.CPU
             Debug.Assert(a.SameShape(b));
             int nbRows = Count;
             Debug.Assert(nbRows <= a.Count);
-            Debug.Assert(a.Count%nbRows == 0);
+            Debug.Assert(a.Count % nbRows == 0);
             int nbColumns_in_a_and_b = b.Count / nbRows;
             var thisFloat = AsFloatCpuContent;
             var aFloat = a.AsFloatCpuContent;
@@ -481,6 +490,31 @@ namespace SharpNet.CPU
                 }
                 thisFloat[row] = rowSum;
             }
+        }
+
+        public override void ZeroPadding(Tensor src, int topPadding, int bottomPadding, int leftPadding, int rightPadding)
+        {
+            Debug.Assert(AreCompatible(new List<Tensor> { this, src }));
+            Debug.Assert(Dimension == 4);
+            Debug.Assert(Dimension == src.Dimension);
+            Debug.Assert(Shape[0] == src.Shape[0]); //same batch size
+            Debug.Assert(Shape[1] == src.Shape[1]); //same number of channels
+            Debug.Assert(Shape[2] == (topPadding + src.Shape[2] + bottomPadding)); //valid height for destination
+            Debug.Assert(Shape[3] == (leftPadding + src.Shape[3] + rightPadding)); //valid width destination
+            ZeroMemory();
+            int h_src = src.Shape[2];
+            int w_src = src.Shape[3];
+            // copy the row 'srcRowId' from 'src' tensor (n, c, h_src, w_src) to dest tensor (n, c, h_dest, w_dest)
+            // the number of distinct rows in 'src' tensor is : n*c*h_src
+            void ApplyZeroPaddingForRowId(int srcRowId)
+            {
+                // 0 <= srcRowId < n*c*h_src
+                int row_src = (srcRowId % h_src);
+                int srcRowIndex = srcRowId * w_src;
+                int destRowIndex = ((srcRowId / h_src) * Shape[2] + row_src + topPadding) * Shape[3] + leftPadding;
+                src.CopyTo(srcRowIndex, this, destRowIndex, w_src);
+            }
+            System.Threading.Tasks.Parallel.For(0, src.Shape[0] * src.Shape[1] * src.Shape[2], ApplyZeroPaddingForRowId);
         }
 
         public override void AssertIsNotDisposed()
@@ -764,24 +798,8 @@ namespace SharpNet.CPU
             }
         }
 
-
-
         #region Convolution
-        /// <summary>
-        ///Compute:      y = x (conv) Convolution  (with padding / stride)
-        /// this = x = (batchSize, ChannelsDepth, H_beforePooling, W_beforePooling)
-        /// if isDepthwiseConvolution = true
-        ///     convolution has shape (depthMultiplier,               inputChannels=outputChannels,   f1,f2)
-        /// else
-        ///     convolution has shape (filtersCount=outputChannels,   inputChannels,                  f1,f2)
-        /// </summary>
-        /// <param name="y">
-        /// if isDepthwiseConvolution = true
-        ///     (N, depthMultiplier*C, y.H, y.W)
-        /// else
-        ///     (N, filtersCount, y.H, y.W)
-        /// </param>
-        public override void Convolution(Tensor convolution, int padding, int stride, Tensor y, bool isDepthwiseConvolution)
+        public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution)
         {
             var x = this;
             int inputChannels = x.Shape[1];
@@ -810,8 +828,6 @@ namespace SharpNet.CPU
             int hOutput = y.Shape[2];
             int wOutput = y.Shape[3];
             Debug.Assert(batchSize == y.Shape[0]);
-            Debug.Assert(hOutput == ((hInput - F + 2 * padding) / stride + 1));
-            Debug.Assert(wOutput == ((x.Shape[3] - F + 2 * padding) / stride + 1));
 
             //the first (top left) point in 'y' is computed from a filter starting at (-padding,-padding)
             void ComputeForBatch(int m)
@@ -821,10 +837,10 @@ namespace SharpNet.CPU
 
                 for (int outputChannelId = 0; outputChannelId < outputChannels; ++outputChannelId)
                 {
-                    int rowFilterStart = -padding;
+                    int rowFilterStart = -paddingTop;
                     for (int rowOutput = 0; rowOutput < hOutput; ++rowOutput)
                     {
-                        int colFilterStart = -padding;
+                        int colFilterStart = -paddingLeft;
                         var rowInputStart = Math.Max(0, rowFilterStart);
                         var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + F);
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
@@ -891,7 +907,7 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
+        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
         {
             var x = this;
             int inputChannels = x.Shape[1];
@@ -919,9 +935,9 @@ namespace SharpNet.CPU
             int F = convolution.Shape[2];
             Debug.Assert(F == convolution.Shape[3]);
             int hOutput = dy.Shape[2];
-            Debug.Assert(hOutput == ((hInput - F + 2 * padding) / stride + 1));
+            Debug.Assert(hOutput == ((hInput - F + paddingTop+paddingBottom) / stride + 1));
             int wOutput = dy.Shape[3];
-            Debug.Assert(wOutput == ((wInput - F + 2 * padding) / stride + 1));
+            Debug.Assert(wOutput == ((wInput - F + paddingLeft+paddingRight) / stride + 1));
             dx?.ZeroMemory();
             convGradient.ZeroMemory();
 
@@ -935,10 +951,10 @@ namespace SharpNet.CPU
                 float[] convolutionGradientForLocalThreadFloat = new float[convGradient.Count];
                 for (int outputChannelId = 0; outputChannelId < outputChannels; ++outputChannelId)
                 {
-                    int rowFilterStart = -padding;
+                    int rowFilterStart = -paddingTop;
                     for (int rowOutput = 0; rowOutput < hOutput; ++rowOutput)
                     {
-                        int colFilterStart = -padding;
+                        int colFilterStart = -paddingLeft;
                         var rowInputStart = Math.Max(0, rowFilterStart);
                         var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + F);
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
@@ -1240,6 +1256,7 @@ namespace SharpNet.CPU
             //var tmpTranspose = new double[b.Count];
             //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
         }
+
         #endregion
 
         #region Dispose pattern

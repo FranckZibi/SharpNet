@@ -2,14 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 
 namespace SharpNet.GPU
 {
     public enum CUDA_Versions { CUDA_10_0, CUDA_10_1 };
 
-    [DebuggerDisplay("{DeviceName()}")]
+    [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public class GPUWrapper : IDisposable
     {
         #region Private fields
@@ -22,7 +21,7 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr>();
-        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int>, IntPtr>();
+        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr>();
         private readonly IDictionary<cudnnActivationMode_t, IntPtr> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, IntPtr>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private IntPtr _cudaBlasHandle;
@@ -94,10 +93,16 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr ConvDesc(cudnnDataType_t cudaType, int padding, int stride, int groupCount)
+        public IntPtr ConvDesc(cudnnDataType_t cudaType, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount)
         {
             CheckThreadId();
-            var key = Tuple.Create(cudaType, padding, stride, groupCount);
+
+            if ((paddingTop != paddingBottom) || (paddingLeft != paddingRight))
+            {
+                throw new NotImplementedException("only symmetrical padding is supported (padding=[" + paddingTop + "," + paddingBottom + "," + paddingLeft + "," + paddingRight + "])");
+            }
+
+            var key = Tuple.Create(cudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);
             if (!cacheConvolutionDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateConvolutionDescriptor(out desc);
@@ -107,7 +112,7 @@ namespace SharpNet.GPU
                     res = CudnnWrapper.cudnnSetConvolutionGroupCount(desc, groupCount);
                     CheckStatus(res);
                 }
-                res = CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, padding, padding, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
+                res = CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, paddingTop, paddingLeft, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
                 CheckStatus(res);
                 cacheConvolutionDesc[key] = desc;
             }
@@ -287,15 +292,6 @@ namespace SharpNet.GPU
         }
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
         public StreamWrapper DefaultStream { get; }
-
-        public static void CheckStatus(cublasStatus_t _status)
-        {
-            if (_status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
-            {
-                throw new Exception(_status.ToString());
-            }
-
-        }
         public static void CheckStatus(cublasStatus_t _status, Func<string> getComment)
         {
             if (_status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
@@ -304,13 +300,7 @@ namespace SharpNet.GPU
             }
 
         }
-        public static void CheckStatus(cudnnStatus_t _status)
-        {
-            if (_status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
-            {
-                throw new Exception(_status.ToString());
-            }
-        }
+
         public static void CheckStatus(cudnnStatus_t _status, Func<string> getComment)
         {
             if (_status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
@@ -326,23 +316,7 @@ namespace SharpNet.GPU
                 throw new Exception(_status.ToString());
             }
         }
-
-        public static void LogDebug(string msg)
-        {
-            var res = CudartWrapper.cudaGetDevice(out int currentDevice);
-            CheckStatus(res);
-            var fileName = Path.Combine(@"c:\temp\SharpNet_" + System.Threading.Thread.CurrentThread.ManagedThreadId +".txt");
-            File.AppendAllText(fileName, DateTime.Now.ToString("HH:mm:ss.ff") + " id:"+ currentDevice+" " +msg +Environment.NewLine);
-        }
-
-
-        public static void CheckStatus(cudaError_t _status)
-        {
-            if (_status != cudaError_t.cudaSuccess)
-            {
-                throw new Exception(_status.ToString());
-            }
-        }
+       
         public static void CheckStatus(CUresult _status, Func<string> getComment)
         {
             if (_status != CUresult.CUDA_SUCCESS)
@@ -388,7 +362,7 @@ namespace SharpNet.GPU
             return deviceCount;
         }
 
-#region Dispose pattern
+        #region Dispose pattern
         public void Dispose()
         {
             Dispose(true);
@@ -433,8 +407,7 @@ namespace SharpNet.GPU
         {
             Dispose(false);
         }
-#endregion
-
+        #endregion
 
         private GPUWrapper(int deviceId)
         {
@@ -494,7 +467,6 @@ namespace SharpNet.GPU
                 }
             }
         }
-
         private static Version NewVersion(int driverVersion)
         {
             var major = driverVersion / 1000;
@@ -502,7 +474,21 @@ namespace SharpNet.GPU
             var build = (driverVersion % 1000)/100;
             return (build==0)?new Version(major, minor): new Version(major, minor, build);
         }
+        private static void CheckStatus(cublasStatus_t _status)
+        {
+            if (_status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
+            {
+                throw new Exception(_status.ToString());
+            }
 
+        }
+        private static void CheckStatus(cudnnStatus_t _status)
+        {
+            if (_status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
+            {
+                throw new Exception(_status.ToString());
+            }
+        }
         private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
         {
             var res = NVCudaWrapper.cuMemGetInfo_v2(out freeMemoryInBytes, out totalMemoryInBytes);

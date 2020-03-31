@@ -68,16 +68,16 @@ namespace SharpNetTests.Data
                 {
                     foreach (var f in new[] { 3, 5, 7 })
                     {
-                        var shapeIntput = new[] { batchSize, inputChannels, h, w };
+                        var inputShape = new[] { batchSize, inputChannels, h, w };
                         var shapeConvolution = new[] { filtersCount, inputChannels, f, f };
                         // padding = 0 , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, false).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1, false).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
                         // padding = 0, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, false).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.StandardConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 2, false).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }
@@ -94,16 +94,16 @@ namespace SharpNetTests.Data
                 {
                     foreach (var f in new[] { 3, 5, 7 })
                     {
-                        var shapeIntput = new[] { batchSize, inputChannels, h, w };
+                        var inputShape = new[] { batchSize, inputChannels, h, w };
                         var shapeConvolution = new[] { depthMultiplier, inputChannels, f, f };
                         // padding = 0 , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 1).SequenceEqual(new[] { batchSize, inputChannels, h - f + 1, w - f + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, true).SequenceEqual(new[] { batchSize, inputChannels, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 1).SequenceEqual(new[] { batchSize, inputChannels, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 1, true).SequenceEqual(new[] { batchSize, inputChannels, h, w }));
                         // padding = 0, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, 0, 2).SequenceEqual(new[] { batchSize, inputChannels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, true).SequenceEqual(new[] { batchSize, inputChannels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.DepthwiseConvolutionOutputShape(shapeIntput, shapeConvolution, f / 2, 2).SequenceEqual(new[] { batchSize, inputChannels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME_SYMMETRICAL, 2, true).SequenceEqual(new[] { batchSize, inputChannels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }
@@ -122,11 +122,11 @@ namespace SharpNetTests.Data
                     { 
                         foreach (var poolingWidth in new[] { 2, 3, 5, 7, 8 })
                         {
-                            var shapeIntput = new[] { batchSize, channelDepth, h, w };
+                            var inputShape = new[] { batchSize, channelDepth, h, w };
                             //stride == 1
-                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingHeight, poolingWidth, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingHeight + 1, w - poolingWidth+ 1 }));
+                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(inputShape, poolingHeight, poolingWidth, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingHeight + 1, w - poolingWidth+ 1 }));
                             // stride == 2
-                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(shapeIntput, poolingHeight, poolingWidth, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingHeight) / 2 + 1, (w - poolingWidth) / 2 + 1 }));
+                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(inputShape, poolingHeight, poolingWidth, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingHeight) / 2 + 1, (w - poolingWidth) / 2 + 1 }));
                         }
                     }
                 }

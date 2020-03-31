@@ -3,7 +3,6 @@ using System.Linq;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNetTests.Data;
@@ -41,12 +40,12 @@ namespace SharpNetTests.CPU
             var padding = 0;
             var stride = 1;
             var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] { -6 }, "expectedOutput");
-            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
 
             padding = f/2;
             stride = 1;
             expectedOutput = new CpuTensor<float>(new[] { 1, 1, 3, 3}, new float[] { -7,-4,7,-15,-6,15,-13,-4,13 }, "expectedOutput");
-            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
 
             input = new CpuTensor<float>(new[] { 3, 1, 3, 3 }, "input");
             for (int i = 1; i <= input.Count; ++i)
@@ -57,12 +56,12 @@ namespace SharpNetTests.CPU
             padding = 0;
             stride = 1;
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 1, 1 }, new float[] {-340,-6, -6 }, "expectedOutput");
-            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
 
             padding = f / 2;
             stride = 1;
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 3, 3 }, new float[] { -7, -338, 7, -15, -340, 15, -13, -4, 13, -25, -4, 25, -42, -6, 42, -31, -4, 31, -43, -4, 43, -69, -6, 69, -49, -4, 49 }, "expectedOutput");
-            TestStandardConvolution(input, convolution, padding, stride, expectedOutput);
+            TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
         }
 
         [Test]
@@ -93,6 +92,37 @@ namespace SharpNetTests.CPU
             Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
         }
 
+
+
+        [Test]
+        public void TestZeroPadding()
+        {
+            var rand = new Random(0);
+            foreach (var shape in new[] {new [] {7, 3, 7, 8}, new[] { 4, 5, 12, 5 } })
+            {
+                var src = RandomFloatTensor(shape, rand, -100.0, 100.0, "");
+                foreach (var top_pad in new[] {0, 1, 3})
+                foreach (var bottom_pad in new[] {0, 1, 3})
+                foreach (var left_pad in new[] {0, 1, 3})
+                foreach (var right_pad in new[] {0, 1, 3})
+                {
+                    var destShape = new[] { shape[0], shape[1], top_pad + shape[2] + bottom_pad, left_pad + shape[3] + right_pad};
+                    var observedDest = RandomFloatTensor(destShape, rand, -100.0, 100.0, "");
+                    observedDest.ZeroPadding(src, top_pad, bottom_pad, left_pad, right_pad);
+
+                    var expectedDest = new CpuTensor<float>(destShape, null, "");
+                    expectedDest.ZeroMemory();
+                    for (int n = 0; n < shape[0]; ++n)
+                    for (int c = 0; c < shape[1]; ++c)
+                    for (int h = 0; h < shape[2]; ++h)
+                    for (int w = 0; w < shape[3]; ++w)
+                    {
+                        expectedDest.Set(n, c, h + top_pad, w + left_pad, src.Get(n, c, h, w));
+                    }
+                    Assert.IsTrue(TestTensor.SameContent(expectedDest, observedDest, 1e-6));
+                }
+            }
+        }
 
 
         [Test]
@@ -165,10 +195,10 @@ namespace SharpNetTests.CPU
             Utils.Randomize(result.Content, rand, minValue, maxValue);
             return result;
         }
-        private void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int padding, int stride, CpuTensor<float> expectedOutput)
+        private void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, CpuTensor<float> expectedOutput)
         {
-            var outputCPU = new CpuTensor<float>(ConvolutionLayer.StandardConvolutionOutputShape(input.Shape, convolution.Shape, padding, stride), "output");
-            input.Convolution(convolution, padding, stride, outputCPU, false);
+            var outputCPU = new CpuTensor<float>(expectedOutput.Shape, "output");
+            input.Convolution(convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, outputCPU, false);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }
         public static CpuTensor<float> RandomOneHotTensor(int[] shape, Random rand, string description)

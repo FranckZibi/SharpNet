@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
@@ -188,6 +189,20 @@ namespace SharpNet.Layers
             _optimizer?.Dispose();
         }
         public override int TotalParams => (Weights?.Count??0) + (Bias?.Count??0);
+
+
+        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
+        {
+            var weightDatasetPath = DatasetNameToDatasetPath("kernel:0");
+            var cpuTensor = (CpuTensor<float>)h5FileDataset[weightDatasetPath];
+            var reshapedCpuTensor = cpuTensor.WithNewShape(new[] { cpuTensor.Shape[0], cpuTensor.Shape[1], 1, 1 });
+            LoadFromH5Dataset(reshapedCpuTensor, Weights);
+
+            var biasDatasetPath = DatasetNameToDatasetPath("bias:0");
+            var biasCpuTensor = (CpuTensor<float>)h5FileDataset[biasDatasetPath];
+            var reshapedBiasCpuTensor = biasCpuTensor.WithNewShape(new[] {1, biasCpuTensor.Shape[0]});
+            LoadFromH5Dataset(reshapedBiasCpuTensor, Bias);
+        }
 
         public override List<Tensor> TensorsIndependentOfBatchSize
         {

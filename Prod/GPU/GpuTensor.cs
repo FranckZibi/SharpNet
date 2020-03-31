@@ -336,7 +336,7 @@ namespace SharpNet.GPU
         }
 
         #region Convolution
-        public override void Convolution(Tensor filters, int padding, int stride, Tensor y, bool isDepthwiseConvolution)
+        public override void Convolution(Tensor filters, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, filters, y }));
@@ -345,6 +345,7 @@ namespace SharpNet.GPU
 
             if (isDepthwiseConvolution)
             {
+                //only depthMultiplier=1 is supported
                 int depthMultiplier = filters.Shape[0];
                 if (depthMultiplier != 1)
                 {
@@ -354,7 +355,7 @@ namespace SharpNet.GPU
             }
 
             int groupCount = isDepthwiseConvolution ? inputChannelCount : 1;
-            var convDesc = ConvDesc(padding, stride, groupCount);
+            var convDesc = ConvDesc(paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);
             var filterDesc = FilterDesc(filters, isDepthwiseConvolution);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
@@ -393,7 +394,7 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, bias);
             CheckStatus(res);
         }
-        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int padding, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
+        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, convolution, dy, dx, convGradient }));
@@ -402,7 +403,7 @@ namespace SharpNet.GPU
             var dwDesc = FilterDesc(convGradient, isDepthwiseConvolution);
             int inputChannelCount = x.Shape[1];
             int groupCount = isDepthwiseConvolution ? inputChannelCount : 1;
-            var convDesc = ConvDesc(padding, stride, groupCount);
+            var convDesc = ConvDesc(paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);
             var res = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, dwDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0, out cudnnConvolutionBwdFilterAlgo_t filterAlgo);
             CheckStatus(res);
             res = CudnnWrapper.cudnnGetConvolutionBackwardFilterWorkspaceSize(CudnnHandle, xDesc, dyDesc, convDesc, dwDesc, filterAlgo, out size_t filterWorkspaceSize);
@@ -644,7 +645,6 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res, ToString);
         }
 
-
         // compute: this += alpha * bias
         public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
@@ -669,7 +669,6 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
 
-
         public override void MultiplyTensor(Tensor a, Tensor x)
         {
             var c = this;
@@ -686,6 +685,7 @@ namespace SharpNet.GPU
             var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, x, incx, c, ldc);
             GPUWrapper.CheckStatus(res, ToString);
         }
+
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b)
         {
             Debug.Assert(a.SameShape(b));
@@ -695,6 +695,24 @@ namespace SharpNet.GPU
             int nbColumns_in_a_and_b = a.Count / nbRows;
             Wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
         }
+
+        public override void ZeroPadding(Tensor src, int topPadding, int bottomPadding, int leftPadding, int rightPadding)
+        {
+            Debug.Assert(AreCompatible(new List<Tensor> { this, src }));
+            Debug.Assert(Dimension == 4);
+            Debug.Assert(Dimension == src.Dimension);
+            Debug.Assert(Shape[0] == src.Shape[0]); //same batch size
+            Debug.Assert(Shape[1] == src.Shape[1]); //same number of channels
+            Debug.Assert(Shape[2] == (topPadding + src.Shape[2] + bottomPadding)); //valid height for destination
+            Debug.Assert(Shape[3] == (leftPadding + src.Shape[3] + rightPadding)); //valid width destination
+            ZeroMemory();
+            int h_src = src.Shape[2];
+            int w_src = src.Shape[3];
+            // number of distinct rows in tensor 'src' (n, c, h_src, w_src)
+            int srcNbRowId = src.Shape[0] * src.Shape[1] * h_src;
+            Wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, topPadding, bottomPadding, leftPadding, rightPadding, this, src});
+        }
+
         public override void CopyTo(Tensor b)
         {
             CopyTo(0, b, 0, Count);
@@ -790,7 +808,7 @@ namespace SharpNet.GPU
         {
             return Wrapper.PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
         }
-        private IntPtr ConvDesc(int padding, int stride, int groupCount) { return Wrapper.ConvDesc(CudaType, padding, stride, groupCount); }
+        private IntPtr ConvDesc(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount) { return Wrapper.ConvDesc(CudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount); }
         private cudnnDataType_t CudaType => cudnnDataType_t.CUDNN_DATA_FLOAT;
         private IntPtr CudnnHandle => Wrapper.CudnnHandle;
         private IntPtr CublasHandle => Wrapper.CudaBlasHandle;
