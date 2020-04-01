@@ -63,10 +63,16 @@ namespace SharpNet.GPU
             Wrapper.SwCopyToDevice.Stop();
         }
 
-        public void CopyToDevice(T[] data)
+        /// <summary>
+        /// copy the first 'Count' element of 'buffer into the 'this' Tensor
+        /// </summary>
+        /// <param name="buffer">a buffer to read from
+        /// It must contains at least 'Count' elements
+        /// </param>
+        public void CopyToDevice(T[] buffer)
         {
-            Debug.Assert(data.Length == Count);
-            using (var m = new HostPinnedMemory<T>(data))
+            Debug.Assert(buffer.Length >= Count);
+            using (var m = new HostPinnedMemory<T>(buffer))
             {
                 CopyToDevice(m.Pointer, false);
             }
@@ -696,21 +702,33 @@ namespace SharpNet.GPU
             Wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
         }
 
-        public override void ZeroPadding(Tensor src, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
+        public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
-            Debug.Assert(AreCompatible(new List<Tensor> { this, src }));
-            Debug.Assert(Dimension == 4);
-            Debug.Assert(Dimension == src.Dimension);
-            Debug.Assert(Shape[0] == src.Shape[0]); //same batch size
-            Debug.Assert(Shape[1] == src.Shape[1]); //same number of channels
-            Debug.Assert(Shape[2] == (paddingTop + src.Shape[2] + paddingBottom)); //valid height for destination
-            Debug.Assert(Shape[3] == (paddingLeft + src.Shape[3] + paddingRight)); //valid width destination
+            var paddedTensor = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, unpaddedTensor }));
+            Debug.Assert(paddedTensor.Dimension == 4);
+            Debug.Assert(paddedTensor.Dimension == unpaddedTensor.Dimension);
+            Debug.Assert(paddedTensor.Shape[0] == unpaddedTensor.Shape[0]); //same batch size
+            Debug.Assert(paddedTensor.Shape[1] == unpaddedTensor.Shape[1]); //same number of channels
+            Debug.Assert(paddedTensor.Shape[2] == (paddingTop + unpaddedTensor.Shape[2] + paddingBottom)); //valid height for destination
+            Debug.Assert(paddedTensor.Shape[3] == (paddingLeft + unpaddedTensor.Shape[3] + paddingRight)); //valid width destination
             ZeroMemory();
-            int h_src = src.Shape[2];
-            int w_src = src.Shape[3];
+            int h_src = unpaddedTensor.Shape[2];
+            int w_src = unpaddedTensor.Shape[3];
             // number of distinct rows in tensor 'src' (n, c, h_src, w_src)
-            int srcNbRowId = src.Shape[0] * src.Shape[1] * h_src;
-            Wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, paddingTop, paddingBottom, paddingLeft, paddingRight, this, src});
+            int srcNbRowId = unpaddedTensor.Shape[0] * unpaddedTensor.Shape[1] * h_src;
+            Wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, paddingTop, paddingBottom, paddingLeft, paddingRight, paddedTensor, unpaddedTensor, false});
+        }
+
+        public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
+        {
+            //            ((CpuTensor<T>)paddedTensor).ZeroPadding_and_Unpadding(this, paddingTop, paddingBottom, paddingLeft, paddingRight, true);
+            var unpaddedTensor = this;
+            int h_src = unpaddedTensor.Shape[2];
+            int w_src = unpaddedTensor.Shape[3];
+            // number of distinct rows in tensor 'src' (n, c, h_src, w_src)
+            int srcNbRowId = unpaddedTensor.Shape[0] * unpaddedTensor.Shape[1] * h_src;
+            Wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, paddingTop, paddingBottom, paddingLeft, paddingRight, paddedTensor, unpaddedTensor, true });
         }
 
         public override void CopyTo(Tensor b)

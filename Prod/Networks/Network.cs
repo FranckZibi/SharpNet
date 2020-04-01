@@ -80,23 +80,46 @@ namespace SharpNet.Networks
         public List<EpochData> EpochDatas =>  _epochsData;
 
         #region Transfer Learning
-        public DenseLayer ChangeNumberOfCategoriesForTransferLearning(int newNumberOfCategories)
+        public void ChangeNumberOfOutputCategories(int newNumberOfCategories)
         {
             if (Layers.Count>=2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count-2] is DenseLayer)
             {
-                var lambdaL2Regularization = ((DenseLayer) Layers[Layers.Count - 2])._lambdaL2Regularization;
-                var activationFunctionType = ((ActivationLayer) Layers[Layers.Count - 1]).ActivationFunction;
-                //we remove the last layer (ActivationLayer)
-                Layers.Last().RemoveFromNetwork().Dispose();
+                //we remove the ActivationLayer (last layer)
+                var activationLayer = (ActivationLayer) Layers.Last();
+                var activationFunctionType = activationLayer.ActivationFunction;
+                var activationLayerName = activationLayer.LayerName;
+                RemoveAndDisposeLastLayerFromNetwork();
+
                 //we remove the Dense layer
-                Layers.Last().RemoveFromNetwork().Dispose();
-                //we add new (not initialized) DenseLayer & ActivationLayer
-                Output(newNumberOfCategories, lambdaL2Regularization, activationFunctionType);
+                var denseLayer = (DenseLayer)Layers.Last();
+                var lambdaL2Regularization = denseLayer._lambdaL2Regularization;
+                var denseLayerName = denseLayer.LayerName;
+                RemoveAndDisposeLastLayerFromNetwork();
+
+                //We add a new (not initialized) DenseLayer
+                Dense(newNumberOfCategories, lambdaL2Regularization, denseLayerName);
+
+                //we add a new (not initialized) ActivationLayer
+                Activation(activationFunctionType, activationLayerName);
+
                 _epochsData.Clear();
-                return ((DenseLayer) Layers[Layers.Count - 2]);
+                return;
             }
-            throw new NotImplementedException();
+            throw new NotImplementedException("can only update a network where the 2 last layers are DenseLayer & ActivationLayer");
         }
+
+
+        public void RemoveAndDisposeLastLayerFromNetwork()
+        {
+            var lastLayer = Layers.Last();
+            foreach (var previousLayers in lastLayer.PreviousLayers)
+            {
+                previousLayers.NextLayerIndexes.Remove(lastLayer.LayerIndex);
+            }
+            lastLayer.Dispose();
+            Layers.RemoveAt(Layers.Count - 1);
+        }
+
 
         /// <summary>
         /// Last layer containing weights but frozen (not trainable)
@@ -565,21 +588,25 @@ namespace SharpNet.Networks
         // ReSharper disable once UnusedMember.Global
         public static Network ValueOf(string path, int?overrideGpuDeviceId = null)
         {
-            var content = File.ReadAllLines(path);
-            var dicoFirstLine = Serializer.Deserialize(content[0], null);
+            var allLines = File.ReadAllLines(path);
+            var dicoFirstLine = Serializer.Deserialize(allLines[0], null);
             var config = NetworkConfig.ValueOf(dicoFirstLine);
             var gpuDeviceId = overrideGpuDeviceId ?? (int)dicoFirstLine[nameof(_gpuDeviceId)];
             var epochsData = (EpochData[])dicoFirstLine[nameof(_epochsData)];
             var network = new Network(config, gpuDeviceId, epochsData.ToList());
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
-            for (int i = 1; i < content.Length; ++i)
+            for (int i = 1; i < allLines.Length; ++i)
             {
-                network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(content[i], network.GpuWrapper), network));
+                network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(allLines[i], network.GpuWrapper), network));
             }
             return network;
         }
-        public void Save(string fileName)
+        public void Save(string fileName = "")
         {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                fileName = Path.Combine(Config.LogDirectory, UniqueId + ".txt");
+            }
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
@@ -934,7 +961,7 @@ namespace SharpNet.Networks
         }
 
 
-        public void LoadFromH5Dataset(List<Tuple<string, Tensor>> h5FileDatasetAsList)
+        public void LoadFromH5Dataset(List<Tuple<string, Tensor>> h5FileDatasetAsList, NetworkConfig.CompatibilityModeEnum originFramework)
         {
             var h5FileDataset = new Dictionary<string, Tensor>();
             foreach (var e in h5FileDatasetAsList)
@@ -948,16 +975,16 @@ namespace SharpNet.Networks
 
             foreach (var l in Layers.Skip(1)) //we skip the input layer
             {
-                l.LoadFromH5Dataset(h5FileDataset);
+                l.LoadFromH5Dataset(h5FileDataset, originFramework);
             }
         }
 
-        public List<Tuple<string, Tensor>> SaveToH5Dataset()
+        public List<Tuple<string, Tensor>> SaveToH5Dataset(NetworkConfig.CompatibilityModeEnum targetFramework)
         {
             var result = new List<Tuple<string, Tensor>>();
             foreach (var l in Layers.Skip(1)) //we skip the input layer
             {
-                l.SaveToH5Dataset(result);
+                l.SaveToH5Dataset(result, targetFramework);
             }
             return result;
         }

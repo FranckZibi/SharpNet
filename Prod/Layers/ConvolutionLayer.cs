@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
@@ -153,7 +152,8 @@ namespace SharpNet.Layers
         }
 
 
-        private Tensor _paddedX;
+        private Tensor _padded_X;
+        private Tensor _padded_dX;
 
 
         public override void ForwardPropagation(bool isTraining)
@@ -169,9 +169,9 @@ namespace SharpNet.Layers
                 // cuDNN 7.x doesn't support asymmetric padding
                 // we'll pad the input tensor 'x' so that we can use a symmetric padding
                 var paddedXShape = new[]{x.Shape[0], x.Shape[1], paddingTop+x.Shape[2]+paddingBottom, paddingLeft+x.Shape[3]+paddingRight};
-                _paddedX = Network.NewNotInitializedTensor(paddedXShape, _paddedX, nameof(_paddedX));
-                _paddedX.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
-                _paddedX.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution);
+                _padded_X = Network.NewNotInitializedTensor(paddedXShape, _padded_X, nameof(_padded_X));
+                _padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                _padded_X.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution);
             }
             else
             {
@@ -205,7 +205,9 @@ namespace SharpNet.Layers
             if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
                 // cuDNN 7.x doesn't support asymmetric padding, we'll use the padded version of input tensor 'x'
-                _paddedX.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+                _padded_dX = Network.NewNotInitializedTensor(_padded_X.Shape, _padded_dX, nameof(_padded_dX));
+                _padded_X.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, _padded_dX, ConvolutionGradients, _isDepthwiseConvolution);
+                dx[0]?.ZeroUnpadding(_padded_X, paddingTop, paddingBottom, paddingLeft, paddingRight);
             }
             else
             {
@@ -266,33 +268,17 @@ namespace SharpNet.Layers
             return result;
         }
 
-
-        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
+        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
-            string weightDatasetName = _isDepthwiseConvolution ? "depthwise_kernel:0" : "kernel:0";
-            LoadFromH5Dataset(h5FileDataset, weightDatasetName, Convolution, new[] { 3, 2, 1, 0 });
+            var weightDatasetPath = DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_kernel:0" : "kernel:0");
+            h5FileDataset[weightDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(Convolution);
             //we load bias if necessary
-            string biasDatasetName = _isDepthwiseConvolution ? "depthwise_bias:0" : "bias:0";
-            var biasDatasetPath = DatasetNameToDatasetPath(biasDatasetName);
             if (UseBias)
             {
-                var cpuTensor = (CpuTensor<float>)h5FileDataset[biasDatasetPath];
-                var reshapedCpuTensor = cpuTensor.WithNewShape(new[] { 1, cpuTensor.Shape[0], 1, 1 });
-                LoadFromH5Dataset(reshapedCpuTensor, ConvolutionBias);
-            }
-            else
-            {
-                //we ensure that no bias was provided in input
-                if (h5FileDataset.ContainsKey(biasDatasetPath))
-                {
-                    throw new ArgumentException("found bias tensor " + biasDatasetPath + "for layer " + LayerName + " although bias is disabled");
-
-                }
+                var biasDatasetPath = DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_bias:0" : "bias:0");
+                h5FileDataset[biasDatasetPath].CopyTo(ConvolutionBias);
             }
         }
-
-
-
 
         public override int[] OutputShape(int batchSize)
         {
@@ -368,7 +354,7 @@ namespace SharpNet.Layers
         {
             get
             {
-                var result = new List<Tensor> { y, _paddedX };
+                var result = new List<Tensor> { y, _padded_X, _padded_dX };
                 result.RemoveAll(t => t == null);
                 return result;
             }

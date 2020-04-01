@@ -14,6 +14,7 @@ namespace SharpNetTests
         private static void Main()
         {
             //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Efficientnet(); return;
+            //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
             //SVHNTests();
@@ -97,11 +98,7 @@ namespace SharpNetTests
             using (var cifar10 = new CIFAR10DataSet())
             using (var network = p.EfficientNetB0_CIFAR10())
             {
-
-                network.Config.ProfileApplication = true; //?D
-
                 //network.FindBestLearningRate(cifar10.Training, 512);return;
-
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
             }
@@ -327,7 +324,7 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, false, 16,4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 40,4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,10);},
@@ -335,7 +332,7 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 40,4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,8);},
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,10);},
+                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 16,10);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 28,8);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_SVHN_WRN(x, true, 28,10);},
@@ -394,7 +391,7 @@ namespace SharpNetTests
             using(var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-4_20190816_1810_150.txt", p.GpuDeviceId))
             { 
                 //network.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);
-                network.ChangeNumberOfCategoriesForTransferLearning(trainingDirectory.Categories);
+                network.ChangeNumberOfOutputCategories(trainingDirectory.Categories);
                 network.Info("training only last layer");
                 network.Layers.ForEach(l=>l.Trainable = false);
                 network.LastFrozenLayer().Trainable = true;

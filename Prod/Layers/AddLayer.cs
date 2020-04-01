@@ -15,7 +15,9 @@ namespace SharpNet.Layers
         {
             Debug.Assert(LayerIndex>=2);
             Debug.Assert(previousIdentityLayerIndex >= 0);
+            Debug.Assert(previousIdentityLayerIndex < LayerIndex);
             Debug.Assert(previousResidualLayerIndex >= 0);
+            Debug.Assert(previousResidualLayerIndex < LayerIndex);
             //we add the identity shortcut connection
             AddPreviousLayer(previousIdentityLayerIndex);
         }
@@ -39,6 +41,11 @@ namespace SharpNet.Layers
         }
         public override void BackwardPropagation(Tensor dy, List<Tensor> allDx)
         {
+            Debug.Assert(allDx.Count == 2);
+            Debug.Assert(y.SameShape(dy));
+            Debug.Assert(allDx[0].SameShape(dy));
+            Debug.Assert(allDx[0].SameShape(PreviousResidualLayer.y));
+            Debug.Assert(allDx[1].SameShape(PreviousIdentityLayer.y));
             allDx.ForEach(dy.CopyTo);
         }
     }

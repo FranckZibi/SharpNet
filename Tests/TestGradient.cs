@@ -110,7 +110,7 @@ namespace SharpNetTests
         {
             foreach (var l in n.TensorsIndependentOfBatchSize.OfType<CpuTensor<float>>())
             {
-                for (int i = 0; i < l.Content.Length; ++i)
+                for (int i = 0; i < l.Count; ++i)
                 {
                     l[i] = Math.Max(min, Math.Abs(l[i]));
                 }

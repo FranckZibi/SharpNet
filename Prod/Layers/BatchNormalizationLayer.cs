@@ -166,14 +166,13 @@ namespace SharpNet.Layers
                 _optimizer.ZeroMemory();
             }
         }
-        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
+        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
-            LoadFromH5Dataset(h5FileDataset, "beta:0", _bnBias);
-            LoadFromH5Dataset(h5FileDataset, "moving_mean:0", _resultRunningMean);
-            LoadFromH5Dataset(h5FileDataset, "gamma:0", _bnScale);
-            LoadFromH5Dataset(h5FileDataset, "moving_variance:0", _resultRunningVariance);
+            h5FileDataset[DatasetNameToDatasetPath("beta:0")].CopyTo(_bnBias);
+            h5FileDataset[DatasetNameToDatasetPath("moving_mean:0")].CopyTo(_resultRunningMean);
+            h5FileDataset[DatasetNameToDatasetPath("gamma:0")].CopyTo(_bnScale);
+            h5FileDataset[DatasetNameToDatasetPath("moving_variance:0")].CopyTo(_resultRunningVariance);
         }
-
      
         public override int TotalParams => _bnScale.Count + _resultBnScaleDiff.Count + _bnBias.Count + _resultBnBiasDiff.Count;
         protected override string DefaultLayerName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }

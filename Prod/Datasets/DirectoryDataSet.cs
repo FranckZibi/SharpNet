@@ -90,13 +90,13 @@ namespace SharpNet.Datasets
             var lines = File.ReadAllLines(csvFileName);
             for (var index = 0; index < lines.Length; index++)
             {
-                var lineContent = lines[index].Split(',', ';').ToArray();
-                var description = lineContent[0];
+                var splittedLine = lines[index].Split(',', ';').ToArray();
+                var description = splittedLine[0];
 
                 int categoryIndex = -1; //unknown categoryIndex
-                if (lineContent.Length == 2)
+                if (splittedLine.Length == 2)
                 { 
-                    var categoryIndexAsString = lineContent[1];
+                    var categoryIndexAsString = splittedLine[1];
                     if (!int.TryParse(categoryIndexAsString, out categoryIndex) || categoryIndex < 0)
                     {
                         if (index == 0)

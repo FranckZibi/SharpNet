@@ -41,12 +41,12 @@ namespace SharpNet.Datasets
             for (var index = 1; index < lines.Length; index++)
             {
                 //ex of line: HEPG2-01_1_B03,HEPG2-01,1,B03,513
-                var lineContent = lines[index].Split(',').ToArray();
-                var id_code = lineContent[0];        //description, ex: HEPG2-01_1_B03
-                var experiment = lineContent[1];     //the cell type and batch number, ex: HEPG2-01
-                var plate = lineContent[2];          //plate number within the experiment, ex: 1
-                var well = lineContent[3];           //location on the plate, ex B03
-                int sirna = lineContent.Length >= 5 ? int.Parse(lineContent[4]) : -1; //the target, ex: 513
+                var splittedLine = lines[index].Split(',').ToArray();
+                var id_code = splittedLine[0];        //description, ex: HEPG2-01_1_B03
+                var experiment = splittedLine[1];     //the cell type and batch number, ex: HEPG2-01
+                var plate = splittedLine[2];          //plate number within the experiment, ex: 1
+                var well = splittedLine[3];           //location on the plate, ex B03
+                int sirna = splittedLine.Length >= 5 ? int.Parse(splittedLine[4]) : -1; //the target, ex: 513
                 var subPathPart = Path.Combine(experiment, "Plate" + plate);
                 for (int s = 1; s <= 2; ++s)
                 {

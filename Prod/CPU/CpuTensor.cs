@@ -101,7 +101,7 @@ namespace SharpNet.CPU
             return result;
         }
 
-        public CpuTensor<T> ChangeAxis(int[] newToOldAxis)
+        public override Tensor ChangeAxis(int[] newToOldAxis)
         {
             Debug.Assert(newToOldAxis.Length == Dimension);
             Debug.Assert(newToOldAxis.Min() == 0);
@@ -274,13 +274,13 @@ namespace SharpNet.CPU
             var resultRunningVarianceContent = resultRunningVariance.AsFloatCpuContent;
             if (isTraining)
             {
-                for (int j = 0; j < resultRunningVarianceContent.Length; ++j)
+                for (int j = 0; j < resultRunningVariance.Count; ++j)
                 {
                     resultRunningMeanContent[j] = (float) (resultSaveMeanContent[j] * exponentialAverageFactor + resultRunningMeanContent[j] * (1 - exponentialAverageFactor));
                     resultRunningVarianceContent[j] = (float)(resultSaveVarianceContent[j] * exponentialAverageFactor + resultRunningVarianceContent[j] * (1 - exponentialAverageFactor));
                 }
             }
-            for (int j = 0; j < resultSaveVarianceContent.Length; ++j)
+            for (int j = 0; j < resultSaveVariance.Count; ++j)
             {
                 resultSaveVarianceContent[j] = (float) (1.0 / Math.Sqrt(((meanDivider - 1) * resultSaveVarianceContent[j]) / meanDivider + epsilon));
             }
@@ -498,29 +498,47 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void ZeroPadding(Tensor src, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
+        public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
-            Debug.Assert(AreCompatible(new List<Tensor> { this, src }));
-            Debug.Assert(Dimension == 4);
-            Debug.Assert(Dimension == src.Dimension);
-            Debug.Assert(Shape[0] == src.Shape[0]); //same batch size
-            Debug.Assert(Shape[1] == src.Shape[1]); //same number of channels
-            Debug.Assert(Shape[2] == (paddingTop + src.Shape[2] + paddingBottom)); //valid height for destination
-            Debug.Assert(Shape[3] == (paddingLeft + src.Shape[3] + paddingRight)); //valid width destination
+            ZeroPadding_and_Unpadding(unpaddedTensor, paddingTop, paddingBottom, paddingLeft, paddingRight, false);
+        }
+        public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
+        {
+            ((CpuTensor<T>)paddedTensor).ZeroPadding_and_Unpadding(this, paddingTop, paddingBottom, paddingLeft, paddingRight, true);
+        }
+
+        private void ZeroPadding_and_Unpadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, bool isUnpadding)
+        {
+            var paddedTensor = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { paddedTensor, unpaddedTensor }));
+            Debug.Assert(paddedTensor.Dimension == 4);
+            Debug.Assert(paddedTensor.Dimension == unpaddedTensor.Dimension);
+            Debug.Assert(paddedTensor.Shape[0] == unpaddedTensor.Shape[0]); //same batch size
+            Debug.Assert(paddedTensor.Shape[1] == unpaddedTensor.Shape[1]); //same number of channels
+            Debug.Assert(paddedTensor.Shape[2] == (paddingTop + unpaddedTensor.Shape[2] + paddingBottom)); //valid height for destination
+            Debug.Assert(paddedTensor.Shape[3] == (paddingLeft + unpaddedTensor.Shape[3] + paddingRight)); //valid width destination
             ZeroMemory();
-            int h_src = src.Shape[2];
-            int w_src = src.Shape[3];
+            int h_src = unpaddedTensor.Shape[2];
+            int w_src = unpaddedTensor.Shape[3];
             // copy the row 'srcRowId' from 'src' tensor (n, c, h_src, w_src) to dest tensor (n, c, h_dest, w_dest)
             // the number of distinct rows in 'src' tensor is : n*c*h_src
+
             void ApplyZeroPaddingForRowId(int srcRowId)
             {
                 // 0 <= srcRowId < n*c*h_src
                 int row_src = (srcRowId % h_src);
-                int srcRowIndex = srcRowId * w_src;
-                int destRowIndex = ((srcRowId / h_src) * Shape[2] + row_src + paddingTop) * Shape[3] + paddingLeft;
-                src.CopyTo(srcRowIndex, this, destRowIndex, w_src);
+                int unpaddedRowIndex = srcRowId * w_src;
+                int paddedRowIndex = ((srcRowId / h_src) * paddedTensor.Shape[2] + row_src + paddingTop) * paddedTensor.Shape[3] + paddingLeft;
+                if (isUnpadding)
+                {
+                    paddedTensor.CopyTo(paddedRowIndex, unpaddedTensor, unpaddedRowIndex, w_src);
+                }
+                else
+                {
+                    unpaddedTensor.CopyTo(unpaddedRowIndex, paddedTensor, paddedRowIndex, w_src);
+                }
             }
-            System.Threading.Tasks.Parallel.For(0, src.Shape[0] * src.Shape[1] * src.Shape[2], ApplyZeroPaddingForRowId);
+            System.Threading.Tasks.Parallel.For(0, unpaddedTensor.Shape[0] * unpaddedTensor.Shape[1] * unpaddedTensor.Shape[2], ApplyZeroPaddingForRowId);
         }
 
         public override void AssertIsNotDisposed()
@@ -919,6 +937,7 @@ namespace SharpNet.CPU
             int inputChannels = x.Shape[1];
             int outputChannels = dy.Shape[1];
             Debug.Assert(inputChannels == convolution.Shape[1]);
+            Debug.Assert(dx == null ||dx.SameShape(x));
             if (isDepthwiseConvolution)
             {
                 Debug.Assert(inputChannels == dy.Shape[1]);
@@ -1224,15 +1243,17 @@ namespace SharpNet.CPU
 
         public override void CopyTo(Tensor b)
         {
+            Debug.Assert(Count == b.Count);
             if (b.UseGPU)
             {
                 //copy from CPU ('this' tensor) to GPU ('b' tensor)
-                this.ToGPU<T>( ((GPUTensor<T>)b).Wrapper).CopyTo(b);
-                return;
+                ((GPUTensor<T>)b).CopyToDevice(Content);
             }
-            Debug.Assert(AreCompatible(new List<Tensor> { this, b }));
-            Debug.Assert(Count == b.Count);
-            MKL_BLAS.cblas_scopy(AsFloatCpuContent.Length, AsFloatCpuContent, 1, b.AsFloatCpuContent, 1);
+            else
+            {
+                //copy from CPU ('this' tensor) to CPU ('b' tensor)
+                MKL_BLAS.cblas_scopy(Count, AsFloatCpuContent, 1, b.AsFloatCpuContent, 1);
+            }
         }
         public override void CopyTo(int startElement, Tensor other, int bStartElement, int elementCount)
         {
@@ -1254,7 +1275,7 @@ namespace SharpNet.CPU
         }
         public override void ZeroMemory()
         {
-            Array.Clear(Content, 0, Content.Length);
+            Array.Clear(Content, 0, Count);
         }
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta)
         {
@@ -1434,7 +1455,7 @@ namespace SharpNet.CPU
                 }
             }
             var meanDivider = Count / mean.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
-            for (int i = 0; i < varianceContent.Length; ++i)
+            for (int i = 0; i < variance.Count; ++i)
             {
                 meanContent[i] /= meanDivider;
                 //Variance(X) = E(X^2) - E(X) ^2

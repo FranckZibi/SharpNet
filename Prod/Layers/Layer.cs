@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -160,7 +159,8 @@ namespace SharpNet.Layers
         /// Initialize layer weights & bias from datasets objects extracted from a *.h5 (HDF) file
         /// </summary>
         /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
-        public virtual void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset)
+        /// <param name="originFramework">the ML Framework from where the *.h5 file comes from</param>
+        public virtual void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
         }
 
@@ -168,7 +168,9 @@ namespace SharpNet.Layers
         /// Save layer weights & bias in Tensor(s) so that they can be stored in datasets objects in a *.h5 (HDF) file
         /// </summary>
         /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
-        public virtual void SaveToH5Dataset(List<Tuple<string, Tensor>> h5FileDataset)
+        /// <param name="originFramework">the ML Framework for which we want to save the *.h5 file
+        /// (so this file will be compatible with this Framework</param>
+        public virtual void SaveToH5Dataset(List<Tuple<string, Tensor>> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
             throw new NotImplementedException(); //TODO
         }
@@ -177,38 +179,6 @@ namespace SharpNet.Layers
         {
             return "/" + LayerName + "/" + LayerName + "/" + datasetName;
         }
-        protected void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, string datasetName, Tensor destination, params int[][] axisChanges)
-        {
-            var datasetPath = DatasetNameToDatasetPath(datasetName);
-            if (!h5FileDataset.ContainsKey(datasetPath))
-            {
-                throw new ArgumentException("missing dataset for path " + datasetPath + " to initialize " + destination.Description + " in layer " + LayerName);
-            }
-            var cpuTensor = h5FileDataset[datasetPath] as CpuTensor<float>;
-            if (cpuTensor == null)
-            {
-                throw new ArgumentException("invalid dataset for path " + DatasetNameToDatasetPath(datasetName) + " to initialize " + destination.Description + " in layer " + LayerName + ": expecting CpuTensor<float> but received " + h5FileDataset[datasetPath].GetType());
-            }
-            LoadFromH5Dataset(cpuTensor, destination, axisChanges);
-        }
-        protected void LoadFromH5Dataset(CpuTensor<float> cpuTensor, Tensor destination, params int[][] axisChanges)
-        {
-            foreach (var axisChange in axisChanges)
-            {
-                cpuTensor = cpuTensor.ChangeAxis(axisChange);
-            }
-
-            if (destination.UseGPU)
-            {
-                var gpuDestination = (GPUTensor<float>)destination;
-                gpuDestination.CopyToDevice(cpuTensor.Content);
-            }
-            else
-            {
-                cpuTensor.CopyTo(destination);
-            }
-        }
-
         #endregion
 
 
@@ -367,6 +337,7 @@ namespace SharpNet.Layers
         }
         protected Layer PrevLayer => (_previousLayerIndexes.Count == 0) ? null : Network.Layers[_previousLayerIndexes[0]];
         public List<Layer> PreviousLayers => _previousLayerIndexes.Select(idx => Network.Layers[idx]).ToList();
+        public List<int> NextLayerIndexes => _nextLayerIndexes;
         protected void AddPreviousLayer(int previousLayerIndex)
         {
             if (previousLayerIndex >= 0)
@@ -374,20 +345,6 @@ namespace SharpNet.Layers
                 _previousLayerIndexes.Add(previousLayerIndex);
                 Network.Layers[previousLayerIndex]._nextLayerIndexes.Add(LayerIndex);
             }
-        }
-
-        public Layer RemoveFromNetwork()
-        {
-            if ((_nextLayerIndexes.Count != 0) || Network.Layers.Last().LayerIndex != LayerIndex)
-            {
-                throw new Exception("can only remove the last layer from a network");
-            }
-            foreach (var previousLayerIndex in _previousLayerIndexes)
-            {
-                Network.Layers[previousLayerIndex]._nextLayerIndexes.Remove(LayerIndex);
-            }
-            Network.Layers.RemoveAt(Network.Layers.Count-1);
-            return this;
         }
 
         protected virtual List<Tensor> TensorsDependentOfBatchSize

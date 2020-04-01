@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -43,6 +45,7 @@ namespace SharpNet.Networks
 
         private double BatchNormMomentum { get; set; } = 0.99;
         private double BatchNormEpsilon { get; set; } = 0.001;
+        private cudnnActivationMode_t DefaultActivation { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
 
         /// <summary>
         /// The default EfficientNet Meta Parameters for CIFAR10
@@ -134,8 +137,6 @@ namespace SharpNet.Networks
             var width = inputShape_CHW[2];
             net.Input(channelCount, height, width);
 
-            var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
-            //var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
 
             //Build stem
             var stemChannels = MobileBlocksDescription.RoundFilters(32, widthCoefficient, depthDivisor);
@@ -147,7 +148,7 @@ namespace SharpNet.Networks
             //}
             net.Convolution(stemChannels, 3, stemStride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, "stem_conv")
                 .BatchNorm(BatchNormMomentum, BatchNormEpsilon, "stem_bn")
-                .Activation(activation, "stem_activation");
+                .Activation(DefaultActivation, "stem_activation");
 
             //Build blocks
             int numBlocksTotal = blocks.Select(x => x.NumRepeat).Sum();
@@ -170,7 +171,7 @@ namespace SharpNet.Networks
             var outputChannelsTop = MobileBlocksDescription.RoundFilters(1280, widthCoefficient, depthDivisor);
             net.Convolution(outputChannelsTop, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, "top_conv");
             net.BatchNorm(BatchNormMomentum, BatchNormEpsilon, "top_bn");
-            net.Activation(activation, "top_activation");
+            net.Activation(DefaultActivation, "top_activation");
             if (includeTop)
             {
                 net.GlobalAvgPooling("avg_pool");
@@ -193,6 +194,25 @@ namespace SharpNet.Networks
                 }
             }
 
+
+            //We load weights if needed
+            if (0 == string.Compare(weights, "imagenet", StringComparison.OrdinalIgnoreCase))
+            {
+                if (categories != 1000)
+                {
+                    throw new ArgumentException("categories must be 1000 for " + weights);
+                }
+                var modelPath = GetKerasModelPath(modelName + "_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
+                if (!File.Exists(modelPath))
+                {
+                    throw new ArgumentException("missing "+weights+" model file "+modelPath);
+                }
+                var efficientnet = new H5File(modelPath).Datasets();
+                net.Info("loading weights from " + modelPath);
+                net.LoadFromH5Dataset(efficientnet, NetworkConfig.CompatibilityModeEnum.TensorFlow1);
+            }
+
+
             return net;
         }
 
@@ -208,10 +228,6 @@ namespace SharpNet.Networks
             int inputChannels = net.Layers.Last().OutputShape(1)[1];
             var inputLayerIndex = net.Layers.Last().LayerIndex;
             
-            
-            var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
-            //var activation = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
-
             //Expansion phase
             var config = net.Config;
             var filters = inputChannels * block_args.ExpandRatio;
@@ -219,13 +235,13 @@ namespace SharpNet.Networks
             {
                 net.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix+"expand_conv")
                     .BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix+"expand_bn")
-                    .Activation(activation, layerPrefix+ "expand_activation");
+                    .Activation(DefaultActivation, layerPrefix+ "expand_activation");
             }
 
             //Depthwise Convolution
             net.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, ConvolutionLayer.PADDING_TYPE.SAME, 1, config.lambdaL2Regularization, false, layerPrefix+"dwconv")
                 .BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "bn")
-                .Activation(activation, layerPrefix + "activation");
+                .Activation(DefaultActivation, layerPrefix + "activation");
 
             //Squeeze and Excitation phase
             bool hasSe = block_args.SeRatio > 0 && block_args.SeRatio <= 1.0;
@@ -235,7 +251,7 @@ namespace SharpNet.Networks
                 var num_reduced_filters = Math.Max(1, (int) (inputChannels * block_args.SeRatio));
                 net.GlobalAvgPooling(layerPrefix + "se_squeeze");
                 net.Convolution(num_reduced_filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
-                    .Activation(activation);
+                    .Activation(DefaultActivation);
                 net.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
                 net.MultiplyLayer(net.Layers.Last().LayerIndex, xLayerIndex, layerPrefix + "se_excite");
@@ -247,44 +263,25 @@ namespace SharpNet.Networks
             if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels && dropRate > 0.00001)
             {
                 net.Dropout(dropRate, layerPrefix + "drop");
-                net.AddLayer(net.Layers.Last().LayerIndex, inputLayerIndex, layerPrefix + "add");
+                net.AddLayer(inputLayerIndex, net.Layers.Last().LayerIndex, layerPrefix + "add");
             }
         }
 
 
-        private Network EfficientNetBX_CIFAR10(float widthCoefficient,
-                float depthCoefficient,
-                float dropoutRate,
-                float dropConnectRate,
-                string modelName)
-        {
-            return EfficientNet(widthCoefficient, depthCoefficient, 32 /*defaultResolution*/, dropoutRate,
-                dropConnectRate, 8, 
-                MobileBlocksDescription.Default(), 
-                //BlocksDescription.Default().Select(x=>x.WithStride(1,1)).ToList(),
-                //BlocksDescription.Default().Select(x=>x.WithStride(1,1)).Take(1).ToList(),
-                //BlocksDescription.Default().Select(x=>x.WithKernelSize(3)).Take(4).ToList(),
-                //BlocksDescription.Default().Take(4).ToList(),
-                modelName,
-                true, //includeTop,
-                null, //weights,
-                new[] { 3, 32, 32 },
-                POOLING_BEFORE_DENSE_LAYER.NONE, // pooling,
-                1000 //10
-            );
-        }
+       
         public Network EfficientNetB0_CIFAR10()
         {
-            return EfficientNetBX_CIFAR10(1.0f, 1.0f, 0.2f,
-                0.2f, "efficientnet-b0_CIFAR10");
+            return EfficientNetB0(true, null, new[] { 3, 32, 32 }, NetworkBuilder.POOLING_BEFORE_DENSE_LAYER.NONE, "efficientnet-b0_CIFAR10", 32);
         }
+
 
         public Network EfficientNetB0(
             bool includeTop, //= True,
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
-            POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE,
+            string modelName = "efficientnet-b0",
+            int categories  = 1000
         )
         {
             return EfficientNet(1.0f, 1.0f, 224, 0.2f, 

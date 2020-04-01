@@ -1,4 +1,5 @@
-﻿using SharpNet.DataAugmentation;
+﻿using System;
+using SharpNet.DataAugmentation;
 
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -52,6 +53,12 @@ namespace SharpNet.Networks
             network.Description = networkName + ExtraDescription;
             return network;
         }
+        protected static string GetKerasModelPath(string modelFileName)
+        {
+            return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @".keras\models\", modelFileName);
+        }
+
+
 
         public Logger NetworkLogger(string networkName)
         {

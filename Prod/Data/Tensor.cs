@@ -179,12 +179,14 @@ namespace SharpNet.Data
         /// <summary>
         /// Stores in the 'this' tensor a zero padded version of the 'src' tensor
         /// </summary>
-        /// <param name="src">the tensor to which we want to add zero padding</param>
+        /// <param name="unpaddedTensor">the tensor to which we want to add zero padding</param>
         /// <param name="paddingTop">padding to add to the top of 'src' tensor</param>
         /// <param name="paddingBottom">padding to add to the bottom of 'src' tensor</param>
         /// <param name="paddingLeft">padding to add to the left of 'src' tensor</param>
         /// <param name="paddingRight">padding to add to the right of 'src' tensor</param>
-        public abstract void ZeroPadding(Tensor src, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight);
+        public abstract void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight);
+
+        public abstract void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight);
 
         /// <summary>
         /// Update the value of the 'this( tensor by multiplying it by 'x'
@@ -208,11 +210,15 @@ namespace SharpNet.Data
         /// <param name="b">a matrix of size (m,n) </param>
         public abstract void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b);
 
-        /// <summary>
-        /// this = singleLineMatrix to add to y
-        /// </summary>
-        /// <param name="y"></param>
         public abstract void BroadcastAddVectorToOutput(Tensor y);
+
+        /// <summary>
+        /// create a copy of the 'this' tensor with the axis updated
+        /// </summary>
+        public virtual Tensor ChangeAxis(int[] newToOldAxis)
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// extract channel 'channel' from this tensor and store it in 'tensor_NH'
