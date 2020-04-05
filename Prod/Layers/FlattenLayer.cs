@@ -37,6 +37,5 @@ namespace SharpNet.Layers
             dy.CopyTo(dx[0]);
         }
         public override int[] OutputShape(int batchSize) {return new []{batchSize, PrevLayer.n_x};}
-        public override List<Tensor> TensorsIndependentOfBatchSize => new List<Tensor>();
     }
 }

@@ -107,7 +107,7 @@ namespace SharpNet.Networks
         ///       - `max`
         ///                 means that global max pooling will be applied
         /// </param>
-        /// <param name="categories">optional number of classes to classify images  into, only to be specified if `include_top` is True, and if no `weights` argument is specified</param>
+        /// <param name="categoryCount">optional number of classes to classify images  into, only to be specified if `include_top` is True, and if no `weights` argument is specified</param>
         /// <returns></returns>
         public Network EfficientNet(
             float widthCoefficient,
@@ -122,9 +122,11 @@ namespace SharpNet.Networks
             string weights,
             int[] inputShape_CHW,
             POOLING_BEFORE_DENSE_LAYER pooling,
-            int categories //= 1000
+            int categoryCount //= 1000
             )
         {
+            dropoutRate = dropConnectRate = 0; //?D siable dropout layer
+
             blocks = blocks.Select(x => x.ApplyScaling(widthCoefficient, depthDivisor, depthCoefficient)).ToList();
             var net = BuildEmptyNetwork(modelName);
             var config = net.Config;
@@ -179,7 +181,7 @@ namespace SharpNet.Networks
                 {
                     net.Dropout(dropoutRate, "top_dropout");
                 }
-                net.Dense(categories, config.lambdaL2Regularization, "probs");
+                net.Dense(categoryCount, config.lambdaL2Regularization, "probs");
                 net.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             else
@@ -198,9 +200,9 @@ namespace SharpNet.Networks
             //We load weights if needed
             if (0 == string.Compare(weights, "imagenet", StringComparison.OrdinalIgnoreCase))
             {
-                if (categories != 1000)
+                if (categoryCount != 1000)
                 {
-                    throw new ArgumentException("categories must be 1000 for " + weights);
+                    throw new ArgumentException("categoryCount must be 1000 for " + weights);
                 }
                 var modelPath = GetKerasModelPath(modelName + "_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
                 if (!File.Exists(modelPath))
@@ -260,20 +262,33 @@ namespace SharpNet.Networks
             //Output phase
             net.Convolution(block_args.OutputFilters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
             net.BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "project_bn");
-            if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels && dropRate > 0.00001)
+            if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels)
             {
-                net.Dropout(dropRate, layerPrefix + "drop");
+                if (dropRate > 0.000001)
+                {
+                    net.Dropout(dropRate, layerPrefix + "drop");
+                }
                 net.AddLayer(inputLayerIndex, net.Layers.Last().LayerIndex, layerPrefix + "add");
             }
         }
 
 
-       
-        public Network EfficientNetB0_CIFAR10()
+       /// <summary>
+       /// construct an EfficientNet B0 network for CIFAR10 training
+       /// if weight is provided (ex: imagenet):
+       ///      will load the weight from the provided source,
+       ///      and will set the network category count to 10
+       ///      (resetting the last Dense layer weights if required to have 10 output categoryCount)
+       /// </summary>
+       /// <param name="weight"></param>
+       /// <returns></returns>
+        public Network EfficientNetB0_CIFAR10(string weight = "")
         {
-            return EfficientNetB0(true, null, new[] { 3, 32, 32 }, NetworkBuilder.POOLING_BEFORE_DENSE_LAYER.NONE, "efficientnet-b0_CIFAR10", 32);
+            var net = EfficientNetB0(true, weight, new[] { 3, 32, 32 });
+            net.Info("setting number of output categoryCount to 10");
+            net.SetCategoryCount(10);
+            return net;
         }
-
 
         public Network EfficientNetB0(
             bool includeTop, //= True,
@@ -281,11 +296,11 @@ namespace SharpNet.Networks
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE,
             string modelName = "efficientnet-b0",
-            int categories  = 1000
+            int categoryCount  = 1000
         )
         {
             return EfficientNet(1.0f, 1.0f, 224, 0.2f, 
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b0", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b0", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
 
         public Network EfficientNetB1(
@@ -293,11 +308,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(1.0f, 1.0f, 224, 0.2f,
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b1", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b1", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
 
         public Network EfficientNetB2(
@@ -305,11 +320,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(1.1f, 1.2f,  260, 0.3f, 
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b2", includeTop, weights, inputShape_CHW,  pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b2", includeTop, weights, inputShape_CHW,  pooling, categoryCount);
         }
 
         public Network EfficientNetB3(
@@ -317,11 +332,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(1.2f, 1.4f, 300, 0.3f,
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b3", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b3", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
 
         public Network EfficientNetB4(
@@ -329,11 +344,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(1.4f, 1.8f, 380, 0.4f,
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b4", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b4", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
 
         public Network EfficientNetB5(
@@ -341,11 +356,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(1.6f, 2.2f, 456, 0.4f,
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b5", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b5", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
 
         public Network EfficientNetB6(
@@ -353,11 +368,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(1.8f, 2.6f, 528, 0.5f,
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b6", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b6", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
 
         public Network EfficientNetB7(
@@ -365,11 +380,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(2.0f, 3.1f, 600, 0.5f,
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b7", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b7", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
 
         public Network EfficientNetL2(
@@ -377,11 +392,11 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-            int categories //= 1000
+            int categoryCount //= 1000
         )
         {
             return EfficientNet(4.3f, 5.3f, 800, 0.5f,
-                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-l2", includeTop, weights, inputShape_CHW, pooling, categories);
+                0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-l2", includeTop, weights, inputShape_CHW, pooling, categoryCount);
         }
     }
 }

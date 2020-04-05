@@ -177,9 +177,9 @@ namespace SharpNet.Data
         public abstract void MultiplyTensor(Tensor a, Tensor x);
 
         /// <summary>
-        /// Stores in the 'this' tensor a zero padded version of the 'src' tensor
+        /// this = [out] zero padded version of the 'unpaddedTensor' tensor received as input
         /// </summary>
-        /// <param name="unpaddedTensor">the tensor to which we want to add zero padding</param>
+        /// <param name="unpaddedTensor">[in] the tensor to which we want to add zero padding</param>
         /// <param name="paddingTop">padding to add to the top of 'src' tensor</param>
         /// <param name="paddingBottom">padding to add to the bottom of 'src' tensor</param>
         /// <param name="paddingLeft">padding to add to the left of 'src' tensor</param>
@@ -321,10 +321,8 @@ namespace SharpNet.Data
         /// <summary>
         public abstract void ConvolutionBackwardBias(Tensor bias);
 
-        //this = x
-
         /// <summary>
-        /// 
+        ///  this = x
         /// </summary>
         /// <param name="convolution"></param>
         /// <param name="dy"></param>
@@ -369,34 +367,52 @@ namespace SharpNet.Data
         public abstract Tensor Transpose();
 
         /// <summary>
-        /// this = x
+        /// this = x [in] unnormalized input
         /// </summary>
-        /// <param name="y"></param>
-        /// <param name="bnScale"></param>
-        /// <param name="bnBias"></param>
-        /// <param name="exponentialAverageFactor"></param>
-        /// <param name="resultRunningMean"></param>
-        /// <param name="resultRunningVariance"></param>
+        /// <param name="y">[out] normalized output</param>
+        /// <param name="scale">[in] scale (=gammas) tensor</param>
+        /// <param name="bias">[in] bias (=betas = offset) tensor</param>
+        /// <param name="exponentialAverageSmoothingFactor">
+        ///the smoothing factor used to compute the running mean and running variance (= 1 - momentum)
+        ///     runningMean[t] = exponentialAverageSmoothingFactor * currentMean  +  (1-exponentialAverageSmoothingFactor) * runningMean[t-1]
+        ///     (see https://en.wikipedia.org/wiki/Exponential_smoothing)
+        /// </param>
+        /// <param name="runningInputMean">weighted mean of all the inputs
+        /// is isTraining=true
+        ///     [in,out]  it will be updated by this method
+        /// else (isTraining=false)
+        ///     [in]  will ony be read by the method
+        /// </param>
+        /// <param name="runningInputVariance">weighted variance of all the inputs
+        /// is isTraining=true
+        ///     [in,out]  it will be updated by this method
+        /// else (isTraining=false)
+        ///     [in]  will ony be read by the method
+        /// </param>
         /// <param name="mode"></param>
         /// <param name="epsilon"></param>
-        /// <param name="resultSaveMean"></param>
-        /// <param name="resultSaveVariance"></param>
-        /// <param name="isTraining"></param>
-        public abstract void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining);
+        /// <param name="meanBuffer">[out] buffer where to store the mean of the input 'x' tensor
+        /// while only be used if isTraining=true</param>
+        /// <param name="invertOfUnbiasedVolatilityBuffer">[out] buffer where to store the invert of the unbiased volatility of the input 'x' tensor
+        /// while only be used if isTraining=true</param>
+        /// <param name="isTraining">
+        /// true if we are training the network
+        /// false for inference</param>
+        public abstract void BatchNormalization(Tensor y, Tensor scale, Tensor bias, double exponentialAverageSmoothingFactor, Tensor runningInputMean, Tensor runningInputVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer, bool isTraining);
 
         /// <summary>
-        /// this = x
+        /// this = x [in] unnormalized input
         /// </summary>
-        /// <param name="dy"></param>
-        /// <param name="dx"></param>
-        /// <param name="bnScale"></param>
-        /// <param name="resultBnScaleDiff"></param>
-        /// <param name="resultBnBiasDiff"></param>
+        /// <param name="dy">[in] gradient of the output 'y' tensor</param>
+        /// <param name="dx">[out] gradient of the input</param>
+        /// <param name="scale">[in] scale (=gammas) tensor</param>
+        /// <param name="scaleGradient">[out] gradient of the 'scale' tensor</param>
+        /// <param name="biasGradient">[in] gradient of the 'bias' tensor</param>
         /// <param name="mode"></param>
         /// <param name="epsilon"></param>
-        /// <param name="resultSaveMean"></param>
-        /// <param name="resultSaveVariance"></param>
-        public abstract void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor bnScale, Tensor resultBnScaleDiff, Tensor resultBnBiasDiff, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance);
+        /// <param name="meanBuffer">[in] mean of the input 'x' tensor</param>
+        /// <param name="invertOfUnbiasedVolatilityBuffer">[in] invert of the unbiased volatility of the input 'x' tensor</param>
+        public abstract void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer);
 
         /// <summary>
         /// this = x

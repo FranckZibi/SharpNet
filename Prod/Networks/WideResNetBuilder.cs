@@ -226,19 +226,19 @@ namespace SharpNet.Networks
         /// <param name="depth">total number of convolutions in the network</param>
         /// <param name="k">widening parameter</param>
         /// <param name="inputShape_CHW">input shape of a single element in format (channels, height, width)</param>
-        /// <param name="categories">number of distinct categories</param>
+        /// <param name="categoryCount">number of distinct categoryCount</param>
         /// <returns></returns>
 
-        public Network WRN(int depth, int k, int[] inputShape_CHW, int categories)
+        public Network WRN(int depth, int k, int[] inputShape_CHW, int categoryCount)
         {
-            return WRN(depth, k, inputShape_CHW, categories, false);
+            return WRN(depth, k, inputShape_CHW, categoryCount, false);
         }
-        public Network WRN_ImageNet(int depth, int k, int[] inputShape_CHW, int categories)
+        public Network WRN_ImageNet(int depth, int k, int[] inputShape_CHW, int categoryCount)
         {
-            return WRN(depth, k, inputShape_CHW, categories, true);
+            return WRN(depth, k, inputShape_CHW, categoryCount, true);
         }
 
-        public Network WRN(int depth, int k, int[] inputShape_CHW, int categories, bool reduceInputSize)
+        public Network WRN(int depth, int k, int[] inputShape_CHW, int categoryCount, bool reduceInputSize)
         {
             int convolutionsCountByStage = (depth - 1) / 3;
             int residualBlocksCountByStage = (convolutionsCountByStage-1) / 2;
@@ -310,11 +310,11 @@ namespace SharpNet.Networks
 
             if (WRN_DropOutAfterDenseLayer > 0)
             {
-                net.Dense_DropOut_Activation(categories, config.lambdaL2Regularization, WRN_DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                net.Dense_DropOut_Activation(categoryCount, config.lambdaL2Regularization, WRN_DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             else
             {
-                net.Output(categories, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                net.Output(categoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             return net;
         }

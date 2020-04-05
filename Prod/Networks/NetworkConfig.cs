@@ -308,14 +308,14 @@ namespace SharpNet.Networks
         /// Conventions: 
         ///   the output layer has a shape of (N, C) where:
         ///       'N' is the number of batches
-        ///       'C' the number of distinct categories
+        ///       'C' the number of distinct categoryCount
         /// </summary>
         public enum LossFunctionEnum
         {
             /// <summary>
             /// To be used with sigmoid activation layer.
             /// In a single row, each value will be in [0,1] range
-            /// Support of multi labels (one element can belong to several categories at the same time)
+            /// Support of multi labels (one element can belong to several categoryCount at the same time)
             /// </summary>
             BinaryCrossentropy,
 

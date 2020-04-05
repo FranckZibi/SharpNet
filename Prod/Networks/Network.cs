@@ -80,36 +80,50 @@ namespace SharpNet.Networks
         public List<EpochData> EpochDatas =>  _epochsData;
 
         #region Transfer Learning
-        public void ChangeNumberOfOutputCategories(int newNumberOfCategories)
+
+        /// <summary>
+        /// set the number of output categories of the current network by updating the head layers (Dense+Activation layers)
+        /// if the number of output categories is already 'newCategoryCount'
+        ///     does nothing at all
+        /// else
+        ///     update the last Dense Layers (resetting all its weights) to match the required number of categories
+        /// </summary>
+        /// <param name="newCategoryCount">the target number of categories</param>
+        public void SetCategoryCount(int newCategoryCount)
         {
             if (Layers.Count>=2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count-2] is DenseLayer)
             {
+                var denseLayer = (DenseLayer)Layers[Layers.Count - 2];
+                if (denseLayer.CategoryCount == newCategoryCount)
+                {
+                    Info("no need to set the CategoryCount to "+newCategoryCount);
+                    return; //already at target category count
+                }
+
                 //we remove the ActivationLayer (last layer)
-                var activationLayer = (ActivationLayer) Layers.Last();
+                var activationLayer = (ActivationLayer)Layers.Last();
                 var activationFunctionType = activationLayer.ActivationFunction;
                 var activationLayerName = activationLayer.LayerName;
-                RemoveAndDisposeLastLayerFromNetwork();
+                RemoveAndDisposeLastLayer();
 
                 //we remove the Dense layer
-                var denseLayer = (DenseLayer)Layers.Last();
                 var lambdaL2Regularization = denseLayer._lambdaL2Regularization;
                 var denseLayerName = denseLayer.LayerName;
-                RemoveAndDisposeLastLayerFromNetwork();
+                RemoveAndDisposeLastLayer();
 
-                //We add a new (not initialized) DenseLayer
-                Dense(newNumberOfCategories, lambdaL2Regularization, denseLayerName);
+                //We add a new DenseLayer (with weight reseted)
+                Info("Resetting weights of layer "+ denseLayerName + " to have " + newCategoryCount+" categories");
+                Dense(newCategoryCount, lambdaL2Regularization, denseLayerName);
 
-                //we add a new (not initialized) ActivationLayer
+                //we put back the ActivationLayer
                 Activation(activationFunctionType, activationLayerName);
 
-                _epochsData.Clear();
                 return;
             }
             throw new NotImplementedException("can only update a network where the 2 last layers are DenseLayer & ActivationLayer");
         }
 
-
-        public void RemoveAndDisposeLastLayerFromNetwork()
+        private void RemoveAndDisposeLastLayer()
         {
             var lastLayer = Layers.Last();
             foreach (var previousLayers in lastLayer.PreviousLayers)
@@ -137,7 +151,20 @@ namespace SharpNet.Networks
             }
             return null;
         }
+
+        public Layer FirstTrainableLayer()
+        {
+            foreach(var l in Layers)
+            {
+                if (l.Trainable && l.TotalParams > 0)
+                {
+                    return l;
+                }
+            }
+            return null;
+        }
         #endregion
+
 
         /// <summary>
         /// Clone the current network
@@ -236,10 +263,10 @@ namespace SharpNet.Networks
             Layers.Add(simpleRnnLayer);
             return this;
         }
-        public Network Dense(int n_x, double lambdaL2Regularization, string layerName = "")
+        public Network Dense(int categoryCount, double lambdaL2Regularization, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(n_x, lambdaL2Regularization, this, layerName);
+            var fullyConnectedLayer = new DenseLayer(categoryCount, lambdaL2Regularization, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
@@ -417,10 +444,12 @@ namespace SharpNet.Networks
             (isTraining ? _swPredictTraining : _swPredictNotTraining)?.Start();
             X = ReformatToCorrectDevice_GPU_or_CPU(X);
             ((InputLayer)Layers[0]).Set_y(X);
-            foreach (var l in Layers.Skip(1))
+            for (var layerIndex = 1; layerIndex < Layers.Count; layerIndex++)
             {
-                l.ForwardPropagation(isTraining);
+                var layer = Layers[layerIndex];
+                layer.ForwardPropagation(isTraining);
             }
+
             (isTraining ? _swPredictTraining : _swPredictNotTraining)?.Stop();
             return Layers.Last().y;
         }
@@ -621,7 +650,12 @@ namespace SharpNet.Networks
         }
         public void LogContent()
         {
-            Layers.ForEach(l => l.LogContent());
+            for (int layerIndex = 0; layerIndex < Layers.Count; ++layerIndex)
+            {
+                //if (layerIndex > 10 && layerIndex < Layers.Count - 10) continue;
+                var layer = Layers[layerIndex];
+                layer.LogContent();
+            }
         }
         #endregion
 
@@ -953,9 +987,13 @@ namespace SharpNet.Networks
         private void UpdateWeights(double learningRate)
         {
             _swUpdateWeights?.Start();
-            foreach (var l in Layers.Skip(1)) //we skip the input layer
+            var firstTrainableLayer = FirstTrainableLayer();
+            if (firstTrainableLayer != null)
             {
-                l.UpdateWeights(learningRate);
+                for (var index = firstTrainableLayer.LayerIndex; index < Layers.Count; index++)
+                {
+                    Layers[index].UpdateWeights(learningRate);
+                }
             }
             _swUpdateWeights?.Stop();
         }

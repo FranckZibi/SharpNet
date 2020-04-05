@@ -21,7 +21,7 @@ namespace SharpNet.Datasets
         /// <param name="firstIndexInShuffledElementId"></param>
         /// <param name="dataAugmentationConfig"></param>
         /// <param name="xMiniBatch">buffer where all elements (associated with the mini batch) will be stored</param>
-        /// <param name="yMiniBatch">buffer where all categories (associated with the mini batch) will be stored</param>
+        /// <param name="yMiniBatch">buffer where all categoryCount (associated with the mini batch) will be stored</param>
         /// <returns></returns>
         void LoadMiniBatch(int epoch, bool isTraining, 
             int[] shuffledElementId, int firstIndexInShuffledElementId,
@@ -44,9 +44,9 @@ namespace SharpNet.Datasets
         int TypeSize { get; }
 
         /// <summary>
-        ///  number of distinct categories in the DataSet
+        ///  number of distinct categoryCount in the DataSet
         /// </summary>
-        int Categories { get; }
+        int CategoryCount { get; }
 
         /// <summary>
         /// return the mean of channel 'channel' of the original DataSet (before normalization)
@@ -74,7 +74,7 @@ namespace SharpNet.Datasets
         /// element id to associated category index
         /// </summary>
         /// <param name="elementId">id of the element (between 0 and 'Count-1')</param>
-        /// <returns>index of the associated category (between 0 and 'Categories-1')</returns>
+        /// <returns>index of the associated category (between 0 and 'CategoryCount-1')</returns>
         int ElementIdToCategoryIndex(int elementId);
 
         ImageStatistic ElementIdToImageStatistic(int elementId);

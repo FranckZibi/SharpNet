@@ -12,10 +12,22 @@ namespace SharpNet.Layers
         #region Private fields
         public Tensor Weights { get; }                      // (prevLayer.n_x, n_x)
         public Tensor WeightGradients { get; }              // same as 'Weights'
-        public Tensor Bias { get; private set; }            // (1, n_x) 
-        public Tensor BiasGradients { get; private set; }   // same as 'Bias'
+
+        /// <summary>
+        /// (1, n_x)
+        /// Can be null if bias has been disabled
+        /// </summary>
+        public Tensor Bias { get; private set; }
+        /// <summary>
+        /// same shape as Bias
+        /// Can be null if bias has been disabled
+        /// </summary>
+        public Tensor BiasGradients { get; private set; }
         public override Tensor y { get; protected set; }    // (batchSize, n_x)
-        private readonly int _n_x;
+        /// <summary>
+        /// dimensionality of the output space
+        /// </summary>
+        private readonly int _units;
         /// <summary>
         /// regularization hyper parameter. 0 if no L2 regularization
         /// </summary>
@@ -26,16 +38,21 @@ namespace SharpNet.Layers
 
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
 
-        public DenseLayer(int n_x, double lambdaL2Regularization, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int units, double lambdaL2Regularization, Network network, string layerName) : base(network, layerName)
         {
-            _n_x = n_x;
+            _units = units;
             _lambdaL2Regularization = lambdaL2Regularization;
-            Weights = Network.NewNotInitializedTensor(new[] { PrevLayer.n_x, _n_x }, nameof(Weights));
-            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, nameof(WeightGradients));
-            Bias = Network.NewNotInitializedTensor(new[] {1,  _n_x }, nameof(Bias));
-            BiasGradients = Network.NewNotInitializedTensor(Bias.Shape, nameof(BiasGradients));
+
+            //trainable params
+            Weights = Network.NewNotInitializedTensor(new[] { PrevLayer.n_x, _units }, nameof(Weights));
+            Bias = Network.NewNotInitializedTensor(new[] {1,  _units }, nameof(Bias));
             _optimizer = Network.GetOptimizer(Weights.Shape, Bias.Shape);
             ResetWeights(false);
+
+            //non trainable params
+            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, nameof(WeightGradients));
+            BiasGradients = Network.NewNotInitializedTensor(Bias.Shape, nameof(BiasGradients));
+
             Debug.Assert(WeightGradients.SameShape(Weights));
             Debug.Assert(Bias.SameShape(BiasGradients));
         }
@@ -43,7 +60,7 @@ namespace SharpNet.Layers
         public override Layer Clone(Network newNetwork) { return new DenseLayer(this, newNetwork); }
         private DenseLayer(DenseLayer toClone, Network newNetwork) : base(toClone, newNetwork)
         {
-            _n_x = toClone.n_x;
+            _units = toClone._units;
             _lambdaL2Regularization = toClone._lambdaL2Regularization;
             Weights = toClone.Weights?.Clone(newNetwork.GpuWrapper);
             WeightGradients = toClone.WeightGradients?.Clone(newNetwork.GpuWrapper);
@@ -59,33 +76,39 @@ namespace SharpNet.Layers
             }
             var other = (DenseLayer)b;
             var equals = true;
-            equals &= Utils.Equals(_n_x, other._n_x, id + ":LayerIndex", ref errors);
+            equals &= Utils.Equals(_units, other._units, id + ":_units", ref errors);
             equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id, ref errors);
             equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
             return equals;
         }
+
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer()
-                .Add(nameof(_n_x), _n_x)
+            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
+                .Add(nameof(_units), _units)
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
-                .Add(Weights).Add(WeightGradients)
-                .Add(Bias).Add(BiasGradients)
                 .Add(_optimizer.Serialize())
                 .ToString();
         }
         public DenseLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
-            _n_x = (int)serialized[nameof(_n_x)];
+            _units = (int)serialized[nameof(_units)];
             _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
+
+            //trainable params
+            var useBias = serialized.ContainsKey(nameof(Bias));
             Weights = (Tensor)serialized[nameof(Weights)];
-            WeightGradients = (Tensor)serialized[nameof(WeightGradients)];
+            Bias = useBias ? (Tensor)serialized[nameof(Bias)]  : null;
+
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
-            Bias = serialized.TryGet<Tensor>(nameof(Bias));
-            BiasGradients = serialized.TryGet<Tensor>(nameof(BiasGradients));
+
+            //non trainable params
+            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, nameof(WeightGradients));
+            BiasGradients = useBias ? Network.NewNotInitializedTensor(Bias.Shape, nameof(BiasGradients)) : null;
         }
         #endregion
+
         public override void ForwardPropagation(bool isTraining)
         {
             Allocate_y_if_necessary();
@@ -150,18 +173,22 @@ namespace SharpNet.Layers
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
+            //trainable params
             Weights.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
-            WeightGradients.ZeroMemory();
             Bias?.ZeroMemory();
-            BiasGradients?.ZeroMemory();
+
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ZeroMemory();
             }
+
+            // non trainable params : no need to reset them
+            //WeightGradients.ZeroMemory();
+            //BiasGradients?.ZeroMemory();
         }
         public override int[] OutputShape(int batchSize)
         {
-            return new[] { batchSize, _n_x };
+            return new[] { batchSize, _units };
         }
         public override int DisableBias()
         {
@@ -172,6 +199,9 @@ namespace SharpNet.Layers
             BiasGradients = null;
             return nbDisabledWeights;
         }
+
+        public int CategoryCount => _units;
+
         public override string ToString()
         {
             var result = LayerName+": "+ShapeChangeDescription();
@@ -187,8 +217,6 @@ namespace SharpNet.Layers
             base.Dispose();
             _optimizer?.Dispose();
         }
-        public override int TotalParams => (Weights?.Count??0) + (Bias?.Count??0);
-
 
         public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
@@ -201,16 +229,26 @@ namespace SharpNet.Layers
             h5FileDataset[DatasetNameToDatasetPath("bias:0")].CopyTo(Bias);
         }
 
-        public override List<Tensor> TensorsIndependentOfBatchSize
+        protected override List<Tensor> TrainableTensorsIndependentOfBatchSize
         {
             get
             {
-                var result = new List<Tensor> { Weights, WeightGradients, Bias, BiasGradients };
+                var result = new List<Tensor> { Weights, Bias};
+                result.RemoveAll(t => t == null);
+                return result;
+            }
+        }
+
+        protected override List<Tensor> NonTrainableTensorsIndependentOfBatchSize
+        {
+            get
+            {
+                var result = new List<Tensor> { WeightGradients, BiasGradients };
                 if (_optimizer != null)
                 {
                     result.AddRange(_optimizer.EmbeddedTensors);
                 }
-                result.RemoveAll(x => x == null);
+                result.RemoveAll(t=> t == null);
                 return result;
             }
         }

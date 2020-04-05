@@ -30,13 +30,13 @@ namespace SharpNetTests
         {
             var rand = new Random(0);
             int m = 4;
-            int nbCategories = 2;
+            int categoryCount = 2;
             var xTrain = TestCpuTensor.RandomFloatTensor(new[] { m, 2, 4, 4 }, rand, -1.0, +1.0, "xTrain");
-            var yTrain = TestCpuTensor.RandomOneHotTensor(new[] { m, nbCategories }, rand, "yTrain");
+            var yTrain = TestCpuTensor.RandomOneHotTensor(new[] { m, categoryCount }, rand, "yTrain");
             var param = DenseNetBuilder.DenseNet_CIFAR10();
             param.GpuDeviceId = useGPU?0:-1;
             param.DisableLogging = true;
-            var network = param.Build(nameof(TestSave), xTrain.Shape, nbCategories, false, new[] { 2, 2 }, true, 8, 1.0, null);
+            var network = param.Build(nameof(TestSave), xTrain.Shape, categoryCount, false, new[] { 2, 2 }, true, 8, 1.0, null);
             testToPerform(network);
             Fit(network, xTrain,yTrain, 0.1, 10, 2);
             network.Description = "after training";

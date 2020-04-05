@@ -251,76 +251,87 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining)
+        public override void BatchNormalization(Tensor y, Tensor scale, Tensor bias, double exponentialAverageSmoothingFactor, Tensor runningInputMean, Tensor runningInputVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer, bool isTraining)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor>{x,y,bnScale,bnBias,resultRunningMean,resultRunningVariance,resultSaveMean,resultSaveVariance}));
+            Debug.Assert(AreCompatible(new List<Tensor>{x,y,scale,bias,runningInputMean,runningInputVariance,meanBuffer,invertOfUnbiasedVolatilityBuffer}));
             Debug.Assert(x.SameShape(y));
-            Debug.Assert(bnScale.SameShape(bnBias, resultRunningMean, resultRunningVariance, resultSaveMean, resultSaveVariance));
-            bool is1C11Shape = bnBias.Count == bnBias.Shape[1];
-            var meanDivider = Count / bnBias.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
+            Debug.Assert(scale.SameShape(bias, runningInputMean, runningInputVariance, meanBuffer, invertOfUnbiasedVolatilityBuffer));
+            bool is1C11Shape = bias.Count == bias.Shape[1];
+            var meanDivider = Count / bias.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
 
-            Compute_Column_Mean_Variance(resultSaveMean, resultSaveVariance);
+            
             var batchSize = x.Shape[0];
 
-            int idx = 0;
             var xContent = x.AsFloatCpuContent;
             var yContent = y.AsFloatCpuContent;
-            var bnScaleContent = bnScale.AsFloatCpuContent;
-            var bnBiasContent = bnBias.AsFloatCpuContent;
-            var resultSaveMeanContent = resultSaveMean.AsFloatCpuContent;
-            var resultSaveVarianceContent = resultSaveVariance.AsFloatCpuContent;
-            var resultRunningMeanContent = resultRunningMean.AsFloatCpuContent;
-            var resultRunningVarianceContent = resultRunningVariance.AsFloatCpuContent;
+            var scaleContent = scale.AsFloatCpuContent;
+            var biasContent = bias.AsFloatCpuContent;
+
+            // 'meanBuffer' & 'invertOfUnbiasedVolatilityBuffer' will only be used when isTraining = true
+            var meanContent = isTraining?meanBuffer.AsFloatCpuContent:null;
+            var invertOfUnbiasedVolatility = isTraining ? invertOfUnbiasedVolatilityBuffer.AsFloatCpuContent:null;
+
+            var runningInputMeanContent = runningInputMean.AsFloatCpuContent;
+            var runningInputVarianceContent = runningInputVariance.AsFloatCpuContent;
+
+
             if (isTraining)
             {
-                for (int j = 0; j < resultRunningVariance.Count; ++j)
+                //'invertOfUnbiasedVolatilityBuffer' will temporary store the variance of the input 
+                Compute_Column_Mean_Variance(meanBuffer, invertOfUnbiasedVolatilityBuffer);
+                var variance = invertOfUnbiasedVolatilityBuffer.AsFloatCpuContent;
+
+                //we need to update 'runningInputMean' and 'runningInputVariance'
+                for (int j = 0; j < runningInputVariance.Count; ++j)
                 {
-                    resultRunningMeanContent[j] = (float) (resultSaveMeanContent[j] * exponentialAverageFactor + resultRunningMeanContent[j] * (1 - exponentialAverageFactor));
-                    resultRunningVarianceContent[j] = (float)(resultSaveVarianceContent[j] * exponentialAverageFactor + resultRunningVarianceContent[j] * (1 - exponentialAverageFactor));
+                    runningInputMeanContent[j] = (float) (meanContent[j] * exponentialAverageSmoothingFactor + runningInputMeanContent[j] * (1 - exponentialAverageSmoothingFactor));
+                    runningInputVarianceContent[j] = (float)(variance[j] * exponentialAverageSmoothingFactor + runningInputVarianceContent[j] * (1 - exponentialAverageSmoothingFactor));
+                }
+
+                //we update 'invertOfUnbiasedVolatilityBuffer' so that it stores the invert of the unbiased volatility of the input
+                for (int j = 0; j < invertOfUnbiasedVolatilityBuffer.Count; ++j)
+                {
+                    invertOfUnbiasedVolatility[j] = (float)(1.0 / Math.Sqrt(((meanDivider - 1) * variance[j]) / meanDivider + epsilon));
                 }
             }
-            for (int j = 0; j < resultSaveVariance.Count; ++j)
-            {
-                resultSaveVarianceContent[j] = (float) (1.0 / Math.Sqrt(((meanDivider - 1) * resultSaveVarianceContent[j]) / meanDivider + epsilon));
-            }
 
+            int idx = 0;
             for (int n = 0; n < batchSize; ++n)
             {
                 for (int j = 0; j < MultDim0; ++j)
                 {
                     int scaleIndex = is1C11Shape ? (j / MultDim1) : j;
-                    var xOriginal = xContent[idx];
                     var xTarget = isTraining
-                        ? ((xOriginal - resultSaveMeanContent[scaleIndex]) * resultSaveVarianceContent[scaleIndex])
-                        : (float)((xOriginal - resultRunningMeanContent[scaleIndex]) / Math.Sqrt(resultRunningVarianceContent[scaleIndex] + epsilon));
-                    yContent[idx++] = bnScaleContent[scaleIndex] * xTarget + bnBiasContent[scaleIndex];
+                        ? ((xContent[idx] - meanContent[scaleIndex]) * invertOfUnbiasedVolatility[scaleIndex])
+                        : (float)((xContent[idx] - runningInputMeanContent[scaleIndex]) / Math.Sqrt(runningInputVarianceContent[scaleIndex] + epsilon));
+                    yContent[idx++] = scaleContent[scaleIndex] * xTarget + biasContent[scaleIndex];
                 }
             }
         }
-        public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor bnScale, Tensor resultBnScaleDiff, Tensor resultBnBiasDiff, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance)
+        public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer)
         {
             var x = this;
             var batchSize = x.Shape[0];
-            Debug.Assert(AreCompatible(new List<Tensor> {x, dy, dx, bnScale, resultBnScaleDiff, resultBnBiasDiff, resultSaveMean, resultSaveVariance}));
+            Debug.Assert(AreCompatible(new List<Tensor> {x, dy, dx, scale, scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer}));
             Debug.Assert(x.SameShape(dy, dx));
-            Debug.Assert(bnScale.SameShape(resultBnScaleDiff, resultBnBiasDiff, resultSaveMean, resultSaveVariance));
-            bool is1C11Shape = bnScale.Count == bnScale.Shape[1];
-            var meanDivider = Count / bnScale.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
-            resultBnScaleDiff.ZeroMemory();
+            Debug.Assert(scale.SameShape(scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer));
+            bool is1C11Shape = scale.Count == scale.Shape[1];
+            var meanDivider = Count / scale.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
+            scaleGradient.ZeroMemory();
             dx?.ZeroMemory();
 
             //we compute resultBnBiasDiff
-            dy.AsCpu<float>().ComputeSumByColumn(resultBnBiasDiff);
+            dy.AsCpu<float>().ComputeSumByColumn(biasGradient);
             //we compute resultBnScaleDiff
             var xContent = x.AsFloatCpuContent;
             var dyContent = dy.AsFloatCpuContent;
             var dxContent = dx?.AsFloatCpuContent ?? new float[x.Count];
-            var resultBnBiasDiffContent = resultBnBiasDiff.AsFloatCpuContent;
-            var resultBnScaleDiffContent = resultBnScaleDiff.AsFloatCpuContent;
-            var bnScaleContent = bnScale.AsFloatCpuContent;
-            var resultSaveMeanContent = resultSaveMean.AsFloatCpuContent;
-            var resultSaveVarianceContent = resultSaveVariance.AsFloatCpuContent;
+            var biasGradientContent = biasGradient.AsFloatCpuContent;
+            var scaleGradientContent = scaleGradient.AsFloatCpuContent;
+            var scaleContent = scale.AsFloatCpuContent;
+            var meanBufferContent = meanBuffer.AsFloatCpuContent;
+            var invertOfUnbiasedVolatility = invertOfUnbiasedVolatilityBuffer.AsFloatCpuContent;
             for (int j = 0; j < MultDim0; ++j)
             {
                 int meanIndex = is1C11Shape ? (j / MultDim1) : j;
@@ -329,9 +340,9 @@ namespace SharpNet.CPU
                 {
 
                     int idx = n * MultDim0 + j;
-                    result += dyContent[idx] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
+                    result += dyContent[idx] * (xContent[idx] - meanBufferContent[meanIndex]);
                 }
-                resultBnScaleDiffContent[meanIndex] += (float) (result * resultSaveVarianceContent[meanIndex]);
+                scaleGradientContent[meanIndex] += (float) (result * invertOfUnbiasedVolatility[meanIndex]);
             }
             //we compute dx
             for (int i = 0; i < batchSize; ++i)
@@ -340,8 +351,8 @@ namespace SharpNet.CPU
                 {
                     int meanIndex = is1C11Shape ? (j / MultDim1) : j;
                     int idx = i * MultDim0 + j;
-                    double result = meanDivider * dyContent[idx] - resultBnBiasDiffContent[meanIndex] - resultBnScaleDiffContent[meanIndex] * resultSaveVarianceContent[meanIndex] * (xContent[idx] - resultSaveMeanContent[meanIndex]);
-                    dxContent[idx] += (float) ((bnScaleContent[meanIndex] * resultSaveVarianceContent[meanIndex] * result) / meanDivider);
+                    double result = meanDivider * dyContent[idx] - biasGradientContent[meanIndex] - scaleGradientContent[meanIndex] * invertOfUnbiasedVolatility[meanIndex] * (xContent[idx] - meanBufferContent[meanIndex]);
+                    dxContent[idx] += (float) ((scaleContent[meanIndex] * invertOfUnbiasedVolatility[meanIndex] * result) / meanDivider);
                 }
             }
         }
@@ -500,6 +511,9 @@ namespace SharpNet.CPU
 
         public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
+            //we are adding padding to 'unpaddedTensor' to initialize 'paddedTensor'
+            var paddedTensor = this;
+            paddedTensor.ZeroMemory();
             ZeroPadding_and_Unpadding(unpaddedTensor, paddingTop, paddingBottom, paddingLeft, paddingRight, false);
         }
         public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
@@ -517,7 +531,6 @@ namespace SharpNet.CPU
             Debug.Assert(paddedTensor.Shape[1] == unpaddedTensor.Shape[1]); //same number of channels
             Debug.Assert(paddedTensor.Shape[2] == (paddingTop + unpaddedTensor.Shape[2] + paddingBottom)); //valid height for destination
             Debug.Assert(paddedTensor.Shape[3] == (paddingLeft + unpaddedTensor.Shape[3] + paddingRight)); //valid width destination
-            ZeroMemory();
             int h_src = unpaddedTensor.Shape[2];
             int w_src = unpaddedTensor.Shape[3];
             // copy the row 'srcRowId' from 'src' tensor (n, c, h_src, w_src) to dest tensor (n, c, h_dest, w_dest)
@@ -587,9 +600,9 @@ namespace SharpNet.CPU
             }
             System.Threading.Tasks.Parallel.For(0, Shape[0], SplitSingleRow);
         }
-        public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryIndex, int elementCount, int categoriesCount)
+        public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryIndex, int elementCount, int categoryCount)
         {
-            var Y = new CpuTensor<float>(new[] { elementCount, categoriesCount }, "YOneHot");
+            var Y = new CpuTensor<float>(new[] { elementCount, categoryCount }, "YOneHot");
             for (int elementId = 0; elementId < elementCount; ++elementId)
             {
                 var categoryIndex = elementIdToCategoryIndex(elementId);
@@ -597,7 +610,7 @@ namespace SharpNet.CPU
                 {
                     continue;
                 }
-                Y.Content[elementId * categoriesCount + categoryIndex] = 1f;
+                Y.Content[elementId * categoryCount + categoryIndex] = 1f;
             }
             return Y;
         }
@@ -1232,13 +1245,13 @@ namespace SharpNet.CPU
         public int[] ComputePrediction()
         {
             int batchSize = Shape[0];
-            int[] categories = new int[batchSize];
+            int[] categoryCount = new int[batchSize];
             var yPredictedCpu = AsCpu<float>();
             for (int m = 0; m < batchSize; ++m)
             {
-                ComputeSingleAccuracyCount(yPredictedCpu, yPredictedCpu, m, out categories[m]);
+                ComputeSingleAccuracyCount(yPredictedCpu, yPredictedCpu, m, out categoryCount[m]);
             }
-            return categories;
+            return categoryCount;
         }
 
         public override void CopyTo(Tensor b)

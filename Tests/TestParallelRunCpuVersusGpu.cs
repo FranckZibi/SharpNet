@@ -10,6 +10,7 @@ using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.CPU;
 using SharpNetTests.Data;
+using SharpNetTests.NonReg;
 
 namespace SharpNetTests
 {
@@ -70,12 +71,12 @@ namespace SharpNetTests
             foreach (ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
             foreach (NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
             foreach (int stride in new[] { 1, 2 })
+            foreach (int f in new[] { 3, 5 })
             foreach (var isDepthwiseConvolution in new[] { true, false })
             {
                 var channelsCount = 3;
                 var height = 17;
                 var width = 32;
-                var f = 3;
                 var x = RandomTensor(new[] { BatchSize, channelsCount, height, width }, "x");
                 x = new CpuTensor<float>(x.Shape, "x");
                 var convolutionShape = isDepthwiseConvolution
@@ -88,22 +89,40 @@ namespace SharpNetTests
                 var convolutionGradient = RandomTensor(convolution.Shape, "convolutionGradient");
                 ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
                 ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
+
                 if (ConvolutionLayer.IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
                 {
-                    continue; //asymmetric padding is not supported by cuDNN
+                    var paddedXShape = new[] { x.Shape[0], x.Shape[1], paddingTop + x.Shape[2] + paddingBottom, paddingLeft + x.Shape[3] + paddingRight };
+                    var padded_X = RandomTensor(paddedXShape, "padded_X");
+                    padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                    var padded_dX = RandomTensor(paddedXShape, "padded_dX");
+                    TestAll(new[] { x, padded_X, convolution, dy, dx, padded_dX, convolutionGradient }, tensors => ConvolutionGradientAsymmetricPadding(
+                        tensors[0], tensors[1], tensors[2], tensors[3], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[4], tensors[5], tensors[6], isDepthwiseConvolution));
                 }
-                TestAll(new[] { x, convolution, dy, dx, convolutionGradient}, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], isDepthwiseConvolution));
+                else
+                {
+                    TestAll(new[] { x, convolution, dy, dx, convolutionGradient }, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], isDepthwiseConvolution));
+                }
             }
         }
 
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, BatchSize)]
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, 1)]
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION, BatchSize)]
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION, 1)]
-        public void TestBatchNormalization(cudnnBatchNormMode_t mode, int batchSize)
+        private static void ConvolutionGradientAsymmetricPadding(Tensor x, Tensor padded_X, Tensor convolution, Tensor dy, int paddingTop,
+            int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor padded_dX, Tensor convGradient, bool isDepthwiseConvolution)
         {
-            foreach(bool ignoreHW in new []{false, true})
-            { 
+            padded_X.ConvolutionGradient(convolution, dy, 0, 0, 0, 0, stride, padded_dX, convGradient, isDepthwiseConvolution);
+            dx.ZeroUnpadding(padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
+        }
+
+        [Test]
+        public void TestBatchNormalization()
+        {
+            foreach (var mode in new []{ cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION })
+            foreach (var batchSize in new[] { 1, 4, 9 })
+            foreach (var momentum in new []{0.0, 0.5, 0.99, 1.0})
+            foreach (var epsilon in new []{1e-3, 1e-5})
+            foreach (var ignoreHW in new []{false, true})
+            foreach (var isTraining in new[] { false, true })
+            {
                 var xShape = new[] { batchSize, ChannelsCount, Height, Width };
                 var scaleAndBiasShape = (mode == cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
                     ? new[] { 1, ChannelsCount, Height, Width }
@@ -116,42 +135,45 @@ namespace SharpNetTests
 
                 var x = RandomTensor(xShape, "x");
                 var y = RandomTensor(xShape, "y");
-                y.ZeroMemory();
-                var bnScale = RandomTensor(scaleAndBiasShape, "bnScale");
-                var bnBias = RandomTensor(scaleAndBiasShape, "bnBias");
-                var resultRunningMean = RandomTensor(scaleAndBiasShape, "resultRunningMean");
-                resultRunningMean.ZeroMemory();
-                var resultRunningVariance = RandomTensor(scaleAndBiasShape, "resultRunningVariance");
-                resultRunningVariance.ZeroMemory();
-                var resultSaveMean = RandomTensor(scaleAndBiasShape, "resultSaveMean");
-                resultSaveMean.ZeroMemory();
-                var resultSaveVariance = RandomTensor(scaleAndBiasShape, "resultSaveVariance");
-                resultSaveVariance.ZeroMemory();
-
-                var epsilon = 1e-5;
-                //exponentialAverageFactor = 1.0;
-                //isTraining = true;
-                TestAll(new[] { x, y, bnScale, bnBias, resultRunningMean, resultRunningVariance, resultSaveMean, resultSaveVariance }, tensors => tensors[0].BatchNormalization(tensors[1], tensors[2], tensors[3], 1.0, tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7], true));
-                //exponentialAverageFactor = 1.0;
-                //isTraining = false; 
-                TestAll(new[] { x, y, bnScale, bnBias, resultRunningMean, resultRunningVariance, resultSaveMean, resultSaveVariance }, tensors => tensors[0].BatchNormalization(tensors[1], tensors[2], tensors[3], 1.0, tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7], false));
-
-                //exponentialAverageFactor = 0.5;
-                //isTraining = true;
-                TestAll(new[] { x, y, bnScale, bnBias, resultRunningMean, resultRunningVariance, resultSaveMean, resultSaveVariance }, tensors => tensors[0].BatchNormalization(tensors[1], tensors[2], tensors[3], 0.5, tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7], true));
-                //exponentialAverageFactor = 0.5;
-                //isTraining = false;
-                TestAll(new[] { x, y, bnScale, bnBias, resultRunningMean, resultRunningVariance, resultSaveMean, resultSaveVariance }, tensors => tensors[0].BatchNormalization(tensors[1], tensors[2], tensors[3], 0.5, tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7], false));
+                var scale = RandomTensor(scaleAndBiasShape, "scale");
+                var bias = RandomTensor(scaleAndBiasShape, "bias");
+                var runningInputMean = RandomTensor(scaleAndBiasShape, "runningInputMean");
+                var runningInputVariance = TestCpuTensor.RandomFloatTensor(scaleAndBiasShape, _rand, 0.1, 2, "runningInputVariance");
+                var meanBuffer = RandomTensor(scaleAndBiasShape, "meanBuffer");
+                var varianceBuffer = TestCpuTensor.RandomFloatTensor(scaleAndBiasShape, _rand, 0.1, 50, "varianceBuffer");
+                double exponentialAverageSmoothingFactor = 1 - momentum;
+                TestAll(new[] { x, y, scale, bias, runningInputMean, runningInputVariance, meanBuffer, varianceBuffer }, tensors => tensors[0].BatchNormalization(tensors[1], tensors[2], tensors[3], exponentialAverageSmoothingFactor, tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7], isTraining));
             }
         }
 
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, BatchSize)]
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, 1)]
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION, BatchSize)]
-        [TestCase(cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION, 1)]
-        public void TestBatchNormalizationBackward(cudnnBatchNormMode_t mode, int batchSize)
+        [Test]
+        public void TestBatchNormalizationV2()
         {
-            foreach (bool ignoreHW in new[] { false, true })
+            var tensorIdsToIgnore = new List<int> { 6, 7 };
+            var mode = cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
+            var xShape = new[] { 1, 32, 112, 112};
+
+            //var x = TestNetworkPropagation.FromNumpyArray("[[[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, .../... ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]]]", "x");
+            var x = new CpuTensor<float>(xShape, null, "x");
+            x.ZeroMemory();
+            var scale = TestNetworkPropagation.FromNumpyArray("[[[[2.82185745]],[[4.20555544]],[[4.44391775]],[[2.95071363]],[[0.901465356]],[[3.83799005]],[[2.20374274]],[[3.30325413]],[[3.38044739]],[[0.202515125]],[[2.14543128]],[[0.645111859]],[[3.29296565]],[[11.9912415]],[[0.810986161]],[[3.39099979]],[[2.6564517]],[[8.52717972]],[[2.52371788]],[[3.94317198]],[[2.74237108]],[[11.1155062]],[[4.08373785]],[[5.75315952]],[[0.335611582]],[[1.24477983]],[[3.90086651]],[[1.98501635]],[[0.818592787]],[[0.626930952]],[[6.75085163]],[[3.4190371]]]]","scale");
+            var bias = TestNetworkPropagation.FromNumpyArray("[[[[-3.74896479]],[[2.43146777]],[[2.31554103]],[[7.13698292]],[[-1.38208234]],[[8.66540337]],[[-2.95346022]],[[1.81856453]],[[0.995381236]],[[0.00296683772]],[[-2.85715914]],[[1.74939632]],[[0.599703848]],[[0.165816754]],[[1.90356266]],[[8.97630692]],[[2.26754451]],[[3.72180033]],[[2.572788]],[[1.96836185]],[[-3.36665225]],[[2.64624929]],[[10.5395947]],[[-10.4322577]],[[-1.63009882]],[[1.37903798]],[[9.95489788]],[[1.99438405]],[[0.159816369]],[[2.50823808]],[[-10.8555698]],[[2.08439994]]]]","bias");
+            var runningInputMean = TestNetworkPropagation.FromNumpyArray("[[[[-0.0474244691]],[[-0.00338064576]],[[0.00407501776]],[[0.0787407607]],[[0.0313696824]],[[0.0837314799]],[[-0.0393488146]],[[0.0694158077]],[[0.639113843]],[[-0.171755388]],[[-0.382961541]],[[0.0100561073]],[[0.606002986]],[[1.39727235]],[[0.420819908]],[[-0.0792663917]],[[0.00732345507]],[[-0.770392716]],[[0.00307485089]],[[-0.00288994168]],[[-0.0452340655]],[[-0.719747245]],[[-0.0934633166]],[[0.163005278]],[[0.121294215]],[[-0.00648898305]],[[-0.0706383437]],[[0.00286416081]],[[2.91242941E-09]],[[0.0120399296]],[[-0.063189812]],[[-0.00128901063]]]]", "runningInputMean");
+            var runningInputVariance = TestNetworkPropagation.FromNumpyArray("[[[[7.25111055]],[[5.37058496]],[[6.66747379]],[[18.2757835]],[[5.69575691]],[[17.0573292]],[[6.76594353]],[[1.52835393]],[[18.0554256]],[[27.2328396]],[[10.9577389]],[[3.57627463]],[[12.896986]],[[39.5671387]],[[3.67913604]],[[13.6923494]],[[6.86120129]],[[19.7278404]],[[3.81912017]],[[9.09753227]],[[6.9455328]],[[23.5766983]],[[18.0286465]],[[18.6031551]],[[1.11303592]],[[6.78300667]],[[11.5361662]],[[6.32360983]],[[0]],[[1.08625805]],[[19.3687859]],[[5.1940341]]]]", "runningInputVariance");
+            var y = RandomTensor(xShape, "y");
+            var meanBuffer = TestNetworkPropagation.FromNumpyArray("[[[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]]]]", "meanBuffer");
+            var varianceBuffer = TestNetworkPropagation.FromNumpyArray("[[[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]]]]", "varianceBuffer");
+            double exponentialAverageSmoothingFactor = 1 - 0.99;
+            TestAll(new[] { x, y, scale, bias, runningInputMean, runningInputVariance, meanBuffer, varianceBuffer }, tensors => tensors[0].BatchNormalization(tensors[1], tensors[2], tensors[3], exponentialAverageSmoothingFactor, tensors[4], tensors[5], mode, 0.001, tensors[6], tensors[7], false), tensorIdsToIgnore);
+        }
+        [Test]
+        public void TestBatchNormalizationBackward()
+        {
+            foreach (var mode in new[] { cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL, cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION })
+            foreach (var batchSize in new[] { 1, 4, 9 })
+            foreach (var exponentialAverageFactor in new[] { 0.5, 0.99, 1.0 })
+            foreach (var epsilon in new[] { 1e-3, 1e-5 })
+            foreach (var ignoreHW in new[] { false, true })
             {
                 var xShape = new[] { batchSize, ChannelsCount, Height, Width };
                 var scaleAndBiasShape = (mode == cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
@@ -164,25 +186,18 @@ namespace SharpNetTests
                 }
                 var x = RandomTensor(xShape, "x");
                 var y = RandomTensor(xShape, "y");
-                y.ZeroMemory();
-                var bnScale = RandomTensor(scaleAndBiasShape, "bnScale");
-                var bnBias = RandomTensor(scaleAndBiasShape, "bnBias");
-                var resultRunningMean = RandomTensor(scaleAndBiasShape, "resultRunningMean");
-                resultRunningMean.ZeroMemory();
-                var resultRunningVariance = RandomTensor(scaleAndBiasShape, "resultRunningVariance");
-                resultRunningVariance.ZeroMemory();
-                var resultSaveMean = RandomTensor(scaleAndBiasShape, "resultSaveMean");
-                resultSaveMean.ZeroMemory();
-                var resultSaveVariance = RandomTensor(scaleAndBiasShape, "resultSaveVariance");
-                resultSaveVariance.ZeroMemory();
-                const double exponentialAverageFactor = 1.0;
-                const double epsilon = 1e-5;
-                x.BatchNormalization(y, bnScale, bnBias, exponentialAverageFactor, resultRunningMean, resultRunningVariance, mode, epsilon, resultSaveMean, resultSaveVariance, false);
+                var scale = RandomTensor(scaleAndBiasShape, "scale");
+                var bias = RandomTensor(scaleAndBiasShape, "bias");
+                var runningInputMean = RandomTensor(scaleAndBiasShape, "runningInputMean");
+                var runningInputVariance = TestCpuTensor.RandomFloatTensor(scaleAndBiasShape, _rand, 0.1, 2, "runningInputVariance");
+                var meanBuffer = RandomTensor(scaleAndBiasShape, "meanBuffer");
+                var invertOfUnbiasedVolatilityBuffer = RandomTensor(scaleAndBiasShape, "invertOfUnbiasedVolatilityBuffer");
+                x.BatchNormalization(y, scale, bias, exponentialAverageFactor, runningInputMean, runningInputVariance, mode, epsilon, meanBuffer, invertOfUnbiasedVolatilityBuffer, false);
                 var dx = RandomTensor(xShape, "dx");
                 var dy = RandomTensor(xShape, "dy");
-                var resultBnScaleDiff = RandomTensor(scaleAndBiasShape, "resultBnScaleDiff");
-                var resultBnBiasDiff = RandomTensor(scaleAndBiasShape, "resultBnBiasDiff");
-                TestAll(new[] { x, dy, dx, bnScale, resultBnScaleDiff, resultBnBiasDiff, resultSaveMean, resultSaveVariance }, tensors => tensors[0].BatchNormalizationBackward(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7]));
+                var scaleGradient = RandomTensor(scaleAndBiasShape, "scaleGradient");
+                var biasGradient = RandomTensor(scaleAndBiasShape, "biasGradient");
+                TestAll(new[] { x, dy, dx, scale, scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer }, tensors => tensors[0].BatchNormalizationBackward(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7]));
             } 
         }
         [Test]
@@ -264,6 +279,24 @@ namespace SharpNetTests
                     var destShape = new[] { shape[0], shape[1], top_pad + shape[2] + bottom_pad, left_pad + shape[3] + right_pad };
                     var dest = RandomTensor(destShape, "");
                     TestAll(new[] { dest, src }, tensors => tensors[0].ZeroPadding(tensors[1], top_pad, bottom_pad, left_pad, right_pad));
+                }
+            }
+        }
+
+        [Test]
+        public void TestZeroUnpadding()
+        {
+            foreach (var shape in new[] { new[] { 7, 3, 7, 8 }, new[] { 4, 5, 12, 5 } })
+            {
+                var unpaddedTensor = RandomTensor(shape, "");
+                foreach (var top_pad in new[] { 0, 1, 3 })
+                foreach (var bottom_pad in new[] { 0, 1, 3 })
+                foreach (var left_pad in new[] { 0, 1, 3 })
+                foreach (var right_pad in new[] { 0, 1, 3 })
+                {
+                    var paddedTensorShape = new[] { shape[0], shape[1], top_pad + shape[2] + bottom_pad, left_pad + shape[3] + right_pad };
+                    var paddedTensor = RandomTensor(paddedTensorShape, "");
+                    TestAll(new[] { unpaddedTensor , paddedTensor}, tensors => tensors[0].ZeroUnpadding(tensors[1], top_pad, bottom_pad, left_pad, right_pad));
                 }
             }
         }
@@ -463,10 +496,10 @@ namespace SharpNetTests
         [TestCase(2, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
         [TestCase(10, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(10, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
-        public void TestComputeLoss(int nbCategories, NetworkConfig.LossFunctionEnum lossFunction)
+        public void TestComputeLoss(int categoryCount, NetworkConfig.LossFunctionEnum lossFunction)
         {
             var nbRows = 1000;
-            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
+            var yPredicted = RandomTensor(new[] { nbRows, categoryCount }, "yPredicted");
             var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand, "yExpectedOneHot");
             var buffer = RandomTensor(new[] { nbRows }, "buffer");
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
@@ -476,21 +509,21 @@ namespace SharpNetTests
         [TestCase(2, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
         [TestCase(10, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(10, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
-        public void TestComputeLossFromCategoryIndexes(int nbCategories, NetworkConfig.LossFunctionEnum lossFunction)
+        public void TestComputeLossFromCategoryIndexes(int categoryCount, NetworkConfig.LossFunctionEnum lossFunction)
         {
             const int nbRows = 10000;
-            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
-            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, nbCategories, _rand);
+            var yPredicted = RandomTensor(new[] { nbRows, categoryCount }, "yPredicted");
+            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, categoryCount, _rand);
             var buffer = RandomTensor(new[] { nbRows }, "buffer");
             TestAllForReturnValue(new[] { categoryIndexes }, new[] { yPredicted, buffer }, tensors => tensors[0].ComputeLossFromCategoryIndexes(tensors[1], lossFunction, tensors[2]), new List<int> { 1 });
         }
 
         [TestCase(10)]
         [TestCase(1)]
-        public void TestComputeAccuracyOneHot(int nbCategories)
+        public void TestComputeAccuracyOneHot(int categoryCount)
         {
             var nbRows = 10000;
-            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
+            var yPredicted = RandomTensor(new[] { nbRows, categoryCount }, "yPredicted");
             var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand, "yExpectedOneHot");
             var buffer = RandomTensor(new[] { nbRows}, "buffer");
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
@@ -498,10 +531,10 @@ namespace SharpNetTests
 
         [TestCase(10)]
         [TestCase(1)]
-        public void TestComputeAccuracyTwoHot(int nbCategories)
+        public void TestComputeAccuracyTwoHot(int categoryCount)
         {
             var nbRows = 10000;
-            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
+            var yPredicted = RandomTensor(new[] { nbRows, categoryCount }, "yPredicted");
             var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand, "yExpectedTwoHot");
             var buffer = RandomTensor(new[] { nbRows }, "buffer");
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
@@ -511,9 +544,9 @@ namespace SharpNetTests
         public void TestComputeAccuracyFromCategoryIndexes()
         {
             const int nbRows = 10000;
-            const int nbCategories = 10;
-            var yPredicted = RandomTensor(new[] { nbRows, nbCategories }, "yPredicted");
-            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, nbCategories, _rand);
+            const int categoryCount = 10;
+            var yPredicted = RandomTensor(new[] { nbRows, categoryCount }, "yPredicted");
+            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, categoryCount, _rand);
             var buffer = RandomTensor(new[] { nbRows }, "buffer");
             TestAllForReturnValue(new[] { categoryIndexes }, new[] { yPredicted, buffer }, tensors => tensors[0].ComputeAccuracyFromCategoryIndexes(tensors[1], tensors[2]), new List<int> { 1 });
         }
@@ -528,7 +561,7 @@ namespace SharpNetTests
             Assert.IsTrue(TestTensor.SameContent(floatCpu, floatGpu, 1e-2), floatCpu + Environment.NewLine + floatGpu);
         }
 	    [SuppressMessage("ReSharper", "CoVariantArrayConversion")]
-	    private void TestAll(CpuTensor<float>[] data, Action<Tensor[]> work)
+	    private void TestAll(CpuTensor<float>[] data, Action<Tensor[]> work, List<int> tensorIdsToIgnore = null)
 	    {
 	        var cpuFloat = new List<CpuTensor<float>>();
 	        cpuFloat.AddRange(data);
@@ -538,6 +571,10 @@ namespace SharpNetTests
 	        work(gpuFloat.ToArray());
             for (var i = 0; i < cpuFloat.Count; ++i)
             {
+                if (tensorIdsToIgnore != null && tensorIdsToIgnore.Contains(i))
+                {
+                    continue;
+                }
 	            AreEquals(cpuFloat[i], gpuFloat[i]);
 	        }
 	    }

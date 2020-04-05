@@ -11,21 +11,45 @@ namespace SharpNet.Layers
     public sealed class BatchNormalizationLayer : Layer
     {
         #region Private fields
+
+        /// <summary>
+        /// the momentum used to compute the running mean and running variance:
+        ///     runningMean[t] = (1-momentum) * currentMean  + momentum * runningMean[t-1]
+        /// it is equal to:
+        ///     1-exponentialAverageSmoothingFactor
+        ///     (see https://en.wikipedia.org/wiki/Exponential_smoothing)
+        /// </summary>
         private readonly double _momentum;
         private readonly double _epsilon;
-        //Weights (gammas, scale)
-        private readonly Tensor _bnScale;                       // (1, C, H, W) or (1, C, 1, 1) : depending on previous layer
-        //WeightGradients
-        private readonly Tensor _resultBnScaleDiff;             // same as '_bnScale"
-        //Bias (betas, offset)
-        private readonly Tensor _bnBias;                        // same as '_bnScale"
+        /// <summary>
+        /// Scale (= gammas) Tensor
+        /// </summary>
+        public Tensor Scale { get; }                      // (1, C, H, W) or (1, C, 1, 1) : depending on previous layer
+        public Tensor ScaleGradients { get; }             // same as 'Scale"
+        /// <summary>
+        /// Bias (= betas = offset) Tensor
+        /// </summary>
+        public Tensor Bias { get; }                        // same as 'Scale"
         //BiasGradients
-        private readonly Tensor _resultBnBiasDiff;              // same as '_bnScale"
-        private readonly Tensor _resultRunningMean;             // same as '_bnScale"
-        private readonly Tensor _resultRunningVariance;         // same as '_bnScale"
-        private readonly Tensor _resultSaveMean;                // same as '_bnScale"
-        private readonly Tensor _resultSaveVariance;            // same as '_bnScale"
-        private readonly Optimizer _optimizer;                  //Adam or SGD optimizer or Vanilla SGF
+        public Tensor BiasGradients { get; }               // same as 'Scale"
+        /// <summary>
+        /// weighted average of all inputs (=x) mean 
+        /// </summary>
+        private readonly Tensor _resultRunningMean;        // same as 'Scale"
+        /// <summary>
+        /// weighted average of all inputs (=x) variance
+        /// </summary>
+        private readonly Tensor _resultRunningVariance;    // same as 'Scale"
+        private readonly Optimizer _optimizer;             //Adam or SGD optimizer or Vanilla SGF
+
+        /// <summary>
+        /// temporary buffer used to compute the current input (=x) mean
+        /// </summary>
+        private readonly Tensor _meanBuffer;                // same as 'Scale"
+        /// <summary>
+        /// temporary buffer used to compute the current input (=x) variance
+        /// </summary>
+        private readonly Tensor _invertOfUnbiasedVolatilityBuffer;            // same as 'Scale"
         #endregion
         public override Tensor y { get; protected set; }        // (batchSize, C, H, W)
 
@@ -35,17 +59,23 @@ namespace SharpNet.Layers
             _momentum = momentum;
             _epsilon = epsilon;
             var scaleAndBiasShape = ScaleAndBiasShape();
-            _bnScale = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_bnScale));
-            _resultBnScaleDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultBnScaleDiff));
-            _bnBias = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_bnBias));
-            _resultBnBiasDiff = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultBnBiasDiff));
+
+            //trainable tensors 
+            Scale = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(Scale));
+            Bias = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(Bias));
             _resultRunningMean = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultRunningMean));
             _resultRunningVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultRunningVariance));
-            _resultSaveMean = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultSaveMean));
-            _resultSaveVariance = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_resultSaveVariance));
-            _optimizer = Network.GetOptimizer(_bnScale.Shape, _bnBias.Shape);
+
+            _optimizer = Network.GetOptimizer(Scale.Shape, Bias.Shape);
+
             //no need to reset optimizer weights: it has just been done above
             ResetWeights(false);
+
+            //non trainable params
+            ScaleGradients = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(ScaleGradients));
+            BiasGradients = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(BiasGradients));
+            _meanBuffer = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_meanBuffer));
+            _invertOfUnbiasedVolatilityBuffer = Network.NewNotInitializedTensor(scaleAndBiasShape, nameof(_invertOfUnbiasedVolatilityBuffer));
 
             //We disable bias for the previous layers
             var nbDisabledWeights = PreviousLayers.Select(l=>l.DisableBias()).Sum();
@@ -60,29 +90,27 @@ namespace SharpNet.Layers
         {
             _momentum = other._momentum;
             _epsilon = other._epsilon;
-            _bnScale = other._bnScale?.Clone(newNetwork.GpuWrapper);
-            _resultBnScaleDiff = other._resultBnScaleDiff?.Clone(newNetwork.GpuWrapper);
-            _bnBias = other._bnBias?.Clone(newNetwork.GpuWrapper);
-            _resultBnBiasDiff = other._resultBnBiasDiff?.Clone(newNetwork.GpuWrapper);
-            _resultRunningMean = other._resultRunningMean?.Clone(newNetwork.GpuWrapper);
-            _resultRunningVariance = other._resultRunningVariance?.Clone(newNetwork.GpuWrapper);
-            _resultSaveMean = other._resultSaveMean?.Clone(newNetwork.GpuWrapper);
-            _resultSaveVariance = other._resultSaveVariance?.Clone(newNetwork.GpuWrapper);
+
+            //trainable params
+            Scale = other.Scale.Clone(newNetwork.GpuWrapper);
+            Bias = other.Bias.Clone(newNetwork.GpuWrapper);
+            _resultRunningMean = other._resultRunningMean.Clone(newNetwork.GpuWrapper);
+            _resultRunningVariance = other._resultRunningVariance.Clone(newNetwork.GpuWrapper);
             _optimizer = other._optimizer?.Clone(newNetwork);
+
+            // non trainable params
+            ScaleGradients = other.ScaleGradients?.Clone(newNetwork.GpuWrapper);
+            BiasGradients = other.BiasGradients?.Clone(newNetwork.GpuWrapper);
+            _meanBuffer = Network.NewNotInitializedTensor(Scale.Shape, nameof(_meanBuffer));
+            _invertOfUnbiasedVolatilityBuffer = Network.NewNotInitializedTensor(Scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
         }
 
-        public Tensor Weights => _bnScale;
-        public Tensor WeightGradients => _resultBnScaleDiff;
-        public Tensor Bias => _bnBias;
-        public Tensor BiasGradients => _resultBnBiasDiff;
 
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer()
+            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
                 .Add(nameof(_epsilon), _epsilon).Add(nameof(_momentum), _momentum)
-                .Add(_bnScale).Add(_resultBnScaleDiff).Add(_bnBias).Add(_resultBnBiasDiff).Add(_resultRunningMean).Add(_resultRunningVariance).Add(_resultSaveMean)
-                .Add(_resultSaveVariance)
                 .Add(_optimizer?.Serialize())
                 .ToString();
         }
@@ -90,15 +118,19 @@ namespace SharpNet.Layers
         {
             _epsilon = (double)serialized[nameof(_epsilon)];
             _momentum = (double)serialized[nameof(_momentum)];
-            _bnScale = (Tensor)serialized[nameof(_bnScale)];
-            _resultBnScaleDiff = (Tensor)serialized[nameof(_resultBnScaleDiff)];
-            _bnBias = (Tensor)serialized[nameof(_bnBias)];
-            _resultBnBiasDiff = (Tensor)serialized[nameof(_resultBnBiasDiff)];
+
+            //trainable params
+            Scale = (Tensor)serialized[nameof(Scale)];
+            Bias = (Tensor)serialized[nameof(Bias)];
             _resultRunningMean = (Tensor)serialized[nameof(_resultRunningMean)];
             _resultRunningVariance = (Tensor)serialized[nameof(_resultRunningVariance)];
-            _resultSaveMean = (Tensor)serialized[nameof(_resultSaveMean)];
-            _resultSaveVariance = (Tensor)serialized[nameof(_resultSaveVariance)];
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
+
+            //non trainable params
+            ScaleGradients = Network.NewNotInitializedTensor(Scale.Shape, nameof(ScaleGradients));
+            BiasGradients = Network.NewNotInitializedTensor(Scale.Shape, nameof(BiasGradients));
+            _meanBuffer = Network.NewNotInitializedTensor(Scale.Shape, nameof(_meanBuffer));
+            _invertOfUnbiasedVolatilityBuffer = Network.NewNotInitializedTensor(Scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
         }
         #endregion
 
@@ -133,55 +165,70 @@ namespace SharpNet.Layers
         {
             Allocate_y_if_necessary();
             var x = PrevLayer.y;
-            x.BatchNormalization(y, _bnScale, _bnBias, _momentum, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _resultSaveMean, _resultSaveVariance, isTraining);
+            var exponentialAverageSmoothingFactor = 1 - _momentum;
+            x.BatchNormalization(y, Scale, Bias, exponentialAverageSmoothingFactor, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer, isTraining);
         }
         public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
         {
             var x = PrevLayer.y;
-            x.BatchNormalizationBackward(dy, dx[0], _bnScale, _resultBnScaleDiff, _resultBnBiasDiff, LayerBatchNormalizationMode(), _epsilon, _resultSaveMean, _resultSaveVariance);
+            x.BatchNormalizationBackward(dy, dx[0], Scale, ScaleGradients, BiasGradients, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer);
         }
         public override void UpdateWeights(double learningRate)
         {
-            Debug.Assert(_bnScale.SameShape(_resultBnScaleDiff));
-            Debug.Assert(_bnBias.SameShape(_resultBnBiasDiff));
+            Debug.Assert(Scale.SameShape(ScaleGradients));
+            Debug.Assert(Bias.SameShape(BiasGradients));
             if (!Trainable)
             {
                 return;
             }
             var batchSize = y.Shape[0];
-            _optimizer.UpdateWeights(learningRate, batchSize, _bnScale, _resultBnScaleDiff, _bnBias, _resultBnBiasDiff);
+            _optimizer.UpdateWeights(learningRate, batchSize, Scale, ScaleGradients, Bias, BiasGradients);
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
-            _bnScale.NewSameValueTensor(1.0);
-            _resultBnScaleDiff.ZeroMemory();
-            _bnBias.ZeroMemory();
-            _resultBnBiasDiff.ZeroMemory();
+            //trainable params
+            Scale.NewSameValueTensor(1.0);
+            Bias.ZeroMemory();
             _resultRunningMean.ZeroMemory();
             _resultRunningVariance.NewSameValueTensor(1.0);
-            _resultSaveMean.ZeroMemory();
-            _resultSaveVariance.NewSameValueTensor(1.0);
+            
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ZeroMemory();
             }
-        }
+
+            //no need to reset non trainable tensors
+            //_meanBuffer.ZeroMemory();
+            //_varianceBuffer.NewSameValueTensor(1.0);
+            //ScaleGradients.ZeroMemory();
+            //BiasGradients.ZeroMemory();
+}
         public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
-            h5FileDataset[DatasetNameToDatasetPath("beta:0")].CopyTo(_bnBias);
+            h5FileDataset[DatasetNameToDatasetPath("beta:0")].CopyTo(Bias);
             h5FileDataset[DatasetNameToDatasetPath("moving_mean:0")].CopyTo(_resultRunningMean);
-            h5FileDataset[DatasetNameToDatasetPath("gamma:0")].CopyTo(_bnScale);
+            h5FileDataset[DatasetNameToDatasetPath("gamma:0")].CopyTo(Scale);
             h5FileDataset[DatasetNameToDatasetPath("moving_variance:0")].CopyTo(_resultRunningVariance);
         }
      
-        public override int TotalParams => _bnScale.Count + _resultBnScaleDiff.Count + _bnBias.Count + _resultBnBiasDiff.Count;
         protected override string DefaultLayerName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
         public override string Type() {return "BatchNormalization"; }
-        public override List<Tensor> TensorsIndependentOfBatchSize
+
+        protected override List<Tensor> TrainableTensorsIndependentOfBatchSize
         {
             get
             {
-                var result = new List<Tensor> { _bnScale, _resultBnScaleDiff, _bnBias, _resultBnBiasDiff, _resultRunningMean, _resultRunningVariance, _resultSaveMean, _resultSaveVariance};
+                var result = new List<Tensor> { Scale, Bias, _resultRunningMean, _resultRunningVariance};
+                result.RemoveAll(t => t == null);
+                return result;
+            }
+        }
+
+        protected override List<Tensor> NonTrainableTensorsIndependentOfBatchSize
+        {
+            get
+            {
+                var result = new List<Tensor> { ScaleGradients, BiasGradients, _meanBuffer, _invertOfUnbiasedVolatilityBuffer };
                 result.RemoveAll(t => t == null);
                 return result;
             }

@@ -10,7 +10,7 @@ namespace SharpNet.Datasets
         private readonly List<int> subElementIdToOriginalElementId = new List<int>();
 
         public SubDataSet(IDataSet original, Func<int,bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet) 
-            : base(original.Name, original.Channels, original.Categories, original.MeanAndVolatilityForEachChannel, original.Logger)
+            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel, original.Logger)
         {
             _original = original;
             for (int originalElementId = 0; originalElementId < _original.Count; ++originalElementId)
@@ -21,7 +21,7 @@ namespace SharpNet.Datasets
                 }
             }
             //We compute Y 
-            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, subElementIdToOriginalElementId.Count, Categories);
+            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, subElementIdToOriginalElementId.Count, CategoryCount);
         }
         public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {

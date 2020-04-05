@@ -40,7 +40,7 @@ namespace SharpNet.GPU
             }
         }
 
-        public GPUWrapper Wrapper { get; }
+        private GPUWrapper Wrapper { get; }
 
         /// <summary>
         /// copy from CPU (Host) to GPU (Device) memory
@@ -95,12 +95,13 @@ namespace SharpNet.GPU
         }
 
         #region Tensor implementation
-        public override void BatchNormalization(Tensor y, Tensor bnScale, Tensor bnBias, double exponentialAverageFactor, Tensor resultRunningMean, Tensor resultRunningVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance, bool isTraining)
+        public override void BatchNormalization(Tensor y, Tensor scale, Tensor bias, double exponentialAverageSmoothingFactor, Tensor runningInputMean, Tensor runningInputVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer, bool isTraining)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { x, y, bnScale, bnBias, resultRunningMean, resultRunningVariance, resultSaveMean, resultSaveVariance }));
+            Debug.Assert(AreCompatible(new List<Tensor> { x, y, scale, bias, runningInputMean, runningInputVariance, meanBuffer, invertOfUnbiasedVolatilityBuffer }));
             var xDesc = TensorDesc(x);
-            var bnScaleBiasMeanVarDesc = TensorDesc(bnScale);
+            var yDesc = xDesc;
+            var bnScaleBiasMeanVarDesc = TensorDesc(scale);
 
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;
@@ -109,28 +110,29 @@ namespace SharpNet.GPU
             if (isTraining)
             {
                var res = CudnnWrapper.cudnnBatchNormalizationForwardTraining(CudnnHandle, mode, one, zero,
-                        xDesc, x, xDesc, y,
-                        bnScaleBiasMeanVarDesc, bnScale, bnBias, exponentialAverageFactor,
-                        resultRunningMean,
-                        resultRunningVariance, epsilon, resultSaveMean,
-                        resultSaveVariance);
+                        xDesc, x, yDesc, y,
+                        bnScaleBiasMeanVarDesc, scale, bias, exponentialAverageSmoothingFactor,
+                        runningInputMean,
+                        runningInputVariance, epsilon, meanBuffer,
+                        invertOfUnbiasedVolatilityBuffer);
                 CheckStatus(res);
             }
             else
             {
                 var res = CudnnWrapper.cudnnBatchNormalizationForwardInference(CudnnHandle, mode, one, zero,
-                        xDesc, x, xDesc, y,
-                        bnScaleBiasMeanVarDesc, bnScale, bnBias, resultRunningMean,
-                        resultRunningVariance, epsilon);
+                        xDesc, x, yDesc, y,
+                        bnScaleBiasMeanVarDesc, scale, bias, 
+                        runningInputMean,
+                        runningInputVariance, epsilon);
                 CheckStatus(res);
             }
         }
-        public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor bnScale, Tensor resultBnScaleDiff, Tensor resultBnBiasDiff, cudnnBatchNormMode_t mode, double epsilon, Tensor resultSaveMean, Tensor resultSaveVariance)
+        public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, bnScale, resultBnScaleDiff, resultBnBiasDiff, resultSaveMean, resultSaveVariance }));
+            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, scale, scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer }));
             var xDesc = TensorDesc(x);
-            var bnScaleBiasDiffDesc = TensorDesc(bnScale);
+            var bnScaleBiasDiffDesc = TensorDesc(scale);
 
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;
@@ -141,9 +143,9 @@ namespace SharpNet.GPU
                 xDesc, x,
                 xDesc, dy,
                 xDesc, dx,
-                bnScaleBiasDiffDesc, bnScale, resultBnScaleDiff, resultBnBiasDiff,
-                epsilon, resultSaveMean,
-                resultSaveVariance);
+                bnScaleBiasDiffDesc, scale, scaleGradient, biasGradient,
+                epsilon, meanBuffer,
+                invertOfUnbiasedVolatilityBuffer);
             CheckStatus(res);
         }
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)

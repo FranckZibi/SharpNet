@@ -84,7 +84,7 @@ namespace SharpNetTests
             //n.SaveLayers();
             var batchNormLayer = (BatchNormalizationLayer)network.Layers[1];
             //We test the gradients computation for weights
-            CompareExpectedVsObservedGradients(network, batchNormLayer.Weights as CpuTensor<float>, batchNormLayer.WeightGradients as CpuTensor<float>, X, Y, _rand, 1);
+            CompareExpectedVsObservedGradients(network, batchNormLayer.Scale as CpuTensor<float>, batchNormLayer.ScaleGradients as CpuTensor<float>, X, Y, _rand, 1);
             //We test the gradients computation for bias
             CompareExpectedVsObservedGradients(network, batchNormLayer.Bias as CpuTensor<float>, batchNormLayer.BiasGradients as CpuTensor<float>, X, Y, _rand, 1);
         }

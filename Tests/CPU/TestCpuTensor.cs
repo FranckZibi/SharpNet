@@ -219,12 +219,12 @@ namespace SharpNetTests.CPU
             return result;
         }
 
-        public static CpuTensor<int> RandomCategoryIndexTensor(int nbRows, int nbCategories, Random rand)
+        public static CpuTensor<int> RandomCategoryIndexTensor(int nbRows, int categoryCount, Random rand)
         {
             var data = new int[nbRows];
             for (int i = 0; i < nbRows; ++i)
             {
-                data[i] = rand.Next(nbCategories);
+                data[i] = rand.Next(categoryCount);
             }
             return new CpuTensor<int>(new[]{nbRows}, data, "RandomOneHotTensorCategoryIndex");
         }
@@ -235,13 +235,13 @@ namespace SharpNetTests.CPU
         public static CpuTensor<float> RandomTwoHotTensor(int[] shape, Random rand, string description)
         {
             var result = new CpuTensor<float>(shape, description);
-            int nbCategories = result.Shape[1];
+            int categoryCount = result.Shape[1];
             for (int row = 0; row < result.Shape[0]; ++row)
             {
-                int indexFirstCategory = rand.Next(nbCategories);
+                int indexFirstCategory = rand.Next(categoryCount);
                 var expectedFirstCategory = (float)rand.NextDouble();
                 result.Set(row, indexFirstCategory, expectedFirstCategory);
-                int indexSecondCategory = (indexFirstCategory+7)%nbCategories;
+                int indexSecondCategory = (indexFirstCategory+7)%categoryCount;
                 var expectedSecondCategory = 1f-expectedFirstCategory;
                 result.Set(row, indexSecondCategory, expectedSecondCategory);
             }

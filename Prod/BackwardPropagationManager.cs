@@ -60,44 +60,77 @@ namespace SharpNet
         public void BackwardPropagation()
         {
             bool isMock = IsMock(_dyOfLastLayer);
-            var _layerTensor_dY = Enumerable.Repeat((Tensor)null, _network.Layers.Count).ToList();
-            _layerTensor_dY[_layerTensor_dY.Count- 1] = _dyOfLastLayer;
+            var layerIndex_to_dY = new Tensor[_network.Layers.Count];
+            layerIndex_to_dY[_network.Layers.Count - 1] = _dyOfLastLayer;
             int miniBatchSize = _dyOfLastLayer.Shape[0];
-            for (int i = _network.Layers.Count - 1; i >= 1; --i)
+
+            var firstTrainableLayer = _network.FirstTrainableLayer();
+            if (firstTrainableLayer == null)
             {
-                var currentLayer = _network.Layers[i];
-                var dyCurrentLayer = _layerTensor_dY[i];
-                Debug.Assert(dyCurrentLayer != null);
-                var dx = currentLayer.PreviousLayers.Select(prev => prev.IsInputLayer?null:GetTensorOfShape(prev.OutputShape(miniBatchSize), isMock)).ToList();
+                //the network has all its weights frozen
+                return;
+            }
+            var firstTrainableLayerIndex = firstTrainableLayer.LayerIndex;
+
+            for (int layerIndex = _network.Layers.Count - 1; layerIndex >= firstTrainableLayerIndex; --layerIndex)
+            {
+                //we are in the layer at index 'layerIndex'
+                //we already know 'dy' for this layer
+                //we want to compute dx (& weight gradients if the layer has weights) of current layer by backward propagation
+                var layer = _network.Layers[layerIndex];
+                var dy = layerIndex_to_dY[layerIndex];
+                Debug.Assert(dy != null);
+
+                //we create the buffers for the 'dx' tensors of current layer
+                var dxBuffer = layer.PreviousLayers.Select(prev => prev.IsInputLayer?null:GetTensorOfShape(prev.OutputShape(miniBatchSize), isMock)).ToList();
                 if (!isMock)
                 {
-                    Debug.Assert(currentLayer.y.SameShape(dyCurrentLayer));
-                    currentLayer.BackwardPropagation(dyCurrentLayer, dx);
+                    Debug.Assert(layer.y.SameShape(dy));
+                    //computes 'dx' and weight gradients of current layer
+                    layer.BackwardPropagation(dy, dxBuffer);
                 }
-                for (int j = 0; j < currentLayer.PreviousLayers.Count; ++j)
+
+                //we'll update/store the output gradients (dy) of all previous layers connected to the current layer
+                for (int i = 0; i < layer.PreviousLayers.Count; ++i)
                 {
-                    var prevLayer = currentLayer.PreviousLayers[j];
-                    var dyPrevLayer = dx[j];
-                    if (_layerTensor_dY[prevLayer.LayerIndex] == null)
+                    var prevLayerIndex = layer.PreviousLayers[i].LayerIndex;
+                    //'dx' (input gradient) of current layer is the same as 'dy' (output gradient) of previous layer
+                    var prevLayerdY = dxBuffer[i];
+
+                    if (prevLayerIndex < firstTrainableLayerIndex)
                     {
-                        _layerTensor_dY[prevLayer.LayerIndex] = dyPrevLayer;
+                        //there is no need to compute/keep 'dy' of layer 'prevLayerIndex'
+                        //we do not need to do any back propagation for it
+                        if (prevLayerdY != null)
+                        {
+                            AddInCache(prevLayerdY);
+                        }
+                        continue;
+                    }
+
+                    if (layerIndex_to_dY[prevLayerIndex] == null)
+                    {
+                        layerIndex_to_dY[prevLayerIndex] = prevLayerdY;
                     }
                     else
                     {
                         if (!isMock)
                         {
-                            _layerTensor_dY[prevLayer.LayerIndex].Update_Adding_Alpha_X(1, dyPrevLayer);
+                            //we'll add the content of 'prevLayerdY' to an existing gradient
+                            //it means that the output of 'prevLayer' is consumed by several layers
+                            layerIndex_to_dY[prevLayerIndex].Update_Adding_Alpha_X(1, prevLayerdY);
                         }
-                        AddInCache(dyPrevLayer);
+                        //we can free (discard) the content of prevLayer dY : it has already been added to an existing tensor
+                        AddInCache(prevLayerdY);
                     }
                 }
 
-                //we put back 'dyCurrentLayer' in the cache because it is not used anymore
-                if (i != _network.Layers.Count - 1)
+                if (layerIndex != _network.Layers.Count - 1)
                 {
-                    AddInCache(dyCurrentLayer);
+                    //we put back 'dy' in the cache because it is not used anymore
+                    AddInCache(dy);
                 }
-                _layerTensor_dY[i] = null;
+                layerIndex_to_dY[layerIndex] = null;
             }
         }
         public void Dispose()

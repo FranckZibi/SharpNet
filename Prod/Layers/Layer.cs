@@ -78,7 +78,7 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
             equals &= Utils.EqualsList(_previousLayerIndexes, b._previousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
             equals &= Utils.EqualsList(_nextLayerIndexes, b._nextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
-            equals &= Utils.EqualsList(TensorsIndependentOfBatchSize, b.TensorsIndependentOfBatchSize, epsilon, id+ ":TensorsIndependentOfBatchSize", ref errors);
+            equals &= Utils.EqualsList(TrainableTensorsIndependentOfBatchSize, b.TrainableTensorsIndependentOfBatchSize, epsilon, id+ ":TrainableTensorsIndependentOfBatchSize", ref errors);
             return equals;
         }
         protected int NbLayerOfSameTypeBefore()
@@ -198,8 +198,6 @@ namespace SharpNet.Layers
             _lazyOutputShape = PrevLayer.OutputShape(batchSize);
             return (int[])_lazyOutputShape.Clone();
         }
-        public virtual int TotalParams => 0;
-
         public virtual int DisableBias()
         {
             return PreviousLayers.Select(l => l.DisableBias()).Sum();
@@ -214,7 +212,7 @@ namespace SharpNet.Layers
             Network.Config.Logger.Info(ToString());
             foreach (var v in EmbeddedTensors)
             {
-                Network.Config.Logger.Info(v + ": " + v.ToNumpy());
+                Network.Config.Logger.Debug(v + ": " + v.ToNumpy());
             }
             Network.Config.Logger.Info("");
         }
@@ -222,7 +220,11 @@ namespace SharpNet.Layers
         {
             return LayerName + ": " + ShapeChangeDescription() + " ("+ MemoryDescription()+")";
         }
-        public virtual List<Tensor> TensorsIndependentOfBatchSize => new List<Tensor>();
+
+        public int TotalParams => TrainableTensorsIndependentOfBatchSize.Select(t => t.Count).Sum();
+        public List<Tensor> TensorsIndependentOfBatchSize => TrainableTensorsIndependentOfBatchSize.Concat(NonTrainableTensorsIndependentOfBatchSize).ToList();
+        protected virtual List<Tensor> TrainableTensorsIndependentOfBatchSize => new List<Tensor>();
+        protected virtual List<Tensor> NonTrainableTensorsIndependentOfBatchSize => new List<Tensor>();
 
         public string ContentStats()
         {
@@ -249,12 +251,18 @@ namespace SharpNet.Layers
         }
         protected Serializer RootSerializer()
         {
-            return new Serializer().Add(nameof(Layer), GetType())
+            var res = new Serializer().Add(nameof(Layer), GetType())
                     .Add(nameof(LayerIndex), LayerIndex)
                     .Add(nameof(LayerName), LayerName)
                     .Add(nameof(_previousLayerIndexes), _previousLayerIndexes.ToArray())
                     .Add(nameof(_nextLayerIndexes), _nextLayerIndexes.ToArray())
                 ;
+            //we serialize all trainable tensors (weights)
+            foreach (var trainableTensor in TrainableTensorsIndependentOfBatchSize)
+            {
+                res = res.Add(trainableTensor);
+            }
+            return res;
         }
         protected Layer(IDictionary<string, object> serialized, Network network)
         {
@@ -356,7 +364,6 @@ namespace SharpNet.Layers
                 return result;
             }
         }
-      
         private ulong OccupiedMemoryInBytes => Tensor.OccupiedMemoryInBytes(EmbeddedTensors);
     }
 }

@@ -42,7 +42,7 @@ namespace SharpNet.Datasets
 
             //we update yBuffer
             var categoryIndex = ElementIdToCategoryIndex(elementId);
-            for (int cat = 0; cat < Categories; ++cat)
+            for (int cat = 0; cat < CategoryCount; ++cat)
             {
                 yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
             }

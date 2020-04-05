@@ -60,7 +60,7 @@ namespace SharpNet.Datasets
                 CreateStatsFile();
             }
             //We compute Y 
-            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _elementIdToCategoryIndex.Count, Categories);
+            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _elementIdToCategoryIndex.Count, CategoryCount);
         }
         public static void DefaultCompute_CategoryIndex_Description_FullName(
             string csvFileName,
@@ -147,7 +147,7 @@ namespace SharpNet.Datasets
                 }
             }
             var categoryIndex = ElementIdToCategoryIndex(elementId);
-            for (int cat = 0; cat < Categories; ++cat)
+            for (int cat = 0; cat < CategoryCount; ++cat)
             {
                 yBuffer?.Set(indexInBuffer, cat, (cat==categoryIndex)?1f: 0f);
             }

@@ -11,13 +11,13 @@ namespace SharpNet.Datasets
         private readonly List<int> _shuffledElementIdToOriginalElementId;
 
         public ShuffledDataSet(IDataSet original, Random rand)
-            : base(original.Name, original.Channels, original.Categories, original.MeanAndVolatilityForEachChannel, original.Logger)
+            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel, original.Logger)
         {
             _original = original;
             _shuffledElementIdToOriginalElementId = Enumerable.Range(0, original.Count).ToList();
             Utils.Shuffle(_shuffledElementIdToOriginalElementId, rand);
             //We compute Y 
-            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _shuffledElementIdToOriginalElementId.Count, Categories);
+            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _shuffledElementIdToOriginalElementId.Count, CategoryCount);
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {

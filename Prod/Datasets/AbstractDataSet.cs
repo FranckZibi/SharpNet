@@ -43,11 +43,11 @@ namespace SharpNet.Datasets
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, int categories, List<Tuple<float, float>> meanAndVolatilityForEachChannel, Logger logger)
+        protected AbstractDataSet(string name, int channels, int categoryCount, List<Tuple<float, float>> meanAndVolatilityForEachChannel, Logger logger)
         {
             Name = name;
             Channels = channels;
-            Categories = categories;
+            CategoryCount = categoryCount;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             Logger = logger ?? Logger.ConsoleLogger;
             _rands = new Random[2 * Environment.ProcessorCount];
@@ -151,11 +151,11 @@ namespace SharpNet.Datasets
             return xWorkingSet;
         }
 
-        public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int categories , Func<byte, int> categoryByteToCategoryIndex)
+        public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int categoryCount , Func<byte, int> categoryByteToCategoryIndex)
         {
             Debug.Assert(categoryBytes.MultDim0 == 1);
             var batchSize = categoryBytes.Shape[0];
-            var newShape = new[] { batchSize, categories };
+            var newShape = new[] { batchSize, categoryCount };
             var newY = new CpuTensor<float>(newShape, categoryBytes.Description);
             for (int n = 0; n < batchSize; ++n)
             {
@@ -216,7 +216,7 @@ namespace SharpNet.Datasets
         public abstract int Count { get; }
         public string Name { get; }
         public int Channels { get; }
-        public int Categories { get; }
+        public int CategoryCount { get; }
 
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel => _meanAndVolatilityForEachChannel;
         public double OriginalChannelMean(int channel)
@@ -239,7 +239,7 @@ namespace SharpNet.Datasets
         public abstract int ElementIdToCategoryIndex(int elementId);
         public abstract int Height { get; }
         public abstract int Width { get; }
-        public int[] Y_Shape => new[] { Count, Categories };
+        public int[] Y_Shape => new[] { Count, CategoryCount };
         public void Dispose()
         {
             xOriginalNotAugmentedMiniBatchCpu?.Dispose();
@@ -269,7 +269,7 @@ namespace SharpNet.Datasets
         }
         public int[] YMiniBatch_Shape(int miniBatchSize)
         {
-            return new[] { miniBatchSize, Categories };
+            return new[] { miniBatchSize, CategoryCount };
         }
 
         public int TypeSize => 4; //float size

@@ -19,8 +19,8 @@ namespace SharpNet.Datasets
         [NotNull] private readonly Func<byte, int> CategoryByteToCategoryIndex;
         #endregion
 
-        public SplittedFileDataSet([NotNull] List<string> files, string name, int categories, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
-            : base(name, singleElementShape_CHW[0], categories, meanAndVolatilityForEachChannel, null)
+        public SplittedFileDataSet([NotNull] List<string> files, string name, int categoryCount, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
+            : base(name, singleElementShape_CHW[0], categoryCount, meanAndVolatilityForEachChannel, null)
         {
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);
@@ -78,7 +78,7 @@ namespace SharpNet.Datasets
             //we initialize 'yBuffer'
             var categoryIndex = CategoryByteToCategoryIndex(xByte[0]);
             _elementIdToCategoryIndex[elementId] = categoryIndex;
-            for (int cat = 0; cat < Categories; ++cat)
+            for (int cat = 0; cat < CategoryCount; ++cat)
             {
                 yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
                 Y.Set(elementId, cat, (cat == categoryIndex) ? 1f : 0f);

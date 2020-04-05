@@ -90,7 +90,7 @@ namespace SharpNet.Datasets
             //We normalize the input with 0 mean / 1 volatility
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>>{Tuple.Create(129.304165605469f, 68.1702428992064f),Tuple.Create(124.069962695312f, 65.3918080438575f),Tuple.Create(112.434050058594f, 70.4183701880494f)};
             var xTrain = AbstractDataSet.ToXWorkingSet(xTrainingSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTrain = AbstractDataSet.ToYWorkingSet(yTrainingSet, Categories, CategoryByteToCategoryIndex);
+            var yTrain = AbstractDataSet.ToYWorkingSet(yTrainingSet, CategoryCount, CategoryByteToCategoryIndex);
 
             AbstractDataSet.AreCompatible_X_Y(xTrain, yTrain);
             int[] trainElementIdToCategoryIndex = yTrainingSet.Content.Select(x => (int)x).ToArray();
@@ -102,7 +102,7 @@ namespace SharpNet.Datasets
             Load(Path.Combine(path, "test.bin"), xTestSet, yTestSet);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
             var xTest = AbstractDataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTest = AbstractDataSet.ToYWorkingSet(yTestSet, Categories, CategoryByteToCategoryIndex);
+            var yTest = AbstractDataSet.ToYWorkingSet(yTestSet, CategoryCount, CategoryByteToCategoryIndex);
 
             AbstractDataSet.AreCompatible_X_Y(xTest, yTest);
             int[] testElementIdToCategoryIndex = yTestSet.Content.Select(x => (int)x).ToArray();

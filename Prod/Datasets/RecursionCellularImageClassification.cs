@@ -8,7 +8,7 @@ namespace SharpNet.Datasets
     public static class RecursionCellularImageClassification
     {
         private const int Channels = 3;
-        private const int Categories = 4;
+        private const int CategoryCount = 4;
 
         public static DirectoryDataSet ValueOf(string csvFilename, string trainingSetDirectory, int height, int width, Logger logger)
         { 
@@ -20,7 +20,7 @@ namespace SharpNet.Datasets
                 Channels,
                 height,
                 width,
-                AbstractDataSet.DefaultGetCategoryIndexToDescription(Categories),
+                AbstractDataSet.DefaultGetCategoryIndexToDescription(CategoryCount),
                 false, //we do not ignore zero pixels
                 Compute_CategoryIndex_Description_FullName);
         }

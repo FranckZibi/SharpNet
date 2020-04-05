@@ -63,12 +63,12 @@ namespace SharpNet.Datasets
             
             var directory = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
             var trainFiles = SplittedFileDataSet.AllBinFilesInDirectory(directory, loadExtraFileForTraining?new []{ "data_batch", "extra_batch"} : new [] { "data_batch"});
-            Training = new SplittedFileDataSet(trainFiles, Name, Categories, InputShape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
+            Training = new SplittedFileDataSet(trainFiles, Name, CategoryCount, InputShape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
             //to recompute the mean and volatility of each channel, uncomment the following line
             //meanAndVolatilityOfEachChannelInTrainingSet = ((SplittedFileDataSet)Training).ComputeMeanAndVolatilityForEachChannel();
 
             var testFiles = SplittedFileDataSet.AllBinFilesInDirectory(directory, "test_batch");
-            Test = new SplittedFileDataSet(testFiles, Name, Categories, InputShape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
+            Test = new SplittedFileDataSet(testFiles, Name, CategoryCount, InputShape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
         }
 
         //public static void CreateBinFile()

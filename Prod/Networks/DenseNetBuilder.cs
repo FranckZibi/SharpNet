@@ -71,7 +71,7 @@ namespace SharpNet.Networks
             return Build(
                 nameof(DenseNet_12_40) + "_" + dataSet.Name,
                 new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
-                dataSet.Categories,
+                dataSet.CategoryCount,
                 false,
                 new[] { 12, 12, 12 },
                 false,
@@ -84,7 +84,7 @@ namespace SharpNet.Networks
             return Build(
                 nameof(DenseNetBC_12_40)+"_"+dataSet.Name,
                 new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
-                dataSet.Categories,
+                dataSet.CategoryCount,
                 false,
                 new[] { 12 / 2, 12 / 2, 12 / 2 },
                 true,
@@ -97,7 +97,7 @@ namespace SharpNet.Networks
             return Build(
                 nameof(DenseNetBC_12_100) + "_" + dataSet.Name,
                 new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
-                dataSet.Categories,
+                dataSet.CategoryCount,
                 false,
                 new[] { 32 / 2, 32 / 2, 32 / 2 },
                 true,
@@ -111,7 +111,7 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="networkName"></param>
         /// <param name="xShape"></param>
-        /// <param name="nbCategories"></param>
+        /// <param name="categoryCount"></param>
         /// <param name="subSampleInitialBlock"></param>
         /// <param name="nbConvBlocksInEachDenseBlock"></param>
         /// <param name="useBottleneckInEachConvBlock"></param>
@@ -122,7 +122,7 @@ namespace SharpNet.Networks
         public Network Build(
             string networkName,
             int[] xShape, 
-            int nbCategories,
+            int categoryCount,
             bool subSampleInitialBlock,
             int[] nbConvBlocksInEachDenseBlock,
             bool useBottleneckInEachConvBlock,
@@ -164,8 +164,8 @@ namespace SharpNet.Networks
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
-                //.Dense(nbCategories, 0.0) //!D check if lambdaL2Regularization should be 0
-                .Dense(nbCategories, Config.lambdaL2Regularization)
+                //.Dense(categoryCount, 0.0) //!D check if lambdaL2Regularization should be 0
+                .Dense(categoryCount, Config.lambdaL2Regularization)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }

@@ -87,7 +87,7 @@ namespace SharpNetTests.NonReg
                 .Dense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
 
-                .Output(mnist.Training.Categories, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Output(mnist.Training.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
             var learningRate = 0.01;

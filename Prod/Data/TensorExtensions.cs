@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using SharpNet.CPU;
@@ -17,10 +18,10 @@ namespace SharpNet.Data
             NumpyArrayHelper(t, tContent, 0, ref idx, sb);
             var res = sb.ToString();
 
-            //int maxLength = 4000;
+            //int maxLength = 2000;
             //if (res.Length > maxLength)
             //{
-            //    res = res.Substring(0, maxLength/2)+ " .../... " + res.Substring(res.Length - maxLength/2);
+            //    res = res.Substring(0, maxLength / 2) + " .../... " + res.Substring(res.Length - maxLength / 2);
             //}
 
             return res; 
@@ -82,7 +83,7 @@ namespace SharpNet.Data
             {
                 if (currentDepth == t.Shape.Length - 1)
                 {
-                    sb.Append(tContent[idx++]);
+                    sb.Append(tContent[idx++].ToString("G9", CultureInfo.InvariantCulture));
                 }
                 else
                 {

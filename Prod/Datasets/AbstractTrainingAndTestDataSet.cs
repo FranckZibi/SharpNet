@@ -9,17 +9,17 @@
         public int Channels { get; }
         public int Height { get; }
         public int Width { get; }
-        public int Categories { get; }
+        public int CategoryCount { get; }
         public int[] InputShape_CHW => new[]{ Channels, Height, Width };
 
 
-        protected AbstractTrainingAndTestDataSet(string name, int channels, int height, int width, int categories)
+        protected AbstractTrainingAndTestDataSet(string name, int channels, int height, int width, int categoryCount)
         {
             Name = name;
             Channels = channels;
             Height = height;
             Width = width;
-            Categories = categories;
+            CategoryCount = categoryCount;
         }
 
         public virtual void Dispose()
