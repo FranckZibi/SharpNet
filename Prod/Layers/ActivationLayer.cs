@@ -30,7 +30,9 @@ namespace SharpNet.Layers
         {
             Allocate_y_if_necessary();
             var x = PrevLayer.y;
+            Network.StartTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
             x.ActivationForward(ActivationFunction, y);
+            Network.StopTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -43,6 +45,7 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(ActivationFunction, other.ActivationFunction, id + ":ActivationFunction", ref errors);
             return equals;
         }
+
         #region serialization
         public override string Serialize()
         {
@@ -63,16 +66,18 @@ namespace SharpNet.Layers
                 return;  
             }
 
+            Network.StartTimer(Type()+">"+ToString(ActivationFunction), Network.LayerTypeToBackwardPropagationTime);
             //we compute dx
-            var x = PrevLayer.y;
             if (IsOutputLayer)
             {
                 dy.CopyTo(dx[0]);
             }
             else
             {
+                var x = PrevLayer.y;
                 y.ActivationBackward(dy, x, ActivationFunction, dx[0]);
             }
+            Network.StopTimer(Type()+">"+ToString(ActivationFunction), Network.LayerTypeToBackwardPropagationTime);
         }
         public override void Dispose()
         {

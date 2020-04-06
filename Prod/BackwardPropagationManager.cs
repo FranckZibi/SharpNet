@@ -78,6 +78,7 @@ namespace SharpNet
                 //we already know 'dy' for this layer
                 //we want to compute dx (& weight gradients if the layer has weights) of current layer by backward propagation
                 var layer = _network.Layers[layerIndex];
+                Network.StartTimer(layer.Type(), _network.LayerTypeToBackwardPropagationTime);
                 var dy = layerIndex_to_dY[layerIndex];
                 Debug.Assert(dy != null);
 
@@ -131,6 +132,8 @@ namespace SharpNet
                     AddInCache(dy);
                 }
                 layerIndex_to_dY[layerIndex] = null;
+
+                Network.StopTimer(layer.Type(), _network.LayerTypeToBackwardPropagationTime);
             }
         }
         public void Dispose()

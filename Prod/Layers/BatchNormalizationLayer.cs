@@ -212,7 +212,6 @@ namespace SharpNet.Layers
         }
      
         protected override string DefaultLayerName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
-        public override string Type() {return "BatchNormalization"; }
 
         protected override List<Tensor> TrainableTensorsIndependentOfBatchSize
         {

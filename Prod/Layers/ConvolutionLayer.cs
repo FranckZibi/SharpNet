@@ -179,6 +179,7 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(bool isTraining)
         {
             Allocate_y_if_necessary();
+
             var x = PrevLayer.y;
             //We compute y = x (conv) Convolution + ConvolutionBias
 
@@ -188,20 +189,29 @@ namespace SharpNet.Layers
             {
                 // cuDNN 7.x doesn't support asymmetric padding
                 // we'll pad the input tensor 'x' so that we can use a symmetric padding
+                Network.StartTimer(Type() + ">0Pad", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
                 var paddedXShape = new[]{x.Shape[0], x.Shape[1], paddingTop+x.Shape[2]+paddingBottom, paddingLeft+x.Shape[3]+paddingRight};
                 _padded_X = Network.NewNotInitializedTensor(paddedXShape, _padded_X, nameof(_padded_X));
                 _padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                Network.StopTimer(Type() + ">0Pad", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
+
+                Network.StartTimer(Type() + ">ConvAsym", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
                 _padded_X.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution);
+                Network.StopTimer(Type() + ">ConvAsym", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
             }
             else
             {
                 //symmetric padding
+                Network.StartTimer(Type() + ">Conv", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
                 x.Convolution(Convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution);
+                Network.StopTimer(Type() + ">Conv", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
             }
 
             if (UseBias)
             {
+                Network.StartTimer(Type() + ">Bias", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
                 ConvolutionBias.BroadcastConvolutionBiasToOutput(y);
+                Network.StopTimer(Type() + ">Bias", isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
             }
         }
 
@@ -215,7 +225,9 @@ namespace SharpNet.Layers
             // we compute ConvolutionBiasGradients
             if (UseBias)
             {
+                Network.StartTimer(Type() + ">Bias", Network.LayerTypeToBackwardPropagationTime);
                 dy.ConvolutionBackwardBias(ConvolutionBiasGradients);
+                Network.StopTimer(Type() + ">Bias", Network.LayerTypeToBackwardPropagationTime);
             }
 
             // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
@@ -226,13 +238,19 @@ namespace SharpNet.Layers
             {
                 // cuDNN 7.x doesn't support asymmetric padding, we'll use the padded version of input tensor 'x'
                 _padded_dX = Network.NewNotInitializedTensor(_padded_X.Shape, _padded_dX, nameof(_padded_dX));
+                Network.StartTimer(Type() + ">ConvAsym", Network.LayerTypeToBackwardPropagationTime);
                 _padded_X.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, _padded_dX, ConvolutionGradients, _isDepthwiseConvolution);
+                Network.StopTimer(Type() + ">ConvAsym", Network.LayerTypeToBackwardPropagationTime);
+                Network.StartTimer(Type() + ">0Pad", Network.LayerTypeToBackwardPropagationTime);
                 dx[0]?.ZeroUnpadding(_padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                Network.StopTimer(Type() + ">0Pad", Network.LayerTypeToBackwardPropagationTime);
             }
             else
             {
                 //symmetric padding
+                Network.StartTimer(Type() + ">Conv", Network.LayerTypeToBackwardPropagationTime);
                 x.ConvolutionGradient(Convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+                Network.StopTimer(Type() + ">Conv", Network.LayerTypeToBackwardPropagationTime);
             }
 
             if (UseL2Regularization)

@@ -504,7 +504,7 @@ namespace SharpNet.Data
         }
         private string ToString(bool displayStartOfTensor)
         {
-            var result = Description + "(" + string.Join(", ", Shape) + ")";
+            var result = Description + ShapeToString(Shape);
             result += UseGPU ? "" : "CPU";
             if (displayStartOfTensor && !UseGPU)
             {
@@ -513,6 +513,13 @@ namespace SharpNet.Data
 
             return result;
         }
+
+        public static string ShapeToString(int[] shape)
+        {
+            return "(" + string.Join(", ", shape) + ")";
+        }
+
+
         public GPUTensor<T> AsGPU<T>()
         {
             if (this is GPUTensor<T> result)

@@ -62,7 +62,6 @@ namespace SharpNet.Networks
         /// Used only for debugging 
         /// </summary>
         public bool DisplayTensorContentStats{ get; set; }
-        public bool ProfileApplication { get; set; } = true;
 
         /// <summary>
         /// Interval in minutes for saving the network
@@ -137,7 +136,6 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
             equals &= Utils.Equals(CompatibilityMode, other.CompatibilityMode, id + ":CompatibilityMode", ref errors);
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
-            equals &= Utils.Equals(ProfileApplication, other.ProfileApplication, id + ":ProfileApplication", ref errors);
             equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + ":AutoSaveIntervalInMinuts", ref errors);
             equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + ":SaveNetworkStatsAfterEachEpoch", ref errors);
             equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + ":SaveLossAfterEachMiniBatch", ref errors);
@@ -240,7 +238,6 @@ namespace SharpNet.Networks
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
                 .Add(nameof(CompatibilityMode), (int)CompatibilityMode)
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
-                .Add(nameof(ProfileApplication), ProfileApplication)
                 .Add(nameof(LogDirectory), LogDirectory)
                 .Add(nameof(AutoSaveIntervalInMinutes), AutoSaveIntervalInMinutes)
                 .Add(nameof(SaveNetworkStatsAfterEachEpoch), SaveNetworkStatsAfterEachEpoch)
@@ -279,7 +276,6 @@ namespace SharpNet.Networks
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
             CompatibilityMode = (CompatibilityModeEnum)serialized[nameof(CompatibilityMode)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
-            ProfileApplication = (bool)serialized[nameof(ProfileApplication)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];
             AutoSaveIntervalInMinutes =
                 serialized.ContainsKey(nameof(AutoSaveIntervalInMinutes))

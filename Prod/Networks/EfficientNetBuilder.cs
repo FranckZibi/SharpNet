@@ -125,8 +125,6 @@ namespace SharpNet.Networks
             int categoryCount //= 1000
             )
         {
-            dropoutRate = dropConnectRate = 0; //?D siable dropout layer
-
             blocks = blocks.Select(x => x.ApplyScaling(widthCoefficient, depthDivisor, depthCoefficient)).ToList();
             var net = BuildEmptyNetwork(modelName);
             var config = net.Config;
@@ -282,9 +280,9 @@ namespace SharpNet.Networks
        /// </summary>
        /// <param name="weight"></param>
        /// <returns></returns>
-        public Network EfficientNetB0_CIFAR10(string weight = "")
+        public Network EfficientNetB0_CIFAR10(string weight, int[] inputShape_CHW)
         {
-            var net = EfficientNetB0(true, weight, new[] { 3, 32, 32 });
+            var net = EfficientNetB0(true, weight, inputShape_CHW);
             net.Info("setting number of output categoryCount to 10");
             net.SetCategoryCount(10);
             return net;
@@ -295,7 +293,6 @@ namespace SharpNet.Networks
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
             POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE,
-            string modelName = "efficientnet-b0",
             int categoryCount  = 1000
         )
         {

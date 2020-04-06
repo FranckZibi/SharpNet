@@ -13,15 +13,14 @@ namespace SharpNetTests
     {
         private static void Main()
         {
-            //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Efficientnet(); return;
-            //new NonReg.TestNetworkPropagation().TestParallelRunWithTensorFlow_Convolution(); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Efficientnet(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
             //SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
-            //EfficientNetTests();
+            EfficientNetTests();
             //TestSpeed();return;
             //new TestGradient().TestGradientForDenseLayer(true, true);
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
@@ -86,22 +85,35 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<EfficientNetBuilder>>
             {
-                () =>{var p = EfficientNetBuilder.CIFAR10();return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();
+                    p.Config.WithCifar10DenseNetLearningRateScheduler(false, true, false);
+                    //p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.SharpNet;
+                    p.InitialLearningRate=0.1;
+                    p.BatchSize = -1;
+                    return p;},
             };
             PerformAllActionsInAllGpu(modifiers, todo);
         }
         private static void Train_CIFAR10_EfficientNet(EfficientNetBuilder p)
         {
-
-            p.BatchSize = 32;
-
-            using (var cifar10 = new CIFAR10DataSet())
-            using (var network = p.EfficientNetB0_CIFAR10())
+            using (var cifar10Original = new CIFAR10DataSet())
+            using (var cifar10Zoomed = new ZoomedTrainingAndTestDataSet(cifar10Original,7,7))
+            using (var network = p.EfficientNetB0_CIFAR10("imagenet", cifar10Zoomed.Training.InputShape_CHW))
             {
+                network.Info(network.ToString());
+
+                //network.Info("training only last layer");
+                //network.Layers.ForEach(l => l.Trainable = false);
+                //network.LastFrozenLayer().Trainable = true;
+
                 //network.FindBestLearningRate(cifar10.Training, 512);return;
+
+                //0.05 1
+
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
+                network.Fit(cifar10Zoomed.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10Zoomed.Test);
             }
+
         }
         #endregion
 
@@ -245,7 +257,7 @@ namespace SharpNetTests
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             using (var cifar10 = new CIFAR10DataSet())
-            using (var network = p.WRN(WRN_depth, WRN_k, cifar10.InputShape_CHW, cifar10.Categories))
+            using (var network = p.WRN(WRN_depth, WRN_k, cifar10.InputShape_CHW, cifar10.CategoryCount))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
@@ -311,7 +323,7 @@ namespace SharpNetTests
         private static void Train_CIFAR100_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             using (var cifar100 = new CIFAR100DataSet())
-            using (var network = p.WRN(WRN_depth, WRN_k, cifar100.InputShape_CHW, cifar100.Categories))
+            using (var network = p.WRN(WRN_depth, WRN_k, cifar100.InputShape_CHW, cifar100.CategoryCount))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar100.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar100.Test);
@@ -357,7 +369,7 @@ namespace SharpNetTests
         private static void Train_SVHN_WRN(WideResNetBuilder p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
             using (var svhn = new SVHNDataSet(loadExtraFileForTraining))
-            using (var network = p.WRN(WRN_depth, WRN_k, svhn.InputShape_CHW, svhn.Categories))
+            using (var network = p.WRN(WRN_depth, WRN_k, svhn.InputShape_CHW, svhn.CategoryCount))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(svhn.Training, learningRateComputer, p.NumEpochs, p.BatchSize, svhn.Test);
@@ -391,7 +403,7 @@ namespace SharpNetTests
             using(var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-4_20190816_1810_150.txt", p.GpuDeviceId))
             { 
                 //network.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);
-                network.ChangeNumberOfOutputCategories(trainingDirectory.Categories);
+                network.SetCategoryCount(trainingDirectory.CategoryCount);
                 network.Info("training only last layer");
                 network.Layers.ForEach(l=>l.Trainable = false);
                 network.LastFrozenLayer().Trainable = true;
@@ -408,7 +420,7 @@ namespace SharpNetTests
             var dataDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train_filter_resize_32_32";
             var trainingDirectory = DogsVsCats.ValueOf(dataDirectory, heightAndWidth, heightAndWidth, null).Shuffle(new Random(0)).Take(2000);
             using(var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
-            using(var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.Categories))
+            using(var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.CategoryCount))
             { 
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);

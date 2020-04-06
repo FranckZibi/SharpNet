@@ -91,6 +91,8 @@ namespace SharpNet.Datasets
         /// Current width of elements to load
         /// </summary>
         int Width { get; }
+
+        int[] InputShape_CHW {get;}
         int[] Y_Shape { get; }
         int[] XMiniBatch_Shape(int miniBatchSize);
         int[] YMiniBatch_Shape(int miniBatchSize);

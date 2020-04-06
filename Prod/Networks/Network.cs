@@ -24,14 +24,14 @@ namespace SharpNet.Networks
         public List<Layer> Layers { get; } = new List<Layer>();
         public string Description { private get; set; } = "";
         private readonly Stopwatch _spInternalFit = new Stopwatch();
-        private readonly Stopwatch _swUpdateWeights;
-        private readonly Stopwatch _swPredictTraining;
-        private readonly Stopwatch _swPredictNotTraining;
-        private readonly Stopwatch _swBackwardPropagation;
-        private readonly Stopwatch _swCreateInputForEpoch;
-        private readonly Stopwatch _swComputeLossAndAccuracy;
         private readonly Stopwatch _swComputeLoss;
         private readonly Stopwatch _swComputeAccuracy;
+
+        public IDictionary<string,Stopwatch> LayerTypeToForwardPropagationTrainingTime { get; } = new Dictionary<string, Stopwatch>();
+        public IDictionary<string,Stopwatch> LayerTypeToForwardPropagationInferenceTime { get; } = new Dictionary<string, Stopwatch>();
+        public IDictionary<string,Stopwatch> LayerTypeToBackwardPropagationTime { get; } = new Dictionary<string, Stopwatch>();
+        private IDictionary<string,Stopwatch> LayerTypeToUpdateWeightsTime { get; } = new Dictionary<string, Stopwatch>();
+
         private Tensor _yPredictedBufferForEntireBatch;
         private Tensor _yExpectedBufferForEntireBatch;
         private Tensor bufferComputeAccuracy;
@@ -62,17 +62,8 @@ namespace SharpNet.Networks
             _epochsData = epochData ?? new List<EpochData>();
             _gpuDeviceId = gpuDeviceId;
             GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(gpuDeviceId) : null;
-            if (config.ProfileApplication)
-            {
-                _swUpdateWeights = new Stopwatch();
-                _swPredictTraining = new Stopwatch();
-                _swPredictNotTraining = new Stopwatch();
-                _swBackwardPropagation = new Stopwatch();
-                _swCreateInputForEpoch = new Stopwatch();
-                _swComputeLossAndAccuracy = new Stopwatch();
-                _swComputeLoss = new Stopwatch();
-                _swComputeAccuracy = new Stopwatch();
-            }
+            _swComputeLoss = new Stopwatch();
+            _swComputeAccuracy = new Stopwatch();
             CreateLogDirectoryIfNeeded();
             _backwardPropagationManager = new BackwardPropagationManager(this);
         }
@@ -438,24 +429,32 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        //= ForwardPropagation
+        /// <summary>
+        /// = ForwardPropagation
+        /// </summary>
+        /// <param name="X"></param>
+        /// <param name="isTraining">
+        /// true if we are training the network (the goal is to update weights)
+        /// false for inference only (we'll use existing weights to make a prediction)
+        /// </param>
+        /// <returns></returns>
         public Tensor Predict(Tensor X, bool isTraining)
         {
-            (isTraining ? _swPredictTraining : _swPredictNotTraining)?.Start();
             X = ReformatToCorrectDevice_GPU_or_CPU(X);
             ((InputLayer)Layers[0]).Set_y(X);
             for (var layerIndex = 1; layerIndex < Layers.Count; layerIndex++)
             {
                 var layer = Layers[layerIndex];
-                layer.ForwardPropagation(isTraining);
-            }
 
-            (isTraining ? _swPredictTraining : _swPredictNotTraining)?.Stop();
+                StartTimer(layer.Type(), isTraining? LayerTypeToForwardPropagationTrainingTime: LayerTypeToForwardPropagationInferenceTime);
+                layer.ForwardPropagation(isTraining);
+                StopTimer(layer.Type(), isTraining ? LayerTypeToForwardPropagationTrainingTime : LayerTypeToForwardPropagationInferenceTime);
+            }
             return Layers.Last().y;
         }
+        
         public void BackwardPropagation(Tensor yExpected)
         {
-            _swBackwardPropagation?.Start();
             var yPredicted = Layers.Last().y;
             Debug.Assert(yPredicted != null);
             Debug.Assert(yExpected.SameShape(yPredicted));
@@ -468,8 +467,9 @@ namespace SharpNet.Networks
             dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
 
             _backwardPropagationManager.BackwardPropagation();
-            _swBackwardPropagation?.Stop();
         }
+
+      
 
         public string Summary()
         {
@@ -732,7 +732,12 @@ namespace SharpNet.Networks
             {
                 Debug.Assert(Config.TypeSize == trainingDataSetCpu.TypeSize);
                 Debug.Assert(learningRateComputer != null);
+                
+
                 _spInternalFit.Start();
+
+                StartTimer("Fit_Prepare", LayerTypeToForwardPropagationTrainingTime);
+
                 CheckInput(trainingDataSetCpu, testDataSetCpuIfAny, learningRateComputer, numEpochs, preferredMiniBatchSize);
                 
                 Info(ToString());
@@ -775,6 +780,9 @@ namespace SharpNet.Networks
 
                 //Info(GpuWrapper.ToString());
 
+                StopTimer("Fit_Prepare", LayerTypeToForwardPropagationTrainingTime);
+
+
                 var lastAutoSaveTime = DateTime.Now; //last time we saved the network
                 Tuple<double, double> validationLossAndAccuracy = null;
                 for (;;)
@@ -804,7 +812,7 @@ namespace SharpNet.Networks
                         LogDebug("End of Epoch:" + epoch + " Tensor Content stats" + Environment.NewLine+ContentStats()+Environment.NewLine);
                     }
 
-                    _swComputeLossAndAccuracy?.Start();
+                    StartTimer("Fit_LossAndAccuracy", LayerTypeToForwardPropagationTrainingTime);
                     var trainLossAndAccuracyForEpoch = ComputeLossAndAccuracyForEntireBatch(_yExpectedBufferForEntireBatch, yPredicted);
                     var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracyForEpoch, "");
                     if (testDataSetCpuIfAny != null)
@@ -813,7 +821,8 @@ namespace SharpNet.Networks
                         validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSize, testDataSetCpuIfAny);
                         lossAndAccuracyMsg += " - "+LossAndAccuracyToString(validationLossAndAccuracy, "val_");
                     }
-                    _swComputeLossAndAccuracy?.Stop();
+                    StopTimer("Fit_LossAndAccuracy", LayerTypeToForwardPropagationTrainingTime);
+
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                     double nbStepsByEpoch = ((double)trainingDataSetCpu.Count) / miniBatchSize;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
@@ -822,10 +831,7 @@ namespace SharpNet.Networks
                     {
                         Info(GpuWrapper.MemoryInfo());
                     }
-                    if (Config.ProfileApplication)
-                    {
-                        LogDebug(ProfilingComments());
-                    }
+                    LogDebug(ProfilingComments());
 
                     #region we save stats about the just finished epoch
                     var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracyForEpoch.Item1, trainLossAndAccuracyForEpoch.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
@@ -967,35 +973,111 @@ namespace SharpNet.Networks
             }
             return X.ToGPU<float>(GpuWrapper);
         }
+
+
+        #region profiling
         private string ProfilingComments()
         {
-            var totalMs = (double)_spInternalFit.ElapsedMilliseconds;
-            var result = "Took " + Math.Round(totalMs / 1000.0, 1) + "s";
-            if (Config.ProfileApplication)
-            {
-                result += " (";
-                result += "ForwardPropagation [Training:" + Math.Round(100 * _swPredictTraining.ElapsedMilliseconds / totalMs, 0) + "% / not Training:" + Math.Round(100 * _swPredictNotTraining.ElapsedMilliseconds / totalMs, 0) + "%] ";
-                result += ", BackwardPropagation:" + Math.Round(100 * _swBackwardPropagation.ElapsedMilliseconds / totalMs, 0) + "%";
-                result += ", UpdateWeights:" + Math.Round(100 * _swUpdateWeights.ElapsedMilliseconds / totalMs, 0) + "%";
-                result += ", CreateInputForEpoch:" + Math.Round(100 * _swCreateInputForEpoch.ElapsedMilliseconds / totalMs, 0) + "%";
-                result += ", ComputeLossAndAccuracy:" + Math.Round(100 * _swComputeLossAndAccuracy.ElapsedMilliseconds / totalMs, 0) + "%";
-                result += " [Loss:" + Math.Round(100 * _swComputeLoss.ElapsedMilliseconds / totalMs, 0) + "%+Accuracy:"+ Math.Round(100 * _swComputeAccuracy.ElapsedMilliseconds / totalMs, 0) +"%]";
-                result += ")";
-            }
+            var totalSeconds = _spInternalFit.Elapsed.TotalSeconds;
+            var result = "Took " + Math.Round(totalSeconds, 1) + "s";
+            result += " (Loss:" + Math.Round(100 * _swComputeLoss.Elapsed.TotalSeconds / totalSeconds, 0) + "%+Accuracy:"+ Math.Round(100 * _swComputeAccuracy.Elapsed.TotalSeconds / totalSeconds, 0) +"%])"+ Environment.NewLine;
+            result += ProfilingByLayerType(totalSeconds);
             return result;
         }
+
+        private string ProfilingByLayerType(double totalSeconds)
+        {
+            double PercentageOfTimeTaken(IDictionary<string, Stopwatch> layerTypeToTimer, string layerType)
+            {
+                return layerTypeToTimer.TryGetValue(layerType, out var sw) ? (sw.Elapsed.TotalSeconds/Math.Max(totalSeconds, 1e-6)) : 0.0;
+            }
+            string ParentLayerName(string keyName)
+            {
+                int idx = keyName.IndexOf(">", StringComparison.Ordinal);
+                return (idx > 0) ? keyName.Substring(0, idx) : keyName;
+            }
+            double ParentTime(string keyName, List<Tuple<string, double, double, double, double>> values)
+            {
+                var parent = ParentLayerName(keyName);
+                var parentTuple = values.FirstOrDefault(t => t.Item1 == parent);
+                return parentTuple==null?0:parentTuple.Item2 + parentTuple.Item3 + parentTuple.Item4 + parentTuple.Item5;
+            }
+
+
+            List<Tuple<string, double, double, double, double>> data = new List<Tuple<string, double, double, double, double>>();
+            var separatingLine = new string('=', 100);
+            foreach (var layerType in LayerTypeToForwardPropagationTrainingTime.Keys)
+            {
+                data.Add(Tuple.Create(layerType, PercentageOfTimeTaken(LayerTypeToForwardPropagationTrainingTime, layerType), PercentageOfTimeTaken(LayerTypeToBackwardPropagationTime, layerType), PercentageOfTimeTaken(LayerTypeToForwardPropagationInferenceTime, layerType), PercentageOfTimeTaken(LayerTypeToUpdateWeightsTime, layerType)));
+            }
+
+            data = data.OrderByDescending(t => ParentTime(t.Item1, data)).ThenBy(t => t.Item1).ToList();
+
+            //data.Sort(
+            //    (t1,t2)=> 
+            //        ParentLayerName(t1.Item1).Equals(ParentLayerName(t2.Item1))
+            //        ? t1.Item1.CompareTo((object)t2.Item1)
+            //        : ParentTime(t2.Item1, data).CompareTo(ParentTime(t1.Item1, data))
+            //        );
+            var result = separatingLine + Environment.NewLine;
+            result += "LayerName              Forward(Training)  Backward(Training)  Forward(Inference)        UpdateHeight" + Environment.NewLine;
+            result += separatingLine + Environment.NewLine;
+            result += string.Join(Environment.NewLine, data.Select(d => ProfilingByLayerTypeSingleLine(d.Item1, d.Item2, d.Item3, d.Item4, d.Item5))) + Environment.NewLine;
+            //we compute the total by column
+            result += separatingLine+Environment.NewLine;
+            var dataWithoutDuplicate = data.Where(t => !t.Item1.Contains(">")).ToList();
+            result += ProfilingByLayerTypeSingleLine("", dataWithoutDuplicate.Select(t => t.Item2).Sum(), dataWithoutDuplicate.Select(t => t.Item3).Sum(), dataWithoutDuplicate.Select(t => t.Item4).Sum(), dataWithoutDuplicate.Select(t => t.Item5).Sum()) + Environment.NewLine;
+            result += separatingLine + Environment.NewLine;
+            return result;
+        }
+
+        private static string ProfilingByLayerTypeSingleLine(string layerType, double forwardPropagationTraining, double forwardPropagationInference, double backwardPropagation, double totalUpdateWeights)
+        {
+            string AsDisplayString(double d)
+            {
+                return Math.Round(d * 100, 1) + "%";
+            }
+            string SubCategoryLayerName(string keyName)
+            {
+                int idx = keyName.IndexOf(">", StringComparison.Ordinal);
+                return (idx >= 0) ? keyName.Substring(idx) : "";
+            }
+            const int columnWidth = 20;
+            return (layerType.Contains(">")?$"{SubCategoryLayerName(layerType),20}":$"{layerType,-20}")
+                    +$"{AsDisplayString(forwardPropagationTraining),columnWidth}{AsDisplayString(forwardPropagationInference),columnWidth}{AsDisplayString(backwardPropagation),columnWidth}{AsDisplayString(totalUpdateWeights),columnWidth}".TrimEnd();
+        }
+
+        public static void StartTimer(string key, IDictionary<string, Stopwatch> layerTypeToStopWatch)
+        {
+            if (layerTypeToStopWatch.TryGetValue(key, out Stopwatch sw))
+            {
+                sw.Start();
+                return;
+            }
+            layerTypeToStopWatch[key] = Stopwatch.StartNew();
+        }
+
+        public static void StopTimer(string key, IDictionary<string, Stopwatch> layerTypeToStopWatch)
+        {
+            Debug.Assert(layerTypeToStopWatch.ContainsKey(key));
+            layerTypeToStopWatch[key].Stop();
+        }
+        #endregion
+
+
         private void UpdateWeights(double learningRate)
         {
-            _swUpdateWeights?.Start();
             var firstTrainableLayer = FirstTrainableLayer();
             if (firstTrainableLayer != null)
             {
                 for (var index = firstTrainableLayer.LayerIndex; index < Layers.Count; index++)
                 {
-                    Layers[index].UpdateWeights(learningRate);
+                    var layer = Layers[index];
+                    StartTimer(layer.Type(), LayerTypeToUpdateWeightsTime);
+                    layer.UpdateWeights(learningRate);
+                    StopTimer(layer.Type(), LayerTypeToUpdateWeightsTime);
                 }
             }
-            _swUpdateWeights?.Stop();
         }
 
 
@@ -1046,6 +1128,10 @@ namespace SharpNet.Networks
             ILearningRateComputer learningRateComputerIfTraining = null,
             Func<Tensor, Tensor, int, int, int, bool> callBackToStop = null)
         {
+            //last time we display a progress on the screen for the current min batch descent
+            var miniBatchGradientDescentStart = DateTime.Now;
+            var lastStatsUpdate = miniBatchGradientDescentStart;
+
             bool isTraining = learningRateComputerIfTraining != null;
             var entireBatchSize = dataSet.Count;
             if (miniBatchSize <= 0)
@@ -1079,9 +1165,9 @@ namespace SharpNet.Networks
                 var yExpectedMiniBatch = _yExpectedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 xMiniBatchCpu.Reshape(xMiniBatch.Shape);
                 yExpectedMiniBatchCpu.Reshape(yExpectedMiniBatch.Shape);
-                _swCreateInputForEpoch?.Start();
+                StartTimer("LoadInput", isTraining ? LayerTypeToForwardPropagationTrainingTime : LayerTypeToForwardPropagationInferenceTime);
                 dataSet.LoadMiniBatch(epoch, isTraining, shuffledElementId, blockId * miniBatchSize, Config.DataAugmentation, xMiniBatchCpu, yExpectedMiniBatchCpu);
-                _swCreateInputForEpoch?.Stop();
+                StopTimer("LoadInput", isTraining ? LayerTypeToForwardPropagationTrainingTime : LayerTypeToForwardPropagationInferenceTime);
 
                 //we copy mini batch content from CPU to appropriate target (CPU or GPU)
                 if (xMiniBatch.UseGPU)
@@ -1117,6 +1203,23 @@ namespace SharpNet.Networks
                     break;
                 }
                 ++blockId;
+
+                if ((DateTime.Now-lastStatsUpdate).TotalSeconds>5*60)
+                {
+                    var percentageDoneInEpoch = ((double) nbProcessed) / entireBatchSize;
+                    var secondsSinceStartOfEpoch = (DateTime.Now - miniBatchGradientDescentStart).TotalSeconds;
+                    var expectedSecondsToPerformEntireEpoch = secondsSinceStartOfEpoch / percentageDoneInEpoch;
+
+                    Info("Epoch " + epoch + " in progress: " + Math.Round(100.0* percentageDoneInEpoch, 1) + "% performed ("+ Math.Round(secondsSinceStartOfEpoch, 0) + "s/"+Math.Round(expectedSecondsToPerformEntireEpoch,0)+"s)");
+                    if (UseGPU)
+                    {
+                        LogDebug(GpuWrapper.MemoryInfo());
+                    }
+                    LogDebug(ProfilingComments());
+                    lastStatsUpdate = DateTime.Now;
+                }
+
+
             }
             return _yPredictedBufferForEntireBatch;
         }

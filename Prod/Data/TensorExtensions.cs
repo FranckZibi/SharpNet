@@ -18,11 +18,11 @@ namespace SharpNet.Data
             NumpyArrayHelper(t, tContent, 0, ref idx, sb);
             var res = sb.ToString();
 
-            //int maxLength = 2000;
-            //if (res.Length > maxLength)
-            //{
-            //    res = res.Substring(0, maxLength / 2) + " .../... " + res.Substring(res.Length - maxLength / 2);
-            //}
+            int maxLength = 20000;
+            if (res.Length > maxLength)
+            {
+                res = res.Substring(0, maxLength / 2) + " .../... " + res.Substring(res.Length - maxLength / 2);
+            }
 
             return res; 
         }
