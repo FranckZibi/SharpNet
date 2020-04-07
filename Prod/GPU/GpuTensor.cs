@@ -1,4 +1,12 @@
-﻿using System;
+﻿
+// When enabled:
+//      will only use native cuDNN functions to compute Swish Activation (forward&backward)
+//      (under testing)
+// Else:
+//      will use cuda hand coded function 
+//#define USE_NATIVE_CUDNN_SWISH
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -148,6 +156,12 @@ namespace SharpNet.GPU
                 invertOfUnbiasedVolatilityBuffer);
             CheckStatus(res);
         }
+
+
+#if USE_NATIVE_CUDNN_SWISH
+        //under testing: new way of computing swish using only native cuDNN functions
+        private Tensor tmpTensorForActivation;
+#endif
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)
         {
             AssertIsNotDisposed();
@@ -171,8 +185,16 @@ namespace SharpNet.GPU
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
                 // y = x * sigmoid(x) 
+#if USE_NATIVE_CUDNN_SWISH
+                //under testing: new way of computing swish using only native cuDNN functions
+                //we'll store in 'tmpTensorForActivation' sigmoid(x)
+                tmpTensorForActivation = NewNotInitializedFloatTensor(y.Shape, tmpTensorForActivation, nameof(tmpTensorForActivation), Wrapper);
+                x.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, tmpTensorForActivation);
+                y.MultiplyTensor(x, tmpTensorForActivation);
+#else
                 ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, y);
                 y.Update_Multiply_By_x(this);
+#endif
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
             else
@@ -203,8 +225,21 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
-                Wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx});
+#if USE_NATIVE_CUDNN_SWISH
+                //under testing: new way of computing swish using only native cuDNN functions
+                //we know that 'x.tmpTensorForActivation' contains sigmoid(x)
+                var sigmoidX = ((GPUTensor<float>)x).tmpTensorForActivation;
+                var sigmoidActivationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                // dx = x* (sigmoid_x * (1 - sigmoid_x)
+                res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, sigmoidActivationDesc, one, yDesc, sigmoidX, dyDesc, x /*dy*/, xDesc, x, zero, dxDesc, dx);
+                CheckStatus(res);
+                // dx = sigmoid_x + x* (sigmoid_x * (1 - sigmoid_x)
+                dx.AddTensor(1, sigmoidX, 1);
+                dx.Update_Multiply_By_x(dy);
+#else
+                Wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx });
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
+#endif
             }
             else
             {
@@ -213,7 +248,6 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
-
 
         public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
@@ -343,7 +377,7 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
 
-        #region Convolution
+#region Convolution
         public override void Convolution(Tensor filters, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution)
         {
             var x = this;
@@ -441,7 +475,7 @@ namespace SharpNet.GPU
             res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, convolution, dyDesc, dy, convDesc, dataAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dxDesc, dx);
             CheckStatus(res);
         }
-        #endregion
+#endregion
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
             var array = new float[Count];
@@ -761,7 +795,7 @@ namespace SharpNet.GPU
         {
             _deviceMemory.ZeroMemory();
         }
-        #endregion
+#endregion
 
 
         public override void AssertIsNotDisposed()
@@ -774,7 +808,7 @@ namespace SharpNet.GPU
             _deviceMemory.AssertIsNotDisposed();
         }
 
-        #region Dispose pattern
+#region Dispose pattern
         public override void Dispose()
         {
             Dispose(true);
@@ -807,7 +841,7 @@ namespace SharpNet.GPU
         {
             Dispose(false);
         }
-        #endregion
+#endregion
 
         protected override IntPtr DevicePointer
         {

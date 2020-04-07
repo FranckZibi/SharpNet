@@ -14,6 +14,7 @@ namespace SharpNetTests
         private static void Main()
         {
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Efficientnet(); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
             //SVHNTests();

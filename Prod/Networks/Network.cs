@@ -27,10 +27,10 @@ namespace SharpNet.Networks
         private readonly Stopwatch _swComputeLoss;
         private readonly Stopwatch _swComputeAccuracy;
 
-        public IDictionary<string,Stopwatch> LayerTypeToForwardPropagationTrainingTime { get; } = new Dictionary<string, Stopwatch>();
-        public IDictionary<string,Stopwatch> LayerTypeToForwardPropagationInferenceTime { get; } = new Dictionary<string, Stopwatch>();
-        public IDictionary<string,Stopwatch> LayerTypeToBackwardPropagationTime { get; } = new Dictionary<string, Stopwatch>();
-        private IDictionary<string,Stopwatch> LayerTypeToUpdateWeightsTime { get; } = new Dictionary<string, Stopwatch>();
+        public IDictionary<string,Stopwatch> ForwardPropagationTrainingTime { get; } = new Dictionary<string, Stopwatch>();
+        public IDictionary<string,Stopwatch> ForwardPropagationInferenceTime { get; } = new Dictionary<string, Stopwatch>();
+        public IDictionary<string,Stopwatch> BackwardPropagationTime { get; } = new Dictionary<string, Stopwatch>();
+        private IDictionary<string,Stopwatch> UpdateWeightsTime { get; } = new Dictionary<string, Stopwatch>();
 
         private Tensor _yPredictedBufferForEntireBatch;
         private Tensor _yExpectedBufferForEntireBatch;
@@ -446,9 +446,9 @@ namespace SharpNet.Networks
             {
                 var layer = Layers[layerIndex];
 
-                StartTimer(layer.Type(), isTraining? LayerTypeToForwardPropagationTrainingTime: LayerTypeToForwardPropagationInferenceTime);
+                StartTimer(layer.Type(), isTraining? ForwardPropagationTrainingTime: ForwardPropagationInferenceTime);
                 layer.ForwardPropagation(isTraining);
-                StopTimer(layer.Type(), isTraining ? LayerTypeToForwardPropagationTrainingTime : LayerTypeToForwardPropagationInferenceTime);
+                StopTimer(layer.Type(), isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
             }
             return Layers.Last().y;
         }
@@ -595,23 +595,18 @@ namespace SharpNet.Networks
         public int TotalParams => Layers.Select(x => x.TotalParams).Sum();
       
 
-        public Tensor NewNotInitializedTensor(int[] shape, Tensor bufferIfAny, string description)
+        public Tensor NewNotInitializedFloatTensor(int[] shape, Tensor bufferIfAny, string description)
         {
-            //we check if we can re use the buffer 'bufferIfAny'
-            if (bufferIfAny != null)
-            {
-                bufferIfAny.AssertIsNotDisposed();
-                bufferIfAny.Reshape(shape);
-                return bufferIfAny;
-            }
-            return NewNotInitializedTensor(shape, description);
+            return Tensor.NewNotInitializedFloatTensor(shape, bufferIfAny, description, GpuWrapper);
         }
-        public Tensor NewNotInitializedTensor(int[] shape, string description)
+        public Tensor NewNotInitializedFloatTensor(int[] shape, string description)
         {
             return UseGPU
                 ? (Tensor)new GPUTensor<float>(shape, description, GpuWrapper)
                 : new CpuTensor<float>(shape, null, description);
         }
+
+      
 
         #region serialization
         // ReSharper disable once UnusedMember.Global
@@ -692,7 +687,7 @@ namespace SharpNet.Networks
             var learningRateFinder = new LearningRateFinder(miniBatchSize, trainingDataSet.Count);
             bool CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockIdInEpoch, int nbBatchBlockInEpoch, int epoch)
             {
-                bufferComputeLoss = NewNotInitializedTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
+                bufferComputeLoss = NewNotInitializedFloatTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
                 var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, bufferComputeLoss);
                 return learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
@@ -717,7 +712,7 @@ namespace SharpNet.Networks
                 File.WriteAllText(fileName, "Sep=;"+Environment.NewLine+"Epoch;Iteration;Loss"+Environment.NewLine);
             }
             _swComputeLoss?.Start();
-            bufferComputeLoss = NewNotInitializedTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
+            bufferComputeLoss = NewNotInitializedFloatTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
             var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, bufferComputeLoss);
             _swComputeLoss?.Stop();
             int iteration = (epoch - 1) * nbBatchBlockInEachEpoch + blockIdInEpoch;
@@ -736,7 +731,7 @@ namespace SharpNet.Networks
 
                 _spInternalFit.Start();
 
-                StartTimer("Fit_Prepare", LayerTypeToForwardPropagationTrainingTime);
+                StartTimer("Fit_Prepare", ForwardPropagationTrainingTime);
 
                 CheckInput(trainingDataSetCpu, testDataSetCpuIfAny, learningRateComputer, numEpochs, preferredMiniBatchSize);
                 
@@ -780,7 +775,7 @@ namespace SharpNet.Networks
 
                 //Info(GpuWrapper.ToString());
 
-                StopTimer("Fit_Prepare", LayerTypeToForwardPropagationTrainingTime);
+                StopTimer("Fit_Prepare", ForwardPropagationTrainingTime);
 
 
                 var lastAutoSaveTime = DateTime.Now; //last time we saved the network
@@ -812,7 +807,7 @@ namespace SharpNet.Networks
                         LogDebug("End of Epoch:" + epoch + " Tensor Content stats" + Environment.NewLine+ContentStats()+Environment.NewLine);
                     }
 
-                    StartTimer("Fit_LossAndAccuracy", LayerTypeToForwardPropagationTrainingTime);
+                    StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
                     var trainLossAndAccuracyForEpoch = ComputeLossAndAccuracyForEntireBatch(_yExpectedBufferForEntireBatch, yPredicted);
                     var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracyForEpoch, "");
                     if (testDataSetCpuIfAny != null)
@@ -821,7 +816,7 @@ namespace SharpNet.Networks
                         validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSize, testDataSetCpuIfAny);
                         lossAndAccuracyMsg += " - "+LossAndAccuracyToString(validationLossAndAccuracy, "val_");
                     }
-                    StopTimer("Fit_LossAndAccuracy", LayerTypeToForwardPropagationTrainingTime);
+                    StopTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
 
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                     double nbStepsByEpoch = ((double)trainingDataSetCpu.Count) / miniBatchSize;
@@ -935,11 +930,11 @@ namespace SharpNet.Networks
             _swComputeAccuracy?.Start();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
             yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
-            bufferComputeAccuracy = NewNotInitializedTensor(new []{ yExpected.Shape[0]}, bufferComputeAccuracy, nameof(bufferComputeAccuracy));
+            bufferComputeAccuracy = NewNotInitializedFloatTensor(new []{ yExpected.Shape[0]}, bufferComputeAccuracy, nameof(bufferComputeAccuracy));
             var accuracy = yExpected.ComputeAccuracy(yPredicted, bufferComputeAccuracy);
             _swComputeAccuracy?.Stop();
             _swComputeLoss?.Start();
-            bufferComputeLoss = NewNotInitializedTensor(new[] { yExpected.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
+            bufferComputeLoss = NewNotInitializedFloatTensor(new[] { yExpected.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
             var totalLoss = yExpected.ComputeLoss(yPredicted, Config.LossFunction, bufferComputeLoss);
             _swComputeLoss?.Stop();
             return Tuple.Create(totalLoss, accuracy);
@@ -1006,9 +1001,11 @@ namespace SharpNet.Networks
 
             List<Tuple<string, double, double, double, double>> data = new List<Tuple<string, double, double, double, double>>();
             var separatingLine = new string('=', 100);
-            foreach (var layerType in LayerTypeToForwardPropagationTrainingTime.Keys)
+
+            var allKeys = ForwardPropagationTrainingTime.Keys.Union(BackwardPropagationTime.Keys).Union(ForwardPropagationInferenceTime.Keys).Union(UpdateWeightsTime.Keys).ToList();
+            foreach (var layerType in allKeys)
             {
-                data.Add(Tuple.Create(layerType, PercentageOfTimeTaken(LayerTypeToForwardPropagationTrainingTime, layerType), PercentageOfTimeTaken(LayerTypeToBackwardPropagationTime, layerType), PercentageOfTimeTaken(LayerTypeToForwardPropagationInferenceTime, layerType), PercentageOfTimeTaken(LayerTypeToUpdateWeightsTime, layerType)));
+                data.Add(Tuple.Create(layerType, PercentageOfTimeTaken(ForwardPropagationTrainingTime, layerType), PercentageOfTimeTaken(BackwardPropagationTime, layerType), PercentageOfTimeTaken(ForwardPropagationInferenceTime, layerType), PercentageOfTimeTaken(UpdateWeightsTime, layerType)));
             }
 
             data = data.OrderByDescending(t => ParentTime(t.Item1, data)).ThenBy(t => t.Item1).ToList();
@@ -1073,9 +1070,9 @@ namespace SharpNet.Networks
                 for (var index = firstTrainableLayer.LayerIndex; index < Layers.Count; index++)
                 {
                     var layer = Layers[index];
-                    StartTimer(layer.Type(), LayerTypeToUpdateWeightsTime);
+                    StartTimer(layer.Type(), UpdateWeightsTime);
                     layer.UpdateWeights(learningRate);
-                    StopTimer(layer.Type(), LayerTypeToUpdateWeightsTime);
+                    StopTimer(layer.Type(), UpdateWeightsTime);
                 }
             }
         }
@@ -1143,9 +1140,9 @@ namespace SharpNet.Networks
             //the first epoch is #1
             int epoch = _epochsData.Count + 1;
             var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(_epochsData) ?? 1.0;
-            _yPredictedBufferForEntireBatch = NewNotInitializedTensor(dataSet.Y_Shape, _yPredictedBufferForEntireBatch, nameof(_yPredictedBufferForEntireBatch));
-            _yExpectedBufferForEntireBatch = NewNotInitializedTensor(dataSet.Y_Shape, _yExpectedBufferForEntireBatch, nameof(_yExpectedBufferForEntireBatch));
-            var xMiniBatch = NewNotInitializedTensor(dataSet.XMiniBatch_Shape(miniBatchSize), "xMiniBatch");
+            _yPredictedBufferForEntireBatch = NewNotInitializedFloatTensor(dataSet.Y_Shape, _yPredictedBufferForEntireBatch, nameof(_yPredictedBufferForEntireBatch));
+            _yExpectedBufferForEntireBatch = NewNotInitializedFloatTensor(dataSet.Y_Shape, _yExpectedBufferForEntireBatch, nameof(_yExpectedBufferForEntireBatch));
+            var xMiniBatch = NewNotInitializedFloatTensor(dataSet.XMiniBatch_Shape(miniBatchSize), "xMiniBatch");
 
             var xMiniBatchCpu = new CpuTensor<float>(xMiniBatch.Shape, null, "xMiniBatchCpu");
             var yExpectedMiniBatchCpu = new CpuTensor<float>(dataSet.YMiniBatch_Shape(miniBatchSize), null, "yExpectedMiniBatchCpu");
@@ -1165,9 +1162,9 @@ namespace SharpNet.Networks
                 var yExpectedMiniBatch = _yExpectedBufferForEntireBatch.ExtractSubTensor(blockId * miniBatchSize, blockSize);
                 xMiniBatchCpu.Reshape(xMiniBatch.Shape);
                 yExpectedMiniBatchCpu.Reshape(yExpectedMiniBatch.Shape);
-                StartTimer("LoadInput", isTraining ? LayerTypeToForwardPropagationTrainingTime : LayerTypeToForwardPropagationInferenceTime);
+                StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 dataSet.LoadMiniBatch(epoch, isTraining, shuffledElementId, blockId * miniBatchSize, Config.DataAugmentation, xMiniBatchCpu, yExpectedMiniBatchCpu);
-                StopTimer("LoadInput", isTraining ? LayerTypeToForwardPropagationTrainingTime : LayerTypeToForwardPropagationInferenceTime);
+                StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
                 //we copy mini batch content from CPU to appropriate target (CPU or GPU)
                 if (xMiniBatch.UseGPU)
@@ -1218,8 +1215,6 @@ namespace SharpNet.Networks
                     LogDebug(ProfilingComments());
                     lastStatsUpdate = DateTime.Now;
                 }
-
-
             }
             return _yPredictedBufferForEntireBatch;
         }

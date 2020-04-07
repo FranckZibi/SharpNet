@@ -170,9 +170,10 @@ namespace SharpNet.Data
         /// Compute the element wise multiplication:
         ///     this = a (element_wise_multiplication) Diag(c)
         ///     where c is a vector containing a diagonal matrix
+        /// and stores it in the 'this' tensor
         /// </summary>
-        /// <param name="a">a matrix</param>
-        /// <param name="x">a vector containing a diagonal matrix
+        /// <param name="a">[in] a matrix</param>
+        /// <param name="x">[in] a vector containing a diagonal matrix
         /// (only the diagonal of the diagonal matrix is contained in vector 'x'</param>
         public abstract void MultiplyTensor(Tensor a, Tensor x);
 
@@ -189,7 +190,8 @@ namespace SharpNet.Data
         public abstract void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight);
 
         /// <summary>
-        /// Update the value of the 'this( tensor by multiplying it by 'x'
+        /// this = this (element wise multiplication) x
+        /// Update the value of the 'this' tensor by multiplying it by 'x'
         /// if 'this' and 'x' have the same size:
         ///     will perform an element wise multiplication of vector 'this' and vector 'x' (and store the result in 'this')
         /// else
@@ -203,11 +205,12 @@ namespace SharpNet.Data
         }
 
         /// <summary>
+        /// this = [out] a vector to store the result of the element wise product
         /// For each row of matrix a and b , compute the element wise product and this row, and store the result in this[row]
-        /// this = a vector of size (m)
+        /// this = [out] a vector of size (m)
         /// </summary>
-        /// <param name="a">a matrix of size (m,n) </param>
-        /// <param name="b">a matrix of size (m,n) </param>
+        /// <param name="a">[in] matrix of size (m,n) </param>
+        /// <param name="b">[in] matrix of size (m,n) </param>
         public abstract void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b);
 
         public abstract void BroadcastAddVectorToOutput(Tensor y);
@@ -519,6 +522,19 @@ namespace SharpNet.Data
             return "(" + string.Join(", ", shape) + ")";
         }
 
+        public static Tensor NewNotInitializedFloatTensor(int[] shape, Tensor bufferIfAny, string description, GPUWrapper gpuWrapper)
+        {
+            //we check if we can re use the buffer 'bufferIfAny'
+            if (bufferIfAny != null)
+            {
+                bufferIfAny.AssertIsNotDisposed();
+                bufferIfAny.Reshape(shape);
+                return bufferIfAny;
+            }
+            return gpuWrapper != null
+                ? (Tensor)new GPUTensor<float>(shape, description, gpuWrapper)
+                : new CpuTensor<float>(shape, null, description);
+        }
 
         public GPUTensor<T> AsGPU<T>()
         {

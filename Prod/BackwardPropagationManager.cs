@@ -37,7 +37,7 @@ namespace SharpNet
                 var tmpdyOfLastLayer = _dyOfLastLayer;
                 var tmpCache = new List<Tensor>(_availableTensorOrderedByCount);
                 _availableTensorOrderedByCount.Clear();
-                _dyOfLastLayer = NewNotInitializedTensor(_network.Layers.Last().OutputShape(1), true);
+                _dyOfLastLayer = NewNotInitializedFloatTensor(_network.Layers.Last().OutputShape(1), true);
                 BackwardPropagation();
                 _bytesByBatchSizeForGradientComputation = _availableTensorOrderedByCount.Select(CapacityInBytes).Sum() + CapacityInBytes(_dyOfLastLayer);
                 _dyOfLastLayer = tmpdyOfLastLayer;
@@ -53,7 +53,7 @@ namespace SharpNet
                 var shape = (_network.Layers.Last().y != null)
                     ? _network.Layers.Last().y.Shape
                     : _network.Layers.Last().OutputShape(1);
-                _dyOfLastLayer = _network.NewNotInitializedTensor(shape, _dyOfLastLayer, nameof(dyOfLastLayer));
+                _dyOfLastLayer = _network.NewNotInitializedFloatTensor(shape, _dyOfLastLayer, nameof(dyOfLastLayer));
                 return _dyOfLastLayer;
             }
         }
@@ -78,7 +78,7 @@ namespace SharpNet
                 //we already know 'dy' for this layer
                 //we want to compute dx (& weight gradients if the layer has weights) of current layer by backward propagation
                 var layer = _network.Layers[layerIndex];
-                Network.StartTimer(layer.Type(), _network.LayerTypeToBackwardPropagationTime);
+                Network.StartTimer(layer.Type(), _network.BackwardPropagationTime);
                 var dy = layerIndex_to_dY[layerIndex];
                 Debug.Assert(dy != null);
 
@@ -133,7 +133,7 @@ namespace SharpNet
                 }
                 layerIndex_to_dY[layerIndex] = null;
 
-                Network.StopTimer(layer.Type(), _network.LayerTypeToBackwardPropagationTime);
+                Network.StopTimer(layer.Type(), _network.BackwardPropagationTime);
             }
         }
         public void Dispose()
@@ -166,7 +166,7 @@ namespace SharpNet
                     return availableTensor;
                 }
             }
-            var newTensor = NewNotInitializedTensor(shape, isMock);
+            var newTensor = NewNotInitializedFloatTensor(shape, isMock);
             return newTensor;
         }
         private ulong NeededMemoryInBytes(int[] shape)
@@ -185,13 +185,13 @@ namespace SharpNet
         {
             return t.Description == MockKey;
         }
-        private Tensor NewNotInitializedTensor(int[] shape, bool isMock)
+        private Tensor NewNotInitializedFloatTensor(int[] shape, bool isMock)
         {
             if (isMock)
             {
                 return new CpuTensor<float>(new[] {1}, new float[]{ NeededMemoryInBytes(shape) }, MockKey);
             }
-            return _network.NewNotInitializedTensor(shape, "dy");
+            return _network.NewNotInitializedFloatTensor(shape, "dy");
         }
     }
 }

@@ -44,14 +44,14 @@ namespace SharpNet.Layers
             _lambdaL2Regularization = lambdaL2Regularization;
 
             //trainable params
-            Weights = Network.NewNotInitializedTensor(new[] { PrevLayer.n_x, _units }, nameof(Weights));
-            Bias = Network.NewNotInitializedTensor(new[] {1,  _units }, nameof(Bias));
+            Weights = Network.NewNotInitializedFloatTensor(new[] { PrevLayer.n_x, _units }, nameof(Weights));
+            Bias = Network.NewNotInitializedFloatTensor(new[] {1,  _units }, nameof(Bias));
             _optimizer = Network.GetOptimizer(Weights.Shape, Bias.Shape);
             ResetWeights(false);
 
             //non trainable params
-            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, nameof(WeightGradients));
-            BiasGradients = Network.NewNotInitializedTensor(Bias.Shape, nameof(BiasGradients));
+            WeightGradients = Network.NewNotInitializedFloatTensor(Weights.Shape, nameof(WeightGradients));
+            BiasGradients = Network.NewNotInitializedFloatTensor(Bias.Shape, nameof(BiasGradients));
 
             Debug.Assert(WeightGradients.SameShape(Weights));
             Debug.Assert(Bias.SameShape(BiasGradients));
@@ -104,8 +104,8 @@ namespace SharpNet.Layers
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
 
             //non trainable params
-            WeightGradients = Network.NewNotInitializedTensor(Weights.Shape, nameof(WeightGradients));
-            BiasGradients = useBias ? Network.NewNotInitializedTensor(Bias.Shape, nameof(BiasGradients)) : null;
+            WeightGradients = Network.NewNotInitializedFloatTensor(Weights.Shape, nameof(WeightGradients));
+            BiasGradients = useBias ? Network.NewNotInitializedFloatTensor(Bias.Shape, nameof(BiasGradients)) : null;
         }
         #endregion
 

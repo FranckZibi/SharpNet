@@ -30,9 +30,9 @@ namespace SharpNet.Layers
         {
             Allocate_y_if_necessary();
             var x = PrevLayer.y;
-            Network.StartTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
+            Network.StartTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
             x.ActivationForward(ActivationFunction, y);
-            Network.StopTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.LayerTypeToForwardPropagationTrainingTime : Network.LayerTypeToForwardPropagationInferenceTime);
+            Network.StopTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -66,7 +66,7 @@ namespace SharpNet.Layers
                 return;  
             }
 
-            Network.StartTimer(Type()+">"+ToString(ActivationFunction), Network.LayerTypeToBackwardPropagationTime);
+            Network.StartTimer(Type()+">"+ToString(ActivationFunction), Network.BackwardPropagationTime);
             //we compute dx
             if (IsOutputLayer)
             {
@@ -77,7 +77,7 @@ namespace SharpNet.Layers
                 var x = PrevLayer.y;
                 y.ActivationBackward(dy, x, ActivationFunction, dx[0]);
             }
-            Network.StopTimer(Type()+">"+ToString(ActivationFunction), Network.LayerTypeToBackwardPropagationTime);
+            Network.StopTimer(Type()+">"+ToString(ActivationFunction), Network.BackwardPropagationTime);
         }
         public override void Dispose()
         {

@@ -16,6 +16,7 @@ namespace SharpNet.GPU
             public IntPtr FunctionHandle => _functionHandle;
             public uint ThreadsPerBlock { get; set; }
             public uint BlocksPerGrid { get; set; }
+            // ReSharper disable once MemberCanBeMadeStatic.Local
             public uint DynamicSharedMemory => 0;
             public CudaKernel(byte[] fatBinaryObject, string kernelName)
             {
@@ -102,7 +103,6 @@ namespace SharpNet.GPU
             {
                 gcHandle.Free();
             }
-            _gpu.DefaultStream.Synchronize();
             GPUWrapper.CheckStatus(res);
         }
 

@@ -1,4 +1,13 @@
-﻿using System;
+﻿
+// When enabled:
+//      will only use native cuDNN functions to compute Multiply Layer (forward&backward)
+//      (under testing)
+// Else:
+//      will use cuda hand coded function 
+//#define USE_NATIVE_CUDNN_MULTIPLY
+
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -74,26 +83,60 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(bool isTraining)
         {
             Allocate_y_if_necessary();
-            var a = PreviousLayer1.y;
-            var x = PreviousLayer2.y; //vector with the content of the diagonal matrix
-            y.MultiplyTensor(a, x);
+            var x1 = PreviousLayer1.y;
+            var x2 = PreviousLayer2.y; //vector with the content of the diagonal matrix
+            y.MultiplyTensor(x1, x2);
         }
-
+#if USE_NATIVE_CUDNN_MULTIPLY
+        private Tensor tmpdx2;
+        private Tensor tmpdx2_1_vector;
+#endif
         public override void BackwardPropagation(Tensor dy, List<Tensor> allDx)
         {
             Debug.Assert(allDx.Count == 2);
             Debug.Assert(y.SameShape(dy));
-            Debug.Assert(allDx[0].SameShape(dy));
-            Debug.Assert(allDx[0].SameShape(PreviousLayer1.y));
-            Debug.Assert(allDx[1].SameShape(PreviousLayer2.y));
-            allDx[0].MultiplyTensor(dy, PreviousLayer2.y);
-            if (allDx[1].SameShape(dy))
+            var dx1 = allDx[0];
+            var dx2 = allDx[1];
+            var x1 = PreviousLayer1.y;
+            var x2 = PreviousLayer2.y;
+            Debug.Assert(dx1.SameShape(dy));
+            Debug.Assert(dx1.SameShape(x1));
+            Debug.Assert(dx2.SameShape(x2));
+
+
+            Network.StartTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
+            dx1.MultiplyTensor(dy, x2);
+            Network.StopTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
+            if (dx2.SameShape(dy))
             {
-                allDx[1].MultiplyTensor(dy, PreviousLayer1.y);
+                Network.StartTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
+                dx2.MultiplyTensor(dy, x1);
+                Network.StopTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
             }
             else
             {
-                allDx[1].MultiplyEachRowIntoSingleValue(dy, PreviousLayer1.y);
+                Network.StartTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
+
+#if USE_NATIVE_CUDNN_MULTIPLY
+                tmpdx2 = Network.NewNotInitializedFloatTensor(dy.Shape, tmpdx2, nameof(tmpdx2));
+                tmpdx2.MultiplyTensor(dy, x1);
+                var shapeOneVector = new[] { dx1.Count/dx2.Count,1 };
+                if ((tmpdx2_1_vector == null)
+                    || tmpdx2_1_vector.CapacityInBytes < (ulong)(dx2.Count * tmpdx2_1_vector.TypeSize))
+                {
+                    tmpdx2_1_vector = Network.NewNotInitializedFloatTensor(shapeOneVector, tmpdx2_1_vector, nameof(tmpdx2_1_vector));
+                    tmpdx2_1_vector.NewSameValueTensor(1.0);
+                }
+                tmpdx2_1_vector.Reshape(shapeOneVector);
+                var tmpdx2Shape = tmpdx2.Shape;
+                tmpdx2.Reshape(new []{ tmpdx2_1_vector.Count/ tmpdx2_1_vector.Count, tmpdx2_1_vector.Count });
+                dx2.Dot(tmpdx2, tmpdx2_1_vector);
+                tmpdx2.Reshape(tmpdx2Shape);
+#else
+                dx2.MultiplyEachRowIntoSingleValue(dy, PreviousLayer1.y);
+#endif
+
+                Network.StopTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
             }
         }
 

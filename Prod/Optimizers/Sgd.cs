@@ -20,8 +20,8 @@ namespace SharpNet.Optimizers
             _iterations = 0;
             _SGD_momentum = SGD_momentum;
             _SGD_usenesterov = SGD_usenesterov;
-            _velocityWeight = network.NewNotInitializedTensor(weightShape, nameof(_velocityWeight));
-            _velocityBias = (biasShapeIfAny==null)?null:network.NewNotInitializedTensor(biasShapeIfAny, nameof(_velocityBias));
+            _velocityWeight = network.NewNotInitializedFloatTensor(weightShape, nameof(_velocityWeight));
+            _velocityBias = (biasShapeIfAny==null)?null:network.NewNotInitializedFloatTensor(biasShapeIfAny, nameof(_velocityBias));
             ZeroMemory();
         }
         

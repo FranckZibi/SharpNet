@@ -32,7 +32,7 @@ namespace SharpNet.Layers
             Allocate_y_if_necessary();
             if (!Network.UseGPU)
             {
-                _dropOutMaskBufferForCpuOnly = Network.NewNotInitializedTensor(y.Shape, _dropOutMaskBufferForCpuOnly, "_DropOutMaskBufferForCpuOnly");
+                _dropOutMaskBufferForCpuOnly = Network.NewNotInitializedFloatTensor(y.Shape, _dropOutMaskBufferForCpuOnly, "_DropOutMaskBufferForCpuOnly");
             }
             var x = PrevLayer.y;
             x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropOutMaskBufferForCpuOnly);

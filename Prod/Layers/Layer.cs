@@ -315,7 +315,7 @@ namespace SharpNet.Layers
             var outputShape = OutputShape(batchSize);
             if (y == null || !y.Shape.SequenceEqual(outputShape))
             {
-                y = Network.NewNotInitializedTensor(outputShape, y, nameof(y));
+                y = Network.NewNotInitializedFloatTensor(outputShape, y, nameof(y));
             }
         }
         protected string MemoryDescription()
