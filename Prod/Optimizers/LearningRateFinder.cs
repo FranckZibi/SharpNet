@@ -27,7 +27,7 @@ namespace SharpNet.Optimizers
 
         #endregion
 
-        public LearningRateFinder(int miniBatchSize, int entireBatchSize, double momentum = 0.95, double minLearningRate = 1e-7, double maxLearningRate = 10.0)
+        public LearningRateFinder(int miniBatchSize, int entireBatchSize, double minLearningRate, double maxLearningRate, double momentum = 0.95)
         {
             _momentum = momentum;
             _minLearningRate = minLearningRate;

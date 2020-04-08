@@ -5,10 +5,12 @@ namespace SharpNet.Datasets
 {
     public class ZoomedDataSet : AbstractDataSet
     {
+        #region private fields
         private readonly IDataSet _original;
         private readonly int _heightMultiplier;
         private readonly int _widthMultiplier;
-        private readonly CpuTensor<float> xBufferBeforeZoom;
+        private readonly CpuTensor<float> _xBufferBeforeZoom;
+        #endregion
 
         public ZoomedDataSet(IDataSet original, int heightMultiplier, int widthMultiplier)
             : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel, original.Logger)
@@ -16,12 +18,12 @@ namespace SharpNet.Datasets
             _original = original;
             _heightMultiplier = heightMultiplier;
             _widthMultiplier = widthMultiplier;
-            xBufferBeforeZoom =  new CpuTensor<float>(new []{1,Channels, original.Height, original.Width }, nameof(xBufferBeforeZoom));
+            _xBufferBeforeZoom =  new CpuTensor<float>(new []{1,Channels, original.Height, original.Width }, nameof(_xBufferBeforeZoom));
         }
         public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
-            _original.LoadAt(subElementId, 0, xBufferBeforeZoom, yBuffer);
-            CopyIntoWithZoom(xBufferBeforeZoom, _heightMultiplier, _widthMultiplier, indexInBuffer, xBuffer);
+            _original.LoadAt(subElementId, 0, _xBufferBeforeZoom, yBuffer);
+            CopyIntoWithZoom(_xBufferBeforeZoom, _heightMultiplier, _widthMultiplier, indexInBuffer, xBuffer);
         }
 
         /// <summary>
@@ -53,7 +55,7 @@ namespace SharpNet.Datasets
         }
         public override int Height => _heightMultiplier*_original.Height;
         public override int Width => _widthMultiplier*_original.Width;
-        public override CpuTensor<float> Y { get; }
+        public override CpuTensor<float> Y => _original.Y;
 
         public override string ToString()
         {

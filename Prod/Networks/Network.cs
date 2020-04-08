@@ -668,7 +668,7 @@ namespace SharpNet.Networks
             
         }
 
-        public double FindBestLearningRate(IDataSet trainingDataSet, int miniBatchSize = -1)
+        public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSize = -1)
         {
             Info("Looking for best learning rate...");
             ResetWeights(); //restore weights to there original values
@@ -684,7 +684,9 @@ namespace SharpNet.Networks
                     miniBatchSize = MaxMiniBatchSize();
                 }
             }
-            var learningRateFinder = new LearningRateFinder(miniBatchSize, trainingDataSet.Count);
+            var learningRateFinder = new LearningRateFinder(miniBatchSize, trainingDataSet.Count, minLearningRate, maxLearningRate);
+                
+
             bool CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch, int blockIdInEpoch, int nbBatchBlockInEpoch, int epoch)
             {
                 bufferComputeLoss = NewNotInitializedFloatTensor(new[] { yExpectedMiniBatch.Shape[0] }, bufferComputeLoss, nameof(bufferComputeLoss));
@@ -760,7 +762,7 @@ namespace SharpNet.Networks
                 {
                     LogDebug("Test Set: " + testDataSetCpuIfAny);
                 }
-                Info("#Epochs=" + numEpochs + " BathSize=" + miniBatchSize+" Name="+Description);
+                Info("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSize+" Name="+Description);
                 if (Config.DisplayTensorContentStats)
                 {
                     LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
@@ -1194,7 +1196,12 @@ namespace SharpNet.Networks
                 }
                 ++blockId;
 
-                if ((DateTime.Now-lastStatsUpdate).TotalSeconds>5*60)
+                #if DEBUG
+                const int profilingStatThresholdInSeconds = 30;
+                #else
+                const int profilingStatThresholdInSeconds = 5 * 60;
+                #endif
+                if ((DateTime.Now-lastStatsUpdate).TotalSeconds> profilingStatThresholdInSeconds)
                 {
                     var percentageDoneInEpoch = ((double) nbProcessed) / entireBatchSize;
                     var secondsSinceStartOfEpoch = (DateTime.Now - miniBatchGradientDescentStart).TotalSeconds;

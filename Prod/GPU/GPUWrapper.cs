@@ -109,17 +109,39 @@ namespace SharpNet.GPU
 
         #region Convolution
 
+
+        /// <summary>
+        /// Here is benchmark performed on a GTX 1080 with cuDNN 7.6
+        /// for WRN-16-10:
+        ///     FASTEST:                                          97.6s/epoch
+        ///     FASTEST_DETERMINIST:                              same speed (98.8s/epoch)
+        ///     10_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS:   1.4x slower then FASTEST (137.3s/epoch)
+        ///     FASTEST_DETERMINIST_NO_TRANSFORM:                 1.8x slower then FASTEST (178.2s/epoch)
+        /// for WRN-28-10:
+        ///     FASTEST:                                          185.3s/epoch
+        ///     FASTEST_DETERMINIST:                              same speed (185.9s/epoch)
+        ///     10_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS:   1.6x slower then FASTEST (291.1s/epoch)
+        ///     FASTEST_DETERMINIST_NO_TRANSFORM:                 2x slower then FASTEST (376.2s/epoch)
+        /// </summary>
+        ///
+        //WRN-16-10_FASTEST GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	195.2303487	97.6151746	0.977050293	0.6762	
+        //WRN-16-10_FASTEST_DETERMINIST_NO_TRANSFORM GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	356.4549956	178.2274981	0.992591016	0.6695	1.825817541
+        //WRN-16-10_FASTEST_DETERMINIST GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	197.6540701	98.82703525	0.979999219	0.6758	1.012414675
+        //WRN-16-10_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	274.6506682	137.3253344	1.018738574	0.6607	1.406803142
+        /// 
         public enum ConvolutionAlgoPreference
         {
             //fastest algorithm
             FASTEST,
 
-            //fastest determinist algorithm
+            //fastest *determinist* algorithm : RECOMMENDED METHOD
+            //achieves nearly same speed as ConvolutionAlgoPreference.FASTEST (<1% slower) but is deterministic which is easier for debugging
             FASTEST_DETERMINIST,
 
             //fastest determinist algorithm not based on Fast-Fourier or Winograd Transform
             //this is the only supported mode on CPU
-            //it is mainly used for Convolution (forward/backward) Non Regression Tests between CPU & GPU
+            //it is mainly used for Non Regression Tests between CPU & GPU (when testing Convolution forward/backward) 
+            //around 2x slower then FASTEST on WRN-16-10 & WRN-28-10
             FASTEST_DETERMINIST_NO_TRANSFORM,
 
             //Use the algorithm returned by methods:
@@ -127,6 +149,7 @@ namespace SharpNet.GPU
             //      cudnnGetConvolutionBackwardFilterAlgorithm
             //      cudnnGetConvolutionBackwardDataAlgorithm
             //it is mainly used for backward compatibility
+            //around 1.5x slower then FASTEST on WRN-16-10 & WRN-28-10
             USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS,
         }
 

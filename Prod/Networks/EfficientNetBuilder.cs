@@ -125,6 +125,8 @@ namespace SharpNet.Networks
             int categoryCount //= 1000
             )
         {
+            //dropoutRate = dropConnectRate = 0; //to disable all Dropout layers
+
             blocks = blocks.Select(x => x.ApplyScaling(widthCoefficient, depthDivisor, depthCoefficient)).ToList();
             var net = BuildEmptyNetwork(modelName);
             var config = net.Config;
