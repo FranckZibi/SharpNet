@@ -24,6 +24,8 @@ namespace SharpNetTests
         private const int Width = 32;
         private const int Nx = Height * Width * ChannelsCount;
 	    private readonly Random _rand = new Random(0);
+        private const GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
+        // ReSharper disable once MemberCanBeMadeStatic.Local
         private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
         [Test]
@@ -51,7 +53,7 @@ namespace SharpNetTests
                 {
                     continue; //asymmetric padding is not supported by cuDNN
                 }
-                TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[2], isDepthwiseConvolution));
+                TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[2], isDepthwiseConvolution, ConvolutionAlgoPreference));
             }
         }
 
@@ -96,20 +98,20 @@ namespace SharpNetTests
                     var padded_X = RandomTensor(paddedXShape, "padded_X");
                     padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
                     var padded_dX = RandomTensor(paddedXShape, "padded_dX");
-                    TestAll(new[] { x, padded_X, convolution, dy, dx, padded_dX, convolutionGradient }, tensors => ConvolutionGradientAsymmetricPadding(
-                        tensors[0], tensors[1], tensors[2], tensors[3], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[4], tensors[5], tensors[6], isDepthwiseConvolution));
+                    TestAll(new[] { padded_X, convolution, dy, dx, padded_dX, convolutionGradient }, tensors => ConvolutionGradientAsymmetricPadding(
+                        tensors[0], tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], tensors[5], isDepthwiseConvolution));
                 }
                 else
                 {
-                    TestAll(new[] { x, convolution, dy, dx, convolutionGradient }, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], isDepthwiseConvolution));
+                    TestAll(new[] { x, convolution, dy, dx, convolutionGradient }, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], isDepthwiseConvolution, ConvolutionAlgoPreference));
                 }
             }
         }
 
-        private static void ConvolutionGradientAsymmetricPadding(Tensor x, Tensor padded_X, Tensor convolution, Tensor dy, int paddingTop,
+        private static void ConvolutionGradientAsymmetricPadding(Tensor padded_X, Tensor convolution, Tensor dy, int paddingTop,
             int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor padded_dX, Tensor convGradient, bool isDepthwiseConvolution)
         {
-            padded_X.ConvolutionGradient(convolution, dy, 0, 0, 0, 0, stride, padded_dX, convGradient, isDepthwiseConvolution);
+            padded_X.ConvolutionGradient(convolution, dy, 0, 0, 0, 0, stride, padded_dX, convGradient, isDepthwiseConvolution, ConvolutionAlgoPreference);
             dx.ZeroUnpadding(padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
         }
 

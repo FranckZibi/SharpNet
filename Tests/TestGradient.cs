@@ -40,6 +40,7 @@ namespace SharpNetTests
             var X = GetX();
             var Y = GetY();
             var network = GetNetwork();
+            network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
@@ -58,6 +59,7 @@ namespace SharpNetTests
             var X = GetX();
             var Y = GetY();
             var network = GetNetwork();
+            network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, 0.0, true )

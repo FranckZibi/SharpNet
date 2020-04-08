@@ -377,8 +377,8 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
 
-#region Convolution
-        public override void Convolution(Tensor filters, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution)
+        #region Convolution
+        public override void Convolution(Tensor filters, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution, GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, filters, y }));
@@ -396,16 +396,14 @@ namespace SharpNet.GPU
                 Debug.Assert(inputChannelCount == y.Shape[1]);
             }
 
+
             int groupCount = isDepthwiseConvolution ? inputChannelCount : 1;
             var convDesc = ConvDesc(paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);
             var filterDesc = FilterDesc(filters, isDepthwiseConvolution);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
-
-
-            var res = CudnnWrapper.cudnnGetConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0, out cudnnConvolutionFwdAlgo_t algo);
-            CheckStatus(res);
-            res = CudnnWrapper.cudnnGetConvolutionForwardWorkspaceSize(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, algo, out size_t workspaceSize); 
+            var forwardAlgo = Wrapper.ConvolutionForwardAlgorithm(xDesc, filterDesc, convDesc, yDesc, forwardAlgoPreference);
+            var res = CudnnWrapper.cudnnGetConvolutionForwardWorkspaceSize(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, forwardAlgo, out size_t workspaceSize); 
             CheckStatus(res);
             var storageBuffer = Wrapper.StorageBuffer(workspaceSize);
 
@@ -413,7 +411,7 @@ namespace SharpNet.GPU
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            res = CudnnWrapper.cudnnConvolutionForward(CudnnHandle, one, xDesc, x, filterDesc, filters, convDesc, algo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, yDesc, y);
+            res = CudnnWrapper.cudnnConvolutionForward(CudnnHandle, one, xDesc, x, filterDesc, filters, convDesc, forwardAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, yDesc, y);
             CheckStatus(res);
         }
         public override void BroadcastConvolutionBiasToOutput(Tensor y)
@@ -436,19 +434,21 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, bias);
             CheckStatus(res);
         }
-        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
+
+
+        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution, GPUWrapper.ConvolutionAlgoPreference backwardAlgoPreference)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, convolution, dy, dx, convGradient }));
+            Debug.Assert(dx==null || x.SameShape(dx));
             var xDesc = TensorDesc(x);
             var dyDesc = TensorDesc(dy);
             var dwDesc = FilterDesc(convGradient, isDepthwiseConvolution);
             int inputChannelCount = x.Shape[1];
             int groupCount = isDepthwiseConvolution ? inputChannelCount : 1;
             var convDesc = ConvDesc(paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);
-            var res = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, dwDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0, out cudnnConvolutionBwdFilterAlgo_t filterAlgo);
-            CheckStatus(res);
-            res = CudnnWrapper.cudnnGetConvolutionBackwardFilterWorkspaceSize(CudnnHandle, xDesc, dyDesc, convDesc, dwDesc, filterAlgo, out size_t filterWorkspaceSize);
+            var backwardFilterAlgo = Wrapper.ConvolutionBackwardFilterAlgorithm(xDesc, dyDesc, convDesc, dwDesc, backwardAlgoPreference);
+            var res = CudnnWrapper.cudnnGetConvolutionBackwardFilterWorkspaceSize(CudnnHandle, xDesc, dyDesc, convDesc, dwDesc, backwardFilterAlgo, out size_t filterWorkspaceSize);
             CheckStatus(res);
             var storageBuffer = Wrapper.StorageBuffer(Math.Max(1, filterWorkspaceSize));
 
@@ -456,26 +456,25 @@ namespace SharpNet.GPU
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            res = CudnnWrapper.cudnnConvolutionBackwardFilter(CudnnHandle, one, xDesc, x, dyDesc, dy, convDesc, filterAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dwDesc, convGradient);
+            //we compute 'convGradient'
+            res = CudnnWrapper.cudnnConvolutionBackwardFilter(CudnnHandle, one, xDesc, x, dyDesc, dy, convDesc, backwardFilterAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dwDesc, convGradient);
             CheckStatus(res);
-
+            //we compute 'dx'
             if (dx == null)
             {
                 return;
             }
             var dxDesc = TensorDesc(dx);
             var wDesc = FilterDesc(convolution, isDepthwiseConvolution);
-            res = CudnnWrapper.cudnnGetConvolutionBackwardDataAlgorithm(CudnnHandle, wDesc, dyDesc, convDesc, dxDesc, cudnnConvolutionBwdDataPreference_t.CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST, 0, out cudnnConvolutionBwdDataAlgo_t dataAlgo);
+            var backwardDataAlgo = Wrapper.ConvolutionBackwardDataAlgorithm(dwDesc, dyDesc, convDesc, xDesc, backwardAlgoPreference);
+            res = CudnnWrapper.cudnnGetConvolutionBackwardDataWorkspaceSize(CudnnHandle, dwDesc, dyDesc, convDesc, dxDesc, backwardDataAlgo, out size_t dataWorkspaceSize);
             CheckStatus(res);
-
-            res = CudnnWrapper.cudnnGetConvolutionBackwardDataWorkspaceSize(CudnnHandle, dwDesc, dyDesc, convDesc, dxDesc, dataAlgo, out size_t dataWorkspaceSize);
-            CheckStatus(res);
-
             storageBuffer = Wrapper.StorageBuffer(dataWorkspaceSize);
-            res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, convolution, dyDesc, dy, convDesc, dataAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dxDesc, dx);
+            res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, convolution, dyDesc, dy, convDesc, backwardDataAlgo, storageBuffer.Pointer, storageBuffer.SizeInBytes, zero, dxDesc, dx);
             CheckStatus(res);
         }
-#endregion
+        #endregion
+
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
             var array = new float[Count];

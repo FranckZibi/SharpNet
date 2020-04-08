@@ -1009,13 +1009,6 @@ namespace SharpNet.Networks
             }
 
             data = data.OrderByDescending(t => ParentTime(t.Item1, data)).ThenBy(t => t.Item1).ToList();
-
-            //data.Sort(
-            //    (t1,t2)=> 
-            //        ParentLayerName(t1.Item1).Equals(ParentLayerName(t2.Item1))
-            //        ? t1.Item1.CompareTo((object)t2.Item1)
-            //        : ParentTime(t2.Item1, data).CompareTo(ParentTime(t1.Item1, data))
-            //        );
             var result = separatingLine + Environment.NewLine;
             result += "LayerName              Forward(Training)  Backward(Training)  Forward(Inference)        UpdateHeight" + Environment.NewLine;
             result += separatingLine + Environment.NewLine;

@@ -7,6 +7,7 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
+using static SharpNet.GPU.GPUWrapper;
 
 namespace SharpNet.CPU
 {
@@ -68,16 +69,6 @@ namespace SharpNet.CPU
             }
             RecomputeMultDim();
         }
-
-        public CpuTensor<T> WithNewShape(int[] newShape)
-        {
-            if (Utils.Product(newShape) != Count)
-            {
-                throw new ArgumentException("invalid shape " + string.Join(",", newShape) + " for " + this+" : must have the same size");
-            }
-            return new CpuTensor<T>(newShape, Content, Description);
-        }
-
 
         public T this[int i]
         {
@@ -836,8 +827,12 @@ namespace SharpNet.CPU
         }
 
         #region Convolution
-        public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution)
+        public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution, ConvolutionAlgoPreference forwardAlgoPreference)
         {
+            if (forwardAlgoPreference != ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            {
+                throw new NotImplementedException("only "+ ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM+" is available on CPU ("+ forwardAlgoPreference+ " is not supported)");
+            }
             var x = this;
             int inputChannels = x.Shape[1];
             int outputChannels = y.Shape[1];
@@ -944,8 +939,12 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution)
+        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution, ConvolutionAlgoPreference backwardAlgoPreference)
         {
+            if (backwardAlgoPreference != ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            {
+                throw new NotImplementedException("only " + ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + backwardAlgoPreference + " is not supported)");
+            }
             var x = this;
             int inputChannels = x.Shape[1];
             int outputChannels = dy.Shape[1];

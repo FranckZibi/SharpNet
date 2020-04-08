@@ -2,24 +2,60 @@
 using System.Runtime.InteropServices;
 using SharpNet.Data;
 // ReSharper disable UnusedMember.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.GPU
-{ 
+{
     public enum cudnnStatus_t
     {
-        CUDNN_STATUS_SUCCESS,
-        CUDNN_STATUS_NOT_INITIALIZED,
-        CUDNN_STATUS_ALLOC_FAILED,
-        CUDNN_STATUS_BAD_PARAM,
-        CUDNN_STATUS_ARCH_MISMATCH,
-        CUDNN_STATUS_MAPPING_ERROR,
-        CUDNN_STATUS_EXECUTION_FAILED,
-        CUDNN_STATUS_INTERNAL_ERROR,
-        CUDNN_STATUS_NOT_SUPPORTED,
-        CUDNN_STATUS_LICENSE_ERROR,
-        CUDNN_STATUS_RUNTIME_PREREQUISITE_MISSING,
-        CUDNN_STATUS_RUNTIME_IN_PROGRESS,
-        CUDNN_STATUS_RUNTIME_FP_OVERFLOW
+        //The operation completed successfully.
+        CUDNN_STATUS_SUCCESS = 0,
+
+        //The cuDNN library was not initialized properly. This error is usually returned when a call to cudnnCreate() fails or
+        //when cudnnCreate() has not been called prior to calling another cuDNN routine.
+        //In the former case, it is usually due to an error in the CUDA Runtime API called by cudnnCreate() or by an error in the hardware setup.
+        CUDNN_STATUS_NOT_INITIALIZED = 1,
+
+        //Resource allocation failed inside the cuDNN library. This is usually caused by an internal cudaMalloc() failure.
+        CUDNN_STATUS_ALLOC_FAILED = 2,
+
+        //An incorrect value or parameter was passed to the function.
+        CUDNN_STATUS_BAD_PARAM = 3,
+
+        //An internal cuDNN operation failed.
+        CUDNN_STATUS_INTERNAL_ERROR = 4,
+
+        CUDNN_STATUS_INVALID_VALUE = 5,
+
+        //The function requires a feature absent from the current GPU device. Note that cuDNN only supports devices with compute capabilities
+        //greater than or equal to 3.0.
+        CUDNN_STATUS_ARCH_MISMATCH = 6,
+
+        //An access to GPU memory space failed, which is usually caused by a failure to bind a texture.
+        //To correct: prior to the function call, unbind any previously bound textures.
+        //Otherwise, this may indicate an internal error/b u g in the library.
+        CUDNN_STATUS_MAPPING_ERROR = 7,
+
+        //The GPU program failed to execute. This is usually caused by a failure to launch some cuDNN kernel on the GPU, which can occur for multiple reasons.
+        //To correct: check that the hardware, an appropriate version of the driver, and the cuDNN library are correctly installed.
+        //Otherwise, this may indicate a internal error/b u g in the library.
+        CUDNN_STATUS_EXECUTION_FAILED = 8,
+
+        //The functionality requested is not presently supported by cuDNN.
+        CUDNN_STATUS_NOT_SUPPORTED = 9,
+
+        //The functionality requested requires some license and an error was detected when trying to check the current licensing.
+        //This error can happen if the license is not present or is expired or if the environment variable NVIDIA_LICENSE_FILE is not set properly.
+        CUDNN_STATUS_LICENSE_ERROR = 10,
+
+        //Runtime library required by RNN calls (libcuda.so or nvcuda.dll) cannot be found in predefined search paths.
+        CUDNN_STATUS_RUNTIME_PREREQUISITE_MISSING = 11,
+
+        //Some tasks in the user stream are not completed.
+        CUDNN_STATUS_RUNTIME_IN_PROGRESS = 12,
+
+        //Numerical overflow occurred during the GPU kernel execution.
+        CUDNN_STATUS_RUNTIME_FP_OVERFLOW = 13
     }
     public enum cudnnDataType_t
     {
@@ -42,6 +78,35 @@ namespace SharpNet.GPU
         CUDNN_TENSOR_NCHW,
         CUDNN_TENSOR_NHWC,
         CUDNN_TENSOR_NCHW_VECT_C
+    }
+
+    #region convolution
+    public enum cudnnConvolutionMode_t
+    {
+        CUDNN_CONVOLUTION,
+        CUDNN_CROSS_CORRELATION
+    }
+    public enum cudnnMathType_t
+    {
+        //Tensor Core Operations are not used
+        CUDNN_DEFAULT_MATH,
+        //The use of Tensor Core Operations is permitted
+        CUDNN_TENSOR_OP_MATH
+    }
+
+    public enum cudnnDeterminism_t
+    {
+        //Results are not guaranteed to be reproducible
+        CUDNN_NON_DETERMINISTIC,
+        //Results are guaranteed to be reproducible
+        CUDNN_DETERMINISTIC
+    }
+    #region convoluton forward
+    public enum cudnnConvolutionFwdPreference_t
+    {
+        CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
+        CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
+        CUDNN_CONVOLUTION_FWD_SPECIFY_​WORKSPACE_LIMIT
     }
     public enum cudnnConvolutionFwdAlgo_t
     {
@@ -77,18 +142,55 @@ namespace SharpNet.GPU
         //This algorithm uses the Winograd Transform approach to compute the convolution.
         //Significant workspace may be needed to store intermediate results.
         CUDNN_CONVOLUTION_FWD_ALGO_​WINOGRAD_NONFUSED
-
     }
-    public enum cudnnConvolutionFwdPreference_t
+    /// <summary>
+    /// cudnnConvolutionFwdAlgoPerf_t is a structure containing performance results returned by cudnnFindConvolutionForwardAlgorithm()
+    /// or heuristic results returned by cudnnGetConvolutionForwardAlgorithm_v7()
+    /// see: https://docs.nvidia.com/deeplearning/sdk/cudnn-archived/cudnn_701/cudnn-user-guide/index.html#cudnnConvolutionFwdAlgoPerf_t
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnConvolutionFwdAlgoPerf_t
     {
-        CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
-        CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-        CUDNN_CONVOLUTION_FWD_SPECIFY_​WORKSPACE_LIMIT
+        //The algorithm run to obtain the associated performance metrics
+        public readonly cudnnConvolutionFwdAlgo_t algo;
+        public readonly cudnnStatus_t status;
+        //The execution time of cudnnConvolutionForward() (in milliseconds)
+        public readonly float time;
+        //The workspace size (in bytes)
+        public readonly size_t memory;
+        //The determinism of the algorithm
+        public readonly cudnnDeterminism_t determinism;
+        //The math type provided to the algorithm
+        public readonly cudnnMathType_t mathType;
+        //Reserved space for future properties
+        public readonly int reserved1;
+        //Reserved space for future properties
+        public readonly int reserved2;
+        //Reserved space for future properties
+        public readonly int reserved3;
     }
+    #endregion
+
+    #region convoluton backward
+    public enum cudnnConvolutionBwdFilterPreference_t
+    {
+        //In this configuration, the routine cudnnGetConvolutionBackwardFilterAlgorithm() is guaranteed to return an algorithm
+        //that does not require any extra workspace to be provided by the user.
+        CUDNN_CONVOLUTION_BWD_FILTER_​NO_WORKSPACE,
+
+        //In this configuration, the routine cudnnGetConvolutionBackwardFilterAlgorithm() will return the fastest algorithm
+        //regardless how much workspace is needed to execute it.
+        CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST,
+
+        //In this configuration, the routine cudnnGetConvolutionBackwardFilterAlgorithm() will return the fastest algorithm
+        //that fits within the memory limit that the user provided.
+        CUDNN_CONVOLUTION_BWD_FILTER_​SPECIFY_WORKSPACE_LIMIT
+    }
+
     public enum cudnnConvolutionBwdFilterAlgo_t
     {
-        //This algorithm expresses the convolution as a sum of matrix product without actually explicitly f
-        //orm the matrix that holds the input tensor data. The sum is done using atomic adds operation,
+        //This algorithm expresses the convolution as a sum of matrix product without actually explicitly
+        //form the matrix that holds the input tensor data. The sum is done using atomic adds operation,
         //thus the results are non-deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0,
 
@@ -101,7 +203,7 @@ namespace SharpNet.GPU
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT,
 
         //This algorithm is similar to CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0 but uses some small workspace
-        //to precomputes some indices. The results are also non-deterministic.
+        //to precompute some indices. The results are also non-deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3,
 
         //This algorithm uses the Winograd Transform approach to compute the convolution.
@@ -113,18 +215,47 @@ namespace SharpNet.GPU
         //the input tensor into tiles. Significant workspace may be needed to store intermediate results.
         //The results are deterministic.
         CUDNN_CONVOLUTION_BWD_FILTER_ALGO_​FFT_TILING,
+    }
 
-    }
-    public enum cudnnConvolutionBwdFilterPreference_t
+    /// <summary>
+    /// cudnnConvolutionBwdFilterAlgoPerf_t is a structure containing performance results returned by cudnnFindConvolutionBackwardFilterAlgorithm()
+    /// or heuristic results returned by cudnnGetConvolutionBackwardFilterAlgorithm_v7()
+    /// see: https://docs.nvidia.com/deeplearning/sdk/cudnn-archived/cudnn_701/cudnn-user-guide/index.html#cudnnConvolutionBwdFilterAlgoPerf_t
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnConvolutionBwdFilterAlgoPerf_t
     {
-        CUDNN_CONVOLUTION_BWD_FILTER_​NO_WORKSPACE,
-        CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST,
-        CUDNN_CONVOLUTION_BWD_FILTER_​SPECIFY_WORKSPACE_LIMIT
+        //The algorithm run to obtain the associated performance metrics
+        public readonly cudnnConvolutionBwdFilterAlgo_t algo;
+        public readonly cudnnStatus_t status;
+        //The execution time of cudnnConvolutionBackwardFilter() (in milliseconds)
+        public readonly float time;
+        //The workspace size (in bytes)
+        public readonly size_t memory;
+        //The determinism of the algorithm
+        public readonly cudnnDeterminism_t determinism;
+        //The math type provided to the algorithm 
+        public readonly cudnnMathType_t mathType;
+        //Reserved space for future properties
+        public readonly int reserved1;
+        //Reserved space for future properties
+        public readonly int reserved2;
+        //Reserved space for future properties
+        public readonly int reserved3;
     }
+
     public enum cudnnConvolutionBwdDataPreference_t
     {
+        //In this configuration, the routine cudnnGetConvolutionBackwardDataAlgorithm() is guaranteed to return an algorithm
+        //that does not require any extra workspace to be provided by the user.
         CUDNN_CONVOLUTION_BWD_DATA_NO_WORKSPACE,
+
+        //In this configuration, the routine cudnnGetConvolutionBackwardDataAlgorithm() will return the fastest algorithm
+        //regardless how much workspace is needed to execute it.
         CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST,
+
+        //In this configuration, the routine cudnnGetConvolutionBackwardDataAlgorithm() will return the fastest algorithm
+        //that fits within the memory limit that the user provided.
         CUDNN_CONVOLUTION_BWD_DATA_​SPECIFY_WORKSPACE_LIMIT
     }
     public enum cudnnConvolutionBwdDataAlgo_t
@@ -136,6 +267,37 @@ namespace SharpNet.GPU
         CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD,
         CUDNN_CONVOLUTION_BWD_DATA_ALGO_​WINOGRAD_NONFUSED
     }
+    /// <summary>
+    /// cudnnConvolutionBwdDataAlgoPerf_t is a structure containing performance results returned by cudnnFindConvolutionBackwardDataAlgorithm()
+    /// or heuristic results returned by cudnnGetConvolutionBackwardDataAlgorithm_v7()
+    /// see: https://docs.nvidia.com/deeplearning/sdk/cudnn-archived/cudnn_701/cudnn-user-guide/index.html#cudnnConvolutionBwdDataAlgoPerf_t
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnConvolutionBwdDataAlgoPerf_t
+    {
+        //The algorithm run to obtain the associated performance metric
+        public readonly cudnnConvolutionBwdDataAlgo_t algo;
+        public readonly cudnnStatus_t status;
+        //The execution time of cudnnConvolutionBackwardData() (in milliseconds)
+        public readonly float time;
+        //The workspace size (in bytes)
+        public readonly size_t memory;
+        //The determinism of the algorithm
+        public readonly cudnnDeterminism_t determinism;
+        //The math type provided to the algorithm
+        public readonly cudnnMathType_t mathType;
+        //Reserved space for future properties
+        public readonly int reserved1;
+        //Reserved space for future properties
+        public readonly int reserved2;
+        //Reserved space for future properties
+        public readonly int reserved3;
+    }
+    #endregion
+
+    #endregion
+
+
     public enum cudnnActivationMode_t
     {
         CUDNN_ACTIVATION_SIGMOID,       //Selects the sigmoid function.
@@ -159,11 +321,6 @@ namespace SharpNet.GPU
         CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING,
         CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING,
         CUDNN_POOLING_MAX_DETERMINISTIC
-    }
-    public enum cudnnConvolutionMode_t
-    {
-        CUDNN_CONVOLUTION,
-        CUDNN_CROSS_CORRELATION
     }
 
     public enum cudnnSoftmaxAlgorithm_t
@@ -200,7 +357,7 @@ namespace SharpNet.GPU
             IntPtr convDesc,
             IntPtr yDesc,
             cudnnConvolutionFwdPreference_t preference,
-            uint memoryLimitInbytes,
+            uint memoryLimitInBytes,
             out cudnnConvolutionFwdAlgo_t algo);
 
         [DllImport(CUDNN64_7)]
@@ -239,6 +396,67 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdFilterPreference_t preference,
             size_t memoryLimitInBytes,
             out cudnnConvolutionBwdFilterAlgo_t algo);
+
+
+        [DllImport(CUDNN64_7)]
+        public static extern cudnnStatus_t cudnnFindConvolutionForwardAlgorithm(
+            //[in] Handle to a previously created cuDNN context
+            IntPtr cudnnHandle,
+            //[in] input tensor descriptor
+            IntPtr xDesc,
+            //[in] filter descriptor
+            IntPtr wDesc,
+            //[in] convolution descriptor
+            IntPtr convDesc,
+            //[in] output tensor descriptor
+            IntPtr yDesc,
+            //[in] The maximum number of elements to be stored in perfResults
+            int requestedAlgoCount,
+            //[out] The number of output elements stored in perfResults
+            out int returnedAlgoCount,
+            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
+            cudnnConvolutionFwdAlgoPerf_t* perfResults
+            );
+
+        [DllImport(CUDNN64_7)]
+        public static extern cudnnStatus_t cudnnFindConvolutionBackwardFilterAlgorithm(
+            //[in] Handle to a previously created cuDNN context
+            IntPtr cudnnHandle,
+            //[in] input tensor descriptor
+            IntPtr xDesc,
+            //[in] output gradient tensor descriptor
+            IntPtr dyDesc,
+            //[in] convolution descriptor
+            IntPtr convDesc,
+            //[in] filter descriptor
+            IntPtr wDesc,
+            //[in] The maximum number of elements to be stored in perfResults
+            int requestedAlgoCount,
+            //[out] The number of output elements stored in perfResults
+            out int returnedAlgoCount,
+            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
+            cudnnConvolutionBwdFilterAlgoPerf_t* perfResults
+        );
+
+        [DllImport(CUDNN64_7)]
+        public static extern cudnnStatus_t cudnnFindConvolutionBackwardDataAlgorithm(
+            //[in] Handle to a previously created cuDNN context
+            IntPtr cudnnHandle,
+            //[in] filter descriptor
+            IntPtr wDesc,
+            //[in] output tensor descriptor
+            IntPtr dyDesc,
+            //[in] convolution descriptor
+            IntPtr convDesc,
+            //[in] input tensor descriptor
+            IntPtr xDesc,
+            //[in] The maximum number of elements to be stored in perfResults
+            int requestedAlgoCount,
+            //[out] The number of output elements stored in perfResults
+            out int returnedAlgoCount,
+            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
+            cudnnConvolutionBwdDataAlgoPerf_t* perfResults
+        );
 
         [DllImport(CUDNN64_7)]
         public static extern cudnnStatus_t cudnnConvolutionBackwardFilter(
@@ -307,9 +525,9 @@ namespace SharpNet.GPU
         public static extern cudnnStatus_t cudnnDropoutForward(
             IntPtr cudnnHandle,
             IntPtr dropoutDesc,
-            IntPtr xdesc,
+            IntPtr xDesc,
             IntPtr x,
-            IntPtr ydesc,
+            IntPtr yDesc,
             IntPtr y,
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes);
@@ -323,9 +541,9 @@ namespace SharpNet.GPU
         public static extern cudnnStatus_t cudnnDropoutBackward(
             IntPtr cudnnHandle,
             IntPtr dropoutDesc,
-            IntPtr dydesc,
+            IntPtr dyDesc,
             IntPtr dy,
-            IntPtr dxdesc,
+            IntPtr dxDesc,
             IntPtr dx,
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes);
@@ -530,7 +748,7 @@ namespace SharpNet.GPU
         public static extern cudnnStatus_t cudnnSetPooling2dDescriptor(
             IntPtr poolingDesc,
             cudnnPoolingMode_t mode,
-            cudnnNanPropagation_t maxpoolingNanOpt,
+            cudnnNanPropagation_t maxPoolingNanOpt,
             int windowHeight,
             int windowWidth,
             int verticalPadding,

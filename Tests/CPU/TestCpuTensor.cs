@@ -206,7 +206,7 @@ namespace SharpNetTests.CPU
         private void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, CpuTensor<float> expectedOutput)
         {
             var outputCPU = new CpuTensor<float>(expectedOutput.Shape, "output");
-            input.Convolution(convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, outputCPU, false);
+            input.Convolution(convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, outputCPU, false, GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }
         public static CpuTensor<float> RandomOneHotTensor(int[] shape, Random rand, string description)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using SharpNet.Data;
+using SharpNet.GPU;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
 
@@ -196,14 +197,14 @@ namespace SharpNet.Layers
                 Network.StopTimer(Type() + ">0Pad", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
 
                 Network.StartTimer(Type() + ">ConvAsym", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
-                _padded_X.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution);
+                _padded_X.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference);
                 Network.StopTimer(Type() + ">ConvAsym", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
             }
             else
             {
                 //symmetric padding
                 Network.StartTimer(Type() + ">Conv", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
-                x.Convolution(Convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution);
+                x.Convolution(Convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference);
                 Network.StopTimer(Type() + ">Conv", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
             }
 
@@ -239,7 +240,7 @@ namespace SharpNet.Layers
                 // cuDNN 7.x doesn't support asymmetric padding, we'll use the padded version of input tensor 'x'
                 _padded_dX = Network.NewNotInitializedFloatTensor(_padded_X.Shape, _padded_dX, nameof(_padded_dX));
                 Network.StartTimer(Type() + ">ConvAsym", Network.BackwardPropagationTime);
-                _padded_X.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, _padded_dX, ConvolutionGradients, _isDepthwiseConvolution);
+                _padded_X.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, _padded_dX, ConvolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference);
                 Network.StopTimer(Type() + ">ConvAsym", Network.BackwardPropagationTime);
                 Network.StartTimer(Type() + ">0Pad", Network.BackwardPropagationTime);
                 dx[0]?.ZeroUnpadding(_padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
@@ -249,7 +250,7 @@ namespace SharpNet.Layers
             {
                 //symmetric padding
                 Network.StartTimer(Type() + ">Conv", Network.BackwardPropagationTime);
-                x.ConvolutionGradient(Convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution);
+                x.ConvolutionGradient(Convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference);
                 Network.StopTimer(Type() + ">Conv", Network.BackwardPropagationTime);
             }
 
@@ -495,5 +496,6 @@ namespace SharpNet.Layers
                 }
             }
         }
+        private GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference => Network.Config.ConvolutionAlgoPreference;
     }
 }

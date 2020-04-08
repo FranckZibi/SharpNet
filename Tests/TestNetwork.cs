@@ -3,6 +3,7 @@ using System.IO;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Datasets;
+using SharpNet.GPU;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
 using SharpNetTests.CPU;
@@ -37,6 +38,7 @@ namespace SharpNetTests
             param.GpuDeviceId = useGPU?0:-1;
             param.DisableLogging = true;
             var network = param.Build(nameof(TestSave), xTrain.Shape, categoryCount, false, new[] { 2, 2 }, true, 8, 1.0, null);
+            network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             testToPerform(network);
             Fit(network, xTrain,yTrain, 0.1, 10, 2);
             network.Description = "after training";

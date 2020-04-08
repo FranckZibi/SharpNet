@@ -305,7 +305,9 @@ namespace SharpNet.Data
         /// </param>
         /// </summary>
         ///
-        public abstract void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution);
+        public abstract void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft,
+            int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution,
+            GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference);
 
         /// <summary>
         /// this = bias tensor of dimension (1, channels, 1, 1)
@@ -325,19 +327,25 @@ namespace SharpNet.Data
         public abstract void ConvolutionBackwardBias(Tensor bias);
 
         /// <summary>
-        ///  this = x
+        ///  this = [in] x : the input tensor
         /// </summary>
-        /// <param name="convolution"></param>
-        /// <param name="dy"></param>
+        /// <param name="convolution">[in] convolution weights</param>
+        /// <param name="dy">[in] gradient of the output tensor 'y'</param>
         /// <param name="paddingTop">zero-padding height: number of rows of zeros implicitly concatenated onto the top of input images</param>
         /// <param name="paddingBottom">zero-padding height: number of rows of zeros implicitly concatenated onto the bottom of input images</param>
         /// <param name="paddingLeft">zero-padding width: number of columns of zeros implicitly concatenated onto the left of input images</param>
         /// <param name="paddingRight">zero-padding width: number of columns of zeros implicitly concatenated onto the right of input images</param>
         /// <param name="stride"></param>
-        /// <param name="dx"></param>
-        /// <param name="convGradient"></param>
-        /// <param name="isDepthwiseConvolution"></param>
-        public abstract void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution);
+        /// <param name="dx">[out] gradient of the input tensor 'x'</param>
+        /// <param name="convGradient">[out] gradient of the convolution weights</param>
+        /// <param name="isDepthwiseConvolution">
+        ///     true for depth wise convolution
+        ///     false for standard convolution
+        /// </param>
+        /// <param name="backwardAlgoPreference"></param>
+        public abstract void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom,
+            int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution,
+            GPUWrapper.ConvolutionAlgoPreference backwardAlgoPreference);
         #endregion
 
         //this = x

@@ -9,7 +9,7 @@ namespace SharpNet.GPU
     public enum CUDA_Versions { CUDA_10_0, CUDA_10_1 };
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
-    public class GPUWrapper : IDisposable
+    public unsafe class GPUWrapper : IDisposable
     {
         #region Private fields
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
@@ -23,6 +23,10 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr>();
         private readonly IDictionary<cudnnActivationMode_t, IntPtr> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, IntPtr>();
+        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t> cacheFindConvolutionBackwardFilterAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t>();
+        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t> cacheFindConvolutionBackwardDataAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t>();
+        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheFindConvolutionForwardAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
+
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
@@ -93,31 +97,186 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr ConvDesc(cudnnDataType_t cudaType, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount)
+        private static List<T1> ExtractFromStackalloc<T1>(T1* stackAllocated, int length) where T1 : unmanaged
         {
-            CheckThreadId();
-
-            if ((paddingTop != paddingBottom) || (paddingLeft != paddingRight))
+            var result = new List<T1>();
+            for (int i = 0; i < length; ++i)
             {
-                throw new NotImplementedException("only symmetric padding is supported (padding=[" + paddingTop + "," + paddingBottom + "," + paddingLeft + "," + paddingRight + "])");
+                result.Add(stackAllocated[i]);
             }
-
-            var key = Tuple.Create(cudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);
-            if (!cacheConvolutionDesc.TryGetValue(key, out var desc))
-            {
-                var res = CudnnWrapper.cudnnCreateConvolutionDescriptor(out desc);
-                CheckStatus(res);
-                if (groupCount != 1)
-                {
-                    res = CudnnWrapper.cudnnSetConvolutionGroupCount(desc, groupCount);
-                    CheckStatus(res);
-                }
-                res = CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, paddingTop, paddingLeft, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
-                CheckStatus(res);
-                cacheConvolutionDesc[key] = desc;
-            }
-            return desc;
+            return result;
         }
+
+        #region Convolution
+
+        public enum ConvolutionAlgoPreference
+        {
+            //fastest algorithm
+            FASTEST,
+
+            //fastest determinist algorithm
+            FASTEST_DETERMINIST,
+
+            //fastest determinist algorithm not based on Fast-Fourier or Winograd Transform
+            //this is the only supported mode on CPU
+            //it is mainly used for Convolution (forward/backward) Non Regression Tests between CPU & GPU
+            FASTEST_DETERMINIST_NO_TRANSFORM,
+
+            //Use the algorithm returned by methods:
+            //      cudnnGetConvolutionForwardAlgorithm
+            //      cudnnGetConvolutionBackwardFilterAlgorithm
+            //      cudnnGetConvolutionBackwardDataAlgorithm
+            //it is mainly used for backward compatibility
+            USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS,
+        }
+
+        /// <summary>
+        /// return the Convolution Forward Algorithm to be used
+        /// </summary>
+        /// <param name="xDesc">input tensor descriptor</param>
+        /// <param name="filterDesc">filter descriptor</param>
+        /// <param name="convDesc">convolution descriptor</param>
+        /// <param name="yDesc">output tensor descriptor</param>
+        /// <param name="forwardAlgoPreference"></param>
+        /// <returns></returns>
+        public cudnnConvolutionFwdAlgo_t ConvolutionForwardAlgorithm(IntPtr xDesc, IntPtr filterDesc, IntPtr convDesc, IntPtr yDesc, ConvolutionAlgoPreference forwardAlgoPreference)
+        {
+            var key = Tuple.Create(xDesc, yDesc, convDesc, filterDesc, forwardAlgoPreference);
+            cudnnStatus_t cudnnStatus;
+            if (cacheFindConvolutionForwardAlgorithm.TryGetValue(key, out var forwardAlgo))
+            {
+                return forwardAlgo;
+            }
+
+            if (forwardAlgoPreference == ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS)
+            {
+                cudnnStatus = CudnnWrapper.cudnnGetConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0, out forwardAlgo);
+                CheckStatus(cudnnStatus);
+                return forwardAlgo;
+            }
+
+            //we benchmark all available forward algorithms
+            int requestedAlgoCount = Enum.GetNames(typeof(cudnnConvolutionFwdAlgo_t)).Length;
+            var perfResultsStackalloc = stackalloc cudnnConvolutionFwdAlgoPerf_t[requestedAlgoCount];
+            cudnnStatus = CudnnWrapper.cudnnFindConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, requestedAlgoCount, out int returnedAlgoCount, perfResultsStackalloc);
+            CheckStatus(cudnnStatus);
+            var perfResults = ExtractFromStackalloc(perfResultsStackalloc, returnedAlgoCount).Where(p => p.status == cudnnStatus_t.CUDNN_STATUS_SUCCESS).ToList();
+
+            //we apply our algorithms constraints (deterministic, no transform, etc.)
+            if (IsDeterminist(forwardAlgoPreference))
+            {
+                perfResults = perfResults.Where(p => p.determinism == cudnnDeterminism_t.CUDNN_DETERMINISTIC).ToList();
+            }
+            if (forwardAlgoPreference == ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            {
+                perfResults = perfResults.Where(p => p.algo !=cudnnConvolutionFwdAlgo_t.CUDNN_CONVOLUTION_FWD_ALGO_FFT && p.algo !=cudnnConvolutionFwdAlgo_t.CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING && p.algo != cudnnConvolutionFwdAlgo_t.CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD && p.algo != cudnnConvolutionFwdAlgo_t.CUDNN_CONVOLUTION_FWD_ALGO_​WINOGRAD_NONFUSED).ToList();
+            }
+
+            //we choose the fastest algorithms matching the constraints
+            forwardAlgo = perfResults[0].algo;
+            cacheFindConvolutionForwardAlgorithm[key] = forwardAlgo;
+            return forwardAlgo;
+        }
+        /// <summary>
+        /// return the Convolution Backward Filter Algorithm to be used
+        /// </summary>
+        /// <param name="xDesc">input tensor descriptor</param>
+        /// <param name="dyDesc">output gradient tensor descriptor</param>
+        /// <param name="convDesc">convolution descriptor</param>
+        /// <param name="filterDesc">filter descriptor</param>
+        /// <param name="backwardAlgoPreference"></param>
+        /// <returns></returns>
+        public cudnnConvolutionBwdFilterAlgo_t ConvolutionBackwardFilterAlgorithm(IntPtr xDesc, IntPtr dyDesc, IntPtr convDesc, IntPtr filterDesc, ConvolutionAlgoPreference backwardAlgoPreference)
+        {
+            var key = Tuple.Create(xDesc, dyDesc, convDesc, filterDesc, backwardAlgoPreference);
+            cudnnStatus_t cudnnStatus;
+            if (cacheFindConvolutionBackwardFilterAlgorithm.TryGetValue(key, out var backwardFilterAlgo))
+            {
+                return backwardFilterAlgo;
+            }
+            if (backwardAlgoPreference == ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS)
+            {
+                cudnnStatus = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, filterDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0, out backwardFilterAlgo);
+                CheckStatus(cudnnStatus);
+                return backwardFilterAlgo;
+            }
+
+            //We benchmark all available backward filter algorithms
+            int requestedAlgoCount = Enum.GetNames(typeof(cudnnConvolutionBwdFilterAlgo_t)).Length;
+            var perfResultsStackalloc = stackalloc cudnnConvolutionBwdFilterAlgoPerf_t[requestedAlgoCount];
+            cudnnStatus = CudnnWrapper.cudnnFindConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, filterDesc, requestedAlgoCount, out int returnedAlgoCount, perfResultsStackalloc);
+            CheckStatus(cudnnStatus);
+            var perfResults = ExtractFromStackalloc(perfResultsStackalloc, returnedAlgoCount).Where(p => p.status == cudnnStatus_t.CUDNN_STATUS_SUCCESS).ToList();
+
+            //we apply our algorithms constraints (deterministic, no transform, etc.)
+            if (IsDeterminist(backwardAlgoPreference))
+            {
+                perfResults = perfResults.Where(p => p.determinism == cudnnDeterminism_t.CUDNN_DETERMINISTIC).ToList();
+            }
+            if (backwardAlgoPreference == ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            {
+                perfResults = perfResults.Where(p => p.algo != cudnnConvolutionBwdFilterAlgo_t.CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT && p.algo != cudnnConvolutionBwdFilterAlgo_t.CUDNN_CONVOLUTION_BWD_FILTER_ALGO_​FFT_TILING && p.algo != cudnnConvolutionBwdFilterAlgo_t.CUDNN_CONVOLUTION_BWD_FILTER_​WINOGRAD_NONFUSED).ToList();
+            }
+
+            //we choose the fastest algorithms matching the constraints
+            backwardFilterAlgo = perfResults[0].algo;
+            cacheFindConvolutionBackwardFilterAlgorithm[key] = backwardFilterAlgo;
+            return backwardFilterAlgo;
+        }
+
+        /// <summary>
+        /// return the Convolution Backward Data Algorithm to be used
+        /// </summary>
+        /// <param name="filterDesc">filter descriptor</param>
+        /// <param name="dyDesc">output gradient tensor descriptor</param>
+        /// <param name="convDesc">convolution descriptor</param>
+        /// <param name="xDesc">input tensor descriptor</param>
+        /// <param name="backwardAlgoPreference"></param>
+        /// <returns></returns>
+        public cudnnConvolutionBwdDataAlgo_t ConvolutionBackwardDataAlgorithm(IntPtr filterDesc, IntPtr dyDesc, IntPtr convDesc, IntPtr xDesc, ConvolutionAlgoPreference backwardAlgoPreference)
+        {
+            var key = Tuple.Create(filterDesc, dyDesc, convDesc, xDesc, backwardAlgoPreference);
+            cudnnStatus_t cudnnStatus;
+            if (cacheFindConvolutionBackwardDataAlgorithm.TryGetValue(key, out var backwardDataAlgo))
+            {
+                return backwardDataAlgo;
+            }
+            if (backwardAlgoPreference == ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS)
+            {
+                cudnnStatus = CudnnWrapper.cudnnGetConvolutionBackwardDataAlgorithm(CudnnHandle, filterDesc, dyDesc, convDesc, xDesc, cudnnConvolutionBwdDataPreference_t.CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST, 0, out backwardDataAlgo);
+                CheckStatus(cudnnStatus);
+                return backwardDataAlgo;
+            }
+
+            //We benchmark all available backward data algorithms
+            int requestedAlgoCount = Enum.GetNames(typeof(cudnnConvolutionBwdDataAlgo_t)).Length;
+            var perfResultsStackalloc = stackalloc cudnnConvolutionBwdDataAlgoPerf_t[requestedAlgoCount];
+            cudnnStatus = CudnnWrapper.cudnnFindConvolutionBackwardDataAlgorithm(CudnnHandle, filterDesc, dyDesc, convDesc, xDesc, requestedAlgoCount, out int returnedAlgoCount, perfResultsStackalloc);
+            CheckStatus(cudnnStatus);
+            var perfResults = ExtractFromStackalloc(perfResultsStackalloc, returnedAlgoCount).Where(p=>p.status == cudnnStatus_t.CUDNN_STATUS_SUCCESS).ToList();
+
+            //we apply our algorithms constraints (deterministic, no transform, etc.)
+            if (IsDeterminist(backwardAlgoPreference))
+            {
+                perfResults = perfResults.Where(p => p.determinism == cudnnDeterminism_t.CUDNN_DETERMINISTIC).ToList();
+            }
+            if (backwardAlgoPreference == ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            {
+                perfResults = perfResults.Where(p => p.algo != cudnnConvolutionBwdDataAlgo_t.CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT && p.algo != cudnnConvolutionBwdDataAlgo_t.CUDNN_CONVOLUTION_BWD_DATA_ALGO_​FFT_TILING && p.algo != cudnnConvolutionBwdDataAlgo_t.CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD && p.algo != cudnnConvolutionBwdDataAlgo_t.CUDNN_CONVOLUTION_BWD_DATA_ALGO_​WINOGRAD_NONFUSED).ToList();
+            }
+
+            //we choose the fastest algorithms matching the constraints
+            backwardDataAlgo = perfResults[0].algo;
+            cacheFindConvolutionBackwardDataAlgorithm[key] = backwardDataAlgo;
+
+            return backwardDataAlgo;
+        }
+
+        private static bool IsDeterminist(ConvolutionAlgoPreference algoPreference)
+        {
+            return algoPreference == ConvolutionAlgoPreference.FASTEST_DETERMINIST || algoPreference == ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
+        }
+
         public IntPtr FilterDesc(cudnnDataType_t cudaType, int[] shape, bool isDepthwiseConvolution)
         {
             CheckThreadId();
@@ -150,6 +309,35 @@ namespace SharpNet.GPU
             }
             return desc;
         }
+        public IntPtr ConvDesc(cudnnDataType_t cudaType, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount)
+        {
+            CheckThreadId();
+
+            if ((paddingTop != paddingBottom) || (paddingLeft != paddingRight))
+            {
+                throw new NotImplementedException("only symmetric padding is supported (padding=[" + paddingTop + "," + paddingBottom + "," + paddingLeft + "," + paddingRight + "])");
+            }
+
+            var key = Tuple.Create(cudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount);
+            if (!cacheConvolutionDesc.TryGetValue(key, out var desc))
+            {
+                var res = CudnnWrapper.cudnnCreateConvolutionDescriptor(out desc);
+                CheckStatus(res);
+                if (groupCount != 1)
+                {
+                    res = CudnnWrapper.cudnnSetConvolutionGroupCount(desc, groupCount);
+                    CheckStatus(res);
+                }
+                res = CudnnWrapper.cudnnSetConvolution2dDescriptor(desc, paddingTop, paddingLeft, stride, stride, 1, 1, cudnnConvolutionMode_t.CUDNN_CROSS_CORRELATION, cudaType);
+                CheckStatus(res);
+                cacheConvolutionDesc[key] = desc;
+            }
+            return desc;
+        }
+
+
+        #endregion
+
         public IntPtr DropoutDesc(double dropoutRate, IntPtr randomNumberGeneratorStatesBuffer)
         {
             CheckThreadId();
@@ -246,6 +434,9 @@ namespace SharpNet.GPU
             cacheConvolutionDesc.Clear();
             cacheActivationDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyActivationDescriptor(x)));
             cacheActivationDesc.Clear();
+            cacheFindConvolutionForwardAlgorithm.Clear();
+            cacheFindConvolutionBackwardFilterAlgorithm.Clear();
+            cacheFindConvolutionBackwardDataAlgorithm.Clear();
         }
         public void LogCopyToDeviceCall(ulong byteCopied)
         {

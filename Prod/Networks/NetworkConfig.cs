@@ -4,7 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
+using SharpNet.GPU;
 using SharpNet.Optimizers;
+using static SharpNet.GPU.GPUWrapper;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 // ReSharper disable MemberCanBePrivate.Global
@@ -34,6 +36,12 @@ namespace SharpNet.Networks
 
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
         public CompatibilityModeEnum CompatibilityMode { get; set;} = CompatibilityModeEnum.SharpNet;
+
+        /// <summary>
+        /// The convolution algo to be used
+        /// </summary>
+        public ConvolutionAlgoPreference ConvolutionAlgoPreference { get; set;} = ConvolutionAlgoPreference.FASTEST;
+
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
         public double Adam_epsilon { get; private set; }
@@ -135,6 +143,7 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + ":lambdaL2Regularization", ref errors);
             equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
             equals &= Utils.Equals(CompatibilityMode, other.CompatibilityMode, id + ":CompatibilityMode", ref errors);
+            equals &= Utils.Equals(ConvolutionAlgoPreference, other.ConvolutionAlgoPreference, id + ":ConvolutionAlgoPreference", ref errors);
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
             equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + ":AutoSaveIntervalInMinuts", ref errors);
             equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + ":SaveNetworkStatsAfterEachEpoch", ref errors);
@@ -237,6 +246,7 @@ namespace SharpNet.Networks
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
                 .Add(nameof(CompatibilityMode), (int)CompatibilityMode)
+                .Add(nameof(ConvolutionAlgoPreference), (int)ConvolutionAlgoPreference)
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
                 .Add(nameof(LogDirectory), LogDirectory)
                 .Add(nameof(AutoSaveIntervalInMinutes), AutoSaveIntervalInMinutes)
@@ -275,6 +285,7 @@ namespace SharpNet.Networks
             LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
             CompatibilityMode = (CompatibilityModeEnum)serialized[nameof(CompatibilityMode)];
+            ConvolutionAlgoPreference = (GPUWrapper.ConvolutionAlgoPreference)serialized[nameof(ConvolutionAlgoPreference)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];
             AutoSaveIntervalInMinutes =
