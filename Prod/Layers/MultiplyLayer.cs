@@ -1,13 +1,4 @@
-﻿
-// When enabled:
-//      will only use native cuDNN functions to compute Multiply Layer (forward&backward)
-//      (under testing)
-// Else:
-//      will use cuda hand coded function 
-//#define USE_NATIVE_CUDNN_MULTIPLY
-
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -87,10 +78,6 @@ namespace SharpNet.Layers
             var x2 = PreviousLayer2.y; //vector with the content of the diagonal matrix
             y.MultiplyTensor(x1, x2);
         }
-#if USE_NATIVE_CUDNN_MULTIPLY
-        private Tensor tmpdx2;
-        private Tensor tmpdx2_1_vector;
-#endif
         public override void BackwardPropagation(Tensor dy, List<Tensor> allDx)
         {
             Debug.Assert(allDx.Count == 2);
@@ -116,26 +103,7 @@ namespace SharpNet.Layers
             else
             {
                 Network.StartTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
-
-#if USE_NATIVE_CUDNN_MULTIPLY
-                tmpdx2 = Network.NewNotInitializedFloatTensor(dy.Shape, tmpdx2, nameof(tmpdx2));
-                tmpdx2.MultiplyTensor(dy, x1);
-                var shapeOneVector = new[] { dx1.Count/dx2.Count,1 };
-                if ((tmpdx2_1_vector == null)
-                    || tmpdx2_1_vector.CapacityInBytes < (ulong)(dx2.Count * tmpdx2_1_vector.TypeSize))
-                {
-                    tmpdx2_1_vector = Network.NewNotInitializedFloatTensor(shapeOneVector, tmpdx2_1_vector, nameof(tmpdx2_1_vector));
-                    tmpdx2_1_vector.NewSameValueTensor(1.0);
-                }
-                tmpdx2_1_vector.Reshape(shapeOneVector);
-                var tmpdx2Shape = tmpdx2.Shape;
-                tmpdx2.Reshape(new []{ tmpdx2_1_vector.Count/ tmpdx2_1_vector.Count, tmpdx2_1_vector.Count });
-                dx2.Dot(tmpdx2, tmpdx2_1_vector);
-                tmpdx2.Reshape(tmpdx2Shape);
-#else
                 dx2.MultiplyEachRowIntoSingleValue(dy, PreviousLayer1.y);
-#endif
-
                 Network.StopTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
             }
         }

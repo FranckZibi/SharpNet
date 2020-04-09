@@ -40,7 +40,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// The convolution algo to be used
         /// </summary>
-        public ConvolutionAlgoPreference ConvolutionAlgoPreference { get; set;} = ConvolutionAlgoPreference.FASTEST;
+        public ConvolutionAlgoPreference ConvolutionAlgoPreference { get; set;} = ConvolutionAlgoPreference.FASTEST_DETERMINIST;
 
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
@@ -81,6 +81,25 @@ namespace SharpNet.Networks
         public int AutoSaveIntervalInMinutes { get; set; } = 600;
         public bool SaveNetworkStatsAfterEachEpoch { get; set; }
         public bool SaveLossAfterEachMiniBatch { get; set; }
+
+
+        /// <summary>
+        /// name of the the first layer for which we want ot freeze the weights
+        /// if 'FirstLayerNameToFreeze' is valid and 'LastLayerNameToFreeze' is empty
+        ///     we'll freeze all layers in the network from 'FirstLayerNameToFreeze' to the last network layer
+        /// if both 'FirstLayerNameToFreeze' and 'LastLayerNameToFreeze' are valid
+        ///     we'll freeze all layers in the network between 'FirstLayerNameToFreeze' and 'LastLayerNameToFreeze'
+        /// if 'FirstLayerNameToFreeze' is empty and 'LastLayerNameToFreeze' is valid
+        ///     we'll freeze all layers from the start of the network to layer 'LastLayerNameToFreeze'
+        /// if both 'FirstLayerNameToFreeze' and 'LastLayerNameToFreeze' are empty
+        ///     no layers will be freezed
+        /// </summary>
+        public string FirstLayerNameToFreeze { get; set; } = "";
+        /// <summary>
+        /// name of the the last layer for which we want to freeze the weights
+        /// </summary>
+        public string LastLayerNameToFreeze { get; set; } = "";
+
         public string LogDirectory { get; } = DefaultLogDirectory;
         public static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet");
         public static string DefaultDataDirectory => Path.Combine(DefaultLogDirectory, "Data");

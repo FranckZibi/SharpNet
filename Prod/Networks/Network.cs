@@ -504,6 +504,25 @@ namespace SharpNet.Networks
             result += "Total params: " + TotalParams;
             return result;
         }
+
+        /// <summary>
+        /// return the index of the layer whose name is 'layerName' or -1 if there is no such layer
+        /// </summary>
+        /// <param name="layerName">the layer name for which we want to know the layer index</param>
+        /// <returns></returns>
+        private int LayerNameToLayerIndex(string layerName)
+        {
+            for (var layerIndex = 0; layerIndex < Layers.Count; layerIndex++)
+            {
+                var layer = Layers[layerIndex];
+                if (string.Equals(layer.LayerName, layerName??"", StringComparison.OrdinalIgnoreCase))
+                {
+                    return layerIndex;
+                }
+            }
+            return -1;
+        }
+
         private string SummaryWithConnectedTo()
         {
             const int firstColumnWidth = 32;
@@ -722,6 +741,29 @@ namespace SharpNet.Networks
             return false;
         }
 
+        private void FreezeSelectedLayers()
+        {
+            var firstLayerIndexToFreeze = LayerNameToLayerIndex(Config.FirstLayerNameToFreeze);
+            var lastLayerIndexToFreeze = LayerNameToLayerIndex(Config.LastLayerNameToFreeze);
+            //by default, all layers are trainable
+            Layers.ForEach(l => l.Trainable = true);
+            if (firstLayerIndexToFreeze == -1 && lastLayerIndexToFreeze >= 0)
+            {
+                //layers up to 'lastLayerIndexToFreeze' will be freezed (not trainable)
+                Layers.Take(lastLayerIndexToFreeze+1).ToList().ForEach(l => l.Trainable = false);
+                Info("Freezing first " + (lastLayerIndexToFreeze + 1) + " layers (between " + Layers[0].LayerName + " and " + Config.LastLayerNameToFreeze + ")");
+            } else if (firstLayerIndexToFreeze >= 0 && lastLayerIndexToFreeze == -1)
+            {
+                //layers from 'firstLayerIndexToFreeze' to the end of the layers will be freezed (not trainable)
+                Layers.Skip(firstLayerIndexToFreeze).ToList().ForEach(l => l.Trainable = false);
+                Info("Freezing last " + (Layers.Count-firstLayerIndexToFreeze) + " layers (between " + Config.FirstLayerNameToFreeze + " and " + Layers.Last().LayerName +")");
+            } else if (firstLayerIndexToFreeze >= 0 && lastLayerIndexToFreeze >= 0)
+            {
+                //layers between 'firstLayerIndexToFreeze' and 'lastLayerIndexToFreeze' will be freezed (not trainable)
+                Layers.Skip(firstLayerIndexToFreeze).Take(lastLayerIndexToFreeze- firstLayerIndexToFreeze+1).ToList().ForEach(l => l.Trainable = false);
+                Info("Freezing " + (lastLayerIndexToFreeze - firstLayerIndexToFreeze + 1) + " layers (between " + Config.FirstLayerNameToFreeze + " and " + Config.LastLayerNameToFreeze + ")");
+            }
+        }
 
         public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int preferredMiniBatchSize, IDataSet testDataSetCpuIfAny)
         {
@@ -729,11 +771,11 @@ namespace SharpNet.Networks
             {
                 Debug.Assert(Config.TypeSize == trainingDataSetCpu.TypeSize);
                 Debug.Assert(learningRateComputer != null);
-                
-
                 _spInternalFit.Start();
-
                 StartTimer("Fit_Prepare", ForwardPropagationTrainingTime);
+
+                FreezeSelectedLayers();
+
 
                 CheckInput(trainingDataSetCpu, testDataSetCpuIfAny, learningRateComputer, numEpochs, preferredMiniBatchSize);
                 
@@ -828,7 +870,11 @@ namespace SharpNet.Networks
                     {
                         Info(GpuWrapper.MemoryInfo());
                     }
-                    LogDebug(ProfilingComments());
+                    //if it is the last epoch, we'll save Layer KPI
+                    if (epoch == numEpochs)
+                    {
+                        LogDebug(LayersKpi());
+                    }
 
                     #region we save stats about the just finished epoch
                     var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracyForEpoch.Item1, trainLossAndAccuracyForEpoch.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
@@ -973,16 +1019,16 @@ namespace SharpNet.Networks
 
 
         #region profiling
-        private string ProfilingComments()
+        private string LayersKpi()
         {
             var totalSeconds = _spInternalFit.Elapsed.TotalSeconds;
             var result = "Took " + Math.Round(totalSeconds, 1) + "s";
             result += " (Loss:" + Math.Round(100 * _swComputeLoss.Elapsed.TotalSeconds / totalSeconds, 0) + "%+Accuracy:"+ Math.Round(100 * _swComputeAccuracy.Elapsed.TotalSeconds / totalSeconds, 0) +"%])"+ Environment.NewLine;
-            result += ProfilingByLayerType(totalSeconds);
+            result += KpiByLayerType(totalSeconds);
             return result;
         }
 
-        private string ProfilingByLayerType(double totalSeconds)
+        private string KpiByLayerType(double totalSeconds)
         {
             double PercentageOfTimeTaken(IDictionary<string, Stopwatch> layerTypeToTimer, string layerType)
             {
@@ -999,11 +1045,8 @@ namespace SharpNet.Networks
                 var parentTuple = values.FirstOrDefault(t => t.Item1 == parent);
                 return parentTuple==null?0:parentTuple.Item2 + parentTuple.Item3 + parentTuple.Item4 + parentTuple.Item5;
             }
-
-
-            List<Tuple<string, double, double, double, double>> data = new List<Tuple<string, double, double, double, double>>();
+            var data = new List<Tuple<string, double, double, double, double>>();
             var separatingLine = new string('=', 100);
-
             var allKeys = ForwardPropagationTrainingTime.Keys.Union(BackwardPropagationTime.Keys).Union(ForwardPropagationInferenceTime.Keys).Union(UpdateWeightsTime.Keys).ToList();
             foreach (var layerType in allKeys)
             {
@@ -1014,16 +1057,16 @@ namespace SharpNet.Networks
             var result = separatingLine + Environment.NewLine;
             result += "LayerName              Forward(Training)  Backward(Training)  Forward(Inference)        UpdateHeight" + Environment.NewLine;
             result += separatingLine + Environment.NewLine;
-            result += string.Join(Environment.NewLine, data.Select(d => ProfilingByLayerTypeSingleLine(d.Item1, d.Item2, d.Item3, d.Item4, d.Item5))) + Environment.NewLine;
+            result += string.Join(Environment.NewLine, data.Select(d => KpiByLayerTypeSingleLine(d.Item1, d.Item2, d.Item3, d.Item4, d.Item5))) + Environment.NewLine;
             //we compute the total by column
             result += separatingLine+Environment.NewLine;
             var dataWithoutDuplicate = data.Where(t => !t.Item1.Contains(">")).ToList();
-            result += ProfilingByLayerTypeSingleLine("", dataWithoutDuplicate.Select(t => t.Item2).Sum(), dataWithoutDuplicate.Select(t => t.Item3).Sum(), dataWithoutDuplicate.Select(t => t.Item4).Sum(), dataWithoutDuplicate.Select(t => t.Item5).Sum()) + Environment.NewLine;
+            result += KpiByLayerTypeSingleLine("", dataWithoutDuplicate.Select(t => t.Item2).Sum(), dataWithoutDuplicate.Select(t => t.Item3).Sum(), dataWithoutDuplicate.Select(t => t.Item4).Sum(), dataWithoutDuplicate.Select(t => t.Item5).Sum()) + Environment.NewLine;
             result += separatingLine + Environment.NewLine;
             return result;
         }
 
-        private static string ProfilingByLayerTypeSingleLine(string layerType, double forwardPropagationTraining, double forwardPropagationInference, double backwardPropagation, double totalUpdateWeights)
+        private static string KpiByLayerTypeSingleLine(string layerType, double forwardPropagationTraining, double forwardPropagationInference, double backwardPropagation, double totalUpdateWeights)
         {
             string AsDisplayString(double d)
             {
@@ -1055,7 +1098,6 @@ namespace SharpNet.Networks
             layerTypeToStopWatch[key].Stop();
         }
         #endregion
-
 
         private void UpdateWeights(double learningRate)
         {
@@ -1199,20 +1241,18 @@ namespace SharpNet.Networks
                 #if DEBUG
                 const int profilingStatThresholdInSeconds = 30;
                 #else
-                const int profilingStatThresholdInSeconds = 5 * 60;
+                const int profilingStatThresholdInSeconds = 5*60;
                 #endif
                 if ((DateTime.Now-lastStatsUpdate).TotalSeconds> profilingStatThresholdInSeconds)
                 {
                     var percentageDoneInEpoch = ((double) nbProcessed) / entireBatchSize;
                     var secondsSinceStartOfEpoch = (DateTime.Now - miniBatchGradientDescentStart).TotalSeconds;
                     var expectedSecondsToPerformEntireEpoch = secondsSinceStartOfEpoch / percentageDoneInEpoch;
-
                     Info("Epoch " + epoch + " in progress: " + Math.Round(100.0* percentageDoneInEpoch, 1) + "% performed ("+ Math.Round(secondsSinceStartOfEpoch, 0) + "s/"+Math.Round(expectedSecondsToPerformEntireEpoch,0)+"s)");
                     if (UseGPU)
                     {
                         LogDebug(GpuWrapper.MemoryInfo());
                     }
-                    LogDebug(ProfilingComments());
                     lastStatsUpdate = DateTime.Now;
                 }
             }

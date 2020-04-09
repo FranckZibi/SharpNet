@@ -1,12 +1,4 @@
-﻿
-// When enabled:
-//      will only use native cuDNN functions to compute Swish Activation (forward&backward)
-//      (under testing)
-// Else:
-//      will use cuda hand coded function 
-//#define USE_NATIVE_CUDNN_SWISH
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -158,10 +150,6 @@ namespace SharpNet.GPU
         }
 
 
-#if USE_NATIVE_CUDNN_SWISH
-        //under testing: new way of computing swish using only native cuDNN functions
-        private Tensor tmpTensorForActivation;
-#endif
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)
         {
             AssertIsNotDisposed();
@@ -185,16 +173,8 @@ namespace SharpNet.GPU
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
                 // y = x * sigmoid(x) 
-#if USE_NATIVE_CUDNN_SWISH
-                //under testing: new way of computing swish using only native cuDNN functions
-                //we'll store in 'tmpTensorForActivation' sigmoid(x)
-                tmpTensorForActivation = NewNotInitializedFloatTensor(y.Shape, tmpTensorForActivation, nameof(tmpTensorForActivation), Wrapper);
-                x.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, tmpTensorForActivation);
-                y.MultiplyTensor(x, tmpTensorForActivation);
-#else
                 ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, y);
                 y.Update_Multiply_By_x(this);
-#endif
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
             else
@@ -225,21 +205,8 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
-#if USE_NATIVE_CUDNN_SWISH
-                //under testing: new way of computing swish using only native cuDNN functions
-                //we know that 'x.tmpTensorForActivation' contains sigmoid(x)
-                var sigmoidX = ((GPUTensor<float>)x).tmpTensorForActivation;
-                var sigmoidActivationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
-                // dx = x* (sigmoid_x * (1 - sigmoid_x)
-                res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, sigmoidActivationDesc, one, yDesc, sigmoidX, dyDesc, x /*dy*/, xDesc, x, zero, dxDesc, dx);
-                CheckStatus(res);
-                // dx = sigmoid_x + x* (sigmoid_x * (1 - sigmoid_x)
-                dx.AddTensor(1, sigmoidX, 1);
-                dx.Update_Multiply_By_x(dy);
-#else
                 Wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx });
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
-#endif
             }
             else
             {
