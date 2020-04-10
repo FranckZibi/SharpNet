@@ -20,12 +20,12 @@ namespace SharpNet.Datasets
         /// <summary>
         /// buffer with all original elements (no data augmentation) in the order needed for the current mini batch 
         /// </summary>
-        private CpuTensor<float> xOriginalNotAugmentedMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, nameof(xOriginalNotAugmentedMiniBatchCpu));
+        private CpuTensor<float> xOriginalNotAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xOriginalNotAugmentedMiniBatch));
         /// <summary>
         /// buffer with all augmented elements in the order needed for the current mini batch 
         /// </summary>
-        private CpuTensor<float> xBufferMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, nameof(xBufferMiniBatchCpu));
-        private CpuTensor<float> yBufferMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, nameof(yBufferMiniBatchCpu));
+        private CpuTensor<float> xDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xDataAugmentedMiniBatch));
+        private CpuTensor<float> yDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(yDataAugmentedMiniBatch));
         /// <summary>
         /// the miniBatch Id associated with the above xBufferMiniBatchCpu & yBufferMiniBatchCpu tensors
         /// or -1 if those tensors are empty
@@ -105,9 +105,9 @@ namespace SharpNet.Datasets
             }
 
             Debug.Assert(xMiniBatch.Shape.Length >= 1);
-            xBufferMiniBatchCpu.CopyTo(xMiniBatch.AsCpu<float>());
+            xDataAugmentedMiniBatch.CopyTo(xMiniBatch.AsCpu<float>());
             Debug.Assert(xMiniBatch.Shape.Length >= 1);
-            yBufferMiniBatchCpu.CopyTo(yMiniBatch.AsCpu<float>());
+            yDataAugmentedMiniBatch.CopyTo(yMiniBatch.AsCpu<float>());
 
             //uncomment to store data augmented pictures
             //if (isTraining && (firstIndexInShuffledElementId == 0))
@@ -242,12 +242,12 @@ namespace SharpNet.Datasets
         public int[] Y_Shape => new[] { Count, CategoryCount };
         public void Dispose()
         {
-            xOriginalNotAugmentedMiniBatchCpu?.Dispose();
-            xOriginalNotAugmentedMiniBatchCpu = null;
-            xBufferMiniBatchCpu?.Dispose();
-            xBufferMiniBatchCpu = null;
-            yBufferMiniBatchCpu?.Dispose();
-            yBufferMiniBatchCpu = null;
+            xOriginalNotAugmentedMiniBatch?.Dispose();
+            xOriginalNotAugmentedMiniBatch = null;
+            xDataAugmentedMiniBatch?.Dispose();
+            xDataAugmentedMiniBatch = null;
+            yDataAugmentedMiniBatch?.Dispose();
+            yDataAugmentedMiniBatch = null;
             threadParameters = null;
             for (int i = 0; i < 1000; ++i)
             {
@@ -387,16 +387,16 @@ namespace SharpNet.Datasets
 
             //we initialize 'xOriginalNotAugmentedMiniBatchCpu' with all the original (not augmented elements)
             //contained in the mini batch
-            xOriginalNotAugmentedMiniBatchCpu.Reshape(xMiniBatchShape);
+            xOriginalNotAugmentedMiniBatch.Reshape(xMiniBatchShape);
             //we'll first create mini batch input in a local CPU buffer, then copy them in xMiniBatch/yMiniBatch
-            xBufferMiniBatchCpu.Reshape(xMiniBatchShape);
-            yBufferMiniBatchCpu.Reshape(yMiniBatchShape);
-            yBufferMiniBatchCpu.ZeroMemory();
+            xDataAugmentedMiniBatch.Reshape(xMiniBatchShape);
+            yDataAugmentedMiniBatch.Reshape(yMiniBatchShape);
+            yDataAugmentedMiniBatch.ZeroMemory();
 
             int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstIndexInShuffledElementId + miniBatchIdx];
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu));
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch));
 
-            Debug.Assert(AreCompatible_X_Y(xBufferMiniBatchCpu, yBufferMiniBatchCpu));
+            Debug.Assert(AreCompatible_X_Y(xDataAugmentedMiniBatch, yDataAugmentedMiniBatch));
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
             ImageStatistic MiniBatchIdxToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx));
 
@@ -405,12 +405,14 @@ namespace SharpNet.Datasets
             if (!dataAugmentationConfig.UseDataAugmentation || (epoch == 1) || !isTraining)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
-                xOriginalNotAugmentedMiniBatchCpu.CopyTo(xBufferMiniBatchCpu);
+                xOriginalNotAugmentedMiniBatch.CopyTo(xDataAugmentedMiniBatch);
             }
             else
             {
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
+                //a temporary buffer used to construct the data augmented pictures
+                var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(xDataAugmentedMiniBatch.Shape, "xBufferForDataAugmentedMiniBatc");
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
             }
             alreadyComputedMiniBatchId = miniBatchId;
         }

@@ -75,7 +75,7 @@ namespace SharpNet.Datasets
             Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
         }
 
-        public static void LoaAllFileAt(string path, CpuTensor<byte> x, CpuTensor<byte> categoryBytes, int indexFirst)
+        private static void LoaAllFileAt(string path, CpuTensor<byte> x, CpuTensor<byte> categoryBytes, int indexFirst)
         {
             int bytesInSingleElement = x.MultDim0 + 1;
 

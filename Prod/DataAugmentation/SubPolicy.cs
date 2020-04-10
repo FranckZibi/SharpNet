@@ -11,22 +11,25 @@ namespace SharpNet.DataAugmentation
     {
         public static void Apply(List<Operation> subPolicy,
             int indexInMiniBatch,
-            CpuTensor<float> xInputMiniBatch,
-            CpuTensor<float> xOutputMiniBatch,
-            CpuTensor<float> yMiniBatch,
-            Func<int, int> indexInMiniBatchToCategoryIndex,
-            ImageDataGenerator.FillModeEnum fillMode)
+            CpuTensor<float> xOriginalMiniBatch,
+            CpuTensor<float> xDataAugmentedMiniBatch,
+            CpuTensor<float> yDataAugmentedMiniBatch,
+            Func<int, int> indexInOriginalMiniBatchToCategoryIndex,
+            ImageDataGenerator.FillModeEnum fillMode,
+            CpuTensor<float> xBufferForDataAugmentedMiniBatch)
         {
-            Debug.Assert(xInputMiniBatch.SameShape(xOutputMiniBatch));
+            Debug.Assert(xOriginalMiniBatch.SameShape(xDataAugmentedMiniBatch));
+            Debug.Assert(xBufferForDataAugmentedMiniBatch != null);
+            Debug.Assert(xDataAugmentedMiniBatch.SameShape(xBufferForDataAugmentedMiniBatch));
             if (subPolicy.Count == 0)
             {
-                xInputMiniBatch.CopyTo(xOutputMiniBatch);
+                xOriginalMiniBatch.CopyTo(xDataAugmentedMiniBatch);
                 return;
             }
-            var nbRows = xInputMiniBatch.Shape[2];
-            var nbCols = xInputMiniBatch.Shape[3];
-            var previous = (subPolicy.Count % 2 == 1)? new CpuTensor<float>(xOutputMiniBatch.Shape, "buffer"): xOutputMiniBatch;
-            var next = (subPolicy.Count % 2 == 1)? xOutputMiniBatch:new CpuTensor<float>(xOutputMiniBatch.Shape, "buffer");
+            var nbRows = xOriginalMiniBatch.Shape[2];
+            var nbCols = xOriginalMiniBatch.Shape[3];
+            var previous = (subPolicy.Count % 2 == 1)? xBufferForDataAugmentedMiniBatch : xDataAugmentedMiniBatch;
+            var next = (subPolicy.Count % 2 == 1)? xDataAugmentedMiniBatch: xBufferForDataAugmentedMiniBatch;
             double unconvertCX =0, unconvertAX = 0, unconvertBX = 0, unconvertCY = 0, unconvertAY = 0, unconvertBY = 0;
 
             for (int i = 0; i < subPolicy.Count; ++i)
@@ -47,7 +50,7 @@ namespace SharpNet.DataAugmentation
                     unconvertCY += 1e-8;
                 }
 
-                for (int channel = 0; channel < xInputMiniBatch.Shape[1]; ++channel)
+                for (int channel = 0; channel < xOriginalMiniBatch.Shape[1]; ++channel)
                 {
                     for (int rowOutput = 0; rowOutput < nbRows; ++rowOutput)
                     {
@@ -88,7 +91,7 @@ namespace SharpNet.DataAugmentation
                                 Debug.Assert(colInput >= 0 && colInput < nbCols);
                             }
 
-                            var realPrevious = (i == 0) ? xInputMiniBatch : previous;
+                            var realPrevious = (i == 0) ? xOriginalMiniBatch : previous;
                             var augmentedValue = policy.AugmentedValue(indexInMiniBatch, channel, realPrevious, rowInput, colInput, next, rowOutput, colOutput);
                             next[outputPictureIdx + colOutput] = augmentedValue;
                         }
@@ -98,7 +101,7 @@ namespace SharpNet.DataAugmentation
                 previous = next;
                 next = tmp;
             }
-            subPolicy.ForEach(x => x.UpdateY(yMiniBatch, indexInMiniBatch, indexInMiniBatchToCategoryIndex));
+            subPolicy.ForEach(x => x.UpdateY(yDataAugmentedMiniBatch, indexInMiniBatch, indexInOriginalMiniBatchToCategoryIndex));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

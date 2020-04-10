@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
-using SharpNet.GPU;
 using SharpNet.Optimizers;
 using static SharpNet.GPU.GPUWrapper;
 // ReSharper disable UnusedMember.Global
@@ -304,7 +303,7 @@ namespace SharpNet.Networks
             LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
             CompatibilityMode = (CompatibilityModeEnum)serialized[nameof(CompatibilityMode)];
-            ConvolutionAlgoPreference = (GPUWrapper.ConvolutionAlgoPreference)serialized[nameof(ConvolutionAlgoPreference)];
+            ConvolutionAlgoPreference = (ConvolutionAlgoPreference)serialized[nameof(ConvolutionAlgoPreference)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];
             AutoSaveIntervalInMinutes =

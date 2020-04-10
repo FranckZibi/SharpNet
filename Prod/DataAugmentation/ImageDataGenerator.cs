@@ -30,10 +30,11 @@ namespace SharpNet.DataAugmentation
             _config = config;
         }
 
+
         private List<Operation> GetSubPolicy(int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
-            Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
+            Func<int, ImageStatistic> indexInOriginalMiniBatchToImageStatistic,
             Random rand)
         {
             Debug.Assert(_config.WidthShiftRangeInPercentage >= 0);
@@ -49,21 +50,21 @@ namespace SharpNet.DataAugmentation
             switch (_config.DataAugmentationType)
             {
                 case DataAugmentationEnum.DEFAULT:
-                    return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic, rand);
+                    return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, _config.WidthShiftRangeInPercentage, _config.HeightShiftRangeInPercentage, _config.CutoutPatchPercentage, _config.AlphaCutMix, _config.AlphaMixup).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, _config.WidthShiftRangeInPercentage, _config.HeightShiftRangeInPercentage, _config.CutoutPatchPercentage, _config.AlphaCutMix, _config.AlphaMixup).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 1.0, 0).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 1.0, 0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 0, 1.0).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 0, 1.0).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicyImageNet();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicyImageNet();
                 case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicySVHN();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0).GetSubPolicySVHN();
                 case DataAugmentationEnum.RAND_AUGMENT:
-                    return new RandAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).CreateSubPolicy(_config.RandAugment_N, _config.RandAugment_M);
+                    return new RandAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).CreateSubPolicy(_config.RandAugment_N, _config.RandAugment_M);
                 case DataAugmentationEnum.NO_AUGMENTATION:
                     return new List<Operation>();
                 default:
@@ -152,17 +153,19 @@ namespace SharpNet.DataAugmentation
             int indexInMiniBatch, 
             CpuTensor<float> xOriginalMiniBatch,
             CpuTensor<float> xDataAugmentedMiniBatch, 
-            CpuTensor<float> yMiniBatch,
-            Func<int, int> indexInMiniBatchToCategoryIndex,
-            Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
+            CpuTensor<float> yDataAugmentedMiniBatch,
+            Func<int, int> indexInOriginalMiniBatchToCategoryIndex,
+            Func<int, ImageStatistic> indexInOriginalMiniBatchToImageStatistic,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
-            Random rand)
+            Random rand,
+            CpuTensor<float> xBufferForDataAugmentedMiniBatch //a temporary buffer used in the mini batch
+            )
         {
-            var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInMiniBatchToImageStatistic, rand);
+            var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
 #if DEBUG
             OperationHelper.CheckIntegrity(subPolicy);
 #endif
-            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yMiniBatch, indexInMiniBatchToCategoryIndex, _config.FillMode);
+            SubPolicy.Apply(subPolicy, indexInMiniBatch, xOriginalMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, indexInOriginalMiniBatchToCategoryIndex, _config.FillMode, xBufferForDataAugmentedMiniBatch);
         }
 
         public static bool IsEnabled(double probability, Random rand)
