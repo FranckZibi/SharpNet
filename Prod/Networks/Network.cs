@@ -796,6 +796,29 @@ namespace SharpNet.Networks
             }
         }
 
+
+        /// <summary>
+        /// Here is a summary of what is used at each step ('forward pass' / 'backward pass' / 'weights update' of the training
+        /// 'X'  : input tensor of each layer
+        /// 'dX' : gradient of the input tensor
+        /// 'Y'  : output tensor of each layer
+        /// 'dY' : gradient of the output tensor
+        /// 'W'  : weights and bias
+        /// 'dW' : gradient of weights and bias
+        /// ===================================================================
+        /// Step           =  'X'  = 'dX'  = 'Y'   = 'dY'  = 'W'      = 'dW'  =
+        /// ===================================================================
+        /// Forward Pass   = [in]  =       = [out] =       = [in]     =       =
+        /// Backward Pass  = [in]  = [out] = [in]  = [in]  = [in]     = [out] =
+        /// Weights Update =       =       =       =       = [in,out] = [in]  =
+        /// ===================================================================
+        /// </summary>
+        /// <param name="trainingDataSetCpu"></param>
+        /// <param name="learningRateComputer"></param>
+        /// <param name="numEpochs"></param>
+        /// <param name="preferredMiniBatchSize"></param>
+        /// <param name="testDataSetCpuIfAny"></param>
+
         public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int preferredMiniBatchSize, IDataSet testDataSetCpuIfAny)
         {
             try

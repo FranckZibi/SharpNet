@@ -45,6 +45,11 @@ namespace SharpNet.Networks
 
         private double BatchNormMomentum { get; set; } = 0.99;
         private double BatchNormEpsilon { get; set; } = 0.001;
+
+        /// <summary>
+        /// name of the trained network to load the weights from.
+        /// used for transfer learning
+        /// </summary>
         public string WeightForTransferLearning { get; set; } = "";
         private cudnnActivationMode_t DefaultActivation { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
 

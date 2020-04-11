@@ -81,26 +81,51 @@ namespace SharpNetTests
         {
             var todo = new List<Action<EfficientNetBuilder, int>>
             {
-                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_EfficientNet(x);},
+                //(p,gpuDeviceId) =>{p.GpuDeviceId=gpuDeviceId;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription += "_only_probs";Train_CIFAR10_EfficientNet(p);},
+                //(p,gpuDeviceId) =>{p.GpuDeviceId=gpuDeviceId;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.ExtraDescription += "_only_top";Train_CIFAR10_EfficientNet(p);},
+                (p,gpuDeviceId) =>{p.GpuDeviceId=gpuDeviceId;p.ExtraDescription += "_no_freezing";Train_CIFAR10_EfficientNet(p);},
             };
 
             var modifiers = new List<Func<EfficientNetBuilder>>
             {
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription = "_training_only_probs_lr_0_1_batch512";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze= "block7a_project_bn";p.ExtraDescription = "_training_only_top_lr_0_1_batch512";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 70;p.ExtraDescription = "_no_freezing_lr_0_1_batch512";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.03;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_03_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.05;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_05_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.07;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_07_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.2;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_2_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.4;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_4_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.5;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_5_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.6;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_6_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.8;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_8_batch512_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batch512_310epochs";return p;},
 
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription = "_training_only_probs_lr_0_01_batch512";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze= "block7a_project_bn";p.ExtraDescription = "_training_only_top_lr_0_01_batch512";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 70;p.ExtraDescription = "_no_freezing_lr_0_01_batch512";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.03;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_03_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.05;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_05_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.07;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_07_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.2;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_2_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.4;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_4_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.5;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_5_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.6;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_6_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.8;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_8_batchAuto_310epochs";return p;},
+                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batchAuto_310epochs";return p;},
 
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription = "_training_only_probs_lr_0_1_batchAuto";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze= "block7a_project_bn";p.ExtraDescription = "_training_only_top_lr_0_1_batchAuto";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 70;p.ExtraDescription = "_no_freezing_lr_0_1_batchAuto";return p;},
-                                                                          
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription = "_training_only_probs_lr_0_01_batchAuto";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 70;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze= "block7a_project_bn";p.ExtraDescription = "_training_only_top_lr_0_01_batchAuto";return p;},
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 70;p.ExtraDescription = "_no_freezing_lr_0_01_batchAuto";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 1.0;p.NumEpochs = 150;p.ExtraDescription = "_lr_1_0_batch512_150epochs";return p;},
+                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batch512_310epochs";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_1_batch512_150epochs";return p;},
+                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batch512_310epochs";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_01_batch512_150epochs";return p;},
+                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batch512_310epochs";return p;},
+
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 1.0;p.NumEpochs = 150;p.ExtraDescription = "_lr_1_0_batchAuto_150epochs";return p;},
+                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batchAuto_310epochs";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_1_batchAuto_150epochs";return p;},
+                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batchAuto_310epochs";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_01_batchAuto_150epochs";return p;},
+                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batchAuto_310epochs";return p;},
+
             };
             PerformAllActionsInAllGpu(modifiers, todo);
         }
@@ -135,11 +160,11 @@ namespace SharpNetTests
         {
             var todo = new List<Action<WideResNetBuilder, int>>
             {
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,4);},
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,10);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
-                //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 16,8);},
+                (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,8);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10_WRN(x, 28,10);},
 
                 //(x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_DogsVsCat_WRN_TransferLearning(x);},
@@ -150,10 +175,9 @@ namespace SharpNetTests
 
             var modifiers = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.NumEpochs = 2;p.BatchSize = 128;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST; p.ExtraDescription = "_FASTEST";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.NumEpochs = 2;p.BatchSize = 128;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM; p.ExtraDescription = "_FASTEST_DETERMINIST_NO_TRANSFORM";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.NumEpochs = 2;p.BatchSize = 128;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST; p.ExtraDescription = "_FASTEST_DETERMINIST";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.NumEpochs = 2;p.BatchSize = 128;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS; p.ExtraDescription = "_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST; p.ExtraDescription = "_FASTEST_DETERMINIST_BatchSize128";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 64;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST; p.ExtraDescription = "_FASTEST_DETERMINIST_BatchSize64";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = -1;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST; p.ExtraDescription = "_FASTEST_DETERMINIST_BatchSizeAuto";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(3,5); p.ExtraDescription = "_RandAugment_3_5_";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(3,3); p.ExtraDescription = "_RandAugment_3_3_";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.DA.WithRandAugment(2,4); p.ExtraDescription = "_RandAugment_2_4_";return p;},

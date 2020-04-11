@@ -18,14 +18,18 @@ namespace SharpNet.Datasets
     {
         #region private & protected fields
         /// <summary>
-        /// buffer with all original elements (no data augmentation) in the order needed for the current mini batch 
+        /// tensor with all original elements (no data augmentation) in the order needed for the current mini batch 
         /// </summary>
-        private CpuTensor<float> xOriginalNotAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xOriginalNotAugmentedMiniBatch));
+        private readonly CpuTensor<float> xOriginalNotAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xOriginalNotAugmentedMiniBatch));
         /// <summary>
-        /// buffer with all augmented elements in the order needed for the current mini batch 
+        /// tensor with all augmented elements in the order needed for the current mini batch 
         /// </summary>
-        private CpuTensor<float> xDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xDataAugmentedMiniBatch));
-        private CpuTensor<float> yDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(yDataAugmentedMiniBatch));
+        private readonly CpuTensor<float> xDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xDataAugmentedMiniBatch));
+        /// <summary>
+        /// a temporary buffer used to construct the data augmented pictures
+        /// </summary>
+        private readonly CpuTensor<float> xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xBufferForDataAugmentedMiniBatch));
+        private readonly CpuTensor<float> yDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(yDataAugmentedMiniBatch));
         /// <summary>
         /// the miniBatch Id associated with the above xBufferMiniBatchCpu & yBufferMiniBatchCpu tensors
         /// or -1 if those tensors are empty
@@ -243,11 +247,9 @@ namespace SharpNet.Datasets
         public void Dispose()
         {
             xOriginalNotAugmentedMiniBatch?.Dispose();
-            xOriginalNotAugmentedMiniBatch = null;
             xDataAugmentedMiniBatch?.Dispose();
-            xDataAugmentedMiniBatch = null;
+            xBufferForDataAugmentedMiniBatch?.Dispose();
             yDataAugmentedMiniBatch?.Dispose();
-            yDataAugmentedMiniBatch = null;
             threadParameters = null;
             for (int i = 0; i < 1000; ++i)
             {
@@ -390,6 +392,7 @@ namespace SharpNet.Datasets
             xOriginalNotAugmentedMiniBatch.Reshape(xMiniBatchShape);
             //we'll first create mini batch input in a local CPU buffer, then copy them in xMiniBatch/yMiniBatch
             xDataAugmentedMiniBatch.Reshape(xMiniBatchShape);
+            xBufferForDataAugmentedMiniBatch.Reshape(xMiniBatchShape);
             yDataAugmentedMiniBatch.Reshape(yMiniBatchShape);
             yDataAugmentedMiniBatch.ZeroMemory();
 
@@ -410,8 +413,6 @@ namespace SharpNet.Datasets
             else
             {
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
-                //a temporary buffer used to construct the data augmented pictures
-                var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(xDataAugmentedMiniBatch.Shape, "xBufferForDataAugmentedMiniBatc");
                 Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
             }
             alreadyComputedMiniBatchId = miniBatchId;
