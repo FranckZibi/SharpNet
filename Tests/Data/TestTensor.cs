@@ -12,7 +12,7 @@ namespace SharpNetTests.Data
     [TestFixture]
     public class TestTensor
     {
-        private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
+        private static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
 
         [Test]

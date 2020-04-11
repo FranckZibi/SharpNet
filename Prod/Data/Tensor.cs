@@ -418,7 +418,7 @@ namespace SharpNet.Data
         /// <param name="dx">[out] gradient of the input</param>
         /// <param name="scale">[in] scale (=gammas) tensor</param>
         /// <param name="scaleGradient">[out] gradient of the 'scale' tensor</param>
-        /// <param name="biasGradient">[in] gradient of the 'bias' tensor</param>
+        /// <param name="biasGradient">[out] gradient of the 'bias' tensor</param>
         /// <param name="mode"></param>
         /// <param name="epsilon"></param>
         /// <param name="meanBuffer">[in] mean of the input 'x' tensor</param>

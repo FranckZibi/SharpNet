@@ -29,7 +29,7 @@ namespace SharpNet.GPU
 
         #region private fields
         private readonly GPUWrapper _gpu;
-        private readonly Dictionary<string, CudaKernel> _kernelSinglePrecision = new Dictionary<string, CudaKernel>();
+        private readonly Dictionary<string, CudaKernel> _kernels = new Dictionary<string, CudaKernel>();
         #endregion
 
         public KernelManager(GPUWrapper gpu)
@@ -60,7 +60,7 @@ namespace SharpNet.GPU
         }
         public void RunKernel(string kernelName, int count, object[] parameterLists)
         {
-            var kernel = _kernelSinglePrecision[kernelName];
+            var kernel = _kernels[kernelName];
 
             var blocksPerGrid_ThreadsPerBlock = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize);
             kernel.BlocksPerGrid = blocksPerGrid_ThreadsPerBlock.Item1;
@@ -136,6 +136,8 @@ namespace SharpNet.GPU
         {
             Dispose(false);
         }
+        // TODO dispose the instantiated kernels (field _kernels.Values)
+        // ReSharper disable once MemberCanBeMadeStatic.Local
         private void Dispose(bool disposing)
         {
             if (disposing)
@@ -151,7 +153,7 @@ namespace SharpNet.GPU
             //We load the embedded resource containing the CUDA source code
             var cudaSourceCode = Utils.LoadResourceContent(typeof(KernelManager).Assembly, embeddedResourceWithCudaSourceCode);
 
-            using (var rtc = new CudaRuntimeCompiler(cudaSourceCode, nameof(_kernelSinglePrecision)))
+            using (var rtc = new CudaRuntimeCompiler(cudaSourceCode, nameof(_kernels)))
             {
                 try
                 {
@@ -165,7 +167,7 @@ namespace SharpNet.GPU
                 foreach (var kernelName in kernelNames)
                 {
                     var kernel = new CudaKernel(rtc.FatBinaryObject, kernelName);
-                    _kernelSinglePrecision[kernelName] = kernel;
+                    _kernels[kernelName] = kernel;
                 }
             }
             errorMsg = "";

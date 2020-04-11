@@ -829,7 +829,8 @@ namespace SharpNet.GPU
             return Wrapper.PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
         }
         private IntPtr ConvDesc(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount) { return Wrapper.ConvDesc(CudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount); }
-        private cudnnDataType_t CudaType => cudnnDataType_t.CUDNN_DATA_FLOAT;
+        private cudnnDataType_t CudaType { get; } = cudnnDataType_t.CUDNN_DATA_FLOAT;
+
         private IntPtr CudnnHandle => Wrapper.CudnnHandle;
         private IntPtr CublasHandle => Wrapper.CudaBlasHandle;
         private void CheckStatus(cudnnStatus_t _status)

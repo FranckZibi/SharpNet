@@ -98,7 +98,7 @@ namespace SharpNet.Networks
         /// <param name="modelName">model name</param>
         /// <param name="includeTop">whether to include the fully-connected layer at the top of the network</param>
         /// <param name="inputShape_CHW">optional shape tuple, only to be specified if `includeTop` is False.</param>
-        /// <param name="pooling">pooling: optional pooling mode for feature extraction
+        /// <param name="pooling">pooling: optional pooling mode for feature extraction (used only when 'includeTop' is false)
         /// when `includeTop` is false:
         ///       - `None`
         ///                 means that the output of the model will be the 4D tensor output of the last convolutional layer.
@@ -108,7 +108,7 @@ namespace SharpNet.Networks
         ///       - `max`
         ///                 means that global max pooling will be applied
         /// </param>
-        /// <param name="categoryCount">optional number of classes to classify images  into, only to be specified if `include_top` is True, and if no `weights` argument is specified</param>
+        /// <param name="categoryCount">optional number of classes to classify images  into, only to be specified if `includeTop` is True, and if no `weights` argument is specified</param>
         /// <returns></returns>
         public Network EfficientNet(
             float widthCoefficient,

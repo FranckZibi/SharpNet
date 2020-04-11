@@ -173,7 +173,7 @@ namespace SharpNet
         {
             return (ulong)(Utils.Product(shape) * _network.Config.TypeSize);
         }
-        private ulong CapacityInBytes(Tensor t)
+        private static ulong CapacityInBytes(Tensor t)
         {
             if (IsMock(t))
             {

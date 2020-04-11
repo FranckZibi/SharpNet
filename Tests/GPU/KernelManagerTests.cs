@@ -12,7 +12,7 @@ namespace SharpNetTests.GPU
     [TestFixture]
     public class KernelManagerTests
     {
-        private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
+        private static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
         private readonly Random _rand = new Random(0);
 
         [Test]
@@ -68,7 +68,7 @@ namespace SharpNetTests.GPU
             int nbBatchGPU = 1000;
 
             var sw = Stopwatch.StartNew();
-            for (int batchid = 0; batchid < nbBatchCpu; ++batchid)
+            for (int batchId = 0; batchId < nbBatchCpu; ++batchId)
             {
                 for (int i = 0; i < aCpu.Count; ++i)
                 {
@@ -81,7 +81,7 @@ namespace SharpNetTests.GPU
             Tensor b = bCpu.ToGPU<float>(GpuWrapper);
             Tensor resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
             sw = Stopwatch.StartNew();
-            for (int batchid = 0; batchid < nbBatchGPU; ++batchid)
+            for (int batchId = 0; batchId < nbBatchGPU; ++batchId)
             {
                 km.RunKernel("Sum", resultGpu.Count, new object[] {a, b, resultGpu});
             }

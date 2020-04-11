@@ -6,8 +6,6 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 
-// ReSharper disable UnusedMember.Global
-
 /*
 SharpNet on 8-may-2019
 LearningRate = Orig Paper
@@ -67,7 +65,6 @@ namespace SharpNet.Networks
 
         public Network DenseNet_12_40(AbstractTrainingAndTestDataSet dataSet)
         {
-            //return Network.ValueOf(@"C:\Users\fzibi\AppData\Local\Temp\Network_15576_14.txt");
             return Build(
                 nameof(DenseNet_12_40) + "_" + dataSet.Name,
                 new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
@@ -77,19 +74,6 @@ namespace SharpNet.Networks
                 false,
                 12,
                 1.0,
-                null);
-        }
-        public Network DenseNetBC_12_40(AbstractTrainingAndTestDataSet dataSet)
-        {
-            return Build(
-                nameof(DenseNetBC_12_40)+"_"+dataSet.Name,
-                new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
-                dataSet.CategoryCount,
-                false,
-                new[] { 12 / 2, 12 / 2, 12 / 2 },
-                true,
-                12,
-                0.5,
                 null);
         }
         public Network DenseNetBC_12_100(AbstractTrainingAndTestDataSet dataSet)
@@ -180,7 +164,7 @@ namespace SharpNet.Networks
         /// <param name="dropProbability"></param>
         /// <param name="lambdaL2Regularization"></param>
         /// <returns></returns>
-        private void AddDenseBlock(
+        private static void AddDenseBlock(
             Network network,
             int nbConvBlocksInDenseBlock,
             int growthRate,
@@ -205,7 +189,7 @@ namespace SharpNet.Networks
         /// <param name="dropProbability">optional value, if presents will add a Dropout layer at the end of the block</param>
         /// <param name="lambdaL2Regularization"></param>
         /// <returns></returns>
-        private void AddConvolutionBlock(Network network, int growthRate, bool bottleneck, double? dropProbability, double lambdaL2Regularization)
+        private static void AddConvolutionBlock(Network network, int growthRate, bool bottleneck, double? dropProbability, double lambdaL2Regularization)
         {
             if (bottleneck)
             {
@@ -225,7 +209,7 @@ namespace SharpNet.Networks
         /// <param name="compression"></param>
         /// <param name="lambdaL2Regularization"></param>
         /// <returns></returns>
-        private void AddTransitionBlock(Network network, double compression, double lambdaL2Regularization)
+        private static void AddTransitionBlock(Network network, double compression, double lambdaL2Regularization)
         {
             var filtersCount = network.Layers.Last().OutputShape(1)[1];
             network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(filtersCount * compression), 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)

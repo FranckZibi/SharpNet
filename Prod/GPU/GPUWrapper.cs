@@ -741,7 +741,7 @@ namespace SharpNet.GPU
                 return "";
             }
         }
-        private ulong FreeMemoryInBytes()
+        private static ulong FreeMemoryInBytes()
         {
             CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
             return freeMemoryInBytes;

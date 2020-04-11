@@ -8,7 +8,7 @@ namespace SharpNetTests.GPU
     [TestFixture]
     public class TestGpuTensor
     {
-        private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
+        private static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
         [Test]
         public void TestDot()
         {
@@ -69,14 +69,13 @@ namespace SharpNetTests.GPU
             Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
         }
 
-        private GPUTensor<float> NewFloatGPUTensor(int[] shape, float[] data, string description, GPUWrapper gpuWrapper)
+        private static GPUTensor<float> NewFloatGPUTensor(int[] shape, float[] data, string description, GPUWrapper gpuWrapper)
         {
             using (var m = new HostPinnedMemory<float>(data))
             {
                 return new GPUTensor<float>(shape, m.Pointer, description, gpuWrapper);
             }
         }
-
 
         [Test]
         public void TestOwner()
