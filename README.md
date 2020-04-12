@@ -17,7 +17,7 @@ It is targeted to make a good use of the GPU (even if it is not currently as fas
 It requires:
 - [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/)
 - [DotNetCore 3.1](https://dotnet.microsoft.com/download/dotnet-core/3.1)
-- [CUDA Toolkit 10.0 or 10.1](https://developer.nvidia.com/cuda-downloads)
+- [CUDA Toolkit 10.0,  10.1 or 10.2](https://developer.nvidia.com/cuda-downloads)
 - [CuDNN 7.6](https://developer.nvidia.com/rdp/cudnn-download)
 - [Intel MKL](https://software.intel.com/en-us/mkl)
 

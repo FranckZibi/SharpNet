@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace SharpNet.GPU
 {
-    public enum CUDA_Versions { CUDA_10_0, CUDA_10_1 };
+    public enum CUDA_Versions { CUDA_10_0, CUDA_10_1, CUDA_10_2 };
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public unsafe class GPUWrapper : IDisposable
@@ -555,6 +555,10 @@ namespace SharpNet.GPU
             if (cudaPath.ToLowerInvariant().Contains("v10.1"))
             {
                 return CUDA_Versions.CUDA_10_1;
+            }
+            if (cudaPath.ToLowerInvariant().Contains("v10.2"))
+            {
+                return CUDA_Versions.CUDA_10_2;
             }
             return CUDA_Versions.CUDA_10_0;
         }

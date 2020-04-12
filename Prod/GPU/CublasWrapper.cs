@@ -45,6 +45,7 @@ namespace SharpNet.GPU
             switch (InstalledCudaVersion)
             {
                 case CUDA_Versions.CUDA_10_1:
+                case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasCreate_v2(ref cublasHandle);
                 default:
                     return CublasWrapper_cublas64_100.cublasCreate_v2(ref cublasHandle);
@@ -55,6 +56,7 @@ namespace SharpNet.GPU
             switch (InstalledCudaVersion)
             {
                 case CUDA_Versions.CUDA_10_1:
+                case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasDestroy_v2(cublasHandle);
                 default:
                     return CublasWrapper_cublas64_100.cublasDestroy_v2(cublasHandle);
@@ -65,6 +67,7 @@ namespace SharpNet.GPU
             switch (InstalledCudaVersion)
             {
                 case CUDA_Versions.CUDA_10_1:
+                case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
                 default:
                     return CublasWrapper_cublas64_100.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
@@ -75,6 +78,7 @@ namespace SharpNet.GPU
             switch (InstalledCudaVersion)
             {
                 case CUDA_Versions.CUDA_10_1:
+                case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 default:
                     return CublasWrapper_cublas64_100.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
@@ -85,6 +89,7 @@ namespace SharpNet.GPU
             switch (InstalledCudaVersion)
             {
                 case CUDA_Versions.CUDA_10_1:
+                case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
                 default:
                     return CublasWrapper_cublas64_100.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
@@ -95,6 +100,7 @@ namespace SharpNet.GPU
             switch (InstalledCudaVersion)
             {
                 case CUDA_Versions.CUDA_10_1:
+                case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasGetVersion_v2(cublasHandle, out cublasVersion);
                 default:
                     return CublasWrapper_cublas64_100.cublasGetVersion_v2(cublasHandle, out cublasVersion);

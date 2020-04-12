@@ -62,6 +62,8 @@ namespace SharpNet.GPU
             {
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaGetDevice(out device);
+                case CUDA_Versions.CUDA_10_2:
+                    return CudartWrapper_cudart64_102.cudaGetDevice(out device);
                 default:
                     return CudartWrapper_cudart64_100.cudaGetDevice(out device);
             }
@@ -72,6 +74,8 @@ namespace SharpNet.GPU
             {
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaSetDevice(device);
+                case CUDA_Versions.CUDA_10_2:
+                    return CudartWrapper_cudart64_102.cudaSetDevice(device);
                 default:
                     return CudartWrapper_cudart64_100.cudaSetDevice(device);
             }
@@ -82,6 +86,8 @@ namespace SharpNet.GPU
             {
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaDeviceReset();
+                case CUDA_Versions.CUDA_10_2:
+                    return CudartWrapper_cudart64_102.cudaDeviceReset();
                 default:
                     return CudartWrapper_cudart64_100.cudaDeviceReset();
             }
@@ -107,6 +113,16 @@ namespace SharpNet.GPU
         [DllImport(CUDART64_101)]
         public static extern cudaError_t cudaSetDevice(int device);
         [DllImport(CUDART64_101)]
+        public static extern cudaError_t cudaDeviceReset();
+    }
+    public static class CudartWrapper_cudart64_102
+    {
+        private const string CUDART64_102 = "cudart64_102";
+        [DllImport(CUDART64_102)]
+        public static extern cudaError_t cudaGetDevice(out int device);
+        [DllImport(CUDART64_102)]
+        public static extern cudaError_t cudaSetDevice(int device);
+        [DllImport(CUDART64_102)]
         public static extern cudaError_t cudaDeviceReset();
     }
 
