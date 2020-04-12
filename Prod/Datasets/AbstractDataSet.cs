@@ -117,15 +117,15 @@ namespace SharpNet.Datasets
             //if (isTraining && (firstIndexInShuffledElementId == 0))
             //{
             //    //CIFAR10
-            //    //var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
+            //    var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
             //    //SVHN
-            //    var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
-            //    var xCpuChunkBytes = xBufferMiniBatchCpu.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
+            //    //var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
+            //    var xCpuChunkBytes = xDataAugmentedMiniBatch.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
             //    for (int i = firstIndexInShuffledElementId; i < Math.Min((firstIndexInShuffledElementId + xMiniBatch.Shape[0]), 100); ++i)
             //    {
             //        int elementId = shuffledElementId[i];
             //        var categoryIndex = ElementIdToCategoryIndex(elementId);
-            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, Path.Combine(@"C:\Users\Franck\AppData\Local\SharpNet\Train"), elementId.ToString("D5") + "_cat" + categoryIndex + "_epoch_" + epoch.ToString("D3"), "");
+            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, Path.Combine(NetworkConfig.DefaultLogDirectory, "Train"), elementId.ToString("D5") + "_cat" + categoryIndex + "_epoch_" + epoch.ToString("D3"), "");
             //    }
             //}
 
@@ -358,9 +358,6 @@ namespace SharpNet.Datasets
             UpdateStatus(ref nbPerformed);
             OriginalElementContent(elementId).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, ignoreZeroPixel);
         }
-
-
-
 
         /// <summary>
         /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the mini batch starting

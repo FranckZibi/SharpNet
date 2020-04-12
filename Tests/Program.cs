@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
 using SharpNet.GPU;
@@ -131,10 +132,11 @@ namespace SharpNetTests
         }
         private static void Train_CIFAR10_EfficientNet(EfficientNetBuilder p)
         {
-            //const int zoomFactor = 1;
+            //const int zoomFactor = 3;
             //using (var cifar10Original = new CIFAR10DataSet())
             //using (var cifar10 = new ZoomedTrainingAndTestDataSet(cifar10Original, zoomFactor, zoomFactor))
             using (var cifar10 = new CIFAR10DataSet())
+
             using (var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, cifar10.Training.InputShape_CHW))
             {
                 network.Info(network.ToString());
@@ -143,8 +145,8 @@ namespace SharpNetTests
                 //network.Layers.ForEach(l => l.Trainable = false);
                 //network.LastFrozenLayer().Trainable = true;
 
-                 // batchSize = 32 => best Learning Rate = 0.005
-                 // batchSize = 128 => best Learning Rate = 0.05
+                // batchSize = 32 => best Learning Rate = 0.005
+                // batchSize = 128 => best Learning Rate = 0.05
 
                 //network.FindBestLearningRate(cifar10.Training, 1e-7, 10, p.BatchSize);return;
 
@@ -311,7 +313,7 @@ namespace SharpNetTests
         {
             var todo = new List<Action<ResNetBuilder, int>>
             {
-                
+
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet164V2_CIFAR10);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet110V2_CIFAR10);},
                 (x,gpuDeviceId) =>{x.GpuDeviceId=gpuDeviceId;Train_CIFAR10(x, x.ResNet56V2_CIFAR10);},
@@ -435,20 +437,27 @@ namespace SharpNetTests
             }
         }
 
-      
+
 
         private static void Train_DogsVsCat_WRN_TransferLearning(WideResNetBuilder p)
         {
             int heightAndWidth = 32;
-            var dataDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train_filter_resize_32_32";
+            var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, "dogs-vs-cats", "train_filter_resize_32_32");
+
+
+
             var trainingDirectory = DogsVsCats.ValueOf(dataDirectory, heightAndWidth, heightAndWidth, null).Shuffle(new Random(0)).Take(2000);
-            using(var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
-            using(var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\WRN-16-4_20190816_1810_150.txt", p.GpuDeviceId))
-            { 
+            using (var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
+            using (var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "WRN-16-4_20190816_1810_150.txt"), p.GpuDeviceId))
+
+
+
+
+            {
                 //network.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);
                 network.SetCategoryCount(trainingDirectory.CategoryCount);
                 network.Info("training only last layer");
-                network.Layers.ForEach(l=>l.Trainable = false);
+                network.Layers.ForEach(l => l.Trainable = false);
                 network.LastFrozenLayer().Trainable = true;
                 network.EpochDatas.Clear();
                 p.NumEpochs = 150;
@@ -460,16 +469,17 @@ namespace SharpNetTests
         private static void Train_DogsVsCat_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             int heightAndWidth = 32;
-            var dataDirectory = @"C:\Users\Franck\AppData\Local\SharpNet\Data\dogs-vs-cats\train_filter_resize_32_32";
+            var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, "dogs-vs-cats", "train_filter_resize_32_32");
+
             var trainingDirectory = DogsVsCats.ValueOf(dataDirectory, heightAndWidth, heightAndWidth, null).Shuffle(new Random(0)).Take(2000);
-            using(var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
-            using(var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.CategoryCount))
-            { 
+            using (var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
+            using (var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.CategoryCount))
+            {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
             }
         }
-    
+
         /// <summary>
         /// perform as much actions as possible among 'allActionsToPerform'
         /// </summary>
@@ -477,12 +487,12 @@ namespace SharpNetTests
         /// <param name="allActionsToPerform"></param>
         private static void PerformActionsInSingleGpu(int gpuId, List<Action<int>> allActionsToPerform)
         {
-            for (;;)
+            for (; ; )
             {
                 Action<int> nexActionToPerform;
                 lock (allActionsToPerform)
                 {
-                    Console.WriteLine("GpuId#"+gpuId+" : "+ allActionsToPerform.Count+" remaining computation(s)");
+                    Console.WriteLine("GpuId#" + gpuId + " : " + allActionsToPerform.Count + " remaining computation(s)");
                     if (allActionsToPerform.Count == 0)
                     {
                         return;
@@ -514,12 +524,12 @@ namespace SharpNetTests
                 }
             }
             int nbGPUs = Math.Min(GPUWrapper.GetDeviceCount(), taskToBePerformed.Count);
-            Console.WriteLine(taskToBePerformed.Count+ " computation(s) will be done on " + nbGPUs + " GPU(s)");
+            Console.WriteLine(taskToBePerformed.Count + " computation(s) will be done on " + nbGPUs + " GPU(s)");
             var gpuTasks = new Task[nbGPUs];
-            for (int i= 0; i< nbGPUs; ++i)
+            for (int i = 0; i < nbGPUs; ++i)
             {
                 var gpuId = i;
-                gpuTasks[i] = new Task(()=> PerformActionsInSingleGpu(gpuId, taskToBePerformed));
+                gpuTasks[i] = new Task(() => PerformActionsInSingleGpu(gpuId, taskToBePerformed));
                 gpuTasks[i].Start();
             }
             Task.WaitAll(gpuTasks);

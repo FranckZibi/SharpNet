@@ -73,20 +73,17 @@ namespace SharpNet.Datasets
 
         //public static void CreateBinFile()
         //{
-        //    var matFile = @"C:\Users\Franck\AppData\Local\SharpNet\Data\SVHN\extra_32x32.mat";
-        //    //var matFile = @"C:\Users\Franck\AppData\Local\SharpNet\Data\SVHN\train_32x32.mat";
-        //    //var matFile = @"C:\Users\Franck\AppData\Local\SharpNet\Data\SVHN\test_32x32.mat";
+        //    var matFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "extra_32x32.mat");
+        //    //var matFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "train_32x32.mat");
+        //    //var matFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "test_32x32.mat");
         //    var reader = new MatReader(matFile);
-
         //    var X = reader.Read<byte[,,,]>("X");
         //    var y = reader.Read<byte[,]>("y");
-
         //    int Channels = 3;
         //    int Height = 32;
         //    int Width = 32;
-            
         //    int totalCount = y.GetLength(0);
-        //    int bytesByElement = Channels * Height * Width  + 1; //+1 to store the category associated with each element
+        //    int bytesByElement = Channels * Height * Width + 1; //+1 to store the category associated with each element
         //    int maxBytesByFile = 100 * 1024 * 1024; //100 MBytes
         //    int maxElementByFile = maxBytesByFile / bytesByElement;
         //    var bytes = new byte[Math.Min(totalCount, maxElementByFile) * bytesByElement];
@@ -107,7 +104,7 @@ namespace SharpNet.Datasets
         //        }
         //        if (idx >= bytes.Length)
         //        {
-        //            File.WriteAllBytes(@"C:\Users\Franck\AppData\Local\SharpNet\Data\SVHN\extra_batch_" + (nextFileIndex++) + ".bin", bytes);
+        //            File.WriteAllBytes(Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "extra_batch_" + (nextFileIndex++) + ".bin"), bytes);
         //            int remainingElement = totalCount - count - 1;
         //            bytes = new byte[Math.Min(remainingElement, maxElementByFile) * bytesByElement];
         //            idx = 0;

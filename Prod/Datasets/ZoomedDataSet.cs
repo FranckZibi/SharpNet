@@ -9,7 +9,7 @@ namespace SharpNet.Datasets
         private readonly IDataSet _original;
         private readonly int _heightMultiplier;
         private readonly int _widthMultiplier;
-        private readonly CpuTensor<float> _xBufferBeforeZoom;
+        private readonly CpuTensor<float> _xBufferBeforeZoom = new CpuTensor<float>(new[] { 1 }, nameof(_xBufferBeforeZoom));
         #endregion
 
         public ZoomedDataSet(IDataSet original, int heightMultiplier, int widthMultiplier)
@@ -18,33 +18,33 @@ namespace SharpNet.Datasets
             _original = original;
             _heightMultiplier = heightMultiplier;
             _widthMultiplier = widthMultiplier;
-            _xBufferBeforeZoom =  new CpuTensor<float>(new []{1,Channels, original.Height, original.Width }, nameof(_xBufferBeforeZoom));
         }
         public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
-            _original.LoadAt(subElementId, 0, _xBufferBeforeZoom, yBuffer);
-            CopyIntoWithZoom(_xBufferBeforeZoom, _heightMultiplier, _widthMultiplier, indexInBuffer, xBuffer);
+            _xBufferBeforeZoom.Reshape_ThreadSafe(_original.XMiniBatch_Shape(xBuffer.Shape[0]));
+            _original.LoadAt(subElementId, indexInBuffer, _xBufferBeforeZoom, yBuffer);
+            CopyIntoWithZoom(_heightMultiplier, _widthMultiplier, indexInBuffer, _xBufferBeforeZoom, xBuffer);
         }
 
         /// <summary>
         /// copy a 'zoomed' version of 'originalTensor' into index 'indexInBuffer' of 'xBuffer'
         /// The originalTensor will have its height multiplied by 'heightMultiplier' and width multiplied by 'widthMultiplier'
         /// </summary>
-        /// <param name="originalTensor"></param>
         /// <param name="heightMultiplier"></param>
         /// <param name="widthMultiplier"></param>
         /// <param name="indexInBuffer"></param>
+        /// <param name="xBufferBeforeZoom"></param>
         /// <param name="xBuffer"></param>
-        private static void CopyIntoWithZoom(CpuTensor<float> originalTensor, int heightMultiplier, int widthMultiplier,int indexInBuffer, CpuTensor<float> xBuffer)
+        private static void CopyIntoWithZoom(int heightMultiplier, int widthMultiplier, int indexInBuffer, CpuTensor<float> xBufferBeforeZoom, CpuTensor<float> xBuffer)
         {
-            Debug.Assert(originalTensor.Shape[1] == xBuffer.Shape[1]);
-            Debug.Assert(originalTensor.Shape[2]* heightMultiplier == xBuffer.Shape[2]);
-            Debug.Assert(originalTensor.Shape[3]* widthMultiplier == xBuffer.Shape[3]);
+            Debug.Assert(xBufferBeforeZoom.Shape[1] == xBuffer.Shape[1]);
+            Debug.Assert(xBufferBeforeZoom.Shape[2]* heightMultiplier == xBuffer.Shape[2]);
+            Debug.Assert(xBufferBeforeZoom.Shape[3]* widthMultiplier == xBuffer.Shape[3]);
             for (int c = 0; c < xBuffer.Shape[1]; ++c)
             for (int row = 0; row < xBuffer.Shape[2]; ++row)
             for (int col = 0; col < xBuffer.Shape[3]; ++col)
             {
-                xBuffer.Set(indexInBuffer,c,row,col, originalTensor.Get(0,c,row/heightMultiplier, col/widthMultiplier));
+                xBuffer.Set(indexInBuffer,c,row,col, xBufferBeforeZoom.Get(indexInBuffer, c,row/heightMultiplier, col/widthMultiplier));
             }
         }
 

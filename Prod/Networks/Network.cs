@@ -1296,12 +1296,7 @@ namespace SharpNet.Networks
                 }
                 ++blockId;
 
-                #if DEBUG
-                const int profilingStatThresholdInSeconds = 30;
-                #else
-                const int profilingStatThresholdInSeconds = 5*60;
-                #endif
-                if ((DateTime.Now-lastStatsUpdate).TotalSeconds> profilingStatThresholdInSeconds)
+                if ((DateTime.Now-lastStatsUpdate).TotalSeconds> 5*60)
                 {
                     var percentageDoneInEpoch = ((double) nbProcessed) / entireBatchSize;
                     var secondsSinceStartOfEpoch = (DateTime.Now - miniBatchGradientDescentStart).TotalSeconds;

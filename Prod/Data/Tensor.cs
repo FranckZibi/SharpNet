@@ -23,7 +23,8 @@ namespace SharpNet.Data
         #endregion
 
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
-        public bool SameShape(Tensor b) {return Shape.SequenceEqual(b.Shape);}
+        public bool SameShape(Tensor b) {return SameShape(b.Shape);}
+        public bool SameShape(int[] shape) {return Shape.SequenceEqual(shape);}
         public override string ToString()
         {
             return ToString(false);
@@ -128,6 +129,31 @@ namespace SharpNet.Data
             return new CpuTensor<float>(Shape, ContentAsFloatArray(), Description);
         }
         public abstract void Reshape(int[] newShape);
+
+
+        /// <summary>
+        /// reshape the current tensor to 'newShape' in a thread safe way
+        /// </summary>
+        /// <param name="newShape">the target shape</param>
+        public void Reshape_ThreadSafe(int[] newShape)
+        {
+            if (SameShape(newShape))
+            {
+                return;
+            }
+            lock (this)
+            {
+                if (!SameShape(newShape))
+                {
+                    Reshape(newShape);
+                }
+            }
+        }
+
+
+
+
+
 
         public static ulong OccupiedMemoryInBytes(IEnumerable<Tensor> tensors)
         {
