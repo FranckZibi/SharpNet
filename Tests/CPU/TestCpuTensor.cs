@@ -162,7 +162,10 @@ namespace SharpNetTests.CPU
             var x = RandomFloatTensor(new []{nbRows, 1}, rand, 10, 20, "x");
             var y = RandomFloatTensor(x.Shape, rand, 10, 20, "y");
             var dropoutMaskBuffer = RandomFloatTensor(x.Shape, rand, 10, 20, "dropoutMaskBuffer");
-            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutMaskBuffer);
+            DeviceMemory randomNumberGeneratorStatesBufferForGPU = null;
+            DeviceMemory dropoutReserveSpaceForGPU = null;
+            IntPtr dropoutDescriptorForGPU = IntPtr.Zero;
+            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutMaskBuffer, ref randomNumberGeneratorStatesBufferForGPU, ref dropoutReserveSpaceForGPU, ref dropoutDescriptorForGPU);
             int nbObservedZeroAfterDropout = y.Content.Count(i => Math.Abs(i) < 1e-8);
             Assert.IsTrue(nbObservedZeroAfterDropout>=minEqualToZeroAfterDropout);
             Assert.IsTrue(nbObservedZeroAfterDropout<= maxEqualToZeroAfterDropout);

@@ -7,7 +7,6 @@ namespace SharpNet.Layers
 {
     public class FlattenLayer : Layer
     {
-        public override Tensor y { get; protected set; }
         public FlattenLayer(Network network, string layerName = "") : base(network, layerName)
         {
         }
@@ -20,14 +19,13 @@ namespace SharpNet.Layers
         {
         }
         #endregion
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
-            var x = PrevLayer.y;
-            x.CopyTo(y);
+            Debug.Assert(allX.Count == 1);
+            allX[0].CopyTo(y);
         }
 
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(dx.Count == 1);
             if (PrevLayer.IsInputLayer)

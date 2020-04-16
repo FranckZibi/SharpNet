@@ -7,6 +7,9 @@ using SharpNet.Optimizers;
 
 namespace SharpNet.Layers
 {
+    /// <summary>
+    /// output shape : (batchSize, n_x)
+    /// </summary>
     public sealed class DenseLayer : Layer
     {
         #region Private fields
@@ -23,7 +26,6 @@ namespace SharpNet.Layers
         /// Can be null if bias has been disabled
         /// </summary>
         public Tensor BiasGradients { get; private set; }
-        public override Tensor y { get; protected set; }    // (batchSize, n_x)
         /// <summary>
         /// dimensionality of the output space
         /// </summary>
@@ -44,14 +46,14 @@ namespace SharpNet.Layers
             _lambdaL2Regularization = lambdaL2Regularization;
 
             //trainable params
-            Weights = Network.NewNotInitializedFloatTensor(new[] { PrevLayer.n_x, _units }, nameof(Weights));
-            Bias = Network.NewNotInitializedFloatTensor(new[] {1,  _units }, nameof(Bias));
+            Weights = GetNotInitializedFloatTensor(new[] { PrevLayer.n_x, _units }, nameof(Weights));
+            Bias = GetNotInitializedFloatTensor(new[] {1,  _units }, nameof(Bias));
             _optimizer = Network.GetOptimizer(Weights.Shape, Bias.Shape);
             ResetWeights(false);
 
             //non trainable params
-            WeightGradients = Network.NewNotInitializedFloatTensor(Weights.Shape, nameof(WeightGradients));
-            BiasGradients = Network.NewNotInitializedFloatTensor(Bias.Shape, nameof(BiasGradients));
+            WeightGradients = GetNotInitializedFloatTensor(Weights.Shape, nameof(WeightGradients));
+            BiasGradients = GetNotInitializedFloatTensor(Bias.Shape, nameof(BiasGradients));
 
             Debug.Assert(WeightGradients.SameShape(Weights));
             Debug.Assert(Bias.SameShape(BiasGradients));
@@ -104,20 +106,18 @@ namespace SharpNet.Layers
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
 
             //non trainable params
-            WeightGradients = Network.NewNotInitializedFloatTensor(Weights.Shape, nameof(WeightGradients));
-            BiasGradients = useBias ? Network.NewNotInitializedFloatTensor(Bias.Shape, nameof(BiasGradients)) : null;
+            WeightGradients = GetNotInitializedFloatTensor(Weights.Shape, nameof(WeightGradients));
+            BiasGradients = useBias ? GetNotInitializedFloatTensor(Bias.Shape, nameof(BiasGradients)) : null;
         }
         #endregion
 
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
-            var x = PrevLayer.y;
-
+            Debug.Assert(allX.Count == 1);
+            var x = allX[0];
             x.AssertIsNotDisposed();
             Weights.AssertIsNotDisposed();
             y.AssertIsNotDisposed();
-
             //We compute y = x*Weights+B
             y.Dot(x, Weights);
             if (UseBias)
@@ -126,14 +126,14 @@ namespace SharpNet.Layers
             }
         }
 
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(allX.Count == 1);
             Debug.Assert(dx.Count == 1);
-            int batchSize = y.Shape[0];
-            Debug.Assert(y.SameShape(dy));
+            int batchSize = dy.Shape[0];
 
             //we compute dW
-            var x = PrevLayer.y;
+            var x = allX[0];
             var multiplier = 1f / batchSize;
             if (Network.Config.TensorFlowCompatibilityMode)
             {
@@ -162,13 +162,12 @@ namespace SharpNet.Layers
             // we compute dx = dy * Weights.T
             dx[0].Dot(dy, false, Weights, true, 1, 0);
         }
-        public override void UpdateWeights(double learningRate)
+        public override void UpdateWeights(int batchSize, double learningRate)
         {
             if (!Trainable)
             {
                 return;
             }
-            var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Weights, WeightGradients, Bias, BiasGradients);
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)

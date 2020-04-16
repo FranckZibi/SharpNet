@@ -18,13 +18,13 @@ namespace SharpNet.Data
         public int MultDim1 { get; private set; }
         private int _multDim2;
         public bool UseGPU { get; }
-        public string Description { get; }
+        public string Description { get; set; }
         public int TypeSize { get; }
         #endregion
 
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
-        public bool SameShape(int[] shape) {return Shape.SequenceEqual(shape);}
+        protected bool SameShape(int[] shape) {return Shape.SequenceEqual(shape);}
         public override string ToString()
         {
             return ToString(false);
@@ -180,6 +180,12 @@ namespace SharpNet.Data
             return true;
         }
         public ulong CapacityInBytes { get; protected set; }
+
+        public bool HasEnoughCapacityForTensor(int[] tensorShape)
+        {
+            return ReallyNeededMemoryInBytesForShape(tensorShape) <= CapacityInBytes;
+        }
+
         public abstract void ZeroMemory();
         /// <summary>
         /// this = alpha a*b + beta*this 
@@ -458,9 +464,23 @@ namespace SharpNet.Data
         /// <param name="dropProbability"></param>
         /// <param name="isTraining"></param>
         /// <param name="dropoutRandom"></param>
-        /// <param name="dropoutMaskBuffer"></param>
-        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBuffer);
-        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask);
+        /// <param name="dropoutMaskBufferForCpu">only used for Cpu (null for GPU)</param>
+        /// <param name="randomNumberGeneratorStatesBufferForGPU">only used for GPU (null for Cpu)</param>
+        /// <param name="dropoutReserveSpaceForGPU">only used for GPU (null for Cpu)</param>
+        /// <param name="dropoutDescriptorForGPU">only used for GPU (null for Cpu)</param>
+        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBufferForCpu, ref DeviceMemory randomNumberGeneratorStatesBufferForGPU, ref DeviceMemory dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="dy"></param>
+        /// <param name="dx"></param>
+        /// <param name="dropProbability"></param>
+        /// <param name="dropoutMaskBufferForCpu">only used for Cpu (null for GPU)</param>
+        /// <param name="randomNumberGeneratorStatesBufferForGPU">only used for GPU (null for Cpu)</param>
+        /// <param name="dropoutReserveSpaceForGPU">only used for GPU (null for Cpu)</param>
+        /// <param name="dropoutDescriptorForGPU">only used for GPU (null for Cpu)</param>
+        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutMaskBufferForCpu, DeviceMemory randomNumberGeneratorStatesBufferForGPU, DeviceMemory dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU);
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
@@ -514,7 +534,7 @@ namespace SharpNet.Data
             TypeSize = typeSize;
             RecomputeMultDim();
         }
-        protected ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
+        public ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
         protected void CheckConcatenate(Tensor a, Tensor b)
         {
             Debug.Assert(Shape.Length >= 2);
@@ -543,7 +563,7 @@ namespace SharpNet.Data
         {
             var result = Description + ShapeToString(Shape);
             result += UseGPU ? "" : "CPU";
-            if (displayStartOfTensor && !UseGPU)
+            if (displayStartOfTensor && !UseGPU && (this is CpuTensor<float>))
             {
                 result += "(" + string.Join(",", AsCpu<float>().Content.Take(3)) + ",...)";
             }
@@ -556,20 +576,7 @@ namespace SharpNet.Data
             return "(" + string.Join(", ", shape) + ")";
         }
 
-        public static Tensor NewNotInitializedFloatTensor(int[] shape, Tensor bufferIfAny, string description, GPUWrapper gpuWrapper)
-        {
-            //we check if we can re use the buffer 'bufferIfAny'
-            if (bufferIfAny != null)
-            {
-                bufferIfAny.AssertIsNotDisposed();
-                bufferIfAny.Reshape(shape);
-                return bufferIfAny;
-            }
-            return gpuWrapper != null
-                ? (Tensor)new GPUTensor<float>(shape, description, gpuWrapper)
-                : new CpuTensor<float>(shape, null, description);
-        }
-
+      
         public GPUTensor<T> AsGPU<T>()
         {
             if (this is GPUTensor<T> result)

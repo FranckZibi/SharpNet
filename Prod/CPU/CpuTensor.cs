@@ -46,14 +46,17 @@ namespace SharpNet.CPU
             }
         }
 
-
         /// <summary>
         /// resize the current Cpu tensor to a different shape (both bigger or smaller)
         /// </summary>
         /// <param name="newShape"></param>
         public override void Reshape(int[] newShape)
         {
-            if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
+            if (SameShape(newShape))
+            {
+                return;
+            }
+            else if (HasEnoughCapacityForTensor(newShape))
             {
                 //smaller shape
                 Shape = newShape;
@@ -347,24 +350,30 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBuffer)
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBufferForCpu, ref DeviceMemory randomNumberGeneratorStatesBufferForGPU, ref DeviceMemory dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU)
         {
             var x = this;
-            Debug.Assert(dropoutMaskBuffer != null);
+            Debug.Assert(dropoutMaskBufferForCpu != null);
+            Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
+            Debug.Assert(dropoutReserveSpaceForGPU == null);
+            Debug.Assert(dropoutDescriptorForGPU == IntPtr.Zero);
             if (!isTraining)
             {
                 x.CopyTo(y);
                 return;
             }
-       
             var dropProbabilityFloat = (float)dropProbability;
-            Utils.Randomize(dropoutMaskBuffer.AsFloatCpuContent, dropoutRandom, 0.0, 1.0);
-            y.AsCpu<float>().BuildEntirelyFromInput(x, dropoutMaskBuffer, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
+            Utils.Randomize(dropoutMaskBufferForCpu.AsFloatCpuContent, dropoutRandom, 0.0, 1.0);
+            y.AsCpu<float>().BuildEntirelyFromInput(x, dropoutMaskBufferForCpu, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
         }
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutMaskBufferForCpu, DeviceMemory randomNumberGeneratorStatesBufferForGPU, DeviceMemory dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU)
         {
+            Debug.Assert(dropoutMaskBufferForCpu != null);
+            Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
+            Debug.Assert(dropoutReserveSpaceForGPU == null);
+            Debug.Assert(dropoutDescriptorForGPU == IntPtr.Zero);
             var _dropProbabilityFloat = (float)dropProbability;
-            dx.AsCpu<float>().BuildEntirelyFromInput(dy, usedDropoutMask, (dOutput, prob) => prob < _dropProbabilityFloat ? 0f : dOutput / (1 - _dropProbabilityFloat));
+            dx.AsCpu<float>().BuildEntirelyFromInput(dy, dropoutMaskBufferForCpu, (dOutput, prob) => prob < _dropProbabilityFloat ? 0f : dOutput / (1 - _dropProbabilityFloat));
         }
         //this = dy
 

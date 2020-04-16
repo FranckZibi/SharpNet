@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.Data;
+using SharpNet.GPU;
 using SharpNet.Networks;
 
 namespace SharpNet.Layers
@@ -9,9 +10,11 @@ namespace SharpNet.Layers
     public class DropoutLayer : Layer
     {
         #region fields
-        public override Tensor y { get; protected set; }        // (batchSize, C, H, W)
         private readonly double _dropProbability;
-        private Tensor _dropOutMaskBufferForCpuOnly;            //only needed for CPU computation, should be null for GPU
+        private Tensor _dropOutMaskBufferForCpu;                            //only needed for Cpu (null for GPU)
+        private DeviceMemory _randomNumberGeneratorStatesBufferForGPU;      //only needed for GPU (null for Cpu)
+        private DeviceMemory _dropoutReserveSpaceForGPU;                    //only needed for GPU (null for Cpu)
+        private IntPtr _dropoutDescriptorForGPU = IntPtr.Zero;              //only needed for GPU (null for Cpu)
         private readonly Random _dropOutRandomForCpuOnly = new Random(0);
         #endregion
 
@@ -24,24 +27,23 @@ namespace SharpNet.Layers
         private DropoutLayer(DropoutLayer toClone, Network newNetwork) : base(toClone, newNetwork)
         {
             _dropProbability = toClone._dropProbability;
-            _dropOutMaskBufferForCpuOnly = toClone._dropOutMaskBufferForCpuOnly?.Clone(newNetwork.GpuWrapper);
+            _dropOutMaskBufferForCpu = toClone._dropOutMaskBufferForCpu?.Clone(newNetwork.GpuWrapper);
         }
 
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
+            Debug.Assert(allX.Count == 1);
             if (!Network.UseGPU)
             {
-                _dropOutMaskBufferForCpuOnly = Network.NewNotInitializedFloatTensor(y.Shape, _dropOutMaskBufferForCpuOnly, "_DropOutMaskBufferForCpuOnly");
+                _dropOutMaskBufferForCpu = GetNotInitializedFloatTensor(y.Shape, _dropOutMaskBufferForCpu, "_DropOutMaskBufferForCpuOnly");
             }
-            var x = PrevLayer.y;
-            x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropOutMaskBufferForCpuOnly);
+            allX[0].DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropOutMaskBufferForCpu, ref _randomNumberGeneratorStatesBufferForGPU, ref _dropoutReserveSpaceForGPU, ref _dropoutDescriptorForGPU);
         }
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(allX.Count == 1);
             Debug.Assert(dx.Count == 1);
-            var x = PrevLayer.y;
-            x.DropoutBackward(dy, dx[0], _dropProbability, _dropOutMaskBufferForCpuOnly);
+            allX[0].DropoutBackward(dy, dx[0], _dropProbability, _dropOutMaskBufferForCpu, _randomNumberGeneratorStatesBufferForGPU, _dropoutReserveSpaceForGPU, _dropoutDescriptorForGPU);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -54,6 +56,25 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(_dropProbability, other._dropProbability, epsilon, id, ref errors);
             return equals;
         }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            //managed memory
+            _randomNumberGeneratorStatesBufferForGPU?.Dispose();
+            _dropoutReserveSpaceForGPU?.Dispose();
+
+            //unmanaged memory
+            if (_dropoutDescriptorForGPU != IntPtr.Zero)
+            {
+                var res = CudnnWrapper.cudnnDestroyDropoutDescriptor(_dropoutDescriptorForGPU);
+                GPUWrapper.CheckStatus(res, ToString);
+            }
+            _randomNumberGeneratorStatesBufferForGPU = null;
+            _dropoutReserveSpaceForGPU = null;
+            _dropoutDescriptorForGPU = IntPtr.Zero;
+        }
+
         #region serialization
         public override string Serialize()
         {

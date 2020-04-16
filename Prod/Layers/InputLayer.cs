@@ -5,13 +5,15 @@ using SharpNet.Networks;
 
 namespace SharpNet.Layers
 {
+    /// <summary>
+    /// output shape: (batchSize, InputLayer.ChannelCount, InputLayer.H, InputLayer.Weights)
+    /// </summary>
     public class InputLayer : Layer
     {
         #region Private fields
         private int ChannelCount { get; }
         private int H { get; }
         private int W { get; }
-        public override Tensor y { get; protected set; }            // (batchSize, InputLayer.ChannelCount, InputLayer.H, InputLayer.Weights)
         #endregion
 
         public InputLayer(int channelCount, int h, int w, Network network, string layerName) : base(network, layerName)
@@ -29,7 +31,7 @@ namespace SharpNet.Layers
             W = toClone.W;
         }
 
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             throw new Exception("should never call "+nameof(ForwardPropagation)+" in "+nameof(InputLayer));
         }
@@ -58,7 +60,7 @@ namespace SharpNet.Layers
             W = (int)serialized[nameof(W)];
         }
         #endregion
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             throw new NotImplementedException();
         }

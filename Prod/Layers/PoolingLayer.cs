@@ -21,7 +21,6 @@ namespace SharpNet.Layers
         private readonly int _poolingHeight;
         private readonly int _poolingWidth;
         private readonly int _poolingStride;
-        public override Tensor y { get; protected set; }
         #endregion
 
         /// <summary>
@@ -50,17 +49,16 @@ namespace SharpNet.Layers
             _poolingStride = toClone._poolingStride;
         }
 
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
-            var x = PrevLayer.y;
-            x.Pooling(y, _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
+            Debug.Assert(allX.Count == 1);
+            allX[0].Pooling(y, _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
         }
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(allX.Count == 1);
             Debug.Assert(dx.Count == 1);
-            var x = PrevLayer.y;
-            dy.PoolingGradient(y, x, dx[0], _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
+            dy.PoolingGradient(y, allX[0], dx[0], _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
         }
 
      

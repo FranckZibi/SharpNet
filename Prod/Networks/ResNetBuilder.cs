@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Linq;
-using SharpNet.DataAugmentation;
+﻿using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -87,15 +85,13 @@ namespace SharpNet.Networks
         }
         private Network ResNetV1(string networkName, int[] nbResBlocks, bool useBottleNeck, int[] xShape, int categoryCount)
         {
-            var net = BuildEmptyNetwork(networkName);
-            var config = net.Config;
-            var layers = net.Layers;
-            Debug.Assert(layers.Count == 0);
+            var network = BuildEmptyNetwork(networkName);
+            var config = network.Config;
             var activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
-            net.Input(xShape[1], xShape[2], xShape[3]);
+            network.Input(xShape[1], xShape[2], xShape[3]);
 
-            net.Convolution(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true);
-            net.MaxPooling(2, 2, 2);
+            network.Convolution(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true);
+            network.MaxPooling(2, 2, 2);
 
             int stageC = 64; //number of channels for current stage
             for (int stageId = 0; stageId < nbResBlocks.Length; ++stageId)
@@ -104,28 +100,28 @@ namespace SharpNet.Networks
                 for (int res_block = 0; res_block < num_res_blocks; res_block += 1)
                 {
                     int stride = (res_block == 0 && stageId != 0) ? 2 : 1;
-                    var startOfBlockLayerIndex = layers.Last().LayerIndex;
+                    var startOfBlockLayerIndex = network.LastLayerIndex;
                     if (useBottleNeck)
                     {
-                        net.Convolution_BatchNorm_Activation(stageC, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, activationFunction);
-                        net.Convolution_BatchNorm_Activation(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, activationFunction);
-                        net.Convolution_BatchNorm(4 * stageC, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization);
-                        net.Shortcut_IdentityConnection(startOfBlockLayerIndex, 4 * stageC, stride, config.lambdaL2Regularization);
-                        net.Activation(activationFunction);
+                        network.Convolution_BatchNorm_Activation(stageC, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm_Activation(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm(4 * stageC, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization);
+                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, 4 * stageC, stride, config.lambdaL2Regularization);
+                        network.Activation(activationFunction);
                     }
                     else
                     {
-                        net.Convolution_BatchNorm_Activation(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, activationFunction);
-                        net.Convolution_BatchNorm(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization);
-                        net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
-                        net.Activation(activationFunction);
+                        network.Convolution_BatchNorm_Activation(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, activationFunction);
+                        network.Convolution_BatchNorm(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization);
+                        network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
+                        network.Activation(activationFunction);
                     }
                 }
                 stageC *= 2;
             }
-            net.GlobalAvgPooling();
-            net.Output(categoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
-            return net;
+            network.GlobalAvgPooling();
+            network.Output(categoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            return network;
         }
         #endregion
 
@@ -141,14 +137,12 @@ namespace SharpNet.Networks
         private Network ResNetV1_CIFAR10(int numResBlocks, AbstractTrainingAndTestDataSet dataSet)
         {
             var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_"+dataSet.Name;
-            var net = BuildEmptyNetwork(networkName);
-            var config = net.Config;
-            var layers = net.Layers;
+            var network = BuildEmptyNetwork(networkName);
+            var config = network.Config;
 
-            Debug.Assert(layers.Count == 0);
-            net.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
+            network.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
 
-            net.Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageC = 16; //number of channels for current stage
             for (int stageId = 0; stageId < 3; ++stageId)
@@ -156,17 +150,17 @@ namespace SharpNet.Networks
                 for (int res_block = 0; res_block < numResBlocks; res_block += 1)
                 {
                     int stride = (res_block == 0 && stageId != 0) ? 2 : 1;
-                    var startOfBlockLayerIndex = layers.Last().LayerIndex;
-                    net.Convolution_BatchNorm_Activation(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                    net.Convolution_BatchNorm(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization);
-                    net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
-                    net.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    var startOfBlockLayerIndex = network.LastLayerIndex;
+                    network.Convolution_BatchNorm_Activation(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    network.Convolution_BatchNorm(stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization);
+                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
+                    network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 }
                 stageC *= 2;
             }
-            net.AvgPooling(8, 8, 8);
-            net.Output(dataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
-            return net;
+            network.AvgPooling(8, 8, 8);
+            network.Output(dataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            return network;
         }
         #endregion
 
@@ -182,12 +176,11 @@ namespace SharpNet.Networks
         private Network ResNetV2_CIFAR10(int numResBlocks, AbstractTrainingAndTestDataSet dataSet)
         {
             var networkName = "ResNet" + (9 * numResBlocks + 2) + "V2_"+ dataSet.Name;
-            var net = BuildEmptyNetwork(networkName);
-            var config = net.Config;
-            var layers = net.Layers;
+            var network = BuildEmptyNetwork(networkName);
+            var config = network.Config;
 
-            net.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
-            net.Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.Input(dataSet.Channels, dataSet.Height, dataSet.Width);
+            network.Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             int stageCIn = 16; //number of channels for current stage
             int stageCOut = 4 * stageCIn;
@@ -197,26 +190,26 @@ namespace SharpNet.Networks
                 for (int resBlock = 0; resBlock < numResBlocks; resBlock += 1)
                 {
                     int stride = (resBlock == 0 && stageId != 0) ? 2 : 1;
-                    var startOfBlockLayerIndex = layers.Last().LayerIndex;
+                    var startOfBlockLayerIndex = network.LastLayerIndex;
                     if (stageId == 0 && resBlock == 0)
                     {
-                        net.Convolution(stageCIn, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
+                        network.Convolution(stageCIn, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
                     }
                     else
                     {
-                        net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
+                        network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 1, stride, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
                     }
-                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true);
-                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
-                    net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, config.lambdaL2Regularization);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCIn, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageCOut, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, config.lambdaL2Regularization, true);
+                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageCOut, stride, config.lambdaL2Regularization);
                 }
                 stageCIn = stageCOut;
                 stageCOut = 2 * stageCIn;
             }
-            net.BatchNorm(0.99, 1e-5).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-            net.AvgPooling(8, 8, 8);
-            net.Output(dataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
-            return net;
+            network.BatchNorm(0.99, 1e-5).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.AvgPooling(8, 8, 8);
+            network.Output(dataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            return network;
         }
         #endregion
     }

@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using SharpNet.DataAugmentation;
+﻿using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.Layers;
 
@@ -244,21 +243,20 @@ namespace SharpNet.Networks
             int residualBlocksCountByStage = (convolutionsCountByStage-1) / 2;
 
             var networkName = "WRN-"+depth+"-"+k;
-            var net = BuildEmptyNetwork(networkName);
-            var config = net.Config;
-            var layers = net.Layers;
+            var network = BuildEmptyNetwork(networkName);
+            var config = network.Config;
             var channelCount = inputShape_CHW[0];
             var height = inputShape_CHW[1];
             var width = inputShape_CHW[2];
-            net.Input(channelCount, height, width);
+            network.Input(channelCount, height, width);
 
             if (reduceInputSize)
             {
-                net.Convolution_BatchNorm_Activation(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                net.MaxPooling(2, 2, 2);
+                network.Convolution_BatchNorm_Activation(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                network.MaxPooling(2, 2, 2);
             }
 
-            net.Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
+            network.Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
 
             int stageC = 16* k; //number of channels for current stage
             for (int stageId = 0; stageId < 3; ++stageId)
@@ -267,56 +265,56 @@ namespace SharpNet.Networks
                 for (int residualBlockId = 0; residualBlockId < residualBlocksCountByStage; ++residualBlockId)
                 {
                     int stride = ((residualBlockId == 0)&&(stageId != 0)) ? 2 : 1;
-                    var startOfBlockLayerIndex = layers.Last().LayerIndex;
-                    net.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    var startOfBlockLayerIndex = network.LastLayerIndex;
+                    network.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                     if (residualBlockId == 0) // first residual block in stage
                     {
-                        startOfBlockLayerIndex = layers.Last().LayerIndex;
+                        startOfBlockLayerIndex = network.LastLayerIndex;
                     }
-                    net.Convolution(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
+                    network.Convolution(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
                     if ((WRN_DropOut > 0.0)&& (residualBlockId != 0))
                     {
-                        net.Dropout(WRN_DropOut);
+                        network.Dropout(WRN_DropOut);
                     }
 
-                    net.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
-                    net.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
+                    network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
+                    network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
                 }
                 stageC *= 2;
             }
-            net.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
             if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_2)
             {
-                net.AvgPooling(2, 2, 2);
+                network.AvgPooling(2, 2, 2);
             }
             else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_8)
             {
-                net.AvgPooling(8, 8, 8);
+                network.AvgPooling(8, 8, 8);
             }
             else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling)
             {
-                net.GlobalAvgPooling();
+                network.GlobalAvgPooling();
             }
             else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling)
             {
-                net.GlobalAvgPooling_And_GlobalMaxPooling();
+                network.GlobalAvgPooling_And_GlobalMaxPooling();
             }
             else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)
             {
-                net.GlobalMaxPooling(net.Layers.Count-1);
+                network.GlobalMaxPooling(network.Layers.Count-1);
             }
            
 
             if (WRN_DropOutAfterDenseLayer > 0)
             {
-                net.Dense_DropOut_Activation(categoryCount, config.lambdaL2Regularization, WRN_DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                network.Dense_DropOut_Activation(categoryCount, config.lambdaL2Regularization, WRN_DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             else
             {
-                net.Output(categoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                network.Output(categoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
-            return net;
+            return network;
         }
     }
 }

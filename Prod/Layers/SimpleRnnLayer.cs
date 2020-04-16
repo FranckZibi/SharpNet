@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -49,18 +48,18 @@ namespace SharpNet.Layers
         private Tensor a_buffer2 ;
         private Tensor y_buffer1;
 
-        public override Tensor y
-        {
-            get
-            {
-                if (_returnSequences)
-                {
-                    throw new NotImplementedException(); //TODO
-                }
-                return y_t.Last();
-            }
-            protected set => throw new NotImplementedException();
-        }
+        //public override Tensor y
+        //{
+        //    get
+        //    {
+        //        if (_returnSequences)
+        //        {
+        //            throw new NotImplementedException(); //TODO
+        //        }
+        //        return y_t.Last();
+        //    }
+        //    protected set => throw new NotImplementedException();
+        //}
 
         #endregion
 
@@ -73,12 +72,12 @@ namespace SharpNet.Layers
             _yLength = yLength;
             _returnSequences = returnSequences;
 
-            Weights_aa = Network.NewNotInitializedFloatTensor(new[] { aLength, aLength }, nameof(Weights_aa));
-            Weights_ax = Network.NewNotInitializedFloatTensor(new[] { xLength, aLength }, nameof(Weights_ax));
-            Weights_ay = Network.NewNotInitializedFloatTensor(new[] { aLength, yLength }, nameof(Weights_ay));
-            Bias_a = Network.NewNotInitializedFloatTensor(new[] { 1, aLength }, nameof(Bias_a));
-            Bias_y = Network.NewNotInitializedFloatTensor(new[] { 1, yLength }, nameof(Bias_y));
-            //a_init = Network.NewNotInitializedFloatTensor(new[] { batchSize, aLength }, a_init, nameof(a_init));
+            Weights_aa = GetNotInitializedFloatTensor(new[] { aLength, aLength }, nameof(Weights_aa));
+            Weights_ax = GetNotInitializedFloatTensor(new[] { xLength, aLength }, nameof(Weights_ax));
+            Weights_ay = GetNotInitializedFloatTensor(new[] { aLength, yLength }, nameof(Weights_ay));
+            Bias_a = GetNotInitializedFloatTensor(new[] { 1, aLength }, nameof(Bias_a));
+            Bias_y = GetNotInitializedFloatTensor(new[] { 1, yLength }, nameof(Bias_y));
+            //a_init = Network.GetNotInitializedFloatTensor(new[] { batchSize, aLength }, a_init, nameof(a_init));
             ResetWeights(false);
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
@@ -91,64 +90,60 @@ namespace SharpNet.Layers
             Bias_y?.ZeroMemory();
         }
 
-        protected override void Allocate_y_if_necessary()
+        //public override void Allocate_y_if_necessary(int batchSize)
+        //{
+        //    var x = Network.Get_Y(PreviousLayerIndexes[0]);
+        //    Debug.Assert(_timeSteps_x == x.Shape[1]);
+        //    Debug.Assert(3 == x.Dimension); //(N, xTimeSteps, xLength)
+        //    //We initialize 'a'
+        //    var aShape = new[] { batchSize, _aLength };
+        //    a_init = Network.GetNotInitializedFloatTensor(aShape, a_init, nameof(a_init));
+        //    //TO CHECK
+        //    //a_init.ZeroMemory();
+        //    a_init.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+        //    //TensorExtensions.FromNumpyArray("array([[-0.02461696, -0.77516162,  1.27375593,  1.96710175, -1.85798186,1.23616403,  1.62765075,  0.3380117 , -1.19926803,  0.86334532], [-0.1809203 , -0.60392063, -1.23005814,  0.5505375 ,  0.79280687,-0.62353073,  0.52057634, -1.14434139,  0.80186103,  0.0465673 ], [-0.18656977, -0.10174587,  0.86888616,  0.75041164,  0.52946532,0.13770121,  0.07782113,  0.61838026,  0.23249456,  0.68255141], [-0.31011677, -2.43483776,  1.0388246 ,  2.18697965,  0.44136444,-0.10015523, -0.13644474, -0.11905419,  0.01740941, -1.12201873], [-0.51709446, -0.99702683,  0.24879916, -0.29664115,  0.49521132,-0.17470316,  0.98633519,  0.2135339 ,  2.19069973, -1.89636092]])", nameof(a_init)).Transpose().CopyTo(a_init);
+
+
+        //    for (int t = 0; t < a_t.Count; ++t)
+        //    {
+        //        a_t[t] = Network.GetNotInitializedFloatTensor(aShape, a_t[t], a_t[t].Description);
+        //    }
+        //    while (a_t.Count < _timeSteps_x)
+        //    {
+        //        a_t.Add(Network.GetNotInitializedFloatTensor(aShape, "a_" + (a_t.Count + 1)));
+        //    }
+        //    a_t.ForEach(t=>t.ZeroMemory());
+
+
+        //    var yShape = new[] { batchSize, _yLength };
+        //    for (int t = 0; t < y_t.Count; ++t)
+        //    {
+        //        y_t[t] = Network.GetNotInitializedFloatTensor(yShape, y_t[t], y_t[t].Description);
+        //    }
+        //    while (y_t.Count < _timeSteps_x)
+        //    {
+        //        y_t.Add(Network.GetNotInitializedFloatTensor(yShape, "y_" + (a_t.Count + 1)));
+        //    }
+        //    //y_t.ForEach(t => t.ZeroMemory());
+        //}
+
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y1, bool isTraining)
         {
-            var x = PrevLayer.y;
-            Debug.Assert(_timeSteps_x == x.Shape[1]);
-            Debug.Assert(3 == x.Dimension); //(N, xTimeSteps, xLength)
-            //We initialize 'a'
-            var batchSize = x.Shape[0];
-            var aShape = new[] { batchSize, _aLength };
-            a_init = Network.NewNotInitializedFloatTensor(aShape, a_init, nameof(a_init));
-            //TO CHECK
-            //a_init.ZeroMemory();
-            a_init.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
-            //TensorExtensions.FromNumpyArray("array([[-0.02461696, -0.77516162,  1.27375593,  1.96710175, -1.85798186,1.23616403,  1.62765075,  0.3380117 , -1.19926803,  0.86334532], [-0.1809203 , -0.60392063, -1.23005814,  0.5505375 ,  0.79280687,-0.62353073,  0.52057634, -1.14434139,  0.80186103,  0.0465673 ], [-0.18656977, -0.10174587,  0.86888616,  0.75041164,  0.52946532,0.13770121,  0.07782113,  0.61838026,  0.23249456,  0.68255141], [-0.31011677, -2.43483776,  1.0388246 ,  2.18697965,  0.44136444,-0.10015523, -0.13644474, -0.11905419,  0.01740941, -1.12201873], [-0.51709446, -0.99702683,  0.24879916, -0.29664115,  0.49521132,-0.17470316,  0.98633519,  0.2135339 ,  2.19069973, -1.89636092]])", nameof(a_init)).Transpose().CopyTo(a_init);
-
-
-            for (int t = 0; t < a_t.Count; ++t)
-            {
-                a_t[t] = Network.NewNotInitializedFloatTensor(aShape, a_t[t], a_t[t].Description);
-            }
-            while (a_t.Count < _timeSteps_x)
-            {
-                a_t.Add(Network.NewNotInitializedFloatTensor(aShape, "a_" + (a_t.Count + 1)));
-            }
-            a_t.ForEach(t=>t.ZeroMemory());
-
-
-            var yShape = new[] { batchSize, _yLength };
-            for (int t = 0; t < y_t.Count; ++t)
-            {
-                y_t[t] = Network.NewNotInitializedFloatTensor(yShape, y_t[t], y_t[t].Description);
-            }
-            while (y_t.Count < _timeSteps_x)
-            {
-                y_t.Add(Network.NewNotInitializedFloatTensor(yShape, "y_" + (a_t.Count + 1)));
-            }
-            //y_t.ForEach(t => t.ZeroMemory());
-        }
-
-        public override void ForwardPropagation(bool isTraining)
-        {
-            var x_NCH = PrevLayer.y;
+            Debug.Assert(allX.Count == 1);
+            var x_NCH = allX[0];
             var batchSize = x_NCH.Shape[0];                 //N : batch size : number of sentences : _timeSteps_x
             Debug.Assert(x_NCH.Shape[1] == _timeSteps_x);   //C : number of time steps = number of words per sentence
             Debug.Assert(x_NCH.Shape[2] == _xLength);       //H : number of distinct words : _xLength
 
-            Allocate_y_if_necessary();
-
             var aShape = new[] {batchSize, _aLength};
             var yShape = new[] {batchSize, _yLength };
 
-
-
             var shape_NCH = x_NCH.Shape;
             var shape_NH = new[] { shape_NCH[0], shape_NCH[2]};
-            x_at_t_buffer = Network.NewNotInitializedFloatTensor(shape_NH, x_at_t_buffer, nameof(x_at_t_buffer));
-            a_buffer1 = Network.NewNotInitializedFloatTensor(aShape, a_buffer1, nameof(a_buffer1));
-            a_buffer2 = Network.NewNotInitializedFloatTensor(aShape, a_buffer2, nameof(a_buffer2));
-            y_buffer1 = Network.NewNotInitializedFloatTensor(yShape, y_buffer1, nameof(y_buffer1));
+            x_at_t_buffer = GetNotInitializedFloatTensor(shape_NH, x_at_t_buffer, nameof(x_at_t_buffer));
+            a_buffer1 = GetNotInitializedFloatTensor(aShape, a_buffer1, nameof(a_buffer1));
+            a_buffer2 = GetNotInitializedFloatTensor(aShape, a_buffer2, nameof(a_buffer2));
+            y_buffer1 = GetNotInitializedFloatTensor(yShape, y_buffer1, nameof(y_buffer1));
 
 
             for (int t = 0; t < _timeSteps_x; ++t)
@@ -179,7 +174,7 @@ namespace SharpNet.Layers
         }
 
        
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             throw new NotImplementedException();
         }

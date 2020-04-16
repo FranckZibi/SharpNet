@@ -9,8 +9,6 @@ namespace SharpNet.Layers
     //Layer that is the sum of the Previous Layer and the Shortcut Layer
     public class AddLayer : Layer
     {
-        public override Tensor y { get; protected set; }
-
         public AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network, string layerName = "") : base(network, previousResidualLayerIndex, layerName)
         {
             Debug.Assert(LayerIndex>=2);
@@ -30,22 +28,16 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        private Layer PreviousResidualLayer => PreviousLayers[0];
-        private Layer PreviousIdentityLayer => PreviousLayers[1];
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
-            var x = PreviousResidualLayer.y;
-            x.CopyTo(y);
-            y.Update_Adding_Alpha_X(1, PreviousIdentityLayer.y);
+            Debug.Assert(allX.Count == 2);
+            allX[0].CopyTo(y);
+            y.Update_Adding_Alpha_X(1, allX[1]);
         }
-        public override void BackwardPropagation(Tensor dy, List<Tensor> allDx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> allDx)
         {
             Debug.Assert(allDx.Count == 2);
-            Debug.Assert(y.SameShape(dy));
             Debug.Assert(allDx[0].SameShape(dy));
-            Debug.Assert(allDx[0].SameShape(PreviousResidualLayer.y));
-            Debug.Assert(allDx[1].SameShape(PreviousIdentityLayer.y));
             allDx.ForEach(dy.CopyTo);
         }
     }

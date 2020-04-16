@@ -174,9 +174,9 @@ namespace SharpNet.Networks
         {
             for (int convBlockId = 0; convBlockId < nbConvBlocksInDenseBlock; ++convBlockId)
             {
-                var previousLayerIndex1 = network.Layers.Last().LayerIndex;
+                var previousLayerIndex1 = network.LastLayerIndex;
                 AddConvolutionBlock(network, growthRate, bottleneck, dropProbability, lambdaL2Regularization);
-                var previousLayerIndex2 = network.Layers.Last().LayerIndex;
+                var previousLayerIndex2 = network.LastLayerIndex;
                 network.ConcatenateLayer(previousLayerIndex1, previousLayerIndex2);
             }
         }

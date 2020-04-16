@@ -217,7 +217,7 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.472797473271688, 1.0);
         }
 
-        [Test]
+        [Test, Explicit]
         public void TestSimpleRNN()
         {
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy);
@@ -732,6 +732,7 @@ namespace SharpNetTests.NonReg
             var expectedPrediction = FromNumpyArray(expectedPredictionAsString, "expected");
             Assert.IsTrue(TestTensor.SameContent(observedPrediction, expectedPrediction, 1e-6), "expecting: " + Environment.NewLine + expectedPrediction.ToNumpy()+Environment.NewLine+ " but was:" + Environment.NewLine + observedPrediction.ToNumpy());
         }
+
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];

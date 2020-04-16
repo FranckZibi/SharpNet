@@ -8,10 +8,6 @@ namespace SharpNet.Layers
 {
     public class ActivationLayer : Layer
     {
-        #region Private fields
-        public override Tensor y { get; protected set; }    // (batchSize, C, H, W)
-        #endregion
-
         public cudnnActivationMode_t ActivationFunction { get; }
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
@@ -26,12 +22,11 @@ namespace SharpNet.Layers
             ActivationFunction = toClone.ActivationFunction;
         }
 
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
-            var x = PrevLayer.y;
+            Debug.Assert(allX.Count == 1);
             Network.StartTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
-            x.ActivationForward(ActivationFunction, y);
+            allX[0].ActivationForward(ActivationFunction, y);
             Network.StopTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
@@ -56,8 +51,9 @@ namespace SharpNet.Layers
             ActivationFunction = (cudnnActivationMode_t)serialized[nameof(ActivationFunction)];
         }
         #endregion
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(allX.Count == 1);
             Debug.Assert(dx.Count == 1);
             
             if (PrevLayer.IsInputLayer)
@@ -74,8 +70,7 @@ namespace SharpNet.Layers
             }
             else
             {
-                var x = PrevLayer.y;
-                y.ActivationBackward(dy, x, ActivationFunction, dx[0]);
+                y.ActivationBackward(dy, allX[0], ActivationFunction, dx[0]);
             }
             Network.StopTimer(Type()+">"+ToString(ActivationFunction), Network.BackwardPropagationTime);
         }

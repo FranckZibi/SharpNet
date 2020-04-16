@@ -9,8 +9,6 @@ namespace SharpNet.Layers
 {
     public class MultiplyLayer : Layer
     {
-        public override Tensor y { get; protected set; }
-
         public MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2, Network network, string layerName) : base(network, previousLayerIndex2, layerName)
         {
             Debug.Assert(LayerIndex >= 2);
@@ -71,21 +69,20 @@ namespace SharpNet.Layers
 
         private Layer PreviousLayer1 => PreviousLayers[0];
         private Layer PreviousLayer2 => PreviousLayers[1];
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
-            var x1 = PreviousLayer1.y;
-            var x2 = PreviousLayer2.y; //vector with the content of the diagonal matrix
+            Debug.Assert(allX.Count == 2);
+            var x1 = allX[0];
+            var x2 = allX[1]; //vector with the content of the diagonal matrix
             y.MultiplyTensor(x1, x2);
         }
-        public override void BackwardPropagation(Tensor dy, List<Tensor> allDx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> allDx)
         {
             Debug.Assert(allDx.Count == 2);
-            Debug.Assert(y.SameShape(dy));
             var dx1 = allDx[0];
             var dx2 = allDx[1];
-            var x1 = PreviousLayer1.y;
-            var x2 = PreviousLayer2.y;
+            var x1 = allX[0];
+            var x2 = allX[1];
             Debug.Assert(dx1.SameShape(dy));
             Debug.Assert(dx1.SameShape(x1));
             Debug.Assert(dx2.SameShape(x2));
@@ -103,7 +100,7 @@ namespace SharpNet.Layers
             else
             {
                 Network.StartTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
-                dx2.MultiplyEachRowIntoSingleValue(dy, PreviousLayer1.y);
+                dx2.MultiplyEachRowIntoSingleValue(dy, x1);
                 Network.StopTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
             }
         }

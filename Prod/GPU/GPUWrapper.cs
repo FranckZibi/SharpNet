@@ -475,7 +475,11 @@ namespace SharpNet.GPU
         }
         public string DeviceName()
         {
-            return _deviceName + ", driver v" + _driverVersion + ", cublas v"+_cublasVersion+", deviceId:" + DeviceId + ", threadId:" + _threadId;
+            var result = _deviceName + " - driver " + _driverVersion;
+            var cudaVersion = CudaVersionFromCudaPath();
+            result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
+            result += " - cublas " + _cublasVersion + " - deviceId:" + DeviceId + " - threadId:" + _threadId;
+            return result;
         }
         public override string ToString()
         {
@@ -489,16 +493,17 @@ namespace SharpNet.GPU
             {
                 result += " - Free PreAllocated GPU Memory: " + Utils.MemoryBytesToString(FreePreAllocatedMemoryInBytes()) + "/" + Utils.MemoryBytesToString(_sizeInBytesOfAllocatedMemory);
             }
-            var cudaVersion = CudaVersionFromCudaPath();
-            result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
-            result += " - Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);
-            result += " - Used in GC: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false));
-            result += " - Available RAM Memory: " + Utils.MemoryBytesToString(Utils.AvailableRamMemoryInBytes());
-            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice) + " CopiedToDevice (" + _copyToDeviceCalls + "calls, " + SwCopyToDevice.ElapsedMilliseconds + "ms)";
-            result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
-            result += " - CurrentThreadId#" + System.Threading.Thread.CurrentThread.ManagedThreadId;
+            if (_copyToDeviceCalls!= 0)
+            { 
+                result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice) + " CopiedToDevice (" + _copyToDeviceCalls + "calls, " + SwCopyToDevice.ElapsedMilliseconds + "ms)";
+            }
+            if (_copyToHostCalls != 0)
+            { 
+                result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
+            }
             return result;
         }
+
         public size_t AvailableMemoryInBytes()
         {
             CheckThreadId();

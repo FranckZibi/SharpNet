@@ -291,7 +291,11 @@ namespace SharpNet.GPU
         public override void Reshape(int[] newShape)
         {
             AssertIsNotDisposed();
-            if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
+            if (SameShape(newShape))
+            {
+                return;
+            }
+            else if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
             {
                 //smaller shape
                 Shape = newShape;
@@ -549,13 +553,10 @@ namespace SharpNet.GPU
             return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
         }
 
-        private DeviceMemory _randomNumberGeneratorStatesBuffer;
-        private DeviceMemory _dropoutReserveSpace;
-        private IntPtr _dropoutDescriptor;
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBuffer)
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBufferForCpu, ref DeviceMemory randomNumberGeneratorStatesBufferForGPU, ref DeviceMemory dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU)
         {
             var x = this;
-            Debug.Assert(dropoutMaskBuffer == null); //no need of dropout mask for GPU
+            Debug.Assert(dropoutMaskBufferForCpu == null); //no need of dropout mask for GPU
             if (!isTraining)
             {
                 x.CopyTo(y);
@@ -565,17 +566,17 @@ namespace SharpNet.GPU
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
             cudnnStatus_t res;
-            if (_randomNumberGeneratorStatesBuffer == null)
+            if (randomNumberGeneratorStatesBufferForGPU == null)
             {
                 res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var dropoutStateSize);
                 CheckStatus(res);
-                _randomNumberGeneratorStatesBuffer = Wrapper.NewDeviceMemory(Math.Max(dropoutStateSize, 1));
+                randomNumberGeneratorStatesBufferForGPU = Wrapper.NewDeviceMemory(Math.Max(dropoutStateSize, 1));
                 res = CudnnWrapper.cudnnDropoutGetReserveSpaceSize(xDesc, out var dropoutReserveSpaceSize);
                 CheckStatus(res);
-                _dropoutReserveSpace = Wrapper.NewDeviceMemory(Math.Max(dropoutReserveSpaceSize, 1));
-                _dropoutDescriptor = Wrapper.DropoutDesc(dropProbability, _randomNumberGeneratorStatesBuffer.Pointer);
+                dropoutReserveSpaceForGPU = Wrapper.NewDeviceMemory(Math.Max(dropoutReserveSpaceSize, 1));
+                dropoutDescriptorForGPU = Wrapper.DropoutDesc(dropProbability, randomNumberGeneratorStatesBufferForGPU.Pointer);
             }
-            res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, _dropoutDescriptor, xDesc, x, yDesc, y, _dropoutReserveSpace.Pointer, _dropoutReserveSpace.SizeInBytes);
+            res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, dropoutDescriptorForGPU, xDesc, x, yDesc, y, dropoutReserveSpaceForGPU.Pointer, dropoutReserveSpaceForGPU.SizeInBytes);
             CheckStatus(res);
         }
 
@@ -585,13 +586,16 @@ namespace SharpNet.GPU
         /// <param name="dy"></param>
         /// <param name="dx"></param>
         /// <param name="dropProbability"></param>
-        /// <param name="usedDropoutMask"></param>
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor usedDropoutMask)
+        /// <param name="dropoutMaskBufferForCpu"></param>
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutMaskBufferForCpu, DeviceMemory randomNumberGeneratorStatesBufferForGPU, DeviceMemory dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU)
         {
+            Debug.Assert(dropoutMaskBufferForCpu == null);
+            Debug.Assert(randomNumberGeneratorStatesBufferForGPU != null);
+            Debug.Assert(dropoutReserveSpaceForGPU != null);
+            Debug.Assert(dropoutDescriptorForGPU != IntPtr.Zero);
             var dxDesc = TensorDesc(dx);
             var dyDesc = TensorDesc(dy);
-            Debug.Assert(usedDropoutMask == null);
-            var res = CudnnWrapper.cudnnDropoutBackward(CudnnHandle, _dropoutDescriptor, dyDesc, dy, dxDesc, dx, _dropoutReserveSpace.Pointer, _dropoutReserveSpace.SizeInBytes);
+            var res = CudnnWrapper.cudnnDropoutBackward(CudnnHandle, dropoutDescriptorForGPU, dyDesc, dy, dxDesc, dx, dropoutReserveSpaceForGPU.Pointer, dropoutReserveSpaceForGPU.SizeInBytes);
             CheckStatus(res);
         }
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep)
@@ -774,7 +778,7 @@ namespace SharpNet.GPU
             _deviceMemory.AssertIsNotDisposed();
         }
 
-#region Dispose pattern
+        #region Dispose pattern
         public override void Dispose()
         {
             Dispose(true);
@@ -790,18 +794,10 @@ namespace SharpNet.GPU
             if (disposing)
             {
                 //managed memory
-                _randomNumberGeneratorStatesBuffer?.Dispose();
-                _dropoutReserveSpace?.Dispose();
                 _deviceMemory?.Dispose();
             }
 
             //unmanaged memory
-            var res = CudnnWrapper.cudnnDestroyDropoutDescriptor(_dropoutDescriptor);
-            CheckStatus(res);
-
-            _randomNumberGeneratorStatesBuffer = null;
-            _dropoutReserveSpace = null;
-            _dropoutDescriptor = IntPtr.Zero;
         }
         ~GPUTensor()
         {

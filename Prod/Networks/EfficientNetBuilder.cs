@@ -51,7 +51,7 @@ namespace SharpNet.Networks
         /// used for transfer learning
         /// </summary>
         public string WeightForTransferLearning { get; set; } = "";
-        private cudnnActivationMode_t DefaultActivation { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
+        private cudnnActivationMode_t DefaultActivation { get;} = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
 
         /// <summary>
         /// The default EfficientNet Meta Parameters for CIFAR10
@@ -115,7 +115,7 @@ namespace SharpNet.Networks
         /// </param>
         /// <param name="categoryCount">optional number of classes to classify images  into, only to be specified if `includeTop` is True, and if no `weights` argument is specified</param>
         /// <returns></returns>
-        public Network EfficientNet(
+        private Network EfficientNet(
             float widthCoefficient,
             float depthCoefficient,
             int defaultResolution,
@@ -221,33 +221,35 @@ namespace SharpNet.Networks
             }
 
 
+
+            net.FreezeSelectedLayers();
             return net;
         }
 
         /// <summary>
         /// Mobile Inverted Residual Bottleneck
         /// </summary>
-        /// <param name="net"></param>
+        /// <param name="network"></param>
         /// <param name="block_args"></param>
         /// <param name="dropRate"></param>
         /// <param name="inputChannels"></param>
-        private void AddMBConvBlock(Network net, MobileBlocksDescription block_args, float dropRate, string layerPrefix)
+        private void AddMBConvBlock(Network network, MobileBlocksDescription block_args, float dropRate, string layerPrefix)
         {
-            int inputChannels = net.Layers.Last().OutputShape(1)[1];
-            var inputLayerIndex = net.Layers.Last().LayerIndex;
+            int inputChannels = network.Layers.Last().OutputShape(1)[1];
+            var inputLayerIndex = network.LastLayerIndex;
             
             //Expansion phase
-            var config = net.Config;
+            var config = network.Config;
             var filters = inputChannels * block_args.ExpandRatio;
             if (block_args.ExpandRatio != 1)
             {
-                net.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix+"expand_conv")
+                network.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix+"expand_conv")
                     .BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix+"expand_bn")
                     .Activation(DefaultActivation, layerPrefix+ "expand_activation");
             }
 
             //Depthwise Convolution
-            net.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, ConvolutionLayer.PADDING_TYPE.SAME, 1, config.lambdaL2Regularization, false, layerPrefix+"dwconv")
+            network.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, ConvolutionLayer.PADDING_TYPE.SAME, 1, config.lambdaL2Regularization, false, layerPrefix+"dwconv")
                 .BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "bn")
                 .Activation(DefaultActivation, layerPrefix + "activation");
 
@@ -255,26 +257,26 @@ namespace SharpNet.Networks
             bool hasSe = block_args.SeRatio > 0 && block_args.SeRatio <= 1.0;
             if (hasSe)
             {
-                var xLayerIndex = net.Layers.Last().LayerIndex;
+                var xLayerIndex = network.LastLayerIndex;
                 var num_reduced_filters = Math.Max(1, (int) (inputChannels * block_args.SeRatio));
-                net.GlobalAvgPooling(layerPrefix + "se_squeeze");
-                net.Convolution(num_reduced_filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
+                network.GlobalAvgPooling(layerPrefix + "se_squeeze");
+                network.Convolution(num_reduced_filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
                     .Activation(DefaultActivation);
-                net.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
+                network.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
-                net.MultiplyLayer(net.Layers.Last().LayerIndex, xLayerIndex, layerPrefix + "se_excite");
+                network.MultiplyLayer(network.LastLayerIndex, xLayerIndex, layerPrefix + "se_excite");
             }
 
             //Output phase
-            net.Convolution(block_args.OutputFilters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
-            net.BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "project_bn");
+            network.Convolution(block_args.OutputFilters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
+            network.BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "project_bn");
             if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels)
             {
                 if (dropRate > 0.000001)
                 {
-                    net.Dropout(dropRate, layerPrefix + "drop");
+                    network.Dropout(dropRate, layerPrefix + "drop");
                 }
-                net.AddLayer(inputLayerIndex, net.Layers.Last().LayerIndex, layerPrefix + "add");
+                network.AddLayer(inputLayerIndex, network.LastLayerIndex, layerPrefix + "add");
             }
         }
 

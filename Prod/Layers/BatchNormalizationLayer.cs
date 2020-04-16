@@ -51,7 +51,6 @@ namespace SharpNet.Layers
         /// </summary>
         private readonly Tensor _invertOfUnbiasedVolatilityBuffer;            // same as 'Scale"
         #endregion
-        public override Tensor y { get; protected set; }        // (batchSize, C, H, W)
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
         public BatchNormalizationLayer(double momentum, double epsilon, Network network, string layerName) : base(network, layerName)
@@ -61,10 +60,10 @@ namespace SharpNet.Layers
             var scaleAndBiasShape = ScaleAndBiasShape();
 
             //trainable tensors 
-            Scale = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(Scale));
-            Bias = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(Bias));
-            _resultRunningMean = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(_resultRunningMean));
-            _resultRunningVariance = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(_resultRunningVariance));
+            Scale = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(Scale));
+            Bias = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(Bias));
+            _resultRunningMean = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(_resultRunningMean));
+            _resultRunningVariance = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(_resultRunningVariance));
 
             _optimizer = Network.GetOptimizer(Scale.Shape, Bias.Shape);
 
@@ -72,10 +71,10 @@ namespace SharpNet.Layers
             ResetWeights(false);
 
             //non trainable params
-            ScaleGradients = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(ScaleGradients));
-            BiasGradients = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(BiasGradients));
-            _meanBuffer = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(_meanBuffer));
-            _invertOfUnbiasedVolatilityBuffer = Network.NewNotInitializedFloatTensor(scaleAndBiasShape, nameof(_invertOfUnbiasedVolatilityBuffer));
+            ScaleGradients = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(ScaleGradients));
+            BiasGradients = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(BiasGradients));
+            _meanBuffer = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(_meanBuffer));
+            _invertOfUnbiasedVolatilityBuffer = GetNotInitializedFloatTensor(scaleAndBiasShape, nameof(_invertOfUnbiasedVolatilityBuffer));
 
             //We disable bias for the previous layers
             var nbDisabledWeights = PreviousLayers.Select(l=>l.DisableBias()).Sum();
@@ -101,8 +100,8 @@ namespace SharpNet.Layers
             // non trainable params
             ScaleGradients = other.ScaleGradients?.Clone(newNetwork.GpuWrapper);
             BiasGradients = other.BiasGradients?.Clone(newNetwork.GpuWrapper);
-            _meanBuffer = Network.NewNotInitializedFloatTensor(Scale.Shape, nameof(_meanBuffer));
-            _invertOfUnbiasedVolatilityBuffer = Network.NewNotInitializedFloatTensor(Scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
+            _meanBuffer = GetNotInitializedFloatTensor(Scale.Shape, nameof(_meanBuffer));
+            _invertOfUnbiasedVolatilityBuffer = GetNotInitializedFloatTensor(Scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
         }
 
 
@@ -127,10 +126,10 @@ namespace SharpNet.Layers
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
 
             //non trainable params
-            ScaleGradients = Network.NewNotInitializedFloatTensor(Scale.Shape, nameof(ScaleGradients));
-            BiasGradients = Network.NewNotInitializedFloatTensor(Scale.Shape, nameof(BiasGradients));
-            _meanBuffer = Network.NewNotInitializedFloatTensor(Scale.Shape, nameof(_meanBuffer));
-            _invertOfUnbiasedVolatilityBuffer = Network.NewNotInitializedFloatTensor(Scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
+            ScaleGradients = GetNotInitializedFloatTensor(Scale.Shape, nameof(ScaleGradients));
+            BiasGradients = GetNotInitializedFloatTensor(Scale.Shape, nameof(BiasGradients));
+            _meanBuffer = GetNotInitializedFloatTensor(Scale.Shape, nameof(_meanBuffer));
+            _invertOfUnbiasedVolatilityBuffer = GetNotInitializedFloatTensor(Scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
         }
         #endregion
 
@@ -161,19 +160,18 @@ namespace SharpNet.Layers
             equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
             return equals;
         }
-        public override void ForwardPropagation(bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Allocate_y_if_necessary();
-            var x = PrevLayer.y;
+            Debug.Assert(allX.Count == 1);
             var exponentialAverageSmoothingFactor = 1 - _momentum;
-            x.BatchNormalization(y, Scale, Bias, exponentialAverageSmoothingFactor, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer, isTraining);
+            allX[0].BatchNormalization(y, Scale, Bias, exponentialAverageSmoothingFactor, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer, isTraining);
         }
-        public override void BackwardPropagation(Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
-            var x = PrevLayer.y;
-            x.BatchNormalizationBackward(dy, dx[0], Scale, ScaleGradients, BiasGradients, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer);
+            Debug.Assert(allX.Count == 1);
+            allX[0].BatchNormalizationBackward(dy, dx[0], Scale, ScaleGradients, BiasGradients, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer);
         }
-        public override void UpdateWeights(double learningRate)
+        public override void UpdateWeights(int batchSize, double learningRate)
         {
             Debug.Assert(Scale.SameShape(ScaleGradients));
             Debug.Assert(Bias.SameShape(BiasGradients));
@@ -181,7 +179,6 @@ namespace SharpNet.Layers
             {
                 return;
             }
-            var batchSize = y.Shape[0];
             _optimizer.UpdateWeights(learningRate, batchSize, Scale, ScaleGradients, Bias, BiasGradients);
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)

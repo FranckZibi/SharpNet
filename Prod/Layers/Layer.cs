@@ -14,15 +14,9 @@ namespace SharpNet.Layers
         public int LayerIndex { get; }
         public string LayerName { get; }
         protected readonly Network Network;
-        private readonly List<int> _previousLayerIndexes = new List<int>();
-        private readonly List<int> _nextLayerIndexes = new List<int>();
         private int[] _lazyOutputShape;
-        #endregion
-
-        #region public properties
-        public abstract Tensor y { get; protected set; } //output of layer 
-        // ReSharper disable once InconsistentNaming
-        //gradient of layer output (= null if it is the input layer)
+        public List<int> NextLayerIndexes { get; } = new List<int>();
+        public List<int> PreviousLayerIndexes { get; } = new List<int>();
         #endregion
 
         /// <summary>
@@ -35,19 +29,16 @@ namespace SharpNet.Layers
             Network = newNetwork;
             LayerIndex = toClone.LayerIndex;
             LayerName = toClone.LayerName;
-            _previousLayerIndexes.Clear();
-            _previousLayerIndexes.AddRange(toClone._previousLayerIndexes);
-            _nextLayerIndexes.Clear();
-            _nextLayerIndexes.AddRange(toClone._nextLayerIndexes);
+            PreviousLayerIndexes.Clear();
+            PreviousLayerIndexes.AddRange(toClone.PreviousLayerIndexes);
+            NextLayerIndexes.Clear();
+            NextLayerIndexes.AddRange(toClone.NextLayerIndexes);
             if (_lazyOutputShape != null)
             {
                 _lazyOutputShape = (int[])toClone._lazyOutputShape.Clone();
             }
         }
 
-        protected Layer(Network network, string layerName) :this(network, network.Layers.Count-1, layerName) 
-        {
-        }
         protected Layer(Network network, int previousLayerIndex, string layerName)
         {
             Network = network;
@@ -55,6 +46,10 @@ namespace SharpNet.Layers
             // ReSharper disable once VirtualMemberCallInConstructor
             LayerName = string.IsNullOrEmpty(layerName) ? DefaultLayerName() : layerName;
             AddPreviousLayer(previousLayerIndex);
+            network.OnLayerAddOrRemove();
+        }
+        protected Layer(Network network, string layerName) : this(network, network.Layers.Count - 1, layerName)
+        {
         }
 
         public abstract Layer Clone(Network newNetwork);
@@ -76,8 +71,8 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(LayerIndex, b.LayerIndex, id+":LayerIndex", ref errors);
             equals &= Utils.Equals(LayerName, b.LayerName, id+":LayerName", ref errors);
             equals &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
-            equals &= Utils.EqualsList(_previousLayerIndexes, b._previousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
-            equals &= Utils.EqualsList(_nextLayerIndexes, b._nextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
+            equals &= Utils.EqualsList(PreviousLayerIndexes, b.PreviousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
+            equals &= Utils.EqualsList(NextLayerIndexes, b.NextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
             equals &= Utils.EqualsList(TrainableTensorsIndependentOfBatchSize, b.TrainableTensorsIndependentOfBatchSize, epsilon, id+ ":TrainableTensorsIndependentOfBatchSize", ref errors);
             return equals;
         }
@@ -114,8 +109,8 @@ namespace SharpNet.Layers
         {
             return GetType() == typeof(ActivationLayer) &&((ActivationLayer) this).ActivationFunction == cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
         }
-        public bool IsInputLayer => _previousLayerIndexes.Count == 0;
-        public bool IsOutputLayer => _nextLayerIndexes.Count == 0;
+        public bool IsInputLayer => PreviousLayerIndexes.Count == 0;
+        public bool IsOutputLayer => NextLayerIndexes.Count == 0;
         public bool SameOutputShape(Layer layer)
         {
             return OutputShape(1).SequenceEqual(layer.OutputShape(1));
@@ -127,28 +122,39 @@ namespace SharpNet.Layers
                 throw new Exception("invalid tensor consistency");
             }
         }
-        public void Set_y(Tensor yValue)
-        {
-            y = yValue;
-        }
-      
-        public ulong BytesByBatchSize => (ulong)(Utils.Product(OutputShape(1)) * Network.Config.TypeSize); //y
+        private ulong BytesByBatchSize => (ulong)(Utils.Product(OutputShape(1)) * Network.Config.TypeSize);
         protected virtual string DefaultLayerName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
         public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
         public ulong BytesIndependentOfBatchSize => Tensor.OccupiedMemoryInBytes(TensorsIndependentOfBatchSize);
+
+        public virtual int ExtraElementCountForForwardPropagation(int batchSize)
+        {
+            return 0;
+        }
+        public virtual int ExtraElementCountForBackwardPropagation(int batchSize)
+        {
+            return 0;
+        }
+
+
         /// <summary>
         ///  At this stage, we already know 'x', we want to compute 'y'
         /// </summary>
+        /// <param name="allX"></param>
+        /// <param name="y1"></param>
         /// <param name="isTraining">true if we are currently training the network
-        /// false if we are just using it to make a prediction </param>
-        public abstract void ForwardPropagation(bool isTraining);
+        ///     false if we are just using it to make a prediction </param>
+        public abstract void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining);
+
         /// <summary>
-        ///  At this stage, we already know 'dy', we want to compute 'dx' by backward propagation
+        ///  At this stage, we already know 'x'+'y'+'dy', we want to compute 'dx' by backward propagation
         /// </summary>
-        /// <param name="dy">the already computed output gradient</param>
-        /// <param name="dx">input gradient (dx) to compute from the output gradient (dy)</param>
-        public abstract void BackwardPropagation(Tensor dy, List<Tensor> dx);
-        public virtual void UpdateWeights(double learningRate) { }
+        /// <param name="allX">[in] all layer inputs</param>
+        /// <param name="y">[in] the already computed output</param>
+        /// <param name="dy">[in] the already computed output gradient</param>
+        /// <param name="dx">[out] input gradient (dx) to compute from the output gradient (dy)</param>
+        public abstract void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx);
+        public virtual void UpdateWeights(int batchSize, double learningRate) { }
         public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
 
 
@@ -254,8 +260,8 @@ namespace SharpNet.Layers
             var res = new Serializer().Add(nameof(Layer), GetType())
                     .Add(nameof(LayerIndex), LayerIndex)
                     .Add(nameof(LayerName), LayerName)
-                    .Add(nameof(_previousLayerIndexes), _previousLayerIndexes.ToArray())
-                    .Add(nameof(_nextLayerIndexes), _nextLayerIndexes.ToArray())
+                    .Add(nameof(PreviousLayerIndexes), PreviousLayerIndexes.ToArray())
+                    .Add(nameof(NextLayerIndexes), NextLayerIndexes.ToArray())
                 ;
             //we serialize all trainable tensors (weights)
             foreach (var trainableTensor in TrainableTensorsIndependentOfBatchSize)
@@ -269,8 +275,8 @@ namespace SharpNet.Layers
             Network = network;
             LayerIndex = (int)serialized[nameof(LayerIndex)];
             LayerName = (string)serialized[nameof(LayerName)];
-            _previousLayerIndexes = ((int[])serialized[nameof(_previousLayerIndexes)]).ToList();
-            _nextLayerIndexes = ((int[])serialized[nameof(_nextLayerIndexes)]).ToList();
+            PreviousLayerIndexes = ((int[])serialized[nameof(PreviousLayerIndexes)]).ToList();
+            NextLayerIndexes = ((int[])serialized[nameof(NextLayerIndexes)]).ToList();
         }
         public static Layer ValueOf(IDictionary<string, object> serialized, Network network)
         {
@@ -309,15 +315,7 @@ namespace SharpNet.Layers
             //In this mode bnBias, bnScale tensor dimensions are (1, C, 1, 1)
             return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
         }
-        protected virtual void Allocate_y_if_necessary()
-        {
-            var batchSize = PrevLayer.y.Shape[0];
-            var outputShape = OutputShape(batchSize);
-            if (y == null || !y.Shape.SequenceEqual(outputShape))
-            {
-                y = Network.NewNotInitializedFloatTensor(outputShape, y, nameof(y));
-            }
-        }
+       
         protected string MemoryDescription()
         {
             var result = "";
@@ -325,7 +323,6 @@ namespace SharpNet.Layers
             {
                 result += TotalParams + " neurons / ";
             }
-            result += Utils.MemoryBytesToString(OccupiedMemoryInBytes) + ": ";
             result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependentOfBatchSize);
             return result;
         }
@@ -343,27 +340,74 @@ namespace SharpNet.Layers
                 return result;
             }
         }
-        protected Layer PrevLayer => (_previousLayerIndexes.Count == 0) ? null : Network.Layers[_previousLayerIndexes[0]];
-        public List<Layer> PreviousLayers => _previousLayerIndexes.Select(idx => Network.Layers[idx]).ToList();
-        public List<int> NextLayerIndexes => _nextLayerIndexes;
+        protected Layer PrevLayer => (PreviousLayerIndexes.Count == 0) ? null : Network.Layers[PreviousLayerIndexes[0]];
+        public List<Layer> PreviousLayers => PreviousLayerIndexes.Select(idx => Network.Layers[idx]).ToList();
         protected void AddPreviousLayer(int previousLayerIndex)
         {
             if (previousLayerIndex >= 0)
             {
-                _previousLayerIndexes.Add(previousLayerIndex);
-                Network.Layers[previousLayerIndex]._nextLayerIndexes.Add(LayerIndex);
+                PreviousLayerIndexes.Add(previousLayerIndex);
+                Network.Layers[previousLayerIndex].NextLayerIndexes.Add(LayerIndex);
             }
+        }
+        protected Tensor GetNotInitializedFloatTensor(int[] shape, Tensor bufferIfAny, string description)
+        {
+            return Network.MemoryPool.GetNotInitializedFloatTensor(shape, bufferIfAny, description);
+        }
+        protected void FreeMemory(Tensor t)
+        {
+            Network.MemoryPool.FreeMemory(t);
+        }
+        protected void FreeMemory(ref Tensor t)
+        {
+            FreeMemory(t);
+            t = null;
+        }
+        protected Tensor GetNotInitializedFloatTensor(int[] shape, string description)
+        {
+            return Network.MemoryPool.GetNotInitializedFloatTensor(shape, null, description);
         }
 
-        protected virtual List<Tensor> TensorsDependentOfBatchSize
+        public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining)
         {
-            get
-            {
-                var result = new List<Tensor> {y};
-                result.RemoveAll(t => t == null);
-                return result;
-            }
+            return LayerOutputShouldBeKeptForBackwardPropagation(isTraining, Layer.FirstTrainableLayer(Network.Layers));
         }
-        private ulong OccupiedMemoryInBytes => Tensor.OccupiedMemoryInBytes(EmbeddedTensors);
+        public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining, Layer firstTrainableLayer)
+        {
+            if ((firstTrainableLayer == null)     //if there is no trainable layer in the network
+                || !isTraining) //or if we are doing only inference 
+            {
+                return false; //no need to keep layer output
+            }
+
+            //if the layer is among the trainable layer
+            if (LayerIndex >= firstTrainableLayer.LayerIndex)
+            {
+                return true; //we need to keep the layer output for backward propagation
+            }
+
+            //if the layer output is consumed by a trainable layer
+            if (NextLayerIndexes.Max() >= firstTrainableLayer.LayerIndex)
+            {
+                return true; //we need to keep the layer output for backward propagation
+            }
+
+            return false; //no need to keep layer output in memory
+        }
+
+        public static Layer FirstTrainableLayer(IEnumerable<Layer> layers)
+        {
+            foreach (var l in layers)
+            {
+                if (l.Trainable && l.TotalParams > 0)
+                {
+                    return l;
+                }
+            }
+            return null;
+        }
+
+
+        protected virtual List<Tensor> TensorsDependentOfBatchSize => new List<Tensor>();
     }
 }

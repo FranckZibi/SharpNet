@@ -29,10 +29,10 @@ namespace SharpNet.Optimizers
             _adam_beta1 = adam_beta1;
             _adam_beta2 = adam_beta2;
             _adam_epsilon = adam_epsilon;
-            _adam_VW = network.NewNotInitializedFloatTensor(weightShape, nameof(_adam_VW));
-            _adam_SW = network.NewNotInitializedFloatTensor(weightShape, nameof(_adam_SW));
-            _adam_VB = (biasShapeIfAny == null) ? null : network.NewNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_VB));
-            _adam_SB = (biasShapeIfAny == null) ? null : network.NewNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_SB));
+            _adam_VW = network.MemoryPool.GetNotInitializedFloatTensor(weightShape, nameof(_adam_VW));
+            _adam_SW = network.MemoryPool.GetNotInitializedFloatTensor(weightShape, nameof(_adam_SW));
+            _adam_VB = (biasShapeIfAny == null) ? null : network.MemoryPool.GetNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_VB));
+            _adam_SB = (biasShapeIfAny == null) ? null : network.MemoryPool.GetNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_SB));
             ZeroMemory();
         }
 
