@@ -19,8 +19,6 @@ namespace SharpNet.Layers
             //we add the identity shortcut connection
             AddPreviousLayer(previousIdentityLayerIndex);
         }
-        public override Layer Clone(Network newNetwork) {return new AddLayer(this, newNetwork);}
-        private AddLayer(AddLayer toClone, Network newNetwork) : base(toClone, newNetwork) {}
 
         #region serialization
         public AddLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)

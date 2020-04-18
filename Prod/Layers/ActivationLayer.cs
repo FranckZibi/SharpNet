@@ -16,18 +16,12 @@ namespace SharpNet.Layers
             ActivationFunction = activationFunctionType;
         }
 
-        public override Layer Clone(Network newNetwork) { return new ActivationLayer(this, newNetwork); }
-        private ActivationLayer(ActivationLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            ActivationFunction = toClone.ActivationFunction;
-        }
-
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            Network.StartTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+            StartForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
             allX[0].ActivationForward(ActivationFunction, y);
-            Network.StopTimer(Type()+">"+ToString(ActivationFunction), isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+            StopForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
         }
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -62,7 +56,7 @@ namespace SharpNet.Layers
                 return;  
             }
 
-            Network.StartTimer(Type()+">"+ToString(ActivationFunction), Network.BackwardPropagationTime);
+            StartBackwardTimer(Type()+">"+ToString(ActivationFunction));
             //we compute dx
             if (IsOutputLayer)
             {
@@ -72,7 +66,7 @@ namespace SharpNet.Layers
             {
                 y.ActivationBackward(dy, allX[0], ActivationFunction, dx[0]);
             }
-            Network.StopTimer(Type()+">"+ToString(ActivationFunction), Network.BackwardPropagationTime);
+            StopBackwardTimer(Type()+">"+ToString(ActivationFunction));
         }
         public override void Dispose()
         {

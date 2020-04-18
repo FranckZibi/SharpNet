@@ -40,15 +40,6 @@ namespace SharpNet.Layers
             _poolingStride = poolingStride;
         }
 
-        public override Layer Clone(Network newNetwork) { return new PoolingLayer(this, newNetwork); }
-        private PoolingLayer(PoolingLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            _poolingMode = toClone._poolingMode;
-            _poolingHeight = toClone._poolingHeight;
-            _poolingWidth = toClone._poolingWidth;
-            _poolingStride = toClone._poolingStride;
-        }
-
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);

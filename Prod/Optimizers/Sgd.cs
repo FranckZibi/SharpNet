@@ -25,7 +25,6 @@ namespace SharpNet.Optimizers
             ZeroMemory();
         }
         
-
         public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)
         {
             if (!Utils.Equals(GetType(), other.GetType(), id + ":GetType", ref errors))
@@ -50,10 +49,8 @@ namespace SharpNet.Optimizers
             weights.UpdateSGDOptimizer(ponderedLearningRate, _SGD_momentum, _SGD_usenesterov, weightGradients, _velocityWeight);
             bias?.UpdateSGDOptimizer(ponderedLearningRate, _SGD_momentum, _SGD_usenesterov, biasGradient, _velocityBias);
         }
-        public static Optimizer DeserializeSGD(IDictionary<string, object> serialized)
-        {
-            return serialized.ContainsKey(nameof(_velocityWeight)) ? new Sgd(serialized) : null;
-        }
+
+        #region serialization
         public override string Serialize()
         {
             return new Serializer()
@@ -63,18 +60,10 @@ namespace SharpNet.Optimizers
                 .Add(_velocityWeight).Add(_velocityBias)
                 .ToString();
         }
-
-        public override Optimizer Clone(Network newNetwork) { return new Sgd(this, newNetwork); }
-        private Sgd(Sgd toClone, Network newNetwork)
+        public static Optimizer DeserializeSGD(IDictionary<string, object> serialized)
         {
-            _iterations = toClone._iterations;
-            _SGD_momentum = toClone._SGD_momentum;
-            _SGD_usenesterov = toClone._SGD_usenesterov;
-            _velocityWeight = toClone._velocityWeight?.Clone(newNetwork.GpuWrapper);
-            _velocityBias = toClone._velocityBias?.Clone(newNetwork.GpuWrapper);
-
+            return serialized.ContainsKey(nameof(_velocityWeight)) ? new Sgd(serialized) : null;
         }
-
         private Sgd(IDictionary<string, object> serialized)
         {
             serialized.TryGet(nameof(_iterations), out _iterations);
@@ -83,5 +72,6 @@ namespace SharpNet.Optimizers
             serialized.TryGet(nameof(_velocityWeight), out _velocityWeight);
             serialized.TryGet(nameof(_velocityBias), out _velocityBias);
         }
+        #endregion
     }
 }

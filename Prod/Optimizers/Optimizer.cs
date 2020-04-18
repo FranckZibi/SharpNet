@@ -43,6 +43,5 @@ namespace SharpNet.Optimizers
         {
             return (float)learningRate / batchSize;
         }
-        public abstract Optimizer Clone(Network newNetwork);
     }
 }

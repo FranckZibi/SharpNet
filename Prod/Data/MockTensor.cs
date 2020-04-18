@@ -47,16 +47,19 @@ namespace SharpNet.Data
         public override void Split(Tensor a, Tensor b){throw new NotImplementedException();}
         public override void Update_Multiplying_By_Alpha(float alpha){throw new NotImplementedException();}
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y){throw new NotImplementedException();}
-        public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride,
-            Tensor y, bool isDepthwiseConvolution, GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference)
+        public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft,
+            int paddingRight, int stride,
+            Tensor y, bool isDepthwiseConvolution, GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference,
+            TensorMemoryPool memoryPool)
         {
             throw new NotImplementedException();
         }
         public override void BroadcastConvolutionBiasToOutput(Tensor y){throw new NotImplementedException();}
         public override void ConvolutionBackwardBias(Tensor bias){throw new NotImplementedException();}
-        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft,
+        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom,
+            int paddingLeft,
             int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution,
-            GPUWrapper.ConvolutionAlgoPreference backwardAlgoPreference)
+            GPUWrapper.ConvolutionAlgoPreference backwardAlgoPreference, TensorMemoryPool memoryPool)
         {
             throw new NotImplementedException();
         }
@@ -79,17 +82,20 @@ namespace SharpNet.Data
         }
         public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient,cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer){throw new NotImplementedException();}
 
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBufferForCpu, ref DeviceMemory randomNumberGeneratorStatesBufferForGPU,ref DeviceMemory dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU) 
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
+            Tensor dropoutMaskBufferForCpu, ref Tensor randomNumberGeneratorStatesBufferForGPU,
+            ref Tensor dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU, TensorMemoryPool memoryPool) 
         {
             throw new NotImplementedException();
         }
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutMaskBufferForCpu, DeviceMemory randomNumberGeneratorStatesBufferForGPU, DeviceMemory dropoutReserveSpaceForGPU,IntPtr dropoutDescriptorForGPU)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
+            Tensor dropoutMaskBufferForCpu, Tensor randomNumberGeneratorStatesBufferForGPU,
+            Tensor dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU)
         {
             throw new NotImplementedException();
         }
         public override double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer){throw new NotImplementedException();}
         public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer){throw new NotImplementedException();}
-        protected override IntPtr DevicePointer => throw new NotImplementedException();
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev){throw new NotImplementedException();}

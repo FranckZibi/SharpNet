@@ -17,7 +17,7 @@ namespace SharpNet.DataAugmentation.Operations
 
         public override (double row, double col) Unconvert_Slow(double row, double col)
         {
-            return XYCoordinateRotater.RotateInTopLeftReferential(row, col, _nbRows, _nbCols, _nbRows, _nbCols,
+            return XYCoordinateRotator.RotateInTopLeftReferential(row, col, _nbRows, _nbCols, _nbRows, _nbCols,
                 -_rotationInDegrees);
         }
         public static Rotate ValueOf(double rotationRangeInDegrees, Random rand, int nbRows, int nbCols)

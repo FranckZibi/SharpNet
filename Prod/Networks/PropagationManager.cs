@@ -195,10 +195,7 @@ namespace SharpNet.Networks
                     {
                         //there is no need to compute/keep 'dy' of layer 'prevLayerIndex'
                         //we do not need to do any back propagation for it
-                        if (prevLayerdY != null)
-                        {
-                            _memoryPool.FreeMemory(prevLayerdY);
-                        }
+                        _memoryPool.FreeMemory(ref prevLayerdY);
                         continue;
                     }
 
@@ -215,7 +212,7 @@ namespace SharpNet.Networks
                             all_dY[prevLayerIndex].Update_Adding_Alpha_X(1, prevLayerdY);
                         }
                         //we can free (discard) the content of prevLayer dY : it has already been added to an existing tensor
-                        _memoryPool.FreeMemory(prevLayerdY);
+                        _memoryPool.FreeMemory(ref prevLayerdY);
                     }
                 }
 

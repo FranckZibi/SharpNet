@@ -49,11 +49,12 @@ namespace SharpNetTests
 	            var y = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution), "y");
                 ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
                 ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
+                var memoryPool =  new TensorMemoryPool(GpuWrapper, false);
                 if (ConvolutionLayer.IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
                 {
                     continue; //asymmetric padding is not supported by cuDNN
                 }
-                TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[2], isDepthwiseConvolution, ConvolutionAlgoPreference));
+                TestAll(new[] { x, convolution, y }, tensors => tensors[0].Convolution(tensors[1], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[2], isDepthwiseConvolution, ConvolutionAlgoPreference, memoryPool));
             }
         }
 
@@ -70,6 +71,7 @@ namespace SharpNetTests
         [Test]
         public void TestConvolutionGradient()
         {
+            var memoryPool = new TensorMemoryPool(GpuWrapper, false);
             foreach (ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
             foreach (NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
             foreach (int stride in new[] { 1, 2 })
@@ -99,19 +101,19 @@ namespace SharpNetTests
                     padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
                     var padded_dX = RandomTensor(paddedXShape, "padded_dX");
                     TestAll(new[] { padded_X, convolution, dy, dx, padded_dX, convolutionGradient }, tensors => ConvolutionGradientAsymmetricPadding(
-                        tensors[0], tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], tensors[5], isDepthwiseConvolution));
+                        tensors[0], tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], tensors[5], isDepthwiseConvolution, memoryPool));
                 }
                 else
                 {
-                    TestAll(new[] { x, convolution, dy, dx, convolutionGradient }, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], isDepthwiseConvolution, ConvolutionAlgoPreference));
+                    TestAll(new[] { x, convolution, dy, dx, convolutionGradient }, tensors => tensors[0].ConvolutionGradient(tensors[1], tensors[2], paddingTop, paddingBottom, paddingLeft, paddingRight, stride, tensors[3], tensors[4], isDepthwiseConvolution, ConvolutionAlgoPreference, memoryPool));
                 }
             }
         }
 
         private static void ConvolutionGradientAsymmetricPadding(Tensor padded_X, Tensor convolution, Tensor dy, int paddingTop,
-            int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor padded_dX, Tensor convGradient, bool isDepthwiseConvolution)
+            int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor padded_dX, Tensor convGradient, bool isDepthwiseConvolution, TensorMemoryPool memoryPool)
         {
-            padded_X.ConvolutionGradient(convolution, dy, 0, 0, 0, 0, stride, padded_dX, convGradient, isDepthwiseConvolution, ConvolutionAlgoPreference);
+            padded_X.ConvolutionGradient(convolution, dy, 0, 0, 0, 0, stride, padded_dX, convGradient, isDepthwiseConvolution, ConvolutionAlgoPreference, memoryPool);
             dx.ZeroUnpadding(padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
         }
 
@@ -607,9 +609,7 @@ namespace SharpNetTests
 
         private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper)
         {
-            var result =  new GPUTensor<T>(cpuTensor.Shape, cpuTensor.Description, gpuWrapper);
-            result.CopyToDevice(cpuTensor.Content);
-            return result;
+            return new GPUTensor<T>(cpuTensor.Shape, cpuTensor.Content, cpuTensor.Description, gpuWrapper);
         }
     }
 }

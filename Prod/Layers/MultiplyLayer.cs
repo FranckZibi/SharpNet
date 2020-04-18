@@ -58,9 +58,6 @@ namespace SharpNet.Layers
             return layerShape1.SequenceEqual(layerShape2);
         }
 
-        public override Layer Clone(Network newNetwork) { return new MultiplyLayer(this, newNetwork); }
-        private MultiplyLayer(MultiplyLayer toClone, Network newNetwork) : base(toClone, newNetwork) { }
-
         #region serialization
         public MultiplyLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
@@ -88,20 +85,20 @@ namespace SharpNet.Layers
             Debug.Assert(dx2.SameShape(x2));
 
 
-            Network.StartTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
+            StartBackwardTimer(Type() + ">SameShape");
             dx1.MultiplyTensor(dy, x2);
-            Network.StopTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
+            StopBackwardTimer(Type() + ">SameShape");
             if (dx2.SameShape(dy))
             {
-                Network.StartTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
+                StartBackwardTimer(Type() + ">SameShape");
                 dx2.MultiplyTensor(dy, x1);
-                Network.StopTimer(Type() + ">SameShape", Network.BackwardPropagationTime);
+                StopBackwardTimer(Type() + ">SameShape");
             }
             else
             {
-                Network.StartTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
+                StartBackwardTimer(Type() + ">DistinctShape");
                 dx2.MultiplyEachRowIntoSingleValue(dy, x1);
-                Network.StopTimer(Type() + ">DistinctShape", Network.BackwardPropagationTime);
+                StopBackwardTimer(Type() + ">DistinctShape");
             }
         }
 

@@ -39,14 +39,11 @@ namespace SharpNet.DataAugmentation.Operations
             return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
 
-
-       
-
         public virtual void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
         }
 
-        public static float UnnormalizedValue(float normalizedValue, int channel, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+        protected static float UnnormalizedValue(float normalizedValue, int channel, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
         {
             if (meanAndVolatilityForEachChannel == null)
             {

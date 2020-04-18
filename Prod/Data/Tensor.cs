@@ -105,7 +105,7 @@ namespace SharpNet.Data
         }
         public static implicit operator IntPtr(Tensor t)
         {
-            return t.DevicePointer;
+            return t.Pointer;
         }
         public CpuTensor<T> AsCpu<T>()
         {
@@ -118,7 +118,7 @@ namespace SharpNet.Data
 
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper)
         {
-            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().HostPointer, Description, gpuWrapper);
+            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().Content, Description, gpuWrapper);
         }
         public CpuTensor<float> ToCpuFloat()
         {
@@ -339,7 +339,7 @@ namespace SharpNet.Data
         ///
         public abstract void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft,
             int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution,
-            GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference);
+            GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference, TensorMemoryPool memoryPool);
 
         /// <summary>
         /// this = bias tensor of dimension (1, channels, 1, 1)
@@ -375,9 +375,10 @@ namespace SharpNet.Data
         ///     false for standard convolution
         /// </param>
         /// <param name="backwardAlgoPreference"></param>
+        /// <param name="memoryPool"></param>
         public abstract void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom,
             int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution,
-            GPUWrapper.ConvolutionAlgoPreference backwardAlgoPreference);
+            GPUWrapper.ConvolutionAlgoPreference backwardAlgoPreference, TensorMemoryPool memoryPool);
         #endregion
 
         //this = x
@@ -424,20 +425,20 @@ namespace SharpNet.Data
         /// is isTraining=true
         ///     [in,out]  it will be updated by this method
         /// else (isTraining=false)
-        ///     [in]  will ony be read by the method
+        ///     [in] will ony be read by the method
         /// </param>
         /// <param name="runningInputVariance">weighted variance of all the inputs
         /// is isTraining=true
         ///     [in,out]  it will be updated by this method
         /// else (isTraining=false)
-        ///     [in]  will ony be read by the method
+        ///     [in] will ony be read by the method
         /// </param>
         /// <param name="mode"></param>
         /// <param name="epsilon"></param>
         /// <param name="meanBuffer">[out] buffer where to store the mean of the input 'x' tensor
-        /// while only be used if isTraining=true</param>
+        /// only used if isTraining=true</param>
         /// <param name="invertOfUnbiasedVolatilityBuffer">[out] buffer where to store the invert of the unbiased volatility of the input 'x' tensor
-        /// while only be used if isTraining=true</param>
+        /// only used if isTraining=true</param>
         /// <param name="isTraining">
         /// true if we are training the network
         /// false for inference</param>
@@ -468,7 +469,10 @@ namespace SharpNet.Data
         /// <param name="randomNumberGeneratorStatesBufferForGPU">only used for GPU (null for Cpu)</param>
         /// <param name="dropoutReserveSpaceForGPU">only used for GPU (null for Cpu)</param>
         /// <param name="dropoutDescriptorForGPU">only used for GPU (null for Cpu)</param>
-        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBufferForCpu, ref DeviceMemory randomNumberGeneratorStatesBufferForGPU, ref DeviceMemory dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU);
+        /// <param name="memoryPool"></param>
+        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
+            Tensor dropoutMaskBufferForCpu, ref Tensor randomNumberGeneratorStatesBufferForGPU,
+            ref Tensor dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU, TensorMemoryPool memoryPool);
 
         /// <summary>
         /// 
@@ -480,7 +484,9 @@ namespace SharpNet.Data
         /// <param name="randomNumberGeneratorStatesBufferForGPU">only used for GPU (null for Cpu)</param>
         /// <param name="dropoutReserveSpaceForGPU">only used for GPU (null for Cpu)</param>
         /// <param name="dropoutDescriptorForGPU">only used for GPU (null for Cpu)</param>
-        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutMaskBufferForCpu, DeviceMemory randomNumberGeneratorStatesBufferForGPU, DeviceMemory dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU);
+        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
+            Tensor dropoutMaskBufferForCpu, Tensor randomNumberGeneratorStatesBufferForGPU,
+            Tensor dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU);
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
@@ -499,8 +505,7 @@ namespace SharpNet.Data
         /// <returns></returns>
         public abstract double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer);
 
-        protected abstract IntPtr DevicePointer { get; }
-
+        public virtual IntPtr Pointer => throw new NotImplementedException();
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
@@ -534,7 +539,8 @@ namespace SharpNet.Data
             TypeSize = typeSize;
             RecomputeMultDim();
         }
-        public ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
+
+        protected ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
         protected void CheckConcatenate(Tensor a, Tensor b)
         {
             Debug.Assert(Shape.Length >= 2);

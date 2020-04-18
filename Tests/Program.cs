@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
 using SharpNet.GPU;
@@ -434,49 +433,6 @@ namespace SharpNetTests
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
-            }
-        }
-
-
-
-        private static void Train_DogsVsCat_WRN_TransferLearning(WideResNetBuilder p)
-        {
-            int heightAndWidth = 32;
-            var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, "dogs-vs-cats", "train_filter_resize_32_32");
-
-
-
-            var trainingDirectory = DogsVsCats.ValueOf(dataDirectory, heightAndWidth, heightAndWidth, null).Shuffle(new Random(0)).Take(2000);
-            using (var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
-            using (var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "WRN-16-4_20190816_1810_150.txt"), p.GpuDeviceId))
-
-
-
-
-            {
-                //network.Config.WithCifar10WideResNetLearningRateScheduler(true, true, false);
-                network.SetCategoryCount(trainingDirectory.CategoryCount);
-                network.Info("training only last layer");
-                network.Layers.ForEach(l => l.Trainable = false);
-                network.LastFrozenLayer().Trainable = true;
-                network.EpochDatas.Clear();
-                p.NumEpochs = 150;
-                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
-            }
-        }
-
-        private static void Train_DogsVsCat_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
-        {
-            int heightAndWidth = 32;
-            var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, "dogs-vs-cats", "train_filter_resize_32_32");
-
-            var trainingDirectory = DogsVsCats.ValueOf(dataDirectory, heightAndWidth, heightAndWidth, null).Shuffle(new Random(0)).Take(2000);
-            using (var trainingAndValidationSet = trainingDirectory.SplitIntoTrainingAndValidation(0.5))
-            using (var network = p.WRN(WRN_depth, WRN_k, trainingDirectory.InputShape_CHW, trainingDirectory.CategoryCount))
-            {
-                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(trainingAndValidationSet.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidationSet.Test);
             }
         }
 

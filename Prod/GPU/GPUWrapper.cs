@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace SharpNet.GPU
@@ -23,10 +24,9 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr>();
         private readonly IDictionary<cudnnActivationMode_t, IntPtr> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, IntPtr>();
-        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t> cacheFindConvolutionBackwardFilterAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t>();
+        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t> cacheConvolutionBackwardFilterAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t>();
         private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t> cacheFindConvolutionBackwardDataAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t>();
-        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheFindConvolutionForwardAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
-
+        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheConvolutionForwardAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
@@ -35,18 +35,12 @@ namespace SharpNet.GPU
         private ulong _bytesCopiedToDevice;
         private int _copyToHostCalls;
         private ulong _bytesCopiedToHost;
-        private DeviceMemory _lazyStorageBuffer;
-        private static readonly IDictionary<int, GPUWrapper> Cache = new Dictionary<int, GPUWrapper>();
-        private readonly bool _preAllocateAllDeviceMemory;
         private readonly int _threadId;
-        private IntPtr _pointToDeviceMemory;
-        private size_t _sizeInBytesOfAllocatedMemory;
-        private long _offsetNextSpaceInDeviceMemory;
-        //private int _nbChunksInDeviceMemory = 0;
+        private readonly int _deviceId;
+        private static readonly IDictionary<int, GPUWrapper> Cache = new Dictionary<int, GPUWrapper>();
         #endregion
 
         #region readonly properties
-        public int DeviceId { get; }
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
@@ -123,20 +117,16 @@ namespace SharpNet.GPU
         ///     10_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS:   1.6x slower then FASTEST (291.1s/epoch)
         ///     FASTEST_DETERMINIST_NO_TRANSFORM:                 2x slower then FASTEST (376.2s/epoch)
         /// </summary>
-        ///
-        //WRN-16-10_FASTEST GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	195.2303487	97.6151746	0.977050293	0.6762	
-        //WRN-16-10_FASTEST_DETERMINIST_NO_TRANSFORM GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	356.4549956	178.2274981	0.992591016	0.6695	1.825817541
-        //WRN-16-10_FASTEST_DETERMINIST GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	197.6540701	98.82703525	0.979999219	0.6758	1.012414675
-        //WRN-16-10_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS GeForce GTX 1080, driver v10.10, cublas v10.1.2, deviceId:0, threadId:4	17132026	2	128	0.1	274.6506682	137.3253344	1.018738574	0.6607	1.406803142
-        /// 
         public enum ConvolutionAlgoPreference
         {
-            //fastest algorithm
-            FASTEST,
-
             //fastest *determinist* algorithm : RECOMMENDED METHOD
-            //achieves nearly same speed as ConvolutionAlgoPreference.FASTEST (<1% slower) but is deterministic which is easier for debugging
+            //achieves nearly same speed as FASTEST (<1% slower) but is deterministic which is easier for debugging
             FASTEST_DETERMINIST,
+
+            //fastest algorithm, even if it is not determinist
+            //it is only slightly faster (<1 %) then 'FASTEST_DETERMINIST' but more difficult to investigate / debug
+            // ReSharper disable once UnusedMember.Global
+            FASTEST,
 
             //fastest determinist algorithm not based on Fast-Fourier or Winograd Transform
             //this is the only supported mode on CPU
@@ -150,7 +140,7 @@ namespace SharpNet.GPU
             //      cudnnGetConvolutionBackwardDataAlgorithm
             //it is mainly used for backward compatibility
             //around 1.5x slower then FASTEST on WRN-16-10 & WRN-28-10
-            USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS,
+            USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS
         }
 
         /// <summary>
@@ -166,7 +156,7 @@ namespace SharpNet.GPU
         {
             var key = Tuple.Create(xDesc, yDesc, convDesc, filterDesc, forwardAlgoPreference);
             cudnnStatus_t cudnnStatus;
-            if (cacheFindConvolutionForwardAlgorithm.TryGetValue(key, out var forwardAlgo))
+            if (cacheConvolutionForwardAlgorithm.TryGetValue(key, out var forwardAlgo))
             {
                 return forwardAlgo;
             }
@@ -175,6 +165,7 @@ namespace SharpNet.GPU
             {
                 cudnnStatus = CudnnWrapper.cudnnGetConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0, out forwardAlgo);
                 CheckStatus(cudnnStatus);
+                cacheConvolutionForwardAlgorithm[key] = forwardAlgo;
                 return forwardAlgo;
             }
 
@@ -183,6 +174,7 @@ namespace SharpNet.GPU
             var perfResultsStackalloc = stackalloc cudnnConvolutionFwdAlgoPerf_t[requestedAlgoCount];
             cudnnStatus = CudnnWrapper.cudnnFindConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, requestedAlgoCount, out int returnedAlgoCount, perfResultsStackalloc);
             CheckStatus(cudnnStatus);
+            //'perfResults' contains KPI for all available algos, starting from the fastest
             var perfResults = ExtractFromStackalloc(perfResultsStackalloc, returnedAlgoCount).Where(p => p.status == cudnnStatus_t.CUDNN_STATUS_SUCCESS).ToList();
 
             //we apply our algorithms constraints (deterministic, no transform, etc.)
@@ -197,7 +189,7 @@ namespace SharpNet.GPU
 
             //we choose the fastest algorithms matching the constraints
             forwardAlgo = perfResults[0].algo;
-            cacheFindConvolutionForwardAlgorithm[key] = forwardAlgo;
+            cacheConvolutionForwardAlgorithm[key] = forwardAlgo;
             return forwardAlgo;
         }
         /// <summary>
@@ -213,7 +205,7 @@ namespace SharpNet.GPU
         {
             var key = Tuple.Create(xDesc, dyDesc, convDesc, filterDesc, backwardAlgoPreference);
             cudnnStatus_t cudnnStatus;
-            if (cacheFindConvolutionBackwardFilterAlgorithm.TryGetValue(key, out var backwardFilterAlgo))
+            if (cacheConvolutionBackwardFilterAlgorithm.TryGetValue(key, out var backwardFilterAlgo))
             {
                 return backwardFilterAlgo;
             }
@@ -221,6 +213,7 @@ namespace SharpNet.GPU
             {
                 cudnnStatus = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, filterDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0, out backwardFilterAlgo);
                 CheckStatus(cudnnStatus);
+                cacheConvolutionBackwardFilterAlgorithm[key] = backwardFilterAlgo;
                 return backwardFilterAlgo;
             }
 
@@ -229,6 +222,7 @@ namespace SharpNet.GPU
             var perfResultsStackalloc = stackalloc cudnnConvolutionBwdFilterAlgoPerf_t[requestedAlgoCount];
             cudnnStatus = CudnnWrapper.cudnnFindConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, filterDesc, requestedAlgoCount, out int returnedAlgoCount, perfResultsStackalloc);
             CheckStatus(cudnnStatus);
+            //'perfResults' contains KPI for all available algos, starting from the fastest
             var perfResults = ExtractFromStackalloc(perfResultsStackalloc, returnedAlgoCount).Where(p => p.status == cudnnStatus_t.CUDNN_STATUS_SUCCESS).ToList();
 
             //we apply our algorithms constraints (deterministic, no transform, etc.)
@@ -243,7 +237,7 @@ namespace SharpNet.GPU
 
             //we choose the fastest algorithms matching the constraints
             backwardFilterAlgo = perfResults[0].algo;
-            cacheFindConvolutionBackwardFilterAlgorithm[key] = backwardFilterAlgo;
+            cacheConvolutionBackwardFilterAlgorithm[key] = backwardFilterAlgo;
             return backwardFilterAlgo;
         }
 
@@ -395,44 +389,6 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        //returns a buffer storage (in Device memory) with at least 'sizeInBytes' size
-        public DeviceMemory StorageBuffer(size_t sizeInBytes)
-        {
-            CheckThreadId();
-            if (_lazyStorageBuffer == null || _lazyStorageBuffer.SizeInBytes < sizeInBytes)
-            {
-                _lazyStorageBuffer?.Dispose();
-                _lazyStorageBuffer = NewDeviceMemory(Math.Max(sizeInBytes, 10 * 1024 * 1024));
-            }
-            return _lazyStorageBuffer;
-        }
-        public DeviceMemory NewDeviceMemory(size_t sizeInBytes)
-        {
-            CheckThreadId();
-            if (!_preAllocateAllDeviceMemory)
-            {
-                return new DeviceMemory(sizeInBytes);
-            }
-            if (sizeInBytes > FreePreAllocatedMemoryInBytes())
-            {
-                throw new OutOfMemoryException("Not enough memory to allocate " + sizeInBytes + " (available:" + FreePreAllocatedMemoryInBytes() + ") in " + this);
-            }
-            var result = NewDeviceMemory(new IntPtr(_pointToDeviceMemory.ToInt64() + (long)(ulong)_offsetNextSpaceInDeviceMemory), sizeInBytes);
-            _offsetNextSpaceInDeviceMemory += (long)(ulong)sizeInBytes;
-            const long alignment = 128;
-            if (_offsetNextSpaceInDeviceMemory % alignment != 0)
-            {
-                _offsetNextSpaceInDeviceMemory += alignment - (_offsetNextSpaceInDeviceMemory % alignment);
-            }
-            //++_nbChunksInDeviceMemory;
-            return result;
-        }
-        public DeviceMemory NewDeviceMemory(IntPtr pointer, size_t sizeInBytes)
-        {
-            CheckThreadId();
-            var res = new DeviceMemory(pointer, sizeInBytes);
-            return res;
-        }
 
         public void Reset()
         {
@@ -443,7 +399,6 @@ namespace SharpNet.GPU
             _bytesCopiedToHost = 0;
             SwCopyToDevice.Reset();
             SwCopyToHost.Reset();
-            _offsetNextSpaceInDeviceMemory = 0;
             //_nbChunksInDeviceMemory = 0;
             cacheTensorDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyTensorDescriptor(x)));
             cacheTensorDesc.Clear();
@@ -457,8 +412,8 @@ namespace SharpNet.GPU
             cacheConvolutionDesc.Clear();
             cacheActivationDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyActivationDescriptor(x)));
             cacheActivationDesc.Clear();
-            cacheFindConvolutionForwardAlgorithm.Clear();
-            cacheFindConvolutionBackwardFilterAlgorithm.Clear();
+            cacheConvolutionForwardAlgorithm.Clear();
+            cacheConvolutionBackwardFilterAlgorithm.Clear();
             cacheFindConvolutionBackwardDataAlgorithm.Clear();
         }
         public void LogCopyToDeviceCall(ulong byteCopied)
@@ -478,7 +433,7 @@ namespace SharpNet.GPU
             var result = _deviceName + " - driver " + _driverVersion;
             var cudaVersion = CudaVersionFromCudaPath();
             result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
-            result += " - cublas " + _cublasVersion + " - deviceId:" + DeviceId + " - threadId:" + _threadId;
+            result += " - cublas " + _cublasVersion + " - deviceId:" + _deviceId + " - threadId:" + _threadId;
             return result;
         }
         public override string ToString()
@@ -489,10 +444,6 @@ namespace SharpNet.GPU
         {
             CheckThreadId();
             var result = "Free GPU Memory: " + Utils.MemoryBytesToString(FreeMemoryInBytes()) + "/" + Utils.MemoryBytesToString(TotalMemoryInBytes());
-            if (_preAllocateAllDeviceMemory)
-            {
-                result += " - Free PreAllocated GPU Memory: " + Utils.MemoryBytesToString(FreePreAllocatedMemoryInBytes()) + "/" + Utils.MemoryBytesToString(_sizeInBytesOfAllocatedMemory);
-            }
             if (_copyToDeviceCalls!= 0)
             { 
                 result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice) + " CopiedToDevice (" + _copyToDeviceCalls + "calls, " + SwCopyToDevice.ElapsedMilliseconds + "ms)";
@@ -504,10 +455,10 @@ namespace SharpNet.GPU
             return result;
         }
 
-        public size_t AvailableMemoryInBytes()
+        public size_t AvailableGpuMemoryInBytes()
         {
             CheckThreadId();
-            return (_preAllocateAllDeviceMemory ? FreePreAllocatedMemoryInBytes() : (size_t)FreeMemoryInBytes());
+            return FreeMemoryInBytes();
         }
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
         public StreamWrapper DefaultStream { get; }
@@ -517,7 +468,6 @@ namespace SharpNet.GPU
             {
                 throw new Exception(_status + " " + getComment());
             }
-
         }
 
         public static void CheckStatus(cudnnStatus_t _status, Func<string> getComment)
@@ -593,6 +543,7 @@ namespace SharpNet.GPU
         }
         // ReSharper disable once RedundantDefaultMemberInitializer
         private bool disposed = false;
+        [SuppressMessage("ReSharper", "UnusedVariable")]
         private void Dispose(bool disposing)
         {
             if (disposed)
@@ -607,23 +558,14 @@ namespace SharpNet.GPU
             }
 
             //unmanaged memory
-            if (_preAllocateAllDeviceMemory)
-            {
-                var cuResult = NVCudaWrapper.cuMemFree_v2(_pointToDeviceMemory);
-                CheckStatus(cuResult);
-                _pointToDeviceMemory = IntPtr.Zero;
-                _sizeInBytesOfAllocatedMemory = 0;
-                _offsetNextSpaceInDeviceMemory = 0;
-                //_nbChunksInDeviceMemory = 0;
-            }
             var cublasRes = CublasWrapper.cublasDestroy_v2(_cudaBlasHandle);
-            CheckStatus(cublasRes);
+            //CheckStatus(cublasRes);
             _cudaBlasHandle = IntPtr.Zero;
             var cudnnRes = CudnnWrapper.cudnnDestroy(_cudnnHandle);
-            CheckStatus(cudnnRes);
+            //CheckStatus(cudnnRes);
             _cudnnHandle = IntPtr.Zero;
             var cuRes = NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
-            CheckStatus(cuRes);
+            //CheckStatus(cuRes);
             _contextHandle = IntPtr.Zero;
         }
         ~GPUWrapper()
@@ -636,9 +578,8 @@ namespace SharpNet.GPU
         {
             CudartWrapper.cudaDeviceReset();
             CudartWrapper.cudaSetDevice(deviceId);
-            DeviceId = deviceId;
+            _deviceId = deviceId;
             _threadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
-            _preAllocateAllDeviceMemory = false;
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
 
@@ -677,18 +618,6 @@ namespace SharpNet.GPU
             var cudnnRes = CudnnWrapper.cudnnCreate(out _cudnnHandle);
             CheckStatus(cudnnRes);
             _kernelManager = new KernelManager(this);
-            if (_preAllocateAllDeviceMemory)
-            {
-                _sizeInBytesOfAllocatedMemory = (75 * FreeMemoryInBytes()) / 100;
-                while (CUresult.CUDA_SUCCESS != NVCudaWrapper.cuMemAlloc_v2(out _pointToDeviceMemory, _sizeInBytesOfAllocatedMemory))
-                {
-                    _sizeInBytesOfAllocatedMemory = (90 * _sizeInBytesOfAllocatedMemory) / 100;
-                    if (_sizeInBytesOfAllocatedMemory < 0.1 * FreeMemoryInBytes())
-                    {
-                        throw new Exception("Fail to allocate enough Device memory in " + this);
-                    }
-                }
-            }
         }
         private static Version NewVersion(int driverVersion)
         {
@@ -754,10 +683,6 @@ namespace SharpNet.GPU
         {
             CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t _);
             return freeMemoryInBytes;
-        }
-        private size_t FreePreAllocatedMemoryInBytes()
-        {
-            return (_sizeInBytesOfAllocatedMemory - (ulong)_offsetNextSpaceInDeviceMemory);
         }
         /// <summary>
         /// Ensure that the current ThreadId is the same used when creating the 'this' object

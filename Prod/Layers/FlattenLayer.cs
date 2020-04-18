@@ -11,9 +11,6 @@ namespace SharpNet.Layers
         {
         }
 
-        public override Layer Clone(Network newNetwork) { return new FlattenLayer(this, newNetwork); }
-        private FlattenLayer(FlattenLayer toClone, Network newNetwork) : base(toClone, newNetwork) {}
-
         #region serialization
         public FlattenLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {

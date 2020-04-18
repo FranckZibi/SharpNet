@@ -83,22 +83,22 @@ namespace SharpNet.Pictures
             var cropped = GetBorderCoordinates();
             return Crop(cropped.rowStart, cropped.rowEnd, cropped.colStart, cropped.colEnd);
         }
-        public void Save(List<string> filenames)
+        public void Save(List<string> fileNames)
         {
-            if (filenames.Count == 1)
+            if (fileNames.Count == 1)
             {
                 Debug.Assert(GetChannels() == 3);
                 var bmp = AsBitmap();
-                PictureTools.SavePng(bmp, filenames[0]);
+                PictureTools.SavePng(bmp, fileNames[0]);
                 bmp.Dispose();
             }
             else
             {
-                Debug.Assert(GetChannels() == filenames.Count);
+                Debug.Assert(GetChannels() == fileNames.Count);
                 for (int channel = 0; channel < GetChannels(); ++channel)
                 {
                     var bmp = AsBitmapForChannel(channel);
-                    PictureTools.SavePng(bmp, filenames[channel]);
+                    PictureTools.SavePng(bmp, fileNames[channel]);
                     bmp.Dispose();
                 }
             }
@@ -172,33 +172,6 @@ namespace SharpNet.Pictures
             }
             return true;
         }
-
-
-        /// <summary>
-        /// return the brightness of the pixel at (row,col) (value is between 0 (dark) and 1.0 (white)
-        /// </summary>
-        /// <param name="row"></param>
-        /// <param name="col"></param>
-        /// <returns>brightness (between 0.0 and 1)</returns>
-        public float GetBrightness(int row, int col)
-        {
-            int max = 0;
-            for (int channel = 0; channel < GetChannels(); ++channel)
-            {
-                max = Math.Max(max, Get(channel, row, col));
-            }
-            return max / 255f;
-        }
-        //public float GetBrightness(int row, int col)
-        //{
-        //    var sum = 0f;
-        //    for (int channel = 0; channel < GetChannels(); ++channel)
-        //    {
-        //        sum += Get(channel, row, col);
-        //    }
-        //    return sum / (255f*GetChannels());
-        //}
-
 
         /// <summary>
         /// compute the volatility of each row
@@ -341,19 +314,17 @@ namespace SharpNet.Pictures
                 }
             }
 
-
-
             int leftIndex = 0;
-            var sumFromleft = 0.0;
+            var sumFromLeft = 0.0;
             for (; leftIndex < length - 1; ++leftIndex)
             {
                 var vol = volatilities[leftIndex];
-                var averageFromStart = sumFromleft / (1+leftIndex);
+                var averageFromStart = sumFromLeft / (1+leftIndex);
                 if ( (vol > threshold) ||(averageFromStart>0 && vol > (3.0 * averageFromStart) && vol > lowerThreshold) )
                 {
                     break;
                 }
-                sumFromleft += vol;
+                sumFromLeft += vol;
             }
             int rightIndex = length - 1;
             var sumFromRight = 0.0;

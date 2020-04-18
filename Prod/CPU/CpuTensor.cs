@@ -350,7 +350,9 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutMaskBufferForCpu, ref DeviceMemory randomNumberGeneratorStatesBufferForGPU, ref DeviceMemory dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU)
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
+            Tensor dropoutMaskBufferForCpu, ref Tensor randomNumberGeneratorStatesBufferForGPU,
+            ref Tensor dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU, TensorMemoryPool memoryPool)
         {
             var x = this;
             Debug.Assert(dropoutMaskBufferForCpu != null);
@@ -366,7 +368,9 @@ namespace SharpNet.CPU
             Utils.Randomize(dropoutMaskBufferForCpu.AsFloatCpuContent, dropoutRandom, 0.0, 1.0);
             y.AsCpu<float>().BuildEntirelyFromInput(x, dropoutMaskBufferForCpu, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
         }
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutMaskBufferForCpu, DeviceMemory randomNumberGeneratorStatesBufferForGPU, DeviceMemory dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
+            Tensor dropoutMaskBufferForCpu, Tensor randomNumberGeneratorStatesBufferForGPU,
+            Tensor dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU)
         {
             Debug.Assert(dropoutMaskBufferForCpu != null);
             Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
@@ -836,7 +840,9 @@ namespace SharpNet.CPU
         }
 
         #region Convolution
-        public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution, ConvolutionAlgoPreference forwardAlgoPreference)
+        public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft,
+            int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution,
+            ConvolutionAlgoPreference forwardAlgoPreference, TensorMemoryPool memoryPool)
         {
             if (forwardAlgoPreference != ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
             {
@@ -948,7 +954,9 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution, ConvolutionAlgoPreference backwardAlgoPreference)
+        public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom,
+            int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution,
+            ConvolutionAlgoPreference backwardAlgoPreference, TensorMemoryPool memoryPool)
         {
             if (backwardAlgoPreference != ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
             {
@@ -1242,9 +1250,6 @@ namespace SharpNet.CPU
             }
             return ((double)result) / Shape[0];
         }
-
-        protected override IntPtr DevicePointer => throw new NotImplementedException("not available for CPU");
-
 
         /// <summary>
         /// compute the prediction embedded in the tensor (in each line the index with max value)

@@ -140,10 +140,10 @@ namespace SharpNet.Layers
 
             var shape_NCH = x_NCH.Shape;
             var shape_NH = new[] { shape_NCH[0], shape_NCH[2]};
-            x_at_t_buffer = GetNotInitializedFloatTensor(shape_NH, x_at_t_buffer, nameof(x_at_t_buffer));
-            a_buffer1 = GetNotInitializedFloatTensor(aShape, a_buffer1, nameof(a_buffer1));
-            a_buffer2 = GetNotInitializedFloatTensor(aShape, a_buffer2, nameof(a_buffer2));
-            y_buffer1 = GetNotInitializedFloatTensor(yShape, y_buffer1, nameof(y_buffer1));
+            GetNotInitializedFloatTensor(ref x_at_t_buffer, shape_NH, nameof(x_at_t_buffer));
+            GetNotInitializedFloatTensor(ref a_buffer1, aShape, nameof(a_buffer1));
+            GetNotInitializedFloatTensor(ref a_buffer2, aShape, nameof(a_buffer2));
+            GetNotInitializedFloatTensor(ref y_buffer1, yShape, nameof(y_buffer1));
 
 
             for (int t = 0; t < _timeSteps_x; ++t)
@@ -163,22 +163,11 @@ namespace SharpNet.Layers
                 y_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, y_t[t]);
             }
         }
-        public override Layer Clone(Network newNetwork) { return new SimpleRnnLayer(this, newNetwork); }
-        private SimpleRnnLayer(SimpleRnnLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            _timeSteps_x = toClone._timeSteps_x;
-            _xLength = toClone._xLength;
-            _aLength = toClone._aLength;
-            _yLength = toClone._yLength;
-            _returnSequences = toClone._returnSequences;
-        }
 
-       
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             throw new NotImplementedException();
         }
-
 
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {

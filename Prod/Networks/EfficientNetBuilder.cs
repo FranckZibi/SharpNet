@@ -118,6 +118,7 @@ namespace SharpNet.Networks
         private Network EfficientNet(
             float widthCoefficient,
             float depthCoefficient,
+            // ReSharper disable once UnusedParameter.Local
             int defaultResolution,
             float dropoutRate,
             float dropConnectRate,

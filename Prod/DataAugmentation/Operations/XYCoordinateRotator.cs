@@ -2,12 +2,12 @@ using System;
 
 namespace SharpNet.DataAugmentation.Operations
 {
-    public static class XYCoordinateRotater
+    public static class XYCoordinateRotator
     {
         public static (double, double) RotateInTopLeftReferential(double rowFromTop, double colFromLeft,
             int nbRowsBefore, int nbColsBefore, int nbRowsAfter, int nbColsAfter, double rotationRangeInDegrees)
         {
-            if (rotationRangeInDegrees == 0)
+            if (Math.Abs(rotationRangeInDegrees) < 1e-6)
             {
                 return (rowFromTop, colFromLeft);
             }

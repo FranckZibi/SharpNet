@@ -4,9 +4,6 @@ using SharpNet.CPU;
 
 namespace SharpNet.DataAugmentation.Operations
 {
-
-    
-
     public class Posterize : Operation
     {
         private readonly int _bitsPerPixel;

@@ -28,9 +28,9 @@ namespace SharpNetTests
             network.Predict(X, true);
             var denseLayer = (DenseLayer)network.Layers[1];
             //We test the gradients computation for weights
-            CompareExpectedVsObservedGradients(network, (CpuTensor<float>)denseLayer.Weights, (CpuTensor<float>)denseLayer.WeightGradients, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, denseLayer, false, X, Y, _rand);
             //We test the gradients computation for bias
-            CompareExpectedVsObservedGradients(network, (CpuTensor<float>)denseLayer.Bias, (CpuTensor<float>)denseLayer.BiasGradients, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, denseLayer, true, X, Y, _rand);
         }
 
         [Test]
@@ -47,9 +47,9 @@ namespace SharpNetTests
             network.Predict(X, true);
             var convLayer = (ConvolutionLayer)network.Layers[1];
             //We test the gradients computation for weights
-            CompareExpectedVsObservedGradients(network, convLayer.Convolution as CpuTensor<float>, convLayer.ConvolutionGradients as CpuTensor<float>, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, convLayer, false, X, Y, _rand);
             //We test the gradients computation for bias
-            CompareExpectedVsObservedGradients(network, convLayer.ConvolutionBias as CpuTensor<float>,convLayer.ConvolutionBiasGradients as CpuTensor<float>, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, convLayer, true, X, Y, _rand);
         }
 
         [Test]
@@ -66,9 +66,9 @@ namespace SharpNetTests
             network.Predict(X, true);
             var convLayer = (ConvolutionLayer)network.Layers[1];
             //We test the gradients computation for weights
-            CompareExpectedVsObservedGradients(network, convLayer.Convolution as CpuTensor<float>, convLayer.ConvolutionGradients as CpuTensor<float>, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, convLayer, false, X, Y, _rand);
             //We test the gradients computation for bias
-            CompareExpectedVsObservedGradients(network, convLayer.ConvolutionBias as CpuTensor<float>, convLayer.ConvolutionBiasGradients as CpuTensor<float>, X, Y, _rand);
+            CompareExpectedVsObservedGradients(network, convLayer, true, X, Y, _rand);
         }
 
         [Test, Ignore("fail to compute the expected gradients")]
@@ -85,9 +85,9 @@ namespace SharpNetTests
             //n.SaveLayers();
             var batchNormLayer = (BatchNormalizationLayer)network.Layers[1];
             //We test the gradients computation for weights
-            CompareExpectedVsObservedGradients(network, batchNormLayer.Scale as CpuTensor<float>, batchNormLayer.ScaleGradients as CpuTensor<float>, X, Y, _rand, 1);
+            CompareExpectedVsObservedGradients(network, batchNormLayer, false, X, Y, _rand, 1);
             //We test the gradients computation for bias
-            CompareExpectedVsObservedGradients(network, batchNormLayer.Bias as CpuTensor<float>, batchNormLayer.BiasGradients as CpuTensor<float>, X, Y, _rand, 1);
+            CompareExpectedVsObservedGradients(network, batchNormLayer, true, X, Y, _rand, 1);
         }
 
         private static CpuTensor<float> FromNumpyArray(string s, string description)
@@ -118,11 +118,13 @@ namespace SharpNetTests
                 }
             }
         }
-        private static void CompareExpectedVsObservedGradients(Network n, CpuTensor<float> w, CpuTensor<float> dW, CpuTensor<float> X, CpuTensor<float> Y, Random r, int nbTests = 100)
+        private static void CompareExpectedVsObservedGradients(Network n, Layer layer, bool isBias, CpuTensor<float> X, CpuTensor<float> Y, Random r, int nbTests = 100)
         {
             AbsWeightsWithMinimum(n, 0);
             ComputeGradientAndReturnLoss(n, X, Y);
             float epsilon = 1e-2f;
+            var w = (CpuTensor<float>)(isBias?layer.Bias:layer.Weights);
+            var dW = (CpuTensor<float>)(isBias?layer.BiasGradients:layer.WeightGradients);
             var observedDifferences =  new List<double>();
             for (int testIndex = 0; testIndex < nbTests; ++testIndex)
             {

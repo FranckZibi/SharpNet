@@ -271,10 +271,7 @@ namespace SharpNet.Data
                 {
                     return new CpuTensor<float>(shape, data, description);
                 }
-                using (var m = new HostPinnedMemory<float>(data))
-                {
-                    return new GPUTensor<float>(shape, m.Pointer, description, gpuWrapper);
-                }
+                return new GPUTensor<float>(shape, data, description, gpuWrapper);
             }
             throw new NotImplementedException("do not know how to parse type " + typeAsString);
         }

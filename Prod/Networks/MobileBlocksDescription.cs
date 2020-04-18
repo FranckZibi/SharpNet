@@ -16,7 +16,7 @@ namespace SharpNet.Networks
         public double SeRatio { get; }
         #endregion
 
-        public MobileBlocksDescription(int kernelSize, int numRepeat, int outputFilters, int expandRatio, bool idSkip, int rowStride, int colStride, double seRatio)
+        private MobileBlocksDescription(int kernelSize, int numRepeat, int outputFilters, int expandRatio, bool idSkip, int rowStride, int colStride, double seRatio)
         {
             KernelSize = kernelSize;
             NumRepeat = numRepeat;
@@ -68,19 +68,6 @@ namespace SharpNet.Networks
                 SeRatio);
         }
 
-        public MobileBlocksDescription WithKernelSize(int newKernelSize)
-        {
-            return new MobileBlocksDescription(
-                newKernelSize,
-                NumRepeat,
-                OutputFilters,
-                ExpandRatio,
-                IdSkip,
-                RowStride,
-                ColStride,
-                SeRatio);
-        }
-
         public static int RoundNumRepeat(int numRepeat, float depthCoefficient)
         {
             return (int)Math.Ceiling(depthCoefficient * numRepeat);
@@ -89,6 +76,7 @@ namespace SharpNet.Networks
         public static int RoundFilters(int outputFilters, float widthCoefficient, int depthDivisor)
         {
             float tmpFilters = outputFilters* widthCoefficient;
+            // ReSharper disable once PossibleLossOfFraction
             float newFilters = ((int)((tmpFilters + depthDivisor / 2) / depthDivisor)) * depthDivisor;
             newFilters = Math.Max(depthDivisor, newFilters);
             //Make sure that round down does not go down by more than 10%.

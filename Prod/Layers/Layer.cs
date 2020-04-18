@@ -19,26 +19,6 @@ namespace SharpNet.Layers
         public List<int> PreviousLayerIndexes { get; } = new List<int>();
         #endregion
 
-        /// <summary>
-        /// Clone constructor
-        /// </summary>
-        /// <param name="toClone">the layer to be cloned</param>
-        /// <param name="newNetwork">the network where the cloned layer will be located</param>
-        protected Layer(Layer toClone, Network newNetwork)
-        {
-            Network = newNetwork;
-            LayerIndex = toClone.LayerIndex;
-            LayerName = toClone.LayerName;
-            PreviousLayerIndexes.Clear();
-            PreviousLayerIndexes.AddRange(toClone.PreviousLayerIndexes);
-            NextLayerIndexes.Clear();
-            NextLayerIndexes.AddRange(toClone.NextLayerIndexes);
-            if (_lazyOutputShape != null)
-            {
-                _lazyOutputShape = (int[])toClone._lazyOutputShape.Clone();
-            }
-        }
-
         protected Layer(Network network, int previousLayerIndex, string layerName)
         {
             Network = network;
@@ -51,10 +31,6 @@ namespace SharpNet.Layers
         protected Layer(Network network, string layerName) : this(network, network.Layers.Count - 1, layerName)
         {
         }
-
-        public abstract Layer Clone(Network newNetwork);
-
-     
 
         /// <summary>
         /// compares the current layer with the other layer 'b' 
@@ -71,8 +47,8 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(LayerIndex, b.LayerIndex, id+":LayerIndex", ref errors);
             equals &= Utils.Equals(LayerName, b.LayerName, id+":LayerName", ref errors);
             equals &= Utils.Equals(GetType(), b.GetType(), id+ ":GetType", ref errors);
-            equals &= Utils.EqualsList(PreviousLayerIndexes, b.PreviousLayerIndexes, id+ ":_previousLayerIndexes", ref errors);
-            equals &= Utils.EqualsList(NextLayerIndexes, b.NextLayerIndexes, id+ ":_nextLayerIndexes", ref errors);
+            equals &= Utils.EqualsList(PreviousLayerIndexes, b.PreviousLayerIndexes, id+ ":PreviousLayerIndexes", ref errors);
+            equals &= Utils.EqualsList(NextLayerIndexes, b.NextLayerIndexes, id+ ":NextLayerIndexes", ref errors);
             equals &= Utils.EqualsList(TrainableTensorsIndependentOfBatchSize, b.TrainableTensorsIndependentOfBatchSize, epsilon, id+ ":TrainableTensorsIndependentOfBatchSize", ref errors);
             return equals;
         }
@@ -122,7 +98,6 @@ namespace SharpNet.Layers
                 throw new Exception("invalid tensor consistency");
             }
         }
-        private ulong BytesByBatchSize => (ulong)(Utils.Product(OutputShape(1)) * Network.Config.TypeSize);
         protected virtual string DefaultLayerName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
         public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
         public ulong BytesIndependentOfBatchSize => Tensor.OccupiedMemoryInBytes(TensorsIndependentOfBatchSize);
@@ -156,9 +131,7 @@ namespace SharpNet.Layers
         public abstract void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx);
         public virtual void UpdateWeights(int batchSize, double learningRate) { }
         public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
-
-
-
+        
         #region *.h5 file (HDF) management
 
         /// <summary>
@@ -294,6 +267,7 @@ namespace SharpNet.Layers
                 case nameof(InputLayer): return new InputLayer(serialized, network);
                 case nameof(PoolingLayer): return new PoolingLayer(serialized, network);
                 case nameof(MultiplyLayer): return new MultiplyLayer(serialized, network);
+                case nameof(SimpleRnnLayer): return new SimpleRnnLayer(serialized, network);
                 default: throw new NotImplementedException("don't know how to deserialize " + layerType);
             }
         }
@@ -315,16 +289,29 @@ namespace SharpNet.Layers
             //In this mode bnBias, bnScale tensor dimensions are (1, C, 1, 1)
             return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
         }
-       
+
+        #region those 4 methods are only used for NonReg tests
+        /// <summary>
+        /// the weight if any (used only for tests)
+        /// </summary>
+        public virtual Tensor Weights => null;
+        /// <summary>
+        /// the weight gradient if any (used only for tests)
+        /// </summary>
+        public virtual Tensor WeightGradients => null;
+        /// <summary>
+        /// the bias if any (used only for tests)
+        /// </summary>
+        public virtual Tensor Bias => null;
+        /// <summary>
+        /// the bias gradient if any (used only for tests)
+        /// </summary>
+        public virtual Tensor BiasGradients => null;
+        #endregion
+
         protected string MemoryDescription()
         {
-            var result = "";
-            if (TotalParams != 0)
-            {
-                result += TotalParams + " neurons / ";
-            }
-            result += Utils.MemoryBytesToString(BytesByBatchSize) + "/batchSize+" + Utils.MemoryBytesToString(BytesIndependentOfBatchSize);
-            return result;
+            return TotalParams != 0 ? (TotalParams + " neurons") : "";
         }
         protected string ShapeChangeDescription()
         {
@@ -350,27 +337,36 @@ namespace SharpNet.Layers
                 Network.Layers[previousLayerIndex].NextLayerIndexes.Add(LayerIndex);
             }
         }
-        protected Tensor GetNotInitializedFloatTensor(int[] shape, Tensor bufferIfAny, string description)
+        protected void GetNotInitializedFloatTensor(ref Tensor bufferIfAny, int[] shape, string description)
         {
-            return Network.MemoryPool.GetNotInitializedFloatTensor(shape, bufferIfAny, description);
-        }
-        protected void FreeMemory(Tensor t)
-        {
-            Network.MemoryPool.FreeMemory(t);
-        }
-        protected void FreeMemory(ref Tensor t)
-        {
-            FreeMemory(t);
-            t = null;
-        }
-        protected Tensor GetNotInitializedFloatTensor(int[] shape, string description)
-        {
-            return Network.MemoryPool.GetNotInitializedFloatTensor(shape, null, description);
+            Network.MemoryPool.GetNotInitializedFloatTensor(ref bufferIfAny, shape, description);
         }
 
-        public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining)
+        protected void FreeMemory(ref Tensor t)
         {
-            return LayerOutputShouldBeKeptForBackwardPropagation(isTraining, Layer.FirstTrainableLayer(Network.Layers));
+            Network.MemoryPool.FreeMemory(ref t);
+        }
+     
+        protected Tensor GetNotInitializedFloatTensor(int[] shape, string description)
+        {
+            return Network.MemoryPool.GetNotInitializedFloatTensor(shape, description);
+        }
+
+        protected void StartForwardTimer(string key, bool isTraining)
+        {
+            Network.StartTimer(key, isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+        }
+        protected void StopForwardTimer(string key, bool isTraining)
+        {
+            Network.StopTimer(key, isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+        }
+        protected void StartBackwardTimer(string key)
+        {
+            Network.StartTimer(key, Network.BackwardPropagationTime);
+        }
+        protected void StopBackwardTimer(string key)
+        {
+            Network.StopTimer(key, Network.BackwardPropagationTime);
         }
         public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining, Layer firstTrainableLayer)
         {
@@ -406,7 +402,6 @@ namespace SharpNet.Layers
             }
             return null;
         }
-
 
         protected virtual List<Tensor> TensorsDependentOfBatchSize => new List<Tensor>();
     }

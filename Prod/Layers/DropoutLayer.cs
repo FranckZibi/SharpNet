@@ -12,8 +12,8 @@ namespace SharpNet.Layers
         #region fields
         private readonly double _dropProbability;
         private Tensor _dropOutMaskBufferForCpu;                            //only needed for Cpu (null for GPU)
-        private DeviceMemory _randomNumberGeneratorStatesBufferForGPU;      //only needed for GPU (null for Cpu)
-        private DeviceMemory _dropoutReserveSpaceForGPU;                    //only needed for GPU (null for Cpu)
+        private Tensor _randomNumberGeneratorStatesBufferForGPU;            //only needed for GPU (null for Cpu)
+        private Tensor _dropoutReserveSpaceForGPU;                          //only needed for GPU (null for Cpu)
         private IntPtr _dropoutDescriptorForGPU = IntPtr.Zero;              //only needed for GPU (null for Cpu)
         private readonly Random _dropOutRandomForCpuOnly = new Random(0);
         #endregion
@@ -22,22 +22,14 @@ namespace SharpNet.Layers
         {
             _dropProbability = dropProbability;
         }
-
-        public override Layer Clone(Network newNetwork) { return new DropoutLayer(this, newNetwork); }
-        private DropoutLayer(DropoutLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            _dropProbability = toClone._dropProbability;
-            _dropOutMaskBufferForCpu = toClone._dropOutMaskBufferForCpu?.Clone(newNetwork.GpuWrapper);
-        }
-
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
             if (!Network.UseGPU)
             {
-                _dropOutMaskBufferForCpu = GetNotInitializedFloatTensor(y.Shape, _dropOutMaskBufferForCpu, "_DropOutMaskBufferForCpuOnly");
+                GetNotInitializedFloatTensor(ref _dropOutMaskBufferForCpu, y.Shape, "_DropOutMaskBufferForCpuOnly");
             }
-            allX[0].DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropOutMaskBufferForCpu, ref _randomNumberGeneratorStatesBufferForGPU, ref _dropoutReserveSpaceForGPU, ref _dropoutDescriptorForGPU);
+            allX[0].DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropOutMaskBufferForCpu, ref _randomNumberGeneratorStatesBufferForGPU, ref _dropoutReserveSpaceForGPU, ref _dropoutDescriptorForGPU, Network.MemoryPool);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {

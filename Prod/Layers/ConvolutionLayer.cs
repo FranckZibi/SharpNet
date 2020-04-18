@@ -30,7 +30,7 @@ namespace SharpNet.Layers
         private readonly PADDING_TYPE _paddingType;
         private readonly double _lambdaL2Regularization;
         private readonly Optimizer _optimizer;                  //Adam optimization or SGD optimization or null
-        private bool UseBias => ConvolutionBias != null;
+        private bool UseBias => _convolutionBias != null;
         /// <summary>
         /// if Depthwise Convolution:
         ///     (_depthMultiplier, x.C, F, F)
@@ -38,19 +38,27 @@ namespace SharpNet.Layers
         ///     (FiltersCount, x.C, F, F)
         /// </summary>
         public Tensor Convolution { get; }
-        public Tensor ConvolutionGradients { get; }            // same as 'Convolution'
+
         /// <summary>
         /// if Depthwise Convolution:
         ///     (_depthMultiplier, x.C, 1, 1) or null is no bias should be used
         /// else
         ///     (1, FiltersCount, 1, 1) or null is no bias should be used
         /// </summary>
-        public Tensor ConvolutionBias { get; private set; }
+        private Tensor _convolutionBias;
+
+        private Tensor _convolutionGradients;            // same shape as 'Convolution'
         /// <summary>
-        /// same shape as 'ConvolutionBias'  or null is no bias should be used
+        /// same shape as '_convolutionBias'  or null is no bias should be used
         /// </summary>
-        public Tensor ConvolutionBiasGradients { get; private set; }        
+        private Tensor _convolutionBiasGradients;
         #endregion
+
+
+        public override Tensor Weights => Convolution;
+        public override Tensor WeightGradients => _convolutionGradients;
+        public override Tensor Bias => _convolutionBias;
+        public override Tensor BiasGradients => _convolutionBiasGradients;
 
         public enum PADDING_TYPE { VALID, SAME}
 
@@ -72,43 +80,13 @@ namespace SharpNet.Layers
 
             //trainable params
             Convolution = GetNotInitializedFloatTensor(ConvolutionShape, nameof(Convolution));
-            ConvolutionBias = useBias
-                ? GetNotInitializedFloatTensor(ConvolutionBiasShape, nameof(ConvolutionBias))
+            _convolutionBias = useBias
+                ? GetNotInitializedFloatTensor(ConvolutionBiasShape, nameof(_convolutionBias))
                 : null;
 
-            _optimizer = Network.GetOptimizer(Convolution.Shape, ConvolutionBias?.Shape);
+            _optimizer = Network.GetOptimizer(Convolution.Shape, _convolutionBias?.Shape);
 
             ResetWeights(false);
-
-            //non trainable params
-            ConvolutionGradients = GetNotInitializedFloatTensor(Convolution.Shape, nameof(ConvolutionGradients));
-            ConvolutionBiasGradients = useBias
-                ? GetNotInitializedFloatTensor(ConvolutionBias.Shape, nameof(ConvolutionBiasGradients))
-                : null;
-        }
-
-        public override Layer Clone(Network newNetwork) { return new ConvolutionLayer(this, newNetwork); }
-        private ConvolutionLayer(ConvolutionLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            _isDepthwiseConvolution = toClone._isDepthwiseConvolution;
-            _filtersCount = toClone._filtersCount;
-            _depthMultiplier = toClone._depthMultiplier;
-            _f = toClone._f;
-            _stride = toClone._stride;
-            _paddingType = toClone._paddingType;
-            _lambdaL2Regularization = toClone._lambdaL2Regularization;
-
-            //trainable params
-            Convolution = toClone.Convolution.Clone(newNetwork.GpuWrapper);
-            //bias may be null if it has been disabled by a batch normalization layer
-            ConvolutionBias = toClone.ConvolutionBias?.Clone(newNetwork.GpuWrapper);
-
-            _optimizer = toClone._optimizer?.Clone(newNetwork);
-
-            //non trainable params
-            ConvolutionBiasGradients = toClone.ConvolutionBiasGradients?.Clone(newNetwork.GpuWrapper);
-            //bias gradient may be null if it has been disabled by a batch normalization layer
-            ConvolutionGradients = toClone.ConvolutionGradients.Clone(newNetwork.GpuWrapper);
         }
 
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
@@ -151,26 +129,20 @@ namespace SharpNet.Layers
             _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
 
             //bias may be null if it has been disabled
-            var useBias = serialized.ContainsKey(nameof(ConvolutionBias));
+            var useBias = serialized.ContainsKey(nameof(_convolutionBias));
 
             //trainable params
             Convolution = (Tensor)serialized[nameof(Convolution)];
-            ConvolutionBias = useBias ? (Tensor)serialized[nameof(ConvolutionBias)] : null;
+            _convolutionBias = useBias ? (Tensor)serialized[nameof(_convolutionBias)] : null;
 
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
-
-            //non trainable params
-            ConvolutionGradients = GetNotInitializedFloatTensor(Convolution.Shape, nameof(ConvolutionGradients));
-            ConvolutionBiasGradients = useBias ? GetNotInitializedFloatTensor(ConvolutionBias.Shape, nameof(ConvolutionBiasGradients)) : null; 
         }
         #endregion
         public override int DisableBias()
         {
-            int nbDisabledWeights = (ConvolutionBias?.Count ?? 0) + (ConvolutionBiasGradients?.Count ?? 0);
-            ConvolutionBias?.Dispose();
-            ConvolutionBias = null;
-            ConvolutionBiasGradients?.Dispose();
-            ConvolutionBiasGradients = null;
+            int nbDisabledWeights = (_convolutionBias?.Count ?? 0);
+            _convolutionBias?.Dispose();
+            _convolutionBias = null;
             return nbDisabledWeights;
         }
 
@@ -189,35 +161,36 @@ namespace SharpNet.Layers
             {
                 // cuDNN 7.x doesn't support asymmetric padding
                 // we'll pad the input tensor 'x' so that we can use a symmetric padding
-                Network.StartTimer(Type() + ">0Pad", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+                StartForwardTimer(Type() + ">0Pad", isTraining);
                 var paddedXShape = PaddedXShape(x.Shape, paddingTop, paddingBottom, paddingLeft, paddingRight);
-                _padded_X = GetNotInitializedFloatTensor(paddedXShape, _padded_X, nameof(_padded_X));
+                GetNotInitializedFloatTensor(ref _padded_X, paddedXShape, nameof(_padded_X));
                 _padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
-                Network.StopTimer(Type() + ">0Pad", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
-                Network.StartTimer(Type() + ">ConvAsym", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
-                _padded_X.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference);
-                if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining))
+                StopForwardTimer(Type() + ">0Pad", isTraining);
+                StartForwardTimer(Type() + ">ConvAsym", isTraining);
+                _padded_X.Convolution(Convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
+                if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining, FirstTrainableLayer(Network.Layers)))
                 {
                     FreeMemory(ref _padded_X);
                 }
-                Network.StopTimer(Type() + ">ConvAsym", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+                StopForwardTimer(Type() + ">ConvAsym", isTraining);
             }
             else
             {
                 //symmetric padding
-                Network.StartTimer(Type() + ">Conv", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
-                x.Convolution(Convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference);
-                Network.StopTimer(Type() + ">Conv", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+                StartForwardTimer(Type() + ">Conv", isTraining);
+                x.Convolution(Convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
+                StopForwardTimer(Type() + ">Conv", isTraining);
             }
 
             if (UseBias)
             {
-                Network.StartTimer(Type() + ">Bias", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
-                ConvolutionBias.BroadcastConvolutionBiasToOutput(y);
-                Network.StopTimer(Type() + ">Bias", isTraining ? Network.ForwardPropagationTrainingTime : Network.ForwardPropagationInferenceTime);
+                StartForwardTimer(Type() + ">Bias", isTraining);
+                _convolutionBias.BroadcastConvolutionBiasToOutput(y);
+                StopForwardTimer(Type() + ">Bias", isTraining);
             }
         }
 
+        
         private static int[] PaddedXShape(int[] xShape, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             return new[]{xShape[0], xShape[1], paddingTop + xShape[2] + paddingBottom, paddingLeft + xShape[3] + paddingRight};
@@ -243,63 +216,70 @@ namespace SharpNet.Layers
             return ExtraElementCountForForwardPropagation(batchSize);
         }
 
-        // dy => ConvolutionGradient & dx
+        // dy => _convolutionGradients & _convolutionBiasGradients & dx
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
             Debug.Assert(dx.Count == 1);
-            Debug.Assert(ConvolutionBias == null || ConvolutionBias.SameShape(ConvolutionBiasGradients));
 
-            // we compute ConvolutionBiasGradients
+            //we allocate '_convolutionGradients' tensor
+            GetNotInitializedFloatTensor(ref _convolutionGradients, Convolution.Shape, nameof(_convolutionGradients));
+
             if (UseBias)
             {
-                Network.StartTimer(Type() + ">Bias", Network.BackwardPropagationTime);
-                dy.ConvolutionBackwardBias(ConvolutionBiasGradients);
-                Network.StopTimer(Type() + ">Bias", Network.BackwardPropagationTime);
+                //we allocate '_convolutionBiasGradients' tensor
+                GetNotInitializedFloatTensor(ref _convolutionBiasGradients, _convolutionBias.Shape, nameof(_convolutionBiasGradients));
+                //we compute '_convolutionBiasGradients'
+                StartBackwardTimer(Type() + ">Bias");
+                dy.ConvolutionBackwardBias(_convolutionBiasGradients);
+                StopBackwardTimer(Type() + ">Bias");
             }
 
-            // we compute ConvolutionGradient (& dx if PrevLayer is not the input layer)
+            // we compute '_convolutionGradients' (& dx if PrevLayer is not the input layer)
             Padding(x.Shape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
 
             if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
                 // cuDNN 7.x doesn't support asymmetric padding, we'll use the padded version of input tensor 'x'
                 Debug.Assert(_padded_X != null);
-                Network.StartTimer(Type() + ">ConvAsym", Network.BackwardPropagationTime);
+                StartBackwardTimer(Type() + ">ConvAsym");
                 var _padded_dX = GetNotInitializedFloatTensor(_padded_X.Shape, "_padded_dX");
-                _padded_X.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, _padded_dX, ConvolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference);
+                _padded_X.ConvolutionGradient(Convolution, dy, 0,0,0,0, _stride, _padded_dX, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
                 FreeMemory(ref _padded_X); //no more need of '_padded_X'
-                Network.StopTimer(Type() + ">ConvAsym", Network.BackwardPropagationTime);
-                Network.StartTimer(Type() + ">0Pad", Network.BackwardPropagationTime);
+                StopBackwardTimer(Type() + ">ConvAsym");
+                StartBackwardTimer(Type() + ">0Pad");
                 dx[0]?.ZeroUnpadding(_padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 FreeMemory(ref _padded_dX); //no more need of '_padded_dX'
-                Network.StopTimer(Type() + ">0Pad", Network.BackwardPropagationTime);
+                StopBackwardTimer(Type() + ">0Pad");
                 Debug.Assert(_padded_X == null);
             }
             else
             {
                 //symmetric padding
                 Debug.Assert(_padded_X == null);
-                Network.StartTimer(Type() + ">Conv", Network.BackwardPropagationTime);
-                x.ConvolutionGradient(Convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], ConvolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference);
-                Network.StopTimer(Type() + ">Conv", Network.BackwardPropagationTime);
+                StartBackwardTimer(Type() + ">Conv");
+                x.ConvolutionGradient(Convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
+                StopBackwardTimer(Type() + ">Conv");
             }
 
             if (UseL2Regularization)
             {
                 var batchSize = dy.Shape[0];
                 var alpha = 2 * batchSize * (float)_lambdaL2Regularization;
-                ConvolutionGradients.Update_Adding_Alpha_X(alpha, Convolution);
+                _convolutionGradients.Update_Adding_Alpha_X(alpha, Convolution);
             }
         }
+
         public override void UpdateWeights(int batchSize, double learningRate)
         {
-            if (!Trainable)
+            if (Trainable)
             {
-                return;
+                _optimizer.UpdateWeights(learningRate, batchSize, Convolution, _convolutionGradients, _convolutionBias, _convolutionBiasGradients);
             }
-            _optimizer.UpdateWeights(learningRate, batchSize, Convolution, ConvolutionGradients, ConvolutionBias, ConvolutionBiasGradients);
+            //no more need of '_convolutionGradients' and '_convolutionBiasGradients' : we can free them
+            FreeMemory(ref _convolutionGradients);
+            FreeMemory(ref _convolutionBiasGradients);
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
@@ -309,16 +289,12 @@ namespace SharpNet.Layers
 
             //trainable params
             Convolution.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, stdDev);
-            ConvolutionBias?.ZeroMemory();
+            _convolutionBias?.ZeroMemory();
 
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ZeroMemory();
             }
-
-            //non trainable params : no need to reset them
-            //ConvolutionGradients.ZeroMemory();
-            //ConvolutionBiasGradients?.ZeroMemory();
         }
         public override void Dispose()
         {
@@ -349,7 +325,7 @@ namespace SharpNet.Layers
             if (UseBias)
             {
                 var biasDatasetPath = DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_bias:0" : "bias:0");
-                h5FileDataset[biasDatasetPath].CopyTo(ConvolutionBias);
+                h5FileDataset[biasDatasetPath].CopyTo(_convolutionBias);
             }
         }
 
@@ -410,7 +386,7 @@ namespace SharpNet.Layers
         /// <param name="stride"></param>
         /// <param name="paddingType"></param>
         /// <returns></returns>
-        public static int OutputLength(int inputLength, int f, int stride, PADDING_TYPE paddingType)
+        private static int OutputLength(int inputLength, int f, int stride, PADDING_TYPE paddingType)
         {
             switch (paddingType)
             {
@@ -482,7 +458,7 @@ namespace SharpNet.Layers
         {
             get
             {
-                var result = new List<Tensor> { Convolution, ConvolutionBias};
+                var result = new List<Tensor> { Convolution, _convolutionBias};
                 result.RemoveAll(t => t == null);
                 return result;
             }
@@ -492,7 +468,7 @@ namespace SharpNet.Layers
         {
             get
             {
-                var result = new List<Tensor> { ConvolutionGradients, ConvolutionBiasGradients };
+                var result = new List<Tensor>();
                 if (_optimizer != null)
                 {
                     result.AddRange(_optimizer.EmbeddedTensors);

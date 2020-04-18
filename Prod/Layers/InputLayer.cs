@@ -23,14 +23,6 @@ namespace SharpNet.Layers
             this.W = w;
         }
 
-        public override Layer Clone(Network newNetwork) { return new InputLayer(this, newNetwork); }
-        private InputLayer(InputLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            ChannelCount = toClone.ChannelCount;
-            H = toClone.H;
-            W = toClone.W;
-        }
-
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             throw new Exception("should never call "+nameof(ForwardPropagation)+" in "+nameof(InputLayer));

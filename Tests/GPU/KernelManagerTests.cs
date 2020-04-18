@@ -32,7 +32,7 @@ namespace SharpNetTests.GPU
             //GPU single precision test
             Tensor a = aCpu.ToGPU<float>(GpuWrapper);
             Tensor b = bCpu.ToGPU<float>(GpuWrapper);
-            Tensor resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
+            Tensor resultGpu = new GPUTensor<float>(shape, null, "resultGpu", GpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
             Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-2));
         }
@@ -79,7 +79,7 @@ namespace SharpNetTests.GPU
             Console.WriteLine("8 CPU Time: " + (sw.Elapsed.TotalMilliseconds / (nbBatchCpu * 8)) + "ms");
             Tensor a = aCpu.ToGPU<float>(GpuWrapper);
             Tensor b = bCpu.ToGPU<float>(GpuWrapper);
-            Tensor resultGpu = new GPUTensor<float>(shape, "resultGpu", GpuWrapper);
+            Tensor resultGpu = new GPUTensor<float>(shape, null, "resultGpu", GpuWrapper);
             sw = Stopwatch.StartNew();
             for (int batchId = 0; batchId < nbBatchGPU; ++batchId)
             {

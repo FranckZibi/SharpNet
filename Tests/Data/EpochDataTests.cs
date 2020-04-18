@@ -8,7 +8,7 @@ namespace SharpNetTests.Data
     public class EpochDataTests
     {
         [Test]
-        public void SeriliaztionTest()
+        public void SerializationTest()
         {
             var epochData1 = new EpochData(1,2.0,3.0,4.0,5.0,6.0,7.0,0);
             var epochData2 = new EpochData(11,12.0,13.0,14.0,15.0,16.0,17.0, 0);

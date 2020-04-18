@@ -20,8 +20,8 @@ namespace SharpNet.Optimizers
         private readonly double _adam_epsilon;
         private readonly Tensor _adam_VW;                      // same as 'Weights'
         private readonly Tensor _adam_SW;                      // same as 'Weights'
-        private readonly Tensor _adam_VB;                      // same as 'Weights Bias'
-        private readonly Tensor _adam_SB;                      // same as 'Weight Bias'
+        private readonly Tensor _adam_VB;                      // same as 'Bias'
+        private readonly Tensor _adam_SB;                      // same as 'Bias'
         #endregion
 
         public Adam(Network network, double adam_beta1, double adam_beta2, double adam_epsilon, int[] weightShape, int[] biasShapeIfAny)
@@ -34,19 +34,6 @@ namespace SharpNet.Optimizers
             _adam_VB = (biasShapeIfAny == null) ? null : network.MemoryPool.GetNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_VB));
             _adam_SB = (biasShapeIfAny == null) ? null : network.MemoryPool.GetNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_SB));
             ZeroMemory();
-        }
-
-        public override Optimizer Clone(Network newNetwork) { return new Adam(this, newNetwork); }
-        private Adam(Adam toClone, Network newNetwork)
-        {
-            _timestep = toClone._timestep;
-            _adam_beta1 = toClone._adam_beta1;
-            _adam_beta2 = toClone._adam_beta2;
-            _adam_epsilon = toClone._adam_epsilon;
-            _adam_VW = toClone._adam_VW?.Clone(newNetwork.GpuWrapper);
-            _adam_SW = toClone._adam_SW?.Clone(newNetwork.GpuWrapper);
-            _adam_VB = toClone._adam_VB?.Clone(newNetwork.GpuWrapper);
-            _adam_SB = toClone._adam_SB?.Clone(newNetwork.GpuWrapper);
         }
 
         public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)

@@ -10,22 +10,22 @@ namespace SharpNet.GPU
     {
         #region private fields
         private IntPtr _pointer;
-        private readonly bool _isOwnerOfDeviceMemory;
         private bool _disposed;
         #endregion
         #region readonly properties
-        public size_t SizeInBytes { get; }
+        private readonly size_t _capacityInBytes;
+        private readonly bool _isOwnerOfDeviceMemory;
         #endregion
 
         /// <summary>
         /// Allocate memory on the device.
         /// This memory will need to be free when disposing the current object  
         /// </summary>
-        /// <param name="sizeInBytes">size in byte to allocate on device</param>
-        public DeviceMemory(size_t sizeInBytes)
+        /// <param name="capacityInBytes">size in byte to allocate on device</param>
+        public DeviceMemory(size_t capacityInBytes)
         {
-            SizeInBytes = sizeInBytes;
-            var res = NVCudaWrapper.cuMemAlloc_v2(out _pointer, SizeInBytes);
+            _capacityInBytes = capacityInBytes;
+            var res = NVCudaWrapper.cuMemAlloc_v2(out _pointer, _capacityInBytes);
             GPUWrapper.CheckStatus(res);
             _isOwnerOfDeviceMemory = true;
         }
@@ -34,10 +34,10 @@ namespace SharpNet.GPU
         /// This memory area should not be freed when disposing the current object
         /// </summary>
         /// <param name="pointer">address of memory on device</param>
-        /// <param name="sizeInBytes">size in bytes already allocated on device</param>
-        public DeviceMemory(IntPtr pointer, size_t sizeInBytes)
+        /// <param name="capacityInBytes">size in bytes already allocated on device</param>
+        public DeviceMemory(IntPtr pointer, size_t capacityInBytes)
         {
-            SizeInBytes = sizeInBytes;
+            _capacityInBytes = capacityInBytes;
             _pointer = pointer;
             _isOwnerOfDeviceMemory = false;
         }
@@ -55,7 +55,7 @@ namespace SharpNet.GPU
         {
             if (_disposed)
             {
-                throw new Exception("disposed object of size " + SizeInBytes + " / _isOwnerOfDeviceMemory=" + _isOwnerOfDeviceMemory);
+                throw new Exception("disposed object of size " + _capacityInBytes + " / _isOwnerOfDeviceMemory=" + _isOwnerOfDeviceMemory);
             }
         }
 
@@ -63,13 +63,13 @@ namespace SharpNet.GPU
         {
             AssertIsNotDisposed();
             CUresult res;
-            if (SizeInBytes % 4 == 0)
+            if (_capacityInBytes % 4 == 0)
             {
-                res = NVCudaWrapper.cuMemsetD32_v2(_pointer, 0, SizeInBytes / 4);
+                res = NVCudaWrapper.cuMemsetD32_v2(_pointer, 0, _capacityInBytes / 4);
             }
             else
             {
-                res = NVCudaWrapper.cuMemsetD8_v2(_pointer, (char)0, SizeInBytes);
+                res = NVCudaWrapper.cuMemsetD8_v2(_pointer, (char)0, _capacityInBytes);
             }
             GPUWrapper.CheckStatus(res);
         }

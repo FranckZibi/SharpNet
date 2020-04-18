@@ -79,7 +79,7 @@ namespace SharpNet.DataAugmentation
             double colBefore = (col - _horizontalShift) / _widthMultiplier;
             if (_rotationInDegrees != 0)
             {
-                (rowBefore, colBefore) = XYCoordinateRotater.RotateInTopLeftReferential(rowBefore, colBefore,
+                (rowBefore, colBefore) = XYCoordinateRotator.RotateInTopLeftReferential(rowBefore, colBefore,
                     _nbRowsBefore, _nbColsBefore, _nbRowsBefore, _nbColsBefore, -_rotationInDegrees);
             }
 
