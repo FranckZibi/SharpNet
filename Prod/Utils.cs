@@ -137,7 +137,7 @@ namespace SharpNet
             }
         }
 
-        public static string ShapeToStringWithBacthSize(int[] shape)
+        public static string ShapeToStringWithBatchSize(int[] shape)
         {
             if (shape == null)
             {
@@ -222,21 +222,21 @@ namespace SharpNet
             double deltaLearningRate = (y2 - y1);
             return y1 + dEpoch * deltaLearningRate;
         }
-        public static void Randomize(float[] toRandomize, Random rand, double minValue, double maxValue)
+        public static void Randomize(Span<float> toRandomize, Random rand, double minValue, double maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
             }
         }
-        public static void Randomize(byte[] toRandomize, Random rand, byte minValue, byte maxValue)
+        public static void Randomize(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (byte)(minValue + rand.Next(maxValue - minValue+1));
             }
         }
-        public static void RandomizeNormalDistribution(float[] toRandomize, Random rand, double mean, double stdDev)
+        public static void RandomizeNormalDistribution(Span<float> toRandomize, Random rand, double mean, double stdDev)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
@@ -445,6 +445,60 @@ namespace SharpNet
             {
                 return reader.ReadToEnd();
             }
+        }
+
+        public static T2[] Select<T1,T2>(this ReadOnlySpan<T1> s, Func<T1, T2> select)
+        {
+            var res = new T2[s.Length];
+            for (int i = 0; i < s.Length; ++i)
+            {
+                res[i] = select(s[i]);
+            }
+            return res;
+        }
+
+        public static int Count<T>(this ReadOnlySpan<T> s, Func<T, bool> isIncluded)
+        {
+            int result = 0;
+            foreach (var t in s)
+            {
+                if (isIncluded(t))
+                {
+                    ++result;
+                }
+            }
+            return result;
+        }
+
+        public static bool All<T>(this ReadOnlySpan<T> s, Func<T, bool> isIncluded)
+        {
+            foreach (var t in s)
+            {
+                if (!isIncluded(t))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static float Max(this ReadOnlySpan<float> s)
+        {
+            var result = float.MinValue;
+            foreach (var t in s)
+            {
+                result = Math.Max(result, t);
+            }
+            return result;
+        }
+        public static float Min(this ReadOnlySpan<float> s)
+        {
+            var result = float.MaxValue;
+            foreach (var t in s)
+            {
+                result = Math.Min(result, t);
+            }
+            return result;
         }
 
     }

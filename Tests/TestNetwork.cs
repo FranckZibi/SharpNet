@@ -19,6 +19,13 @@ namespace SharpNetTests
         {
             PerformTest(useGPU, CheckSave);
         }
+ 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestClone(bool useGPU)
+        {
+           PerformTest(useGPU, CheckClone);
+        }
 
         private static void PerformTest(bool useGPU, Action<Network> testToPerform)
         {
@@ -81,5 +88,12 @@ namespace SharpNetTests
                 }
             }
         }
+
+         private static void CheckClone(Network network)
+         {
+             var clone = network.Clone(network.GpuWrapper);
+             var areEquals = network.Equals(clone, out var errors);
+             Assert.IsTrue(areEquals, errors);
+         }
     }
 }

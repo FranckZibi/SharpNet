@@ -134,6 +134,7 @@ namespace SharpNet.Pictures
                 }
             }
 
+            var content = ReadonlyContent;
             for (int channel = 0; channel < GetChannels(); ++channel)
             {
                 var sum = 0f;
@@ -142,7 +143,7 @@ namespace SharpNet.Pictures
                 var endIdxExcluded = Idx(channel+1, 0, 0);
                 for (int idx = startIdx; idx< endIdxExcluded; ++idx)
                 {
-                    var val = Content[idx];
+                    var val = content[idx];
                     sum += val;
                     sumSquare += val * val;
                 }

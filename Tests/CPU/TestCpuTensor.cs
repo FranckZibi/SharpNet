@@ -77,7 +77,7 @@ namespace SharpNetTests.CPU
             var expected = new CpuTensor<float>(shape, null, "");
             for (int i = 0; i < expected.Count; ++i)
             {
-                expected.Content[i] = a.Content[i]*x.Content[i];
+                expected.SpanContent[i] = a.ReadonlyContent[i]*x.ReadonlyContent[i];
             }
             c.MultiplyTensor(a, x);
             Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
@@ -87,7 +87,7 @@ namespace SharpNetTests.CPU
             expected = new CpuTensor<float>(shape, null, "");
             for (int i = 0; i < expected.Count; ++i)
             {
-                expected.Content[i] = a.Content[i] * x.Content[i/(7*7)];
+                expected.SpanContent[i] = a.ReadonlyContent[i] * x.ReadonlyContent[i/(7*7)];
             }
             c.MultiplyTensor(a, x);
             Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
@@ -99,8 +99,8 @@ namespace SharpNetTests.CPU
             var t = new CpuTensor<int>(new [] {2, 2, 2, 2}, Enumerable.Range(0, 16).ToArray(), "");
             var t1 = (CpuTensor<int>)t.ChangeAxis(new[] {3, 2, 0, 1}).ChangeAxis(new[] {0, 1, 3, 2});
             var t2 = (CpuTensor<int>)t.ChangeAxis(new[] {3, 2, 1, 0});
-            Assert.IsTrue(t1.Content.SequenceEqual(t2.Content));
-            Assert.IsTrue(t1.Content.SequenceEqual(new []{ 0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15 }));
+            Assert.IsTrue(t1.ReadonlyContent.SequenceEqual(t2.ReadonlyContent));
+            Assert.IsTrue(t1.ReadonlyContent.SequenceEqual(new []{ 0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15 }));
         }
 
         [Test]
@@ -147,7 +147,7 @@ namespace SharpNetTests.CPU
             var expected = new CpuTensor<float>(result.Shape, null, "");
             for (int i = 0; i < a.Count; ++i)
             {
-                expected.Content[i/(7*7)] += a.Content[i] * b.Content[i];
+                expected.SpanContent[i/(7*7)] += a.ReadonlyContent[i] * b.ReadonlyContent[i];
             }
             Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-6));
         }
@@ -167,7 +167,7 @@ namespace SharpNetTests.CPU
             Tensor dropoutReserveSpaceForGPU = null;
             IntPtr dropoutDescriptorForGPU = IntPtr.Zero;
             x.DropoutForward(y, dropProbability, isTraining, rand, dropoutMaskBuffer, ref randomNumberGeneratorStatesBufferForGPU, ref dropoutReserveSpaceForGPU, ref dropoutDescriptorForGPU, null); //no need of TensorMemoryPool  on CPU
-            int nbObservedZeroAfterDropout = y.Content.Count(i => Math.Abs(i) < 1e-8);
+            int nbObservedZeroAfterDropout = y.ReadonlyContent.Count(i => Math.Abs(i) < 1e-8);
             Assert.IsTrue(nbObservedZeroAfterDropout>=minEqualToZeroAfterDropout);
             Assert.IsTrue(nbObservedZeroAfterDropout<= maxEqualToZeroAfterDropout);
         }   
@@ -197,15 +197,15 @@ namespace SharpNetTests.CPU
         }
         public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue, string description)
         {
-            var result = new CpuTensor<float>(shape, description);
-            Utils.Randomize(result.Content, rand, minValue, maxValue);
-            return result;
+            var content = new float[Utils.Product(shape)];
+            Utils.Randomize(content, rand, minValue, maxValue);
+            return new CpuTensor<float>(shape, content, description);
         }
         public static CpuTensor<byte> RandomByteTensor(int[] shape, Random rand, byte minValue, byte maxValue, string description)
         {
-            var result = new CpuTensor<byte>(shape, description);
-            Utils.Randomize(result.Content, rand, minValue, maxValue);
-            return result;
+            var content = new byte[Utils.Product(shape)];
+            Utils.Randomize(content, rand, minValue, maxValue);
+            return new CpuTensor<byte>(shape, content, description);
         }
         private static void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, CpuTensor<float> expectedOutput)
         {

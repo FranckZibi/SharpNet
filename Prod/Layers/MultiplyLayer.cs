@@ -58,6 +58,9 @@ namespace SharpNet.Layers
             return layerShape1.SequenceEqual(layerShape2);
         }
 
+        public override Layer Clone(Network newNetwork) { return new MultiplyLayer(this, newNetwork); }
+        private MultiplyLayer(MultiplyLayer toClone, Network newNetwork) : base(toClone, newNetwork) { }
+
         #region serialization
         public MultiplyLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {

@@ -50,6 +50,16 @@ namespace SharpNet.Optimizers
             bias?.UpdateSGDOptimizer(ponderedLearningRate, _SGD_momentum, _SGD_usenesterov, biasGradient, _velocityBias);
         }
 
+        public override Optimizer Clone(Network newNetwork) { return new Sgd(this, newNetwork); }
+        private Sgd(Sgd toClone, Network newNetwork)
+        {
+            _iterations = toClone._iterations;
+            _SGD_momentum = toClone._SGD_momentum;
+            _SGD_usenesterov = toClone._SGD_usenesterov;
+            _velocityWeight = toClone._velocityWeight?.Clone(newNetwork.GpuWrapper);
+            _velocityBias = toClone._velocityBias?.Clone(newNetwork.GpuWrapper);
+        }
+
         #region serialization
         public override string Serialize()
         {

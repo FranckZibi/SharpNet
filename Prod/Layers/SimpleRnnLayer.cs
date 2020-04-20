@@ -22,7 +22,6 @@ namespace SharpNet.Layers
         private readonly bool _returnSequences;
 
         #region Fields
-
         private Tensor a_init;         //(batchSize, aLength)
 
         private readonly List<Tensor> a_t = new List<Tensor>();   //vector of length 'timeSteps_x' / each element: (batchSize, aLength)
@@ -80,6 +79,48 @@ namespace SharpNet.Layers
             //a_init = Network.GetNotInitializedFloatTensor(new[] { batchSize, aLength }, a_init, nameof(a_init));
             ResetWeights(false);
         }
+
+        public override void ForwardPropagation(List<Tensor> allX, Tensor y1, bool isTraining)
+        {
+            Debug.Assert(allX.Count == 1);
+            var x_NCH = allX[0];
+            var batchSize = x_NCH.Shape[0];                 //N : batch size : number of sentences : _timeSteps_x
+            Debug.Assert(x_NCH.Shape[1] == _timeSteps_x);   //C : number of time steps = number of words per sentence
+            Debug.Assert(x_NCH.Shape[2] == _xLength);       //H : number of distinct words : _xLength
+
+            var aShape = new[] { batchSize, _aLength };
+            var yShape = new[] { batchSize, _yLength };
+
+            var shape_NCH = x_NCH.Shape;
+            var shape_NH = new[] { shape_NCH[0], shape_NCH[2] };
+            GetNotInitializedFloatTensor(ref x_at_t_buffer, shape_NH, nameof(x_at_t_buffer));
+            GetNotInitializedFloatTensor(ref a_buffer1, aShape, nameof(a_buffer1));
+            GetNotInitializedFloatTensor(ref a_buffer2, aShape, nameof(a_buffer2));
+            GetNotInitializedFloatTensor(ref y_buffer1, yShape, nameof(y_buffer1));
+
+
+            for (int t = 0; t < _timeSteps_x; ++t)
+            {
+                x_NCH.From_NCH_to_NH(x_at_t_buffer, t);
+                //a(t): tanh( x(t)*Weights_ax + a(t-1)*Weights_aa + Bias_a)
+
+                a_buffer1.Dot(x_at_t_buffer, Weights_ax);
+                var a_prev = (t == 0) ? a_init : a_t[t - 1];
+                a_buffer2.Dot(a_prev, Weights_aa);
+                a_buffer1.AddTensor(1, a_buffer2, 1);
+                Bias_a.BroadcastAddVectorToOutput(a_buffer1);
+                a_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, a_t[t]);
+
+                y_buffer1.Dot(a_t[t], Weights_ay);
+                Bias_y.BroadcastAddVectorToOutput(y_buffer1);
+                y_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, y_t[t]);
+            }
+        }
+
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        {
+            throw new NotImplementedException();
+        }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
             var prevLayerNX = PrevLayer.n_x;
@@ -127,48 +168,6 @@ namespace SharpNet.Layers
         //    //y_t.ForEach(t => t.ZeroMemory());
         //}
 
-        public override void ForwardPropagation(List<Tensor> allX, Tensor y1, bool isTraining)
-        {
-            Debug.Assert(allX.Count == 1);
-            var x_NCH = allX[0];
-            var batchSize = x_NCH.Shape[0];                 //N : batch size : number of sentences : _timeSteps_x
-            Debug.Assert(x_NCH.Shape[1] == _timeSteps_x);   //C : number of time steps = number of words per sentence
-            Debug.Assert(x_NCH.Shape[2] == _xLength);       //H : number of distinct words : _xLength
-
-            var aShape = new[] {batchSize, _aLength};
-            var yShape = new[] {batchSize, _yLength };
-
-            var shape_NCH = x_NCH.Shape;
-            var shape_NH = new[] { shape_NCH[0], shape_NCH[2]};
-            GetNotInitializedFloatTensor(ref x_at_t_buffer, shape_NH, nameof(x_at_t_buffer));
-            GetNotInitializedFloatTensor(ref a_buffer1, aShape, nameof(a_buffer1));
-            GetNotInitializedFloatTensor(ref a_buffer2, aShape, nameof(a_buffer2));
-            GetNotInitializedFloatTensor(ref y_buffer1, yShape, nameof(y_buffer1));
-
-
-            for (int t = 0; t < _timeSteps_x; ++t)
-            {
-                x_NCH.From_NCH_to_NH(x_at_t_buffer, t);
-                //a(t): tanh( x(t)*Weights_ax + a(t-1)*Weights_aa + Bias_a)
-
-                a_buffer1.Dot(x_at_t_buffer, Weights_ax);
-                var a_prev = (t == 0) ? a_init : a_t[t - 1];
-                a_buffer2.Dot(a_prev, Weights_aa);
-                a_buffer1.AddTensor(1, a_buffer2, 1);
-                Bias_a.BroadcastAddVectorToOutput(a_buffer1);
-                a_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, a_t[t]);
-
-                y_buffer1.Dot(a_t[t], Weights_ay);
-                Bias_y.BroadcastAddVectorToOutput(y_buffer1);
-                y_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, y_t[t]);
-            }
-        }
-
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
-        {
-            throw new NotImplementedException();
-        }
-
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
             if (!base.Equals(b, epsilon, id, ref errors))
@@ -184,6 +183,17 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(_returnSequences, other._returnSequences, id + ":_returnSequences", ref errors);
             return equals;
         }
+
+        public override Layer Clone(Network newNetwork) { return new SimpleRnnLayer(this, newNetwork); }
+        private SimpleRnnLayer(SimpleRnnLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            _timeSteps_x = toClone._timeSteps_x;
+            _xLength = toClone._xLength;
+            _aLength = toClone._aLength;
+            _yLength = toClone._yLength;
+            _returnSequences = toClone._returnSequences;
+        }
+
         #region serialization
         public override string Serialize()
         {
@@ -203,6 +213,7 @@ namespace SharpNet.Layers
             _returnSequences = (bool)serialized[nameof(_returnSequences)];
         }
         #endregion
+
         public override int[] OutputShape(int batchSize)
         {
             if (_returnSequences)

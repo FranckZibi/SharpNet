@@ -72,7 +72,7 @@ namespace SharpNet.Data
             var stringMaxLength = byteTensor.Shape[1];
             for (int stringIndex = 0; stringIndex < byteTensor.Shape[0];++stringIndex)
             {
-                result[stringIndex] = ExtractString(byteTensor.Content, stringIndex, stringMaxLength);
+                result[stringIndex] = ExtractString(byteTensor.ReadonlyContent, stringIndex, stringMaxLength);
             }
             return new CpuTensor<string>(new []{ byteTensor.Shape[0]}, result, IntPtr.Size, byteTensor.Description );
         }
@@ -104,7 +104,7 @@ namespace SharpNet.Data
         /// <param name="stringIndex"></param>
         /// <param name="stringMaxLength">max length of each string in the buffer</param>
         /// <returns></returns>
-        public static string ExtractString(byte[] byteBuffer, int stringIndex, int stringMaxLength)
+        public static string ExtractString(ReadOnlySpan<byte> byteBuffer, int stringIndex, int stringMaxLength)
         {
             var sb = new StringBuilder();
             for (int i = 0; i < stringMaxLength; ++i)

@@ -14,7 +14,6 @@ namespace SharpNet.GPU
         #endregion
         #region readonly properties
         private readonly size_t _capacityInBytes;
-        private readonly bool _isOwnerOfDeviceMemory;
         #endregion
 
         /// <summary>
@@ -27,7 +26,7 @@ namespace SharpNet.GPU
             _capacityInBytes = capacityInBytes;
             var res = NVCudaWrapper.cuMemAlloc_v2(out _pointer, _capacityInBytes);
             GPUWrapper.CheckStatus(res);
-            _isOwnerOfDeviceMemory = true;
+            IsOwnerOfDeviceMemory = true;
         }
         /// <summary>
         /// Pointer to an already allocated memory on device.
@@ -39,7 +38,7 @@ namespace SharpNet.GPU
         {
             _capacityInBytes = capacityInBytes;
             _pointer = pointer;
-            _isOwnerOfDeviceMemory = false;
+            IsOwnerOfDeviceMemory = false;
         }
 
         public IntPtr Pointer
@@ -51,11 +50,13 @@ namespace SharpNet.GPU
             }
         }
 
+        public bool IsOwnerOfDeviceMemory { get; }
+
         public void AssertIsNotDisposed()
         {
             if (_disposed)
             {
-                throw new Exception("disposed object of size " + _capacityInBytes + " / _isOwnerOfDeviceMemory=" + _isOwnerOfDeviceMemory);
+                throw new Exception("disposed object of size " + _capacityInBytes + " / IsOwnerOfDeviceMemory=" + IsOwnerOfDeviceMemory);
             }
         }
 
@@ -81,7 +82,7 @@ namespace SharpNet.GPU
         }
         ~DeviceMemory()
         {
-            if (!_isOwnerOfDeviceMemory)
+            if (!IsOwnerOfDeviceMemory)
             {
                 return;
             }
@@ -100,9 +101,9 @@ namespace SharpNet.GPU
             }
             _disposed = true;
             //unmanaged memory
-            if (_isOwnerOfDeviceMemory)
+            if (IsOwnerOfDeviceMemory)
             {
-                var res = NVCudaWrapper.cuMemFree_v2(_pointer);
+                /*var res =*/ NVCudaWrapper.cuMemFree_v2(_pointer);
                 //GPUWrapper.CheckStatus(res);
                 _pointer = IntPtr.Zero;
             }

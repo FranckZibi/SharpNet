@@ -34,7 +34,7 @@ namespace SharpNetTests.NonReg
                 var tensors = new GPUTensor<float>[1];
                 for(int t=0;t<tensors.Length;++t)
                 {
-                    tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, tmp_2GB, "test", gpuContext);
+                    tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, tmp_2GB, gpuContext, "test");
                 }
                 logger.Info(gpuContext.ToString());
                 foreach (var t in tensors)

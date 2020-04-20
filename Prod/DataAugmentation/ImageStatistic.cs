@@ -67,12 +67,13 @@ namespace SharpNet.DataAugmentation
         {
             var pixelCountByChannel = new List<int[]>();
             int bmpIdx = 0;
+            var bmpContent = bmp.ReadonlyContent;
             for (int channel = 0; channel < bmp.Shape[0]; ++channel)
             {
                 var count = new int[256];
                 for (int indexInChannel = 0; indexInChannel < bmp.MultDim0; ++indexInChannel)
                 {
-                    ++count[bmp.Content[bmpIdx++]];
+                    ++count[bmpContent[bmpIdx++]];
                 }
                 pixelCountByChannel.Add(count);
             }

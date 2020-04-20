@@ -177,6 +177,9 @@ namespace SharpNet.Datasets
         public virtual BitmapContent OriginalElementContent(int elementId)
         {
             var buffer = LoadSingleElement(elementId);
+            var bufferContent = buffer.ReadonlyContent;
+
+
             var resultContent = new byte[Channels * Height * Width];
             int idxInResultContent = 0;
             var result = new BitmapContent(InputShape_CHW, resultContent, elementId.ToString());
@@ -190,7 +193,7 @@ namespace SharpNet.Datasets
                 for (int i = 0; i < nbBytesByChannel; ++i)
                 {
                     byte originalValue;
-                    float normalizedValue = buffer.Content[idxInResultContent];
+                    float normalizedValue = bufferContent[idxInResultContent];
                     if (!isNormalized)
                     {
                         //no normalization was performed on the input
@@ -325,7 +328,7 @@ namespace SharpNet.Datasets
         protected static bool IsValidYSet(Tensor data)
         {
             Debug.Assert(!data.UseGPU);
-            return data.AsFloatCpuContent.All(x => IsValidY(x));
+            return data.AsReadonlyFloatCpuContent.All(x => IsValidY(x));
         }
         protected List<Tuple<float, float>> Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(float[] sumSumSquareCountForEachChannel)
         {

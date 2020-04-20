@@ -23,6 +23,31 @@ namespace SharpNet.Layers
             allX[0].ActivationForward(ActivationFunction, y);
             StopForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
         }
+
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        {
+            Debug.Assert(allX.Count == 1);
+            Debug.Assert(dx.Count == 1);
+
+            if (PrevLayer.IsInputLayer)
+            {
+                //no need to compute dy if previous Layer is the input layer
+                return;
+            }
+
+            StartBackwardTimer(Type() + ">" + ToString(ActivationFunction));
+            //we compute dx
+            if (IsOutputLayer)
+            {
+                dy.CopyTo(dx[0]);
+            }
+            else
+            {
+                y.ActivationBackward(dy, allX[0], ActivationFunction, dx[0]);
+            }
+            StopBackwardTimer(Type() + ">" + ToString(ActivationFunction));
+        }
+
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
             if (!base.Equals(b, epsilon, id, ref errors))
@@ -33,6 +58,12 @@ namespace SharpNet.Layers
             var equals = true;
             equals &= Utils.Equals(ActivationFunction, other.ActivationFunction, id + ":ActivationFunction", ref errors);
             return equals;
+        }
+ 
+        public override Layer Clone(Network newNetwork) { return new ActivationLayer(this, newNetwork); }
+        private ActivationLayer(ActivationLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            ActivationFunction = toClone.ActivationFunction;
         }
 
         #region serialization
@@ -45,29 +76,7 @@ namespace SharpNet.Layers
             ActivationFunction = (cudnnActivationMode_t)serialized[nameof(ActivationFunction)];
         }
         #endregion
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
-        {
-            Debug.Assert(allX.Count == 1);
-            Debug.Assert(dx.Count == 1);
-            
-            if (PrevLayer.IsInputLayer)
-            {
-                //no need to compute dy if previous Layer is the input layer
-                return;  
-            }
 
-            StartBackwardTimer(Type()+">"+ToString(ActivationFunction));
-            //we compute dx
-            if (IsOutputLayer)
-            {
-                dy.CopyTo(dx[0]);
-            }
-            else
-            {
-                y.ActivationBackward(dy, allX[0], ActivationFunction, dx[0]);
-            }
-            StopBackwardTimer(Type()+">"+ToString(ActivationFunction));
-        }
         public override void Dispose()
         {
             EmbeddedTensors.ForEach(x => x?.Dispose());

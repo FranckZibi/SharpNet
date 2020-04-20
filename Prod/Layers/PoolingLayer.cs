@@ -40,6 +40,16 @@ namespace SharpNet.Layers
             _poolingStride = poolingStride;
         }
 
+        public override Layer Clone(Network newNetwork) { return new PoolingLayer(this, newNetwork); }
+
+        private PoolingLayer(PoolingLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            _poolingMode = toClone._poolingMode;
+            _poolingHeight = toClone._poolingHeight;
+            _poolingWidth = toClone._poolingWidth;
+            _poolingStride = toClone._poolingStride;
+        }
+
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
@@ -51,7 +61,6 @@ namespace SharpNet.Layers
             Debug.Assert(dx.Count == 1);
             dy.PoolingGradient(y, allX[0], dx[0], _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
         }
-
      
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -67,6 +76,7 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(_poolingStride, other._poolingStride, id + ":_poolingStride", ref errors);
             return equals;
         }
+
         #region serialization
         public override string Serialize()
         {
@@ -84,6 +94,7 @@ namespace SharpNet.Layers
             _poolingStride = (int)serialized[nameof(_poolingStride)];
         }
         #endregion
+
         protected override string DefaultLayerName()
         {
             return (IsMaxPooling(_poolingMode) ? "max_pooling2d_" : "average_pooling2d_") + (1 + NbLayerOfSameTypeBefore());

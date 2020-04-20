@@ -15,7 +15,7 @@ namespace SharpNet.GPU
         private DeviceMemory _deviceMemory;
         #endregion
 
-        public GPUTensor(GPUTensor<T> memoryOwner, int[] shape, int offsetInBytes, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
+        public GPUTensor(int[] shape, GPUTensor<T> memoryOwner, int offsetInBytes, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
         {
             Debug.Assert(memoryOwner.Pointer != IntPtr.Zero);
             Wrapper = memoryOwner.Wrapper;
@@ -23,7 +23,7 @@ namespace SharpNet.GPU
             _deviceMemory = new DeviceMemory(memoryOwner.Pointer+offsetInBytes, CapacityInBytes);
         }
 
-        public GPUTensor(int[] shape, T[] unpinnedHostMemory, string description, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
+        public GPUTensor(int[] shape, Memory<T>? unpinnedHostMemory, GPUWrapper wrapper, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
         {
             Wrapper = wrapper;
             Wrapper.CheckThreadId();
@@ -31,8 +31,8 @@ namespace SharpNet.GPU
             _deviceMemory = new DeviceMemory(CapacityInBytes);
             if (unpinnedHostMemory != null)
             {
-                using var m = new HostPinnedMemory<T>(unpinnedHostMemory);
-                CopyToDevice(m.Pointer, false);
+                using var m = unpinnedHostMemory.Value.Pin();
+                CopyToDevice((IntPtr)m.Pointer);
             }
         }
 
@@ -44,16 +44,17 @@ namespace SharpNet.GPU
         /// <param name="hostPinnedPointer">point to host (pinned) memory (in CPU) </param>
         /// <param name="useSynchronousCall">true if we want to make a synchronous copy from host to device
         /// false for asynchronous copy</param>
-        public void CopyToDevice(IntPtr hostPinnedPointer, bool useSynchronousCall)
+        public void CopyToDevice(IntPtr hostPinnedPointer)
         {
             AssertIsNotDisposed();
             Debug.Assert(hostPinnedPointer != IntPtr.Zero);
             Wrapper.SwCopyToDevice.Start();
             Wrapper.LogCopyToDeviceCall(ReallyNeededMemoryInBytes);
 
-            var res =useSynchronousCall
-                    ?NVCudaWrapper.cuMemcpyHtoD_v2(Pointer, hostPinnedPointer, ReallyNeededMemoryInBytes)
-                    :NVCudaWrapper.cuMemcpyHtoDAsync_v2(Pointer, hostPinnedPointer, ReallyNeededMemoryInBytes, Wrapper.DefaultStream.StreamHandle);
+            //Synchronous copy
+            //var res = NVCudaWrapper.cuMemcpyHtoD_v2(Pointer, hostPinnedPointer, ReallyNeededMemoryInBytes)
+            //Asynchronous copy
+            var res = NVCudaWrapper.cuMemcpyHtoDAsync_v2(Pointer, hostPinnedPointer, ReallyNeededMemoryInBytes, Wrapper.DefaultStream.StreamHandle);
 
             GPUWrapper.CheckStatus(res, ToString);
             Wrapper.SwCopyToDevice.Stop();
@@ -65,14 +66,13 @@ namespace SharpNet.GPU
         /// <param name="buffer">a buffer to read from
         /// It must contains at least 'Count' elements
         /// </param>
-        public void CopyToDevice(T[] buffer)
+        public void CopyToDevice(Memory<T> buffer)
         {
             Debug.Assert(buffer.Length >= Count);
-            using (var m = new HostPinnedMemory<T>(buffer))
-            {
-                CopyToDevice(m.Pointer, false);
-            }
+            using var m = new HostPinnedMemory<T>(buffer);
+            CopyToDevice(m.Pointer);
         }
+
 
         private T[] DeviceContent()
         {
@@ -267,7 +267,7 @@ namespace SharpNet.GPU
 
         public override Tensor Clone(GPUWrapper gpuWrapper)
         {
-            var result = new GPUTensor<T>((int[]) Shape.Clone(), null, Description, gpuWrapper??Wrapper);
+            var result = new GPUTensor<T>((int[]) Shape.Clone(), null, gpuWrapper??Wrapper, Description);
             result.CopyToDevice(DeviceContent());
             return result;
         }
@@ -455,10 +455,10 @@ namespace SharpNet.GPU
             CopyToDevice(array as T[]);
         }
 
-        public override void NewSameValueTensor(double sameValue)
+        public override void SetValue(float sameValue)
         {
             var array = new float[Count];
-            var sameValueAsFloat = (float) sameValue;
+            var sameValueAsFloat = sameValue;
             for (int i = 0; i < array.Length; ++i)
             {
                 array[i] = sameValueAsFloat;
@@ -768,8 +768,11 @@ namespace SharpNet.GPU
             shape[0] = startRowIndex;
             var offset = ReallyNeededMemoryInBytesForShape(shape);
             shape[0] = nbRows;
-            return new GPUTensor<T>(this, shape, (int)offset, Description);
+            return new GPUTensor<T>(shape, this, (int)offset, Description);
         }
+
+        public override bool IsOwnerOfMemory => _deviceMemory.IsOwnerOfDeviceMemory;
+
         public override void ZeroMemory()
         {
             _deviceMemory.ZeroMemory();

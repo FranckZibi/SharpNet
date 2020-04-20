@@ -11,7 +11,6 @@ namespace SharpNet.Layers
     public sealed class BatchNormalizationLayer : Layer
     {
         #region Private fields
-
         /// <summary>
         /// the momentum used to compute the running mean and running variance:
         ///     runningMean[t] = (1-momentum) * currentMean  + momentum * runningMean[t-1]
@@ -31,19 +30,15 @@ namespace SharpNet.Layers
         private readonly Tensor _bias;                     // same shape as 'Scale"
         /// <summary>
         /// weighted average of all inputs (=x) mean
-        /// updated during training
-        /// used only for inference
+        /// used for inference only (updated during training)
         /// </summary>
         private readonly Tensor _resultRunningMean;        // same shape as 'Scale"
         /// <summary>
         /// weighted average of all inputs (=x) variance
-        /// updated during training
-        /// used only for inference
+        /// used for inference only (updated during training)
         /// </summary>
         private readonly Tensor _resultRunningVariance;    // same shape as 'Scale"
         private readonly Optimizer _optimizer;             //Adam or SGD optimizer or Vanilla SGF
-
-
         #region temporary buffer used for training only
         /// <summary>
         /// temporary buffer used to compute the current input (=x) mean
@@ -56,7 +51,6 @@ namespace SharpNet.Layers
         private Tensor _scaleGradients;                     // same shape as 'Scale"
         private Tensor _biasGradients;                      // same shape as 'Scale"
         #endregion
-
         #endregion
 
         public override Tensor Weights => _scale;
@@ -94,58 +88,24 @@ namespace SharpNet.Layers
             }
         }
 
-        #region serialization
-        public override string Serialize()
+        public override Layer Clone(Network newNetwork) { return new BatchNormalizationLayer(this, newNetwork); }
+        private BatchNormalizationLayer(BatchNormalizationLayer other, Network newNetwork) : base(other, newNetwork)
         {
-            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
-                .Add(nameof(_epsilon), _epsilon).Add(nameof(_momentum), _momentum)
-                .Add(_optimizer?.Serialize())
-                .ToString();
-        }
-        public BatchNormalizationLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-            _epsilon = (double)serialized[nameof(_epsilon)];
-            _momentum = (double)serialized[nameof(_momentum)];
+            _momentum = other._momentum;
+            _epsilon = other._epsilon;
 
             //trainable params
-            _scale = (Tensor)serialized[nameof(_scale)];
-            _bias = (Tensor)serialized[nameof(_bias)];
-            _resultRunningMean = (Tensor)serialized[nameof(_resultRunningMean)];
-            _resultRunningVariance = (Tensor)serialized[nameof(_resultRunningVariance)];
-            _optimizer = Optimizer.ValueOf(network.Config, serialized);
+            _scale = other._scale.Clone(newNetwork.GpuWrapper);
+            _bias = other._bias.Clone(newNetwork.GpuWrapper);
+            _resultRunningMean = other._resultRunningMean.Clone(newNetwork.GpuWrapper);
+            _resultRunningVariance = other._resultRunningVariance.Clone(newNetwork.GpuWrapper);
+            _optimizer = other._optimizer?.Clone(newNetwork);
 
-            //non trainable params
+            // non trainable params
             _meanBuffer = GetNotInitializedFloatTensor(_scale.Shape, nameof(_meanBuffer));
             _invertOfUnbiasedVolatilityBuffer = GetNotInitializedFloatTensor(_scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
         }
-        #endregion
 
-        private int[] ScaleAndBiasShape()
-        {
-            var res = OutputShape(1);
-            if (LayerBatchNormalizationMode() == cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
-            {
-                return res; //shape is (1, C, H, W) or (1, C)
-            }
-            for (int i = 2; i < res.Length; ++i)
-            {
-                res[i] = 1;
-            }
-            return res; //shape is (1, C, 1, 1)
-        }
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (BatchNormalizationLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_momentum, other._momentum, epsilon, id, ref errors);
-            equals &= Utils.Equals(_epsilon, other._epsilon, epsilon, id, ref errors);
-            equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
-            return equals;
-        }
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
@@ -174,15 +134,55 @@ namespace SharpNet.Layers
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
-            _scale.NewSameValueTensor(1.0);
+            _scale.SetValue(1);
             _bias.ZeroMemory();
+            _resultRunningVariance.SetValue(1);
             _resultRunningMean.ZeroMemory();
-            _resultRunningVariance.NewSameValueTensor(1.0);
-            
+
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ZeroMemory();
             }
+        }
+
+        #region serialization
+        public override string Serialize()
+        {
+            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
+                .Add(nameof(_epsilon), _epsilon).Add(nameof(_momentum), _momentum)
+                .Add(_optimizer?.Serialize())
+                .ToString();
+        }
+        public BatchNormalizationLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        {
+            _epsilon = (double)serialized[nameof(_epsilon)];
+            _momentum = (double)serialized[nameof(_momentum)];
+
+            //trainable params
+            _scale = (Tensor)serialized[nameof(_scale)];
+            _bias = (Tensor)serialized[nameof(_bias)];
+            _resultRunningMean = (Tensor)serialized[nameof(_resultRunningMean)];
+            _resultRunningVariance = (Tensor)serialized[nameof(_resultRunningVariance)];
+            _optimizer = Optimizer.ValueOf(network.Config, serialized);
+
+            //non trainable params
+            _meanBuffer = GetNotInitializedFloatTensor(_scale.Shape, nameof(_meanBuffer));
+            _invertOfUnbiasedVolatilityBuffer = GetNotInitializedFloatTensor(_scale.Shape, nameof(_invertOfUnbiasedVolatilityBuffer));
+        }
+        #endregion
+
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (BatchNormalizationLayer)b;
+            var equals = true;
+            equals &= Utils.Equals(_momentum, other._momentum, epsilon, id, ref errors);
+            equals &= Utils.Equals(_epsilon, other._epsilon, epsilon, id, ref errors);
+            equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
+            return equals;
         }
         public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
@@ -193,7 +193,6 @@ namespace SharpNet.Layers
         }
      
         protected override string DefaultLayerName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
-
         protected override List<Tensor> TrainableTensorsIndependentOfBatchSize
         {
             get
@@ -203,7 +202,6 @@ namespace SharpNet.Layers
                 return result;
             }
         }
-
         protected override List<Tensor> NonTrainableTensorsIndependentOfBatchSize
         {
             get
@@ -212,6 +210,19 @@ namespace SharpNet.Layers
                 result.RemoveAll(t => t == null);
                 return result;
             }
+        }
+        private int[] ScaleAndBiasShape()
+        {
+            var res = OutputShape(1);
+            if (LayerBatchNormalizationMode() == cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
+            {
+                return res; //shape is (1, C, H, W) or (1, C)
+            }
+            for (int i = 2; i < res.Length; ++i)
+            {
+                res[i] = 1;
+            }
+            return res; //shape is (1, C, 1, 1)
         }
     }
 }

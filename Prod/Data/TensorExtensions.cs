@@ -72,7 +72,7 @@ namespace SharpNet.Data
             return new CpuTensor<float>(shape.ToArray(), s.Split(',').Select(float.Parse).ToArray(), description);
         }
 
-        private static void NumpyArrayHelper(Tensor t, float[] tContent, int currentDepth, ref int idx, StringBuilder sb)
+        private static void NumpyArrayHelper(Tensor t, ReadOnlySpan<float> tContent, int currentDepth, ref int idx, StringBuilder sb)
         {
             if (currentDepth == 0)
             {

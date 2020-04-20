@@ -33,8 +33,6 @@ namespace SharpNet.Layers
         private Tensor _biasGradients;      // same shape as 'Bias'. Can be null if bias has been disabled
         #endregion
 
-        private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
-
         public DenseLayer(int units, double lambdaL2Regularization, Network network, string layerName) : base(network, layerName)
         {
             _units = units;
@@ -47,56 +45,10 @@ namespace SharpNet.Layers
             ResetWeights(false);
         }
 
-
-        public override Tensor Weights => _weights;
-        public override Tensor WeightGradients => _weightGradients;
-        public override Tensor Bias => _bias;
-        public override Tensor BiasGradients => _biasGradients;
-
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (DenseLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_units, other._units, id + ":_units", ref errors);
-            equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id, ref errors);
-            equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
-            return equals;
-        }
-
-        #region serialization
-        public override string Serialize()
-        {
-            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
-                .Add(nameof(_units), _units)
-                .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
-                .Add(_optimizer.Serialize())
-                .ToString();
-        }
-        public DenseLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-            _units = (int)serialized[nameof(_units)];
-            _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
-
-            //trainable params
-            var useBias = serialized.ContainsKey(nameof(_bias));
-            _weights = (Tensor)serialized[nameof(_weights)];
-            _bias = useBias ? (Tensor)serialized[nameof(_bias)]  : null;
-
-            _optimizer = Optimizer.ValueOf(network.Config, serialized);
-        }
-        #endregion
-
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
-            x.AssertIsNotDisposed();
-            _weights.AssertIsNotDisposed();
-            y.AssertIsNotDisposed();
             //We compute y = x*Weights+B
             y.Dot(x, _weights);
             if (UseBias)
@@ -104,7 +56,6 @@ namespace SharpNet.Layers
                 _bias.BroadcastAddVectorToOutput(y);
             }
         }
-
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
@@ -169,6 +120,59 @@ namespace SharpNet.Layers
                 _optimizer.ZeroMemory();
             }
         }
+
+        public override Tensor Weights => _weights;
+        public override Tensor WeightGradients => _weightGradients;
+        public override Tensor Bias => _bias;
+        public override Tensor BiasGradients => _biasGradients;
+
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (DenseLayer)b;
+            var equals = true;
+            equals &= Utils.Equals(_units, other._units, id + ":_units", ref errors);
+            equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id, ref errors);
+            equals &= _optimizer.Equals(other._optimizer, epsilon, id + ":Optimizer", ref errors);
+            return equals;
+        }
+
+        public override Layer Clone(Network newNetwork) { return new DenseLayer(this, newNetwork); }
+        private DenseLayer(DenseLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            _units = toClone._units;
+            _lambdaL2Regularization = toClone._lambdaL2Regularization;
+            _weights = toClone._weights?.Clone(newNetwork.GpuWrapper);
+            _bias = toClone._bias?.Clone(newNetwork.GpuWrapper);
+            _optimizer = toClone._optimizer?.Clone(newNetwork);
+        }
+
+        #region serialization
+        public override string Serialize()
+        {
+            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
+                .Add(nameof(_units), _units)
+                .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
+                .Add(_optimizer.Serialize())
+                .ToString();
+        }
+        public DenseLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        {
+            _units = (int)serialized[nameof(_units)];
+            _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
+
+            //trainable params
+            var useBias = serialized.ContainsKey(nameof(_bias));
+            _weights = (Tensor)serialized[nameof(_weights)];
+            _bias = useBias ? (Tensor)serialized[nameof(_bias)]  : null;
+
+            _optimizer = Optimizer.ValueOf(network.Config, serialized);
+        }
+        #endregion
+
         public override int[] OutputShape(int batchSize)
         {
             return new[] { batchSize, _units };
@@ -181,9 +185,7 @@ namespace SharpNet.Layers
             _bias = null;
             return nbDisabledWeights;
         }
-
         public int CategoryCount => _units;
-
         public override string ToString()
         {
             var result = LayerName+": "+ShapeChangeDescription();
@@ -234,5 +236,7 @@ namespace SharpNet.Layers
                 return result;
             }
         }
+        private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
+
     }
 }

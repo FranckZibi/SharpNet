@@ -42,7 +42,7 @@ namespace SharpNetTests.DataAugmentation.Operations
         {
             var bmp = BitmapContent.ValueFomSingleRgbBitmap(picturePath, picturePath);
 
-            var input = bmp.Content.Select(x => (float)x).ToArray();
+            var input = bmp.ReadonlyContent.Select(x => (float)x).ToArray();
             var inputShape = new []{1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2]};
             //Check(subPolicy, input, inputShape, bmp.Shape, null, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
             var xOriginalMiniBatch = new CpuTensor<float>(inputShape, input, "xOriginalMiniBatch");
@@ -71,7 +71,7 @@ namespace SharpNetTests.DataAugmentation.Operations
                 xDataAugmentedMiniBatch = xDataAugmentedMiniBatch.Select((n, c, val) => val*meanAndVolatilityForEachChannel[c].Item2+meanAndVolatilityForEachChannel[c].Item1);
             }
 
-            var t = new BitmapContent(bmp.Shape, xDataAugmentedMiniBatch.Content.Select(x => (byte)Math.Max(0,Math.Min(255,x))).ToArray(), "description");
+            var t = new BitmapContent(bmp.Shape, xDataAugmentedMiniBatch.ReadonlyContent.Select(x => (byte)Math.Max(0,Math.Min(255,x))).ToArray(), "description");
             t.Save(new List<string> { augmentedPicturePath });
         }
 

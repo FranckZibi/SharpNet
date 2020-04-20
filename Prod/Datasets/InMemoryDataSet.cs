@@ -38,7 +38,7 @@ namespace SharpNet.Datasets
             Debug.Assert(_x.Shape[3] == xBuffer.Shape[3]); //same width
             var pictureInputIdx = _x.Idx(elementId);
             var pictureOutputIdx = xBuffer.Idx(indexInBuffer);
-            Buffer.BlockCopy(_x.Content, pictureInputIdx * TypeSize, xBuffer.Content, pictureOutputIdx * TypeSize, xBuffer.MultDim0 * TypeSize);
+            _x.CopyTo(pictureInputIdx, xBuffer, pictureOutputIdx, xBuffer.MultDim0);
 
             //we update yBuffer
             var categoryIndex = ElementIdToCategoryIndex(elementId);

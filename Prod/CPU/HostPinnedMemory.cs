@@ -1,22 +1,20 @@
 ﻿
 using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
+using System.Buffers;
 
 namespace SharpNet.CPU
 {
-    public class HostPinnedMemory<T> : IDisposable
+    public unsafe class HostPinnedMemory<T> : IDisposable
     {
         #region private fields
-        private GCHandle _handle;
+        private MemoryHandle _handle;
         private bool _disposed;
         #endregion
 
-        public HostPinnedMemory(T[] hostMemoryToBePinned)
+        public HostPinnedMemory(Memory<T> hostMemoryToBePinned)
         {
-            Debug.Assert(hostMemoryToBePinned != null);
-            _handle = GCHandle.Alloc(hostMemoryToBePinned, GCHandleType.Pinned);
-            Pointer = _handle.AddrOfPinnedObject();
+            _handle = hostMemoryToBePinned.Pin();
+            Pointer = (IntPtr)_handle.Pointer;
         }
         public IntPtr Pointer { get; private set; }
 
@@ -36,10 +34,7 @@ namespace SharpNet.CPU
             if (disposing)
             {
                 //managed memory
-                if (_handle.IsAllocated)
-                {
-                    _handle.Free();
-                }
+                _handle.Dispose();
             }
             //unmanaged memory
             Pointer = IntPtr.Zero;

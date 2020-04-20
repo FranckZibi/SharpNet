@@ -10,7 +10,7 @@ using SharpNet.Networks;
 namespace SharpNet.Data
 {
     [DebuggerDisplay("{ToString(true)}")]
-    public abstract class Tensor : IDisposable
+    public abstract unsafe class Tensor : IDisposable
     {
         #region fields
         public int[] Shape { get; protected set; }
@@ -44,7 +44,10 @@ namespace SharpNet.Data
         public int Dimension => Shape.Length;
         protected ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
-        public float[] AsFloatCpuContent => AsCpu<float>().Content;
+        public Span<float> AsFloatCpuSpan => AsFloatCpu.SpanContent;
+        public float*  AsFloatPointer => (float*)AsFloatCpu.HostPointer;
+
+        public ReadOnlySpan<float> AsReadonlyFloatCpuContent => AsCpu<float>().ReadonlyContent;
         public string ContentStats()
         {
             int naNCount = 0;
@@ -118,7 +121,7 @@ namespace SharpNet.Data
 
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper)
         {
-            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().Content, Description, gpuWrapper);
+            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().Content, gpuWrapper, Description);
         }
         public CpuTensor<float> ToCpuFloat()
         {
@@ -399,6 +402,12 @@ namespace SharpNet.Data
         public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
         public abstract Tensor ExtractSubTensor(int startRowIndex, int nbRows);
 
+        /// <summary>
+        /// true if the tensor is the single owner of the associated memory (it will have to dispose this memory when collected)
+        /// false if the memory associated with the tensor is not owned by the 'this' tensor : the 'tensor' should not collected the memory when disposed
+        /// </summary>
+        public abstract bool IsOwnerOfMemory { get; }
+
         #region Dispose pattern
         protected bool _disposed;
         public abstract void Dispose();
@@ -526,7 +535,11 @@ namespace SharpNet.Data
         public abstract double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
 
         public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
-        public abstract void NewSameValueTensor(double sameValue);
+        /// <summary>
+        /// set the same value 'sameValue' in the entire tensor
+        /// </summary>
+        /// <param name="sameValue"></param>
+        public abstract void SetValue(float sameValue);
         public abstract float[] ContentAsFloatArray();
         protected Tensor(int[] shape, int typeSize, bool useGpu, string description)
         {
@@ -571,7 +584,8 @@ namespace SharpNet.Data
             result += UseGPU ? "" : "CPU";
             if (displayStartOfTensor && !UseGPU && (this is CpuTensor<float>))
             {
-                result += "(" + string.Join(",", AsCpu<float>().Content.Take(3)) + ",...)";
+                //TODO re enable line below
+                //result += "(" + string.Join(",", AsFloatCpuContent.Take(3)) + ",...)";
             }
 
             return result;

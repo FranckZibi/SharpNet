@@ -60,6 +60,9 @@ namespace SharpNet.GPU
             }
         }
         public IntPtr CudnnHandle => _cudnnHandle;
+
+        public int DeviceId => _deviceId;
+
         public void RunKernel(string kernelName, int count, object[] parameterLists)
         {
             CheckThreadId();

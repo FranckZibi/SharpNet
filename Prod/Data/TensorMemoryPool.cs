@@ -154,7 +154,7 @@ namespace SharpNet.Data
             }
             else if (_gpuWrapper != null)
             {
-                result = new GPUTensor<float>(shape, null, description, _gpuWrapper);
+                result = new GPUTensor<float>(shape, null, _gpuWrapper, description);
             }
             else
             {

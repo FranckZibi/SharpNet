@@ -46,7 +46,7 @@ namespace SharpNet.DataAugmentation
         /// The alpha coefficient used to compute lambda in CutMix
         /// If less or equal to 0 , CutMix will be disabled
         /// Alpha will be used as an input of the beta law to compute lambda
-        /// (so a value of Alpha = 1.0 will use a uniform random distribution in [0,1] for lambda)
+        /// (so a value of AlphaCutMix = 1.0 will use a uniform random distribution in [0,1] for lambda)
         /// lambda is the % of the original to keep (1-lambda will be taken from another element and mixed with current)
         /// the % of the max(width,height) of the CutMix mask to apply to the input picture (see: https://arxiv.org/pdf/1905.04899.pdf)
         /// </summary>

@@ -5,6 +5,7 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
@@ -596,7 +597,7 @@ namespace SharpNetTests
             var resultCpuFloat = work(cpu);
             var gpu = gpuInt.Select(x => (Tensor)x).Union(gpuFloat.Select(x => (Tensor)x)).ToArray();
             var resultGPUFloat = work(gpu);
-            Assert.AreEqual(resultCpuFloat, resultGPUFloat, 1e-5, cpuFloat.Last().Content.Min() + " vs " + gpuFloat.Last().ContentAsFloatArray().Min());
+            Assert.AreEqual(resultCpuFloat, resultGPUFloat, 1e-5, cpuFloat.Last().ReadonlyContent.Min() + " vs " + gpuFloat.Last().ContentAsFloatArray().Min());
             for (var i = 0; i < cpuFloat.Length; ++i)
             {
                 if (tensorIdsToIgnore != null && tensorIdsToIgnore.Contains(i))
@@ -609,7 +610,7 @@ namespace SharpNetTests
 
         private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper)
         {
-            return new GPUTensor<T>(cpuTensor.Shape, cpuTensor.Content, cpuTensor.Description, gpuWrapper);
+            return new GPUTensor<T>(cpuTensor.Shape, cpuTensor.Content, gpuWrapper, cpuTensor.Description);
         }
     }
 }

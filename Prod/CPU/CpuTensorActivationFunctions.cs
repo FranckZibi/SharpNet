@@ -12,8 +12,8 @@ namespace SharpNet.CPU
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {X, Y}));
             var batchSize = X.Shape[0];
-            var xContent = X.AsFloatCpuContent;
-            var yContent = Y.AsFloatCpuContent;
+            var xContent = X.AsFloatCpuSpan;
+            var yContent = Y.AsFloatCpuSpan;
             for (int row = 0; row < batchSize; ++row)
             {
                 int start = row * X.MultDim0;
@@ -39,9 +39,9 @@ namespace SharpNet.CPU
         public static void SoftmaxGradient(Tensor y, Tensor dy, Tensor dx)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> { y, dy, dx }));
-            var yContent = y.AsFloatCpuContent;
-            var dyContent = dy.AsFloatCpuContent;
-            var dxContent = dx.AsFloatCpuContent;
+            var yContent = y.AsFloatCpuSpan;
+            var dyContent = dy.AsFloatCpuSpan;
+            var dxContent = dx.AsFloatCpuSpan;
             for (int i = 0; i < dx.Count; ++i)
             {
                 var yi = yContent[i];

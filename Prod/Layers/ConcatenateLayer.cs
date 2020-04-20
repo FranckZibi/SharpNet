@@ -18,11 +18,15 @@ namespace SharpNet.Layers
             AddPreviousLayer(previousLayerIndex2);
         }
 
+        public override Layer Clone(Network newNetwork) { return new ConcatenateLayer(this, newNetwork); }
+        private ConcatenateLayer(ConcatenateLayer toClone, Network newNetwork) : base(toClone, newNetwork) { }
+
         #region serialization
         public ConcatenateLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
         {
         }
         #endregion
+
         public override int[] OutputShape(int batchSize)
         {
             // the number of channels is the sum of the 2 previous layers

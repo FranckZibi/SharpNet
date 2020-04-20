@@ -232,10 +232,12 @@ namespace SharpNet.Data
             return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(t.ContentAsFloatArray()));
         }
 
-        private static string ToString(float[] data)
+        private static string ToString(ReadOnlySpan<float> data)
         {
             return string.Join(";", data.Select(x => x.ToString("G9", CultureInfo.InvariantCulture)));
         }
+
+      
 
         private static string ToString(double[] data)
         {
@@ -271,7 +273,7 @@ namespace SharpNet.Data
                 {
                     return new CpuTensor<float>(shape, data, description);
                 }
-                return new GPUTensor<float>(shape, data, description, gpuWrapper);
+                return new GPUTensor<float>(shape, data, gpuWrapper, description);
             }
             throw new NotImplementedException("do not know how to parse type " + typeAsString);
         }

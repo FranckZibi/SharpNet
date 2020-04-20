@@ -37,13 +37,13 @@ namespace SharpNetTests.Pictures
             var bc = new BitmapContent(new[] { 3, 1, 1 }, new byte[] { 117,1,2 }, "");
             var bcSquare = bc.MakeSquarePictures(true, false, fillingColor);
             Assert.IsTrue(bc.Shape.SequenceEqual(bcSquare.Shape));
-            AssertAreEqual(new byte[] {117,1,2}, bcSquare.Content);
+            AssertAreEqual(new byte[] {117,1,2}, bcSquare.SpanContent.ToArray());
             bcSquare = bc.MakeSquarePictures(false, false, fillingColor);
             Assert.IsTrue(bc.Shape.SequenceEqual(bcSquare.Shape));
-            AssertAreEqual(new byte[] { 117, 1, 2 }, bcSquare.Content);
+            AssertAreEqual(new byte[] { 117, 1, 2 }, bcSquare.SpanContent.ToArray());
             bcSquare = bc.MakeSquarePictures(false, true, fillingColor);
             Assert.IsTrue(bc.Shape.SequenceEqual(bcSquare.Shape));
-            AssertAreEqual(new byte[] { 117, 1, 2 }, bcSquare.Content);
+            AssertAreEqual(new byte[] { 117, 1, 2 }, bcSquare.SpanContent.ToArray());
 
             bc = new BitmapContent(new[] { 3, 3, 1 }, new byte[] { 117,1,2, 3,4,5, 6,7,8 }, "");
             bcSquare = bc.MakeSquarePictures(false, false, fillingColor);
@@ -53,10 +53,10 @@ namespace SharpNetTests.Pictures
                                253,117,253,253,1,253,253,2,253,
                                254,3,254,254,4,254,254,5,254,
                                255,6,255,255,7,255,255,8,255,
-                           }, bcSquare.Content);
+                           }, bcSquare.SpanContent.ToArray());
             bcSquare = bc.MakeSquarePictures(false, true, fillingColor);
             Assert.IsTrue(new[] { 3, 1, 1 }.SequenceEqual(bcSquare.Shape));
-            AssertAreEqual(new byte[]{1,4,7}, bcSquare.Content);
+            AssertAreEqual(new byte[]{1,4,7}, bcSquare.SpanContent.ToArray());
             bcSquare = bc.MakeSquarePictures(true, false, fillingColor);
             Assert.IsTrue(new[] { 3, 3, 3 }.SequenceEqual(bcSquare.Shape));
             AssertAreEqual(new byte[]
@@ -64,7 +64,7 @@ namespace SharpNetTests.Pictures
                                253,253,253,117,1,2,253,253,253,
                                254,254,254,3,4,5,254,254,254,
                                255,255,255,6,7,8,255,255,255,
-                           }, bcSquare.Content);
+                           }, bcSquare.SpanContent.ToArray());
         }
 
         private static void AssertAreEqual(float[] expected, float[] observed, float epsilon )

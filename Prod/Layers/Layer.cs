@@ -19,6 +19,26 @@ namespace SharpNet.Layers
         public List<int> PreviousLayerIndexes { get; } = new List<int>();
         #endregion
 
+        /// <summary>
+        /// Clone constructor
+        /// </summary>
+        /// <param name="toClone">the layer to be cloned</param>
+        /// <param name="newNetwork">the network where the cloned layer will be located</param>
+        protected Layer(Layer toClone, Network newNetwork)
+        {
+            Network = newNetwork;
+            LayerIndex = toClone.LayerIndex;
+            LayerName = toClone.LayerName;
+            PreviousLayerIndexes.Clear();
+            PreviousLayerIndexes.AddRange(toClone.PreviousLayerIndexes);
+            NextLayerIndexes.Clear();
+            NextLayerIndexes.AddRange(toClone.NextLayerIndexes);
+            if (_lazyOutputShape != null)
+            {
+                _lazyOutputShape = (int[])toClone._lazyOutputShape.Clone();
+            }
+        }
+
         protected Layer(Network network, int previousLayerIndex, string layerName)
         {
             Network = network;
@@ -32,6 +52,27 @@ namespace SharpNet.Layers
         {
         }
 
+
+        /// <summary>
+        ///  At this stage, we already know 'x', we want to compute 'y'
+        /// </summary>
+        /// <param name="allX"></param>
+        /// <param name="y1"></param>
+        /// <param name="isTraining">true if we are currently training the network
+        ///     false if we are just using it to make a prediction </param>
+        public abstract void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining);
+        /// <summary>
+        ///  At this stage, we already know 'x'+'y'+'dy', we want to compute 'dx' by backward propagation
+        /// </summary>
+        /// <param name="allX">[in] all layer inputs</param>
+        /// <param name="y">[in] the already computed output</param>
+        /// <param name="dy">[in] the already computed output gradient</param>
+        /// <param name="dx">[out] input gradient (dx) to compute from the output gradient (dy)</param>
+        public abstract void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx);
+        public virtual void UpdateWeights(int batchSize, double learningRate) { }
+        public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
+
+        public abstract Layer Clone(Network newNetwork);
         /// <summary>
         /// compares the current layer with the other layer 'b' 
         /// </summary>
@@ -110,27 +151,6 @@ namespace SharpNet.Layers
         {
             return 0;
         }
-
-
-        /// <summary>
-        ///  At this stage, we already know 'x', we want to compute 'y'
-        /// </summary>
-        /// <param name="allX"></param>
-        /// <param name="y1"></param>
-        /// <param name="isTraining">true if we are currently training the network
-        ///     false if we are just using it to make a prediction </param>
-        public abstract void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining);
-
-        /// <summary>
-        ///  At this stage, we already know 'x'+'y'+'dy', we want to compute 'dx' by backward propagation
-        /// </summary>
-        /// <param name="allX">[in] all layer inputs</param>
-        /// <param name="y">[in] the already computed output</param>
-        /// <param name="dy">[in] the already computed output gradient</param>
-        /// <param name="dx">[out] input gradient (dx) to compute from the output gradient (dy)</param>
-        public abstract void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx);
-        public virtual void UpdateWeights(int batchSize, double learningRate) { }
-        public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true) { }
         
         #region *.h5 file (HDF) management
 
@@ -315,7 +335,7 @@ namespace SharpNet.Layers
         }
         protected string ShapeChangeDescription()
         {
-            return Utils.ShapeToStringWithBacthSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBacthSize(OutputShape(1));
+            return Utils.ShapeToStringWithBatchSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBatchSize(OutputShape(1));
         }
         protected List<Tensor> EmbeddedTensors
         {

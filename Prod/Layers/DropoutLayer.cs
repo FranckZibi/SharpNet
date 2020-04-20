@@ -22,6 +22,7 @@ namespace SharpNet.Layers
         {
             _dropProbability = dropProbability;
         }
+        
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
@@ -37,6 +38,7 @@ namespace SharpNet.Layers
             Debug.Assert(dx.Count == 1);
             allX[0].DropoutBackward(dy, dx[0], _dropProbability, _dropOutMaskBufferForCpu, _randomNumberGeneratorStatesBufferForGPU, _dropoutReserveSpaceForGPU, _dropoutDescriptorForGPU);
         }
+
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
             if (!base.Equals(b, epsilon, id, ref errors))
@@ -67,15 +69,22 @@ namespace SharpNet.Layers
             _dropoutDescriptorForGPU = IntPtr.Zero;
         }
 
-        #region serialization
-        public override string Serialize()
-        {
-            return RootSerializer().Add(nameof(_dropProbability), _dropProbability).ToString();
-        }
-        public DropoutLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-            _dropProbability = (double) serialized[nameof(_dropProbability)];
-        }
-        #endregion
+       public override Layer Clone(Network newNetwork) { return new DropoutLayer(this, newNetwork); }
+       private DropoutLayer(DropoutLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+       {
+           _dropProbability = toClone._dropProbability;
+           _dropOutMaskBufferForCpu = toClone._dropOutMaskBufferForCpu?.Clone(newNetwork.GpuWrapper);
+       }
+
+       #region serialization
+       public override string Serialize()
+       {
+           return RootSerializer().Add(nameof(_dropProbability), _dropProbability).ToString();
+       }
+       public DropoutLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+       {
+           _dropProbability = (double) serialized[nameof(_dropProbability)];
+       }
+       #endregion
     }
 }

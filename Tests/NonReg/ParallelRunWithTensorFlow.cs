@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
@@ -52,7 +52,7 @@ namespace SharpNetTests.NonReg
             //Utils.RandomizeNormalDistribution(X.Content, new Random(), 0, 1);
             int batchSize = X.Shape[0];
             var Y = new CpuTensor<float>(new[] { batchSize, 1000 }, null, "Y");
-            Y.Content[388] = 1; //panda
+            Y.SpanContent[388] = 1; //panda
 
             network.Info("x_train" + Environment.NewLine + X.ToNumpy());
             network.Info("y_train" + Environment.NewLine + Y.ToNumpy());
@@ -94,10 +94,10 @@ namespace SharpNetTests.NonReg
 
         private static string PredictionToString(Tensor prediction, string description)
         {
-            var tmp = prediction.ToCpuFloat().Content;
+            var tmp = prediction.ToCpuFloat().ReadonlyContent;
 
             string result = description + " " + Tensor.ShapeToString(prediction.Shape) + Environment.NewLine;
-            int idxMax = Array.IndexOf(tmp, tmp.Max());
+            int idxMax = tmp.IndexOf(tmp.Max());
             result += description + "[" + idxMax + "]=" + tmp[idxMax] + Environment.NewLine;
             result += prediction.ToNumpy();
             return result;
@@ -141,8 +141,8 @@ namespace SharpNetTests.NonReg
 
             logger.Info(network.Summary() + Environment.NewLine);
 
-            TestNetworkPropagation.FromConvNumpyArray("[[[[-0.4878799319267273, -0.6471760272979736], [-0.11215460300445557, 0.24113142490386963], [-0.5400518774986267, -0.8205036520957947]]]]", "conv").CopyTo(((ConvolutionLayer)network.Layers[1]).Convolution);
-            TestNetworkPropagation.FromConvNumpyArray("[[[[-0.7247111797332764, -0.3986714482307434], [-0.4940018653869629, 0.04389345645904541]]]]", "conv").CopyTo(((ConvolutionLayer)network.Layers[2]).Convolution);
+            TestNetworkPropagation.FromConvNumpyArray("[[[[-0.4878799319267273, -0.6471760272979736], [-0.11215460300445557, 0.24113142490386963], [-0.5400518774986267, -0.8205036520957947]]]]", "conv").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
+            TestNetworkPropagation.FromConvNumpyArray("[[[[-0.7247111797332764, -0.3986714482307434], [-0.4940018653869629, 0.04389345645904541]]]]", "conv").CopyTo(((ConvolutionLayer)network.Layers[2]).Weights);
             TestNetworkPropagation.FromNumpyArray("[[-0.029460519552230835, 0.1628669798374176], [-0.28001704812049866, -0.23855498433113098], [0.07715305685997009, 0.11627233028411865], [0.32925912737846375, 0.011087954044342041], [0.12424156069755554, -0.05900973081588745], [-0.2703372836112976, 0.12233385443687439], [-0.08240920305252075, 0.006095200777053833], [-0.023135006427764893, 0.08786126971244812], [-0.2075882852077484, -0.3384675085544586], [0.10181871056556702, -0.08105111122131348], [0.04287368059158325, -0.014433145523071289], [-0.050517499446868896, 0.19285127520561218], [0.16756221652030945, -0.06256869435310364], [-0.1878374218940735, -0.17477598786354065], [0.3118181526660919, 0.36103251576423645], [0.16790542006492615, 0.27620890736579895], [0.21295377612113953, -0.15440134704113007], [0.03934970498085022, -0.35186851024627686], [-0.19449061155319214, -0.2855254113674164], [-0.08950188755989075, 0.2891680896282196], [-0.37375181913375854, 0.18617329001426697], [0.07124421000480652, 0.28268447518348694], [0.041756272315979004, 0.13584479689598083], [0.12497344613075256, 0.151188462972641], [0.3146173655986786, -0.22298070788383484], [-0.22048203647136688, -0.30460700392723083], [0.12072917819023132, -0.2646358907222748], [-0.15740737318992615, 0.17554828524589539], [0.13976749777793884, -0.357845664024353], [-0.365357369184494, -0.15716126561164856], [0.14519938826560974, 0.22951403260231018], [0.03488221764564514, 0.1870688498020172], [0.28289076685905457, 0.14199396967887878], [0.31583401560783386, 0.08595579862594604], [0.005727171897888184, 0.2800586521625519], [0.013508498668670654, 0.3192369043827057], [-0.14768590033054352, -0.05077126622200012], [-0.28260645270347595, -0.3034713864326477], [-0.05905658006668091, -0.3151003122329712], [-0.12471392750740051, -0.2689373791217804]]", "dense").CopyTo(((DenseLayer)network.Layers[6]).Weights);
 
             var predict_before = network.Predict(X, false).ToNumpy();

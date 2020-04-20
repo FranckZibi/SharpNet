@@ -69,12 +69,6 @@ namespace SharpNet.Networks
             CreateLogDirectoryIfNeeded();
             MemoryPool = new TensorMemoryPool(_gpuWrapper, false);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-            _yPredictedBufferForEntireBatch = MemoryPool.GetNotInitializedFloatTensor(new []{1}, nameof(_yPredictedBufferForEntireBatch));
-            _yExpectedBufferForEntireBatch = MemoryPool.GetNotInitializedFloatTensor(new []{1}, nameof(_yExpectedBufferForEntireBatch));
-            _xMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, null, nameof(_xMiniBatchCpu));
-            _yExpectedMiniBatchCpu = new CpuTensor<float>(new[] { 1 }, null, nameof(_yExpectedMiniBatchCpu));
-            _bufferComputeAccuracy = MemoryPool.GetNotInitializedFloatTensor(new[] { 1 }, nameof(_bufferComputeAccuracy));
-            _bufferComputeLoss = MemoryPool.GetNotInitializedFloatTensor(new[] { 1 }, nameof(_bufferComputeLoss));
         }
 
         #region Transfer Learning
@@ -133,6 +127,27 @@ namespace SharpNet.Networks
             OnLayerAddOrRemove();
         }
         #endregion
+
+
+        /// <summary>
+        /// Clone the current network
+        /// </summary>
+        /// <param name="newGpuWrapper">
+        /// if null the network will be cloned for CPU usage
+        /// if not null, the network will be cloned to work on the GPU embedded in 'newGpuWrapper'
+        /// </param>
+        /// <returns></returns>
+        public Network Clone(GPUWrapper newGpuWrapper)
+        {
+            var clonedNetworkGpuDeviceId = newGpuWrapper?.DeviceId ?? -1;
+            var clonedNetwork = new Network(Config, clonedNetworkGpuDeviceId, new List<EpochData>(_epochDatas));
+            clonedNetwork.Description = Description;
+            foreach (var l in Layers)
+                {
+                    clonedNetwork.Layers.Add(l.Clone(clonedNetwork));
+                }
+            return clonedNetwork;
+        }
 
         private void CreateLogDirectoryIfNeeded()
         {
@@ -405,7 +420,7 @@ namespace SharpNet.Networks
             result += line1 + Environment.NewLine;
             foreach (var l in Layers)
             {
-                var outputShape = Utils.ShapeToStringWithBacthSize(l.OutputShape(1));
+                var outputShape = Utils.ShapeToStringWithBatchSize(l.OutputShape(1));
                 var firstColumn = l.LayerName+" ("+l.Type()+")";
                 if (firstColumn.Length > firstColumnWidth - 1)
                 {
@@ -454,7 +469,7 @@ namespace SharpNet.Networks
             result += line1 + Environment.NewLine;
             foreach (var layer in Layers)
             {
-                var outputShape = Utils.ShapeToStringWithBacthSize(layer.OutputShape(1));
+                var outputShape = Utils.ShapeToStringWithBatchSize(layer.OutputShape(1));
                 var firstColumn = layer.LayerName + " (" + layer.Type() + ")";
                 if (firstColumn.Length > firstColumnWidth - 1)
                 {
@@ -508,7 +523,7 @@ namespace SharpNet.Networks
 
             freeMemoryInBytes -= 1_000_000_000;
 
-            //?D freeMemoryInBytes = (80* freeMemoryInBytes)/100;
+            //freeMemoryInBytes = (80* freeMemoryInBytes)/100;
             //freeMemoryInBytes = (85 * freeMemoryInBytes) / 100;
 
             ulong miniBatchSize = freeMemoryInBytes / bytesByBatchSize;
@@ -1075,6 +1090,7 @@ namespace SharpNet.Networks
         }
         #endregion
 
+        public GPUWrapper GpuWrapper => _gpuWrapper;
 
         public void LoadFromH5Dataset(List<Tuple<string, Tensor>> h5FileDatasetAsList, NetworkConfig.CompatibilityModeEnum originFramework)
         {
@@ -1182,13 +1198,11 @@ namespace SharpNet.Networks
                 dataSet.LoadMiniBatch(epoch, isTraining, shuffledElementId, blockId * miniBatchSize, Config.DataAugmentation, _xMiniBatchCpu, _yExpectedMiniBatchCpu);
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
-                //we copy mini batch content from CPU to appropriate target (CPU or GPU)
+                //we copy mini batch content (_xMiniBatchCpu) from CPU to appropriate target (CPU or GPU)
                 if (xMiniBatch.UseGPU)
                 {
-                    //validated on 4-jan-2020 : 2% speed up (vs useSynchronousCall = true)
-                    const bool useSynchronousCall = false;
-                    xMiniBatch.AsGPU<float>().CopyToDevice(_xMiniBatchCpu.HostPointer, useSynchronousCall);
-                    yExpectedMiniBatch.AsGPU<float>().CopyToDevice(_yExpectedMiniBatchCpu.HostPointer, useSynchronousCall);
+                    xMiniBatch.AsGPU<float>().CopyToDevice(_xMiniBatchCpu.HostPointer);
+                    yExpectedMiniBatch.AsGPU<float>().CopyToDevice(_yExpectedMiniBatchCpu.HostPointer);
                 }
                 else
                 {
@@ -1203,11 +1217,6 @@ namespace SharpNet.Networks
                     PropagationManager.Backward(yExpectedMiniBatch, yPredictedMiniBatch);
                     PropagationManager.UpdateWeights(blockSize, learningRateComputerIfTraining.LearningRate(epoch, blockId, nbMiniBatchBlock, lrMultiplicativeFactorFromReduceLrOnPlateau));
                 }
-                if (!yPredictedMiniBatch.UseGPU)
-                {
-                    yPredictedMiniBatch.CopyTo(0, _yPredictedBufferForEntireBatch, _yPredictedBufferForEntireBatch.Idx(nbProcessed), yPredictedMiniBatch.Count);
-                    yExpectedMiniBatch.CopyTo(0, _yExpectedBufferForEntireBatch, _yExpectedBufferForEntireBatch.Idx(nbProcessed),  yExpectedMiniBatch.Count);
-                }
                 nbProcessed += blockSize;
                 if (callBackToStop != null && callBackToStop(yExpectedMiniBatch, yPredictedMiniBatch, blockId, nbMiniBatchBlock, epoch))
                 {
@@ -1215,8 +1224,7 @@ namespace SharpNet.Networks
                 }
                 ++blockId;
 
-                if ((DateTime.Now-lastStatsUpdate).TotalSeconds> 10)
-                //?D if ((DateTime.Now-lastStatsUpdate).TotalSeconds> 5*60)
+                if ((DateTime.Now-lastStatsUpdate).TotalSeconds> 5*60)
                 {
                     var percentageDoneInEpoch = ((double) nbProcessed) / entireBatchSize;
                     var secondsSinceStartOfEpoch = (DateTime.Now - miniBatchGradientDescentStart).TotalSeconds;

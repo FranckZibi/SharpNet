@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.Data;
+using SharpNet.Networks;
 
 namespace SharpNet.Optimizers
 {
@@ -22,6 +23,8 @@ namespace SharpNet.Optimizers
         {
             return Utils.Equals(GetType(), other.GetType(), id + ":GetType", ref errors);
         }
+
+        public override Optimizer Clone(Network newNetwork) { return Instance; }
 
         #region serialization
         public override string Serialize() {return "";}

@@ -58,6 +58,7 @@ namespace SharpNet.Datasets
 
             //we load the element content from the file
             var xByte = LoadElementIdFromFile(elementId);
+            var xBufferContent = xBuffer.SpanContent;
 
             //we initialize 'xBuffer'
             int xByteIndex = 1;
@@ -70,7 +71,7 @@ namespace SharpNet.Datasets
                     {
                         var val = (double)xByte[xByteIndex++];
                         val = (val - OriginalChannelMean(channel)) / OriginalChannelVolatility(channel);
-                        xBuffer.Content[xBufferIndex++] = (float)val;
+                        xBufferContent[xBufferIndex++] = (float)val;
                     }
                 }
             }

@@ -72,6 +72,9 @@ namespace SharpNet.Data
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW,Tensor adam_sW, int timestep){throw new NotImplementedException();}
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity){throw new NotImplementedException();}
         public override Tensor ExtractSubTensor(int startRowIndex, int nbRows){throw new NotImplementedException();}
+
+        public override bool IsOwnerOfMemory => throw new NotImplementedException();
+
         public override void AssertIsNotDisposed(){}
         public override Tensor Transpose(){throw new NotImplementedException();}
         public override void BatchNormalization(Tensor y, Tensor scale, Tensor bias, double exponentialAverageSmoothingFactor,
@@ -99,7 +102,7 @@ namespace SharpNet.Data
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev){throw new NotImplementedException();}
-        public override void NewSameValueTensor(double sameValue){throw new NotImplementedException();}
+        public override void SetValue(float sameValue){throw new NotImplementedException();}
         public override float[] ContentAsFloatArray(){throw new NotImplementedException();}
         #endregion
     }

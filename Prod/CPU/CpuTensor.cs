@@ -11,10 +11,17 @@ using static SharpNet.GPU.GPUWrapper;
 
 namespace SharpNet.CPU
 {
-    public class CpuTensor<T> : Tensor
+    public unsafe class CpuTensor<T> : Tensor
     {
         #region fields
-        public T[] Content { get; private set; }
+        public Memory<T> Content { get; private set; }
+        /// <summary>
+        /// used only if the tensor is NOT the owner of the memory
+        /// </summary>
+        private readonly IntPtr _ptrToOwnerMemory;
+        /// <summary>
+        /// used only if the tensor is the owner of the memory
+        /// </summary>
         private HostPinnedMemory<T> _hostPinnedMemory;
         #endregion
 
@@ -22,14 +29,21 @@ namespace SharpNet.CPU
         {
             Content = data ?? new T[Count];
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
+            _ptrToOwnerMemory = IntPtr.Zero;
         }
-
         public CpuTensor(int[] shape, T[] data, string description) : this(shape, data, Marshal.SizeOf(typeof(T)), description)
         {
         }
         public CpuTensor(int[] shape, string description) : this(shape, null, description)
         {
         }
+        private CpuTensor(int[] shape, CpuTensor<T> memoryOwner, int startIndex) : base(shape, memoryOwner.TypeSize, false, memoryOwner.Description)
+        {
+            Content = memoryOwner.Content.Slice(startIndex, Utils.Product(shape));
+            CapacityInBytes = (ulong)(Content.Length * TypeSize);
+            _ptrToOwnerMemory = memoryOwner.HostPointer + TypeSize * startIndex;
+        }
+
 
         /// <summary>
         /// pointer to (pinned) host memory (in CPU)
@@ -38,6 +52,12 @@ namespace SharpNet.CPU
         {
             get
             {
+                if (!IsOwnerOfMemory)
+                {
+                    Debug.Assert(_ptrToOwnerMemory != IntPtr.Zero);
+                    return _ptrToOwnerMemory;
+                }
+                Debug.Assert(_ptrToOwnerMemory == IntPtr.Zero);
                 if (_hostPinnedMemory == null)
                 {
                     _hostPinnedMemory = new HostPinnedMemory<T>(Content);
@@ -64,6 +84,10 @@ namespace SharpNet.CPU
             else
             {
                 //bigger shape
+                if (!IsOwnerOfMemory)
+                {
+                    throw new ArgumentException("must be memory owner to increase memory associated with the 'this' Tensor");
+                }
                 _hostPinnedMemory?.Dispose();
                 _hostPinnedMemory = null;
                 Content = new T[Utils.Product(newShape)];
@@ -75,8 +99,8 @@ namespace SharpNet.CPU
 
         public T this[int i]
         {
-            get => Content[i];
-            set => Content[i] = value;
+            get => ReadonlyContent[i];
+            set => SpanContent[i] = value;
         }
         public CpuTensor<T> From_HNC_to_NCH()
         {
@@ -136,7 +160,10 @@ namespace SharpNet.CPU
 
             return result;
         }
-     
+        public override bool IsOwnerOfMemory => _ptrToOwnerMemory == IntPtr.Zero;
+        public ReadOnlySpan<T> ReadonlyContent => Content.Span;
+        public Span<T> SpanContent => Content.Span;
+
         public override void From_NCH_to_NH(Tensor tensor_NH, int channel)
         {
             Debug.Assert(Shape[0] == tensor_NH.Shape[0]);  //N
@@ -205,6 +232,7 @@ namespace SharpNet.CPU
         {
             var result = new CpuTensor<TY>(Shape, Description);
             Debug.Assert(SameShape(result));
+            var content = ReadonlyContent;
             for (int m = 0; m < Shape[0]; ++m)
             {
                 for (int c = 0; c < Shape[1]; ++c)
@@ -212,7 +240,7 @@ namespace SharpNet.CPU
                     int startIdx = Idx(m, c);
                     for (int idx = startIdx; idx < (startIdx + MultDim1); ++idx)
                     {
-                        result[idx] = func(m, c, Content[idx]);
+                        result[idx] = func(m, c, content[idx]);
                     }
                 }
             }
@@ -220,16 +248,16 @@ namespace SharpNet.CPU
         }
         public override Tensor Clone(GPUWrapper notUsed)
         {
-            return new CpuTensor<T>((int[])Shape.Clone(), (T[])Content.Clone(), Description);
+            return new CpuTensor<T>((int[])Shape.Clone(), Content.ToArray(), Description);
         }
 
         #region Tensor implementation
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
         {
             var W = this;
-            var wContent = W.AsCpu<float>().Content;
-            var dWContent = dW.AsCpu<float>().Content;
-            var velocityContent = velocity.AsCpu<float>().Content;
+            var wContent = W.AsFloatCpuSpan;
+            var dWContent = dW.AsFloatCpuSpan;
+            var velocityContent = velocity.AsFloatCpuSpan;
             var learningRateFloat = (float) learningRate;
             var momentumFloat = (float)momentum;
             for (int i = 0; i < W.Count; ++i)
@@ -257,24 +285,24 @@ namespace SharpNet.CPU
             
             var batchSize = x.Shape[0];
 
-            var xContent = x.AsFloatCpuContent;
-            var yContent = y.AsFloatCpuContent;
-            var scaleContent = scale.AsFloatCpuContent;
-            var biasContent = bias.AsFloatCpuContent;
+            var xContent = x.AsFloatCpuSpan;
+            var yContent = y.AsFloatCpuSpan;
+            var scaleContent = scale.AsFloatCpuSpan;
+            var biasContent = bias.AsFloatCpuSpan;
 
             // 'meanBuffer' & 'invertOfUnbiasedVolatilityBuffer' will only be used when isTraining = true
-            var meanContent = isTraining?meanBuffer.AsFloatCpuContent:null;
-            var invertOfUnbiasedVolatility = isTraining ? invertOfUnbiasedVolatilityBuffer.AsFloatCpuContent:null;
+            var meanContent = isTraining?meanBuffer.AsFloatCpuSpan:null;
+            var invertOfUnbiasedVolatility = isTraining ? invertOfUnbiasedVolatilityBuffer.AsFloatCpuSpan:null;
 
-            var runningInputMeanContent = runningInputMean.AsFloatCpuContent;
-            var runningInputVarianceContent = runningInputVariance.AsFloatCpuContent;
+            var runningInputMeanContent = runningInputMean.AsFloatCpuSpan;
+            var runningInputVarianceContent = runningInputVariance.AsFloatCpuSpan;
 
 
             if (isTraining)
             {
                 //'invertOfUnbiasedVolatilityBuffer' will temporary store the variance of the input 
                 Compute_Column_Mean_Variance(meanBuffer, invertOfUnbiasedVolatilityBuffer);
-                var variance = invertOfUnbiasedVolatilityBuffer.AsFloatCpuContent;
+                var variance = invertOfUnbiasedVolatilityBuffer.AsFloatCpuSpan;
 
                 //we need to update 'runningInputMean' and 'runningInputVariance'
                 for (int j = 0; j < runningInputVariance.Count; ++j)
@@ -316,16 +344,21 @@ namespace SharpNet.CPU
             dx?.ZeroMemory();
 
             //we compute resultBnBiasDiff
-            dy.AsCpu<float>().ComputeSumByColumn(biasGradient);
+            dy.AsFloatCpu.ComputeSumByColumn(biasGradient);
             //we compute resultBnScaleDiff
-            var xContent = x.AsFloatCpuContent;
-            var dyContent = dy.AsFloatCpuContent;
-            var dxContent = dx?.AsFloatCpuContent ?? new float[x.Count];
-            var biasGradientContent = biasGradient.AsFloatCpuContent;
-            var scaleGradientContent = scaleGradient.AsFloatCpuContent;
-            var scaleContent = scale.AsFloatCpuContent;
-            var meanBufferContent = meanBuffer.AsFloatCpuContent;
-            var invertOfUnbiasedVolatility = invertOfUnbiasedVolatilityBuffer.AsFloatCpuContent;
+            var xContent = x.AsFloatCpuSpan;
+            var dyContent = dy.AsFloatCpuSpan;
+            Span<float> dxContent = null;
+            if (dx != null)
+            {
+                dxContent = dx.AsFloatCpuSpan;
+            }
+
+            var biasGradientContent = biasGradient.AsFloatCpuSpan;
+            var scaleGradientContent = scaleGradient.AsFloatCpuSpan;
+            var scaleContent = scale.AsFloatCpuSpan;
+            var meanBufferContent = meanBuffer.AsFloatCpuSpan;
+            var invertOfUnbiasedVolatility = invertOfUnbiasedVolatilityBuffer.AsFloatCpuSpan;
             for (int j = 0; j < MultDim0; ++j)
             {
                 int meanIndex = is1C11Shape ? (j / MultDim1) : j;
@@ -346,7 +379,10 @@ namespace SharpNet.CPU
                     int meanIndex = is1C11Shape ? (j / MultDim1) : j;
                     int idx = i * MultDim0 + j;
                     double result = meanDivider * dyContent[idx] - biasGradientContent[meanIndex] - scaleGradientContent[meanIndex] * invertOfUnbiasedVolatility[meanIndex] * (xContent[idx] - meanBufferContent[meanIndex]);
-                    dxContent[idx] += (float) ((scaleContent[meanIndex] * invertOfUnbiasedVolatility[meanIndex] * result) / meanDivider);
+                    if (dxContent != null)
+                    {
+                        dxContent[idx] += (float) ((scaleContent[meanIndex] * invertOfUnbiasedVolatility[meanIndex] * result) /meanDivider);
+                    }
                 }
             }
         }
@@ -365,8 +401,8 @@ namespace SharpNet.CPU
                 return;
             }
             var dropProbabilityFloat = (float)dropProbability;
-            Utils.Randomize(dropoutMaskBufferForCpu.AsFloatCpuContent, dropoutRandom, 0.0, 1.0);
-            y.AsCpu<float>().BuildEntirelyFromInput(x, dropoutMaskBufferForCpu, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
+            Utils.Randomize(dropoutMaskBufferForCpu.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
+            y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutMaskBufferForCpu, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
         }
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
             Tensor dropoutMaskBufferForCpu, Tensor randomNumberGeneratorStatesBufferForGPU,
@@ -377,7 +413,7 @@ namespace SharpNet.CPU
             Debug.Assert(dropoutReserveSpaceForGPU == null);
             Debug.Assert(dropoutDescriptorForGPU == IntPtr.Zero);
             var _dropProbabilityFloat = (float)dropProbability;
-            dx.AsCpu<float>().BuildEntirelyFromInput(dy, dropoutMaskBufferForCpu, (dOutput, prob) => prob < _dropProbabilityFloat ? 0f : dOutput / (1 - _dropProbabilityFloat));
+            dx.AsFloatCpu.BuildEntirelyFromInput(dy, dropoutMaskBufferForCpu, (dOutput, prob) => prob < _dropProbabilityFloat ? 0f : dOutput / (1 - _dropProbabilityFloat));
         }
         //this = dy
 
@@ -443,7 +479,7 @@ namespace SharpNet.CPU
             var y = this;
             Debug.Assert(AreCompatible(new List<Tensor> {y, x}));
             Debug.Assert(x.Count == y.Count);
-            MKL_BLAS.cblas_saxpy(x.Count, alpha, x.AsFloatCpuContent, 1, y.AsFloatCpuContent, 1);
+            MKL_BLAS.cblas_saxpy(x.Count, alpha, x.AsFloatPointer, 1, y.AsFloatPointer, 1);
         }
 
         // compute: this = alpha * x + beta * this
@@ -461,9 +497,9 @@ namespace SharpNet.CPU
             Debug.Assert(a.Count >= x.Count);
             Debug.Assert(Count % x.Count == 0);
 
-            var aFloat = a.AsFloatCpuContent;
-            var xFloat = x.AsFloatCpuContent;
-            var thisFloat = AsFloatCpuContent;
+            var aFloat = a.AsFloatCpuSpan;
+            var xFloat = x.AsFloatCpuSpan;
+            var thisFloat = AsFloatCpuSpan;
             if (a.Count == x.Count)
             {
                 for (int i = 0; i < x.Count; ++i)
@@ -497,9 +533,9 @@ namespace SharpNet.CPU
             Debug.Assert(nbRows <= a.Count);
             Debug.Assert(a.Count % nbRows == 0);
             int nbColumns_in_a_and_b = b.Count / nbRows;
-            var thisFloat = AsFloatCpuContent;
-            var aFloat = a.AsFloatCpuContent;
-            var bFloat = b.AsFloatCpuContent;
+            var thisFloat = AsFloatCpuSpan;
+            var aFloat = a.AsFloatCpuSpan;
+            var bFloat = b.AsFloatCpuSpan;
             int indexIn_a_or_b = 0;
             for (int row = 0; row < nbRows; ++row)
             {
@@ -606,24 +642,24 @@ namespace SharpNet.CPU
         }
         public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryIndex, int elementCount, int categoryCount)
         {
-            var Y = new CpuTensor<float>(new[] { elementCount, categoryCount }, "YOneHot");
+            var yShape = new[] { elementCount, categoryCount };
+            var yContent = new float[Utils.Product(yShape)];
             for (int elementId = 0; elementId < elementCount; ++elementId)
             {
                 var categoryIndex = elementIdToCategoryIndex(elementId);
-                if (categoryIndex < 0)
+                if (categoryIndex >= 0)
                 {
-                    continue;
+                    yContent[elementId * categoryCount + categoryIndex] = 1f;
                 }
-                Y.Content[elementId * categoryCount + categoryIndex] = 1f;
             }
-            return Y;
+            return new CpuTensor<float>(yShape, "YOneHot");
         }
 
 
         // compute:     this = alpha * this
         public override void Update_Multiplying_By_Alpha(float alpha)
         {
-            MKL_BLAS.cblas_sscal(Count, alpha, AsFloatCpuContent, 1);
+            MKL_BLAS.cblas_sscal(Count, alpha, AsFloatPointer, 1);
         }
         #region pooling layers
 
@@ -826,8 +862,8 @@ namespace SharpNet.CPU
             Debug.Assert(y.MultDim0 == Count);
             var batchSize = y.Shape[0];
 
-            var singleRowMatrixContent = bias.AsFloatCpuContent;
-            var yContent = y.AsFloatCpuContent;
+            var singleRowMatrixContent = bias.AsFloatCpuSpan;
+            var yContent = y.AsFloatCpuSpan;
             for (int colIndex = 0; colIndex < Count; ++colIndex)
             {
                 var valueToAddToColumn = singleRowMatrixContent[colIndex];
@@ -879,8 +915,8 @@ namespace SharpNet.CPU
             //the first (top left) point in 'y' is computed from a filter starting at (-padding,-padding)
             void ComputeForBatch(int m)
             {
-                var convolutionContentAsFloat = convolution.AsFloatCpuContent;
-                var xContentAsFloat = x.AsFloatCpuContent;
+                var convolutionContentAsFloat = convolution.AsFloatCpuSpan;
+                var xContentAsFloat = x.AsFloatCpuSpan;
 
                 for (int outputChannelId = 0; outputChannelId < outputChannels; ++outputChannelId)
                 {
@@ -939,13 +975,13 @@ namespace SharpNet.CPU
             Debug.Assert(y.Dimension >= 2);
             Debug.Assert(convolutionBias.Shape.SequenceEqual(new []{1, y.Shape[1], 1, 1}));
             var batchSize = y.Shape[0];
-            var yContent = y.AsFloatCpuContent;
+            var yContent = y.AsFloatCpuSpan;
             for (int n = 0; n < batchSize; ++n)
             {
                 int startIndex = n * y.MultDim0;
                 for (int filterId = 0; filterId < y.Shape[1]; ++filterId, startIndex += y.MultDim1)
                 {
-                    var toAdd = convolutionBias.AsFloatCpuContent[filterId];
+                    var toAdd = convolutionBias.AsFloatCpuSpan[filterId];
                     for (int i = startIndex; i < (startIndex + y.MultDim1); ++i)
                     {
                         yContent[i] += toAdd;
@@ -1032,10 +1068,10 @@ namespace SharpNet.CPU
                                     var APrevLayerIdx = APrevLayerIdxStartRow;
                                     for (int colInput = colInputStart; colInput < colInputEndExcluded; ++colInput)
                                     {
-                                        convolutionGradientForLocalThreadFloat[convIdx] += x.AsFloatCpuContent[APrevLayerIdx] * chainGradientFloat;
+                                        convolutionGradientForLocalThreadFloat[convIdx] += x.AsFloatCpuSpan[APrevLayerIdx] * chainGradientFloat;
                                         if (dx != null)
                                         {
-                                            dx.AsFloatCpuContent[APrevLayerIdx] += convolution.AsFloatCpuContent[convIdx] * chainGradientFloat;
+                                            dx.AsFloatCpuSpan[APrevLayerIdx] += convolution.AsFloatCpuSpan[convIdx] * chainGradientFloat;
                                         }
                                         ++convIdx;
                                         ++APrevLayerIdx;
@@ -1053,7 +1089,7 @@ namespace SharpNet.CPU
                 {
                     for (int i = 0; i < convGradient.Count; ++i)
                     {
-                        convGradient.AsFloatCpuContent[i] += convolutionGradientForLocalThreadFloat[i];
+                        convGradient.AsFloatCpuSpan[i] += convolutionGradientForLocalThreadFloat[i];
                     }
                 }
             }
@@ -1077,8 +1113,8 @@ namespace SharpNet.CPU
                 {
                     int startIndex = n * dy.MultDim0 + filterId * dy.MultDim1;
                     var endIndex = startIndex + dy.MultDim1;
-                    var convolutionBackwardBiasContent = bias.AsFloatCpuContent;
-                    var dyContent = dy.AsFloatCpuContent;
+                    var convolutionBackwardBiasContent = bias.AsFloatCpuSpan;
+                    var dyContent = dy.AsFloatCpuSpan;
                     for (int i = startIndex; i < endIndex; ++i)
                     {
                         convolutionBackwardBiasContent[filterId] += dyContent[i];
@@ -1100,9 +1136,9 @@ namespace SharpNet.CPU
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
 
             var W = this;
-            adam_vW.AsCpu<float>().Update(dW, (adam_vw, dw) => (float) (beta1 * adam_vw + (1 - beta1) * dw));
-            adam_sW.AsCpu<float>().Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
-            W.AsCpu<float>().Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
+            adam_vW.AsFloatCpu.Update(dW, (adam_vw, dw) => (float) (beta1 * adam_vw + (1 - beta1) * dw));
+            adam_sW.AsFloatCpu.Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
+            W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
         }
         //this = yExpected
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
@@ -1117,10 +1153,10 @@ namespace SharpNet.CPU
             switch (lossFunction)
             {
                 case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
-                    cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsCpu<float>().Merge(yExpected.AsCpu<float>(), (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction)), "BinaryCrossentropy").NaNSum();
+                    cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction)), "BinaryCrossentropy").NaNSum();
                     break;
                 case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
-                    cost = (-1.0 / (batchSize)) * yPredicted.AsCpu<float>().Merge(yExpected.AsCpu<float>(), (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
+                    cost = (-1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
                     break;
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
@@ -1149,13 +1185,13 @@ namespace SharpNet.CPU
 
         public override double ComputeLossFromCategoryIndexes(Tensor yPredictedTensor, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
-            var categoryIndexes = AsCpu<int>().Content;
+            var categoryIndexes = AsCpu<int>().ReadonlyContent;
             Debug.Assert(yPredictedTensor != null);
             Debug.Assert(!yPredictedTensor.UseGPU);
             var batchSize = yPredictedTensor.Shape[0];
             Debug.Assert(categoryIndexes.Length == batchSize);
             var categoryCount = yPredictedTensor.Shape[1];
-            var yPredicted = yPredictedTensor.AsCpu<float>().Content;
+            var yPredicted = yPredictedTensor.AsFloatCpuSpan;
 
             switch (lossFunction)
             {
@@ -1177,7 +1213,7 @@ namespace SharpNet.CPU
                     }
                     return binaryCrossentropyLoss / (batchSize * categoryCount);
                 case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
-                    //cost = (-1.0 / (batchSize)) * yPredicted.AsCpu<float>().Merge(categoryIndexes.AsCpu<int>(), (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
+                    //cost = (-1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(categoryIndexes.AsCpu<int>(), (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
                     double categoricalCrossentropyLoss = 0.0;
                     for (int i=0;i< batchSize ;++i)
                     {
@@ -1197,20 +1233,19 @@ namespace SharpNet.CPU
 
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
-            Utils.RandomizeNormalDistribution(AsFloatCpuContent, rand, mean, stdDev);
+            Utils.RandomizeNormalDistribution(AsFloatCpuSpan, rand, mean, stdDev);
         }
-        public override void NewSameValueTensor(double sameValue)
+        public override void SetValue(float sameValue)
         {
-            var array = AsFloatCpuContent;
-            var sameValueAsFloat = (float)sameValue;
-            for (int i = 0; i < array.Length; ++i)
+            var array = AsFloatCpuSpan;
+            for (int i = 0; i < Count; ++i)
             {
-                array[i] = sameValueAsFloat;
+                array[i] = sameValue;
             }
         }
         public override float[] ContentAsFloatArray()
         {
-            return AsFloatCpuContent;
+            return AsFloatCpuSpan.ToArray();
         }
         //this method is only called for display / logging testing
         //this = yExpectedOneHot
@@ -1223,8 +1258,8 @@ namespace SharpNet.CPU
             int batchSize = yExpectedOneHot.Shape[0];
             int result = 0;
 
-            var yExpectedOneHotCpu = yExpectedOneHot.AsCpu<float>();
-            var yPredictedCpu = yPredicted.AsCpu<float>();
+            var yExpectedOneHotCpu = yExpectedOneHot.AsFloatCpu;
+            var yPredictedCpu = yPredicted.AsFloatCpu;
             for (int m = 0; m < batchSize; ++m)
             {
                 result += ComputeSingleAccuracyCount(yExpectedOneHotCpu, yPredictedCpu, m, out _);
@@ -1237,13 +1272,13 @@ namespace SharpNet.CPU
         //this = category indexes
         public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer)
         {
-            var categoryIndexes = AsCpu<int>().Content;
+            var categoryIndexes = AsCpu<int>().ReadonlyContent;
             int batchSize = yPredicted.Shape[0];
             Debug.Assert(batchSize == categoryIndexes.Length);
             Debug.Assert(!yPredicted.UseGPU);
             int result = 0;
 
-            var yPredictedCpu = yPredicted.AsCpu<float>();
+            var yPredictedCpu = yPredicted.AsFloatCpu;
             for (int m = 0; m < batchSize; ++m)
             {
                 result += ComputeSingleAccuracyCountFromCategoryIndexes(categoryIndexes, yPredictedCpu, m, out _);
@@ -1259,7 +1294,7 @@ namespace SharpNet.CPU
         {
             int batchSize = Shape[0];
             int[] categoryCount = new int[batchSize];
-            var yPredictedCpu = AsCpu<float>();
+            var yPredictedCpu = AsFloatCpu;
             for (int m = 0; m < batchSize; ++m)
             {
                 ComputeSingleAccuracyCount(yPredictedCpu, yPredictedCpu, m, out categoryCount[m]);
@@ -1278,12 +1313,14 @@ namespace SharpNet.CPU
             else
             {
                 //copy from CPU ('this' tensor) to CPU ('b' tensor)
-                MKL_BLAS.cblas_scopy(Count, AsFloatCpuContent, 1, b.AsFloatCpuContent, 1);
+                MKL_BLAS.cblas_scopy(Count, AsFloatPointer, 1, b.AsFloatPointer, 1);
             }
         }
-        public override void CopyTo(int startElement, Tensor other, int bStartElement, int elementCount)
+        public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount)
         {
-            Array.Copy(AsFloatCpuContent, startElement, other.AsFloatCpuContent, bStartElement, elementCount);
+            var src = Content.Slice(startElement, elementCount);
+            var dest = ((CpuTensor<T>)other).Content.Slice(otherStartElement, elementCount);
+            src.CopyTo(dest);
         }
         public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
         {
@@ -1293,15 +1330,11 @@ namespace SharpNet.CPU
             Debug.Assert(startRowIndex + nbRows - 1 < Shape[0]);
             var extractedShape = (int[])Shape.Clone();
             extractedShape[0] = nbRows; //news number of rows
-            var extractedCount = nbRows * MultDim0;
-            var extractedContent = new T[extractedCount];
-            int rowLengthInBytes = MultDim0 * TypeSize;
-            Buffer.BlockCopy(Content, startRowIndex * rowLengthInBytes, extractedContent, 0, nbRows * rowLengthInBytes);
-            return new CpuTensor<T>(extractedShape, extractedContent, Description);
+            return new CpuTensor<T>(extractedShape, this, Idx(startRowIndex));
         }
         public override void ZeroMemory()
         {
-            Array.Clear(Content, 0, Count);
+            SpanContent.Clear();
         }
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta)
         {
@@ -1309,8 +1342,7 @@ namespace SharpNet.CPU
             Debug.Assert(a.Dimension >= 2);
             Debug.Assert(b.Dimension >= 2);
             Debug.Assert(Dimension >= 2);
-            BlasServices.DotMkl(a.AsFloatCpuContent, a.Shape[0], a.MultDim0, transposeA, b.AsFloatCpuContent,
-                b.Shape[0], b.MultDim0, transposeB, AsFloatCpuContent, alpha, beta);
+            BlasServices.DotMkl(a.AsFloatPointer, a.Shape[0], a.MultDim0, transposeA, b.AsFloatPointer, b.Shape[0], b.MultDim0, transposeB, AsFloatPointer, alpha, beta);
             //MathServices.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
             //var tmpTranspose = new double[b.Count];
             //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
@@ -1355,12 +1387,13 @@ namespace SharpNet.CPU
             double sum = 0f;
             double sumSquare = 0.0;
             int count = 0;
+            var content = ReadonlyContent;
             for (int m = 0; m < Shape[0]; ++m)
             {
                 int startIdx = Idx(m, c, 0, 0);
                 for (int idx = startIdx; idx < (startIdx + MultDim1); ++idx)
                 {
-                    var val = toFloat(Content[idx]);
+                    var val = toFloat(content[idx]);
                     sum += val;
                     sumSquare += val * val;
                     ++count;
@@ -1388,7 +1421,7 @@ namespace SharpNet.CPU
         }
         private double NaNSum()
         {
-            return AsFloatCpuContent.Select(x => float.IsNaN(x) ? 0 : x).Sum();
+            return AsFloatCpu.ReadonlyContent.Select(x => float.IsNaN(x) ? 0 : x).Sum();
         }
         private void Update(Tensor a, Tensor b, Func<T, T, T, T> funcInput)
         {
@@ -1415,8 +1448,8 @@ namespace SharpNet.CPU
         {
             Debug.Assert(AreCompatible(new List<Tensor> {this, a, b}));
             Debug.Assert(SameShape(a, b));
-            var aCpu = a.AsCpu<T>().Content;
-            var bCpu = b.AsCpu<T>().Content;
+            var aCpu = a.AsCpu<T>().ReadonlyContent;
+            var bCpu = b.AsCpu<T>().ReadonlyContent;
             for (int i = 0; i < a.Count; ++i)
             {
                 this[i] = funcInput(aCpu[i], bCpu[i]);
@@ -1426,9 +1459,9 @@ namespace SharpNet.CPU
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, a, b, c }));
             Debug.Assert(SameShape(a, b));
-            var aCpu = a.AsCpu<T>().Content;
-            var bCpu = b.AsCpu<T>().Content;
-            var cCpu = c.AsCpu<T>().Content;
+            var aCpu = a.AsCpu<T>().ReadonlyContent;
+            var bCpu = b.AsCpu<T>().ReadonlyContent;
+            var cCpu = c.AsCpu<T>().ReadonlyContent;
             for (int i = 0; i < a.Count; ++i)
             {
                 this[i] = funcInput(aCpu[i], bCpu[i], cCpu[i]);
@@ -1442,8 +1475,8 @@ namespace SharpNet.CPU
             bool is1C11Shape = sumByColumn.Count == sumByColumn.Shape[1];
 
             sumByColumn.ZeroMemory();
-            var content = AsFloatCpuContent;
-            var columnSumContent = sumByColumn.AsFloatCpuContent;
+            var content = AsFloatCpuSpan;
+            var columnSumContent = sumByColumn.AsFloatCpuSpan;
             for (int n = 0; n < batchSize; ++n)
             {
                 int start = MultDim0 * n;
@@ -1465,10 +1498,10 @@ namespace SharpNet.CPU
 
             mean.ZeroMemory();
             variance.ZeroMemory();
-            var content = AsFloatCpuContent;
+            var content = AsFloatCpuSpan;
             //we'll store in meanContent Sum(X) and in varianceContent Sum(X^2)
-            var meanContent = mean.AsFloatCpuContent;
-            var varianceContent = variance.AsFloatCpuContent;
+            var meanContent = mean.AsFloatCpuSpan;
+            var varianceContent = variance.AsFloatCpuSpan;
             for (int n = 0; n < batchSize; ++n)
             {
                 int start = MultDim0 * n;
@@ -1518,7 +1551,7 @@ namespace SharpNet.CPU
             }
             return 0;
         }
-        private static int ComputeSingleAccuracyCountFromCategoryIndexes(int[] categoryIndexes, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)
+        private static int ComputeSingleAccuracyCountFromCategoryIndexes(ReadOnlySpan<int> categoryIndexes, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)
         {
             Debug.Assert(categoryIndexes.Length == yPredicted.Shape[0]);
             Debug.Assert(yPredicted.Dimension == 2);

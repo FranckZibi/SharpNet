@@ -53,7 +53,7 @@ namespace SharpNet.Datasets
             var yTrain = AbstractDataSet.ToYWorkingSet(yTrainingSet, CategoryCount, CategoryByteToCategoryIndex);
 
             AbstractDataSet.AreCompatible_X_Y(xTrain, yTrain);
-            int[] trainElementIdToCategoryIndex = yTrainingSet.Content.Select(x => (int)x).ToArray();
+            int[] trainElementIdToCategoryIndex = yTrainingSet.ReadonlyContent.Select(x => (int)x).ToArray();
             Debug.Assert(trainElementIdToCategoryIndex.Length == xTrainingSet.Shape[0]);
 
             //We load the test set
@@ -65,7 +65,7 @@ namespace SharpNet.Datasets
             var yTest = AbstractDataSet.ToYWorkingSet(yTestSet, CategoryCount, CategoryByteToCategoryIndex);
 
             AbstractDataSet.AreCompatible_X_Y(xTest, yTest);
-            int[] testElementIdToCategoryIndex = yTestSet.Content.Select(x => (int)x).ToArray();
+            int[] testElementIdToCategoryIndex = yTestSet.ReadonlyContent.Select(x => (int)x).ToArray();
             Debug.Assert(testElementIdToCategoryIndex.Length == xTestSet.Shape[0]);
 
             //Uncomment the following line to take only the first 'count' elements

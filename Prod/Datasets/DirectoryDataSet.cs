@@ -125,6 +125,7 @@ namespace SharpNet.Datasets
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
             var data = OriginalElementContent(elementId);
+            var xBufferContent = xBuffer.SpanContent;
             for (int channel = 0; channel < data.GetChannels(); ++channel)
             {
                 for (int row = 0; row < data.GetHeight(); ++row)
@@ -142,7 +143,7 @@ namespace SharpNet.Datasets
                             val = (val - OriginalChannelMean(channel)) / OriginalChannelVolatility(channel);
                         }
                         var bufferIdx = xBuffer.Idx(indexInBuffer, channel, row, col);
-                        xBuffer.Content[bufferIdx] = (float)val;
+                        xBufferContent[bufferIdx] = (float)val;
                     }
                 }
             }
@@ -223,18 +224,18 @@ namespace SharpNet.Datasets
         private void MakeSquarePictures(int elementId, string targetDirectory, bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor, bool skipIfFileAlreadyExists, ref int nbPerformed)
         {
             UpdateStatus(ref nbPerformed);
-            var targetFilenames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
-            if (skipIfFileAlreadyExists && AllFileExist(targetFilenames))
+            var targetFileNames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
+            if (skipIfFileAlreadyExists && AllFileExist(targetFileNames))
             {
                 return;
             }
             var bitmapContent = OriginalElementContent(elementId);
             var squarePicture = bitmapContent.MakeSquarePictures(alwaysUseBiggestSideForWidthSide, alwaysCropInsidePicture, fillingColor);
-            squarePicture.Save(targetFilenames);
+            squarePicture.Save(targetFileNames);
         }
-        private static bool AllFileExist(IEnumerable<string> filenames)
+        private static bool AllFileExist(IEnumerable<string> fileNames)
         {
-            foreach (var filename in filenames)
+            foreach (var filename in fileNames)
             {
                 if (!File.Exists(filename))
                 {
@@ -246,14 +247,14 @@ namespace SharpNet.Datasets
         private void CropBorder(int elementId, string targetDirectory, bool skipIfFileAlreadyExists, ref int nbPerformed)
         {
             UpdateStatus(ref nbPerformed);
-            var targetFilenames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
-            if (skipIfFileAlreadyExists && AllFileExist(targetFilenames))
+            var targetFileNames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
+            if (skipIfFileAlreadyExists && AllFileExist(targetFileNames))
             {
                 return;
             }
             var bitmapContent = OriginalElementContent(elementId);
             var cropped = bitmapContent.CropBorder();
-            cropped.Save(targetFilenames);
+            cropped.Save(targetFileNames);
         }
         private void Resize(int elementId, string targetDirectoryWithElements, int newWidth, int newHeight, bool skipIfFileAlreadyExists, ref int nbPerformed)
         {
@@ -276,15 +277,15 @@ namespace SharpNet.Datasets
         private void Filter(int elementId, string targetDirectory, Func<BitmapContent, bool> isIncluded, bool skipIfFileAlreadyExists, ref int nbPerformed)
         {
             UpdateStatus(ref nbPerformed);
-            var targetFilenames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
-            if (skipIfFileAlreadyExists && AllFileExist(targetFilenames))
+            var targetFileNames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
+            if (skipIfFileAlreadyExists && AllFileExist(targetFileNames))
             {
                 return;
             }
             var bitmapContent = OriginalElementContent(elementId);
             if (isIncluded(bitmapContent))
             {
-                bitmapContent.Save(targetFilenames);
+                bitmapContent.Save(targetFileNames);
             }
         }
         private string StatsFileName => Path.Combine(_dataDirectory, "SharpNet.ini");

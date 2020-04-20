@@ -27,6 +27,11 @@ namespace SharpNet.Layers
         {
             throw new Exception("should never call "+nameof(ForwardPropagation)+" in "+nameof(InputLayer));
         }
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        {
+            throw new NotImplementedException();
+        }
+
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
             if (!base.Equals(b, epsilon, id, ref errors))
@@ -40,6 +45,15 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(W, other.W, id + ":W", ref errors);
             return equals;
         }
+
+        public override Layer Clone(Network newNetwork) {return new InputLayer(this, newNetwork);}
+        private InputLayer(InputLayer toClone, Network newNetwork) : base(toClone, newNetwork)
+        {
+            ChannelCount = toClone.ChannelCount;
+            H = toClone.H;
+            W = toClone.W;
+        }
+
         #region serialization
         public override string Serialize()
         {
@@ -52,14 +66,11 @@ namespace SharpNet.Layers
             W = (int)serialized[nameof(W)];
         }
         #endregion
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
-        {
-            throw new NotImplementedException();
-        }
+
         public override int[] OutputShape(int batchSize) { return new[] { batchSize, ChannelCount, H, W }; }
         public override string ToString()
         {
-            var result = LayerName + ": " + Utils.ShapeToStringWithBacthSize(OutputShape(1));
+            var result = LayerName + ": " + Utils.ShapeToStringWithBatchSize(OutputShape(1));
             result += " ("+MemoryDescription()+")";
             return result;
         }
