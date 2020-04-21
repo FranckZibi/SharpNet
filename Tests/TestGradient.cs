@@ -164,8 +164,8 @@ namespace SharpNetTests
         }
         private static Network GetNetwork()
         {
-            var gpuDeviceId = -1;
-            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1 }, gpuDeviceId);
+            var resourceIds = new List<int> {-1};
+            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1 }, resourceIds);
         }
         private static CpuTensor<float> GetY()
         {

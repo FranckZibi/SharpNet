@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SharpNet.DataAugmentation;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -39,7 +40,14 @@ namespace SharpNet.Networks
         };
         public string ExtraDescription { get; set; } = "";
         public NetworkConfig Config { get; set; }
-        public int GpuDeviceId { get; set; }
+        /// <summary>
+        /// resources (both CPU & GPU) available for the network
+        /// </summary>
+        public List<int> ResourceIds { get; set; }
+        public void SetResourceId(int resourceId)
+        {
+            ResourceIds = new List<int> {resourceId};
+        }
         public int NumEpochs { get; set; }
         public int BatchSize { get; set; }
         public double InitialLearningRate { get; set; }
@@ -49,7 +57,7 @@ namespace SharpNet.Networks
         {
             var configLogger = NetworkLogger(networkName);
             Config.Logger = configLogger;
-            var network = new Network(Config, GpuDeviceId);
+            var network = new Network(Config, ResourceIds);
             network.Description = networkName + ExtraDescription;
             return network;
         }

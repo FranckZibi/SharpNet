@@ -286,14 +286,6 @@ namespace SharpNet.Datasets
             var test = new SubDataSet(this, id => id >= lastElementIdIncludedInTrainingSet);
             return new TrainingAndTestDataLoader(training, test, this);
         }
-        public AbstractDataSet Shuffle(Random rand)
-        {
-            return new ShuffledDataSet(this, rand);
-        }
-        public AbstractDataSet Take(int count)
-        {
-            return new SubDataSet(this, elementId => elementId < count);
-        }
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
         {
             if (X == null && Y == null)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using SharpNet;
@@ -27,8 +28,7 @@ namespace SharpNetTests.NonReg
             const double momentum = 0.9;
 
             var networkBuilder = EfficientNetBuilder.CIFAR10();
-            networkBuilder.GpuDeviceId = 0;
-
+            networkBuilder.SetResourceId(0);
 
             //int defaultHeight = 32;
             int defaultHeight = 224;
@@ -110,8 +110,8 @@ namespace SharpNetTests.NonReg
             const double learningRate = 0.01;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
-            var logFileName = SharpNet.Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-            var logger = new SharpNet.Logger(logFileName, true);
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            var logger = new Logger(logFileName, true);
 
             var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_3_4_5, "x");
             var Y = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.Y_2_2, "y");
@@ -127,7 +127,7 @@ namespace SharpNetTests.NonReg
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
             }
                        .WithSGD(momentum, false),
-                        gpuDeviceId
+                        new List<int> {gpuDeviceId}
                 );
 
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])

@@ -57,7 +57,7 @@ namespace SharpNet.Layers
         ///  At this stage, we already know 'x', we want to compute 'y'
         /// </summary>
         /// <param name="allX"></param>
-        /// <param name="y1"></param>
+        /// <param name="y"></param>
         /// <param name="isTraining">true if we are currently training the network
         ///     false if we are just using it to make a prediction </param>
         public abstract void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining);
@@ -388,6 +388,16 @@ namespace SharpNet.Layers
         {
             Network.StopTimer(key, Network.BackwardPropagationTime);
         }
+
+        protected bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining)
+        {
+            if (!isTraining) //if we are doing only inference 
+            {
+                return false; //no need to keep layer output
+            }
+            return LayerOutputShouldBeKeptForBackwardPropagation(true, FirstTrainableLayer(Network.Layers));
+        }
+
         public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining, Layer firstTrainableLayer)
         {
             if ((firstTrainableLayer == null)     //if there is no trainable layer in the network

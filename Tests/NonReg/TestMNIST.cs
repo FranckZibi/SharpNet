@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
 using SharpNet;
@@ -31,7 +32,7 @@ namespace SharpNetTests.NonReg
                 //.WithAdam()
                 .WithSGD(0.99,true)
                 ,
-                useGpu?0:-1
+                new List<int> {useGpu?0:-1}
             );
 
             //Data Augmentation

@@ -63,6 +63,7 @@ namespace SharpNet.Networks
                 Config = new NetworkConfig
                     {
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        ConvolutionAlgoPreference  = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
                         lambdaL2Regularization = 0.0005
                     }
                     .WithSGD(0.9, false)
@@ -117,6 +118,7 @@ namespace SharpNet.Networks
                 Config = new NetworkConfig
                     {
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
                         lambdaL2Regularization = 0.0005
                     }
                     .WithSGD(0.9, false)
@@ -157,6 +159,7 @@ namespace SharpNet.Networks
                               Config = new NetworkConfig
                                        {
                                            LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                                           ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
                                            lambdaL2Regularization = 0.0005
                                        }
                                   .WithSGD(0.9, false)

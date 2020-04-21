@@ -102,7 +102,7 @@ namespace SharpNet.Layers
                 StopForwardTimer(Type() + ">0Pad", isTraining);
                 StartForwardTimer(Type() + ">ConvAsym", isTraining);
                 _padded_X.Convolution(_convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
-                if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining, FirstTrainableLayer(Network.Layers)))
+                if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining))
                 {
                     FreeMemory(ref _padded_X);
                 }

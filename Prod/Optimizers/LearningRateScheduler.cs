@@ -39,7 +39,7 @@ namespace SharpNet.Optimizers
 
         /// <summary>
         /// We start with a learning rate of 'initialLearningRate' (epoch = 1)
-        // every 'XEpoch' epochs, we divide the learning rate by 'divideConstant'
+        /// every 'XEpoch' epochs, we divide the learning rate by 'divideConstant'
         /// </summary>
         /// <param name="initialLearningRate"></param>
         /// <param name="divideConstant"></param>

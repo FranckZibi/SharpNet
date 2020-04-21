@@ -1,5 +1,9 @@
-﻿using System;
+﻿//#define PROFILE_MEMORY_POOL
+using System;
 using System.Collections.Generic;
+#if PROFILE_MEMORY_POOL
+using System.Diagnostics;
+#endif
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.GPU;
@@ -8,12 +12,15 @@ namespace SharpNet.Data
 {
     public class TensorMemoryPool : IDisposable
     {
-        #region private fields
+#region private fields
         private readonly List<Tensor> _availableTensorOrderedByCount = new List<Tensor>();
         private readonly List<Tensor> _allAllocatedTensors = new List<Tensor>();
         //null if we should allocate CpuTensor
         //not  null for GPUTensor
         private readonly GPUWrapper _gpuWrapper;
+#if PROFILE_MEMORY_POOL
+        private readonly Stopwatch _sw = new Stopwatch();
+#endif
         private bool _disposed = false;
         #endregion
 
@@ -42,16 +49,16 @@ namespace SharpNet.Data
             {
                 return;
             }
+#if PROFILE_MEMORY_POOL
+            _sw.Start();
+#endif
             _availableTensorOrderedByCount.Add(t);
             SortAvailableTensorsByCapacity();
             t = null;
+#if PROFILE_MEMORY_POOL
+            _sw.Stop();
+#endif
         }
-
-        private void SortAvailableTensorsByCapacity()
-        {
-            _availableTensorOrderedByCount.Sort((x, y) => (int)(x.CapacityInBytes - y.CapacityInBytes));
-        }
-
         public void FreeMemory(IList<Tensor> list, int index)
         {
             var t = list[index];
@@ -76,21 +83,30 @@ namespace SharpNet.Data
         }
         public string MemoryInfo()
         {
-            return (IsMock ? "Mock" : "")+"Used MemoryPool: " + Utils.MemoryBytesToString(CapacityInBytes);
+            var result = (IsMock ? "Mock" : "")+"Used MemoryPool: " + Utils.MemoryBytesToString(CapacityInBytes);
+#if PROFILE_MEMORY_POOL
+            result += " " + _sw.ElapsedMilliseconds + "ms";
+#endif
+            return result;
         }
-
         /// <summary>
         /// return a buffer with a minimal capacity of 'minimalSizeInBytes' bytes
         /// </summary>
         /// <param name="minimalSizeInBytes">the minimal size in bytes of the buffer</param>
+        /// <param name="description"></param>
         /// <returns></returns>
-        public Tensor GetBuffer(size_t minimalSizeInBytes)
+        public Tensor GetBuffer(size_t minimalSizeInBytes, string description)
+        {
+            Tensor buffer = null;
+            GetBuffer(ref buffer, minimalSizeInBytes, description);
+            return buffer;
+        }
+        public void GetBuffer(ref Tensor buffer, size_t minimalSizeInBytes, string description)
         {
             var count = (minimalSizeInBytes + sizeof(float) - 1) / sizeof(float);
             count = Math.Max(count, 1);
-            return GetNotInitializedFloatTensor(new[] {(int)count}, "buffer");
+            GetNotInitializedFloatTensor(ref buffer, new[] { (int)count }, description);
         }
-
         /// <summary>
         /// return a new float tensor .
         /// the data in the tensor is not initialized
@@ -99,20 +115,37 @@ namespace SharpNet.Data
         /// <param name="description"></param>
         public Tensor GetNotInitializedFloatTensor(int[] shape, string description)
         {
+#if PROFILE_MEMORY_POOL
+            _sw.Start();
+#endif
             var neededMemoryInBytes = NeededMemoryInBytes(shape);
             for (var i = 0; i < _availableTensorOrderedByCount.Count; i++)
             {
                 var availableTensor = _availableTensorOrderedByCount[i];
                 if (availableTensor.CapacityInBytes >= neededMemoryInBytes)
                 {
+                    //the smallest tensor with enough capacity to store our tensor is 10x too big
+                    //we prefer to allocate a new smaller tensor then to waste a big tensor
+                    if (availableTensor.CapacityInBytes > Math.Max(10 * neededMemoryInBytes, 10*1000))
+                    {
+                        break;
+                    }
+
                     _availableTensorOrderedByCount.RemoveAt(i);
                     availableTensor.Reshape(shape);
                     availableTensor.Description = description;
+#if PROFILE_MEMORY_POOL
+                    _sw.Stop();
+#endif
                     return availableTensor;
                 }
             }
             //no available tensor found, we need to allocate a new tensor
-            return AllocateNewTensor(shape, description);
+            var newlyAllocatedTensor = AllocateNewTensor(shape, description);
+#if PROFILE_MEMORY_POOL
+            _sw.Stop();
+#endif
+            return newlyAllocatedTensor;
         }
         /// <summary>
         /// return a new float tensor .
@@ -130,46 +163,18 @@ namespace SharpNet.Data
             if (bufferIfAny == null)
             {
                 bufferIfAny = GetNotInitializedFloatTensor(shape, description);
+                return;
             }
-            else if (bufferIfAny.HasEnoughCapacityForTensor(shape))
+            if (bufferIfAny.HasEnoughCapacityForTensor(shape))
             {
                 bufferIfAny.Reshape(shape);
+                return;
             }
-            else
-            {
-                FreeMemory(ref bufferIfAny);
-                bufferIfAny = GetNotInitializedFloatTensor(shape, description);
-            }
+            FreeMemory(ref bufferIfAny);
+            bufferIfAny = GetNotInitializedFloatTensor(shape, description);
         }
 
-       
-
-
-        private Tensor AllocateNewTensor(int[] shape, string description)
-        {
-            Tensor result;
-            if (IsMock)
-            {
-                result = new MockTensor<float>(shape, description);
-            }
-            else if (_gpuWrapper != null)
-            {
-                result = new GPUTensor<float>(shape, null, _gpuWrapper, description);
-            }
-            else
-            {
-                result = new CpuTensor<float>(shape, null, description);
-            }
-            _allAllocatedTensors.Add(result);
-            return result;
-        }
-
-        private static ulong NeededMemoryInBytes(int[] shape)
-        {
-            return (ulong)(Utils.Product(shape) * sizeof(float));
-        }
-
-        #region Dispose pattern
+#region Dispose pattern
         public void Dispose()
         {
             Dispose(true);
@@ -195,6 +200,33 @@ namespace SharpNet.Data
         {
             Dispose(false);
         }
-        #endregion
+#endregion
+
+        private Tensor AllocateNewTensor(int[] shape, string description)
+        {
+            Tensor result;
+            if (IsMock)
+            {
+                result = new MockTensor<float>(shape, description);
+            }
+            else if (_gpuWrapper != null)
+            {
+                result = new GPUTensor<float>(shape, null, _gpuWrapper, description);
+            }
+            else
+            {
+                result = new CpuTensor<float>(shape, null, description);
+            }
+            _allAllocatedTensors.Add(result);
+            return result;
+        }
+        private static ulong NeededMemoryInBytes(int[] shape)
+        {
+            return (ulong)(Utils.Product(shape) * sizeof(float));
+        }
+        private void SortAvailableTensorsByCapacity()
+        {
+            _availableTensorOrderedByCount.Sort((x, y) => (int)(x.CapacityInBytes - y.CapacityInBytes));
+        }
     }
 }

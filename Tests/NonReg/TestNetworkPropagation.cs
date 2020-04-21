@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
@@ -268,9 +269,8 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.46736355622609455d, 0.5);
         }
 
-
         [Test]
-        public void TestBatchNormalization_NCHW_2_3_4_5()
+        public void TestBatchNormalizationNchw2345()
         {
             var numEpochs = 10;
             var learningRate = 0.001;
@@ -723,8 +723,8 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction)
         {
-            var gpuDeviceId = -1;
-            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, gpuDeviceId);
+            var resourceIds = new List<int>{-1};
+            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, resourceIds);
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {

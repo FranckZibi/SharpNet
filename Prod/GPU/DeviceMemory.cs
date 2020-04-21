@@ -74,7 +74,8 @@ namespace SharpNet.GPU
             }
             GPUWrapper.CheckStatus(res);
         }
-#region Dispose pattern
+
+        #region Dispose pattern
         public void Dispose()
         {
             Dispose(true);
@@ -88,10 +89,6 @@ namespace SharpNet.GPU
             }
             Dispose(false);
         }
-
-
-
-
         // ReSharper disable once UnusedParameter.Local
         private void Dispose(bool disposing)
         {
@@ -107,9 +104,8 @@ namespace SharpNet.GPU
                 //GPUWrapper.CheckStatus(res);
                 _pointer = IntPtr.Zero;
             }
-
-
         }
-#endregion
+        #endregion
+
     }
 }

@@ -32,6 +32,7 @@ namespace SharpNet.Layers
         /// <param name="poolingStride"></param>
         /// <param name="previousLayerIndex"></param>
         /// <param name="network"></param>
+        /// <param name="layerName"></param>
         public PoolingLayer(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, Network network, string layerName) : base(network, previousLayerIndex, layerName)
         {
             _poolingMode = poolingMode;

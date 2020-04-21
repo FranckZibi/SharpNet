@@ -18,7 +18,7 @@ namespace SharpNet.CPU
         /// <summary>
         /// used only if the tensor is NOT the owner of the memory
         /// </summary>
-        private readonly IntPtr _ptrToOwnerMemory;
+        private readonly IntPtr _ptrToOwnerPinnedMemory;
         /// <summary>
         /// used only if the tensor is the owner of the memory
         /// </summary>
@@ -29,7 +29,7 @@ namespace SharpNet.CPU
         {
             Content = data ?? new T[Count];
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
-            _ptrToOwnerMemory = IntPtr.Zero;
+            _ptrToOwnerPinnedMemory = IntPtr.Zero;
         }
         public CpuTensor(int[] shape, T[] data, string description) : this(shape, data, Marshal.SizeOf(typeof(T)), description)
         {
@@ -41,23 +41,24 @@ namespace SharpNet.CPU
         {
             Content = memoryOwner.Content.Slice(startIndex, Utils.Product(shape));
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
-            _ptrToOwnerMemory = memoryOwner.HostPointer + TypeSize * startIndex;
+            _ptrToOwnerPinnedMemory = memoryOwner.Pointer + TypeSize * startIndex;
         }
 
 
         /// <summary>
         /// pointer to (pinned) host memory (in CPU)
         /// </summary>
-        public IntPtr HostPointer
+        public override IntPtr Pointer
         {
             get
             {
                 if (!IsOwnerOfMemory)
                 {
-                    Debug.Assert(_ptrToOwnerMemory != IntPtr.Zero);
-                    return _ptrToOwnerMemory;
+                    //the memory owner has its memory already pinned
+                    Debug.Assert(_ptrToOwnerPinnedMemory != IntPtr.Zero);
+                    return _ptrToOwnerPinnedMemory;
                 }
-                Debug.Assert(_ptrToOwnerMemory == IntPtr.Zero);
+                Debug.Assert(_ptrToOwnerPinnedMemory == IntPtr.Zero);
                 if (_hostPinnedMemory == null)
                 {
                     _hostPinnedMemory = new HostPinnedMemory<T>(Content);
@@ -65,6 +66,11 @@ namespace SharpNet.CPU
                 return _hostPinnedMemory.Pointer;
             }
         }
+
+        /// <summary>
+        /// true if the tensor memory is currently pinned
+        /// </summary>
+        private bool HasPinnedMemory => !IsOwnerOfMemory || _hostPinnedMemory != null;
 
         /// <summary>
         /// resize the current Cpu tensor to a different shape (both bigger or smaller)
@@ -160,7 +166,7 @@ namespace SharpNet.CPU
 
             return result;
         }
-        public override bool IsOwnerOfMemory => _ptrToOwnerMemory == IntPtr.Zero;
+        public override bool IsOwnerOfMemory => _ptrToOwnerPinnedMemory == IntPtr.Zero;
         public ReadOnlySpan<T> ReadonlyContent => Content.Span;
         public Span<T> SpanContent => Content.Span;
 
@@ -386,34 +392,26 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
-            Tensor dropoutMaskBufferForCpu, ref Tensor randomNumberGeneratorStatesBufferForGPU,
-            ref Tensor dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU, TensorMemoryPool memoryPool)
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, TensorMemoryPool memoryPool)
         {
             var x = this;
-            Debug.Assert(dropoutMaskBufferForCpu != null);
-            Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
-            Debug.Assert(dropoutReserveSpaceForGPU == null);
-            Debug.Assert(dropoutDescriptorForGPU == IntPtr.Zero);
             if (!isTraining)
             {
                 x.CopyTo(y);
                 return;
             }
+            Debug.Assert(dropoutReservedSpaceForTraining != null);
+            Debug.Assert(!dropoutReservedSpaceForTraining.UseGPU);
             var dropProbabilityFloat = (float)dropProbability;
-            Utils.Randomize(dropoutMaskBufferForCpu.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
-            y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutMaskBufferForCpu, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
+            Utils.Randomize(dropoutReservedSpaceForTraining.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
+            y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutReservedSpaceForTraining, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
         }
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
-            Tensor dropoutMaskBufferForCpu, Tensor randomNumberGeneratorStatesBufferForGPU,
-            Tensor dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
         {
-            Debug.Assert(dropoutMaskBufferForCpu != null);
-            Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
-            Debug.Assert(dropoutReserveSpaceForGPU == null);
-            Debug.Assert(dropoutDescriptorForGPU == IntPtr.Zero);
-            var _dropProbabilityFloat = (float)dropProbability;
-            dx.AsFloatCpu.BuildEntirelyFromInput(dy, dropoutMaskBufferForCpu, (dOutput, prob) => prob < _dropProbabilityFloat ? 0f : dOutput / (1 - _dropProbabilityFloat));
+            Debug.Assert(dropoutReserveSpace != null);
+            Debug.Assert(!dropoutReserveSpace.UseGPU);
+            var dropProbabilityFloat = (float)dropProbability;
+            dx.AsFloatCpu.BuildEntirelyFromInput(dy, dropoutReserveSpace, (dOutput, prob) => prob < dropProbabilityFloat ? 0f : dOutput / (1 - dropProbabilityFloat));
         }
         //this = dy
 
@@ -554,14 +552,14 @@ namespace SharpNet.CPU
             //we are adding padding to 'unpaddedTensor' to initialize 'paddedTensor'
             var paddedTensor = this;
             paddedTensor.ZeroMemory();
-            ZeroPadding_and_Unpadding(unpaddedTensor, paddingTop, paddingBottom, paddingLeft, paddingRight, false);
+            ZeroPadding_and_Unpadding(unpaddedTensor, paddingTop, paddingLeft, false);
         }
         public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
-            ((CpuTensor<T>)paddedTensor).ZeroPadding_and_Unpadding(this, paddingTop, paddingBottom, paddingLeft, paddingRight, true);
+            ((CpuTensor<T>)paddedTensor).ZeroPadding_and_Unpadding(this, paddingTop, paddingLeft, true);
         }
 
-        private void ZeroPadding_and_Unpadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, bool isUnpadding)
+        private void ZeroPadding_and_Unpadding(Tensor unpaddedTensor, int paddingTop, int paddingLeft, bool isUnpadding)
         {
             var paddedTensor = this;
             Debug.Assert(AreCompatible(new List<Tensor> { paddedTensor, unpaddedTensor }));
@@ -569,8 +567,6 @@ namespace SharpNet.CPU
             Debug.Assert(paddedTensor.Dimension == unpaddedTensor.Dimension);
             Debug.Assert(paddedTensor.Shape[0] == unpaddedTensor.Shape[0]); //same batch size
             Debug.Assert(paddedTensor.Shape[1] == unpaddedTensor.Shape[1]); //same number of channels
-            Debug.Assert(paddedTensor.Shape[2] == (paddingTop + unpaddedTensor.Shape[2] + paddingBottom)); //valid height for destination
-            Debug.Assert(paddedTensor.Shape[3] == (paddingLeft + unpaddedTensor.Shape[3] + paddingRight)); //valid width destination
             int h_src = unpaddedTensor.Shape[2];
             int w_src = unpaddedTensor.Shape[3];
             // copy the row 'srcRowId' from 'src' tensor (n, c, h_src, w_src) to dest tensor (n, c, h_dest, w_dest)
@@ -1308,7 +1304,15 @@ namespace SharpNet.CPU
             if (b.UseGPU)
             {
                 //copy from CPU ('this' tensor) to GPU ('b' tensor)
-                ((GPUTensor<T>)b).CopyToDevice(Content);
+                if (HasPinnedMemory)
+                {
+                    //the tensor memory is already pinned
+                    b.AsGPU<T>().InitializeFromHostPinnedMemory(Pointer);
+                }
+                else
+                {
+                    b.AsGPU<T>().InitializeFromHostMemory(Content);
+                }
             }
             else
             {
@@ -1316,6 +1320,7 @@ namespace SharpNet.CPU
                 MKL_BLAS.cblas_scopy(Count, AsFloatPointer, 1, b.AsFloatPointer, 1);
             }
         }
+
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount)
         {
             var src = Content.Slice(startElement, elementCount);

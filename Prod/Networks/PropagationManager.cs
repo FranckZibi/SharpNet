@@ -40,7 +40,7 @@ namespace SharpNet.Networks
         /// true if we are training the network (the goal is to update weights)
         /// false for inference only (we'll use existing weights to make a prediction)
         /// </param>
-        /// <param name="predictionBufferIfAny">if provided: the buffer where to store the prediction</param>
+        /// <param name="yPredicted">if provided: the buffer where to store the prediction</param>
         /// <returns></returns>
         public void Forward([NotNull] Tensor X, bool isTraining, [NotNull] Tensor yPredicted)
         {

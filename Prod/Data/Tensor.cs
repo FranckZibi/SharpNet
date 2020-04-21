@@ -45,7 +45,7 @@ namespace SharpNet.Data
         protected ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
         public Span<float> AsFloatCpuSpan => AsFloatCpu.SpanContent;
-        public float*  AsFloatPointer => (float*)AsFloatCpu.HostPointer;
+        public float*  AsFloatPointer => (float*)AsFloatCpu.Pointer;
 
         public ReadOnlySpan<float> AsReadonlyFloatCpuContent => AsCpu<float>().ReadonlyContent;
         public string ContentStats()
@@ -348,7 +348,7 @@ namespace SharpNet.Data
         /// this = bias tensor of dimension (1, channels, 1, 1)
         /// For each channel, will retrieve the single associated value and add it to each element of 'y' in the same channel 
         /// </summary>
-        /// <param name="convolutionBackwardBias">a bias tensor (1, channel, 1, 1) </param>
+        /// <param name="y"></param>
         public abstract void BroadcastConvolutionBiasToOutput(Tensor y);
 
         /// <summary>
@@ -358,7 +358,6 @@ namespace SharpNet.Data
         ///     2/ add this sum to the channel bias (there is one bias scalar value by channel)
         /// </summary>
         /// <param name="bias">the bias tensor to update, with dimension (1, channels, 1, 1) </param>
-        /// <summary>
         public abstract void ConvolutionBackwardBias(Tensor bias);
 
         /// <summary>
@@ -474,14 +473,9 @@ namespace SharpNet.Data
         /// <param name="dropProbability"></param>
         /// <param name="isTraining"></param>
         /// <param name="dropoutRandom"></param>
-        /// <param name="dropoutMaskBufferForCpu">only used for Cpu (null for GPU)</param>
-        /// <param name="randomNumberGeneratorStatesBufferForGPU">only used for GPU (null for Cpu)</param>
-        /// <param name="dropoutReserveSpaceForGPU">only used for GPU (null for Cpu)</param>
-        /// <param name="dropoutDescriptorForGPU">only used for GPU (null for Cpu)</param>
+        /// <param name="dropoutReservedSpaceForTraining">a reserved space used only for training (null for inference)</param>
         /// <param name="memoryPool"></param>
-        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
-            Tensor dropoutMaskBufferForCpu, ref Tensor randomNumberGeneratorStatesBufferForGPU,
-            ref Tensor dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU, TensorMemoryPool memoryPool);
+        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, TensorMemoryPool memoryPool);
 
         /// <summary>
         /// 
@@ -489,13 +483,9 @@ namespace SharpNet.Data
         /// <param name="dy"></param>
         /// <param name="dx"></param>
         /// <param name="dropProbability"></param>
-        /// <param name="dropoutMaskBufferForCpu">only used for Cpu (null for GPU)</param>
-        /// <param name="randomNumberGeneratorStatesBufferForGPU">only used for GPU (null for Cpu)</param>
-        /// <param name="dropoutReserveSpaceForGPU">only used for GPU (null for Cpu)</param>
-        /// <param name="dropoutDescriptorForGPU">only used for GPU (null for Cpu)</param>
+        /// <param name="dropoutReserveSpace"></param>
         public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
-            Tensor dropoutMaskBufferForCpu, Tensor randomNumberGeneratorStatesBufferForGPU,
-            Tensor dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU);
+            Tensor dropoutReserveSpace);
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
@@ -514,7 +504,10 @@ namespace SharpNet.Data
         /// <returns></returns>
         public abstract double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer);
 
-        public virtual IntPtr Pointer => throw new NotImplementedException();
+        /// <summary>
+        /// pointer to (device or host) pinned memory
+        /// </summary>
+        public abstract IntPtr Pointer { get; }
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)

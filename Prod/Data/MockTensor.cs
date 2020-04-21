@@ -86,19 +86,18 @@ namespace SharpNet.Data
         public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient,cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer){throw new NotImplementedException();}
 
         public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
-            Tensor dropoutMaskBufferForCpu, ref Tensor randomNumberGeneratorStatesBufferForGPU,
-            ref Tensor dropoutReserveSpaceForGPU, ref IntPtr dropoutDescriptorForGPU, TensorMemoryPool memoryPool) 
+            Tensor dropoutReservedSpaceForTraining, TensorMemoryPool memoryPool) 
         {
             throw new NotImplementedException();
         }
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
-            Tensor dropoutMaskBufferForCpu, Tensor randomNumberGeneratorStatesBufferForGPU,
-            Tensor dropoutReserveSpaceForGPU, IntPtr dropoutDescriptorForGPU)
+            Tensor dropoutReserveSpace)
         {
             throw new NotImplementedException();
         }
         public override double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer){throw new NotImplementedException();}
         public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer){throw new NotImplementedException();}
+        public override IntPtr Pointer => throw new NotImplementedException();
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev){throw new NotImplementedException();}

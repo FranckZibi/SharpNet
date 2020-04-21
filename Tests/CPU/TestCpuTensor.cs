@@ -153,8 +153,8 @@ namespace SharpNetTests.CPU
         }
 
         [TestCase(100000, 0.5, false, 0, 0)] //when not training, dropout is disabled
-        [TestCase(100000, 0.0, true, 0, 0)] // no 0 if drop proba = 0%
-        [TestCase(100000, 1.0, true, 100000-10, 100000)]  // only 0 if drop proba = 100%
+        [TestCase(100000, 0.0, true, 0, 0)] // no 0 if drop probability = 0%
+        [TestCase(100000, 1.0, true, 100000-10, 100000)]  // only 0 if drop probability = 100%
         [TestCase(100000, 0.25, true, (int)(100000*0.2), (int)(100000 *0.3))]
         [TestCase(100000, 0.75, true, (int)(100000 *0.7), (int)(100000 *0.8))]
         public void TestDropoutForward(int nbRows, double dropProbability, bool isTraining, int minEqualToZeroAfterDropout, int maxEqualToZeroAfterDropout)
@@ -162,11 +162,9 @@ namespace SharpNetTests.CPU
             var rand = new Random(0);
             var x = RandomFloatTensor(new []{nbRows, 1}, rand, 10, 20, "x");
             var y = RandomFloatTensor(x.Shape, rand, 10, 20, "y");
-            var dropoutMaskBuffer = RandomFloatTensor(x.Shape, rand, 10, 20, "dropoutMaskBuffer");
-            Tensor randomNumberGeneratorStatesBufferForGPU = null;
-            Tensor dropoutReserveSpaceForGPU = null;
-            IntPtr dropoutDescriptorForGPU = IntPtr.Zero;
-            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutMaskBuffer, ref randomNumberGeneratorStatesBufferForGPU, ref dropoutReserveSpaceForGPU, ref dropoutDescriptorForGPU, null); //no need of TensorMemoryPool  on CPU
+            var memoryPool = new TensorMemoryPool(null, false);
+            var dropoutReserveSpace = memoryPool.GetNotInitializedFloatTensor(y.Shape, "dropoutReserveSpace");
+            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace, memoryPool);
             int nbObservedZeroAfterDropout = y.ReadonlyContent.Count(i => Math.Abs(i) < 1e-8);
             Assert.IsTrue(nbObservedZeroAfterDropout>=minEqualToZeroAfterDropout);
             Assert.IsTrue(nbObservedZeroAfterDropout<= maxEqualToZeroAfterDropout);
@@ -195,6 +193,29 @@ namespace SharpNetTests.CPU
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2, 2 }, new float[] { 333, 8, 14, 16, 22, 24, 30, 32, 38, 40, 46, 48 }, "expectedOutput");
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
         }
+
+        [Test]
+        public void TestExtractSubTensor()
+        {
+            var data = new float[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+            var owner = new CpuTensor<float>(new[] { 5, 2 }, data, "owner");
+            var tensorTop2Rows = (CpuTensor<float>)owner.ExtractSubTensor(0, 2);  
+            var tensorBottom3Rows = (CpuTensor<float>)owner.ExtractSubTensor(2, 3);
+            var contentTop = tensorTop2Rows.ContentAsFloatArray();
+            Assert.AreEqual(new float[] { 0, 1, 2, 3 }, contentTop.ToArray());
+            var contentBottom = tensorBottom3Rows.ContentAsFloatArray();
+            Assert.AreEqual(new float[] { 4, 5, 6, 7, 8, 9 }, contentBottom.ToArray());
+            for (int i = 0; i < tensorTop2Rows.Count; ++i)
+            {
+                tensorTop2Rows.SpanContent[i] += 10;
+            }
+            for (int i = 0; i < tensorBottom3Rows.Count; ++i)
+            {
+                tensorBottom3Rows.SpanContent[i] += 20;
+            }
+            Assert.AreEqual(owner.ContentAsFloatArray(), new float[] { 10, 11, 12, 13, 24, 25, 26, 27, 28, 29 });
+        }
+
         public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue, string description)
         {
             var content = new float[Utils.Product(shape)];

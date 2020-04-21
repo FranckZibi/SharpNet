@@ -39,7 +39,7 @@ namespace SharpNet.Optimizers
             EmbeddedTensors.ForEach(x => x?.Dispose());
         }
 
-        protected float PonderedLearning(double learningRate, int batchSize)
+        protected static float PonderedLearning(double learningRate, int batchSize)
         {
             return (float)learningRate / batchSize;
         }

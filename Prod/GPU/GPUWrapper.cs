@@ -22,6 +22,7 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr>();
+        private readonly IDictionary<double, IntPtr> cacheDropoutDesc = new Dictionary<double, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr>();
         private readonly IDictionary<cudnnActivationMode_t, IntPtr> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, IntPtr>();
         private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t> cacheConvolutionBackwardFilterAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t>();
@@ -31,12 +32,13 @@ namespace SharpNet.GPU
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
         private IntPtr _cudnnHandle;
-        private int _copyToDeviceCalls;
-        private ulong _bytesCopiedToDevice;
-        private int _copyToHostCalls;
-        private ulong _bytesCopiedToHost;
+        private int _copyHostToDeviceCalls;
+        private ulong _bytesCopiedHostToDevice;
+        private int _copyDeviceToDeviceCalls;
+        private ulong _bytesCopiedDeviceToDevice;
+        private int _copyDeviceToHostCalls;
+        private ulong _bytesCopiedDeviceToHost;
         private readonly int _threadId;
-        private readonly int _deviceId;
         private static readonly IDictionary<int, GPUWrapper> Cache = new Dictionary<int, GPUWrapper>();
         #endregion
 
@@ -44,8 +46,9 @@ namespace SharpNet.GPU
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
-        public Stopwatch SwCopyToDevice { get; } = new Stopwatch();
-        public Stopwatch SwCopyToHost { get; } = new Stopwatch();
+        public Stopwatch SwCopyDeviceToDevice { get; } = new Stopwatch();
+        public Stopwatch SwCopyHostToDevice { get; } = new Stopwatch();
+        public Stopwatch SwCopyDeviceToHost { get; } = new Stopwatch();
         #endregion
 
         public static GPUWrapper FromDeviceId(int deviceId)
@@ -61,7 +64,7 @@ namespace SharpNet.GPU
         }
         public IntPtr CudnnHandle => _cudnnHandle;
 
-        public int DeviceId => _deviceId;
+        public int DeviceId { get; }
 
         public void RunKernel(string kernelName, int count, object[] parameterLists)
         {
@@ -358,15 +361,33 @@ namespace SharpNet.GPU
 
         #endregion
 
-        public IntPtr DropoutDesc(double dropoutRate, IntPtr randomNumberGeneratorStatesBuffer)
+
+        private Tensor _randomNumberGeneratorStatesBuffer;
+
+
+        private Tensor GetRandomNumberGeneratorStatesBuffer(TensorMemoryPool memoryPool)
+        {
+            if (_randomNumberGeneratorStatesBuffer == null)
+            {
+                var res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var dropoutStateSize);
+                CheckStatus(res);
+                _randomNumberGeneratorStatesBuffer = memoryPool.GetBuffer(dropoutStateSize, nameof(_randomNumberGeneratorStatesBuffer));
+
+            }
+            return _randomNumberGeneratorStatesBuffer;
+        }
+        public IntPtr DropoutDesc(double dropoutRate, TensorMemoryPool memoryPool)
         {
             CheckThreadId();
-            var res = CudnnWrapper.cudnnCreateDropoutDescriptor(out IntPtr desc);
-            CheckStatus(res);
-            res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var stateSize);
-            CheckStatus(res);
-            res = CudnnWrapper.cudnnSetDropoutDescriptor(desc, _cudnnHandle, (float)dropoutRate, randomNumberGeneratorStatesBuffer, stateSize, 0);
-            CheckStatus(res);
+            if (!cacheDropoutDesc.TryGetValue(dropoutRate, out IntPtr desc))
+            {
+                var res = CudnnWrapper.cudnnCreateDropoutDescriptor(out desc);
+                CheckStatus(res);
+                var randomNumberGeneratorStatesBuffer = GetRandomNumberGeneratorStatesBuffer(memoryPool);
+                res = CudnnWrapper.cudnnSetDropoutDescriptor(desc, _cudnnHandle, (float) dropoutRate, randomNumberGeneratorStatesBuffer, randomNumberGeneratorStatesBuffer.CapacityInBytes, 0);
+                CheckStatus(res);
+                cacheDropoutDesc[dropoutRate] = desc;
+            }
             return desc;
         }
         public IntPtr TensorDesc(cudnnDataType_t cudaType, int[] shape)
@@ -396,12 +417,15 @@ namespace SharpNet.GPU
         public void Reset()
         {
             CheckThreadId();
-            _copyToDeviceCalls = 0;
-            _bytesCopiedToDevice = 0;
-            _copyToHostCalls = 0;
-            _bytesCopiedToHost = 0;
-            SwCopyToDevice.Reset();
-            SwCopyToHost.Reset();
+            _copyHostToDeviceCalls = 0;
+            _bytesCopiedHostToDevice = 0;
+            _copyDeviceToHostCalls = 0;
+            _bytesCopiedDeviceToHost = 0;
+            _copyDeviceToDeviceCalls = 0;
+            _bytesCopiedDeviceToDevice = 0;
+            SwCopyHostToDevice.Reset();
+            SwCopyDeviceToHost.Reset();
+            SwCopyDeviceToDevice.Reset();
             //_nbChunksInDeviceMemory = 0;
             cacheTensorDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyTensorDescriptor(x)));
             cacheTensorDesc.Clear();
@@ -418,25 +442,35 @@ namespace SharpNet.GPU
             cacheConvolutionForwardAlgorithm.Clear();
             cacheConvolutionBackwardFilterAlgorithm.Clear();
             cacheFindConvolutionBackwardDataAlgorithm.Clear();
+            cacheDropoutDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyDropoutDescriptor(x)));
+            cacheDropoutDesc.Clear();
+            _randomNumberGeneratorStatesBuffer?.Dispose();
+            _randomNumberGeneratorStatesBuffer = null;
         }
-        public void LogCopyToDeviceCall(ulong byteCopied)
+        public void LogCopyDeviceToDeviceCall(ulong byteCopied)
         {
             Debug.Assert(byteCopied > 0);
-            ++_copyToDeviceCalls;
-            _bytesCopiedToDevice += byteCopied;
+            ++_copyDeviceToDeviceCalls;
+            _bytesCopiedDeviceToDevice += byteCopied;
         }
-        public void LogCopyToHostCall(ulong byteCopied)
+        public void LogCopyHostToDeviceCall(ulong byteCopied)
         {
             Debug.Assert(byteCopied > 0);
-            ++_copyToHostCalls;
-            _bytesCopiedToHost += byteCopied;
+            ++_copyHostToDeviceCalls;
+            _bytesCopiedHostToDevice += byteCopied;
+        }
+        public void LogCopyDeviceToHostCall(ulong byteCopied)
+        {
+            Debug.Assert(byteCopied > 0);
+            ++_copyDeviceToHostCalls;
+            _bytesCopiedDeviceToHost += byteCopied;
         }
         public string DeviceName()
         {
             var result = _deviceName + " - driver " + _driverVersion;
             var cudaVersion = CudaVersionFromCudaPath();
             result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
-            result += " - cublas " + _cublasVersion + " - deviceId:" + _deviceId + " - threadId:" + _threadId;
+            result += " - cublas " + _cublasVersion + " - deviceId:" + DeviceId + " - threadId:" + _threadId;
             return result;
         }
         public override string ToString()
@@ -447,13 +481,17 @@ namespace SharpNet.GPU
         {
             CheckThreadId();
             var result = "Free GPU Memory: " + Utils.MemoryBytesToString(FreeMemoryInBytes()) + "/" + Utils.MemoryBytesToString(TotalMemoryInBytes());
-            if (_copyToDeviceCalls!= 0)
+            if (_copyHostToDeviceCalls!= 0)
             { 
-                result += " - " + Utils.MemoryBytesToString(_bytesCopiedToDevice) + " CopiedToDevice (" + _copyToDeviceCalls + "calls, " + SwCopyToDevice.ElapsedMilliseconds + "ms)";
+                result += " - " + Utils.MemoryBytesToString(_bytesCopiedHostToDevice) + " CopiedHostToDevice (" + _copyHostToDeviceCalls + "calls, " + SwCopyHostToDevice.ElapsedMilliseconds + "ms)";
             }
-            if (_copyToHostCalls != 0)
+            if (_copyDeviceToHostCalls != 0)
             { 
-                result += " - " + Utils.MemoryBytesToString(_bytesCopiedToHost) + " CopiedToHost (" + _copyToHostCalls + "calls, " + SwCopyToHost.ElapsedMilliseconds + "ms)";
+                result += " - " + Utils.MemoryBytesToString(_bytesCopiedDeviceToHost) + " CopiedDeviceToHost (" + _copyDeviceToHostCalls + "calls, " + SwCopyDeviceToHost.ElapsedMilliseconds + "ms)";
+            }
+            if (_copyDeviceToDeviceCalls != 0)
+            {
+                result += " - " + Utils.MemoryBytesToString(_bytesCopiedDeviceToDevice) + " CopiedDeviceToDevice (" + _copyDeviceToDeviceCalls + "calls, " + SwCopyDeviceToDevice.ElapsedMilliseconds + "ms)";
             }
             return result;
         }
@@ -465,44 +503,43 @@ namespace SharpNet.GPU
         }
         public IntPtr CudaBlasHandle => _cudaBlasHandle;
         public StreamWrapper DefaultStream { get; }
-        public static void CheckStatus(cublasStatus_t _status, Func<string> getComment)
+
+        public static void CheckStatus(cudnnStatus_t status)
         {
-            if (_status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
+            if (status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
             {
-                throw new Exception(_status + " " + getComment());
+                throw new Exception(status.ToString());
+            }
+        }
+        public static void CheckStatus(cublasStatus_t status)
+        {
+            if (status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
+            {
+                throw new Exception(status.ToString());
+            }
+        }
+        public static void CheckStatus(CUresult status)
+        {
+            if (status != CUresult.CUDA_SUCCESS)
+            {
+                throw new Exception(status.ToString());
+            }
+        }
+        public static void CheckStatus(nvrtcResult status)
+        {
+            if (status != nvrtcResult.NVRTC_SUCCESS)
+            {
+                throw new Exception(status.ToString());
+            }
+        }
+        public static void CheckStatus(cudaError_t status)
+        {
+            if (status != cudaError_t.cudaSuccess)
+            {
+                throw new Exception(status.ToString());
             }
         }
 
-        public static void CheckStatus(cudnnStatus_t _status, Func<string> getComment)
-        {
-            if (_status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
-            {
-                throw new Exception(_status+" "+ getComment());
-            }
-        }
-        
-        public static void CheckStatus(CUresult _status)
-        {
-            if (_status != CUresult.CUDA_SUCCESS)
-            {
-                throw new Exception(_status.ToString());
-            }
-        }
-       
-        public static void CheckStatus(CUresult _status, Func<string> getComment)
-        {
-            if (_status != CUresult.CUDA_SUCCESS)
-            {
-                throw new Exception(_status+" "+ getComment());
-            }
-        }
-        public static void CheckStatus(nvrtcResult _status)
-        {
-            if (_status != nvrtcResult.NVRTC_SUCCESS)
-            {
-                throw new Exception(_status.ToString());
-            }
-        }
         public static CUDA_Versions GetInstalledCudaVersion()
         {
             var cudaPath = (Environment.GetEnvironmentVariable("CUDA_PATH") ?? "").ToLowerInvariant();
@@ -581,7 +618,7 @@ namespace SharpNet.GPU
         {
             CudartWrapper.cudaDeviceReset();
             CudartWrapper.cudaSetDevice(deviceId);
-            _deviceId = deviceId;
+            DeviceId = deviceId;
             _threadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
@@ -628,21 +665,6 @@ namespace SharpNet.GPU
             var minor = driverVersion % 100;
             var build = (driverVersion % 1000)/100;
             return (build==0)?new Version(major, minor): new Version(major, minor, build);
-        }
-        private static void CheckStatus(cublasStatus_t _status)
-        {
-            if (_status != cublasStatus_t.CUBLAS_STATUS_SUCCESS)
-            {
-                throw new Exception(_status.ToString());
-            }
-
-        }
-        private static void CheckStatus(cudnnStatus_t _status)
-        {
-            if (_status != cudnnStatus_t.CUDNN_STATUS_SUCCESS)
-            {
-                throw new Exception(_status.ToString());
-            }
         }
         private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
         {
@@ -694,7 +716,7 @@ namespace SharpNet.GPU
         {
             if (_threadId != System.Threading.Thread.CurrentThread.ManagedThreadId)
             {
-                throw new Exception("invalid Thread Id " + this);
+                throw new Exception("invalid Thread Id");
             }
         }
     }

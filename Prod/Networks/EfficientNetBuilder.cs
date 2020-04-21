@@ -102,6 +102,7 @@ namespace SharpNet.Networks
         /// <param name="depthDivisor"></param>
         /// <param name="modelName">model name</param>
         /// <param name="includeTop">whether to include the fully-connected layer at the top of the network</param>
+        /// <param name="weights"></param>
         /// <param name="inputShape_CHW">optional shape tuple, only to be specified if `includeTop` is False.</param>
         /// <param name="pooling">pooling: optional pooling mode for feature extraction (used only when 'includeTop' is false)
         /// when `includeTop` is false:
@@ -233,7 +234,7 @@ namespace SharpNet.Networks
         /// <param name="network"></param>
         /// <param name="block_args"></param>
         /// <param name="dropRate"></param>
-        /// <param name="inputChannels"></param>
+        /// <param name="layerPrefix"></param>
         private void AddMBConvBlock(Network network, MobileBlocksDescription block_args, float dropRate, string layerPrefix)
         {
             int inputChannels = network.Layers.Last().OutputShape(1)[1];
@@ -282,15 +283,16 @@ namespace SharpNet.Networks
         }
 
 
-       /// <summary>
-       /// construct an EfficientNet B0 network for CIFAR10 training
-       /// if weight is provided (ex: imagenet):
-       ///      will load the weight from the provided source,
-       ///      and will set the network category count to 10
-       ///      (resetting the last Dense layer weights if required to have 10 output categoryCount)
-       /// </summary>
-       /// <param name="weight"></param>
-       /// <returns></returns>
+        /// <summary>
+        /// construct an EfficientNet B0 network for CIFAR10 training
+        /// if weight is provided (ex: imagenet):
+        ///      will load the weight from the provided source,
+        ///      and will set the network category count to 10
+        ///      (resetting the last Dense layer weights if required to have 10 output categoryCount)
+        /// </summary>
+        /// <param name="weight"></param>
+        /// <param name="inputShape_CHW"></param>
+        /// <returns></returns>
         public Network EfficientNetB0_CIFAR10(string weight, int[] inputShape_CHW)
         {
             var net = EfficientNetB0(true, weight, inputShape_CHW);

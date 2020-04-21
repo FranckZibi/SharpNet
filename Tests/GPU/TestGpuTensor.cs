@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.GPU;
@@ -7,7 +8,7 @@ using SharpNetTests.Data;
 namespace SharpNetTests.GPU
 {
     [TestFixture]
-    public class TestGpuTensor
+    public class TestGPUTensor
     {
         private static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
         [Test]
@@ -81,6 +82,96 @@ namespace SharpNetTests.GPU
             expected = new CpuTensor<float>(new[] { 35, 21}, new float[35*21], "expected");
             Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
         }
+
+        [Test]
+        public void TestInitializeDeviceMemoryFromDeviceMemory()
+        {
+            var src = new GPUTensor<float>(new [] {5}, new float[] {0, 1, 2, 3, 4}, GpuWrapper, "src");
+            var dest = new GPUTensor<float>(new [] {5}, null, GpuWrapper, "src");
+            dest.InitializeFromDeviceMemory(src);
+            src.ZeroMemory();
+            var expectedDest = new GPUTensor<float>(new[] { 5 }, new float[] { 0, 1, 2, 3, 4 }, GpuWrapper, "expectedDest");
+            Assert.IsTrue(TestTensor.SameContent(dest, expectedDest, 1e-6));
+            var expectedSrc = new GPUTensor<float>(new[] { 5 }, new float[] { 0, 0, 0, 0, 0 }, GpuWrapper, "expectedSrc");
+            Assert.IsTrue(TestTensor.SameContent(src, expectedSrc, 1e-6));
+        }
+
+
+        #region test copy from device (GPU) to device (GPU)
+        [Test]
+        public void TestCopyBetweenDevices()
+        {
+            if (GPUWrapper.GetDeviceCount() < 2)
+            {
+                return; //this test needs at least 2 GPU To work
+            }
+
+            int firstDeviceId = 0;
+            int secondDeviceId = (GPUWrapper.GetDeviceCount() < 2)?0:1;
+
+
+            var shape = new[] { 3 };
+            var fistDeviceWrapper = GPUWrapper.FromDeviceId(firstDeviceId);
+            var resultInFirstGpuDevice = new GPUTensor<float>(shape, null, fistDeviceWrapper, "resultInFirstGpuDevice");
+
+            //we wait for the second GPU device to initialize temporary tensors
+            ComputationInProgressInFirstDevice = false;
+            var t = new Thread(() => RunInSecondDevice(secondDeviceId, resultInFirstGpuDevice));
+            t.Start();
+            while (!ComputationInProgressInFirstDevice)
+            {
+                Thread.Sleep(1);
+            }
+
+            //we copy the data from first to second GPU device
+            var data1InFirstDevice = new GPUTensor<float>(shape, new float[] { 0, 2, 3 }, fistDeviceWrapper, "data1InFirstDevice");
+            Data1InSecondDevice.InitializeFromDeviceMemory(data1InFirstDevice);
+            data1InFirstDevice.Dispose();
+            var data2InFirstDevice = new GPUTensor<float>(shape, new float[] { 5, 7, 11 }, fistDeviceWrapper, "data2InFirstDevice");
+            Data2InSecondDevice.InitializeFromDeviceMemory(data2InFirstDevice);
+            data2InFirstDevice.Dispose();
+
+            //we wait for the computation to be finished in 2nd GPU device (and copied to 1st device)
+            ComputationInProgressInFirstDevice = false;
+            while (!ComputationInProgressInFirstDevice)
+            {
+                Thread.Sleep(1);
+            }
+
+            //we ensure that the data has been successfully computed in 2nd device copied to 1st device
+            var expectedResult = new GPUTensor<float>(shape, new float[] { 0 * 5, 2 * 7, 3 * 11 }, fistDeviceWrapper, "device1_result_expected");
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, resultInFirstGpuDevice, 1e-6));
+        }
+        //volatile to avoid any optimizations made by the compiler/jitter
+        private volatile bool ComputationInProgressInFirstDevice;
+        private GPUTensor<float> Data1InSecondDevice;
+        private GPUTensor<float> Data2InSecondDevice;
+        private void RunInSecondDevice(int secondDeviceId, GPUTensor<float> resultInFirstGpuDevice)
+        {
+            var deviceWrapper = GPUWrapper.FromDeviceId(secondDeviceId);
+            Data1InSecondDevice = new GPUTensor<float>(resultInFirstGpuDevice.Shape, null, deviceWrapper, "data1InSecondDevice");
+            Data2InSecondDevice = new GPUTensor<float>(resultInFirstGpuDevice.Shape, null, deviceWrapper, "data2InSecondDevice");
+
+            //we wait for the 1st device to initialize tensors 'Data1InSecondDevice' and 'Data2InSecondDevice'
+            ComputationInProgressInFirstDevice = true;
+            while (ComputationInProgressInFirstDevice)
+            {
+                Thread.Sleep(1);
+            }
+
+            //we compute the result in 2nd GPU device (secondDeviceId=1), and store it in 1st GPU device (secondDeviceId=0 )
+            var resultInSecondGpuDevice = new GPUTensor<float>(resultInFirstGpuDevice.Shape, null, deviceWrapper, "device2_result");
+            resultInSecondGpuDevice.MultiplyTensor(Data1InSecondDevice, Data2InSecondDevice);
+            Data1InSecondDevice.Dispose();
+            Data1InSecondDevice = null;
+            Data2InSecondDevice.Dispose();
+            Data2InSecondDevice = null;
+            resultInFirstGpuDevice.InitializeFromDeviceMemory(resultInSecondGpuDevice);
+            resultInSecondGpuDevice.Dispose();
+            //we have finished the computation in 2nd GPU device, and copied the results in 1st GPU device
+            ComputationInProgressInFirstDevice = true;
+        }
+        #endregion
 
         [Test]
         public void TestOwner()

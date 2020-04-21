@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using NUnit.Framework;
@@ -68,7 +69,7 @@ namespace SharpNetTests.NonReg
             const int batchSize = 64;
             const int numEpochs = 5;
             var mnist = new MNISTDataSet();
-            var network = new Network(new NetworkConfig() { Logger = logger, DisableReduceLROnPlateau =true}.WithAdam(), 0);
+            var network = new Network(new NetworkConfig() { Logger = logger, DisableReduceLROnPlateau =true}.WithAdam(), new List<int> {0});
             network
                 .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
 

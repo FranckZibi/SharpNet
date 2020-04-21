@@ -1,4 +1,7 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
+using SharpNet.Data;
+
 // ReSharper disable UnusedMember.Global
 // ReSharper disable InconsistentNaming
 
@@ -92,38 +95,75 @@ namespace SharpNet.GPU
                     return CudartWrapper_cudart64_100.cudaDeviceReset();
             }
         }
+
+        public static cudaError_t cudaMemcpyPeerAsync(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count, IntPtr stream)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return CudartWrapper_cudart64_101.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
+                case CUDA_Versions.CUDA_10_2:
+                    return CudartWrapper_cudart64_102.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
+                default:
+                    return CudartWrapper_cudart64_100.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
+            }
+        }
+        public static cudaError_t cudaMemcpyPeer(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count)
+        {
+            switch (InstalledCudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                    return CudartWrapper_cudart64_101.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
+                case CUDA_Versions.CUDA_10_2:
+                    return CudartWrapper_cudart64_102.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
+                default:
+                    return CudartWrapper_cudart64_100.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
+            }
+        }
     }
 
     public static class CudartWrapper_cudart64_100
     {
-        private const string CUDART64_100 = "cudart64_100";
+        private const string CUDART64 = "cudart64_100";
 
-        [DllImport(CUDART64_100)]
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaGetDevice(out int device);
-        [DllImport(CUDART64_100)]
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaSetDevice(int device);
-        [DllImport(CUDART64_100)]
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaDeviceReset();
+        [DllImport(CUDART64)]
+        public static extern cudaError_t cudaMemcpyPeerAsync(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count, IntPtr stream);
+        [DllImport(CUDART64)]
+        public static extern cudaError_t cudaMemcpyPeer(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count);
     }
     public static class CudartWrapper_cudart64_101
     {
-        private const string CUDART64_101 = "cudart64_101";
-        [DllImport(CUDART64_101)]
+        private const string CUDART64 = "cudart64_101";
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaGetDevice(out int device);
-        [DllImport(CUDART64_101)]
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaSetDevice(int device);
-        [DllImport(CUDART64_101)]
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaDeviceReset();
+        [DllImport(CUDART64)]
+        public static extern cudaError_t cudaMemcpyPeerAsync(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count, IntPtr stream);
+        [DllImport(CUDART64)]
+        public static extern cudaError_t cudaMemcpyPeer(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count);
     }
     public static class CudartWrapper_cudart64_102
     {
-        private const string CUDART64_102 = "cudart64_102";
-        [DllImport(CUDART64_102)]
+        private const string CUDART64 = "cudart64_102";
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaGetDevice(out int device);
-        [DllImport(CUDART64_102)]
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaSetDevice(int device);
-        [DllImport(CUDART64_102)]
+        [DllImport(CUDART64)]
         public static extern cudaError_t cudaDeviceReset();
+        [DllImport(CUDART64)]
+        public static extern cudaError_t cudaMemcpyPeerAsync(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count, IntPtr stream);
+        [DllImport(CUDART64)]
+        public static extern cudaError_t cudaMemcpyPeer(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count);
     }
 
 

@@ -35,7 +35,7 @@ namespace SharpNetTests
             var xTrain = TestCpuTensor.RandomFloatTensor(new[] { m, 2, 4, 4 }, rand, -1.0, +1.0, "xTrain");
             var yTrain = TestCpuTensor.RandomOneHotTensor(new[] { m, categoryCount }, rand, "yTrain");
             var param = DenseNetBuilder.DenseNet_CIFAR10();
-            param.GpuDeviceId = useGPU?0:-1;
+            param.SetResourceId(useGPU?0:-1);
             param.DisableLogging = true;
             var network = param.Build(nameof(TestSave), xTrain.Shape, categoryCount, false, new[] { 2, 2 }, true, 8, 1.0, null);
             network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
@@ -91,7 +91,7 @@ namespace SharpNetTests
 
          private static void CheckClone(Network network)
          {
-             var clone = network.Clone(network.GpuWrapper);
+             var clone = network.CreateSlaveNetwork(network.GpuDeviceId);
              var areEquals = network.Equals(clone, out var errors);
              Assert.IsTrue(areEquals, errors);
          }

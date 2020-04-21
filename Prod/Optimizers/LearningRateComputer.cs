@@ -58,8 +58,8 @@ namespace SharpNet.Optimizers
         /// </summary>
         /// <param name="previousEpochsData">stats associated with the previous computed epochs</param>
         /// <returns>
-        /// a value < 1.0 if we should reduce the learning rate because of several previous plateaux
-        /// 1.0 is we should not reduce the learnign rate
+        /// a value strictly less then 1.0 if we should reduce the learning rate because of several previous plateaux
+        /// 1.0 is we should not reduce the learning rate
         /// </returns>
         public double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData)
         {

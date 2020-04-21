@@ -74,7 +74,7 @@ namespace SharpNet.Optimizers
         /// Check if we should reduce the learning rate because we have reached a plateau
         /// (a plateau: no improvement in several epochs in a row)
         /// </summary>
-        /// <param name="previousEpochsData">stats associated with the previous computed epochs</param>
+        /// <param name="previousEpochData">stats associated with the previous computed epochs</param>
         /// <returns>true if we should reduce the learning rate</returns>
         public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochData)
         {
