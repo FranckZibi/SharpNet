@@ -73,7 +73,7 @@ namespace SharpNet.Optimizers
         }
         #endregion
 
-        public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
+        public double LearningRate(int epoch, int miniBatchBlockIdInEpoch, int nbBlocksInEpoch)
         {
             return Utils.Interpolate(_values, epoch, _constantByInterval);
         }

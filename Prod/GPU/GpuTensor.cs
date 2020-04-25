@@ -23,7 +23,6 @@ namespace SharpNet.GPU
             CapacityInBytes = ReallyNeededMemoryInBytes;
             deviceMemory = new DeviceMemory(memoryOwner.Pointer+offsetInBytes, CapacityInBytes);
         }
-
         public GPUTensor(int[] shape, Memory<T>? unpinnedHostMemory, GPUWrapper wrapper, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
         {
             _wrapper = wrapper;
@@ -36,7 +35,6 @@ namespace SharpNet.GPU
                 InitializeFromHostMemory(unpinnedHostMemory.Value);
             }
         }
-
         /// <summary>
         /// copy from CPU (Host) pinned memory to GPU (Device) memory
         /// </summary>
@@ -53,7 +51,6 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res);
             _wrapper.SwCopyHostToDevice.Stop();
         }
-
         /// <summary>
         /// copy the first 'Count' element of 'buffer into the 'this' Tensor
         /// </summary>
@@ -66,7 +63,6 @@ namespace SharpNet.GPU
             using var m = new HostPinnedMemory<T>(buffer);
             InitializeFromHostPinnedMemory(m.Pointer);
         }
-
         /// <summary>
         /// copy from 'src' GPU (Device) to 'this' GPU (Device) memory
         /// the source and target device (GPU) may be different
@@ -95,22 +91,6 @@ namespace SharpNet.GPU
                 GPUWrapper.CheckStatus(res);
             }
             _wrapper.SwCopyDeviceToDevice.Stop();
-        }
-
-        private T[] DeviceContent()
-        {
-            Debug.Assert(!_disposed);
-            _wrapper.SwCopyDeviceToHost.Start();
-            _wrapper.LogCopyDeviceToHostCall(ReallyNeededMemoryInBytes);
-
-            var _hostMemory = new T[Count];
-            var handle = GCHandle.Alloc(_hostMemory, GCHandleType.Pinned);
-            var _hostMemoryPointer = handle.AddrOfPinnedObject();
-            var res = NVCudaWrapper.cuMemcpyDtoH_v2(_hostMemoryPointer, Pointer, ReallyNeededMemoryInBytes);
-            GPUWrapper.CheckStatus(res);
-            handle.Free();
-            _wrapper.SwCopyDeviceToHost.Stop();
-            return _hostMemory;
         }
 
         #region Tensor implementation
@@ -167,8 +147,6 @@ namespace SharpNet.GPU
                 invertOfUnbiasedVolatilityBuffer);
             CheckStatus(res);
         }
-
-
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)
         {
             AssertIsNotDisposed();
@@ -234,7 +212,6 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
-
         public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             var x = this;
@@ -271,14 +248,11 @@ namespace SharpNet.GPU
         {
             throw new NotImplementedException(); //TODO
         }
-
-
         //TODO
         public override Tensor Transpose()
         {
             throw new NotImplementedException();
         }
-
         public override void Concatenate(Tensor a, Tensor b)
         {
 #if DEBUG
@@ -286,13 +260,6 @@ namespace SharpNet.GPU
 #endif
             var concat = this;
             _wrapper.RunKernel("Concatenate", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0});
-        }
-
-        public override Tensor Clone(GPUWrapper gpuWrapper)
-        {
-            var result = new GPUTensor<T>((int[]) Shape.Clone(), null, gpuWrapper??_wrapper, Description);
-            result.InitializeFromDeviceMemory(this);
-            return result;
         }
 
         public override void Split(Tensor a, Tensor b)
@@ -330,7 +297,6 @@ namespace SharpNet.GPU
                 deviceMemory = new DeviceMemory(CapacityInBytes);
             }
         }
-
         /// <summary>
         /// compute: this = alpha * this 
         /// </summary>
@@ -342,7 +308,6 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnScaleTensor(CudnnHandle, yDesc, y, &alphaFloat);
             CheckStatus(res);
         }
-
         public override void BroadcastAddVectorToOutput(Tensor y)
         {
             var bias = this;
@@ -366,7 +331,6 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, biasGradient);
             CheckStatus(res);
         }
-
         #region Convolution
         public override void Convolution(Tensor filters, int paddingTop, int paddingBottom, int paddingLeft,
             int paddingRight, int stride, Tensor y, bool isDepthwiseConvolution,
@@ -425,8 +389,6 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, bias);
             CheckStatus(res);
         }
-
-
         public override void ConvolutionGradient(Tensor convolution, Tensor dy, int paddingTop, int paddingBottom,
             int paddingLeft, int paddingRight, int stride, Tensor dx, Tensor convGradient, bool isDepthwiseConvolution,
             GPUWrapper.ConvolutionAlgoPreference backwardAlgoPreference, TensorMemoryPool memoryPool)
@@ -470,14 +432,12 @@ namespace SharpNet.GPU
             memoryPool.FreeMemory(ref dataStorageBuffer);
         }
         #endregion
-
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
             var array = new float[Count];
             Utils.RandomizeNormalDistribution(array, rand, mean, stdDev);
             InitializeFromHostMemory(array as T[]);
         }
-
         public override void SetValue(float sameValue)
         {
             var array = new float[Count];
@@ -492,7 +452,6 @@ namespace SharpNet.GPU
         {
             return (DeviceContent() as float[]);
         }
-
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
@@ -513,7 +472,6 @@ namespace SharpNet.GPU
             var countOk = (int) buffer.ContentAsFloatArray().Sum();
             return ((double)countOk) / Shape[0];
         }
-
         public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor buffer)
         {
             var categoryIndexes = this;
@@ -528,7 +486,6 @@ namespace SharpNet.GPU
             var countOk = (int)buffer.ContentAsFloatArray().Sum();
             return ((double)countOk) / Shape[0];
         }
-
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
@@ -552,8 +509,6 @@ namespace SharpNet.GPU
             _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
             return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
         }
-
-
         /// <summary>
         /// this = expected Category Indexes
         /// </summary>
@@ -577,7 +532,6 @@ namespace SharpNet.GPU
             _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, categoryIndexes, yPredicted });
             return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
         }
-
         public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, TensorMemoryPool memoryPool)
         {
             var x = this;
@@ -594,7 +548,6 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, dropoutDesc, xDesc, x, yDesc, y, dropoutReservedSpaceForTraining.Pointer, dropoutReservedSpaceForTraining.CapacityInBytes);
             CheckStatus(res);
         }
-
         /// <summary>
         /// this = x
         /// </summary>
@@ -621,8 +574,7 @@ namespace SharpNet.GPU
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
             _wrapper.RunKernel("UpdateAdamOptimizer", Count, new object[] { beta1, beta2, epsilon, multiplicative_factor, dW, W, adam_vW, adam_sW });
         }
-        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW,
-            Tensor velocity)
+        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
         {
             var W = this;
             //velocity[i] = (momentum * velocity[i]) - (dW[i] * learningRate);
@@ -671,13 +623,11 @@ namespace SharpNet.GPU
 
             GPUWrapper.CheckStatus(res);
         }
-
         // compute: this += alpha * bias
         public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
             AddTensor(alpha, x, 1);
         }
-
         /// <summary>
         /// compute: this = alpha * x + beta * this
         /// Each dimension of the 'x' tensor must match the corresponding dimension of the destination tensor 'this' or must be equal to 1.
@@ -695,7 +645,6 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, &alpha, xDesc, x, &beta, cDesc, c);
             CheckStatus(res);
         }
-
         public override void MultiplyTensor(Tensor a, Tensor x)
         {
             var c = this;
@@ -712,7 +661,6 @@ namespace SharpNet.GPU
             var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, x, incx, c, ldc);
             GPUWrapper.CheckStatus(res);
         }
-
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b)
         {
             Debug.Assert(a.SameShape(b));
@@ -722,7 +670,6 @@ namespace SharpNet.GPU
             int nbColumns_in_a_and_b = a.Count / nbRows;
             _wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
         }
-
         public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             var paddedTensor = this;
@@ -740,7 +687,6 @@ namespace SharpNet.GPU
             int srcNbRowId = unpaddedTensor.Shape[0] * unpaddedTensor.Shape[1] * h_src;
             _wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, paddingTop, paddingBottom, paddingLeft, paddingRight, paddedTensor, unpaddedTensor, false});
         }
-
         public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             //            ((CpuTensor<T>)paddedTensor).ZeroPadding_and_Unpadding(this, paddingTop, paddingBottom, paddingLeft, paddingRight, true);
@@ -751,7 +697,6 @@ namespace SharpNet.GPU
             int srcNbRowId = unpaddedTensor.Shape[0] * unpaddedTensor.Shape[1] * h_src;
             _wrapper.RunKernel("ApplyZeroPaddingForRowId", srcNbRowId, new object[] { h_src, w_src, paddingTop, paddingBottom, paddingLeft, paddingRight, paddedTensor, unpaddedTensor, true });
         }
-
         public override void CopyTo(Tensor b)
         {
             Debug.Assert(Count == b.Count);
@@ -794,16 +739,22 @@ namespace SharpNet.GPU
             shape[0] = nbRows;
             return new GPUTensor<T>(shape, this, (int)offset, Description);
         }
-
         public override bool IsOwnerOfMemory => deviceMemory.IsOwnerOfDeviceMemory;
-
         public override void ZeroMemory()
         {
             deviceMemory.ZeroMemory();
         }
-#endregion
-
-
+        /// <summary>
+        /// pointer to device memory (in GPU)
+        /// </summary>
+        public override IntPtr Pointer
+        {
+            get
+            {
+                AssertIsNotDisposed();
+                return deviceMemory.Pointer;
+            }
+        }
         public override void AssertIsNotDisposed()
         {
             if (_disposed)
@@ -812,6 +763,7 @@ namespace SharpNet.GPU
             }
             deviceMemory.AssertIsNotDisposed();
         }
+        #endregion
 
         #region Dispose pattern
         public override void Dispose()
@@ -840,18 +792,6 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        /// <summary>
-        /// pointer to device memory (in GPU)
-        /// </summary>
-        public override IntPtr Pointer
-        {
-            get
-            {
-                AssertIsNotDisposed();
-                return deviceMemory.Pointer;
-            }
-        }
-
         private IntPtr TensorDesc(Tensor a) { return _wrapper.TensorDesc(CudaType, a.Shape); }
         private IntPtr FilterDesc(Tensor a, bool isDepthwiseConvolution) { return _wrapper.FilterDesc(CudaType, a.Shape, isDepthwiseConvolution); }
         private IntPtr ActivationDesc(cudnnActivationMode_t activationFunctionType)
@@ -864,10 +804,24 @@ namespace SharpNet.GPU
         }
         private IntPtr ConvDesc(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount) { return _wrapper.ConvDesc(CudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount); }
         private cudnnDataType_t CudaType { get; } = cudnnDataType_t.CUDNN_DATA_FLOAT;
-
         private IntPtr CudnnHandle => _wrapper.CudnnHandle;
         private IntPtr CublasHandle => _wrapper.CudaBlasHandle;
-        private void CheckStatus(cudnnStatus_t status)
+        private T[] DeviceContent()
+        {
+            Debug.Assert(!_disposed);
+            _wrapper.SwCopyDeviceToHost.Start();
+            _wrapper.LogCopyDeviceToHostCall(ReallyNeededMemoryInBytes);
+
+            var _hostMemory = new T[Count];
+            var handle = GCHandle.Alloc(_hostMemory, GCHandleType.Pinned);
+            var _hostMemoryPointer = handle.AddrOfPinnedObject();
+            var res = NVCudaWrapper.cuMemcpyDtoH_v2(_hostMemoryPointer, Pointer, ReallyNeededMemoryInBytes);
+            GPUWrapper.CheckStatus(res);
+            handle.Free();
+            _wrapper.SwCopyDeviceToHost.Stop();
+            return _hostMemory;
+        }
+        private static void CheckStatus(cudnnStatus_t status)
         {
             GPUWrapper.CheckStatus(status);
         }

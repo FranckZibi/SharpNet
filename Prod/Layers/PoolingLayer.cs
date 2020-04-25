@@ -8,9 +8,10 @@ using SharpNet.Networks;
 namespace SharpNet.Layers
 {
     /// <summary>
-    /// x     (batchSize, x.C, x.H, x.W)
-    ///
-    /// y     (batchSize, x.C, y.H, y.W)
+    /// x shape:
+    ///     (batchSize, x.C, x.H, x.W)
+    /// y shape:
+    ///     (batchSize, x.C, y.H, y.W)
     ///          y.H = (x.H−poolingSize) / poolingStride + 1
     ///          y.W = (x.W−poolingSize) / poolingStride + 1
     /// </summary>
@@ -41,16 +42,7 @@ namespace SharpNet.Layers
             _poolingStride = poolingStride;
         }
 
-        public override Layer Clone(Network newNetwork) { return new PoolingLayer(this, newNetwork); }
-
-        private PoolingLayer(PoolingLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            _poolingMode = toClone._poolingMode;
-            _poolingHeight = toClone._poolingHeight;
-            _poolingWidth = toClone._poolingWidth;
-            _poolingStride = toClone._poolingStride;
-        }
-
+        #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
@@ -62,21 +54,7 @@ namespace SharpNet.Layers
             Debug.Assert(dx.Count == 1);
             dy.PoolingGradient(y, allX[0], dx[0], _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
         }
-     
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (PoolingLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_poolingMode, other._poolingMode, id + ":_poolingMode", ref errors);
-            equals &= Utils.Equals(_poolingHeight, other._poolingHeight, id + ":_poolingHeight", ref errors);
-            equals &= Utils.Equals(_poolingWidth, other._poolingWidth, id + ":_poolingWidth", ref errors);
-            equals &= Utils.Equals(_poolingStride, other._poolingStride, id + ":_poolingStride", ref errors);
-            return equals;
-        }
+        #endregion
 
         #region serialization
         public override string Serialize()
@@ -96,9 +74,30 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        protected override string DefaultLayerName()
+        #region layer clone
+        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new PoolingLayer(this, newSlaveNetwork); }
+        private PoolingLayer(PoolingLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork)
         {
-            return (IsMaxPooling(_poolingMode) ? "max_pooling2d_" : "average_pooling2d_") + (1 + NbLayerOfSameTypeBefore());
+            _poolingMode = toCloneFromMasterNetwork._poolingMode;
+            _poolingHeight = toCloneFromMasterNetwork._poolingHeight;
+            _poolingWidth = toCloneFromMasterNetwork._poolingWidth;
+            _poolingStride = toCloneFromMasterNetwork._poolingStride;
+        }
+        #endregion
+
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (PoolingLayer)b;
+            var equals = true;
+            equals &= Utils.Equals(_poolingMode, other._poolingMode, id + nameof(_poolingMode), ref errors);
+            equals &= Utils.Equals(_poolingHeight, other._poolingHeight, id + nameof(_poolingHeight), ref errors);
+            equals &= Utils.Equals(_poolingWidth, other._poolingWidth, id + nameof(_poolingWidth), ref errors);
+            equals &= Utils.Equals(_poolingStride, other._poolingStride, id + nameof(_poolingStride), ref errors);
+            return equals;
         }
         public override string Type() { return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AveragePooling"; }
         public static bool IsMaxPooling(cudnnPoolingMode_t poolingMode)
@@ -108,9 +107,7 @@ namespace SharpNet.Layers
         }
         public override string ToString()
         {
-            var result = LayerName +": " + ShapeChangeDescription() + " size=["+_poolingHeight+"x"+_poolingWidth+"] stride="+_poolingStride;
-            result += " (" + MemoryDescription() + ")";
-            return result;
+            return LayerName +": " + ShapeChangeDescription() + " size=["+_poolingHeight+"x"+_poolingWidth+"] stride="+_poolingStride;
         }
         public override int[] OutputShape(int batchSize)
         {
@@ -119,7 +116,6 @@ namespace SharpNet.Layers
             Debug.Assert(yShape.Min() >= 1);
             return yShape;
         }
-
         /// <summary>
         /// Compute the pooling layer output shape given an input of shape 'inputShape'
         /// </summary>
@@ -138,6 +134,11 @@ namespace SharpNet.Layers
             var heightOutput = (heightInput - poolingHeight) / poolingStride + 1;
             var widthOutput = (widthInput - poolingWidth) / poolingStride + 1;
             return new[] { batchSize, inputShape[1], heightOutput, widthOutput };
+        }
+
+        protected override string DefaultLayerName()
+        {
+            return (IsMaxPooling(_poolingMode) ? "max_pooling2d_" : "average_pooling2d_") + (1 + NbLayerOfSameTypeBefore());
         }
     }
 }

@@ -6,23 +6,34 @@ using SharpNet.Networks;
 namespace SharpNet.Layers
 {
     /// <summary>
-    /// output shape: (batchSize, InputLayer.ChannelCount, InputLayer.H, InputLayer.Weights)
+    /// output shape:
+    ///     (batchSize, InputLayer.ChannelCount, InputLayer.H, InputLayer.Weights)
     /// </summary>
     public class InputLayer : Layer
     {
         #region Private fields
-        private int ChannelCount { get; }
-        private int H { get; }
-        private int W { get; }
+        /// <summary>
+        /// channel count
+        /// </summary>
+        private readonly int _c;
+        /// <summary>
+        /// height
+        /// </summary>
+        private readonly int _h;
+        /// <summary>
+        /// width
+        /// </summary>
+        private readonly int _w;
         #endregion
 
-        public InputLayer(int channelCount, int h, int w, Network network, string layerName) : base(network, layerName)
+        public InputLayer(int c, int h, int w, Network network, string layerName) : base(network, layerName)
         {
-            this.ChannelCount = channelCount;
-            this.H = h;
-            this.W = w;
+            _c = c;
+            _h = h;
+            _w = w;
         }
 
+        #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             throw new Exception("should never call "+nameof(ForwardPropagation)+" in "+nameof(InputLayer));
@@ -31,6 +42,30 @@ namespace SharpNet.Layers
         {
             throw new NotImplementedException();
         }
+        #endregion
+
+        #region serialization
+        public override string Serialize()
+        {
+            return RootSerializer().Add(nameof(_c), _c).Add(nameof(_h), _h).Add(nameof(_w), _w).ToString();
+        }
+        public InputLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        {
+            _c = (int)serialized[nameof(_c)];
+            _h = (int)serialized[nameof(_h)];
+            _w = (int)serialized[nameof(_w)];
+        }
+        #endregion
+
+        #region layer clone
+        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new InputLayer(this, newSlaveNetwork); }
+        private InputLayer(InputLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork)
+        {
+            _c = toCloneFromMasterNetwork._c;
+            _h = toCloneFromMasterNetwork._h;
+            _w = toCloneFromMasterNetwork._w;
+        }
+        #endregion
 
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -40,46 +75,22 @@ namespace SharpNet.Layers
             }
             var other = (InputLayer)b;
             var equals = true;
-            equals &= Utils.Equals(ChannelCount, other.ChannelCount, id + ":ChannelCount", ref errors);
-            equals &= Utils.Equals(H, other.H, id + ":H", ref errors);
-            equals &= Utils.Equals(W, other.W, id + ":W", ref errors);
+            equals &= Utils.Equals(_c, other._c, id + nameof(_c), ref errors);
+            equals &= Utils.Equals(_h, other._h, id + nameof(_h), ref errors);
+            equals &= Utils.Equals(_w, other._w, id + nameof(_w), ref errors);
             return equals;
         }
-
-        public override Layer Clone(Network newNetwork) {return new InputLayer(this, newNetwork);}
-        private InputLayer(InputLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            ChannelCount = toClone.ChannelCount;
-            H = toClone.H;
-            W = toClone.W;
-        }
-
-        #region serialization
-        public override string Serialize()
-        {
-            return RootSerializer().Add(nameof(ChannelCount), ChannelCount).Add(nameof(H), H).Add(nameof(W), W).ToString();
-        }
-        public InputLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-            ChannelCount = (int)serialized[nameof(ChannelCount)];
-            H = (int)serialized[nameof(H)];
-            W = (int)serialized[nameof(W)];
-        }
-        #endregion
-
-        public override int[] OutputShape(int batchSize) { return new[] { batchSize, ChannelCount, H, W }; }
+        public override int[] OutputShape(int batchSize) { return new[] { batchSize, _c, _h, _w }; }
         public override string ToString()
         {
-            var result = LayerName + ": " + Utils.ShapeToStringWithBatchSize(OutputShape(1));
-            result += " ("+MemoryDescription()+")";
-            return result;
+            return LayerName + ": " + Utils.ShapeToStringWithBatchSize(OutputShape(1));
         }
-
-        protected override string DefaultLayerName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
-        public override string Type() { return "InputLayer"; }
         public override void Dispose()
         {
             //do not dispose y
         }
+        public override string Type() { return "InputLayer"; }
+
+        protected override string DefaultLayerName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
     }
 }

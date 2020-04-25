@@ -42,20 +42,6 @@ namespace SharpNetTests.Data
         }
 
         [Test]
-        public void TestClone()
-        {
-            //float test
-            var shape = new[] { 10, 5 };
-            var rand = new Random(0);
-            Tensor a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
-            var aCloned = a.Clone(null);
-            Assert.IsTrue(SameContent(a, aCloned, 1e-5));
-            var aGpu = a.ToGPU<float>(GpuWrapper);
-            aCloned = aGpu.Clone(GpuWrapper);
-            Assert.IsTrue(SameContent(aGpu, aCloned, 1e-5));
-        }
-
-        [Test]
         public void TestStandardConvolutionOutputShape()
         {
             var batchSize = 666;

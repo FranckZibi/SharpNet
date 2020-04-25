@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using JetBrains.Annotations;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -9,11 +10,12 @@ using SharpNet.Optimizers;
 
 namespace SharpNet.Layers
 {
-    //x                 (batchSize, x.C, x.H, x.W)
     public sealed class ConvolutionLayer : Layer
     {
         #region Private fields
         /// <summary>
+        /// Input shape ('x' tensor) shape:
+        ///     (batchSize, x.C, x.H, x.W)
         /// Output shape ('y' tensor) for Depthwise Convolution:
         ///     (batchSize, _depthMultiplier*x.C, y.H, y.W)
         /// Output shape ('y' tensor) for standard Convolution:
@@ -21,6 +23,29 @@ namespace SharpNet.Layers
         ///     y.H = (x.H−F+2×pads) /Stride + 1
         ///     y.W = (x.W−F+2×pads) /Stride + 1
         /// </summary>
+        #region trainable parameters
+        /// <summary>
+        /// if Depthwise Convolution:
+        ///     (_depthMultiplier, x.C, F, F)
+        /// else
+        ///     (FiltersCount, x.C, F, F)
+        /// </summary>
+        [NotNull] private readonly Tensor _convolution;
+        /// <summary>
+        /// if Depthwise Convolution:
+        ///     (_depthMultiplier, x.C, 1, 1) or null is no bias should be used
+        /// else
+        ///     (1, FiltersCount, 1, 1) or null is no bias should be used
+        /// </summary>
+        [CanBeNull] private Tensor _convolutionBias;
+        #endregion
+        #region gradients
+        [NotNull] private readonly Tensor _convolutionGradients;            // same shape as 'Convolution'
+        /// <summary>
+        /// same shape as '_convolutionBias'  or null is no bias should be used
+        /// </summary>
+        [CanBeNull] private Tensor _convolutionBiasGradients;
+        #endregion
         private readonly bool _isDepthwiseConvolution;
         private readonly int _filtersCount;                     //only valid on default convolution   (_isDepthwiseConvolution=false)
         private readonly int _depthMultiplier;                  //only valid on depthwise convolution (_isDepthwiseConvolution=true)
@@ -28,37 +53,29 @@ namespace SharpNet.Layers
         private readonly int _stride;
         private readonly PADDING_TYPE _paddingType;
         private readonly double _lambdaL2Regularization;
-        private readonly Optimizer _optimizer;                  //Adam optimization or SGD optimization or null
+        /// <summary>
+        /// Adam or SGD optimizer or Vanilla SGF
+        /// </summary>
+        [NotNull] private readonly Optimizer _optimizer;
         private Tensor _padded_X;
-        /// <summary>
-        /// if Depthwise Convolution:
-        ///     (_depthMultiplier, x.C, F, F)
-        /// else
-        ///     (FiltersCount, x.C, F, F)
-        /// </summary>
-        private readonly Tensor _convolution;
-        /// <summary>
-        /// if Depthwise Convolution:
-        ///     (_depthMultiplier, x.C, 1, 1) or null is no bias should be used
-        /// else
-        ///     (1, FiltersCount, 1, 1) or null is no bias should be used
-        /// </summary>
-        private Tensor _convolutionBias;
-        private Tensor _convolutionGradients;            // same shape as 'Convolution'
-        /// <summary>
-        /// same shape as '_convolutionBias'  or null is no bias should be used
-        /// </summary>
-        private Tensor _convolutionBiasGradients;
         #endregion
-
-        public override Tensor Weights => _convolution;
-        public override Tensor WeightGradients => _convolutionGradients;
-        public override Tensor Bias => _convolutionBias;
-        public override Tensor BiasGradients => _convolutionBiasGradients;
 
         public enum PADDING_TYPE { VALID, SAME}
 
-        //No need to configure the number of channels by filter: it is always the same as in previous layer
+        /// <summary>
+        /// No need to configure the number of channels by filter: it is always the same as in previous layer
+        /// </summary>
+        /// <param name="isDepthwiseConvolution"></param>
+        /// <param name="filtersCount"></param>
+        /// <param name="depthMultiplier"></param>
+        /// <param name="f"></param>
+        /// <param name="stride"></param>
+        /// <param name="paddingType"></param>
+        /// <param name="lambdaL2Regularization"></param>
+        /// <param name="useBias"></param>
+        /// <param name="previousLayerIndex"></param>
+        /// <param name="network"></param>
+        /// <param name="layerName"></param>
         public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network, string layerName)
             : base(network, previousLayerIndex, layerName)
         {
@@ -76,15 +93,21 @@ namespace SharpNet.Layers
 
             //trainable params
             _convolution = GetNotInitializedFloatTensor(ConvolutionShape, nameof(_convolution));
-            _convolutionBias = useBias
-                ? GetNotInitializedFloatTensor(ConvolutionBiasShape, nameof(_convolutionBias))
-                : null;
+            _convolutionBias = useBias ? GetNotInitializedFloatTensor(ConvolutionBiasShape, nameof(_convolutionBias)) : null;
+
+            //gradients
+            _convolutionGradients = GetNotInitializedFloatTensor(_convolution.Shape, nameof(_convolutionGradients));
+            _convolutionBiasGradients = (_convolutionBias!=null)?GetNotInitializedFloatTensor(_convolutionBias.Shape, nameof(_convolutionBias)) : null;
 
             _optimizer = Network.GetOptimizer(_convolution.Shape, _convolutionBias?.Shape);
 
             ResetWeights(false);
         }
 
+        #region forward and backward propagation
+        /// <summary>
+        /// compute y = x (conv) Convolution + ConvolutionBias
+        /// </summary>
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(_padded_X == null);
@@ -116,12 +139,9 @@ namespace SharpNet.Layers
                 StopForwardTimer(Type() + ">Conv", isTraining);
             }
 
-            if (UseBias)
-            {
-                StartForwardTimer(Type() + ">Bias", isTraining);
-                _convolutionBias.BroadcastConvolutionBiasToOutput(y);
-                StopForwardTimer(Type() + ">Bias", isTraining);
-            }
+            StartForwardTimer(Type() + ">Bias", isTraining);
+            _convolutionBias?.BroadcastConvolutionBiasToOutput(y);
+            StopForwardTimer(Type() + ">Bias", isTraining);
         }
         public override int ExtraElementCountForForwardPropagation(int batchSize)
         {
@@ -137,20 +157,18 @@ namespace SharpNet.Layers
             }
             return 0;
         }
-        // dy => _convolutionGradients & _convolutionBiasGradients & dx
+        /// <summary>
+        /// dy => _convolutionGradients & _convolutionBiasGradients & dx 
+        /// </summary>
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
             Debug.Assert(dx.Count == 1);
 
-            //we allocate '_convolutionGradients' tensor
-            GetNotInitializedFloatTensor(ref _convolutionGradients, _convolution.Shape, nameof(_convolutionGradients));
-
             if (UseBias)
             {
-                //we allocate '_convolutionBiasGradients' tensor
-                GetNotInitializedFloatTensor(ref _convolutionBiasGradients, _convolutionBias.Shape, nameof(_convolutionBiasGradients));
+                Debug.Assert(_convolutionBiasGradients != null);
                 //we compute '_convolutionBiasGradients'
                 StartBackwardTimer(Type() + ">Bias");
                 dy.ConvolutionBackwardBias(_convolutionBiasGradients);
@@ -195,74 +213,12 @@ namespace SharpNet.Layers
         {
             return ExtraElementCountForForwardPropagation(batchSize);
         }
-        public override void UpdateWeights(int batchSize, double learningRate)
-        {
-            if (Trainable)
-            {
-                _optimizer.UpdateWeights(learningRate, batchSize, _convolution, _convolutionGradients, _convolutionBias, _convolutionBiasGradients);
-            }
-            //no more need of '_convolutionGradients' and '_convolutionBiasGradients' : we can free them
-            FreeMemory(ref _convolutionGradients);
-            FreeMemory(ref _convolutionBiasGradients);
-        }
-        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
-        {
-            var fanIn = _convolution.MultDim0;
-            var fanOut = _convolution.Shape[0];
-            var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
-
-            //trainable params
-            _convolution.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, stdDev);
-            _convolutionBias?.ZeroMemory();
-
-            if (resetAlsoOptimizerWeights)
-            {
-                _optimizer.ZeroMemory();
-            }
-        }
-
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (ConvolutionLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_isDepthwiseConvolution, other._isDepthwiseConvolution, id + ":_isDepthwiseConvolution", ref errors);
-            equals &= Utils.Equals(_filtersCount, other._filtersCount, id + ":_filtersCount", ref errors);
-            equals &= Utils.Equals(_depthMultiplier, other._depthMultiplier, id + ":_depthMultiplier", ref errors);
-            equals &= Utils.Equals(_f, other._f, id+":_f", ref errors);
-            equals &= Utils.Equals(_stride, other._stride, id + ":_stride", ref errors);
-            equals &= Utils.Equals((int)_paddingType, (int)other._paddingType, id + ":_paddingType", ref errors);
-            equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id + ":_lambdaL2Regularization", ref errors);
-            equals &= _optimizer.Equals(other._optimizer, epsilon, id+":Optimizer", ref errors);
-            return equals;
-        }
-
-       public override Layer Clone(Network newNetwork) { return new ConvolutionLayer(this, newNetwork); }
-       private ConvolutionLayer(ConvolutionLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-       {
-           _isDepthwiseConvolution = toClone._isDepthwiseConvolution;
-           _filtersCount = toClone._filtersCount;
-           _depthMultiplier = toClone._depthMultiplier;
-           _f = toClone._f;
-           _stride = toClone._stride;
-           _paddingType = toClone._paddingType;
-           _lambdaL2Regularization = toClone._lambdaL2Regularization;
-
-           //trainable params
-           _convolution = toClone._convolution.Clone(newNetwork.GpuWrapper);
-           //bias may be null if it has been disabled by a batch normalization layer
-           _convolutionBias = toClone._convolutionBias?.Clone(newNetwork.GpuWrapper);
-
-           _optimizer = toClone._optimizer?.Clone(newNetwork);
-       }
+        #endregion
 
         #region serialization
         public override string Serialize()
         {
-            return  RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
+            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
                 .Add(nameof(_isDepthwiseConvolution), _isDepthwiseConvolution).Add(nameof(_filtersCount), _filtersCount).Add(nameof(_depthMultiplier), _depthMultiplier)
                 .Add(nameof(_f), _f).Add(nameof(_stride), _stride)
                 .Add(nameof(_paddingType), (int)_paddingType)
@@ -287,43 +243,100 @@ namespace SharpNet.Layers
             _convolution = (Tensor)serialized[nameof(_convolution)];
             _convolutionBias = useBias ? (Tensor)serialized[nameof(_convolutionBias)] : null;
 
+            //gradients
+            _convolutionGradients = GetNotInitializedFloatTensor(_convolution.Shape, nameof(_convolutionGradients));
+            _convolutionBiasGradients = (_convolutionBias != null) ? GetNotInitializedFloatTensor(_convolutionBias.Shape, nameof(_convolutionBias)) : null;
+
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
         }
         #endregion
 
+        #region cloner layer
+        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new ConvolutionLayer(this, newSlaveNetwork); }
+        private ConvolutionLayer(ConvolutionLayer toCloneFromMasterNetwork, Network newSlaveNetwork) : base(toCloneFromMasterNetwork, newSlaveNetwork)
+        {
+            Debug.Assert(!newSlaveNetwork.IsMaster); // we are building a slave network
+            _isDepthwiseConvolution = toCloneFromMasterNetwork._isDepthwiseConvolution;
+            _filtersCount = toCloneFromMasterNetwork._filtersCount;
+            _depthMultiplier = toCloneFromMasterNetwork._depthMultiplier;
+            _f = toCloneFromMasterNetwork._f;
+            _stride = toCloneFromMasterNetwork._stride;
+            _paddingType = toCloneFromMasterNetwork._paddingType;
+            _lambdaL2Regularization = toCloneFromMasterNetwork._lambdaL2Regularization;
+
+            //trainable params
+            _convolution = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._convolution);
+            //bias may be null if it has been disabled by a batch normalization layer
+            _convolutionBias = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._convolutionBias);
+
+            //gradients
+            _convolutionGradients = GetNotInitializedFloatTensor(_convolution.Shape, nameof(_convolutionGradients));
+            _convolutionBiasGradients = (_convolutionBias != null) ? GetNotInitializedFloatTensor(_convolutionBias.Shape, nameof(_convolutionBias)) : null;
+
+            _optimizer = toCloneFromMasterNetwork._optimizer.CloneForSlaveNetwork(newSlaveNetwork);
+        }
+        #endregion
+
+        public override Tensor Weights => _convolution;
+        public override Tensor WeightGradients => _convolutionGradients;
+        public override Tensor Bias => _convolutionBias;
+        public override Tensor BiasGradients => _convolutionBiasGradients;
+        protected override Optimizer Optimizer => _optimizer;
+        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        {
+            Debug.Assert(Network.IsMaster);
+            Debug.Assert(_optimizer != null);
+            var fanIn = _convolution.MultDim0;
+            var fanOut = _convolution.Shape[0];
+            var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
+
+            //trainable params
+            _convolution.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, stdDev);
+            _convolutionBias?.ZeroMemory();
+
+            if (resetAlsoOptimizerWeights)
+            {
+                _optimizer.ZeroMemory();
+            }
+        }
+        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
+        {
+            if (!base.Equals(b, epsilon, id, ref errors))
+            {
+                return false;
+            }
+            var other = (ConvolutionLayer)b;
+            var equals = true;
+            equals &= Utils.Equals(_isDepthwiseConvolution, other._isDepthwiseConvolution, id + nameof(_isDepthwiseConvolution), ref errors);
+            equals &= Utils.Equals(_filtersCount, other._filtersCount, id + nameof(_filtersCount), ref errors);
+            equals &= Utils.Equals(_depthMultiplier, other._depthMultiplier, id + nameof(_depthMultiplier), ref errors);
+            equals &= Utils.Equals(_f, other._f, id+ nameof(_f), ref errors);
+            equals &= Utils.Equals(_stride, other._stride, id + nameof(_stride), ref errors);
+            equals &= Utils.Equals((int)_paddingType, (int)other._paddingType, id + nameof(_paddingType), ref errors);
+            equals &= Utils.Equals(_lambdaL2Regularization, other._lambdaL2Regularization, epsilon, id + nameof(_lambdaL2Regularization), ref errors);
+            equals &= _optimizer.Equals(other._optimizer, epsilon, id + nameof(_optimizer), ref errors);
+            return equals;
+        }
         public override int DisableBias()
         {
             int nbDisabledWeights = (_convolutionBias?.Count ?? 0);
-            _convolutionBias?.Dispose();
-            _convolutionBias = null;
+            FreeMemory(ref _convolutionBias);
+            FreeMemory(ref _convolutionBiasGradients);
             return nbDisabledWeights;
         }
-
-        /// <summary>
-        /// compute y = x (conv) Convolution + ConvolutionBias
-        /// </summary>
-
-        public override void Dispose()
-        {
-            base.Dispose();
-            _optimizer?.Dispose();
-        }
-
         public override string Type()
         {
             return _isDepthwiseConvolution? "DepthwiseConv2D" : "Conv2D";
         }
-
         public override string ToString()
         {
             var result = LayerName+": " + ShapeChangeDescription();
             result += " padding=" + _paddingType +" stride=" + _stride;
-            result += " Filter"+ Utils.ShapeToString(_convolution?.Shape);
+            result += " Filter"+ Utils.ShapeToString(_convolution.Shape);
             result += (UseBias)?" with Bias":" no Bias";
-            result += " ("+ MemoryDescription()+")";
+            result += " ("+ TotalParams+" neurons)";
             return result;
         }
-
         public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
             var weightDatasetPath = DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_kernel:0" : "kernel:0");
@@ -335,7 +348,6 @@ namespace SharpNet.Layers
                 h5FileDataset[biasDatasetPath].CopyTo(_convolutionBias);
             }
         }
-
         public override int[] OutputShape(int batchSize)
         {
             var inputShape = PrevLayer.OutputShape(batchSize);
@@ -343,7 +355,6 @@ namespace SharpNet.Layers
             Debug.Assert(result.Min() >= 1);
             return result;
         }
-
         /// <summary>
         /// Compute the output shape fo a convolution layer, given input shape 'inputShape' and convolution shape 'convolutionShape'
         /// </summary>
@@ -382,50 +393,10 @@ namespace SharpNet.Layers
                 : convolutionShape[0];
             return new[] { batchSize, outputChannels, outputHeight, outputWidth };
         }
-
-        /// <summary>
-        /// //TODO add tests
-        /// </summary>
-        /// <param name="inputLength"></param>
-        /// <param name="f"></param>
-        /// <param name="stride"></param>
-        /// <param name="paddingType"></param>
-        /// <returns></returns>
-        private static int OutputLength(int inputLength, int f, int stride, PADDING_TYPE paddingType)
-        {
-            switch (paddingType)
-            {
-                case PADDING_TYPE.VALID:  
-                    return (inputLength - f) / stride + 1; 
-                case PADDING_TYPE.SAME:
-                    return (inputLength - 1) / stride + 1;
-                default:
-                    throw new NotImplementedException("unknown padding type "+paddingType);
-            }
-        }
-
-        protected override List<Tensor> TensorsDependentOfBatchSize
-        {
-            get
-            {
-                var result = new List<Tensor> { _padded_X};
-                result.RemoveAll(t => t == null);
-                return result;
-            }
-        }
-
-        private void Padding(int[] xShape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight)
-        {
-            Debug.Assert(xShape.Length == 4);
-            Padding(xShape[2], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingTop, out paddingBottom);
-            Padding(xShape[3], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingLeft, out paddingRight);
-        }
-
         public static bool IsAsymmetricPadding(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             return (paddingTop != paddingBottom || paddingLeft != paddingRight);
         }
-
         public static void Padding(int inputLength, int f, int stride, PADDING_TYPE paddingType, NetworkConfig.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
         {
             int outputLength = OutputLength(inputLength, f, stride, paddingType);
@@ -455,33 +426,33 @@ namespace SharpNet.Layers
             }
         }
 
-
-
+        /// <summary>
+        /// //TODO add tests
+        /// </summary>
+        /// <param name="inputLength"></param>
+        /// <param name="f"></param>
+        /// <param name="stride"></param>
+        /// <param name="paddingType"></param>
+        /// <returns></returns>
+        private static int OutputLength(int inputLength, int f, int stride, PADDING_TYPE paddingType)
+        {
+            switch (paddingType)
+            {
+                case PADDING_TYPE.VALID:
+                    return (inputLength - f) / stride + 1;
+                case PADDING_TYPE.SAME:
+                    return (inputLength - 1) / stride + 1;
+                default:
+                    throw new NotImplementedException("unknown padding type " + paddingType);
+            }
+        }
+        private void Padding(int[] xShape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight)
+        {
+            Debug.Assert(xShape.Length == 4);
+            Padding(xShape[2], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingTop, out paddingBottom);
+            Padding(xShape[3], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingLeft, out paddingRight);
+        }
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
-
-        protected override List<Tensor> TrainableTensorsIndependentOfBatchSize
-        {
-            get
-            {
-                var result = new List<Tensor> { _convolution, _convolutionBias};
-                result.RemoveAll(t => t == null);
-                return result;
-            }
-        }
-
-        protected override List<Tensor> NonTrainableTensorsIndependentOfBatchSize
-        {
-            get
-            {
-                var result = new List<Tensor>();
-                if (_optimizer != null)
-                {
-                    result.AddRange(_optimizer.EmbeddedTensors);
-                }
-                result.RemoveAll(t => t == null);
-                return result;
-            }
-        }
         private int[] ConvolutionShape
         {
             get
@@ -492,7 +463,6 @@ namespace SharpNet.Layers
                     :new[] { _filtersCount, channels, _f, _f };
             }
         }
-
         private bool UseBias => _convolutionBias != null;
         private int[] ConvolutionBiasShape
         {
@@ -514,6 +484,5 @@ namespace SharpNet.Layers
         {
             return new[] { xShape[0], xShape[1], paddingTop + xShape[2] + paddingBottom, paddingLeft + xShape[3] + paddingRight };
         }
-
     }
 }

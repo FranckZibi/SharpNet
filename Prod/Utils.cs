@@ -10,62 +10,6 @@ using SharpNet.Networks;
 
 namespace SharpNet
 {
-    public class Logger
-    {
-        #region fields
-        private readonly string _logFileName;
-        private readonly bool _logInConsole;
-        public static readonly Logger ConsoleLogger = new Logger("", true);
-        public static readonly Logger NullLogger = new Logger("", false);
-        #endregion
-
-        public Logger(string logFileName, bool logInConsole)
-        {
-            _logFileName = logFileName ?? "";
-            _logInConsole = logInConsole;
-        }
-        public void Info(string msg)
-        {
-            if (_logInConsole)
-            {
-                Console.WriteLine(msg);
-            }
-            LogInFile(msg);
-        }
-        public void Debug(string msg)
-        {
-            LogInFile(msg);
-        }
-        public string Serialize()
-        {
-            return new Serializer()
-                .Add(nameof(_logFileName), _logFileName)
-                .Add(nameof(_logInConsole), _logInConsole)
-                .ToString();
-        }
-        public static Logger ValueOf(IDictionary<string, object> serialized)
-        {
-            var logFileName = (string)serialized[nameof(_logFileName)];
-            var logInConsole = (bool)serialized[nameof(_logInConsole)];
-            return new Logger(logFileName, logInConsole);
-        }
-        private static string GetLinePrefix()
-        {
-            return DateTime.Now.ToString("HH:mm:ss.ff") + " ";
-        }
-        private void LogInFile(string msg)
-        {
-            if (string.IsNullOrEmpty(_logFileName))
-            {
-                return;
-            }
-            lock (_logFileName)
-            {
-                Utils.AddLineToFile(_logFileName, GetLinePrefix() + msg);
-            }
-        }
-    }
-
     public static class Utils
     {
         public static void AddLineToFile(string filePath, string s)
@@ -80,14 +24,11 @@ namespace SharpNet
                 writer.WriteLine(s);
             }
         }
-
-
         public static string ToValidFileName(string fileName)
         {
             var invalids = new HashSet<char>(Path.GetInvalidFileNameChars());
             return new string(fileName.Select(x => invalids.Contains(x) ? '_' : x).ToArray());
         }
-
         public static int Product(int[] data)
         {
             if ((data == null) || (data.Length == 0))
@@ -101,42 +42,17 @@ namespace SharpNet
             }
             return result;
         }
-
-
         public static ulong AvailableRamMemoryInBytes()
         {
             var ramCounter = new PerformanceCounter("Memory", "Available Bytes");
             return (ulong)ramCounter.NextValue();
         }
-
-
         public static IList<IList<T>> AllPermutations<T>(List<T> data)
         {
             var result = new List<IList<T>>();
             AllPermutationsHelper(data, 0, result);
             return result;
         }
-        private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
-        {
-            if (i == data.Count - 1)
-            {
-                result.Add(new List<T>(data));
-                return;
-            }
-            //var alreadyUsed = new HashSet<T>(); //to discard duplicate solutions
-            for (var j = i; j < data.Count; ++j)
-            {
-                //if (!alreadyUsed.Add(data[j])) continue; //to discard duplicate solutions
-                var tmp = data[i];
-                data[i] = data[j];
-                data[j] = tmp;
-                AllPermutationsHelper(data, i + 1, result);
-                tmp = data[i];
-                data[i] = data[j];
-                data[j] = tmp;
-            }
-        }
-
         public static string ShapeToStringWithBatchSize(int[] shape)
         {
             if (shape == null)
@@ -174,7 +90,6 @@ namespace SharpNet
             }
             return bytes + "B";
         }
-
         public static double Max(double a, double b, double c)
         {
             return Math.Max(Math.Max(a, b), c);
@@ -183,7 +98,6 @@ namespace SharpNet
         {
             return Math.Min(Math.Min(red, green), blue);
         }
-
         //!D TODO Add tests
         public static double Interpolate(List<Tuple<double,double>> values, double x, bool constantByInterval = false)
         {
@@ -215,7 +129,6 @@ namespace SharpNet
             }
             return values.Last().Item2;
         }
-
         public static double Interpolate(double x1, double y1, double x2, double y2, double xToInterpolate)
         {
             double dEpoch = (xToInterpolate - x1) / (x2 - x1);
@@ -282,13 +195,10 @@ namespace SharpNet
             }
             return result;
         }
-
         public static long FileLength(string path)
         {
             return new FileInfo(path).Length;
         }
-
-
         /// <summary>
         /// read a part of a binary file, starting at position 'startIndex' in the file
         /// </summary>
@@ -307,7 +217,6 @@ namespace SharpNet
                 return b.ReadBytes(byteCount);
             }
         }
-
         public static bool TryGet<T>(this IDictionary<string, object> serialized, string key, out T value)
         {
             if (serialized.TryGetValue(key, out var resAsObject))
@@ -326,19 +235,6 @@ namespace SharpNet
             }
             return default;
         }
-
-        private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
-        {
-            //uniform(0,1) random double
-            var u1 = rand.NextDouble();
-            //uniform(0,1) random double
-            var u2 = rand.NextDouble();
-            //random normal(0,1)
-            var randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) *Math.Sin(2.0 * Math.PI * u2);
-            //random normal(mean,stdDev^2)
-            return mean + stdDev * randStdNormal;
-        }
-
         public static Logger Logger(string networkName)
         {
             var logFileName = ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory,
@@ -346,22 +242,6 @@ namespace SharpNet
                 System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             return new Logger(logFileName, true);
         }
-        private static string GetDirectoryName(string path)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(path))
-                {
-                    return "";
-                }
-                return Path.GetDirectoryName(path);
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
-
         public static bool Equals<T>(T a, T b, string id, ref string errors)
         {
             if (!Equals(a, b))
@@ -399,14 +279,6 @@ namespace SharpNet
             }
             return equals;
         }
-
-        private static bool EqualsSingleTensor(IEnumerable<Tensor> a, IEnumerable<Tensor> b, string tensorName, double epsilon, string id, ref string errors)
-        {
-            var aFirst = a.FirstOrDefault(x => x.Description == tensorName);
-            var bFirst = b.FirstOrDefault(x => x.Description == tensorName);
-            return aFirst.Equals(bFirst, epsilon, id, ref errors);
-        }
-
         public static double BetaDistribution(double a, double b, Random rand)
         {
             var alpha = a + b;
@@ -436,7 +308,6 @@ namespace SharpNet
             }
             return w / (b + w);
         }
-
         public static string LoadResourceContent(Assembly assembly, string resourceName)
         {
             using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
@@ -446,7 +317,6 @@ namespace SharpNet
                 return reader.ReadToEnd();
             }
         }
-
         public static T2[] Select<T1,T2>(this ReadOnlySpan<T1> s, Func<T1, T2> select)
         {
             var res = new T2[s.Length];
@@ -456,7 +326,6 @@ namespace SharpNet
             }
             return res;
         }
-
         public static int Count<T>(this ReadOnlySpan<T> s, Func<T, bool> isIncluded)
         {
             int result = 0;
@@ -469,7 +338,6 @@ namespace SharpNet
             }
             return result;
         }
-
         public static bool All<T>(this ReadOnlySpan<T> s, Func<T, bool> isIncluded)
         {
             foreach (var t in s)
@@ -481,7 +349,6 @@ namespace SharpNet
             }
             return true;
         }
-
         public static float Max(this ReadOnlySpan<float> s)
         {
             var result = float.MinValue;
@@ -501,5 +368,57 @@ namespace SharpNet
             return result;
         }
 
+        private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
+        {
+            if (i == data.Count - 1)
+            {
+                result.Add(new List<T>(data));
+                return;
+            }
+            //var alreadyUsed = new HashSet<T>(); //to discard duplicate solutions
+            for (var j = i; j < data.Count; ++j)
+            {
+                //if (!alreadyUsed.Add(data[j])) continue; //to discard duplicate solutions
+                var tmp = data[i];
+                data[i] = data[j];
+                data[j] = tmp;
+                AllPermutationsHelper(data, i + 1, result);
+                tmp = data[i];
+                data[i] = data[j];
+                data[j] = tmp;
+            }
+        }
+        private static bool EqualsSingleTensor(IEnumerable<Tensor> a, IEnumerable<Tensor> b, string tensorName, double epsilon, string id, ref string errors)
+        {
+            var aFirst = a.FirstOrDefault(x => x.Description == tensorName);
+            var bFirst = b.FirstOrDefault(x => x.Description == tensorName);
+            return aFirst.Equals(bFirst, epsilon, id, ref errors);
+        }
+        private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
+        {
+            //uniform(0,1) random double
+            var u1 = rand.NextDouble();
+            //uniform(0,1) random double
+            var u2 = rand.NextDouble();
+            //random normal(0,1)
+            var randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+            //random normal(mean,stdDev^2)
+            return mean + stdDev * randStdNormal;
+        }
+        private static string GetDirectoryName(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path))
+                {
+                    return "";
+                }
+                return Path.GetDirectoryName(path);
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
     }
 }

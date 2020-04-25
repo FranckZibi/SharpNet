@@ -135,29 +135,29 @@ namespace SharpNet.DataAugmentation
         public bool Equals(DataAugmentationConfig other, double epsilon, string id, ref string errors)
         {
             var equals = true;
-            equals &= Utils.Equals(DataAugmentationType, other.DataAugmentationType, id + ":DataAugmentationType", ref errors);
-            equals &= Utils.Equals(WidthShiftRangeInPercentage, other.WidthShiftRangeInPercentage, epsilon, id + ":WidthShiftRange", ref errors);
-            equals &= Utils.Equals(HeightShiftRangeInPercentage, other.HeightShiftRangeInPercentage, epsilon, id + ":HeightShiftRange", ref errors);
-            equals &= Utils.Equals(HorizontalFlip, other.HorizontalFlip, id + ":HorizontalFlip", ref errors);
-            equals &= Utils.Equals(VerticalFlip, other.VerticalFlip, id + ":VerticalFlip", ref errors);
-            equals &= Utils.Equals(FillMode, other.FillMode, id + ":FillMode", ref errors);
-            equals &= Utils.Equals(FillModeConstantVal, other.FillModeConstantVal, epsilon, id + ":FillModeConstantVal", ref errors);
-            equals &= Utils.Equals(CutoutPatchPercentage, other.CutoutPatchPercentage, epsilon, id + ":CutoutPatchPercentage", ref errors);
-            equals &= Utils.Equals(AlphaCutMix, other.AlphaCutMix, epsilon, id + ":AlphaCutMix", ref errors);
-            equals &= Utils.Equals(AlphaMixup, other.AlphaMixup, epsilon, id + ":AlphaMixup", ref errors);
-            equals &= Utils.Equals(RotationRangeInDegrees, other.RotationRangeInDegrees, epsilon, id + ":RotationRangeInDegrees", ref errors);
-            equals &= Utils.Equals(ZoomRange, other.ZoomRange, epsilon, id + ":ZoomRange", ref errors);
-            equals &= Utils.Equals(EqualizeOperationProbability, other.EqualizeOperationProbability, epsilon, id + ":EqualizeOperationProbability", ref errors);
-            equals &= Utils.Equals(AutoContrastOperationProbability, other.AutoContrastOperationProbability, epsilon, id + ":AutoContrastOperationProbability", ref errors);
-            equals &= Utils.Equals(InvertOperationProbability, other.InvertOperationProbability, epsilon, id + ":InvertOperationProbability", ref errors);
-            equals &= Utils.Equals(BrightnessOperationProbability, other.BrightnessOperationProbability, epsilon, id + ":BrightnessOperationProbability", ref errors);
-            equals &= Utils.Equals(BrightnessOperationEnhancementFactor, other.BrightnessOperationEnhancementFactor, epsilon, id + ":BrightnessOperationEnhancementFactor", ref errors);
-            equals &= Utils.Equals(ColorOperationProbability, other.ColorOperationProbability, epsilon, id + ":ColorOperationProbability", ref errors);
-            equals &= Utils.Equals(ColorOperationEnhancementFactor, other.ColorOperationEnhancementFactor, epsilon, id + ":ColorOperationEnhancementFactor", ref errors);
-            equals &= Utils.Equals(ContrastOperationProbability, other.ContrastOperationProbability, epsilon, id + ":ContrastOperationProbability", ref errors);
-            equals &= Utils.Equals(ContrastOperationEnhancementFactor, other.ContrastOperationEnhancementFactor, epsilon, id + ":ContrastOperationEnhancementFactor", ref errors);
-            equals &= Utils.Equals(RandAugment_N, other.RandAugment_N, id + ":RandAugment_N", ref errors);
-            equals &= Utils.Equals(RandAugment_M, other.RandAugment_M, id + ":RandAugment_M", ref errors);
+            equals &= Utils.Equals(DataAugmentationType, other.DataAugmentationType, id + nameof(DataAugmentationType), ref errors);
+            equals &= Utils.Equals(WidthShiftRangeInPercentage, other.WidthShiftRangeInPercentage, epsilon, id + nameof(WidthShiftRangeInPercentage), ref errors);
+            equals &= Utils.Equals(HeightShiftRangeInPercentage, other.HeightShiftRangeInPercentage, epsilon, id + nameof(HeightShiftRangeInPercentage), ref errors);
+            equals &= Utils.Equals(HorizontalFlip, other.HorizontalFlip, id + nameof(HorizontalFlip), ref errors);
+            equals &= Utils.Equals(VerticalFlip, other.VerticalFlip, id + nameof(VerticalFlip), ref errors);
+            equals &= Utils.Equals(FillMode, other.FillMode, id + nameof(FillMode), ref errors);
+            equals &= Utils.Equals(FillModeConstantVal, other.FillModeConstantVal, epsilon, id + nameof(FillModeConstantVal), ref errors);
+            equals &= Utils.Equals(CutoutPatchPercentage, other.CutoutPatchPercentage, epsilon, id + nameof(CutoutPatchPercentage), ref errors);
+            equals &= Utils.Equals(AlphaCutMix, other.AlphaCutMix, epsilon, id + nameof(AlphaCutMix), ref errors);
+            equals &= Utils.Equals(AlphaMixup, other.AlphaMixup, epsilon, id + nameof(AlphaMixup), ref errors);
+            equals &= Utils.Equals(RotationRangeInDegrees, other.RotationRangeInDegrees, epsilon, id + nameof(RotationRangeInDegrees), ref errors);
+            equals &= Utils.Equals(ZoomRange, other.ZoomRange, epsilon, id + nameof(ZoomRange), ref errors);
+            equals &= Utils.Equals(EqualizeOperationProbability, other.EqualizeOperationProbability, epsilon, id + nameof(EqualizeOperationProbability), ref errors);
+            equals &= Utils.Equals(AutoContrastOperationProbability, other.AutoContrastOperationProbability, epsilon, id + nameof(AutoContrastOperationProbability), ref errors);
+            equals &= Utils.Equals(InvertOperationProbability, other.InvertOperationProbability, epsilon, id + nameof(InvertOperationProbability), ref errors);
+            equals &= Utils.Equals(BrightnessOperationProbability, other.BrightnessOperationProbability, epsilon, id + nameof(BrightnessOperationProbability), ref errors);
+            equals &= Utils.Equals(BrightnessOperationEnhancementFactor, other.BrightnessOperationEnhancementFactor, epsilon, id + nameof(BrightnessOperationEnhancementFactor), ref errors);
+            equals &= Utils.Equals(ColorOperationProbability, other.ColorOperationProbability, epsilon, id + nameof(ColorOperationProbability), ref errors);
+            equals &= Utils.Equals(ColorOperationEnhancementFactor, other.ColorOperationEnhancementFactor, epsilon, id + nameof(ColorOperationEnhancementFactor), ref errors);
+            equals &= Utils.Equals(ContrastOperationProbability, other.ContrastOperationProbability, epsilon, id + nameof(ContrastOperationProbability), ref errors);
+            equals &= Utils.Equals(ContrastOperationEnhancementFactor, other.ContrastOperationEnhancementFactor, epsilon, id + nameof(ContrastOperationEnhancementFactor), ref errors);
+            equals &= Utils.Equals(RandAugment_N, other.RandAugment_N, id + nameof(RandAugment_N), ref errors);
+            equals &= Utils.Equals(RandAugment_M, other.RandAugment_M, id + nameof(RandAugment_M), ref errors);
             return equals;
         }
 

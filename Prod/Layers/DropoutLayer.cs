@@ -20,6 +20,7 @@ namespace SharpNet.Layers
             _dropProbability = dropProbability;
         }
 
+        #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
@@ -52,6 +53,26 @@ namespace SharpNet.Layers
             allX[0].DropoutBackward(dy, dx[0], _dropProbability, _dropoutReservedSpaceForTraining);
             FreeMemory(ref _dropoutReservedSpaceForTraining);
         }
+        #endregion
+
+        #region serialization
+        public override string Serialize()
+        {
+            return RootSerializer().Add(nameof(_dropProbability), _dropProbability).ToString();
+        }
+        public DropoutLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        {
+            _dropProbability = (double)serialized[nameof(_dropProbability)];
+        }
+        #endregion
+
+        #region clone layer
+        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new DropoutLayer(this, newSlaveNetwork); }
+        private DropoutLayer(DropoutLayer toCloneFromMasterNetwork, Network newSlaveNetwork) : base(toCloneFromMasterNetwork, newSlaveNetwork)
+        {
+            _dropProbability = toCloneFromMasterNetwork._dropProbability;
+        }
+        #endregion
 
         public override bool Equals(Layer b, double epsilon, string id, ref string errors)
         {
@@ -64,30 +85,12 @@ namespace SharpNet.Layers
             equals &= Utils.Equals(_dropProbability, other._dropProbability, epsilon, id, ref errors);
             return equals;
         }
-
         public override void Dispose()
         {
             base.Dispose();
             //managed memory
             FreeMemory(ref _dropoutReservedSpaceForTraining);
         }
-
-        public override Layer Clone(Network newNetwork) { return new DropoutLayer(this, newNetwork); }
-        private DropoutLayer(DropoutLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-       {
-           _dropProbability = toClone._dropProbability;
-       }
-    
-        #region serialization
-        public override string Serialize()
-       {
-           return RootSerializer().Add(nameof(_dropProbability), _dropProbability).ToString();
-       }
-        public DropoutLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-       {
-           _dropProbability = (double) serialized[nameof(_dropProbability)];
-       }
-        #endregion
 
         private void InitializeDropoutReservedSpaceForTraining(Tensor x)
         {
@@ -104,7 +107,5 @@ namespace SharpNet.Layers
             }
             Debug.Assert(_dropoutReservedSpaceForTraining.UseGPU == x.UseGPU);
         }
-
-
     }
 }

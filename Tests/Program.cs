@@ -31,7 +31,7 @@ namespace SharpNetTests
         #region DenseNet Training
         private static void DenseNetTests()
         {
-            var todo = new List<Action<DenseNetBuilder, int>>
+            var networkGeometries = new List<Action<DenseNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNet_12_40);},
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNetBC_12_100);},
@@ -44,7 +44,7 @@ namespace SharpNetTests
              */
         };
 
-            var metaParametersModifiers = new List<Func<DenseNetBuilder>>
+            var networkMetaParameters = new List<Func<DenseNetBuilder>>
             {
                 //(p) =>{p.UseNesterov = false; p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov";},
                 //(p) =>{p.UseAdam = true; p.NumEpochs = 5; p.ExtraDescription = "_50Epoch_Adam";},
@@ -60,18 +60,8 @@ namespace SharpNetTests
                 //(p) =>{p.NumEpochs = 300;p.BatchSize = -1;p.CutoutPatchPercentage = 0.0;p.ExtraDescription = "_200Epochs_L2_InDense_CutoutPatchPercentage0";},
                 //(p) =>{p.NumEpochs = 200;p.Config.WithSGD(0.9,false);p.ExtraDescription = "_200Epochs_NoNesterov";},
 
-                //(p) =>{p.Config.WithSGD(0.9,false);p.BatchSize = -1;p.NumEpochs = 300; p.ExtraDescription = "_SGD";},
-                //(p) =>{p.UseAdam = false;p.UseNesterov = true;p.BatchSize = -1;p.NumEpochs = 300; p.ExtraDescription = "_SGDNesterov";},
-                //(p) =>{p.UseAdam = true;p.UseNesterov = false;p.BatchSize = -1;p.NumEpochs = 200;p.InitialLearningRate = 0.001;p.ExtraDescription = "_Adam_0_001";},
-                //(p) =>{p.UseAdam = true;p.BatchSize = 50;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_with_l2_inConv";},
-                //(p) =>{p.UseAdam = true; p.lambdaL2Regularization = 0.0;p.SaveNetworkStatsAfterEachEpoch = true; p.NumEpochs = 1; p.ExtraDescription = "_Adam_no_l2_inConv";},
-
-                //(p) =>{p.UseAdam = true;p.SaveNetworkStatsAfterEachEpoch = true; p.lambdaL2Regularization = 0.0;p.NumEpochs = 2; p.ExtraDescription = "_Adam_no_lambdaL2Regularization";},
-                //(p) =>{p.lambdaL2Regularization = 0.0;p.UseNesterov = false;p.NumEpochs = 50; p.ExtraDescription = "_50Epoch_no_nesterov_no_lambdaL2Regularization";},
-                #region already performed tests
-            #endregion
             };
-            PerformAllActionsInAllGpu(metaParametersModifiers, todo);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
         #endregion
 
@@ -79,101 +69,31 @@ namespace SharpNetTests
 
         private static void EfficientNetTests()
         {
-            var todo = new List<Action<EfficientNetBuilder, int>>
+            var networkGeometries = new List<Action<EfficientNetBuilder, int>>
             {
                 (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription += "_only_dense";Train_CIFAR10_EfficientNet(p);},
                 //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.ExtraDescription += "_all_top";Train_CIFAR10_EfficientNet(p);},
                 //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.ExtraDescription += "_no_freezing";Train_CIFAR10_EfficientNet(p);},
-                //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_CIFAR10_EfficientNet(p);},
             };
 
-            var modifiers = new List<Func<EfficientNetBuilder>>
+            var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {
                 () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.30;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_30_batchAuto";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 32;p.InitialLearningRate = 0.01;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_01_batchAuto_zoom_150epochs";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.001;p.NumEpochs = 30;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription = "_lr_0_001_batchAuto_zoom7_30epochs_only_probs";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.001;p.NumEpochs = 30;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.ExtraDescription = "_lr_0_001_batchAuto_zoom7_30epochs_only_top";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.10;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_10_batchAuto_zoom_30epochs";return p;},
-
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 128;p.InitialLearningRate = 0.001;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_001_batch128_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 128;p.InitialLearningRate = 0.005;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_005_batch128_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 128;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batch128_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 128;p.InitialLearningRate = 0.02;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_02_batch128_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 128;p.InitialLearningRate = 0.03;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_03_batch128_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 128;p.InitialLearningRate = 0.05;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_05_batch128_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 128;p.InitialLearningRate = 0.07;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_07_batch128_310epochs";return p;},
-
-
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.03;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_03_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.05;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_05_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.07;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_07_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.2;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_2_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.4;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_4_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.5;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_5_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.6;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_6_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.8;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_8_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batch512_310epochs";return p;},
-
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.06;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_06_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.08;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_08_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.09;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_09_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.11;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_09_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.12;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_09_batch512_310epochs";return p;},
-
-
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.03;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_03_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.05;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_05_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.07;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_07_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.2;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_2_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.4;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_4_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.5;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_5_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.6;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_6_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.8;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_8_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.15;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_15_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.18;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_18_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.25;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_25_batchAuto_310epochs";return p;},
-
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 1.0;p.NumEpochs = 150;p.ExtraDescription = "_lr_1_0_batch512_150epochs";return p;},
-                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_1_batch512_150epochs";return p;},
-                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batch512_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_01_batch512_150epochs";return p;},
-                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 512;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batch512_310epochs";return p;},
-
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 1.0;p.NumEpochs = 150;p.ExtraDescription = "_lr_1_0_batchAuto_150epochs";return p;},
-                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 1.0;p.NumEpochs = 310;p.ExtraDescription = "_lr_1_0_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_1_batchAuto_150epochs";return p;},
-                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.1;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_1_batchAuto_310epochs";return p;},
-                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_01_batchAuto_150epochs";return p;},
-                ////() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.01;p.NumEpochs = 310;p.ExtraDescription = "_lr_0_01_batchAuto_310epochs";return p;},
-
             };
-            PerformAllActionsInAllGpu(modifiers, todo);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
         private static void Train_CIFAR10_EfficientNet(EfficientNetBuilder p)
         {
             const int zoomFactor = 7;
             using (var cifar10Original = new CIFAR10DataSet())
             using (var cifar10 = new ZoomedTrainingAndTestDataSet(cifar10Original, zoomFactor, zoomFactor))
-            //using (var cifar10 = new CIFAR10DataSet())
-            //using (var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\efficientnet-b0_lr_0_01_batchAuto_zoom_30epochs_no_freezing_20200416_2025_70.txt"))
-            //using (var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\efficientnet-b0_lr_0_01_batchAuto_zoom_30epochs_no_freezing_20200417_1615_133.txt"))
             using (var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, cifar10.Training.InputShape_CHW))
             {
                 network.Info(network.ToString());
-
-                //network.Info("training only last layer");
-                //network.Layers.ForEach(l => l.Trainable = false);
-                //network.LastFrozenLayer().Trainable = true;
-
-                // batchSize = 32 => best Learning Rate = 0.005
-                // batchSize = 128 => best Learning Rate = 0.05
-
                 //network.FindBestLearningRate(cifar10.Training, 1e-7, 10, p.BatchSize);return;
 
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
@@ -186,23 +106,25 @@ namespace SharpNetTests
         #region WideResNet Training
         private static void WideResNetTests()
         {
-            var todo = new List<Action<WideResNetBuilder, int>>
+            var networkGeometries = new List<Action<WideResNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
+
             };
 
-            var modifiers = new List<Func<WideResNetBuilder>>
+            var networkMetaParameters = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.ExtraDescription = "_BatchSize128";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST; p.ExtraDescription = "_FASTEST_DETERMINIST_BatchSize128_03d3723d36f982147c6354c68f17a1fe0c0c126f";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.ExtraDescription = "_BatchSize128";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 64;p.ExtraDescription = "_BatchSize64";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = -1;p.ExtraDescription = "_BatchSizeAuto";return p;},
             };
-            PerformAllActionsInAllGpu(modifiers, todo);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
@@ -218,7 +140,7 @@ namespace SharpNetTests
         #region ResNet Training
         private static void ResNetTests()
         {
-            var todo = new List<Action<ResNetBuilder, int>>
+            var networkGeometries = new List<Action<ResNetBuilder, int>>
             {
 
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.ResNet164V2_CIFAR10);},
@@ -237,11 +159,11 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.ResNet164V1_CIFAR10);},
             };
 
-            var modifiers = new List<Func<ResNetBuilder>>
+            var networkMetaParameters = new List<Func<ResNetBuilder>>
             {
                 () =>{var p = ResNetBuilder.ResNet_CIFAR10();p.Config.WithSGD(0.9,true);p.ExtraDescription = "";return p;},
             };
-            PerformAllActionsInAllGpu(modifiers, todo);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
         #endregion
 
@@ -250,24 +172,22 @@ namespace SharpNetTests
         #region CIFAR-100 Training
         private static void CIFAR100Tests()
         {
-            var todo = new List<Action<WideResNetBuilder, int>>
+            var networkGeometries = new List<Action<WideResNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 16,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
-
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 16,8);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 40,4);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 16,10);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 28,8);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 28,10);},
             };
-
-            var modifiers = new List<Func<WideResNetBuilder>>
+            var networkMetaParameters = new List<Func<WideResNetBuilder>>
             {
                 () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 1.0;p.DA.CutoutPatchPercentage = 0.0; p.ExtraDescription = "CutMix";return p;},
                 () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 1.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 0.0; p.ExtraDescription = "Mixup";return p;},
                 () => {var p = WideResNetBuilder.WRN_CIFAR100();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 20.0/32.0; p.ExtraDescription = "Cutout_0_625";return p;},
             };
-            PerformAllActionsInAllGpu(modifiers, todo);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
 
         private static void Train_CIFAR100_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
@@ -284,38 +204,22 @@ namespace SharpNetTests
         #region SVHN Training
         private static void SVHNTests()
         {
-            var todo = new List<Action<WideResNetBuilder, int>>
+            var networkGeometries = new List<Action<WideResNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
-                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
-                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,8);},
-                
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
-
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,8);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,10);},
             };
 
-            var modifiers = new List<Func<WideResNetBuilder>>
+            var networkMetaParameters = new List<Func<WideResNetBuilder>>
             {
                 () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.ExtraDescription = "_30Epochs";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS;  p.ExtraDescription = "_30Epochs_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;  p.ExtraDescription = "_30Epochs";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;  p.ExtraDescription = "_30Epochs_AutoAugment";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.DA.WithRandAugment(3,9);  p.ExtraDescription = "_30Epochs_RandAugment_3_9";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.WRN_PoolingBeforeDenseLayer = NetworkBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling;  p.ExtraDescription = "_GlobalMaxPooling_30Epochs";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.WRN_PoolingBeforeDenseLayer = NetworkBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling;  p.ExtraDescription = "_GAP_AND_GlobalMaxPooling_30Epochs";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.WRN_PoolingBeforeDenseLayer = NetworkBuilder.POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling;  p.ExtraDescription = "_GAP_30Epochs";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.ExtraDescription = "_150Epochs_smallTrain";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.ExtraDescription = "_150Epochs_AutoAugment_smallTrain";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs=150;p.ExtraDescription = "_30Epochs";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.BatchSize = -1;p.NumEpochs=30;p.ExtraDescription = "_30Epochs_AutoBatchSize";return p;},
             };
-            PerformAllActionsInAllGpu(modifiers, todo);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
 
         private static void Train_SVHN_WRN(WideResNetBuilder p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
@@ -377,14 +281,19 @@ namespace SharpNetTests
                 }
             }
         }
-        private static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkDeformers, List<Action<T, int>> networks) where T : NetworkBuilder, new()
+        private static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkMetaParameters, List<Action<T, int>> networkGeometriesOrderedFromSmallestToBiggest) where T : NetworkBuilder, new()
         {
             var taskToBePerformed = new List<Action<int>>();
-            foreach (var networkDeformer in networkDeformers)
+
+            //we'll start to compute the most time intensive (bigger) network, to end with the smallest one
+            var networkGeometries = new List<Action<T, int>>(networkGeometriesOrderedFromSmallestToBiggest);
+            networkGeometries.Reverse();
+
+            foreach (var networkMetaParameter in networkMetaParameters)
             {
-                foreach (var network in networks)
+                foreach (var networkGeometry in networkGeometries)
                 {
-                    taskToBePerformed.Add(gpuDeviceId => network(networkDeformer(), gpuDeviceId));
+                    taskToBePerformed.Add(gpuDeviceId => networkGeometry(networkMetaParameter(), gpuDeviceId));
                 }
             }
             int nbGPUs = Math.Min(GPUWrapper.GetDeviceCount(), taskToBePerformed.Count);

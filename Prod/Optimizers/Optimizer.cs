@@ -31,19 +31,18 @@ namespace SharpNet.Optimizers
         /// </summary>
         public void ZeroMemory()
         {
-            EmbeddedTensors.ForEach(t => t?.ZeroMemory());
+            EmbeddedTensors.ForEach(t => t.ZeroMemory());
         }
         public abstract string Serialize();
-        public void Dispose()
-        {
-            EmbeddedTensors.ForEach(x => x?.Dispose());
-        }
 
         protected static float PonderedLearning(double learningRate, int batchSize)
         {
             return (float)learningRate / batchSize;
         }
 
-        public abstract Optimizer Clone(Network newNetwork);
+        public abstract Optimizer CloneForSlaveNetwork(Network newSlaveNetwork);
+        public virtual void Dispose()
+        {
+        }
     }
 }

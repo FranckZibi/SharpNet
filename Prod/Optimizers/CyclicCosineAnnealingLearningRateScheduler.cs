@@ -63,9 +63,9 @@ namespace SharpNet.Optimizers
             return (epochIdx>=0) && (epochIdx <= 2);
         }
 
-        public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
+        public double LearningRate(int epoch, int miniBatchBlockIdInEpoch, int nbBlocksInEpoch)
         {
-            var currentEpoch = epoch + ((double)blockIdInEpoch) / nbBlocksInEpoch;
+            var currentEpoch = epoch + ((double)miniBatchBlockIdInEpoch) / nbBlocksInEpoch;
             var multiplier = Utils.Interpolate(_values, currentEpoch);
             var minLearningRate = 1e-6;
             var learningRate = minLearningRate + 0.5* (_maxLearningRate -minLearningRate) * (1.0 + Math.Cos(multiplier * Math.PI));

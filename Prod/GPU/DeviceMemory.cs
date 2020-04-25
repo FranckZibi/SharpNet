@@ -10,10 +10,11 @@ namespace SharpNet.GPU
     {
         #region private fields
         private IntPtr _pointer;
+        private readonly size_t _capacityInBytes;
         private bool _disposed;
         #endregion
-        #region readonly properties
-        private readonly size_t _capacityInBytes;
+        #region public properties
+        public bool IsOwnerOfDeviceMemory { get; }
         #endregion
 
         /// <summary>
@@ -49,8 +50,6 @@ namespace SharpNet.GPU
                 return _pointer;
             }
         }
-
-        public bool IsOwnerOfDeviceMemory { get; }
 
         public void AssertIsNotDisposed()
         {
@@ -97,6 +96,11 @@ namespace SharpNet.GPU
                 return;
             }
             _disposed = true;
+            if (disposing)
+            {
+                //managed memory
+                //nothing to do
+            }
             //unmanaged memory
             if (IsOwnerOfDeviceMemory)
             {
@@ -106,6 +110,5 @@ namespace SharpNet.GPU
             }
         }
         #endregion
-
     }
 }

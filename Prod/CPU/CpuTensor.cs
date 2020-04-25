@@ -167,8 +167,8 @@ namespace SharpNet.CPU
             return result;
         }
         public override bool IsOwnerOfMemory => _ptrToOwnerPinnedMemory == IntPtr.Zero;
-        public ReadOnlySpan<T> ReadonlyContent => Content.Span;
-        public Span<T> SpanContent => Content.Span;
+        public ReadOnlySpan<T> ReadonlyContent => Content.Slice(0, Count).Span;
+        public Span<T> SpanContent => Content.Slice(0, Count).Span;
 
         public override void From_NCH_to_NH(Tensor tensor_NH, int channel)
         {
@@ -252,11 +252,7 @@ namespace SharpNet.CPU
             }
             return result;
         }
-        public override Tensor Clone(GPUWrapper notUsed)
-        {
-            return new CpuTensor<T>((int[])Shape.Clone(), Content.ToArray(), Description);
-        }
-
+      
         #region Tensor implementation
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
         {

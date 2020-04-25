@@ -135,7 +135,7 @@ namespace SharpNet.Data
             var contentA = a.ContentAsFloatArray();
             var contentB = b.ContentAsFloatArray();
             int nbFoundDifferences = 0;
-            for (int i = 0; i < contentA.Length; ++i)
+            for (int i = 0; i < a.Count; ++i)
             {
                 if (!Utils.Equals(contentA[i], contentB[i], epsilon, id + "[" + i + "]", ref errors))
                 {

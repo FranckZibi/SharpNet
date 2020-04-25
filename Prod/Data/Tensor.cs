@@ -153,20 +153,9 @@ namespace SharpNet.Data
             }
         }
 
-
-
-
-
-
-        public static ulong OccupiedMemoryInBytes(IEnumerable<Tensor> tensors)
-        {
-            return (ulong)tensors.Select(x => (long) (x?.CapacityInBytes ?? 0) ).Sum();
-        }
-
         /// <summary>
         /// Ensure that all tensors are stored in the same device (Cpu or GPU)
         /// </summary>
-        /// <param name="a">lit of tensors</param>
         /// <returns>true if all tensors are stored in the same device
         /// false if some tensors are stored and Cpu and other on GPU</returns>
         public static bool AreCompatible(List<Tensor> a)
@@ -288,13 +277,6 @@ namespace SharpNet.Data
         /// <param name="a">Tensor of Dimension (N, Ca, H, W)</param>
         /// <param name="b">Tensor of Dimension (N, Cb, H, W)</param>
         public abstract void Concatenate(Tensor a, Tensor b);
-
-        /// <summary>
-        /// Clone
-        /// </summary>
-        /// <param name="gpuWrapper"></param>
-        /// <returns></returns>
-        public abstract Tensor Clone(GPUWrapper gpuWrapper);
 
         /// <summary>
         /// Split the this tensor into the tensors 'a' & 'b'.

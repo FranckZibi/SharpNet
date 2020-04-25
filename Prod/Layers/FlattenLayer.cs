@@ -11,21 +11,12 @@ namespace SharpNet.Layers
         {
         }
 
-        public override Layer Clone(Network newNetwork) { return new FlattenLayer(this, newNetwork); }
-        private FlattenLayer(FlattenLayer toClone, Network newNetwork) : base(toClone, newNetwork) { }
-
-        #region serialization
-        public FlattenLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-        }
-        #endregion
-
+        #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
             allX[0].CopyTo(y);
         }
-
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(dx.Count == 1);
@@ -35,6 +26,19 @@ namespace SharpNet.Layers
             }
             dy.CopyTo(dx[0]);
         }
+        #endregion
+
+        #region serialization
+        public FlattenLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        {
+        }
+        #endregion
+
+        #region clone layer
+        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new FlattenLayer(this, newSlaveNetwork); }
+        private FlattenLayer(FlattenLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork) { }
+        #endregion
+
         public override int[] OutputShape(int batchSize) {return new []{batchSize, PrevLayer.n_x};}
     }
 }

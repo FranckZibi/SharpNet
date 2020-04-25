@@ -12,8 +12,6 @@ using static SharpNet.GPU.GPUWrapper;
 
 namespace SharpNet.Networks
 {
-    
-
     public class NetworkConfig
     {
         #region fields
@@ -140,33 +138,29 @@ namespace SharpNet.Networks
         public bool Equals(NetworkConfig other, double epsilon, string id, ref string errors)
         {
             var equals = true;
-            equals &= Utils.Equals(LossFunction, other.LossFunction, id + ":LossFunction", ref errors);
-
-            equals &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id + ":Adam_beta1", ref errors);
-            equals &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + ":Adam_beta2", ref errors);
-            equals &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + ":Adam_epsilon", ref errors);
-
-            equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + ":SGD_momentum", ref errors);
-            equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + ":SGD_usenesterov", ref errors);
-
-            equals &= Utils.Equals((int)LearningRateSchedulerType, (int)other.LearningRateSchedulerType, id + ":LearningRateSchedulerType", ref errors);
-            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochsInFirstRun, other.CyclicCosineAnnealing_nbEpochsInFirstRun, epsilon, id + ":CyclicCosineAnnealing_nbEpochsInFirstRun", ref errors);
-            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochInNextRunMultiplier, other.CyclicCosineAnnealing_nbEpochInNextRunMultiplier, epsilon, id + ":CyclicCosineAnnealing_nbEpochInNextRunMultiplier", ref errors);
-            equals &= Utils.Equals(OneCycle_DividerForMinLearningRate, other.OneCycle_DividerForMinLearningRate, id + ":OneCycle_DividerForMinLearningRate", ref errors);
-            equals &= Utils.Equals(OneCycle_PercentInAnnealing, other.OneCycle_PercentInAnnealing, epsilon, id + ":OneCycle_PercentInAnnealing", ref errors);
-            equals &= Utils.Equals(DisableReduceLROnPlateau, other.DisableReduceLROnPlateau, id + ":DisableReduceLROnPlateau", ref errors);
-            equals &= Utils.Equals(DivideBy10OnPlateau, other.DivideBy10OnPlateau, id + ":DivideBy10OnPlateau", ref errors);
-            equals &= Utils.Equals(LinearLearningRate, other.LinearLearningRate, id + ":LinearLearningRate", ref errors);
-
-            equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + ":lambdaL2Regularization", ref errors);
-            equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + ":MinimumLearningRate", ref errors);
-            equals &= Utils.Equals(CompatibilityMode, other.CompatibilityMode, id + ":CompatibilityMode", ref errors);
-            equals &= Utils.Equals(ConvolutionAlgoPreference, other.ConvolutionAlgoPreference, id + ":ConvolutionAlgoPreference", ref errors);
-            equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + ":DisplayTensorContentStats", ref errors);
-            equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + ":AutoSaveIntervalInMinuts", ref errors);
-            equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + ":SaveNetworkStatsAfterEachEpoch", ref errors);
-            equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + ":SaveLossAfterEachMiniBatch", ref errors);
-            equals &= DataAugmentation.Equals(other.DataAugmentation, epsilon, id + ":DataAugmentation", ref errors);
+            equals &= Utils.Equals(LossFunction, other.LossFunction, id + nameof(LossFunction), ref errors);
+            equals &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id + nameof(Adam_beta1), ref errors);
+            equals &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + nameof(Adam_beta2), ref errors);
+            equals &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + nameof(Adam_epsilon), ref errors);
+            equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + nameof(SGD_momentum), ref errors);
+            equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + nameof(SGD_usenesterov), ref errors);
+            equals &= Utils.Equals((int)LearningRateSchedulerType, (int)other.LearningRateSchedulerType, id + nameof(LearningRateSchedulerType), ref errors);
+            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochsInFirstRun, other.CyclicCosineAnnealing_nbEpochsInFirstRun, epsilon, id + nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), ref errors);
+            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochInNextRunMultiplier, other.CyclicCosineAnnealing_nbEpochInNextRunMultiplier, epsilon, id + nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), ref errors);
+            equals &= Utils.Equals(OneCycle_DividerForMinLearningRate, other.OneCycle_DividerForMinLearningRate, id + nameof(OneCycle_DividerForMinLearningRate), ref errors);
+            equals &= Utils.Equals(OneCycle_PercentInAnnealing, other.OneCycle_PercentInAnnealing, epsilon, id + nameof(OneCycle_PercentInAnnealing), ref errors);
+            equals &= Utils.Equals(DisableReduceLROnPlateau, other.DisableReduceLROnPlateau, id + nameof(DisableReduceLROnPlateau), ref errors);
+            equals &= Utils.Equals(DivideBy10OnPlateau, other.DivideBy10OnPlateau, id + nameof(DivideBy10OnPlateau), ref errors);
+            equals &= Utils.Equals(LinearLearningRate, other.LinearLearningRate, id + nameof(LinearLearningRate), ref errors);
+            equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + nameof(lambdaL2Regularization), ref errors);
+            equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + nameof(MinimumLearningRate), ref errors);
+            equals &= Utils.Equals(CompatibilityMode, other.CompatibilityMode, id + nameof(CompatibilityMode), ref errors);
+            equals &= Utils.Equals(ConvolutionAlgoPreference, other.ConvolutionAlgoPreference, id + nameof(ConvolutionAlgoPreference), ref errors);
+            equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + nameof(DisplayTensorContentStats), ref errors);
+            equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + nameof(AutoSaveIntervalInMinutes), ref errors);
+            equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + nameof(SaveNetworkStatsAfterEachEpoch), ref errors);
+            equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + nameof(SaveLossAfterEachMiniBatch), ref errors);
+            equals &= DataAugmentation.Equals(other.DataAugmentation, epsilon, id + nameof(DataAugmentation), ref errors);
             return equals;
         }
 

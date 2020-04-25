@@ -21,10 +21,10 @@ namespace SharpNet.Optimizers
         public override List<Tensor> EmbeddedTensors => new List<Tensor>();
         public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)
         {
-            return Utils.Equals(GetType(), other.GetType(), id + ":GetType", ref errors);
+            return Utils.Equals(GetType(), other.GetType(), id + nameof(GetType), ref errors);
         }
 
-        public override Optimizer Clone(Network newNetwork) { return Instance; }
+        public override Optimizer CloneForSlaveNetwork(Network newSlaveNetwork) { return Instance; }
 
         #region serialization
         public override string Serialize() {return "";}

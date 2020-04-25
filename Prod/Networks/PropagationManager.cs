@@ -36,13 +36,13 @@ namespace SharpNet.Networks
         /// = ForwardPropagation
         /// </summary>
         /// <param name="X"></param>
-        /// <param name="isTraining">
-        /// true if we are training the network (the goal is to update weights)
-        /// false for inference only (we'll use existing weights to make a prediction)
-        /// </param>
         /// <param name="yPredicted">if provided: the buffer where to store the prediction</param>
+        /// <param name="isTraining">
+        ///     true if we are training the network (the goal is to update weights)
+        ///     false for inference only (we'll use existing weights to make a prediction)
+        /// </param>
         /// <returns></returns>
-        public void Forward([NotNull] Tensor X, bool isTraining, [NotNull] Tensor yPredicted)
+        public void Forward([NotNull] Tensor X, [NotNull] Tensor yPredicted, bool isTraining)
         {
             FreeAllMemory();
             Debug.Assert(_all_allocated_Y.Count == 0);

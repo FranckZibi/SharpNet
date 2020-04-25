@@ -15,15 +15,13 @@ namespace SharpNet.Layers
     //              output (for each sentence): the hidden state of time step 't' + the output 'y' at time step 't'
     public sealed class SimpleRnnLayer : Layer
     {
+        #region Fields
         private readonly int _timeSteps_x;  //number of words in each sentence
         private readonly int _xLength;      //number of distinct words in the dictionary 
         private readonly int _aLength;      //length of a hidden state for a specific time step / specific sentence
         private readonly int _yLength;
         private readonly bool _returnSequences;
-
-        #region Fields
         private Tensor a_init;         //(batchSize, aLength)
-
         private readonly List<Tensor> a_t = new List<Tensor>();   //vector of length 'timeSteps_x' / each element: (batchSize, aLength)
         //a_t(t) hidden state at time step 't' (batchSize, aLength)
         //a_t(t): tanh( x_t(t)*Weights_ax + a_t(t-1)*Weights_aa + Bias_a)
@@ -34,19 +32,15 @@ namespace SharpNet.Layers
         public readonly Tensor Weights_aa;              // (aLength, aLength) 
         //Bias
         public readonly Tensor Bias_a;                  // (1, aLength) 
-
         //vector of length 'timeSteps_y' / each element: (batchSize, yLength)
         private readonly List<Tensor> y_t = new List<Tensor>();       //y(t) = softmax( a(t)*Weights_ay + Bias_y)
         public readonly Tensor Weights_ay;              // (aLength, yLength) 
         //Bias relating the hidden-state to the output
         public readonly Tensor Bias_y;                  // (1, yLength) 
-
-
         private Tensor x_at_t_buffer;
         private Tensor a_buffer1;
         private Tensor a_buffer2 ;
         private Tensor y_buffer1;
-
         //public override Tensor y
         //{
         //    get
@@ -59,7 +53,6 @@ namespace SharpNet.Layers
         //    }
         //    protected set => throw new NotImplementedException();
         //}
-
         #endregion
 
         //No need to configure the number of x time step : it is always the same as in previous layer number of channels
@@ -80,6 +73,7 @@ namespace SharpNet.Layers
             ResetWeights(false);
         }
 
+        #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y1, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
@@ -116,13 +110,13 @@ namespace SharpNet.Layers
                 y_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, y_t[t]);
             }
         }
-
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             throw new NotImplementedException();
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
+            Debug.Assert(Network.IsMaster);
             var prevLayerNX = PrevLayer.n_x;
             Weights_aa.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / prevLayerNX) /*stdDev*/);
             Weights_ax.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / prevLayerNX) /*stdDev*/);
@@ -130,6 +124,39 @@ namespace SharpNet.Layers
             Bias_a?.ZeroMemory();
             Bias_y?.ZeroMemory();
         }
+        #endregion
+
+        #region serialization
+        public override string Serialize()
+        {
+            return RootSerializer()
+                .Add(nameof(_timeSteps_x), _timeSteps_x).Add(nameof(_xLength), _xLength)
+                .Add(nameof(_aLength), _aLength)
+                .Add(nameof(_returnSequences), _returnSequences)
+                .Add(nameof(_yLength), _yLength)
+                .ToString();
+        }
+        public SimpleRnnLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        {
+            _timeSteps_x = (int)serialized[nameof(_timeSteps_x)];
+            _xLength = (int)serialized[nameof(_xLength)];
+            _aLength = (int)serialized[nameof(_aLength)];
+            _yLength = (int)serialized[nameof(_yLength)];
+            _returnSequences = (bool)serialized[nameof(_returnSequences)];
+        }
+        #endregion
+
+        #region layer clone
+        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new SimpleRnnLayer(this, newSlaveNetwork); }
+        private SimpleRnnLayer(SimpleRnnLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork)
+        {
+            _timeSteps_x = toCloneFromMasterNetwork._timeSteps_x;
+            _xLength = toCloneFromMasterNetwork._xLength;
+            _aLength = toCloneFromMasterNetwork._aLength;
+            _yLength = toCloneFromMasterNetwork._yLength;
+            _returnSequences = toCloneFromMasterNetwork._returnSequences;
+        }
+        #endregion
 
         //public override void Allocate_y_if_necessary(int batchSize)
         //{
@@ -176,44 +203,13 @@ namespace SharpNet.Layers
             }
             var other = (SimpleRnnLayer)b;
             var equals = true;
-            equals &= Utils.Equals(_timeSteps_x, other._timeSteps_x, id + ":_timeSteps_x", ref errors);
-            equals &= Utils.Equals(_xLength, other._xLength, id + ":_xLength", ref errors);
-            equals &= Utils.Equals(_aLength, other._aLength, id + ":_aLength", ref errors);
-            equals &= Utils.Equals(_yLength, other._yLength, id + ":_yLength", ref errors);
-            equals &= Utils.Equals(_returnSequences, other._returnSequences, id + ":_returnSequences", ref errors);
+            equals &= Utils.Equals(_timeSteps_x, other._timeSteps_x, id + nameof(_timeSteps_x), ref errors);
+            equals &= Utils.Equals(_xLength, other._xLength, id + nameof(_xLength), ref errors);
+            equals &= Utils.Equals(_aLength, other._aLength, id + nameof(_aLength), ref errors);
+            equals &= Utils.Equals(_yLength, other._yLength, id + nameof(_yLength), ref errors);
+            equals &= Utils.Equals(_returnSequences, other._returnSequences, id + nameof(_returnSequences), ref errors);
             return equals;
         }
-
-        public override Layer Clone(Network newNetwork) { return new SimpleRnnLayer(this, newNetwork); }
-        private SimpleRnnLayer(SimpleRnnLayer toClone, Network newNetwork) : base(toClone, newNetwork)
-        {
-            _timeSteps_x = toClone._timeSteps_x;
-            _xLength = toClone._xLength;
-            _aLength = toClone._aLength;
-            _yLength = toClone._yLength;
-            _returnSequences = toClone._returnSequences;
-        }
-
-        #region serialization
-        public override string Serialize()
-        {
-            return RootSerializer()
-                .Add(nameof(_timeSteps_x), _timeSteps_x).Add(nameof(_xLength), _xLength)
-                .Add(nameof(_aLength), _aLength)
-                .Add(nameof(_returnSequences), _returnSequences)
-                .Add(nameof(_yLength), _yLength)
-                .ToString();
-        }
-        public SimpleRnnLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-            _timeSteps_x = (int)serialized[nameof(_timeSteps_x)];
-            _xLength = (int)serialized[nameof(_xLength)];
-            _aLength = (int)serialized[nameof(_aLength)];
-            _yLength = (int)serialized[nameof(_yLength)];
-            _returnSequences = (bool)serialized[nameof(_returnSequences)];
-        }
-        #endregion
-
         public override int[] OutputShape(int batchSize)
         {
             if (_returnSequences)

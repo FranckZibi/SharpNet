@@ -44,9 +44,9 @@ namespace SharpNet.Optimizers
 
         public bool ShouldCreateSnapshotForEpoch(int epoch) { return epoch == _nbEpochs; }
 
-        public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch)
+        public double LearningRate(int epoch, int miniBatchBlockIdInEpoch, int nbBlocksInEpoch)
         {
-            double currentEpoch = epoch + ((double) blockIdInEpoch) / nbBlocksInEpoch;
+            double currentEpoch = epoch + ((double) miniBatchBlockIdInEpoch) / nbBlocksInEpoch;
             if (currentEpoch <= EpochForMaxLearningRate())
             {
                 //first part of the cycle: increasing the learning rate from 'MinLearningRate()' to 'MaxLearningRate()'

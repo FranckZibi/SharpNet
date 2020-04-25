@@ -5,8 +5,10 @@ using SharpNet.Networks;
 
 namespace SharpNet.Layers
 {
-    //used for Residual Network
-    //Layer that is the sum of the Previous Layer and the Shortcut Layer
+    /// <summary>
+    /// used for Residual Network
+    /// Layer that is the sum of the Previous Layer and the Shortcut Layer
+    /// </summary>
     public class AddLayer : Layer
     {
         public AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network, string layerName = "") : base(network, previousResidualLayerIndex, layerName)
@@ -20,15 +22,7 @@ namespace SharpNet.Layers
             AddPreviousLayer(previousIdentityLayerIndex);
         }
 
-        public override Layer Clone(Network newNetwork) { return new AddLayer(this, newNetwork); }
-        private AddLayer(AddLayer toClone, Network newNetwork) : base(toClone, newNetwork) { }
-
-        #region serialization
-        public AddLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-        }
-        #endregion
-
+        #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 2);
@@ -41,5 +35,17 @@ namespace SharpNet.Layers
             Debug.Assert(allDx[0].SameShape(dy));
             allDx.ForEach(dy.CopyTo);
         }
+        #endregion
+
+        #region serialization
+        public AddLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        {
+        }
+        #endregion
+
+        #region clone layer
+        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new AddLayer(this, newSlaveNetwork); }
+        private AddLayer(AddLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork) { }
+        #endregion
     }
 }

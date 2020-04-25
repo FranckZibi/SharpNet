@@ -1,6 +1,7 @@
 ﻿//#define PROFILE_MEMORY_POOL
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 #if PROFILE_MEMORY_POOL
 using System.Diagnostics;
 #endif
@@ -45,6 +46,12 @@ namespace SharpNet.Data
 
         public void FreeMemory(ref Tensor t)
         {
+            FreeMemory(t);
+            t = null;
+        }
+
+        public void FreeMemory(Tensor t)
+        {
             if (t == null)
             {
                 return;
@@ -54,11 +61,11 @@ namespace SharpNet.Data
 #endif
             _availableTensorOrderedByCount.Add(t);
             SortAvailableTensorsByCapacity();
-            t = null;
 #if PROFILE_MEMORY_POOL
             _sw.Stop();
 #endif
         }
+
         public void FreeMemory(IList<Tensor> list, int index)
         {
             var t = list[index];
@@ -156,6 +163,7 @@ namespace SharpNet.Data
         /// <param name="description"></param>
         public void GetNotInitializedFloatTensor(ref Tensor bufferIfAny, int[] shape, string description = "")
         {
+            Debug.Assert(shape != null);
             if (bufferIfAny != null && string.IsNullOrEmpty(description))
             {
                 description = bufferIfAny.Description;
@@ -204,6 +212,7 @@ namespace SharpNet.Data
 
         private Tensor AllocateNewTensor(int[] shape, string description)
         {
+            Debug.Assert(shape != null);
             Tensor result;
             if (IsMock)
             {

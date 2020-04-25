@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using JetBrains.Annotations;
 using SharpNet.Data;
 using SharpNet.Networks;
 
@@ -20,25 +21,31 @@ namespace SharpNet.Optimizers
         private readonly double _adam_epsilon;
         private readonly Tensor _adam_VW;                      // same as 'Weights'
         private readonly Tensor _adam_SW;                      // same as 'Weights'
-        private readonly Tensor _adam_VB;                      // same as 'Bias'
-        private readonly Tensor _adam_SB;                      // same as 'Bias'
+        [CanBeNull] private readonly Tensor _adam_VB;          // same as 'Bias'
+        [CanBeNull] private readonly Tensor _adam_SB;          // same as 'Bias'
+        private readonly TensorMemoryPool _memoryPool;
+
         #endregion
 
-        public Adam(Network network, double adam_beta1, double adam_beta2, double adam_epsilon, int[] weightShape, int[] biasShapeIfAny)
+        public Adam(TensorMemoryPool memoryPool, double adam_beta1, double adam_beta2, double adam_epsilon, int[] weightShape, int[] biasShapeIfAny)
         {
+            _memoryPool = memoryPool;
             _adam_beta1 = adam_beta1;
             _adam_beta2 = adam_beta2;
             _adam_epsilon = adam_epsilon;
-            _adam_VW = network.MemoryPool.GetNotInitializedFloatTensor(weightShape, nameof(_adam_VW));
-            _adam_SW = network.MemoryPool.GetNotInitializedFloatTensor(weightShape, nameof(_adam_SW));
-            _adam_VB = (biasShapeIfAny == null) ? null : network.MemoryPool.GetNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_VB));
-            _adam_SB = (biasShapeIfAny == null) ? null : network.MemoryPool.GetNotInitializedFloatTensor(biasShapeIfAny, nameof(_adam_SB));
+            _memoryPool.GetNotInitializedFloatTensor(ref _adam_VW, weightShape, nameof(_adam_VW));
+            _memoryPool.GetNotInitializedFloatTensor(ref _adam_SW , weightShape, nameof(_adam_SW));
+            if (biasShapeIfAny != null)
+            {
+                _memoryPool.GetNotInitializedFloatTensor(ref _adam_VB, biasShapeIfAny, nameof(_adam_VB));
+                _memoryPool.GetNotInitializedFloatTensor(ref _adam_SB, biasShapeIfAny, nameof(_adam_SB));
+            }
             ZeroMemory();
         }
 
         public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)
         {
-            if (!Utils.Equals(GetType(), other.GetType(), id + ":GetType", ref errors))
+            if (!Utils.Equals(GetType(), other.GetType(), id + nameof(GetType), ref errors))
             {
                 return false;
             }
@@ -54,7 +61,16 @@ namespace SharpNet.Optimizers
                 && _adam_SB.Equals(b._adam_SB, epsilon, id + "_adam_SB", ref errors);
         }
 
-        public override List<Tensor> EmbeddedTensors => new List<Tensor> { _adam_VW, _adam_SW, _adam_SB, _adam_VB };
+        public override List<Tensor> EmbeddedTensors
+        {
+            get
+            {
+                var result = new List<Tensor> {_adam_VW, _adam_SW, _adam_SB, _adam_VB};
+                result.RemoveAll(t => t == null);
+                return result;
+            }
+        }
+
         public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)
         {
             Debug.Assert(weights.SameShape(weightGradients));
@@ -65,17 +81,23 @@ namespace SharpNet.Optimizers
             bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, biasGradient, _adam_VB, _adam_SB, _timestep);
         }
 
-        public override Optimizer Clone(Network newNetwork) { return new Adam(this, newNetwork); }
-        private Adam(Adam toClone, Network newNetwork)
+        public override Optimizer CloneForSlaveNetwork(Network newSlaveNetwork) { return new Adam(this, newSlaveNetwork); }
+        private Adam(Adam toCloneFromMasterNetwork, Network newSlaveNetwork)
         {
-           _timestep = toClone._timestep;
-           _adam_beta1 = toClone._adam_beta1;
-           _adam_beta2 = toClone._adam_beta2;
-           _adam_epsilon = toClone._adam_epsilon;
-           _adam_VW = toClone._adam_VW?.Clone(newNetwork.GpuWrapper);
-           _adam_SW = toClone._adam_SW?.Clone(newNetwork.GpuWrapper);
-           _adam_VB = toClone._adam_VB?.Clone(newNetwork.GpuWrapper);
-           _adam_SB = toClone._adam_SB?.Clone(newNetwork.GpuWrapper);
+           _timestep = toCloneFromMasterNetwork._timestep;
+           _adam_beta1 = toCloneFromMasterNetwork._adam_beta1;
+           _adam_beta2 = toCloneFromMasterNetwork._adam_beta2;
+           _adam_epsilon = toCloneFromMasterNetwork._adam_epsilon;
+           _adam_VW = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_VW);
+           _adam_SW = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_SW);
+           _adam_VB = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_VB);
+           _adam_SB = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_SB);
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            EmbeddedTensors.ForEach(t => _memoryPool.FreeMemory(t));
         }
 
         #region serialization

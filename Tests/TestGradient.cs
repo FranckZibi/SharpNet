@@ -110,7 +110,7 @@ namespace SharpNetTests
         }
         private static void AbsWeightsWithMinimum(Network n, float min)
         {
-            foreach (var l in n.TensorsIndependentOfBatchSize.OfType<CpuTensor<float>>())
+            foreach (var l in Parameters(n).OfType<CpuTensor<float>>())
             {
                 for (int i = 0; i < l.Count; ++i)
                 {
@@ -118,6 +118,11 @@ namespace SharpNetTests
                 }
             }
         }
+        private static List<Tensor> Parameters(Network network)
+        {
+            return network.Layers.SelectMany(x => x.Parameters).ToList();
+        }
+
         private static void CompareExpectedVsObservedGradients(Network n, Layer layer, bool isBias, CpuTensor<float> X, CpuTensor<float> Y, Random r, int nbTests = 100)
         {
             AbsWeightsWithMinimum(n, 0);
