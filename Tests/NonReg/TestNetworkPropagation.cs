@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
@@ -27,14 +28,13 @@ namespace SharpNetTests.NonReg
         public const string Y_2_2 = @"numpy.array([[1,0],[1,0]], numpy.float)";
         private const string Y_1_3 = @"numpy.array([[1,0,0]], numpy.float)";
         private const string W_N_1_4_4 = "[[0.22065729, -0.11788255, -0.4187895],[0.32060236, -0.44626778, 0.24227637],[-0.46897227, 0.5059137, 0.4339162],[-0.02144825, -0.04082066, -0.09005189],[0.28492624, -0.28046286, -0.18176123],[-0.1717251, -0.55430335, -0.28846815],[0.29476583, -0.3019745, 0.03277987],[0.41012663, 0.09135884, 0.2522431],[-0.40020466, -0.2832676, 0.2568243],[0.47819465, 0.06466031, 0.45569366],[0.4343483, -0.30980763, -0.01376414],[0.09202623, -0.02883267, 0.19485158],[-0.5382978, -0.5129023, 0.47553152],[0.15798962, 0.43635488, 0.4626748],[-0.47213712, 0.17086667, -0.03163177],[0.01544881, 0.26190037, 0.38539213]]";
-        
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestSigmoidActivation_NCHW_1_1_1_1(bool useGPU)
+
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestSigmoidActivation_NCHW_1_1_1_1(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_1_1_1_1, "X");
             var Y = FromNumpyArray(Y_1_2, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -55,13 +55,29 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.377643942832947, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestSigmoidActivation_NCHW_1_1_4_4(bool useGPU)
+        private static List<List<int>>  GetTestCases()
+        {
+            var result = new List<List<int>>();
+            result.Add(new List<int> {-1}); //single CPU
+            result.Add(new List<int> { -1,-2 }); //multi CPU
+            if (GPUWrapper.GetDeviceCount() >= 1)
+            {
+                result.Add(new List<int> { 0 }); // single GPU
+            }
+            if (GPUWrapper.GetDeviceCount() >= 2)
+            {
+                result.Add(Enumerable.Range(0, GPUWrapper.GetDeviceCount()).ToList()); //multi GPU
+            }
+            return result;
+        }
+
+
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestSigmoidActivation_NCHW_1_1_4_4(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_1_1_4_4, "X");
             var Y = FromNumpyArray(Y_1_3, "Y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -82,13 +98,12 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.369619220495224, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestSigmoidActivation_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestSigmoidActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -109,13 +124,12 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.6080149412155151, 0.5);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestSoftmaxActivation_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestSoftmaxActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "Y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -164,13 +178,12 @@ namespace SharpNetTests.NonReg
             return (CpuTensor<float>)result.ChangeAxis(new[] { 3, 2, 0, 1 });
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestReluActivation_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestReluActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Dense_Activation(3, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
@@ -194,13 +207,12 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.6792957186698914, 0.5);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestConvolutionWithReluActivation_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestConvolutionWithReluActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(3, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
@@ -224,11 +236,10 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.472797473271688, 1.0);
         }
 
-        [TestCase(true), Explicit]
-        [TestCase(false)]
-        public void TestSimpleRNN(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases)), Explicit]
+        public void TestSimpleRNN(List<int> resourceIds)
         {
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(4, 3, 1)
                 .SimpleRnnLayer(3, 5, 2, false);
@@ -248,13 +259,18 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.930321455001831,0.0696785822510719],[0.988288283348084,0.0117117157205939],[0.255148202180862,0.744851768016815],[0.256481111049652,0.743518948554993],[0.996308386325836,0.00369161483831704],[0.922233164310455,0.0777667835354805],[0.332797795534134,0.667202234268188],[0.970049381256104,0.0299505963921547],[0.959831774234772,0.0401682630181313],[0.990113973617554,0.00988596677780151]]");
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestBatchNormalization_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestBatchNormalization_NCHW_2_1_4_4(List<int> resourceIds)
         {
+            if (resourceIds.Count >= 2)
+            {
+                //because of the non trainable parameters in batchNorm layer, results are not the same in single gpu vs multi gpu
+                return;
+            }
+
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Flatten()
@@ -277,17 +293,22 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.46736355622609455d, 0.5);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestBatchNormalizationNchw2345(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestBatchNormalizationNchw2345(List<int> resourceIds)
         {
+            if (resourceIds.Count>=2)
+            {
+                //because of the non trainable parameters in batchNorm layer, results are not the same in single gpu vs multi gpu
+                return; 
+            }
+
             var numEpochs = 10;
             var learningRate = 0.001;
 
             var X = FromNumpyArray(X_2_3_4_5, "x");
             var Y = FromNumpyArray(Y_2_2, "y");
 
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
 
             network.Config.WithSGD(0.9, false);
 
@@ -313,13 +334,12 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.18375201523303986, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestResNet_Shortcut_Same_Dimension_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestResNet_Shortcut_Same_Dimension_NCHW_2_1_4_4(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
@@ -347,13 +367,12 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.927446961402893, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestResNet_Shortcut_Different_Dimension_With_Conv_1x1_to_change_Dimension_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestResNet_Shortcut_Different_Dimension_With_Conv_1x1_to_change_Dimension_NCHW_2_1_4_4(List<int> resourceIds)
         {
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
@@ -384,16 +403,15 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.642307877540588, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestL2Regularization_ConvolutionLayer_SGDVanilla_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestL2Regularization_ConvolutionLayer_SGDVanilla_NCHW_2_1_4_4(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.12;
             const double lambdaL2Regularization = 0.05;
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU)
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds)
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -414,16 +432,15 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, null /*0.5985526442527771*/, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestL2Regularization_DenseLayer_SGDVanilla_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestL2Regularization_DenseLayer_SGDVanilla_NCHW_2_1_4_4(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.12;
             const double lambdaL2Regularization = 0.05;
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU)
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds)
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             Tensor w = FromNumpyArray("[[-0.3793878 ,  0.13005257, -0.48190022],[-0.5270703 , -0.5069973 , -0.45630288],[-0.08369148, -0.24146178, -0.09606424],[-0.0498544 , -0.4154459 , -0.3665961 ],[-0.3581952 , -0.3345901 ,  0.48476475],[ 0.320306  ,  0.301827  , -0.48490363],[ 0.33425486, -0.42483532,  0.20156533],[ 0.0346387 ,  0.34260863,  0.45479387],[-0.28320554,  0.27089173, -0.5511215 ],[-0.09140414, -0.2540371 , -0.38209555],[ 0.30901152, -0.22211927, -0.07776272],[-0.01273596, -0.43774882,  0.319129  ],[-0.26144847,  0.45303112, -0.5552845 ],[ 0.0012697 , -0.24624684, -0.01347905],[ 0.18339497, -0.46073103,  0.54499584],[-0.32917506,  0.03634387, -0.5220559 ]]", "Dense0");
@@ -439,16 +456,15 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, null /*0.8020790815353394*/, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestL2Regularization_DenseLayer_SGDMomentum_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestL2Regularization_DenseLayer_SGDMomentum_NCHW_2_1_4_4(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.12;
             const double lambdaL2Regularization = 0.5;
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(0.9, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -465,16 +481,15 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, null /*1.5627011060714722*/, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestL2Regularization_DenseLayer_Adam_NCHW_2_1_4_4(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestL2Regularization_DenseLayer_Adam_NCHW_2_1_4_4(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.12;
             const double lambdaL2Regularization = 0.05;
             var X = FromNumpyArray(X_2_1_4_4, "X");
             var Y = FromNumpyArray(Y_2_3, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithAdam(0.9, 0.999);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -492,9 +507,8 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, null /*0.4707931876182556*/, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestConcatenate_NCHW_1_1_1_1(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestConcatenate_NCHW_1_1_1_1(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
@@ -502,7 +516,7 @@ namespace SharpNetTests.NonReg
             const double momentum = 0.9;
             var X = FromNumpyArray(X_1_1_1_1, "X");
             var Y = FromNumpyArray(Y_1_2, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
@@ -525,9 +539,8 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.0001495592441642657, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestMultiply_NCHW_1_1_1_1(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestMultiply_NCHW_1_1_1_1(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
@@ -535,7 +548,7 @@ namespace SharpNetTests.NonReg
             const double momentum = 0.9;
             var X = FromNumpyArray(@"numpy.array([[[[1]]]]], numpy.float)", "X_train");
             var Y = FromNumpyArray(@"numpy.array([[1,0]], numpy.float)", "Y_train");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
@@ -560,9 +573,8 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.21634827554225922, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestMultiply_NCHW_1_2_1_1_same_dimension(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestMultiply_NCHW_1_2_1_1_same_dimension(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
@@ -570,7 +582,7 @@ namespace SharpNetTests.NonReg
             const double momentum = 0.9;
             var X = FromNumpyArray(@"[[[[1]],[[0]]]]", "X_train");
             var Y = FromNumpyArray(@"[[1,0]]", "Y_train");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
@@ -593,9 +605,8 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.3694056272506714, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestMultiply_NCHW_1_2_1_1_different_dimension(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestMultiply_NCHW_1_2_1_1_different_dimension(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
@@ -603,7 +614,7 @@ namespace SharpNetTests.NonReg
             const double momentum = 0.9;
             var X = FromNumpyArray(@"[[[[1]],[[0]]]]", "X_train");
             var Y = FromNumpyArray(@"[[1,0]]", "Y_train");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
@@ -626,9 +637,8 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.3958413600921631, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void TestMultiply_NCHW_2_3_4_5_different_dimension(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestMultiply_NCHW_2_3_4_5_different_dimension(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
@@ -636,7 +646,7 @@ namespace SharpNetTests.NonReg
             const double momentum = 0.9;
             var X = FromNumpyArray(X_2_3_4_5, "");
             var Y = FromNumpyArray(Y_2_2, "");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
@@ -657,9 +667,8 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.4462968111038208, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void Test_DepthwiseConvolution(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void Test_DepthwiseConvolution(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
@@ -667,7 +676,7 @@ namespace SharpNetTests.NonReg
             const double momentum = 0.9;
             var X = FromNumpyArray("[[[[0.0,0.1],[0.2,0.3]],[[0.4,0.5],[0.6,0.7]],[[0.8,0.9],[0.95,1.0]]]]", "x");
             var Y = FromNumpyArray(@"[[1,0]]", "Y_train");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, lambdaL2Regularization, true)
@@ -687,16 +696,15 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.12463792413473129, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void Test_Convolution_With_Asymmetric_Padding(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void Test_Convolution_With_Asymmetric_Padding(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
             const double momentum = 0.9;
             var X = FromNumpyArray(X_2_3_4_5, "x");
             var Y = FromNumpyArray(Y_2_2, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.00, false)
@@ -715,16 +723,15 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.028275400400161743, 1.0);
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public void Test_Convolution_With_Asymmetric_Padding_V2(bool useGPU)
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void Test_Convolution_With_Asymmetric_Padding_V2(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
             const double momentum = 0.9;
             var X = FromNumpyArray(X_2_3_4_5, "x");
             var Y = FromNumpyArray(Y_2_2, "y");
-            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, useGPU);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
@@ -745,10 +752,10 @@ namespace SharpNetTests.NonReg
         }
 
 
-        private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction, bool usGPU)
+        private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction, List<int> resourceIds)
         {
-            var resourceIds = new List<int>{ usGPU ?0:- 1};
             return new Network(new NetworkConfig{ Logger = Logger.NullLogger, LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, resourceIds);
+            //return new Network(new NetworkConfig{ Logger = new Logger(System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "test_"+DateTime.Now.Ticks+".txt"), true), LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, resourceIds);
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {

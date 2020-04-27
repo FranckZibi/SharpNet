@@ -30,6 +30,16 @@ namespace SharpNet
         {
             LogInFile(msg);
         }
+
+        public Logger CloneWithNewFileSuffix(string newFileSuffix)
+        {
+            if (String.IsNullOrEmpty(_logFileName))
+            {
+                return new Logger(_logFileName, _logInConsole);
+            }
+            return new Logger(Utils.UpdateFilePathWithPrefixSuffix(_logFileName, "", newFileSuffix), _logInConsole);
+        }
+
         public string Serialize()
         {
             return new Serializer()

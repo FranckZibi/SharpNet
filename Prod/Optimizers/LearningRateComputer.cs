@@ -26,16 +26,15 @@ namespace SharpNet.Optimizers
         /// Return the learning rate associated with epoch 'epoch' / batch size 'blockIdInEpoch'
         /// </summary>
         /// <param name="epoch">id of epoch. The first epoch is number 1 (not 0)</param>
-        /// <param name="miniBatchBlockIdInEpoch">the batch id in the current epoch (first bacth id is 0)</param>
-        /// <param name="nbBlocksInEpoch">number of batches in current epoch</param>
+        /// <param name="percentagePerformedInEpoch"></param>
         /// <param name="learningRateMultiplicativeFactorFromReduceLrOnPlateau"></param>
         /// <returns></returns>
-        public double LearningRate(int epoch, int miniBatchBlockIdInEpoch, int nbBlocksInEpoch, double learningRateMultiplicativeFactorFromReduceLrOnPlateau)
+        public double LearningRate(int epoch, double percentagePerformedInEpoch, double learningRateMultiplicativeFactorFromReduceLrOnPlateau)
         {
             Debug.Assert(epoch>= 1);
-            Debug.Assert(miniBatchBlockIdInEpoch >= 0);
-            Debug.Assert(nbBlocksInEpoch >= 1);
-            var learningRateFromScheduler = _lrScheduler.LearningRate(epoch, miniBatchBlockIdInEpoch, nbBlocksInEpoch);
+            Debug.Assert(percentagePerformedInEpoch >= 0);
+            Debug.Assert(percentagePerformedInEpoch <= 1);
+            var learningRateFromScheduler = _lrScheduler.LearningRate(epoch, percentagePerformedInEpoch);
             var learningRateWithPlateauReduction = learningRateFromScheduler * learningRateMultiplicativeFactorFromReduceLrOnPlateau;
             learningRateWithPlateauReduction = Math.Max(learningRateWithPlateauReduction, _minimumLearningRate);
             return learningRateWithPlateauReduction;

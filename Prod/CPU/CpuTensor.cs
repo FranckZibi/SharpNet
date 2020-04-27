@@ -1323,14 +1323,14 @@ namespace SharpNet.CPU
             var dest = ((CpuTensor<T>)other).Content.Slice(otherStartElement, elementCount);
             src.CopyTo(dest);
         }
-        public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
+        public override Tensor Slice(int startRowIndex, int nbRows)
         {
             Debug.Assert(Shape.Length >= 2);
             Debug.Assert(startRowIndex >= 0);
             Debug.Assert(startRowIndex < Shape[0]);
             Debug.Assert(startRowIndex + nbRows - 1 < Shape[0]);
             var extractedShape = (int[])Shape.Clone();
-            extractedShape[0] = nbRows; //news number of rows
+            extractedShape[0] = nbRows; //new number of rows
             return new CpuTensor<T>(extractedShape, this, Idx(startRowIndex));
         }
         public override void ZeroMemory()

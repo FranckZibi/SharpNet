@@ -35,12 +35,13 @@ namespace SharpNet.Optimizers
             _multiplicativeCoeff = Math.Pow(maxLearningRate / minLearningRate, (1.0 / (_nbBlocksPerEpoch - 1)));
         }
 
-        public double LearningRate(int epoch, int blockIdInEpoch, int nbBlocksInEpoch, double learningRateMultiplicativeFactorFromReduceLrOnPlateau)
+        public double LearningRate(int epoch, double percentagePerformedInEpoch, double learningRateMultiplicativeFactorFromReduceLrOnPlateau)
         {
             Debug.Assert(epoch >= 1);
-            Debug.Assert(blockIdInEpoch >= 0);
-            Debug.Assert(nbBlocksInEpoch >= 1);
-            return _minLearningRate * Math.Pow(_multiplicativeCoeff, blockIdInEpoch);
+            Debug.Assert(percentagePerformedInEpoch >= 0);
+            Debug.Assert(percentagePerformedInEpoch <= 1);
+            var currentStep = _nbBlocksPerEpoch * percentagePerformedInEpoch;
+            return _minLearningRate * Math.Pow(_multiplicativeCoeff, currentStep);
         }
 
         /// <summary>
@@ -74,7 +75,7 @@ namespace SharpNet.Optimizers
             double bestLearningRate = double.NaN;
             for (int blockId = 10 + nbBlocksBetweenAFactor10InLearningRate;blockId < _smoothedLosses.Count - 5;++blockId)
             {
-                var learningRateForBatchBlock = LearningRate(1, blockId, _nbBlocksPerEpoch, 1.0);
+                var learningRateForBatchBlock = LearningRate(1, blockId/(double)_nbBlocksPerEpoch, 1.0);
                 //we measure the reduction of the loss between:
                 //  the loss observed with the learning rate used at 'blockId' (=learningRateForBatchBlock)
                 //  the loss observed with a learning rate 10x lower (=learningRateForBatchBlock/10) as observed at 'blockId- nbBlocksBetweenAFactor10InLearningRate'
@@ -92,10 +93,10 @@ namespace SharpNet.Optimizers
             var sb = new StringBuilder();
             sb.Append("Sep=;" + Environment.NewLine);
             sb.Append("LearningRate;LearningRateLog;Loss" + Environment.NewLine);
-            for (int blockId = 0; blockId < _loss.Count; ++blockId)
+            for (int miniBatchBlockId = 0; miniBatchBlockId < _loss.Count; ++miniBatchBlockId)
             {
-                var learningRateForBatchBlock = LearningRate(1, blockId, _nbBlocksPerEpoch, 1.0);
-                sb.Append(learningRateForBatchBlock.ToString(CultureInfo.InvariantCulture) + ";"+Math.Log10(learningRateForBatchBlock).ToString(CultureInfo.InvariantCulture) + ";" + _smoothedLosses[blockId] + Environment.NewLine);
+                var learningRateForBatchBlock = LearningRate(1, miniBatchBlockId/(double)_loss.Count, 1.0);
+                sb.Append(learningRateForBatchBlock.ToString(CultureInfo.InvariantCulture) + ";"+Math.Log10(learningRateForBatchBlock).ToString(CultureInfo.InvariantCulture) + ";" + _smoothedLosses[miniBatchBlockId] + Environment.NewLine);
             }
             return sb.ToString();
         }

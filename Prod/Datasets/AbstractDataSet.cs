@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -69,9 +68,7 @@ namespace SharpNet.Datasets
         #endregion
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer, [CanBeNull] CpuTensor<float> yBuffer);
-        public void LoadMiniBatch(int epoch, bool isTraining,
-            int[] shuffledElementId, int firstIndexInShuffledElementId,
-            DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
+        public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
         {
             Debug.Assert(xMiniBatch != null);
             Debug.Assert(yMiniBatch != null);
@@ -94,7 +91,7 @@ namespace SharpNet.Datasets
                 if (miniBatchId != alreadyComputedMiniBatchId)
                 { 
                     //we initialize 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors
-                    threadParameters = Tuple.Create(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementId,
+                    threadParameters = Tuple.Create(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId,
                     dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
                     _backgroundThreadStatus = BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT;
                     while (_backgroundThreadStatus != BackgroundThreadStatus.IDLE)
@@ -105,7 +102,7 @@ namespace SharpNet.Datasets
             }
             else
             {
-                LoadMiniBatchInCpu(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
+                LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
             }
 
             Debug.Assert(xMiniBatch.Shape.Length >= 1);
@@ -137,7 +134,7 @@ namespace SharpNet.Datasets
                 var xNextMiniBatchShape = (int[])xMiniBatch.Shape.Clone();
                 var yNextMiniBatchShape = (int[])yMiniBatch.Shape.Clone();
                 xNextMiniBatchShape[0] = yNextMiniBatchShape[0] = nextMiniBatchSize;
-                threadParameters = Tuple.Create(epoch, isTraining, shuffledElementId, firstIndexInShuffledElementIdForNextMiniBatch, dataAugmentationConfig, xNextMiniBatchShape, yNextMiniBatchShape);
+                threadParameters = Tuple.Create(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementIdForNextMiniBatch, dataAugmentationConfig, xNextMiniBatchShape, yNextMiniBatchShape);
                 _backgroundThreadStatus = BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT;
             }
         }
@@ -312,11 +309,6 @@ namespace SharpNet.Datasets
             }
         }
 
-        public static string[] DefaultGetCategoryIndexToDescription(int categoryCount)
-        {
-            return Enumerable.Range(0, categoryCount).Select(x => x.ToString()).ToArray();
-        }
-
         protected static bool IsValidYSet(Tensor data)
         {
             Debug.Assert(!data.UseGPU);
@@ -358,14 +350,13 @@ namespace SharpNet.Datasets
         /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the mini batch starting
         /// at 'firstIndexInShuffledElementId'
         /// </summary>
-        /// <param name="epoch"></param>
-        /// <param name="isTraining"></param>
+        /// <param name="withDataAugmentation"></param>
         /// <param name="shuffledElementId"></param>
         /// <param name="firstIndexInShuffledElementId"></param>
         /// <param name="dataAugmentationConfig"></param>
         /// <param name="xMiniBatchShape"></param>
         /// <param name="yMiniBatchShape"></param>
-        private void LoadMiniBatchInCpu(int epoch, bool isTraining,
+        private void LoadMiniBatchInCpu(bool withDataAugmentation,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
             DataAugmentationConfig dataAugmentationConfig,
             int[] xMiniBatchShape, int[] yMiniBatchShape)
@@ -397,7 +388,7 @@ namespace SharpNet.Datasets
 
     
 
-            if (!dataAugmentationConfig.UseDataAugmentation || (epoch == 1) || !isTraining)
+            if (!dataAugmentationConfig.UseDataAugmentation || !withDataAugmentation)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
                 xOriginalNotAugmentedMiniBatch.CopyTo(xDataAugmentedMiniBatch);
@@ -512,7 +503,7 @@ namespace SharpNet.Datasets
         private readonly Thread thread;
         private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT, TO_ABORT };
         private BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;
-        private Tuple<int, bool, int[], int, DataAugmentationConfig, int[], int[]> threadParameters;
+        private Tuple<bool, int[], int, DataAugmentationConfig, int[], int[]> threadParameters;
         private void BackgroundThread()
         {
             for (; ; )
@@ -528,7 +519,7 @@ namespace SharpNet.Datasets
                 _backgroundThreadStatus = BackgroundThreadStatus.PROCESSING_INPUT;
                 Debug.Assert(threadParameters != null);
                 // ReSharper disable once PossibleNullReferenceException
-                LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6, threadParameters.Item7);
+                LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6);
                 threadParameters = null;
                 _backgroundThreadStatus = BackgroundThreadStatus.IDLE;
             }

@@ -80,23 +80,19 @@ namespace SharpNet
         }
         public static string MemoryBytesToString(ulong bytes)
         {
-            if (bytes > 3000000)
+            if (bytes > 15_000_000_000)
             {
-                return (bytes / 1000000) + "MB";
+                return (bytes / 1_000_000_000) + "GB";
             }
-            if (bytes > 3000)
+            if (bytes > 3_000_000)
             {
-                return (bytes / 1000) + "KB";
+                return (bytes / 1_000_000) + "MB";
+            }
+            if (bytes > 3_000)
+            {
+                return (bytes / 1_000) + "KB";
             }
             return bytes + "B";
-        }
-        public static double Max(double a, double b, double c)
-        {
-            return Math.Max(Math.Max(a, b), c);
-        }
-        public static double Min(double red, double green, double blue)
-        {
-            return Math.Min(Math.Min(red, green), blue);
         }
         //!D TODO Add tests
         public static double Interpolate(List<Tuple<double,double>> values, double x, bool constantByInterval = false)
@@ -198,6 +194,13 @@ namespace SharpNet
         public static long FileLength(string path)
         {
             return new FileInfo(path).Length;
+        }
+        public static String UpdateFilePathWithPrefixSuffix(string filePath, string prefix, string suffix)
+        {
+            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
+            string extension = Path.GetExtension(filePath);
+            string path = GetDirectoryName(filePath);
+            return ConcatenatePathWithFileName(path, prefix + fileNameWithoutExtension + suffix + extension);
         }
         /// <summary>
         /// read a part of a binary file, starting at position 'startIndex' in the file

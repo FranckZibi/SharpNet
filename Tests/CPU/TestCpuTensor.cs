@@ -199,8 +199,8 @@ namespace SharpNetTests.CPU
         {
             var data = new float[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
             var owner = new CpuTensor<float>(new[] { 5, 2 }, data, "owner");
-            var tensorTop2Rows = (CpuTensor<float>)owner.ExtractSubTensor(0, 2);  
-            var tensorBottom3Rows = (CpuTensor<float>)owner.ExtractSubTensor(2, 3);
+            var tensorTop2Rows = (CpuTensor<float>)owner.Slice(0, 2);  
+            var tensorBottom3Rows = (CpuTensor<float>)owner.Slice(2, 3);
             var contentTop = tensorTop2Rows.ContentAsFloatArray();
             Assert.AreEqual(new float[] { 0, 1, 2, 3 }, contentTop.ToArray());
             var contentBottom = tensorBottom3Rows.ContentAsFloatArray();

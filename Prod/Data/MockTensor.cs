@@ -70,7 +70,7 @@ namespace SharpNet.Data
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient){throw new NotImplementedException();}
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW,Tensor adam_sW, int timestep){throw new NotImplementedException();}
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity){throw new NotImplementedException();}
-        public override Tensor ExtractSubTensor(int startRowIndex, int nbRows){throw new NotImplementedException();}
+        public override Tensor Slice(int startRowIndex, int nbRows){throw new NotImplementedException();}
 
         public override bool IsOwnerOfMemory => throw new NotImplementedException();
 

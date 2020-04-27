@@ -72,25 +72,26 @@ namespace SharpNet.GPU
         {
             AssertIsNotDisposed();
             Debug.Assert(Count == src.Count);
-            _wrapper.SwCopyDeviceToDevice.Start();
-            _wrapper.LogCopyDeviceToDeviceCall(ReallyNeededMemoryInBytes);
-
-            var srcDevicePointer = src.Pointer;
             var srcDeviceId = src._wrapper.DeviceId;
             if (_wrapper.DeviceId == srcDeviceId)
             {
                 //copy in the same device (GPU)
+                _wrapper.SwCopyDeviceToSameDevice.Start();
+                _wrapper.LogCopyDeviceToSameDeviceCall(ReallyNeededMemoryInBytes);
                 src.CopyTo(0, this, 0, Count);
+                _wrapper.SwCopyDeviceToSameDevice.Stop();
             }
             else
             {
                 //copy between 2 distinct devices (GPU)
-                //Asynchronous copy
-                var res = CudartWrapper.cudaMemcpyPeerAsync(Pointer, _wrapper.DeviceId, srcDevicePointer, srcDeviceId, ReallyNeededMemoryInBytes, IntPtr.Zero);
+                _wrapper.SwCopyDeviceToOtherDevice.Start();
+                _wrapper.LogCopyDeviceToOtherDeviceCall(ReallyNeededMemoryInBytes);
+                //asynchronous copy
+                var res = CudartWrapper.cudaMemcpyPeerAsync(Pointer, _wrapper.DeviceId, src.Pointer, srcDeviceId, ReallyNeededMemoryInBytes, IntPtr.Zero);
                 //for synchronous copy: var res = CudartWrapper.cudaMemcpyPeer(Pointer, _wrapper.DeviceId, srcDevicePointer, srcDeviceId, ReallyNeededMemoryInBytes);
                 GPUWrapper.CheckStatus(res);
+                _wrapper.SwCopyDeviceToOtherDevice.Stop();
             }
-            _wrapper.SwCopyDeviceToDevice.Stop();
         }
 
         #region Tensor implementation
@@ -731,7 +732,7 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res);
 
         }
-        public override Tensor ExtractSubTensor(int startRowIndex, int nbRows)
+        public override Tensor Slice(int startRowIndex, int nbRows)
         {
             var shape = (int[])Shape.Clone();
             shape[0] = startRowIndex;
@@ -740,6 +741,9 @@ namespace SharpNet.GPU
             return new GPUTensor<T>(shape, this, (int)offset, Description);
         }
         public override bool IsOwnerOfMemory => deviceMemory.IsOwnerOfDeviceMemory;
+
+        protected override int DeviceId => _wrapper.DeviceId;
+
         public override void ZeroMemory()
         {
             deviceMemory.ZeroMemory();

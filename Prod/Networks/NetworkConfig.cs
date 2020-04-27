@@ -77,8 +77,6 @@ namespace SharpNet.Networks
         /// </summary>
         public int AutoSaveIntervalInMinutes { get; set; } = 5*60;
         public bool SaveNetworkStatsAfterEachEpoch { get; set; }
-        public bool SaveLossAfterEachMiniBatch { get; set; }
-
 
         /// <summary>
         /// name of the the first layer for which we want ot freeze the weights
@@ -159,7 +157,6 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + nameof(DisplayTensorContentStats), ref errors);
             equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + nameof(AutoSaveIntervalInMinutes), ref errors);
             equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + nameof(SaveNetworkStatsAfterEachEpoch), ref errors);
-            equals &= Utils.Equals(SaveLossAfterEachMiniBatch, other.SaveLossAfterEachMiniBatch, id + nameof(SaveLossAfterEachMiniBatch), ref errors);
             equals &= DataAugmentation.Equals(other.DataAugmentation, epsilon, id + nameof(DataAugmentation), ref errors);
             return equals;
         }
@@ -263,7 +260,6 @@ namespace SharpNet.Networks
                 .Add(nameof(LogDirectory), LogDirectory)
                 .Add(nameof(AutoSaveIntervalInMinutes), AutoSaveIntervalInMinutes)
                 .Add(nameof(SaveNetworkStatsAfterEachEpoch), SaveNetworkStatsAfterEachEpoch)
-                .Add(nameof(SaveLossAfterEachMiniBatch), SaveLossAfterEachMiniBatch)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
                 .Add(Logger.Serialize())
                 .Add(DataAugmentation.Serialize())
@@ -273,6 +269,12 @@ namespace SharpNet.Networks
         {
             return new NetworkConfig(serialized);
         }
+
+        public NetworkConfig Clone()
+        {
+            return new NetworkConfig(Serializer.Deserialize(Serialize(), null));
+        }
+
         private NetworkConfig(IDictionary<string, object> serialized)
         {
             LossFunction = (LossFunctionEnum)serialized[nameof(LossFunction)];
@@ -305,7 +307,6 @@ namespace SharpNet.Networks
                     ? (int) serialized[nameof(AutoSaveIntervalInMinutes)]
                     : (int) serialized["AutoSaveIntervalInMinuts"];
             SaveNetworkStatsAfterEachEpoch = (bool)serialized[nameof(SaveNetworkStatsAfterEachEpoch)];
-            SaveLossAfterEachMiniBatch = (bool)serialized[nameof(SaveLossAfterEachMiniBatch)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
             Logger = Logger.ValueOf(serialized);
             DataAugmentation = DataAugmentationConfig.ValueOf(serialized);

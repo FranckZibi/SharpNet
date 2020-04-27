@@ -24,7 +24,6 @@ namespace SharpNet.Data
 
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
-        protected bool SameShape(int[] shape) {return Shape.SequenceEqual(shape);}
         public override string ToString()
         {
             return ToString(false);
@@ -119,6 +118,8 @@ namespace SharpNet.Data
             throw new Exception("fail to convert " + this + " this to a CpuTensor<" + typeof(T)+">");
         }
 
+        protected virtual int DeviceId => -1;
+
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper)
         {
             return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().Content, gpuWrapper, Description);
@@ -132,7 +133,18 @@ namespace SharpNet.Data
             return new CpuTensor<float>(Shape, ContentAsFloatArray(), Description);
         }
         public abstract void Reshape(int[] newShape);
-
+        public static string ShapeToString(int[] shape)
+        {
+            return "(" + string.Join(", ", shape) + ")";
+        }
+        public GPUTensor<T> AsGPU<T>()
+        {
+            if (this is GPUTensor<T> result)
+            {
+                return result;
+            }
+            throw new Exception("fail to convert " + this + " this to a GPUTensor<" + typeof(T) + ">");
+        }
 
         /// <summary>
         /// reshape the current tensor to 'newShape' in a thread safe way
@@ -381,7 +393,7 @@ namespace SharpNet.Data
         public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep);
         //this = Weights or B
         public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
-        public abstract Tensor ExtractSubTensor(int startRowIndex, int nbRows);
+        public abstract Tensor Slice(int startRowIndex, int nbRows);
 
         /// <summary>
         /// true if the tensor is the single owner of the associated memory (it will have to dispose this memory when collected)
@@ -542,16 +554,29 @@ namespace SharpNet.Data
             Debug.Assert(Shape.Skip(2).SequenceEqual(b.Shape.Skip(2)));
         }
         protected int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
-
+        protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
         protected void RecomputeMultDim()
         {
             _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;
             MultDim1 = Shape.Length >= 3 ? Shape[2] * _multDim2  : 1;
             MultDim0 = Shape.Length >= 2 ? Shape[1] * MultDim1 : 1;
         }
+
         private bool IsCompatible(Tensor a)
         {
-            return (a != null && UseGPU == a.UseGPU);
+            if (a == null)
+            {
+                return false;
+            }
+            if (UseGPU != a.UseGPU)
+            {
+                return false;
+            }
+            if (UseGPU && DeviceId != a.DeviceId)
+            {
+                return false; //tensors must be stored in the same GPU
+            }
+            return true;
         }
         private string ToString(bool displayStartOfTensor)
         {
@@ -566,19 +591,5 @@ namespace SharpNet.Data
             return result;
         }
 
-        public static string ShapeToString(int[] shape)
-        {
-            return "(" + string.Join(", ", shape) + ")";
-        }
-
-      
-        public GPUTensor<T> AsGPU<T>()
-        {
-            if (this is GPUTensor<T> result)
-            {
-                return result;
-            }
-            throw new Exception("fail to convert " + this + " this to a GPUTensor<" + typeof(T) + ">");
-        }
     }
 }

@@ -15,15 +15,15 @@ namespace SharpNet.Datasets
         ///     .../...
         ///     shuffledElementId[firstIndexInShuffledElementId+xMiniBatch.Shape[0]-1 ]
         /// </summary>
-        /// <param name="epoch">index of epoch. The first epoch is 1</param>
-        /// <param name="isTraining"></param>
+        /// <param name="withDataAugmentation">true if data augmentation should be used
+        /// if false will return the original (not augmented) input</param>
         /// <param name="shuffledElementId">list of all elementId in 'random' (shuffled) order</param>
         /// <param name="firstIndexInShuffledElementId"></param>
         /// <param name="dataAugmentationConfig"></param>
         /// <param name="xMiniBatch">buffer where all elements (associated with the mini batch) will be stored</param>
         /// <param name="yMiniBatch">buffer where all categoryCount (associated with the mini batch) will be stored</param>
         /// <returns></returns>
-        void LoadMiniBatch(int epoch, bool isTraining, 
+        void LoadMiniBatch(bool withDataAugmentation, 
             int[] shuffledElementId, int firstIndexInShuffledElementId,
             DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch);
 

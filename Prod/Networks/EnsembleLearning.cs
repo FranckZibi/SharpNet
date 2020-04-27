@@ -24,7 +24,7 @@ namespace SharpNet.Networks
                     Console.WriteLine("File loaded");
                     Console.WriteLine("Computing accuracy for single network...");
                     
-                    var yPredictedSingleNetwork = network.MiniBatchGradientDescent(testDataSet);
+                    var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet);
 
                     var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
                     var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);

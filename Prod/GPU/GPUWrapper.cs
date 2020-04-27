@@ -34,7 +34,8 @@ namespace SharpNet.GPU
         private IntPtr _cudnnHandle;
         private int _copyHostToDeviceCalls;
         private ulong _bytesCopiedHostToDevice;
-        private int _copyDeviceToDeviceCalls;
+        private int _copyDeviceToSameDeviceCalls;
+        private int _copyDeviceToOtherDeviceCalls;
         private ulong _bytesCopiedDeviceToDevice;
         private int _copyDeviceToHostCalls;
         private ulong _bytesCopiedDeviceToHost;
@@ -46,7 +47,8 @@ namespace SharpNet.GPU
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
         public int WarpSize { get; }
-        public Stopwatch SwCopyDeviceToDevice { get; } = new Stopwatch();
+        public Stopwatch SwCopyDeviceToSameDevice { get; } = new Stopwatch();
+        public Stopwatch SwCopyDeviceToOtherDevice { get; } = new Stopwatch();
         public Stopwatch SwCopyHostToDevice { get; } = new Stopwatch();
         public Stopwatch SwCopyDeviceToHost { get; } = new Stopwatch();
         #endregion
@@ -421,11 +423,13 @@ namespace SharpNet.GPU
             _bytesCopiedHostToDevice = 0;
             _copyDeviceToHostCalls = 0;
             _bytesCopiedDeviceToHost = 0;
-            _copyDeviceToDeviceCalls = 0;
+            _copyDeviceToSameDeviceCalls = 0;
+            _copyDeviceToOtherDeviceCalls = 0;
             _bytesCopiedDeviceToDevice = 0;
             SwCopyHostToDevice.Reset();
             SwCopyDeviceToHost.Reset();
-            SwCopyDeviceToDevice.Reset();
+            SwCopyDeviceToSameDevice.Reset();
+            SwCopyDeviceToOtherDevice.Reset();
             //_nbChunksInDeviceMemory = 0;
             cacheTensorDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyTensorDescriptor(x)));
             cacheTensorDesc.Clear();
@@ -447,10 +451,16 @@ namespace SharpNet.GPU
             _randomNumberGeneratorStatesBuffer?.Dispose();
             _randomNumberGeneratorStatesBuffer = null;
         }
-        public void LogCopyDeviceToDeviceCall(ulong byteCopied)
+        public void LogCopyDeviceToSameDeviceCall(ulong byteCopied)
         {
             Debug.Assert(byteCopied > 0);
-            ++_copyDeviceToDeviceCalls;
+            ++_copyDeviceToSameDeviceCalls;
+            _bytesCopiedDeviceToDevice += byteCopied;
+        }
+        public void LogCopyDeviceToOtherDeviceCall(ulong byteCopied)
+        {
+            Debug.Assert(byteCopied > 0);
+            ++_copyDeviceToOtherDeviceCalls;
             _bytesCopiedDeviceToDevice += byteCopied;
         }
         public void LogCopyHostToDeviceCall(ulong byteCopied)
@@ -489,9 +499,13 @@ namespace SharpNet.GPU
             { 
                 result += " - " + Utils.MemoryBytesToString(_bytesCopiedDeviceToHost) + " CopiedDeviceToHost (" + _copyDeviceToHostCalls + "calls, " + SwCopyDeviceToHost.ElapsedMilliseconds + "ms)";
             }
-            if (_copyDeviceToDeviceCalls != 0)
+            if (_copyDeviceToSameDeviceCalls != 0)
             {
-                result += " - " + Utils.MemoryBytesToString(_bytesCopiedDeviceToDevice) + " CopiedDeviceToDevice (" + _copyDeviceToDeviceCalls + "calls, " + SwCopyDeviceToDevice.ElapsedMilliseconds + "ms)";
+                result += " - " + Utils.MemoryBytesToString(_bytesCopiedDeviceToDevice) + " CopiedDeviceToSameDevice (" + _copyDeviceToSameDeviceCalls + "calls, " + SwCopyDeviceToSameDevice.ElapsedMilliseconds + "ms)";
+            }
+            if (_copyDeviceToOtherDeviceCalls != 0)
+            {
+                result += " - " + Utils.MemoryBytesToString(_bytesCopiedDeviceToDevice) + " CopiedDeviceToOtherDevice (" + _copyDeviceToOtherDeviceCalls + "calls, " + SwCopyDeviceToOtherDevice.ElapsedMilliseconds + "ms)";
             }
             return result;
         }
