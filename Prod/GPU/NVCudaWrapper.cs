@@ -65,7 +65,10 @@ namespace SharpNet.GPU
         CUDA_ERROR_INVALID_ADDRESS_SPACE = 717,
         CUDA_ERROR_INVALID_PC = 718,
         CUDA_ERROR_LAUNCH_FAILED = 719,
-        CUDA_ERROR_COOPERATIVE_LAUNCH_TOO_LARGE = 720
+        CUDA_ERROR_COOPERATIVE_LAUNCH_TOO_LARGE = 720,
+        CUDA_ERROR_NOT_PERMITTED = 800,
+        CUDA_ERROR_NOT_SUPPORTED = 801,
+        CUDA_ERROR_UNKNOWN = 999
     }
 
     public enum CUdevice_attribute
@@ -292,11 +295,11 @@ namespace SharpNet.GPU
         public static extern CUresult cuInit(uint flags);
 
         [DllImport(NVCUDA)]
-        public static extern CUresult cuCtxCreate_v2(out IntPtr contextHandle, uint flags, IntPtr deviceHandle);
-
+        public static extern CUresult cuDevicePrimaryCtxRetain(out IntPtr contextHandle, IntPtr deviceHandle);
+        
         [DllImport(NVCUDA)]
-        public static extern CUresult cuCtxDestroy_v2(IntPtr contextHandle);
-
+        public static extern CUresult cuDevicePrimaryCtxRelease(IntPtr contextHandle);
+        
         [DllImport(NVCUDA)]
         public static extern CUresult cuDeviceGetAttribute(out int pi, CUdevice_attribute attrib, IntPtr deviceHandle);
 

@@ -35,8 +35,11 @@ namespace SharpNet.Layers
         #endregion
 
         #region clone layer
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new FlattenLayer(this, newSlaveNetwork); }
-        private FlattenLayer(FlattenLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork) { }
+
+        public override void AddToOtherNetwork(Network otherNetwork)
+        {
+            otherNetwork.Layers.Add(new FlattenLayer(otherNetwork, LayerName));
+        }
         #endregion
 
         public override int[] OutputShape(int batchSize) {return new []{batchSize, PrevLayer.n_x};}

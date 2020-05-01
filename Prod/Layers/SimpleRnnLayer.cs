@@ -64,12 +64,12 @@ namespace SharpNet.Layers
             _yLength = yLength;
             _returnSequences = returnSequences;
 
-            Weights_aa = GetNotInitializedFloatTensor(new[] { aLength, aLength }, nameof(Weights_aa));
-            Weights_ax = GetNotInitializedFloatTensor(new[] { xLength, aLength }, nameof(Weights_ax));
-            Weights_ay = GetNotInitializedFloatTensor(new[] { aLength, yLength }, nameof(Weights_ay));
-            Bias_a = GetNotInitializedFloatTensor(new[] { 1, aLength }, nameof(Bias_a));
-            Bias_y = GetNotInitializedFloatTensor(new[] { 1, yLength }, nameof(Bias_y));
-            //a_init = Network.GetNotInitializedFloatTensor(new[] { batchSize, aLength }, a_init, nameof(a_init));
+            Weights_aa = GetFloatTensor(new[] { aLength, aLength });
+            Weights_ax = GetFloatTensor(new[] { xLength, aLength });
+            Weights_ay = GetFloatTensor(new[] { aLength, yLength });
+            Bias_a = GetFloatTensor(new[] { 1, aLength });
+            Bias_y = GetFloatTensor(new[] { 1, yLength });
+            //a_init = Network.GetFloatTensor(new[] { batchSize, aLength }, a_init, nameof(a_init));
             ResetWeights(false);
         }
 
@@ -87,10 +87,10 @@ namespace SharpNet.Layers
 
             var shape_NCH = x_NCH.Shape;
             var shape_NH = new[] { shape_NCH[0], shape_NCH[2] };
-            GetNotInitializedFloatTensor(ref x_at_t_buffer, shape_NH, nameof(x_at_t_buffer));
-            GetNotInitializedFloatTensor(ref a_buffer1, aShape, nameof(a_buffer1));
-            GetNotInitializedFloatTensor(ref a_buffer2, aShape, nameof(a_buffer2));
-            GetNotInitializedFloatTensor(ref y_buffer1, yShape, nameof(y_buffer1));
+            GetFloatTensor(ref x_at_t_buffer, shape_NH);
+            GetFloatTensor(ref a_buffer1, aShape);
+            GetFloatTensor(ref a_buffer2, aShape);
+            GetFloatTensor(ref y_buffer1, yShape);
 
 
             for (int t = 0; t < _timeSteps_x; ++t)
@@ -116,7 +116,6 @@ namespace SharpNet.Layers
         }
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
-            Debug.Assert(Network.IsMaster);
             var prevLayerNX = PrevLayer.n_x;
             Weights_aa.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / prevLayerNX) /*stdDev*/);
             Weights_ax.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / prevLayerNX) /*stdDev*/);
@@ -146,70 +145,11 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        #region layer clone
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new SimpleRnnLayer(this, newSlaveNetwork); }
-        private SimpleRnnLayer(SimpleRnnLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork)
+        public override void AddToOtherNetwork(Network otherNetwork)
         {
-            _timeSteps_x = toCloneFromMasterNetwork._timeSteps_x;
-            _xLength = toCloneFromMasterNetwork._xLength;
-            _aLength = toCloneFromMasterNetwork._aLength;
-            _yLength = toCloneFromMasterNetwork._yLength;
-            _returnSequences = toCloneFromMasterNetwork._returnSequences;
+            otherNetwork.Layers.Add(new SimpleRnnLayer(_xLength, _aLength, _yLength, _returnSequences, otherNetwork, LayerName));
         }
-        #endregion
 
-        //public override void Allocate_y_if_necessary(int batchSize)
-        //{
-        //    var x = Network.Get_Y(PreviousLayerIndexes[0]);
-        //    Debug.Assert(_timeSteps_x == x.Shape[1]);
-        //    Debug.Assert(3 == x.Dimension); //(N, xTimeSteps, xLength)
-        //    //We initialize 'a'
-        //    var aShape = new[] { batchSize, _aLength };
-        //    a_init = Network.GetNotInitializedFloatTensor(aShape, a_init, nameof(a_init));
-        //    //TO CHECK
-        //    //a_init.ZeroMemory();
-        //    a_init.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
-        //    //TensorExtensions.FromNumpyArray("array([[-0.02461696, -0.77516162,  1.27375593,  1.96710175, -1.85798186,1.23616403,  1.62765075,  0.3380117 , -1.19926803,  0.86334532], [-0.1809203 , -0.60392063, -1.23005814,  0.5505375 ,  0.79280687,-0.62353073,  0.52057634, -1.14434139,  0.80186103,  0.0465673 ], [-0.18656977, -0.10174587,  0.86888616,  0.75041164,  0.52946532,0.13770121,  0.07782113,  0.61838026,  0.23249456,  0.68255141], [-0.31011677, -2.43483776,  1.0388246 ,  2.18697965,  0.44136444,-0.10015523, -0.13644474, -0.11905419,  0.01740941, -1.12201873], [-0.51709446, -0.99702683,  0.24879916, -0.29664115,  0.49521132,-0.17470316,  0.98633519,  0.2135339 ,  2.19069973, -1.89636092]])", nameof(a_init)).Transpose().CopyTo(a_init);
-
-
-        //    for (int t = 0; t < a_t.Count; ++t)
-        //    {
-        //        a_t[t] = Network.GetNotInitializedFloatTensor(aShape, a_t[t], a_t[t].Description);
-        //    }
-        //    while (a_t.Count < _timeSteps_x)
-        //    {
-        //        a_t.Add(Network.GetNotInitializedFloatTensor(aShape, "a_" + (a_t.Count + 1)));
-        //    }
-        //    a_t.ForEach(t=>t.ZeroMemory());
-
-
-        //    var yShape = new[] { batchSize, _yLength };
-        //    for (int t = 0; t < y_t.Count; ++t)
-        //    {
-        //        y_t[t] = Network.GetNotInitializedFloatTensor(yShape, y_t[t], y_t[t].Description);
-        //    }
-        //    while (y_t.Count < _timeSteps_x)
-        //    {
-        //        y_t.Add(Network.GetNotInitializedFloatTensor(yShape, "y_" + (a_t.Count + 1)));
-        //    }
-        //    //y_t.ForEach(t => t.ZeroMemory());
-        //}
-
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (SimpleRnnLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_timeSteps_x, other._timeSteps_x, id + nameof(_timeSteps_x), ref errors);
-            equals &= Utils.Equals(_xLength, other._xLength, id + nameof(_xLength), ref errors);
-            equals &= Utils.Equals(_aLength, other._aLength, id + nameof(_aLength), ref errors);
-            equals &= Utils.Equals(_yLength, other._yLength, id + nameof(_yLength), ref errors);
-            equals &= Utils.Equals(_returnSequences, other._returnSequences, id + nameof(_returnSequences), ref errors);
-            return equals;
-        }
         public override int[] OutputShape(int batchSize)
         {
             if (_returnSequences)

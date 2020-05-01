@@ -25,19 +25,16 @@ namespace SharpNet.CPU
         private HostPinnedMemory<T> _hostPinnedMemory;
         #endregion
 
-        public CpuTensor(int[] shape, T[] data, int typeSize, string description) : base(shape, typeSize, false, description)
+        public CpuTensor(int[] shape, T[] data, int typeSize) : base(shape, typeSize, false)
         {
             Content = data ?? new T[Count];
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
             _ptrToOwnerPinnedMemory = IntPtr.Zero;
         }
-        public CpuTensor(int[] shape, T[] data, string description) : this(shape, data, Marshal.SizeOf(typeof(T)), description)
+        public CpuTensor(int[] shape, T[] data = null) : this(shape, data, Marshal.SizeOf(typeof(T)))
         {
         }
-        public CpuTensor(int[] shape, string description) : this(shape, null, description)
-        {
-        }
-        private CpuTensor(int[] shape, CpuTensor<T> memoryOwner, int startIndex) : base(shape, memoryOwner.TypeSize, false, memoryOwner.Description)
+        private CpuTensor(int[] shape, CpuTensor<T> memoryOwner, int startIndex) : base(shape, memoryOwner.TypeSize, false)
         {
             Content = memoryOwner.Content.Slice(startIndex, Utils.Product(shape));
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
@@ -111,7 +108,7 @@ namespace SharpNet.CPU
         public CpuTensor<T> From_HNC_to_NCH()
         {
             var transformedShape = new[] { Shape[1], Shape[2], Shape[0] };
-            var result = new CpuTensor<T>(transformedShape, Description);
+            var result = new CpuTensor<T>(transformedShape);
             for (int n = 0; n < transformedShape[0]; ++n)
             {
                 for (int c = 0; c < transformedShape[1]; ++c)
@@ -143,7 +140,7 @@ namespace SharpNet.CPU
                 transformedShape[newAxis] = Shape[newToOldAxis[newAxis]];
             }
 
-            var result = new CpuTensor<T>(transformedShape, Description);
+            var result = new CpuTensor<T>(transformedShape);
 
             var indexesInNewAxis =  new int[Dimension];
             for (int n = 0; n < Shape[0]; ++n)
@@ -236,7 +233,7 @@ namespace SharpNet.CPU
         /// <returns></returns>
         public CpuTensor<TY> Select<TY>(Func<int,int, T, TY> func) where TY : struct
         {
-            var result = new CpuTensor<TY>(Shape, Description);
+            var result = new CpuTensor<TY>(Shape);
             Debug.Assert(SameShape(result));
             var content = ReadonlyContent;
             for (int m = 0; m < Shape[0]; ++m)
@@ -601,7 +598,7 @@ namespace SharpNet.CPU
         public override Tensor Transpose()
         {
             Debug.Assert(Dimension == 2);
-            var output = new CpuTensor<T>(new[] { Shape[1], Shape[0] }, Description);
+            var output = new CpuTensor<T>(new[] { Shape[1], Shape[0] });
             for (int row = 0; row < Shape[0]; ++row)
             {
                 for (int col = 0; col < Shape[1]; ++col)
@@ -644,7 +641,7 @@ namespace SharpNet.CPU
                     yContent[elementId * categoryCount + categoryIndex] = 1f;
                 }
             }
-            return new CpuTensor<float>(yShape, "YOneHot");
+            return new CpuTensor<float>(yShape);
         }
 
 
@@ -1323,15 +1320,11 @@ namespace SharpNet.CPU
             var dest = ((CpuTensor<T>)other).Content.Slice(otherStartElement, elementCount);
             src.CopyTo(dest);
         }
-        public override Tensor Slice(int startRowIndex, int nbRows)
+       
+        public override Tensor Slice(int startIndex, int[] sliceShape)
         {
-            Debug.Assert(Shape.Length >= 2);
-            Debug.Assert(startRowIndex >= 0);
-            Debug.Assert(startRowIndex < Shape[0]);
-            Debug.Assert(startRowIndex + nbRows - 1 < Shape[0]);
-            var extractedShape = (int[])Shape.Clone();
-            extractedShape[0] = nbRows; //new number of rows
-            return new CpuTensor<T>(extractedShape, this, Idx(startRowIndex));
+            Debug.Assert(startIndex >= 0);
+            return new CpuTensor<T>((int[])sliceShape.Clone(), this, startIndex);
         }
         public override void ZeroMemory()
         {
@@ -1418,7 +1411,7 @@ namespace SharpNet.CPU
             {
                 content[i] = func(this[i], b[i]);
             }
-            return new CpuTensor<T>(Shape, content, description);
+            return new CpuTensor<T>(Shape, content);
         }
         private double NaNSum()
         {

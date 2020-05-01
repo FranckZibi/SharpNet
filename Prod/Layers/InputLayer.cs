@@ -57,29 +57,11 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        #region layer clone
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new InputLayer(this, newSlaveNetwork); }
-        private InputLayer(InputLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork)
+        public override void AddToOtherNetwork(Network otherNetwork)
         {
-            _c = toCloneFromMasterNetwork._c;
-            _h = toCloneFromMasterNetwork._h;
-            _w = toCloneFromMasterNetwork._w;
+            otherNetwork.Layers.Add(new InputLayer(_c, _h, _w, otherNetwork, LayerName));
         }
-        #endregion
 
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (InputLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_c, other._c, id + nameof(_c), ref errors);
-            equals &= Utils.Equals(_h, other._h, id + nameof(_h), ref errors);
-            equals &= Utils.Equals(_w, other._w, id + nameof(_w), ref errors);
-            return equals;
-        }
         public override int[] OutputShape(int batchSize) { return new[] { batchSize, _c, _h, _w }; }
         public override string ToString()
         {

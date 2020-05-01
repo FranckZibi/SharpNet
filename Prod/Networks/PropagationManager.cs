@@ -91,7 +91,7 @@ namespace SharpNet.Networks
                         if (previousLayerIndex != 0)
                         {
                             //we can not collect the input 'x' tensor
-                            _memoryPool.FreeMemory(_all_allocated_Y, previousLayerIndex);
+                            _memoryPool.FreeFloatTensor(_all_allocated_Y, previousLayerIndex);
                         }
                         _all_allocated_Y[previousLayerIndex] = null;
                     }
@@ -107,9 +107,9 @@ namespace SharpNet.Networks
             var outputShape = layer.OutputShape(batchSize);
             if (!_memoryPool.IsMock || 0 == layer.ExtraElementCountForForwardPropagation(batchSize))
             {
-                return _memoryPool.GetNotInitializedFloatTensor(outputShape, "y_" + layer.LayerName);
+                return _memoryPool.GetFloatTensor(outputShape);
             }
-            return _memoryPool.GetNotInitializedFloatTensor(ReshapeWithExtraElementCount(outputShape, layer.ExtraElementCountForForwardPropagation(batchSize)), "yExtra_" + layer.LayerName);
+            return _memoryPool.GetFloatTensor(ReshapeWithExtraElementCount(outputShape, layer.ExtraElementCountForForwardPropagation(batchSize)));
         }
 
         private Tensor Get_dxBuffer(Layer prev, int batchSize)
@@ -117,9 +117,9 @@ namespace SharpNet.Networks
             var outputShape = prev.OutputShape(batchSize);
             if (!_memoryPool.IsMock || 0 == prev.ExtraElementCountForBackwardPropagation(batchSize))
             {
-                return _memoryPool.GetNotInitializedFloatTensor(outputShape, "dy_" + prev.LayerName);
+                return _memoryPool.GetFloatTensor(outputShape);
             }
-            return _memoryPool.GetNotInitializedFloatTensor(ReshapeWithExtraElementCount(outputShape, prev.ExtraElementCountForBackwardPropagation(batchSize)), "dyExtra_" + prev.LayerName);
+            return _memoryPool.GetFloatTensor(ReshapeWithExtraElementCount(outputShape, prev.ExtraElementCountForBackwardPropagation(batchSize)));
         }
 
         private static int[] ReshapeWithExtraElementCount(int[] initialShape, int extraElementCount)
@@ -139,12 +139,12 @@ namespace SharpNet.Networks
 
             if (_memoryPool.IsMock)
             {
-                dyPredicted = _memoryPool.GetNotInitializedFloatTensor(_layers.Last().OutputShape(1), "dyPredicted");
+                dyPredicted = _memoryPool.GetFloatTensor(_layers.Last().OutputShape(1));
             }
             else
             {
                 //we compute: _dyPredicted = (1.0 / categoryCount)*(yPredicted - yExpected)
-                dyPredicted = _memoryPool.GetNotInitializedFloatTensor(yExpected.Shape, "dyPredicted");
+                dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
                 yPredicted.CopyTo(dyPredicted);
                 var categoryCount = yPredicted.Shape[1];
                 var multiplier = _layers.Last().IsSigmoidActivationLayer() ? (1f / categoryCount) : 1f;
@@ -195,7 +195,7 @@ namespace SharpNet.Networks
                     {
                         //there is no need to compute/keep 'dy' of layer 'prevLayerIndex'
                         //we do not need to do any back propagation for it
-                        _memoryPool.FreeMemory(ref prevLayerdY);
+                        _memoryPool.FreeFloatTensor(ref prevLayerdY);
                         continue;
                     }
 
@@ -212,17 +212,17 @@ namespace SharpNet.Networks
                             all_dY[prevLayerIndex].Update_Adding_Alpha_X(1, prevLayerdY);
                         }
                         //we can free (discard) the content of prevLayer dY : it has already been added to an existing tensor
-                        _memoryPool.FreeMemory(ref prevLayerdY);
+                        _memoryPool.FreeFloatTensor(ref prevLayerdY);
                     }
                 }
 
                 //we put back 'dy' in the cache because it is not used anymore
-                _memoryPool.FreeMemory(all_dY, layerIndex);
+                _memoryPool.FreeFloatTensor(all_dY, layerIndex);
 
                 //we put back 'y' in the cache because it is not used anymore
                 if ((layerIndex != lastLayerIndex)&& (layerIndex != 0))
                 {
-                    _memoryPool.FreeMemory(_all_allocated_Y, layerIndex);
+                    _memoryPool.FreeFloatTensor(_all_allocated_Y, layerIndex);
                 }
                 if (layerIndex < _all_allocated_Y.Count)
                 {
@@ -255,8 +255,9 @@ namespace SharpNet.Networks
             if (_all_allocated_Y.Count >= 1)
             {
                 _all_allocated_Y[0] = null;
-                _memoryPool.FreeMemory(_all_allocated_Y);
+                _all_allocated_Y.ForEach(_memoryPool.FreeFloatTensor);
             }
+            _all_allocated_Y.Clear();
         }
 
         public void Dispose()

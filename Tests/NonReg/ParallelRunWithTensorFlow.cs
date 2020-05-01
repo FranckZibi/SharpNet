@@ -51,7 +51,7 @@ namespace SharpNetTests.NonReg
             //X.Content[0] = 1;
             //Utils.RandomizeNormalDistribution(X.Content, new Random(), 0, 1);
             int batchSize = X.Shape[0];
-            var Y = new CpuTensor<float>(new[] { batchSize, 1000 }, null, "Y");
+            var Y = new CpuTensor<float>(new[] { batchSize, 1000 }, null);
             Y.SpanContent[388] = 1; //panda
 
             network.Info("x_train" + Environment.NewLine + X.ToNumpy());

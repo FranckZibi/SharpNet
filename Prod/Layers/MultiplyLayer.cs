@@ -67,10 +67,10 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        #region layer clone
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new MultiplyLayer(this, newSlaveNetwork); }
-        private MultiplyLayer(MultiplyLayer toCloneFromMasterNetwork, Network newSlaveNetwork) : base(toCloneFromMasterNetwork, newSlaveNetwork) { }
-        #endregion
+        public override void AddToOtherNetwork(Network otherNetwork)
+        {
+            otherNetwork.Layers.Add(new MultiplyLayer(PreviousLayerIndexes[1], PreviousLayerIndexes[0], otherNetwork, LayerName)); 
+        }
 
         public override int[] OutputShape(int batchSize)
         {

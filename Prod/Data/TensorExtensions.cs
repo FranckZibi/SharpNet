@@ -66,10 +66,10 @@ namespace SharpNet.Data
 
             if (isInteger)
             {
-                return new CpuTensor<int>(shape.ToArray(), s.Split(',').Select(int.Parse).ToArray(), description);
+                return new CpuTensor<int>(shape.ToArray(), s.Split(',').Select(int.Parse).ToArray());
             }
             //float
-            return new CpuTensor<float>(shape.ToArray(), s.Split(',').Select(float.Parse).ToArray(), description);
+            return new CpuTensor<float>(shape.ToArray(), s.Split(',').Select(float.Parse).ToArray());
         }
 
         private static void NumpyArrayHelper(Tensor t, ReadOnlySpan<float> tContent, int currentDepth, ref int idx, StringBuilder sb)
@@ -108,20 +108,15 @@ namespace SharpNet.Data
             }
             if (b == null)
             {
-                errors += id + ":" + a.Description + ": b is null" + Environment.NewLine;
+                errors += id + ":a: b is null" + Environment.NewLine;
                 return false;
             }
             if (a == null)
             {
-                errors += id + ":" + b.Description + ": a is null" + Environment.NewLine;
+                errors += id + ":b: a is null" + Environment.NewLine;
                 return false;
             }
-            if (!Equals(a.Description, b.Description))
-            {
-                errors += id + ":Description: " + a.Description + " != " + b.Description + Environment.NewLine;
-                return false;
-            }
-            id += ":" + a.Description;
+            id += ":a";
             if (!a.SameShape(b))
             {
                 errors += id + ":Shape: " + string.Join(",", a.Shape) + " != " + string.Join(",", b.Shape) + Environment.NewLine;

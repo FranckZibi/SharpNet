@@ -19,16 +19,16 @@ namespace SharpNet.Datasets
         /// <summary>
         /// tensor with all original elements (no data augmentation) in the order needed for the current mini batch 
         /// </summary>
-        private readonly CpuTensor<float> xOriginalNotAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xOriginalNotAugmentedMiniBatch));
+        private readonly CpuTensor<float> xOriginalNotAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
         /// <summary>
         /// tensor with all augmented elements in the order needed for the current mini batch 
         /// </summary>
-        private readonly CpuTensor<float> xDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xDataAugmentedMiniBatch));
+        private readonly CpuTensor<float> xDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
         /// <summary>
         /// a temporary buffer used to construct the data augmented pictures
         /// </summary>
-        private readonly CpuTensor<float> xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(xBufferForDataAugmentedMiniBatch));
-        private readonly CpuTensor<float> yDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 }, nameof(yDataAugmentedMiniBatch));
+        private readonly CpuTensor<float> xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
+        private readonly CpuTensor<float> yDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
         /// <summary>
         /// the miniBatch Id associated with the above xBufferMiniBatchCpu & yBufferMiniBatchCpu tensors
         /// or -1 if those tensors are empty
@@ -157,7 +157,7 @@ namespace SharpNet.Datasets
             Debug.Assert(categoryBytes.MultDim0 == 1);
             var batchSize = categoryBytes.Shape[0];
             var newShape = new[] { batchSize, categoryCount };
-            var newY = new CpuTensor<float>(newShape, categoryBytes.Description);
+            var newY = new CpuTensor<float>(newShape);
             for (int n = 0; n < batchSize; ++n)
             {
                 newY.Set(n, categoryByteToCategoryIndex(categoryBytes.Get(n, 0)), 1f);
@@ -179,7 +179,7 @@ namespace SharpNet.Datasets
 
             var resultContent = new byte[Channels * Height * Width];
             int idxInResultContent = 0;
-            var result = new BitmapContent(InputShape_CHW, resultContent, elementId.ToString());
+            var result = new BitmapContent(InputShape_CHW, resultContent);
 
             int nbBytesByChannel = Height * Width;
             var isNormalized = IsNormalized;
@@ -475,7 +475,7 @@ namespace SharpNet.Datasets
         /// <returns>the element at index 'elementId'</returns>
         private CpuTensor<float> LoadSingleElement(int elementId)
         {
-            var xBuffer = new CpuTensor<float>(new[] { 1, Channels, Height, Width }, elementId.ToString());
+            var xBuffer = new CpuTensor<float>(new[] { 1, Channels, Height, Width });
             LoadAt(elementId, 0, xBuffer, null);
             xBuffer.Reshape(InputShape_CHW);
             return xBuffer;

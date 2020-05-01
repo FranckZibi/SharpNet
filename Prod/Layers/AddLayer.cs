@@ -44,8 +44,11 @@ namespace SharpNet.Layers
         #endregion
 
         #region clone layer
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new AddLayer(this, newSlaveNetwork); }
-        private AddLayer(AddLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork) { }
+
+        public override void AddToOtherNetwork(Network otherNetwork)
+        {
+            otherNetwork.Layers.Add(new AddLayer(PreviousLayerIndexes[1], PreviousLayerIndexes[0], otherNetwork, LayerName));
+        }
         #endregion
     }
 }

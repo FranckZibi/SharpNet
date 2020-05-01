@@ -40,10 +40,11 @@ namespace SharpNet.Networks
         public IDictionary<string, Stopwatch> ForwardPropagationInferenceTime { get; } = new Dictionary<string, Stopwatch>();
         public IDictionary<string, Stopwatch> BackwardPropagationTime { get; } = new Dictionary<string, Stopwatch>();
         public TensorMemoryPool MemoryPool { get; }
+        private Tensor _compactedParametersIfAny;
+        private Tensor _compactedGradientsIfAny;
         public GPUWrapper GpuWrapper { get; }
         private int GpuDeviceId { get; }
         #endregion
-
 
         /// <param name="config"></param>
         /// <param name="resourceIds">
@@ -85,8 +86,7 @@ namespace SharpNet.Networks
             CreateLogDirectoryIfNeeded();
             MemoryPool = new TensorMemoryPool(GpuWrapper, false);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-
-            if (IsMaster)
+            if (IsMaster && resourceIds.Count>=2)
             {
                 //we create the slave networks
                 foreach(var slaveResourceId in resourceIds.Skip(1))
@@ -100,7 +100,6 @@ namespace SharpNet.Networks
             }
         }
 
-
         #region Multi GPU Support
 
         private int DegreeOfParallelism
@@ -112,6 +111,75 @@ namespace SharpNet.Networks
                     return 1 + _slaveNetworks.Count;
                 }
                 return _masterNetworkIfAny.DegreeOfParallelism;
+            }
+        }
+        private void CompactParameters()
+        {
+            if (_compactedParametersIfAny == null)
+            {
+                _compactedParametersIfAny = Compact(l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.SetParameters(tensors));
+            }
+        }
+
+        private void CompactGradients()
+        {
+            if (_compactedGradientsIfAny == null)
+            {
+                _compactedGradientsIfAny = Compact(l => l.ParameterGradients.Select(t => t.Item1).ToList(), (l, tensors) => l.SetGradients(tensors));
+            }
+        }
+        public void UnCompactParameters()
+        {
+            if (_compactedParametersIfAny != null)
+            {
+                UnCompact(_compactedParametersIfAny, l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.SetParameters(tensors));
+                MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
+            }
+        }
+        public void UnCompactGradients()
+        {
+            if (_compactedGradientsIfAny != null)
+            {
+                UnCompact(_compactedGradientsIfAny, l => l.ParameterGradients.Select(t => t.Item1).ToList(), (l, tensors) => l.SetGradients(tensors));
+                MemoryPool.FreeFloatTensor(ref _compactedGradientsIfAny);
+            }
+        }
+
+        private Tensor Compact(Func<Layer, List<Tensor>> layer2Tensors, Action<Layer, List<Tensor>> storeTensorsInLayer)
+        {
+            var totalCount = Layers.SelectMany(layer2Tensors).Select(t => t.Count).Sum();
+            var compacted = MemoryPool.GetFloatTensor(new[] { totalCount });
+            int nextIndex = 0;
+            foreach (var l in Layers)
+            {
+                var layerCompactedTensors = new List<Tensor>();
+                foreach (var p in layer2Tensors(l))
+                {
+                    Debug.Assert(p.IsOwnerOfMemory);
+                    var sliceFromCompacted = compacted.Slice(nextIndex, p.Shape);
+                    layerCompactedTensors.Add(sliceFromCompacted);
+                    p.CopyTo(sliceFromCompacted);
+                    nextIndex += sliceFromCompacted.Count;
+                }
+                storeTensorsInLayer(l, layerCompactedTensors);
+            }
+            Debug.Assert(nextIndex == totalCount);
+            return compacted;
+        }
+
+        private void UnCompact(Tensor compactedTensor, Func<Layer, List<Tensor>> layer2Tensors, Action<Layer, List<Tensor>> storeTensorsInLayer)
+        {
+            foreach (var l in Layers)
+            {
+                var layerUncompactedParameters = new List<Tensor>();
+                foreach (var p in layer2Tensors(l))
+                {
+                    Debug.Assert(!p.IsOwnerOfMemory);
+                    var uncompacted = MemoryPool.GetFloatTensor(p.Shape);
+                    p.CopyTo(uncompacted);
+                    layerUncompactedParameters.Add(uncompacted);
+                }
+                storeTensorsInLayer(l, layerUncompactedParameters);
             }
         }
         public bool IsMaster => _masterNetworkIfAny == null;
@@ -132,9 +200,9 @@ namespace SharpNet.Networks
         /// <summary>
         /// number of resources (CPU or GPU) that will perform the computation
         /// </summary>
-        private void WaitForAllSlavesInIdleMode()
+        private void WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS status)
         {
-            while (_slaveNetworks.Any(s => s._slaveStatus != SLAVE_NETWORK_STATUS.IDLE))
+            while (_slaveNetworks.Any(s => s._slaveStatus != status))
             {
                 Thread.Sleep(1);
             }
@@ -151,7 +219,8 @@ namespace SharpNet.Networks
             IDLE,
             PREPARE_MINIBATCH_GRADIENT_DESCENT,
             PERFORM_FORWARD_AND_BACKWARD_PROPAGATION,
-            STOP_THREAD
+            TO_ABORT,
+            DISPOSED
         }
         private SLAVE_NETWORK_STATUS _slaveStatus = SLAVE_NETWORK_STATUS.IDLE;
         /// <summary>
@@ -164,17 +233,24 @@ namespace SharpNet.Networks
         //Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining
         private Tuple<Tensor, Tensor, Tensor, bool> _slaveParamForMiniBatchGradientDescent;
 
-
-
         private static void SlaveThread(Network master, int slaveDeviceId)
         {
+            //if slave thread will run on a GPU
+            if (slaveDeviceId >= 0) 
+            {
+                //we associate the current running (slave) thread with GPU 'slaveDeviceId'
+                GPUWrapper.FromDeviceId(slaveDeviceId).AssociateCurrentThreadWithDevice();
+            }
+
             var slave = new Network(master.Config.Clone(), new List<int> { slaveDeviceId }, master);
             slave.Config.Logger = slave.Config.Logger.CloneWithNewFileSuffix("_slave" + slaveDeviceId);
-            slave.Description = master.Description + "_slave";
+            slave.Description = master.Description + "_slave_"+ slaveDeviceId;
             lock (master._slaveNetworks)
             {
                 master._slaveNetworks.Add(slave);
             }
+            slave._spInternalFit.Start();
+
             for (;;)
             {
                 switch (slave._slaveStatus)
@@ -184,8 +260,10 @@ namespace SharpNet.Networks
                         {
                             foreach (var l in master.Layers)
                             {
-                                slave.Layers.Add(l.CloneForSlaveNetwork(slave));
+                                l.AddToOtherNetwork(slave);
                             }
+                            slave.CompactParameters();
+                            slave.CompactGradients();
                         }
                         slave._slaveStatus = SLAVE_NETWORK_STATUS.IDLE;
                         break;
@@ -201,8 +279,13 @@ namespace SharpNet.Networks
                         slave._slaveParamForMiniBatchGradientDescent = null;
                         slave._slaveStatus = SLAVE_NETWORK_STATUS.IDLE;
                         break;
-                    case SLAVE_NETWORK_STATUS.STOP_THREAD:
+                    case SLAVE_NETWORK_STATUS.TO_ABORT:
+                        slave._spInternalFit.Stop();
+                        slave.LogDebug("stopping thread for network " + slave.Description);
+                        slave.LogDebug(slave.MemoryInfo());
+                        slave.LogDebug(slave.LayersKpi());
                         slave.Dispose();
+                        slave._slaveStatus = SLAVE_NETWORK_STATUS.DISPOSED;
                         return;
                     default:
                     //case SLAVE_NETWORK_STATUS.IDLE:
@@ -211,22 +294,6 @@ namespace SharpNet.Networks
                 }
             }
         }
-        /// <summary>
-        /// Clone a tensor 't' coming from the master network to a tensor for the current (slave) network
-        /// </summary>
-        /// <param name="tFromMasterNetwork">the tensor from the master network to clone</param>
-        /// <returns></returns>
-        public Tensor CloneFromMasterNetwork(Tensor tFromMasterNetwork)
-        {
-            Debug.Assert(!IsMaster);
-            if (tFromMasterNetwork == null)
-            {
-                return null;
-            }
-            var result = MemoryPool.GetNotInitializedFloatTensor((int[])tFromMasterNetwork.Shape.Clone(), tFromMasterNetwork.Description);
-            tFromMasterNetwork.CopyTo(result);
-            return result;
-        }
 
         private void MiniBatchGradientDescentForSlave(Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining)
         {
@@ -234,27 +301,33 @@ namespace SharpNet.Networks
             Debug.Assert(_yExpectedForEpoch == null);
             Debug.Assert(yExpected_miniBatch_cpu_slave.SameShape(yPredicted_miniBatch_master));
             Debug.Assert(x_miniBatch_cpu_slave.Shape[0] == yExpected_miniBatch_cpu_slave.Shape[0]);
+            Debug.Assert(!x_miniBatch_cpu_slave.UseGPU);
             Debug.Assert(!yExpected_miniBatch_cpu_slave.UseGPU);
-            Debug.Assert(!yPredicted_miniBatch_master.UseGPU);
             Debug.Assert(yPredicted_miniBatch_master.UseGPU == UseGPU);
             
             //We load the weights from the master network
-            StartTimer("CopyWeights", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-            var parameters_master = _masterNetworkIfAny.Parameters;
-            var parameters_slave = Parameters;
-            Debug.Assert(parameters_master.Count == parameters_slave.Count);
-            for (int i = 0; i < parameters_master.Count; ++i)
-            {
-                parameters_master[i].CopyTo(parameters_slave[i]);
-            }
-            StopTimer("CopyWeights", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+            StartTimer("Slave_CopyWeights", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+
+            Debug.Assert(_masterNetworkIfAny._compactedParametersIfAny != null);
+            Debug.Assert(_compactedParametersIfAny != null);
+            _masterNetworkIfAny._compactedParametersIfAny.CopyTo(_compactedParametersIfAny);
+
+            //var parameters_master = _masterNetworkIfAny.Parameters.Select(t=>t.Item1).ToList();
+            //var parameters_slave = Parameters.Select(t => t.Item1).ToList();
+            //Debug.Assert(parameters_master.Count == parameters_slave.Count);
+            //for (int i = 0; i < parameters_master.Count; ++i)
+            //{
+            //    parameters_master[i].CopyTo(parameters_slave[i]);
+            //}
+
+            StopTimer("Slave_CopyWeights", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
             //we initialize '_xMiniBatch' & '_yExpected_miniBatch_slave'
-            MemoryPool.GetNotInitializedFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_slave.Shape, nameof(_x_miniBatch));
+            MemoryPool.GetFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_slave.Shape);
             x_miniBatch_cpu_slave.CopyTo(_x_miniBatch);
-            MemoryPool.GetNotInitializedFloatTensor(ref _yExpected_miniBatch_slave, yExpected_miniBatch_cpu_slave.Shape, nameof(_yExpected_miniBatch_slave));
+            MemoryPool.GetFloatTensor(ref _yExpected_miniBatch_slave, yExpected_miniBatch_cpu_slave.Shape);
             yExpected_miniBatch_cpu_slave.CopyTo(_yExpected_miniBatch_slave);
-            MemoryPool.GetNotInitializedFloatTensor(ref _yPredicted_miniBatch_slave, _yExpected_miniBatch_slave.Shape);
+            MemoryPool.GetFloatTensor(ref _yPredicted_miniBatch_slave, _yExpected_miniBatch_slave.Shape);
             PropagationManager.Forward(_x_miniBatch, _yPredicted_miniBatch_slave, isTraining);
             if (isTraining)
             {
@@ -274,7 +347,6 @@ namespace SharpNet.Networks
 
 
         #endregion
-
 
         #region Transfer Learning
         /// <summary>
@@ -330,67 +402,44 @@ namespace SharpNet.Networks
             OnLayerAddOrRemove();
         }
         #endregion
-
-        /// <summary>
-        /// Clone the current network
-        /// </summary>
-        /// <param name="slaveDeviceId"></param>
-        /// <returns></returns>
+        
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
+
         public void Dispose()
         {
             if (IsMaster)
-            { 
-                SetStatusForAllSlaves(SLAVE_NETWORK_STATUS.STOP_THREAD);
-                Thread.Sleep(100);
-                _slaveNetworks.Clear();
+            {
+                LogDebug("Before clearing memory: " + MemoryInfo());
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect();
+                SetStatusForAllSlaves(SLAVE_NETWORK_STATUS.TO_ABORT);
             }
-            LogDebug("Before clearing memory: " + MemoryInfo());
-            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-            GC.Collect();
             Layers.ForEach(l => l?.Dispose());
             Layers.Clear();
             PropagationManager.Dispose();
             _epochData.Clear();
-
-            MemoryPool.FreeMemory(ref _bufferComputeAccuracy);
-            MemoryPool.FreeMemory(ref _bufferComputeLoss);
-            MemoryPool.FreeMemory(ref _yPredictedForEpoch);
-            MemoryPool.FreeMemory(ref _yExpectedForEpoch);
-            MemoryPool.FreeMemory(ref _x_miniBatch);
-            MemoryPool.FreeMemory(ref _bufferAddGradientFromSlaveNetwork);
-            MemoryPool.FreeMemory(ref _yExpected_miniBatch_slave);
-            MemoryPool.FreeMemory(ref _yPredicted_miniBatch_slave);
-
-
+            MemoryPool.FreeFloatTensor(ref _bufferComputeAccuracy);
+            MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
+            MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
+            MemoryPool.FreeFloatTensor(ref _yExpectedForEpoch);
+            MemoryPool.FreeFloatTensor(ref _x_miniBatch);
+            MemoryPool.FreeFloatTensor(ref _bufferAddGradientFromSlaveNetwork);
+            MemoryPool.FreeFloatTensor(ref _yExpected_miniBatch_slave);
+            MemoryPool.FreeFloatTensor(ref _yPredicted_miniBatch_slave);
+            MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
+            MemoryPool.FreeFloatTensor(ref _compactedGradientsIfAny);
             GpuWrapper?.Reset();
             MemoryPool.Dispose();
 
-            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-            GC.Collect();
-            LogDebug("After clearing memory: " + MemoryInfo());
-        }
-        /// <summary>
-        /// Compares the 'this' network with the 'other' network and write a test report in the 'errors' output field
-        /// </summary>
-        /// <param name="other">the network to compare with the 'this' network</param>
-        /// <param name="errors">field where the report results will be stored</param>
-        /// <returns>true if the 2 networks are the same, else if a difference has been found</returns>
-        public bool Equals(Network other, out string errors)
-        {
-            var id = Description;
-            errors = "";
-            const double epsilon = 1e-5;
-            var equals = true;
-            equals &= Utils.Equals(Description, other.Description, id + nameof(Description), ref errors);
-            equals &= Config.Equals(other.Config, epsilon, id, ref errors);
-            equals &= Utils.Equals(other.GpuDeviceId, GpuDeviceId, id, ref errors);
-            equals &= Utils.Equals(Layers.Count, other.Layers.Count, id + "Layers.Count", ref errors);
-            for (int i = 0; i < Math.Min(Layers.Count, other.Layers.Count); ++i)
+            if (IsMaster)
             {
-                equals &= Layers[i].Equals(other.Layers[i], epsilon, id + ":Layers["+i+"]", ref errors);
+                WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS.DISPOSED);
+                _slaveNetworks.Clear();
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect();
+                LogDebug("After clearing memory: " + MemoryInfo());
             }
-            return equals;
+
         }
 
         #region network construction: adding layers
@@ -594,20 +643,8 @@ namespace SharpNet.Networks
                 default: return VanillaSgd.Instance;
             }
         }
-        public int TotalParams => Parameters.Select(t=> t.Count).Sum();
+        public int TotalParams => Layers.SelectMany(x => x.Parameters).Select(t=> t.Item1.Count).Sum();
 
-        /// <summary>
-        /// all parameters of the network (both trainable parameters and not trainable parameters)
-        /// </summary>
-        private List<Tensor> Parameters => Layers.SelectMany(x => x.Parameters).ToList();
-        
-        /// <summary>
-        /// gradients of all trainable parameters of the network
-        /// (there are no gradients for non trainable parameters)
-        /// </summary>
-        private List<Tensor> ParameterGradients => Layers.SelectMany(x => x.ParameterGradients).ToList();
-
-     
         #region serialization
         // ReSharper disable once UnusedMember.Global
         public static Network ValueOf(string path, int?overrideGpuDeviceId = null)
@@ -663,7 +700,7 @@ namespace SharpNet.Networks
         {
             Info("Looking for best learning rate...");
             ResetWeights(); //restore weights to there original values
-            var maxMiniBatchSizeForAllWorkers = DegreeOfParallelism*MaxMiniBatchSizeForEachWorker(trainingDataSet.XMiniBatch_Shape(1), false);
+            var maxMiniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(trainingDataSet.XMiniBatch_Shape(1), false);
             if (miniBatchSizeForAllWorkers < 1)
             {
                 miniBatchSizeForAllWorkers = maxMiniBatchSizeForAllWorkers;
@@ -681,7 +718,7 @@ namespace SharpNet.Networks
 
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
             {
-                MemoryPool.GetNotInitializedFloatTensor(ref _bufferComputeLoss, new[] { yExpectedMiniBatch.Shape[0] }, nameof(_bufferComputeLoss));
+                MemoryPool.GetFloatTensor(ref _bufferComputeLoss, new[] { yExpectedMiniBatch.Shape[0] });
                 var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, _bufferComputeLoss);
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
@@ -751,9 +788,9 @@ namespace SharpNet.Networks
         /// <param name="trainingDataSetCpu"></param>
         /// <param name="learningRateComputer"></param>
         /// <param name="numEpochs"></param>
-        /// <param name="preferredMiniBatchSize"></param>
+        /// <param name="preferredMiniBatchSizeForAllWorkers"></param>
         /// <param name="testDataSetCpuIfAny"></param>
-        public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int preferredMiniBatchSize, IDataSet testDataSetCpuIfAny)
+        public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int preferredMiniBatchSizeForAllWorkers, IDataSet testDataSetCpuIfAny)
         {
             try
             {
@@ -765,17 +802,17 @@ namespace SharpNet.Networks
                 FreezeSelectedLayers();
                 
                 Info(ToString());
-                var maxMiniBatchSize = MaxMiniBatchSizeForEachWorker(trainingDataSetCpu.XMiniBatch_Shape(1), true);
-                var miniBatchSize = preferredMiniBatchSize;
-                if (miniBatchSize < 1)
+                var maxMiniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(trainingDataSetCpu.XMiniBatch_Shape(1), true);
+                var miniBatchSizeForAllWorkers = preferredMiniBatchSizeForAllWorkers;
+                if (miniBatchSizeForAllWorkers < 1)
                 {
-                    miniBatchSize = maxMiniBatchSize;
-                    Info("Using (auto) MiniBatchSize of " + miniBatchSize);
+                    miniBatchSizeForAllWorkers = maxMiniBatchSizeForAllWorkers;
+                    Info("Using (auto) MiniBatchSize of " + miniBatchSizeForAllWorkers);
                 }
-                else if (miniBatchSize > maxMiniBatchSize)
+                else if (miniBatchSizeForAllWorkers > maxMiniBatchSizeForAllWorkers)
                 {
-                    Info("Reducing MiniBatchSize from "+ miniBatchSize+" to "+ maxMiniBatchSize+" because of memory limit.");
-                    miniBatchSize = maxMiniBatchSize;
+                    Info("Reducing MiniBatchSize from "+ miniBatchSizeForAllWorkers+" to "+ maxMiniBatchSizeForAllWorkers+" because of memory limit.");
+                    miniBatchSizeForAllWorkers = maxMiniBatchSizeForAllWorkers;
                 }
 
                 if (UseGPU)
@@ -787,7 +824,7 @@ namespace SharpNet.Networks
                 {
                     LogDebug("Test Set: " + testDataSetCpuIfAny);
                 }
-                Info("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSize+" Name="+Description);
+                Info("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+Description);
                 if (Config.DisplayTensorContentStats)
                 {
                     LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
@@ -818,7 +855,7 @@ namespace SharpNet.Networks
 
                     #region Mini Batch gradient descent
                     var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                    var yPredicted = MiniBatchGradientDescentForSingleEpoch(trainingDataSetCpu, miniBatchSize, learningRateComputer, null);
+                    var yPredicted = MiniBatchGradientDescentForSingleEpoch(trainingDataSetCpu, miniBatchSizeForAllWorkers, learningRateComputer, null);
                     #endregion
 
                     //We display stats about the just finished epoch
@@ -833,13 +870,13 @@ namespace SharpNet.Networks
                     if (testDataSetCpuIfAny != null)
                     {
                         //We compute the validation (= test) loss&accuracy
-                        validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSize, testDataSetCpuIfAny);
+                        validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSizeForAllWorkers, testDataSetCpuIfAny);
                         lossAndAccuracyMsg += " - "+LossAndAccuracyToString(validationLossAndAccuracy, "val_");
                     }
                     StopTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
 
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
-                    double nbStepsByEpoch = ((double)trainingDataSetCpu.Count) / miniBatchSize;
+                    double nbStepsByEpoch = ((double)trainingDataSetCpu.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
                     Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg);
                     Info(MemoryInfo());
@@ -887,7 +924,7 @@ namespace SharpNet.Networks
                         + DeviceName() + ";"
                         + TotalParams + ";"
                         + numEpochs + ";"
-                        + miniBatchSize + ";"
+                        + miniBatchSizeForAllWorkers + ";"
                         + learningRateComputer.LearningRate(1, 0, 1.0) + ";"
                         + _spInternalFit.Elapsed.TotalSeconds + ";"
                         + (_spInternalFit.Elapsed.TotalSeconds / numEpochs) + ";"
@@ -934,11 +971,11 @@ namespace SharpNet.Networks
             _swComputeAccuracy?.Start();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
             yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
-            MemoryPool.GetNotInitializedFloatTensor(ref _bufferComputeAccuracy, new[] { yExpected.Shape[0] }, nameof(_bufferComputeAccuracy));
+            MemoryPool.GetFloatTensor(ref _bufferComputeAccuracy, new[] { yExpected.Shape[0] });
             var accuracy = yExpected.ComputeAccuracy(yPredicted, _bufferComputeAccuracy);
             _swComputeAccuracy?.Stop();
             _swComputeLoss?.Start();
-            MemoryPool.GetNotInitializedFloatTensor(ref _bufferComputeLoss, new[] { yExpected.Shape[0] }, nameof(_bufferComputeLoss));
+            MemoryPool.GetFloatTensor(ref _bufferComputeLoss, new[] { yExpected.Shape[0] });
             var totalLoss = yExpected.ComputeLoss(yPredicted, Config.LossFunction, _bufferComputeLoss);
             _swComputeLoss?.Stop();
             return Tuple.Create(totalLoss, accuracy);
@@ -951,6 +988,15 @@ namespace SharpNet.Networks
 
         public void OnLayerAddOrRemove()
         {
+            if (_compactedParametersIfAny != null)
+            {
+                throw new InvalidOperationException("_compactedParametersIfAny is not null");
+            }
+            if (_compactedGradientsIfAny != null)
+            {
+                throw new InvalidOperationException("_compactedGradientsIfAny is not null");
+            }
+
             _bytesByBatchSize = null; //we need tor recompute the batch size in bytes
         }
 
@@ -1078,7 +1124,7 @@ namespace SharpNet.Networks
         public Tensor Predict(Tensor X, bool isTraining)
         {
             X = ReformatToCorrectDevice_GPU_or_CPU(X);
-            var yPredicted = MemoryPool.GetNotInitializedFloatTensor(Layers.Last().OutputShape(X.Shape[0]), "predictionBuffer");
+            var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(X.Shape[0]));
             X = ReformatToCorrectDevice_GPU_or_CPU(X);
             PropagationManager.Forward(X, yPredicted, isTraining);
             return yPredicted;
@@ -1110,6 +1156,11 @@ namespace SharpNet.Networks
         {
             Debug.Assert(IsMaster);
 
+            if (_slaveNetworks.Any())
+            {
+                CompactParameters();
+                CompactGradients();
+            }
 
             //last time we display a progress on the screen for the current min batch descent
             var miniBatchGradientDescentStart = DateTime.Now;
@@ -1119,7 +1170,7 @@ namespace SharpNet.Networks
             var totalElementCount = dataSet.Count;
             if (miniBatchSizeForAllWorkers <= 0)
             {
-                miniBatchSizeForAllWorkers = DegreeOfParallelism*MaxMiniBatchSizeForEachWorker(dataSet.XMiniBatch_Shape(1), isTraining);
+                miniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(dataSet.XMiniBatch_Shape(1), isTraining);
             }
 
             //the mini batch size must be a multiple of the number of workers
@@ -1130,8 +1181,8 @@ namespace SharpNet.Networks
             //the first epoch is #1
             int epoch = _epochData.Count + 1;
             var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(_epochData) ?? 1.0;
-            MemoryPool.GetNotInitializedFloatTensor(ref _yPredictedForEpoch, dataSet.Y_Shape);
-            MemoryPool.GetNotInitializedFloatTensor(ref _yExpectedForEpoch, dataSet.Y_Shape);
+            MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, dataSet.Y_Shape);
+            MemoryPool.GetFloatTensor(ref _yExpectedForEpoch, dataSet.Y_Shape);
 
             //we create the shuffled list of inputs 
             var shuffledElementId = Enumerable.Range(0, dataSet.Count).ToArray();
@@ -1149,12 +1200,14 @@ namespace SharpNet.Networks
                 }
             }
 
-            StartTimer("WaitForSlave>Prepare", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+            StartTimer("WaitForSlave_Prepare", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
             SetStatusForAllSlaves(SLAVE_NETWORK_STATUS.PREPARE_MINIBATCH_GRADIENT_DESCENT);
-            WaitForAllSlavesInIdleMode();
-            StopTimer("WaitForSlave>Prepare", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+            WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS.IDLE);
+            StopTimer("WaitForSlave_Prepare", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
-   
+
+            var x_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.XMiniBatch_Shape(miniBatchSizeForAllWorkers), null);
+            var yExpected_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.YMiniBatch_Shape(miniBatchSizeForAllWorkers), null);
 
 
             for (int firstIndexInShuffledElementId_master= 0; firstIndexInShuffledElementId_master< totalElementCount; firstIndexInShuffledElementId_master+= miniBatchSizeForAllWorkers)
@@ -1162,18 +1215,16 @@ namespace SharpNet.Networks
                 var currentMiniBatchSize_allWorkers = Math.Min(totalElementCount- firstIndexInShuffledElementId_master, miniBatchSizeForAllWorkers);
                 var currentMiniBatchSize_master = Math.Min(miniBatchSizeForEachWorker, currentMiniBatchSize_allWorkers);
                 Debug.Assert(currentMiniBatchSize_master>=1);
-
+                x_miniBatch_cpu_allWorkers.Reshape(dataSet.XMiniBatch_Shape(currentMiniBatchSize_allWorkers));
+                yExpected_miniBatch_cpu_allWorkers.Reshape(dataSet.YMiniBatch_Shape(currentMiniBatchSize_allWorkers));
 
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
-
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-                var x_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.XMiniBatch_Shape(currentMiniBatchSize_allWorkers), null, "x_miniBatch_cpu_allWorkers");
-                var yExpected_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.YMiniBatch_Shape(currentMiniBatchSize_allWorkers), null, "yExpected_miniBatch_cpu_allWorkers");
                 bool withDataAugmentation = Config.DataAugmentation.UseDataAugmentation && (epoch >= 2) && isTraining;
                 dataSet.LoadMiniBatch(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId_master, Config.DataAugmentation, x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 //we copy yExpected_miniBatch_cpu_allWorkers from CPU to appropriate target (CPU or GPU)
-                var yExpectedForMiniBatch_allWorkers = _yExpectedForEpoch.Slice(firstIndexInShuffledElementId_master, currentMiniBatchSize_allWorkers);
+                var yExpectedForMiniBatch_allWorkers = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId_master, currentMiniBatchSize_allWorkers);
                 yExpected_miniBatch_cpu_allWorkers.CopyTo(yExpectedForMiniBatch_allWorkers);
 
                 //we launch the forward & backward computation on all slave networks
@@ -1187,9 +1238,9 @@ namespace SharpNet.Networks
                     }
                     var currentMiniBatchSize_slave = Math.Min(totalElementCount - firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
                     Debug.Assert(currentMiniBatchSize_slave >= 1);
-                    var x_miniBatch_cpu_slave = x_miniBatch_cpu_allWorkers.Slice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId_master, currentMiniBatchSize_slave);
-                    var yExpected_miniBatch_cpu_slave = yExpected_miniBatch_cpu_allWorkers.Slice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId_master, currentMiniBatchSize_slave);
-                    var yPredicted_miniBatch_slave = _yPredictedForEpoch.Slice(firstIndexInShuffledElement_slave, currentMiniBatchSize_slave);
+                    var x_miniBatch_cpu_slave = x_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId_master, currentMiniBatchSize_slave);
+                    var yExpected_miniBatch_cpu_slave = yExpected_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId_master, currentMiniBatchSize_slave);
+                    var yPredicted_miniBatch_slave = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElement_slave, currentMiniBatchSize_slave);
                     slave._slaveParamForMiniBatchGradientDescent = Tuple.Create(x_miniBatch_cpu_slave, yExpected_miniBatch_cpu_slave, yPredicted_miniBatch_slave, isTraining);
                     slave._slaveStatus = SLAVE_NETWORK_STATUS.PERFORM_FORWARD_AND_BACKWARD_PROPAGATION;
                     firstIndexInShuffledElement_slave += currentMiniBatchSize_slave;
@@ -1197,11 +1248,11 @@ namespace SharpNet.Networks
                 }
 
                 //we launch the forward & backward propagation on the master network
-                var x_miniBatch_cpu_master = x_miniBatch_cpu_allWorkers.Slice(0, currentMiniBatchSize_master);
-                MemoryPool.GetNotInitializedFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_master.Shape, nameof(_x_miniBatch));
+                var x_miniBatch_cpu_master = x_miniBatch_cpu_allWorkers.RowSlice(0, currentMiniBatchSize_master);
+                MemoryPool.GetFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_master.Shape);
                 x_miniBatch_cpu_master.CopyTo(_x_miniBatch);
-                var yPredicted_miniBatch_master = _yPredictedForEpoch.Slice(firstIndexInShuffledElementId_master, currentMiniBatchSize_master);
-                var yExpected_miniBatch_master = _yExpectedForEpoch.Slice(firstIndexInShuffledElementId_master, currentMiniBatchSize_master);
+                var yPredicted_miniBatch_master = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElementId_master, currentMiniBatchSize_master);
+                var yExpected_miniBatch_master = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId_master, currentMiniBatchSize_master);
                 PropagationManager.Forward(_x_miniBatch, yPredicted_miniBatch_master, isTraining);
                 if (isTraining)
                 {
@@ -1209,9 +1260,9 @@ namespace SharpNet.Networks
                 }
 
                 //we wait for all slave to finish the forward & backward propagation pass
-                StartTimer("WaitForSlave>Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-                WaitForAllSlavesInIdleMode();
-                StopTimer("WaitForSlave>Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+                StartTimer("WaitForSlave_Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+                WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS.IDLE);
+                StopTimer("WaitForSlave_Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
                 if (isTraining)
                 {
@@ -1238,6 +1289,10 @@ namespace SharpNet.Networks
                     lastStatsUpdate = DateTime.Now;
                 }
             }
+
+            x_miniBatch_cpu_allWorkers.Dispose();
+            yExpected_miniBatch_cpu_allWorkers.Dispose();
+
             return _yPredictedForEpoch;
         }
 
@@ -1248,19 +1303,30 @@ namespace SharpNet.Networks
         {
             Debug.Assert(IsMaster);
             Debug.Assert(!slave.IsMaster);
-            var slaveGradients = slave.ParameterGradients;
-            var masterGradients = ParameterGradients;
-            Debug.Assert(slaveGradients.Count == masterGradients.Count);
-            for (int i = 0; i < masterGradients.Count; ++i)
-            {
-                var masterTensor = masterGradients[i];
-                var slaveTensor = slaveGradients[i];
-                Debug.Assert(masterTensor.SameShape(slaveTensor));
-                MemoryPool.GetNotInitializedFloatTensor(ref _bufferAddGradientFromSlaveNetwork, masterTensor.Shape, nameof(_bufferAddGradientFromSlaveNetwork));
-                slaveTensor.CopyTo(_bufferAddGradientFromSlaveNetwork); //Device to other Device copy (not in the same GPU)
-                masterTensor.Update_Adding_Alpha_X(1, _bufferAddGradientFromSlaveNetwork);
-            }
+            Debug.Assert(_compactedGradientsIfAny != null);
+            Debug.Assert(slave._compactedGradientsIfAny != null);
+            MemoryPool.GetFloatTensor(ref _bufferAddGradientFromSlaveNetwork, _compactedGradientsIfAny.Shape);
+            slave._compactedGradientsIfAny.CopyTo(_bufferAddGradientFromSlaveNetwork); //Device to other Device copy (not in the same GPU)
+            _compactedGradientsIfAny.Update_Adding_Alpha_X(1, _bufferAddGradientFromSlaveNetwork);
         }
+
+        //private void AddGradientFromSlaveNetwork(Network slave)
+        //{
+        //    Debug.Assert(IsMaster);
+        //    Debug.Assert(!slave.IsMaster);
+        //    var slaveGradients = slave.ParameterGradients;
+        //    var masterGradients = ParameterGradients;
+        //    Debug.Assert(slaveGradients.Count == masterGradients.Count);
+        //    for (int i = 0; i < masterGradients.Count; ++i)
+        //    {
+        //        var masterTensor = masterGradients[i].Item1;
+        //        var slaveTensor = slaveGradients[i].Item1;
+        //        Debug.Assert(masterTensor.SameShape(slaveTensor));
+        //        MemoryPool.GetFloatTensor(ref _bufferAddGradientFromSlaveNetwork, masterTensor.Shape);
+        //        slaveTensor.CopyTo(_bufferAddGradientFromSlaveNetwork); //Device to other Device copy (not in the same GPU)
+        //        masterTensor.Update_Adding_Alpha_X(1, _bufferAddGradientFromSlaveNetwork);
+        //    }
+        //}
 
         public int LastLayerIndex => Layers.Last().LayerIndex;
 
@@ -1269,7 +1335,7 @@ namespace SharpNet.Networks
         {
             string result = "Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);
             result += " - Managed Memory: " + Utils.MemoryBytesToString((ulong)GC.GetTotalMemory(false));
-            result += " - " + MemoryPool.MemoryInfo();
+            result += " - " + MemoryPool;
             if (UseGPU)
             {
                 result += " - " + GpuWrapper.MemoryInfo();
@@ -1300,8 +1366,8 @@ namespace SharpNet.Networks
             Debug.Assert(xShape[0] == 1);       //batch size must be  1
             using var mockMemoryPooling = new TensorMemoryPool(null, true);
             using var propagationManager = new PropagationManager(Layers, mockMemoryPooling, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-            var x = mockMemoryPooling.GetNotInitializedFloatTensor(xShape, "x");
-            var yPredicted = mockMemoryPooling.GetNotInitializedFloatTensor(Layers.Last().OutputShape(x.Shape[0]), "yPredicted");
+            var x = mockMemoryPooling.GetFloatTensor(xShape);
+            var yPredicted = mockMemoryPooling.GetFloatTensor(Layers.Last().OutputShape(x.Shape[0]));
             propagationManager.Forward(x, yPredicted, isTraining);
             if (isTraining)
             {
@@ -1419,35 +1485,24 @@ namespace SharpNet.Networks
                 }
             }
         }
-        private int MaxMiniBatchSizeForEachWorker(int[] xShape, bool isTraining)
+        private int MaxMiniBatchSizeForAllWorkers(int[] xShape, bool isTraining)
         {
             var bytesByBatchSizeForwardAndBackward = BytesByBatchSizeForwardAndBackward(xShape, isTraining);
             var freeMemoryInBytes = UseGPU ? (ulong)GpuWrapper.AvailableGpuMemoryInBytes() : Utils.AvailableRamMemoryInBytes();
-            var maxMiniBatchSize = MaxMiniBatchSizeForEachWorker(bytesByBatchSizeForwardAndBackward, freeMemoryInBytes);
-            LogDebug("Max MiniBatchSize=" + maxMiniBatchSize + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
-            return maxMiniBatchSize;
+            var maxMiniBatchSizeForEachWorker = MaxMiniBatchSizeForEachWorker(bytesByBatchSizeForwardAndBackward, freeMemoryInBytes);
+            var maxMiniBatchSizeForAllWorkers = DegreeOfParallelism * maxMiniBatchSizeForEachWorker;
+            LogDebug("Max MiniBatchSize=" + maxMiniBatchSizeForAllWorkers + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
+            return maxMiniBatchSizeForAllWorkers;
         }
         //TODO add tests
         private static int MaxMiniBatchSizeForEachWorker(ulong bytesByBatchSize, ulong freeMemoryInBytes)
         {
-            freeMemoryInBytes -= 1_200_000_000;
-
-            //freeMemoryInBytes = (80* freeMemoryInBytes)/100;
-            //freeMemoryInBytes = (85 * freeMemoryInBytes) / 100;
-
-            ulong miniBatchSize = freeMemoryInBytes / bytesByBatchSize;
+            freeMemoryInBytes -= 1_500_000_000;
+            var miniBatchSize = (int)(freeMemoryInBytes / (1.2*bytesByBatchSize));
             if (miniBatchSize > 4)
             {
                 miniBatchSize -= (miniBatchSize % 4);
             }
-
-            /*
-            ulong miniBatchSize = 1;
-            while ( (2UL * miniBatchSize * bytesByBatchSize) < freeMemoryInBytes)
-            {
-                miniBatchSize *= 2;
-            }
-            */
             return (int)miniBatchSize;
         }
         private string ContentStats()

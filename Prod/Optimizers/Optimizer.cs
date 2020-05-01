@@ -8,6 +8,7 @@ namespace SharpNet.Optimizers
     public abstract class Optimizer : IDisposable
     {
         public enum OptimizationEnum { VanillaSGD, Adam, SGD }
+        protected bool _isDisposed;
 
         public static Optimizer ValueOf(NetworkConfig networkConfig, IDictionary<string, object> serialized)
         {
@@ -39,8 +40,6 @@ namespace SharpNet.Optimizers
         {
             return (float)learningRate / batchSize;
         }
-
-        public abstract Optimizer CloneForSlaveNetwork(Network newSlaveNetwork);
         public virtual void Dispose()
         {
         }

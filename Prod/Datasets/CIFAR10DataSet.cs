@@ -40,8 +40,8 @@ namespace SharpNet.Datasets
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 
             //We load the training set
-            var xTrainingSet = new CpuTensor<byte>(new[] { 50000, Channels, Height, Width }, "xTrainingSet");
-            var yTrainingSet = new CpuTensor<byte>(new[] { 50000, 1, 1, 1 }, "yTrainingSet");
+            var xTrainingSet = new CpuTensor<byte>(new[] { 50000, Channels, Height, Width });
+            var yTrainingSet = new CpuTensor<byte>(new[] { 50000, 1, 1, 1 });
             for (int i = 0; i < 5; ++i)
             {
                 LoaAllFileAt(Path.Combine(path, "data_batch_" + (i + 1) + ".bin"), xTrainingSet, yTrainingSet, 10000 * i);
@@ -57,8 +57,8 @@ namespace SharpNet.Datasets
             Debug.Assert(trainElementIdToCategoryIndex.Length == xTrainingSet.Shape[0]);
 
             //We load the test set
-            var xTestSet = new CpuTensor<byte>(new[] { 10000, Channels, Height, Width }, "xTestSet");
-            var yTestSet = new CpuTensor<byte>(new[] { 10000, 1, 1, 1 }, "yTestSet");
+            var xTestSet = new CpuTensor<byte>(new[] { 10000, Channels, Height, Width });
+            var yTestSet = new CpuTensor<byte>(new[] { 10000, 1, 1, 1 });
             LoaAllFileAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
             var xTest = AbstractDataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
@@ -69,7 +69,7 @@ namespace SharpNet.Datasets
             Debug.Assert(testElementIdToCategoryIndex.Length == xTestSet.Shape[0]);
 
             //Uncomment the following line to take only the first 'count' elements
-            //const int count = 10000;xTrain = (CpuTensor<float>)xTrain.ExtractSubTensor(0, count);yTrain = (CpuTensor<float>)yTrain.ExtractSubTensor(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.ExtractSubTensor(0, count); ; yTest = (CpuTensor<float>)yTest.ExtractSubTensor(0, xTest.Shape[0]);
+            //const int count = 1000;xTrain = (CpuTensor<float>)xTrain.RowSlice(0, count);yTrain = (CpuTensor<float>)yTrain.RowSlice(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.RowSlice(0, count); ; yTest = (CpuTensor<float>)yTest.RowSlice(0, xTest.Shape[0]);
 
             Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
             Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using SharpNet.DataAugmentation;
+using SharpNet.GPU;
 
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -46,7 +48,16 @@ namespace SharpNet.Networks
         public List<int> ResourceIds { get; set; }
         public void SetResourceId(int resourceId)
         {
-            ResourceIds = new List<int> {resourceId};
+            if (resourceId == int.MaxValue)
+            {
+                //use multi GPU
+                ResourceIds = Enumerable.Range(0, GPUWrapper.GetDeviceCount()).ToList();
+            }
+            else
+            {
+                //single resource
+                ResourceIds = new List<int> { resourceId };
+            }
         }
         public int NumEpochs { get; set; }
         public int BatchSize { get; set; }

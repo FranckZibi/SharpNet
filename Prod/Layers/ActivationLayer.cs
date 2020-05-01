@@ -61,24 +61,9 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        #region layer clone
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new ActivationLayer(this, newSlaveNetwork); }
-        private ActivationLayer(ActivationLayer toCloneFromMasterNetwork, Network newSlaveNetwork) : base(toCloneFromMasterNetwork, newSlaveNetwork)
+        public override void AddToOtherNetwork(Network otherNetwork)
         {
-            ActivationFunction = toCloneFromMasterNetwork.ActivationFunction;
-        }
-        #endregion
-
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (ActivationLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(ActivationFunction, other.ActivationFunction, id + nameof(ActivationFunction), ref errors);
-            return equals;
+            otherNetwork.Layers.Add(new ActivationLayer(ActivationFunction, otherNetwork, LayerName));
         }
  
         private static string ToString(cudnnActivationMode_t activationFunction)

@@ -22,21 +22,21 @@ namespace SharpNetTests.Data
             var shape = new[] {10, 5};
             var rand = new Random(0);
             Tensor a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
-            var aSerialized = new Serializer().Add(a).ToString();
+            var aSerialized = new Serializer().Add("a", a).ToString();
             var aDeserialized = (Tensor)Serializer.Deserialize(aSerialized, null)["a"];
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-9));
             Tensor aGpu = a.ToGPU<float>(GpuWrapper);
-            var aGpuSerialized = new Serializer().Add(aGpu).ToString();
+            var aGpuSerialized = new Serializer().Add("aGpu", aGpu).ToString();
             var aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["a"];
             Assert.IsTrue(SameContent(aGpu, aGpuDeserialized, 1e-9));
 
             //float test
             a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
-            aSerialized = new Serializer().Add(a).ToString();
+            aSerialized = new Serializer().Add("a", a).ToString();
             aDeserialized = (Tensor)Serializer.Deserialize(aSerialized, null)["a"];
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-5));
             aGpu = a.ToGPU<float>(GpuWrapper);
-            aGpuSerialized = new Serializer().Add(aGpu).ToString();
+            aGpuSerialized = new Serializer().Add("aGpu", aGpu).ToString();
             aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["a"];
             Assert.IsTrue(SameContent(aGpu,aGpuDeserialized, 1e-5));
         }
@@ -121,14 +121,14 @@ namespace SharpNetTests.Data
         [Test]
 	    public void TestWidthHeightDimension()
 	    {
-	        var t = new CpuTensor<int>(new[] {2, 3, 5}, "t");
+	        var t = new CpuTensor<int>(new[] {2, 3, 5});
 	        Assert.AreEqual(3, t.Dimension);
 	        Assert.AreEqual(30, t.Count);
 	        Assert.AreEqual(2, t.Shape[0]);
 	        Assert.AreEqual(3, t.Shape[1]);
 	        Assert.AreEqual(5, t.Shape[2]);
 
-	        t = new CpuTensor<int>(new[] { 7 }, "t");
+	        t = new CpuTensor<int>(new[] { 7 });
 	        Assert.AreEqual(1, t.Dimension);
 	        Assert.AreEqual(7, t.Count);
 	        Assert.AreEqual(7, t.Shape[0]);

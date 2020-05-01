@@ -42,8 +42,8 @@ namespace SharpNet.Datasets
 
             var height = t[0].Key.Shape[0];
             var width = t[0].Key.Shape[1];
-            var X = new CpuTensor<float>(new[] { setSize, 1, height, width }, "X");
-            var Y = new CpuTensor<float>(new[] { setSize, 10 }, "Y");
+            var X = new CpuTensor<float>(new[] { setSize, 1, height, width });
+            var Y = new CpuTensor<float>(new[] { setSize, 10 });
             for (int m = 0; m < setSize; ++m)
             {
                 var matrix = t[m].Key;

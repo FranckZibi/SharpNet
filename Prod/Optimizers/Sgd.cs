@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using JetBrains.Annotations;
 using SharpNet.Data;
-using SharpNet.Networks;
 
 namespace SharpNet.Optimizers
 {
@@ -23,10 +22,10 @@ namespace SharpNet.Optimizers
             _memoryPool = memoryPool;
             _SGD_momentum = SGD_momentum;
             _SGD_usenesterov = SGD_usenesterov;
-            _memoryPool.GetNotInitializedFloatTensor(ref _velocityWeight, weightShape, nameof(_velocityWeight));
+            _memoryPool.GetFloatTensor(ref _velocityWeight, weightShape);
             if (biasShapeIfAny != null)
             {
-                _memoryPool.GetNotInitializedFloatTensor(ref _velocityBias, biasShapeIfAny, nameof(_velocityBias));
+                _memoryPool.GetFloatTensor(ref _velocityBias, biasShapeIfAny);
             }
             ZeroMemory();
         }
@@ -65,20 +64,15 @@ namespace SharpNet.Optimizers
             bias?.UpdateSGDOptimizer(ponderedLearningRate, _SGD_momentum, _SGD_usenesterov, biasGradient, _velocityBias);
         }
 
-        public override Optimizer CloneForSlaveNetwork(Network newSlaveNetwork) { return new Sgd(this, newSlaveNetwork); }
-        private Sgd(Sgd toCloneFromMasterNetwork, Network newSlaveNetwork)
-        {
-            _iterations = toCloneFromMasterNetwork._iterations;
-            _SGD_momentum = toCloneFromMasterNetwork._SGD_momentum;
-            _SGD_usenesterov = toCloneFromMasterNetwork._SGD_usenesterov;
-            _velocityWeight = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._velocityWeight);
-            _velocityBias = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._velocityBias);
-        }
-
         public override void Dispose()
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+            _isDisposed = true;
             base.Dispose();
-            EmbeddedTensors.ForEach(t=>_memoryPool.FreeMemory(t));
+            EmbeddedTensors.ForEach(t=>_memoryPool.FreeFloatTensor(t));
         }
 
         #region serialization
@@ -88,7 +82,8 @@ namespace SharpNet.Optimizers
                 .Add(nameof(_iterations), _iterations)
                 .Add(nameof(_SGD_momentum), _SGD_momentum)
                 .Add(nameof(_SGD_usenesterov), _SGD_usenesterov)
-                .Add(_velocityWeight).Add(_velocityBias)
+                .Add(nameof(_velocityWeight), _velocityWeight)
+                .Add(nameof(_velocityBias), _velocityBias)
                 .ToString();
         }
         public static Optimizer DeserializeSGD(IDictionary<string, object> serialized)

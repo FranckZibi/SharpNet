@@ -12,7 +12,7 @@ namespace SharpNetTests.Pictures
         public void TestUpdateWith_Sum_SumSquare_Count_For_Each_Channel()
         {
             const float epsilon = 1e-6f;
-            var bc = new BitmapContent(new[]{1,1,1}, new byte[]{0}, "");
+            var bc = new BitmapContent(new[]{1,1,1}, new byte[]{0});
             var _sum_SumSquare_Count_For_Each_Channel = new float[3 * bc.GetChannels()];
             bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, false);
             AssertAreEqual(new float[]{0,0,1}, _sum_SumSquare_Count_For_Each_Channel, epsilon);
@@ -20,7 +20,7 @@ namespace SharpNetTests.Pictures
             bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, true);
             AssertAreEqual(new float[] { 0, 0, 0 }, _sum_SumSquare_Count_For_Each_Channel, epsilon);
 
-            bc = new BitmapContent(new[] { 3, 2, 2 }, new byte[] { 0,0,0,0 ,1,1,0,0, 2,0,2,0 }, "");
+            bc = new BitmapContent(new[] { 3, 2, 2 }, new byte[] { 0,0,0,0 ,1,1,0,0, 2,0,2,0 });
             _sum_SumSquare_Count_For_Each_Channel = new float[3 * bc.GetChannels()];
             bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, false);
             AssertAreEqual(new float[] { 0,0,4, 2,2,4, 4,8,4 }, _sum_SumSquare_Count_For_Each_Channel, epsilon);
@@ -34,7 +34,7 @@ namespace SharpNetTests.Pictures
         {
             var fillingColor = Tuple.Create((byte)253, (byte)254, (byte)255);
 
-            var bc = new BitmapContent(new[] { 3, 1, 1 }, new byte[] { 117,1,2 }, "");
+            var bc = new BitmapContent(new[] { 3, 1, 1 }, new byte[] { 117,1,2 });
             var bcSquare = bc.MakeSquarePictures(true, false, fillingColor);
             Assert.IsTrue(bc.Shape.SequenceEqual(bcSquare.Shape));
             AssertAreEqual(new byte[] {117,1,2}, bcSquare.SpanContent.ToArray());
@@ -45,7 +45,7 @@ namespace SharpNetTests.Pictures
             Assert.IsTrue(bc.Shape.SequenceEqual(bcSquare.Shape));
             AssertAreEqual(new byte[] { 117, 1, 2 }, bcSquare.SpanContent.ToArray());
 
-            bc = new BitmapContent(new[] { 3, 3, 1 }, new byte[] { 117,1,2, 3,4,5, 6,7,8 }, "");
+            bc = new BitmapContent(new[] { 3, 3, 1 }, new byte[] { 117,1,2, 3,4,5, 6,7,8 });
             bcSquare = bc.MakeSquarePictures(false, false, fillingColor);
             Assert.IsTrue(new[]{3,3,3}.SequenceEqual(bcSquare.Shape));
             AssertAreEqual(new byte[]

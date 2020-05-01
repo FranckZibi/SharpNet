@@ -47,7 +47,7 @@ namespace SharpNet.Datasets
                 _elementIdToCategoryIndex[i] = -1;
             }
 
-            Y = new CpuTensor<float>(Y_Shape, null, "Y");
+            Y = new CpuTensor<float>(Y_Shape, null);
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {

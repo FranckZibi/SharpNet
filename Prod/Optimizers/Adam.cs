@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using JetBrains.Annotations;
 using SharpNet.Data;
-using SharpNet.Networks;
 
 namespace SharpNet.Optimizers
 {
@@ -33,12 +32,12 @@ namespace SharpNet.Optimizers
             _adam_beta1 = adam_beta1;
             _adam_beta2 = adam_beta2;
             _adam_epsilon = adam_epsilon;
-            _memoryPool.GetNotInitializedFloatTensor(ref _adam_VW, weightShape, nameof(_adam_VW));
-            _memoryPool.GetNotInitializedFloatTensor(ref _adam_SW , weightShape, nameof(_adam_SW));
+            _memoryPool.GetFloatTensor(ref _adam_VW, weightShape);
+            _memoryPool.GetFloatTensor(ref _adam_SW , weightShape);
             if (biasShapeIfAny != null)
             {
-                _memoryPool.GetNotInitializedFloatTensor(ref _adam_VB, biasShapeIfAny, nameof(_adam_VB));
-                _memoryPool.GetNotInitializedFloatTensor(ref _adam_SB, biasShapeIfAny, nameof(_adam_SB));
+                _memoryPool.GetFloatTensor(ref _adam_VB, biasShapeIfAny);
+                _memoryPool.GetFloatTensor(ref _adam_SB, biasShapeIfAny);
             }
             ZeroMemory();
         }
@@ -80,24 +79,15 @@ namespace SharpNet.Optimizers
             weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, weightGradients, _adam_VW, _adam_SW, _timestep);
             bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, biasGradient, _adam_VB, _adam_SB, _timestep);
         }
-
-        public override Optimizer CloneForSlaveNetwork(Network newSlaveNetwork) { return new Adam(this, newSlaveNetwork); }
-        private Adam(Adam toCloneFromMasterNetwork, Network newSlaveNetwork)
-        {
-           _timestep = toCloneFromMasterNetwork._timestep;
-           _adam_beta1 = toCloneFromMasterNetwork._adam_beta1;
-           _adam_beta2 = toCloneFromMasterNetwork._adam_beta2;
-           _adam_epsilon = toCloneFromMasterNetwork._adam_epsilon;
-           _adam_VW = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_VW);
-           _adam_SW = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_SW);
-           _adam_VB = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_VB);
-           _adam_SB = newSlaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._adam_SB);
-        }
-
         public override void Dispose()
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+            _isDisposed = true;
             base.Dispose();
-            EmbeddedTensors.ForEach(t => _memoryPool.FreeMemory(t));
+            EmbeddedTensors.ForEach(t => _memoryPool.FreeFloatTensor(t));
         }
 
         #region serialization
@@ -108,8 +98,10 @@ namespace SharpNet.Optimizers
                 .Add(nameof(_adam_beta1), _adam_beta1)
                 .Add(nameof(_adam_beta2), _adam_beta2)
                 .Add(nameof(_adam_epsilon), _adam_epsilon)
-                .Add(_adam_VW).Add(_adam_SW)
-                .Add(_adam_VB).Add(_adam_SB)
+                .Add(nameof(_adam_VW), _adam_VW)
+                .Add(nameof(_adam_SW), _adam_SW)
+                .Add(nameof(_adam_VB), _adam_VB)
+                .Add(nameof(_adam_SB), _adam_SB)
                 .ToString();
         }
         public static Optimizer DeserializeAdam(IDictionary<string, object> serialized)

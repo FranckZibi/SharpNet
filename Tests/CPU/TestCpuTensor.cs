@@ -16,9 +16,9 @@ namespace SharpNetTests.CPU
         [Test]
         public void TestEquals()
         {
-            var a = new CpuTensor<float>(new []{10, 5}, "a");
-            var b = new CpuTensor<float>(new[] { 10, 5 }, "b");
-            var c = new CpuTensor<float>(new[] { 11, 5 }, "c");
+            var a = new CpuTensor<float>(new []{10, 5});
+            var b = new CpuTensor<float>(new[] { 10, 5 });
+            var c = new CpuTensor<float>(new[] { 11, 5 });
             Assert.IsTrue(TestTensor.SameContent(a, b, 0.0));
             Assert.IsFalse(TestTensor.SameContent(a, c, 10));
             b[0] += 1e-4f;
@@ -35,20 +35,20 @@ namespace SharpNetTests.CPU
         public void TestConvolution()
         {
             const int f = 3;
-            var input = new CpuTensor<float>(new[] { 1, 1, 3, 3 }, new float[]{1,2,3,4,5,6,7,8,9}, "input");
-            var convolution = new CpuTensor<float>(new[] { 1, 1, f, f }, new float[] { 1, 0, -1, 1, 0, -1, 1, 0, -1 }, "convolution");
+            var input = new CpuTensor<float>(new[] { 1, 1, 3, 3 }, new float[]{1,2,3,4,5,6,7,8,9});
+            var convolution = new CpuTensor<float>(new[] { 1, 1, f, f }, new float[] { 1, 0, -1, 1, 0, -1, 1, 0, -1 });
 
             var padding = 0;
             var stride = 1;
-            var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] { -6 }, "expectedOutput");
+            var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] { -6 });
             TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
 
             padding = f/2;
             stride = 1;
-            expectedOutput = new CpuTensor<float>(new[] { 1, 1, 3, 3}, new float[] { -7,-4,7,-15,-6,15,-13,-4,13 }, "expectedOutput");
+            expectedOutput = new CpuTensor<float>(new[] { 1, 1, 3, 3}, new float[] { -7,-4,7,-15,-6,15,-13,-4,13 });
             TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
 
-            input = new CpuTensor<float>(new[] { 3, 1, 3, 3 }, "input");
+            input = new CpuTensor<float>(new[] { 3, 1, 3, 3 });
             for (int i = 1; i <= input.Count; ++i)
             {
                 input[i - 1] = i;
@@ -56,12 +56,12 @@ namespace SharpNetTests.CPU
             input[0] = -333;
             padding = 0;
             stride = 1;
-            expectedOutput = new CpuTensor<float>(new[] { 3, 1, 1, 1 }, new float[] {-340,-6, -6 }, "expectedOutput");
+            expectedOutput = new CpuTensor<float>(new[] { 3, 1, 1, 1 }, new float[] {-340,-6, -6 });
             TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
 
             padding = f / 2;
             stride = 1;
-            expectedOutput = new CpuTensor<float>(new[] { 3, 1, 3, 3 }, new float[] { -7, -338, 7, -15, -340, 15, -13, -4, 13, -25, -4, 25, -42, -6, 42, -31, -4, 31, -43, -4, 43, -69, -6, 69, -49, -4, 49 }, "expectedOutput");
+            expectedOutput = new CpuTensor<float>(new[] { 3, 1, 3, 3 }, new float[] { -7, -338, 7, -15, -340, 15, -13, -4, 13, -25, -4, 25, -42, -6, 42, -31, -4, 31, -43, -4, 43, -69, -6, 69, -49, -4, 49 });
             TestStandardConvolution(input, convolution, padding, padding, padding, padding, stride, expectedOutput);
         }
 
@@ -74,7 +74,7 @@ namespace SharpNetTests.CPU
             var c = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
             var a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
             var x = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
-            var expected = new CpuTensor<float>(shape, null, "");
+            var expected = new CpuTensor<float>(shape, null);
             for (int i = 0; i < expected.Count; ++i)
             {
                 expected.SpanContent[i] = a.ReadonlyContent[i]*x.ReadonlyContent[i];
@@ -84,7 +84,7 @@ namespace SharpNetTests.CPU
             c = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
             a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
             x = RandomFloatTensor(new[] { 32, 1157, 1, 1 }, rand, -maxValue, maxValue, "");
-            expected = new CpuTensor<float>(shape, null, "");
+            expected = new CpuTensor<float>(shape, null);
             for (int i = 0; i < expected.Count; ++i)
             {
                 expected.SpanContent[i] = a.ReadonlyContent[i] * x.ReadonlyContent[i/(7*7)];
@@ -96,7 +96,7 @@ namespace SharpNetTests.CPU
         [Test]
         public void TestChangeAxis()
         {
-            var t = new CpuTensor<int>(new [] {2, 2, 2, 2}, Enumerable.Range(0, 16).ToArray(), "");
+            var t = new CpuTensor<int>(new [] {2, 2, 2, 2}, Enumerable.Range(0, 16).ToArray());
             var t1 = (CpuTensor<int>)t.ChangeAxis(new[] {3, 2, 0, 1}).ChangeAxis(new[] {0, 1, 3, 2});
             var t2 = (CpuTensor<int>)t.ChangeAxis(new[] {3, 2, 1, 0});
             Assert.IsTrue(t1.ReadonlyContent.SequenceEqual(t2.ReadonlyContent));
@@ -119,7 +119,7 @@ namespace SharpNetTests.CPU
                     var observedDest = RandomFloatTensor(destShape, rand, -100.0, 100.0, "");
                     observedDest.ZeroPadding(src, top_pad, bottom_pad, left_pad, right_pad);
 
-                    var expectedDest = new CpuTensor<float>(destShape, null, "");
+                    var expectedDest = new CpuTensor<float>(destShape, null);
                     expectedDest.ZeroMemory();
                     for (int n = 0; n < shape[0]; ++n)
                     for (int c = 0; c < shape[1]; ++c)
@@ -142,9 +142,9 @@ namespace SharpNetTests.CPU
             var maxValue = 10.0;
             var a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
             var b = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
-            var result = new CpuTensor<float>(new[] { 32, 1157, 1, 1 }, null, "");
+            var result = new CpuTensor<float>(new[] { 32, 1157, 1, 1 }, null);
             result.MultiplyEachRowIntoSingleValue(a,b);
-            var expected = new CpuTensor<float>(result.Shape, null, "");
+            var expected = new CpuTensor<float>(result.Shape, null);
             for (int i = 0; i < a.Count; ++i)
             {
                 expected.SpanContent[i/(7*7)] += a.ReadonlyContent[i] * b.ReadonlyContent[i];
@@ -163,7 +163,7 @@ namespace SharpNetTests.CPU
             var x = RandomFloatTensor(new []{nbRows, 1}, rand, 10, 20, "x");
             var y = RandomFloatTensor(x.Shape, rand, 10, 20, "y");
             var memoryPool = new TensorMemoryPool(null, false);
-            var dropoutReserveSpace = memoryPool.GetNotInitializedFloatTensor(y.Shape, "dropoutReserveSpace");
+            var dropoutReserveSpace = memoryPool.GetFloatTensor(y.Shape);
             x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace, memoryPool);
             int nbObservedZeroAfterDropout = y.ReadonlyContent.Count(i => Math.Abs(i) < 1e-8);
             Assert.IsTrue(nbObservedZeroAfterDropout>=minEqualToZeroAfterDropout);
@@ -176,31 +176,31 @@ namespace SharpNetTests.CPU
             const int poolingSize = 2;
             const int stride = 2;
 
-            var input = new CpuTensor<float>(new[] { 1, 1, 3, 3 }, new float[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 }, "input");
-            var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride), "output");
+            var input = new CpuTensor<float>(new[] { 1, 1, 3, 3 }, new float[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+            var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingSize, stride);
-            var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] {5}, "expectedOutput");
+            var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] {5});
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
 
-            input = new CpuTensor<float>(new[] { 3, 1, 4, 4 }, "input");
+            input = new CpuTensor<float>(new[] { 3, 1, 4, 4 });
             for (int i = 1; i <= input.Count; ++i)
             {
                 input[i - 1] = i;
             }
             input[0] = 333;
-            output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride), "output");
+            output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingSize, stride);
-            expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2, 2 }, new float[] { 333, 8, 14, 16, 22, 24, 30, 32, 38, 40, 46, 48 }, "expectedOutput");
+            expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2, 2 }, new float[] { 333, 8, 14, 16, 22, 24, 30, 32, 38, 40, 46, 48 });
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
         }
 
         [Test]
-        public void TestExtractSubTensor()
+        public void TestSlice()
         {
             var data = new float[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-            var owner = new CpuTensor<float>(new[] { 5, 2 }, data, "owner");
-            var tensorTop2Rows = (CpuTensor<float>)owner.Slice(0, 2);  
-            var tensorBottom3Rows = (CpuTensor<float>)owner.Slice(2, 3);
+            var owner = new CpuTensor<float>(new[] { 5, 2 }, data);
+            var tensorTop2Rows = (CpuTensor<float>)owner.RowSlice(0, 2);  
+            var tensorBottom3Rows = (CpuTensor<float>)owner.RowSlice(2, 3);
             var contentTop = tensorTop2Rows.ContentAsFloatArray();
             Assert.AreEqual(new float[] { 0, 1, 2, 3 }, contentTop.ToArray());
             var contentBottom = tensorBottom3Rows.ContentAsFloatArray();
@@ -220,23 +220,23 @@ namespace SharpNetTests.CPU
         {
             var content = new float[Utils.Product(shape)];
             Utils.Randomize(content, rand, minValue, maxValue);
-            return new CpuTensor<float>(shape, content, description);
+            return new CpuTensor<float>(shape, content);
         }
         public static CpuTensor<byte> RandomByteTensor(int[] shape, Random rand, byte minValue, byte maxValue, string description)
         {
             var content = new byte[Utils.Product(shape)];
             Utils.Randomize(content, rand, minValue, maxValue);
-            return new CpuTensor<byte>(shape, content, description);
+            return new CpuTensor<byte>(shape, content);
         }
         private static void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, CpuTensor<float> expectedOutput)
         {
-            var outputCPU = new CpuTensor<float>(expectedOutput.Shape, "output");
+            var outputCPU = new CpuTensor<float>(expectedOutput.Shape);
             input.Convolution(convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, outputCPU, false, GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, null);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }
         public static CpuTensor<float> RandomOneHotTensor(int[] shape, Random rand, string description)
         {
-            var result = new CpuTensor<float>(shape, description);
+            var result = new CpuTensor<float>(shape);
             for (int row = 0; row < result.Shape[0]; ++row)
             {
                 result.Set(row, rand.Next(result.Shape[1]), 1f);
@@ -251,7 +251,7 @@ namespace SharpNetTests.CPU
             {
                 data[i] = rand.Next(categoryCount);
             }
-            return new CpuTensor<int>(new[]{nbRows}, data, "RandomOneHotTensorCategoryIndex");
+            return new CpuTensor<int>(new[]{nbRows}, data);
         }
 
 
@@ -259,7 +259,7 @@ namespace SharpNetTests.CPU
         //in each row: only 2 elements with non zero value, the sum of the 2 elements is always = 1.0
         public static CpuTensor<float> RandomTwoHotTensor(int[] shape, Random rand, string description)
         {
-            var result = new CpuTensor<float>(shape, description);
+            var result = new CpuTensor<float>(shape);
             int categoryCount = result.Shape[1];
             for (int row = 0; row < result.Shape[0]; ++row)
             {

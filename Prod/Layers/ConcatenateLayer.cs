@@ -54,8 +54,10 @@ namespace SharpNet.Layers
         #endregion
 
         #region clone layer
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new ConcatenateLayer(this, newSlaveNetwork); }
-        private ConcatenateLayer(ConcatenateLayer toCloneFromMasterNetwork, Network newSlaveNetwork) : base(toCloneFromMasterNetwork, newSlaveNetwork) { }
+        public override void AddToOtherNetwork(Network otherNetwork)
+        {
+            otherNetwork.Layers.Add(new ConcatenateLayer(PreviousLayerIndexes[0], PreviousLayerIndexes[1], otherNetwork, LayerName));
+        }
         #endregion
 
         public override int[] OutputShape(int batchSize)

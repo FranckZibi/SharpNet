@@ -105,11 +105,11 @@ namespace SharpNet.Data
             _sb.Append("bool;" + description + ";" + value.ToString(CultureInfo.InvariantCulture) + ";");
             return this;
         }
-        public Serializer Add(Tensor value)
+        public Serializer Add(string description, Tensor value)
         {
             if (value != null)
             {
-                _sb.Append(Serialize(value) + ";");
+                _sb.Append(Serialize(description, value) + ";");
             }
             return this;
         }
@@ -217,8 +217,8 @@ namespace SharpNet.Data
                 }
                 else if (string.Equals(type, "GPUTensor", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "CpuTensor", StringComparison.OrdinalIgnoreCase))
                 {
-                    var data = TensorDeserialize(splitted, gpuWrapper, ref startIndex);
-                    result[data.Description] = data;
+                    var data = TensorDeserialize(splitted, gpuWrapper, out string description, ref startIndex);
+                    result[description] = data;
                 }
                 else
                 {
@@ -227,9 +227,9 @@ namespace SharpNet.Data
             }
             return result;
         }
-        private static string Serialize(Tensor t)
+        private static string Serialize(string description, Tensor t)
         {
-            return Serialize(t.UseGPU, t.Description, typeof(float), t.Shape, ToString(t.ContentAsFloatArray()));
+            return Serialize(t.UseGPU, description, typeof(float), t.Shape, ToString(t.ContentAsFloatArray()));
         }
 
         private static string ToString(ReadOnlySpan<float> data)
@@ -253,10 +253,10 @@ namespace SharpNet.Data
             var tensorName = isGpu ? "GPUTensor" : "CpuTensor";
             return tensorName + ";" + description.Replace(";", "_") + ";" + type.Name + ";" + shape.Length + ";" + string.Join(";", shape) + ";" + serializedContent;
         }
-        private static Tensor TensorDeserialize(string[] splitted, GPUWrapper gpuWrapper, ref int startIndex)
+        private static Tensor TensorDeserialize(string[] splitted, GPUWrapper gpuWrapper, out string description, ref int startIndex)
         {
             bool isGpu = string.Equals(splitted[startIndex++], "GPUTensor", StringComparison.OrdinalIgnoreCase);
-            var description = splitted[startIndex++];
+            description = splitted[startIndex++];
             var typeAsString = splitted[startIndex++];
             var dimension = int.Parse(splitted[startIndex++]);
             var shape = new int[dimension];
@@ -271,9 +271,9 @@ namespace SharpNet.Data
                 startIndex += count;
                 if (!isGpu)
                 {
-                    return new CpuTensor<float>(shape, data, description);
+                    return new CpuTensor<float>(shape, data);
                 }
-                return new GPUTensor<float>(shape, data, gpuWrapper, description);
+                return new GPUTensor<float>(shape, data, gpuWrapper);
             }
             throw new NotImplementedException("do not know how to parse type " + typeAsString);
         }

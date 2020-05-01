@@ -15,7 +15,7 @@ namespace SharpNet.Networks
 
         public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet)
         {
-            var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape, "yCpuPredictedAllNetworks");
+            var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape);
             foreach (var file in _files)
             {
                 Console.WriteLine("Loading " + file + " ...");

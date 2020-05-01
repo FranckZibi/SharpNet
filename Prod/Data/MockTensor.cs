@@ -7,7 +7,7 @@ namespace SharpNet.Data
 {
     public class MockTensor<T> : Tensor
     {
-        public MockTensor(int[] shape, string description) : base(shape, Marshal.SizeOf(typeof(T)), false, description)
+        public MockTensor(int[] shape) : base(shape, Marshal.SizeOf(typeof(T)), false)
         {
             CapacityInBytes = (ulong)(Utils.Product(Shape) * TypeSize);
         }
@@ -28,7 +28,7 @@ namespace SharpNet.Data
         }
         public override string ToString()
         {
-            return Description;
+            return "Mock";
         }
 
         #region not implemented methods
@@ -70,9 +70,8 @@ namespace SharpNet.Data
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient){throw new NotImplementedException();}
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW,Tensor adam_sW, int timestep){throw new NotImplementedException();}
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity){throw new NotImplementedException();}
-        public override Tensor Slice(int startRowIndex, int nbRows){throw new NotImplementedException();}
-
-        public override bool IsOwnerOfMemory => throw new NotImplementedException();
+        public override Tensor Slice(int startIndex, int[] sliceShape) { throw new NotImplementedException(); }
+        public override bool IsOwnerOfMemory => true;
 
         public override void AssertIsNotDisposed(){}
         public override Tensor Transpose(){throw new NotImplementedException();}

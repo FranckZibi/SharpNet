@@ -2,8 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using NUnit.Framework;
 using SharpNet;
+using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -35,7 +38,7 @@ namespace SharpNetTests.NonReg
                 var tensors = new GPUTensor<float>[1];
                 for(int t=0;t<tensors.Length;++t)
                 {
-                    tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, tmp_2GB, gpuContext, "test");
+                    tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, tmp_2GB, gpuContext);
                 }
                 logger.Info(gpuContext.ToString());
                 foreach (var t in tensors)
@@ -62,6 +65,57 @@ namespace SharpNetTests.NonReg
         }
 
 
+     
+
+        //gpu=>gpu (same device)
+        [TestCase("gpu0", "gpu0"), Explicit]
+        //gpu=>gpu (different device)
+        [TestCase("gpu0", "gpu1")]
+        //gpu=>cpu
+        [TestCase("gpu0", "cpu")]
+        //cpu=>gpu
+        [TestCase("cpu", "gpu0")]
+        public void Test_MemoryCopy_Benchmark(string srcDescription, string destDescription)
+        {
+            var chunkSize = new[] { 1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000, 500_000_000, 1_000_000_000 };
+            var maxChunkSize = chunkSize.Max();
+            var src = GetTensor(srcDescription, maxChunkSize);
+            var dest = GetTensor(destDescription, maxChunkSize);
+            foreach (var byteCount in chunkSize)
+            { 
+                ulong loopId = 0;
+                src.Reshape(new[] { byteCount });
+                dest.Reshape(new[] { byteCount });
+                var sw = Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < 5000)
+                {
+                    src.CopyTo(dest);
+                    ++loopId;
+                }
+                sw.Stop();
+                var speed = (loopId* src.ReallyNeededMemoryInBytes / sw.Elapsed.TotalSeconds) / 1e9;
+                Console.WriteLine("ByteCount: "+Utils.MemoryBytesToString((ulong)byteCount) + ", Avg speed: " + speed + " GB/s");
+                System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MemoryCopy_Benchmark.csv"), DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"+ srcDescription + ";"+ destDescription + ";"+ byteCount + ";"+ speed + ";"+ Environment.NewLine);
+            }
+        }
+        private static Tensor GetTensor(string tensorDescription, int chunkSize)
+        {
+            if (tensorDescription == "gpu1" && GPUWrapper.GetDeviceCount() < 2)
+            {
+                tensorDescription = "gpu0";
+            }
+            switch (tensorDescription)
+            {
+                default:
+                    //case "gpu":
+                    //case "gpu0":
+                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(0));
+                case "gpu1":
+                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(1));
+                case "cpu":
+                    return new CpuTensor<byte>(new[] { chunkSize }, null);
+            }
+        }
         [Test, Explicit]
         public void TestGPUBenchmark_Speed()
         {

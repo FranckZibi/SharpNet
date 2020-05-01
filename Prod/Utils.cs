@@ -272,13 +272,21 @@ namespace SharpNet
             }
             return true;
         }
-        public static bool EqualsList(IList<Tensor> a, IList<Tensor> b, double epsilon, string id, ref string errors)
+        public static bool EqualsList(IList<Tuple<Tensor,string>> a, IList<Tuple<Tensor, string>> b, double epsilon, string id, ref string errors)
         {
-            var tensorNames = new HashSet<string>(a.Where(x => x != null).Select(x => x.Description).Union(b.Where(x => x != null).Select(x => x.Description)));
-            var equals = true;
-            foreach (var name in tensorNames.ToList())
+            if (a.Count != b.Count)
             {
-                equals &= EqualsSingleTensor(a, b, name, epsilon, id, ref errors);
+                return false;
+            }
+            var equals = true;
+            for (var i = 0; i < a.Count; i++)
+            {
+                equals &= a[i].Item1.Equals(b[i].Item1, epsilon, id, ref errors);
+                if (a[i].Item2 != b[i].Item2)
+                {
+                    equals = false;
+                    errors += " " + a[i].Item2 + " != " + b[i].Item2;
+                }
             }
             return equals;
         }
@@ -390,12 +398,6 @@ namespace SharpNet
                 data[i] = data[j];
                 data[j] = tmp;
             }
-        }
-        private static bool EqualsSingleTensor(IEnumerable<Tensor> a, IEnumerable<Tensor> b, string tensorName, double epsilon, string id, ref string errors)
-        {
-            var aFirst = a.FirstOrDefault(x => x.Description == tensorName);
-            var bFirst = b.FirstOrDefault(x => x.Description == tensorName);
-            return aFirst.Equals(bFirst, epsilon, id, ref errors);
         }
         private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
         {

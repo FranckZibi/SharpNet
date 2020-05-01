@@ -20,7 +20,7 @@ namespace SharpNetTests.DataAugmentation.Operations
                     52, 55, 61, 59, 79, 61, 76, 61, 62, 59, 55, 104, 94, 85, 59, 71, 63, 65, 66, 113, 144,
                     104, 63, 72, 64, 70, 70, 126, 154, 109, 71, 69, 67, 73, 68, 106, 122, 88, 68, 68, 68, 79,
                     60, 70, 77, 66, 58, 75, 69, 85, 64, 58, 55, 61, 65, 83, 70, 87, 69, 68, 65, 73, 78, 90
-                }, "");
+                });
             var observed = Equalize.GetOriginalPixelToEqualizedPixelByChannel(ImageStatistic.ValueOf(bmp))[0];
             var expected = new[]{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,12,0,0,20,32,36,53,57,65,73,85,93,97,117,130,146,154,158,166,0,170,174,178,182,190,0,0,0,194,0,202,0,206,210,0,215,0,0,0,219,0,0,0,0,0,0,0,0,0,227,0,231,0,0,235,0,0,0,239,0,0,0,0,0,0,0,0,243,0,0,0,247,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,251,0,0,0,0,0,0,0,0,0,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
             Assert.AreEqual(expected,observed);
@@ -33,7 +33,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             var bmp = BitmapContent.ValueFomSingleRgbBitmap(path, path);
             var stats = ImageStatistic.ValueOf(bmp);
             OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), null) }, path, @"C:\download\b\srcimg07_Equalize2.jpg", false);
-            var meanAndVolatilityForEachChannel = new CpuTensor<byte>(new[] { 1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2] }, bmp.SpanContent.ToArray(), "").ComputeMeanAndVolatilityOfEachChannel(x => (float)x);
+            var meanAndVolatilityForEachChannel = new CpuTensor<byte>(new[] { 1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2] }, bmp.SpanContent.ToArray()).ComputeMeanAndVolatilityOfEachChannel(x => (float)x);
             OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), meanAndVolatilityForEachChannel), new HorizontalFlip(bmp.Shape[2]), new VerticalFlip(bmp.Shape[1]), new HorizontalFlip(bmp.Shape[2]) }, path, @"C:\download\b\srcimg07_Equalize2_true.jpg", true);
         }
 

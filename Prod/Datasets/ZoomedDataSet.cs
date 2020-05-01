@@ -9,7 +9,7 @@ namespace SharpNet.Datasets
         private readonly IDataSet _original;
         private readonly int _heightMultiplier;
         private readonly int _widthMultiplier;
-        private readonly CpuTensor<float> _xBufferBeforeZoom = new CpuTensor<float>(new[] { 1 }, nameof(_xBufferBeforeZoom));
+        private readonly CpuTensor<float> _xBufferBeforeZoom = new CpuTensor<float>(new[] { 1 });
         #endregion
 
         public ZoomedDataSet(IDataSet original, int heightMultiplier, int widthMultiplier)

@@ -74,7 +74,7 @@ namespace SharpNet.Data
             {
                 result[stringIndex] = ExtractString(byteTensor.ReadonlyContent, stringIndex, stringMaxLength);
             }
-            return new CpuTensor<string>(new []{ byteTensor.Shape[0]}, result, IntPtr.Size, byteTensor.Description );
+            return new CpuTensor<string>(new []{ byteTensor.Shape[0]}, result, IntPtr.Size );
         }
         public static string Join(string path1, string path2)
         {
@@ -158,7 +158,7 @@ namespace SharpNet.Data
             H5D.read(datasetId, dataType, H5S.ALL, H5S.ALL, H5P.DEFAULT, resultHandle.AddrOfPinnedObject());
             resultHandle.Free();
             H5D.close(datasetId);
-            return new CpuTensor<T>(datasetShape, result, datasetPath);
+            return new CpuTensor<T>(datasetShape, result);
         }
         /// <summary>
         /// name of all objects in the group

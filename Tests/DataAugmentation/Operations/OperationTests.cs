@@ -45,7 +45,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             var input = bmp.ReadonlyContent.Select(x => (float)x).ToArray();
             var inputShape = new []{1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2]};
             //Check(subPolicy, input, inputShape, bmp.Shape, null, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
-            var xOriginalMiniBatch = new CpuTensor<float>(inputShape, input, "xOriginalMiniBatch");
+            var xOriginalMiniBatch = new CpuTensor<float>(inputShape, input);
 
             List<Tuple<float, float>> meanAndVolatilityForEachChannel = null;
             if (normalizeInput)
@@ -54,8 +54,8 @@ namespace SharpNetTests.DataAugmentation.Operations
                 xOriginalMiniBatch = xOriginalMiniBatch.Select((n, c, val) => (float)((val - meanAndVolatilityForEachChannel[c].Item1) / Math.Max(meanAndVolatilityForEachChannel[c].Item2, 1e-9)));
             }
 
-            var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape, "xDataAugmentedMiniBatch");
-            var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(inputShape, "xBufferForDataAugmentedMiniBatch");
+            var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
+            var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
             SubPolicy.Apply(
                 subPolicy,
                 0,
@@ -71,7 +71,7 @@ namespace SharpNetTests.DataAugmentation.Operations
                 xDataAugmentedMiniBatch = xDataAugmentedMiniBatch.Select((n, c, val) => val*meanAndVolatilityForEachChannel[c].Item2+meanAndVolatilityForEachChannel[c].Item1);
             }
 
-            var t = new BitmapContent(bmp.Shape, xDataAugmentedMiniBatch.ReadonlyContent.Select(x => (byte)Math.Max(0,Math.Min(255,x))).ToArray(), "description");
+            var t = new BitmapContent(bmp.Shape, xDataAugmentedMiniBatch.ReadonlyContent.Select(x => (byte)Math.Max(0,Math.Min(255,x))).ToArray());
             t.Save(new List<string> { augmentedPicturePath });
         }
 
@@ -81,9 +81,9 @@ namespace SharpNetTests.DataAugmentation.Operations
         {
             indexInMiniBatchToCategoryIndex ??= (x => x);
 
-            var xOriginalMiniBatch = new CpuTensor<float>(inputShape, input, "xOriginalMiniBatch");
-            var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape, "xDataAugmentedMiniBatch");
-            var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(inputShape, "xBufferForDataAugmentedMiniBatch");
+            var xOriginalMiniBatch = new CpuTensor<float>(inputShape, input);
+            var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
+            var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
 
             yOriginal = Clone(yOriginal);
             SubPolicy.Apply(
@@ -96,7 +96,7 @@ namespace SharpNetTests.DataAugmentation.Operations
                 _fillMode,
                 xBufferForDataAugmentedMiniBatch);
 
-            var xExpectedDataAugmented = new CpuTensor<float>(inputShape, expectedOutput, "xExpectedDataAugmented");
+            var xExpectedDataAugmented = new CpuTensor<float>(inputShape, expectedOutput);
             Assert.IsTrue(TestTensor.SameContent(xExpectedDataAugmented, xDataAugmentedMiniBatch, 1e-6));
             if (yOriginal != null)
             {
@@ -110,7 +110,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             {
                 return null;
             }
-            return new CpuTensor<float>((int[])t.Shape.Clone(), t.Content.ToArray(), t.Description);
+            return new CpuTensor<float>((int[])t.Shape.Clone(), t.Content.ToArray());
         }
 
 

@@ -35,7 +35,7 @@ namespace SharpNet.Pictures
 
                 var matrix = Load(fileDataBytes, 16 + index * (height * width), width, height);
                 var target = fileLabelBytes[8 + index];
-                result.Add(new KeyValuePair<CpuTensor<byte>, int>(new CpuTensor<byte>(new[] { width, height }, matrix, "test"), target));
+                result.Add(new KeyValuePair<CpuTensor<byte>, int>(new CpuTensor<byte>(new[] { width, height }, matrix), target));
             }
             return result;
         }

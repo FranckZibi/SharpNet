@@ -34,13 +34,13 @@ namespace SharpNet.Layers
             else
             {
                 //no need of dropout reserved space for inference
-                FreeMemory(ref _dropoutReservedSpaceForTraining);
+                FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
 
             x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropoutReservedSpaceForTraining, Network.MemoryPool);
             if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining))
             {
-                FreeMemory(ref _dropoutReservedSpaceForTraining);
+                FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
 
         }
@@ -51,7 +51,7 @@ namespace SharpNet.Layers
             Debug.Assert(_dropoutReservedSpaceForTraining != null);
             Debug.Assert(_dropoutReservedSpaceForTraining.UseGPU == y.UseGPU);
             allX[0].DropoutBackward(dy, dx[0], _dropProbability, _dropoutReservedSpaceForTraining);
-            FreeMemory(ref _dropoutReservedSpaceForTraining);
+            FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
         }
         #endregion
 
@@ -66,30 +66,16 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        #region clone layer
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new DropoutLayer(this, newSlaveNetwork); }
-        private DropoutLayer(DropoutLayer toCloneFromMasterNetwork, Network newSlaveNetwork) : base(toCloneFromMasterNetwork, newSlaveNetwork)
+        public override void AddToOtherNetwork(Network otherNetwork)
         {
-            _dropProbability = toCloneFromMasterNetwork._dropProbability;
+            otherNetwork.Layers.Add(new DropoutLayer(_dropProbability,otherNetwork, LayerName));
         }
-        #endregion
 
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (DropoutLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_dropProbability, other._dropProbability, epsilon, id, ref errors);
-            return equals;
-        }
         public override void Dispose()
         {
             base.Dispose();
             //managed memory
-            FreeMemory(ref _dropoutReservedSpaceForTraining);
+            FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
         }
 
         private void InitializeDropoutReservedSpaceForTraining(Tensor x)
@@ -103,7 +89,7 @@ namespace SharpNet.Layers
             }
             else
             {
-                GetNotInitializedFloatTensor(ref _dropoutReservedSpaceForTraining, x.Shape, nameof(_dropoutReservedSpaceForTraining));
+                GetFloatTensor(ref _dropoutReservedSpaceForTraining, x.Shape);
             }
             Debug.Assert(_dropoutReservedSpaceForTraining.UseGPU == x.UseGPU);
         }

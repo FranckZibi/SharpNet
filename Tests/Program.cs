@@ -112,28 +112,26 @@ namespace SharpNetTests
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 40,4);},
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
-
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
             };
 
             var networkMetaParameters = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST; p.ExtraDescription = "_FASTEST_DETERMINIST_BatchSize128_03d3723d36f982147c6354c68f17a1fe0c0c126f";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 256;p.ExtraDescription = "_MultiGPU";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.ExtraDescription = "_BatchSize128";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.ExtraDescription = "_BatchSize128";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 64;p.ExtraDescription = "_BatchSize64";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = -1;p.ExtraDescription = "_BatchSizeAuto";return p;},
             };
-            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, false);
         }
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
-            using (var cifar10 = new CIFAR10DataSet())
-            using (var network = p.WRN(WRN_depth, WRN_k, cifar10.InputShape_CHW, cifar10.CategoryCount))
-            {
-                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
-            }
+            using var cifar10 = new CIFAR10DataSet();
+            using var network = p.WRN(WRN_depth, WRN_k, cifar10.InputShape_CHW, cifar10.CategoryCount);
+            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
         }
         #endregion
 
@@ -281,7 +279,7 @@ namespace SharpNetTests
                 }
             }
         }
-        private static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkMetaParameters, List<Action<T, int>> networkGeometriesOrderedFromSmallestToBiggest) where T : NetworkBuilder, new()
+        private static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkMetaParameters, List<Action<T, int>> networkGeometriesOrderedFromSmallestToBiggest, bool useMultiGPU = false) where T : NetworkBuilder, new()
         {
             var taskToBePerformed = new List<Action<int>>();
 
@@ -298,10 +296,11 @@ namespace SharpNetTests
             }
             int nbGPUs = Math.Min(GPUWrapper.GetDeviceCount(), taskToBePerformed.Count);
             Console.WriteLine(taskToBePerformed.Count + " computation(s) will be done on " + nbGPUs + " GPU(s)");
-            var gpuTasks = new Task[nbGPUs];
-            for (int i = 0; i < nbGPUs; ++i)
+            //if multi GPU support is enabled, we'll use a single task that will use all GPU
+            var gpuTasks = new Task[useMultiGPU?1:nbGPUs];
+            for (int i = 0; i < gpuTasks.Length; ++i)
             {
-                var gpuId = i;
+                var gpuId = (useMultiGPU&& GPUWrapper.GetDeviceCount() >= 2) ? int.MaxValue:i;
                 gpuTasks[i] = new Task(() => PerformActionsInSingleGpu(gpuId, taskToBePerformed));
                 gpuTasks[i].Start();
             }

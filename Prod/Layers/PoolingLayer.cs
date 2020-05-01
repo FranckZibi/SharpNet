@@ -74,30 +74,9 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        #region layer clone
-        public override Layer CloneForSlaveNetwork(Network newSlaveNetwork) { return new PoolingLayer(this, newSlaveNetwork); }
-        private PoolingLayer(PoolingLayer toCloneFromMasterNetwork, Network newNetwork) : base(toCloneFromMasterNetwork, newNetwork)
+        public override void AddToOtherNetwork(Network otherNetwork)
         {
-            _poolingMode = toCloneFromMasterNetwork._poolingMode;
-            _poolingHeight = toCloneFromMasterNetwork._poolingHeight;
-            _poolingWidth = toCloneFromMasterNetwork._poolingWidth;
-            _poolingStride = toCloneFromMasterNetwork._poolingStride;
-        }
-        #endregion
-
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (PoolingLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(_poolingMode, other._poolingMode, id + nameof(_poolingMode), ref errors);
-            equals &= Utils.Equals(_poolingHeight, other._poolingHeight, id + nameof(_poolingHeight), ref errors);
-            equals &= Utils.Equals(_poolingWidth, other._poolingWidth, id + nameof(_poolingWidth), ref errors);
-            equals &= Utils.Equals(_poolingStride, other._poolingStride, id + nameof(_poolingStride), ref errors);
-            return equals;
+            otherNetwork.Layers.Add(new PoolingLayer(_poolingMode, _poolingHeight, _poolingWidth, _poolingStride, PreviousLayerIndexes[0], otherNetwork, LayerName));
         }
         public override string Type() { return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AveragePooling"; }
         public static bool IsMaxPooling(cudnnPoolingMode_t poolingMode)

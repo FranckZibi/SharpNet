@@ -12,29 +12,56 @@ namespace SharpNet.GPU
     public sealed unsafe class GPUTensor<T> : Tensor
     {
         #region Private fields
-        private DeviceMemory deviceMemory;
         private readonly GPUWrapper _wrapper;
+        /// <summary>
+        /// if the gpu tensor is the owner of its memory
+        ///     the pointer to this device memory space
+        /// else (the tensor is only a slice of a memory area owned by another tensor
+        ///     null
+        /// </summary>
+        private readonly DeviceMemory _deviceMemory;
+        /// <summary>
+        /// if the tensor is only a slice of a memory area owned by another tensor
+        ///     the pointer to the start of the gpu area 
+        /// else (the gpu tensor is the owner of its memory)
+        ///     null
+        /// </summary>
+        private IntPtr _pointerToStartOfMemoryOwner;
+        /// <summary>
+        /// if the tensor is only a slice of a memory area owned by another tensor
+        ///     the offset in bytes to add to the start of the gpu area 
+        /// else (the gpu tensor is the owner of its memory)
+        ///     0
+        /// </summary>
+        private readonly int _offsetInBytesInPointerToStartOfMemoryOwner;
         #endregion
 
-        public GPUTensor(int[] shape, GPUTensor<T> memoryOwner, int offsetInBytes, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
-        {
-            Debug.Assert(memoryOwner.Pointer != IntPtr.Zero);
-            _wrapper = memoryOwner._wrapper;
-            CapacityInBytes = ReallyNeededMemoryInBytes;
-            deviceMemory = new DeviceMemory(memoryOwner.Pointer+offsetInBytes, CapacityInBytes);
-        }
-        public GPUTensor(int[] shape, Memory<T>? unpinnedHostMemory, GPUWrapper wrapper, string description) : base(shape, Marshal.SizeOf(typeof(T)), true, description)
+        #region constructors
+        public GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, int offsetInBytesInPointerToStartOfMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
         {
             _wrapper = wrapper;
             _wrapper.CheckThreadId();
             CapacityInBytes = ReallyNeededMemoryInBytes;
-            deviceMemory = new DeviceMemory(CapacityInBytes);
-            //Debug.WriteLine("allocated "+ CapacityInBytes+ " bytes in " + wrapper.DeviceId+" address "+deviceMemory.Pointer.ToInt64()+" thread id "+ System.Threading.Thread.CurrentThread.ManagedThreadId);
-            if (unpinnedHostMemory != null)
+            _pointerToStartOfMemoryOwner = pointerToMemoryOwner;
+            _offsetInBytesInPointerToStartOfMemoryOwner = offsetInBytesInPointerToStartOfMemoryOwner;
+            _deviceMemory = null;
+        }
+        public GPUTensor(int[] shape, Memory<T>? unpinnedHostMemory, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
+        {
+            _wrapper = wrapper;
+            _wrapper.CheckThreadId();
+            CapacityInBytes = ReallyNeededMemoryInBytes;
+            _pointerToStartOfMemoryOwner = IntPtr.Zero;
+            _offsetInBytesInPointerToStartOfMemoryOwner = 0;
+            _deviceMemory = new DeviceMemory(CapacityInBytes);
+            if (unpinnedHostMemory.HasValue)
             {
                 InitializeFromHostMemory(unpinnedHostMemory.Value);
             }
         }
+        #endregion
+
+
         /// <summary>
         /// copy from CPU (Host) pinned memory to GPU (Device) memory
         /// </summary>
@@ -45,7 +72,7 @@ namespace SharpNet.GPU
             Debug.Assert(hostPinnedPointer != IntPtr.Zero);
             _wrapper.SwCopyHostToDevice.Start();
             _wrapper.LogCopyHostToDeviceCall(ReallyNeededMemoryInBytes);
-            //Asynchronous copy
+            //asynchronous copy
             var res = NVCudaWrapper.cuMemcpyHtoDAsync_v2(Pointer, hostPinnedPointer, ReallyNeededMemoryInBytes, _wrapper.DefaultStream.StreamHandle);
             //for synchronous copy: var res = NVCudaWrapper.cuMemcpyHtoD_v2(Pointer, hostPinnedPointer, ReallyNeededMemoryInBytes)
             GPUWrapper.CheckStatus(res);
@@ -88,7 +115,8 @@ namespace SharpNet.GPU
                 _wrapper.LogCopyDeviceToOtherDeviceCall(ReallyNeededMemoryInBytes);
                 //asynchronous copy
                 var res = CudartWrapper.cudaMemcpyPeerAsync(Pointer, _wrapper.DeviceId, src.Pointer, srcDeviceId, ReallyNeededMemoryInBytes, IntPtr.Zero);
-                //for synchronous copy: var res = CudartWrapper.cudaMemcpyPeer(Pointer, _wrapper.DeviceId, srcDevicePointer, srcDeviceId, ReallyNeededMemoryInBytes);
+                //for synchronous copy:
+                //var res = CudartWrapper.cudaMemcpyPeer(Pointer, _wrapper.DeviceId, src.Pointer, srcDeviceId, ReallyNeededMemoryInBytes);
                 GPUWrapper.CheckStatus(res);
                 _wrapper.SwCopyDeviceToOtherDevice.Stop();
             }
@@ -290,12 +318,13 @@ namespace SharpNet.GPU
             }
             else
             {
+                throw new ArgumentException("CapacityInBytes: " + CapacityInBytes + " but need memory  " + ReallyNeededMemoryInBytesForShape(newShape) + " for " + this);
                 //bigger shape : we do not have enough space to store it
-                Shape = newShape;
-                RecomputeMultDim();
-                CapacityInBytes = ReallyNeededMemoryInBytes;
-                deviceMemory?.Dispose();
-                deviceMemory = new DeviceMemory(CapacityInBytes);
+                //Shape = newShape;
+                //RecomputeMultDim();
+                //CapacityInBytes = ReallyNeededMemoryInBytes;
+                //deviceMemory?.Dispose();
+                //deviceMemory = new DeviceMemory(CapacityInBytes);
             }
         }
         /// <summary>
@@ -367,7 +396,7 @@ namespace SharpNet.GPU
             var one = &oneFloat;
             var storageBuffer = memoryPool.GetBuffer(workspaceSize, "workspaceSize");
             res = CudnnWrapper.cudnnConvolutionForward(CudnnHandle, one, xDesc, x, filterDesc, filters, convDesc, forwardAlgo, storageBuffer.Pointer, workspaceSize, zero, yDesc, y);
-            memoryPool.FreeMemory(ref storageBuffer);
+            memoryPool.FreeFloatTensor(ref storageBuffer);
             CheckStatus(res);
         }
         public override void BroadcastConvolutionBiasToOutput(Tensor y)
@@ -414,7 +443,7 @@ namespace SharpNet.GPU
             //we compute 'convGradient'
             var filterStorageBuffer = memoryPool.GetBuffer(filterWorkspaceSize, "filterWorkspaceSize");
             res = CudnnWrapper.cudnnConvolutionBackwardFilter(CudnnHandle, one, xDesc, x, dyDesc, dy, convDesc, backwardFilterAlgo, filterStorageBuffer.Pointer, filterWorkspaceSize, zero, dwDesc, convGradient);
-            memoryPool.FreeMemory(ref filterStorageBuffer);
+            memoryPool.FreeFloatTensor(ref filterStorageBuffer);
             CheckStatus(res);
 
             //we compute 'dx'
@@ -430,7 +459,7 @@ namespace SharpNet.GPU
             var dataStorageBuffer = memoryPool.GetBuffer(dataWorkspaceSize, "dataStorageBuffer");
             res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, convolution, dyDesc, dy, convDesc, backwardDataAlgo, dataStorageBuffer.Pointer, dataWorkspaceSize, zero, dxDesc, dx);
             CheckStatus(res);
-            memoryPool.FreeMemory(ref dataStorageBuffer);
+            memoryPool.FreeFloatTensor(ref dataStorageBuffer);
         }
         #endregion
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
@@ -723,31 +752,42 @@ namespace SharpNet.GPU
             var srcPointer = (IntPtr)this + (TypeSize * startElement);
             var destPointer = (IntPtr)dest + (TypeSize * otherStartElement);
 
-            //TODO TO TEST
-            ////Asynchronous copy
-            //var res = NVCudaWrapper.cuMemcpyDtoDAsync_v2(destPointer, srcPointer, (ulong)(elementCount*TypeSize), IntPtr.Zero);
-            ////for synchronous copy: var res = NVCudaWrapper.cuMemcpyDtoD_v2(destPointer, srcPointer, (ulong)(elementCount*TypeSize));
-
-            var res = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, srcPointer, 1, destPointer, 1);
+            //Asynchronous copy
+            var res = NVCudaWrapper.cuMemcpyDtoDAsync_v2(destPointer, srcPointer, (ulong)(elementCount*TypeSize), IntPtr.Zero);
+            //for synchronous copy: var res = NVCudaWrapper.cuMemcpyDtoD_v2(destPointer, srcPointer, (ulong)(elementCount*TypeSize));
+            //var res = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, srcPointer, 1, destPointer, 1);
             GPUWrapper.CheckStatus(res);
-
         }
-        public override Tensor Slice(int startRowIndex, int nbRows)
+        public override Tensor Slice(int startIndex, int[] sliceShape)
         {
-            var shape = (int[])Shape.Clone();
-            shape[0] = startRowIndex;
-            var offset = ReallyNeededMemoryInBytesForShape(shape);
-            shape[0] = nbRows;
-            return new GPUTensor<T>(shape, this, (int)offset, Description);
+            return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer, startIndex*TypeSize, _wrapper);
         }
-        public override bool IsOwnerOfMemory => deviceMemory.IsOwnerOfDeviceMemory;
+        public override bool IsOwnerOfMemory => _deviceMemory != null;
 
         protected override int DeviceId => _wrapper.DeviceId;
 
         public override void ZeroMemory()
         {
-            deviceMemory.ZeroMemory();
+            AssertIsNotDisposed();
+            CUresult res;
+            if (ReallyNeededMemoryInBytes % 4 == 0)
+            {
+                res = NVCudaWrapper.cuMemsetD32_v2(Pointer, 0, ReallyNeededMemoryInBytes / 4);
+            }
+            else
+            {
+                res = NVCudaWrapper.cuMemsetD8_v2(Pointer, (char)0, ReallyNeededMemoryInBytes);
+            }
+            GPUWrapper.CheckStatus(res);
         }
+
+        public void SetPointerToStartOfMemoryOwner(IntPtr pointerToStartOfMemoryOwner)
+        {
+            Debug.Assert(_pointerToStartOfMemoryOwner == IntPtr.Zero);
+            Debug.Assert(pointerToStartOfMemoryOwner != IntPtr.Zero);
+            _pointerToStartOfMemoryOwner = pointerToStartOfMemoryOwner;
+        }
+
         /// <summary>
         /// pointer to device memory (in GPU)
         /// </summary>
@@ -756,7 +796,12 @@ namespace SharpNet.GPU
             get
             {
                 AssertIsNotDisposed();
-                return deviceMemory.Pointer;
+                if (IsOwnerOfMemory)
+                {
+                    return _deviceMemory.Pointer;
+                }
+                Debug.Assert(_pointerToStartOfMemoryOwner != IntPtr.Zero);
+                return _pointerToStartOfMemoryOwner+_offsetInBytesInPointerToStartOfMemoryOwner;
             }
         }
         public override void AssertIsNotDisposed()
@@ -765,7 +810,7 @@ namespace SharpNet.GPU
             {
                 throw new Exception("Tensor is disposed " + this);
             }
-            deviceMemory.AssertIsNotDisposed();
+            _deviceMemory?.AssertIsNotDisposed();
         }
         #endregion
 
@@ -785,7 +830,7 @@ namespace SharpNet.GPU
             if (disposing)
             {
                 //managed memory
-                deviceMemory?.Dispose();
+                _deviceMemory?.Dispose();
             }
 
             //unmanaged memory

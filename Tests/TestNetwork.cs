@@ -1,43 +1,14 @@
-using System;
-using System.IO;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Datasets;
-using SharpNet.GPU;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
-using SharpNetTests.CPU;
 
 namespace SharpNetTests
 {
     [TestFixture]
     public class TestNetwork
     {
-        [TestCase(false)]
-        [TestCase(true)]
-        public void TestSave(bool useGPU)
-        {
-            PerformTest(useGPU, CheckSave);
-        }
-
-        private static void PerformTest(bool useGPU, Action<Network> testToPerform)
-        {
-            var rand = new Random(0);
-            int m = 4;
-            int categoryCount = 2;
-            var xTrain = TestCpuTensor.RandomFloatTensor(new[] { m, 2, 4, 4 }, rand, -1.0, +1.0, "xTrain");
-            var yTrain = TestCpuTensor.RandomOneHotTensor(new[] { m, categoryCount }, rand, "yTrain");
-            var param = DenseNetBuilder.DenseNet_CIFAR10();
-            param.SetResourceId(useGPU?0:-1);
-            param.DisableLogging = true;
-            var network = param.Build(nameof(TestSave), xTrain.Shape, categoryCount, false, new[] { 2, 2 }, true, 8, 1.0, null);
-            network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
-            testToPerform(network);
-            Fit(network, xTrain,yTrain, 0.1, 10, 2);
-            network.Description = "after training";
-            testToPerform(network);
-        }
-
         public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
@@ -63,23 +34,6 @@ namespace SharpNetTests
             return result;
         }
 
-        private static void CheckSave(Network network)
-        {
-            var fileName = Path.Combine(Path.GetTempPath(), "network.txt");
-            try
-            {
-                network.Save(fileName);
-                var networkFromFile = Network.ValueOf(fileName);
-                var areEquals = network.Equals(networkFromFile, out var errors);
-                Assert.IsTrue(areEquals, errors);
-            }
-            finally
-            {
-                if (File.Exists(fileName))
-                {
-                    File.Delete(fileName);
-                }
-            }
-        }
+      
     }
 }

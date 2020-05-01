@@ -19,7 +19,7 @@ namespace SharpNet.Layers
         /// <summary>
         /// shape: (prevLayer.n_x, n_x)
         /// </summary>
-        [NotNull] private readonly Tensor _weights;
+        [NotNull] private Tensor _weights;
         /// <summary>
         /// shape: (1, n_x)
         /// Can be null if bias has been disabled
@@ -30,7 +30,7 @@ namespace SharpNet.Layers
         /// <summary>
         /// same shape as 'Weights'
         /// </summary>
-        [NotNull] private readonly Tensor _weightGradients;
+        [NotNull] private Tensor _weightGradients;
         /// <summary>
         /// same shape as 'Bias'
         /// Can be null if bias has been disabled
@@ -55,17 +55,16 @@ namespace SharpNet.Layers
 
         public DenseLayer(int categoryCount, double lambdaL2Regularization, Network network, string layerName) : base(network, layerName)
         {
-            Debug.Assert(network.IsMaster);
             CategoryCount = categoryCount;
             LambdaL2Regularization = lambdaL2Regularization;
 
             //trainable params
-            _weights = GetNotInitializedFloatTensor(new[] { PrevLayer.n_x, CategoryCount }, nameof(_weights));
-            _bias = GetNotInitializedFloatTensor(new[] {1, CategoryCount }, nameof(_bias));
+            _weights = GetFloatTensor(new[] { PrevLayer.n_x, CategoryCount });
+            _bias = GetFloatTensor(new[] {1, CategoryCount });
             Debug.Assert(_bias != null);
 
-            _weightGradients = GetNotInitializedFloatTensor(_weights.Shape, nameof(_weightGradients));
-            _biasGradients = (_bias != null) ? GetNotInitializedFloatTensor(_bias.Shape, nameof(_biasGradients)) : null;
+            _weightGradients = GetFloatTensor(_weights.Shape);
+            _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
 
             _optimizer = Network.GetOptimizer(_weights.Shape, _bias?.Shape);
             ResetWeights(false);
@@ -117,9 +116,16 @@ namespace SharpNet.Layers
             // we compute dx = dy * Weights.T
             dx[0].Dot(dy, false, _weights, true, 1, 0);
         }
+        #endregion
+
+        #region parameters and gradients
+        public override Tensor Weights => _weights;
+        public override Tensor WeightGradients => _weightGradients;
+        public override Tensor Bias => _bias;
+        public override Tensor BiasGradients => _biasGradients;
+        protected override Optimizer Optimizer => _optimizer;
         public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
-            Debug.Assert(Network.IsMaster);
             //trainable params
             _weights.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
             _bias?.ZeroMemory();
@@ -127,6 +133,36 @@ namespace SharpNet.Layers
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ZeroMemory();
+            }
+        }
+        public override void SetParameters(List<Tensor> newParameters)
+        {
+            FreeFloatTensor(ref _weights);
+            _weights = newParameters[0];
+            if (_bias != null)
+            {
+                Debug.Assert(newParameters.Count == 2);
+                FreeFloatTensor(ref _bias);
+                _bias = newParameters[1];
+            }
+            else
+            {
+                Debug.Assert(newParameters.Count == 1);
+            }
+        }
+        public override void SetGradients(List<Tensor> newGradients)
+        {
+            FreeFloatTensor(ref _weightGradients);
+            _weightGradients = newGradients[0];
+            if (_biasGradients != null)
+            {
+                Debug.Assert(newGradients.Count == 2);
+                FreeFloatTensor(ref _biasGradients);
+                _biasGradients = newGradients[1];
+            }
+            else
+            {
+                Debug.Assert(newGradients.Count == 1);
             }
         }
         #endregion
@@ -151,52 +187,18 @@ namespace SharpNet.Layers
             _bias = useBias ? (Tensor)serialized[nameof(_bias)] : null;
 
             //gradients
-            _weightGradients = GetNotInitializedFloatTensor(_weights.Shape, nameof(_weightGradients));
-            _biasGradients = (_bias != null) ? GetNotInitializedFloatTensor(_bias.Shape, nameof(_biasGradients)) : null;
+            _weightGradients = GetFloatTensor(_weights.Shape);
+            _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
 
             _optimizer = Optimizer.ValueOf(network.Config, serialized);
         }
         #endregion
 
-        #region clone layer
-        public override Layer CloneForSlaveNetwork(Network slaveNetwork) { return new DenseLayer(this, slaveNetwork); }
-        private DenseLayer(DenseLayer toCloneFromMasterNetwork, Network slaveNetwork) : base(toCloneFromMasterNetwork, slaveNetwork)
+        public override void AddToOtherNetwork(Network otherNetwork)
         {
-            Debug.Assert(!slaveNetwork.IsMaster); // we are building a slave network
-            CategoryCount = toCloneFromMasterNetwork.CategoryCount;
-            LambdaL2Regularization = toCloneFromMasterNetwork.LambdaL2Regularization;
-
-            //trainable parameters
-            _weights = slaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._weights);
-            _bias = slaveNetwork.CloneFromMasterNetwork(toCloneFromMasterNetwork._bias);
-
-            //gradients
-            _weightGradients = GetNotInitializedFloatTensor(_weights.Shape, nameof(_weightGradients));
-            _biasGradients = (_bias != null) ? GetNotInitializedFloatTensor(_bias.Shape, nameof(_biasGradients)) : null;
-
-            _optimizer = toCloneFromMasterNetwork._optimizer.CloneForSlaveNetwork(slaveNetwork);
+            otherNetwork.Layers.Add(new DenseLayer(CategoryCount, LambdaL2Regularization, otherNetwork, LayerName));
         }
-        #endregion
 
-        public override Tensor Weights => _weights;
-        public override Tensor WeightGradients => _weightGradients;
-        public override Tensor Bias => _bias;
-        public override Tensor BiasGradients => _biasGradients;
-        protected override Optimizer Optimizer => _optimizer;
-
-        public override bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            if (!base.Equals(b, epsilon, id, ref errors))
-            {
-                return false;
-            }
-            var other = (DenseLayer)b;
-            var equals = true;
-            equals &= Utils.Equals(CategoryCount, other.CategoryCount, id + nameof(CategoryCount), ref errors);
-            equals &= Utils.Equals(LambdaL2Regularization, other.LambdaL2Regularization, epsilon, id, ref errors);
-            equals &= _optimizer.Equals(other._optimizer, epsilon, id + nameof(Optimizer), ref errors);
-            return equals;
-        }
         public override int[] OutputShape(int batchSize)
         {
             return new[] { batchSize, CategoryCount };
@@ -204,8 +206,8 @@ namespace SharpNet.Layers
         public override int DisableBias()
         {
             int nbDisabledWeights = (_bias?.Count ?? 0);
-            FreeMemory(ref _bias);
-            FreeMemory(ref _biasGradients);
+            FreeFloatTensor(ref _bias);
+            FreeFloatTensor(ref _biasGradients);
             return nbDisabledWeights;
         }
         public override string ToString()

@@ -37,7 +37,7 @@ namespace SharpNet.Pictures
             bmps.ForEach(bmp=>bmp.Dispose());
             return result;
         }
-        public BitmapContent(int[] shape, byte[] data, string description) : base(shape, data, description)
+        public BitmapContent(int[] shape, byte[] data) : base(shape, data)
         {
         }
         public int GetChannels() => Shape[0];
@@ -49,7 +49,7 @@ namespace SharpNet.Pictures
                 ? Math.Min(GetHeight(), GetWidth())
                 : Math.Max(GetHeight(), GetWidth());
             var content = new byte[3 * heightAndWidth * heightAndWidth];
-            var result = new BitmapContent(new[] { Shape[0], heightAndWidth, heightAndWidth }, content, Description);
+            var result = new BitmapContent(new[] { Shape[0], heightAndWidth, heightAndWidth }, content);
             bool swapWidthAndHeight = alwaysUseBiggestSideForWidthSide && GetHeight() > GetWidth();
             
             for (int channel = 0; channel < Shape[0]; ++channel)
@@ -235,7 +235,7 @@ namespace SharpNet.Pictures
             int height = rowEnd - rowStart + 1;
             int width = colEnd - colStart + 1;
             var content = new byte[3 * height * width];
-            var result = new BitmapContent(new []{Shape[0], height, width}, content, Description);
+            var result = new BitmapContent(new []{Shape[0], height, width}, content);
             for (int channel = 0; channel < Shape[0]; ++channel)
             {
                 for (int row = rowStart; row <= rowEnd; ++row)
@@ -421,7 +421,7 @@ namespace SharpNet.Pictures
             var width = bmps[0].Width;
             var height = bmps[0].Height;
             var shape = new[] { bmps.Count, height, width };
-            var result = new BitmapContent(shape, null, description);
+            var result = new BitmapContent(shape, null);
 
             for (var channel = 0; channel < bmps.Count; channel++)
             {
@@ -461,7 +461,7 @@ namespace SharpNet.Pictures
             var bmpData = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
 
             var shape = new []{3, height, width};
-            var result = new BitmapContent(shape, null, description);
+            var result = new BitmapContent(shape, null);
             var stride = bmpData.Stride;
 
             unsafe

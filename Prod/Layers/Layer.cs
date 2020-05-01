@@ -26,29 +26,7 @@ namespace SharpNet.Layers
         private int[] _lazyOutputShape;
         #endregion
 
-        /// <summary>
-        /// Clone constructor
-        /// </summary>
-        /// <param name="toCloneFromMasterNetwork">the layer to be cloned</param>
-        /// <param name="newSlaveNetwork">the network where the cloned layer will be located</param>
-        protected Layer(Layer toCloneFromMasterNetwork, Network newSlaveNetwork)
-        {
-            Debug.Assert(toCloneFromMasterNetwork.Network.IsMaster);
-            Debug.Assert(!newSlaveNetwork.IsMaster);
-            Network = newSlaveNetwork;
-            LayerIndex = toCloneFromMasterNetwork.LayerIndex;
-            LayerName = toCloneFromMasterNetwork.LayerName;
-            PreviousLayerIndexes.Clear();
-            PreviousLayerIndexes.AddRange(toCloneFromMasterNetwork.PreviousLayerIndexes);
-            NextLayerIndexes.Clear();
-            NextLayerIndexes.AddRange(toCloneFromMasterNetwork.NextLayerIndexes);
-            if (_lazyOutputShape != null)
-            {
-                _lazyOutputShape = (int[])toCloneFromMasterNetwork._lazyOutputShape.Clone();
-            }
-            Trainable = toCloneFromMasterNetwork.Trainable;
-        }
-
+        #region constructors
         protected Layer(Network network, int previousLayerIndex, string layerName)
         {
             Network = network;
@@ -61,6 +39,7 @@ namespace SharpNet.Layers
         protected Layer(Network network, string layerName) : this(network, network.Layers.Count - 1, layerName)
         {
         }
+        #endregion
 
         #region forward and backward propagation
         /// <summary>
@@ -117,7 +96,7 @@ namespace SharpNet.Layers
             //we serialize all trainable parameters (weights) and not trainable parameters
             foreach (var parameter in Parameters)
             {
-                res = res.Add(parameter);
+                res = res.Add(parameter.Item2, parameter.Item1);
             }
             return res;
         }
@@ -152,36 +131,12 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        #region layer clone
-        public abstract Layer CloneForSlaveNetwork(Network newSlaveNetwork);
-        #endregion 
-
+        public abstract void AddToOtherNetwork(Network otherNetwork);
         public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true)
         {
             Debug.Assert(Network.IsMaster);
         }
 
-        /// <summary>
-        /// compares the current layer with the other layer 'b' 
-        /// </summary>
-        /// <param name="b">2nd Layer to compare</param>
-        /// <param name="epsilon">ignore difference between numeric values if less then epsilon </param>
-        /// <param name="id"></param>
-        /// <param name="errors"></param>
-        /// <returns>true if a difference was observed, false if same layers</returns>
-        public virtual bool Equals(Layer b, double epsilon, string id, ref string errors)
-        {
-            var equals = true;
-            id += ":" + LayerName;
-            equals &= Utils.Equals(LayerIndex, b.LayerIndex, id+nameof(LayerIndex), ref errors);
-            equals &= Utils.Equals(LayerName, b.LayerName, id+ nameof(LayerName), ref errors);
-            equals &= Utils.Equals(GetType(), b.GetType(), id+ nameof(GetType), ref errors);
-            equals &= Utils.EqualsList(PreviousLayerIndexes, b.PreviousLayerIndexes, id+ nameof(PreviousLayerIndexes), ref errors);
-            equals &= Utils.EqualsList(NextLayerIndexes, b.NextLayerIndexes, id+ nameof(NextLayerIndexes), ref errors);
-            equals &= Utils.EqualsList(Parameters, b.Parameters, epsilon, id+ nameof(Parameters), ref errors);
-            equals &= Utils.Equals(Trainable, b.Trainable, id + nameof(Trainable), ref errors);
-            return equals;
-        }
         public int n_x
         {
             get
@@ -189,8 +144,7 @@ namespace SharpNet.Layers
                 var result = Utils.Product(OutputShape(1));
                 Debug.Assert(result>= 1);
                 return result;
-            } 
-            
+            }
         }
         public bool IsSigmoidActivationLayer()
         {
@@ -265,7 +219,7 @@ namespace SharpNet.Layers
                 return;
             }
             _isDisposed = true;
-            EmbeddedTensors(false).ForEach(FreeMemory);
+            EmbeddedTensors(false).ForEach(FreeFloatTensor);
             Optimizer?.Dispose();
         }
         public void LogContent()
@@ -281,22 +235,36 @@ namespace SharpNet.Layers
         {
             return LayerName + ": " + ShapeChangeDescription();
         }
-        public int TotalParams => Parameters.Select(t => t.Count).Sum();
-        public virtual List<Tensor> Parameters
+        public int TotalParams => Parameters.Select(t => t.Item1.Count).Sum();
+        public virtual List<Tuple<Tensor,string>> Parameters
         {
             get
             {
-                var result = new List<Tensor> { Weights, Bias};
-                result.RemoveAll(t => t == null);
+                var result = new List<Tuple<Tensor, string>>
+                             {
+                                 Tuple.Create(Weights, nameof(Weights)), 
+                                 Tuple.Create(Bias, nameof(Bias))
+                             };
+                result.RemoveAll(t => t.Item1 == null);
                 return result;
             }
         }
-        public List<Tensor> ParameterGradients
+        public virtual void SetParameters(List<Tensor> newParameters)
+        {
+        }
+        public virtual void SetGradients(List<Tensor> newGradients)
+        {
+        }
+        public List<Tuple<Tensor, string>> ParameterGradients
         {
             get
             {
-                var result = new List<Tensor> { WeightGradients, BiasGradients};
-                result.RemoveAll(t => t == null);
+                var result = new List<Tuple<Tensor, string>>
+                             {
+                                 Tuple.Create(WeightGradients, nameof(WeightGradients)),
+                                 Tuple.Create(BiasGradients, nameof(BiasGradients))
+                             };
+                result.RemoveAll(t => t.Item1 == null);
                 return result;
             }
         }
@@ -313,7 +281,7 @@ namespace SharpNet.Layers
                 {
                     result += Environment.NewLine;
                 }
-                result += t.Description+": " + t.ContentStats();
+                result += "t: " + t.ContentStats();
             }
             return result;
         }
@@ -352,6 +320,7 @@ namespace SharpNet.Layers
             return false; //no need to keep layer output in memory
         }
 
+        #region parameters and gradients
         /// <summary>
         /// the weight if any (used only for tests)
         /// </summary>
@@ -369,6 +338,8 @@ namespace SharpNet.Layers
         /// </summary>
         public virtual Tensor BiasGradients => null;
         protected virtual Optimizer Optimizer => null;
+        #endregion
+
         protected string ShapeChangeDescription()
         {
             return Utils.ShapeToStringWithBatchSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBatchSize(OutputShape(1));
@@ -384,17 +355,17 @@ namespace SharpNet.Layers
         }
 
         #region memory management
-        protected void GetNotInitializedFloatTensor(ref Tensor bufferIfAny, int[] shape, string description)
+        protected void GetFloatTensor(ref Tensor bufferIfAny, int[] shape)
         {
-            Network.MemoryPool.GetNotInitializedFloatTensor(ref bufferIfAny, shape, description);
+            Network.MemoryPool.GetFloatTensor(ref bufferIfAny, shape);
         }
-        protected void FreeMemory(ref Tensor t)
+        protected Tensor GetFloatTensor(int[] shape)
         {
-            Network.MemoryPool.FreeMemory(ref t);
+            return Network.MemoryPool.GetFloatTensor(shape);
         }
-        protected Tensor GetNotInitializedFloatTensor(int[] shape, string description)
+        protected void FreeFloatTensor(ref Tensor t)
         {
-            return Network.MemoryPool.GetNotInitializedFloatTensor(shape, description);
+            Network.MemoryPool.FreeFloatTensor(ref t);
         }
         #endregion
 
@@ -416,7 +387,7 @@ namespace SharpNet.Layers
         }
         protected virtual List<Tensor> EmbeddedTensors(bool includeOptimizeTensors)
         {
-            var result = Parameters.Concat(ParameterGradients).ToList();
+            var result = Parameters.Concat(ParameterGradients).Select(t=>t.Item1).ToList();
             if (includeOptimizeTensors && Optimizer != null)
             {
                 result.AddRange(Optimizer.EmbeddedTensors);
@@ -464,9 +435,9 @@ namespace SharpNet.Layers
         /// true if the layer has associated weights (or bias) to train
         /// </summary>
         private bool HasWeights => Weights != null;
-        private void FreeMemory(Tensor t)
+        private void FreeFloatTensor(Tensor t)
         {
-            Network.MemoryPool.FreeMemory(t);
+            Network.MemoryPool.FreeFloatTensor(t);
         }
     }
 }

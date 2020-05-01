@@ -18,7 +18,6 @@ namespace SharpNet.Data
         public int MultDim1 { get; private set; }
         private int _multDim2;
         public bool UseGPU { get; }
-        public string Description { get; set; }
         public int TypeSize { get; }
         #endregion
 
@@ -122,7 +121,7 @@ namespace SharpNet.Data
 
         public GPUTensor<T> ToGPU<T>(GPUWrapper gpuWrapper)
         {
-            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().Content, gpuWrapper, Description);
+            return UseGPU ? AsGPU<T>() : new GPUTensor<T>(Shape, AsCpu<T>().Content, gpuWrapper);
         }
         public CpuTensor<float> ToCpuFloat()
         {
@@ -130,7 +129,7 @@ namespace SharpNet.Data
             {
                 return (CpuTensor<float>) this;
             }
-            return new CpuTensor<float>(Shape, ContentAsFloatArray(), Description);
+            return new CpuTensor<float>(Shape, ContentAsFloatArray());
         }
         public abstract void Reshape(int[] newShape);
         public static string ShapeToString(int[] shape)
@@ -393,11 +392,23 @@ namespace SharpNet.Data
         public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep);
         //this = Weights or B
         public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
-        public abstract Tensor Slice(int startRowIndex, int nbRows);
+        public Tensor RowSlice(int startRowIndex, int nbRows)
+        {
+            Debug.Assert(Shape.Length >= 2);
+            Debug.Assert(startRowIndex >= 0);
+            Debug.Assert(startRowIndex < Shape[0]);
+            Debug.Assert(startRowIndex + nbRows - 1 < Shape[0]);
+            var extractedShape = (int[])Shape.Clone();
+            extractedShape[0] = nbRows; //new number of rows
+            return Slice(Idx(startRowIndex), extractedShape);
+        }
+        public abstract Tensor Slice(int startIndex, int[] sliceShape);
 
         /// <summary>
         /// true if the tensor is the single owner of the associated memory (it will have to dispose this memory when collected)
-        /// false if the memory associated with the tensor is not owned by the 'this' tensor : the 'tensor' should not collected the memory when disposed
+        /// false if the memory associated with the tensor is not owned by the 'this' tensor :
+        ///     the 'tensor' should not collected the memory when disposed
+        ///     the tensor is only a slice on another tensor memory
         /// </summary>
         public abstract bool IsOwnerOfMemory { get; }
 
@@ -528,19 +539,18 @@ namespace SharpNet.Data
         /// <param name="sameValue"></param>
         public abstract void SetValue(float sameValue);
         public abstract float[] ContentAsFloatArray();
-        protected Tensor(int[] shape, int typeSize, bool useGpu, string description)
+        protected Tensor(int[] shape, int typeSize, bool useGpu)
         {
             Debug.Assert(shape.Length >= 1);
             Debug.Assert(shape.Length <= 4);
             Debug.Assert(shape.Min() >= 1);
             Shape = shape;
             UseGPU = useGpu;
-            Description = description;
             TypeSize = typeSize;
             RecomputeMultDim();
         }
 
-        protected ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
+        public ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
         protected void CheckConcatenate(Tensor a, Tensor b)
         {
             Debug.Assert(Shape.Length >= 2);
@@ -580,7 +590,7 @@ namespace SharpNet.Data
         }
         private string ToString(bool displayStartOfTensor)
         {
-            var result = Description + ShapeToString(Shape);
+            var result = ShapeToString(Shape);
             result += UseGPU ? "" : "CPU";
             if (displayStartOfTensor && !UseGPU && (this is CpuTensor<float>))
             {

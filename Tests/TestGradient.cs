@@ -120,7 +120,7 @@ namespace SharpNetTests
         }
         private static List<Tensor> Parameters(Network network)
         {
-            return network.Layers.SelectMany(x => x.Parameters).ToList();
+            return network.Layers.SelectMany(x => x.Parameters).Select(t=>t.Item1).ToList();
         }
 
         private static void CompareExpectedVsObservedGradients(Network n, Layer layer, bool isBias, CpuTensor<float> X, CpuTensor<float> Y, Random r, int nbTests = 100)
