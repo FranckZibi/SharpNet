@@ -80,6 +80,84 @@ namespace SharpNet.Layers
         }
         #endregion
 
+        #region parameters and gradients
+        /// <summary>
+        /// the weight if any (used only for tests)
+        /// </summary>
+        public virtual Tensor Weights => null;
+        /// <summary>
+        /// the weight gradient if any (used only for tests)
+        /// </summary>
+        public virtual Tensor WeightGradients => null;
+        /// <summary>
+        /// the bias if any (used only for tests)
+        /// </summary>
+        public virtual Tensor Bias => null;
+        /// <summary>
+        /// the bias gradient if any (used only for tests)
+        /// </summary>
+        public virtual Tensor BiasGradients => null;
+        protected virtual Optimizer Optimizer => null;
+
+        public int TotalParams => Parameters.Select(t => t.Item1.Count).Sum();
+        public virtual List<Tuple<Tensor, string>> Parameters => new List<Tuple<Tensor, string>>();
+        protected virtual bool HasParameters => false;
+
+        public virtual void ReplaceParameters(List<Tensor> newParameters)
+        {
+            Debug.Assert(!HasParameters);
+        }
+        public virtual int DisableBias()
+        {
+            return PreviousLayers.Select(l => l.DisableBias()).Sum();
+        }
+        public virtual void ReplaceGradients(List<Tensor> newGradients)
+        {
+            Debug.Assert(!HasParameters);
+        }
+        public List<Tensor> ParameterGradients
+        {
+            get
+            {
+                var result = new List<Tensor> { WeightGradients, BiasGradients };
+                result.RemoveAll(t => t == null);
+                return result;
+            }
+        }
+        public virtual void ResetParameters(bool resetAlsoOptimizerWeights = true)
+        {
+            Debug.Assert(Network.IsMaster);
+            Debug.Assert(!HasParameters);
+        }
+
+
+        #region *.h5 file (HDF) management
+        /// <summary>
+        /// Initialize layer weights & bias from datasets objects extracted from a *.h5 (HDF) file
+        /// </summary>
+        /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
+        /// <param name="originFramework">the ML Framework from where the *.h5 file comes from</param>
+        public virtual void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+        }
+        /// <summary>
+        /// Save layer weights & bias in Tensor(s) so that they can be stored in datasets objects in a *.h5 (HDF) file
+        /// </summary>
+        /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
+        /// <param name="originFramework">the ML Framework for which we want to save the *.h5 file
+        /// (so this file will be compatible with this Framework</param>
+        public virtual void SaveToH5Dataset(List<Tuple<string, Tensor>> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            throw new NotImplementedException(); //TODO
+        }
+        protected string DatasetNameToDatasetPath(string datasetName)
+        {
+            return "/" + LayerName + "/" + LayerName + "/" + datasetName;
+        }
+        #endregion
+        #endregion
+
+
         #region serialization
         public virtual string Serialize()
         {
@@ -132,10 +210,6 @@ namespace SharpNet.Layers
         #endregion
 
         public abstract void AddToOtherNetwork(Network otherNetwork);
-        public virtual void ResetWeights(bool resetAlsoOptimizerWeights = true)
-        {
-            Debug.Assert(Network.IsMaster);
-        }
 
         public int n_x
         {
@@ -167,31 +241,6 @@ namespace SharpNet.Layers
             return 0;
         }
         
-        #region *.h5 file (HDF) management
-        /// <summary>
-        /// Initialize layer weights & bias from datasets objects extracted from a *.h5 (HDF) file
-        /// </summary>
-        /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
-        /// <param name="originFramework">the ML Framework from where the *.h5 file comes from</param>
-        public virtual void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-        }
-        /// <summary>
-        /// Save layer weights & bias in Tensor(s) so that they can be stored in datasets objects in a *.h5 (HDF) file
-        /// </summary>
-        /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
-        /// <param name="originFramework">the ML Framework for which we want to save the *.h5 file
-        /// (so this file will be compatible with this Framework</param>
-        public virtual void SaveToH5Dataset(List<Tuple<string, Tensor>> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            throw new NotImplementedException(); //TODO
-        }
-        protected string DatasetNameToDatasetPath(string datasetName)
-        {
-            return "/" + LayerName + "/" + LayerName + "/" + datasetName;
-        }
-        #endregion
-
         /// <summary>
         /// by default (if not overriden) output shape is the same as the previous layer
         /// </summary>
@@ -207,10 +256,6 @@ namespace SharpNet.Layers
             }
             _lazyOutputShape = PrevLayer.OutputShape(batchSize);
             return (int[])_lazyOutputShape.Clone();
-        }
-        public virtual int DisableBias()
-        {
-            return PreviousLayers.Select(l => l.DisableBias()).Sum();
         }
         public virtual void Dispose()
         {
@@ -235,39 +280,6 @@ namespace SharpNet.Layers
         {
             return LayerName + ": " + ShapeChangeDescription();
         }
-        public int TotalParams => Parameters.Select(t => t.Item1.Count).Sum();
-        public virtual List<Tuple<Tensor,string>> Parameters
-        {
-            get
-            {
-                var result = new List<Tuple<Tensor, string>>
-                             {
-                                 Tuple.Create(Weights, nameof(Weights)), 
-                                 Tuple.Create(Bias, nameof(Bias))
-                             };
-                result.RemoveAll(t => t.Item1 == null);
-                return result;
-            }
-        }
-        public virtual void SetParameters(List<Tensor> newParameters)
-        {
-        }
-        public virtual void SetGradients(List<Tensor> newGradients)
-        {
-        }
-        public List<Tuple<Tensor, string>> ParameterGradients
-        {
-            get
-            {
-                var result = new List<Tuple<Tensor, string>>
-                             {
-                                 Tuple.Create(WeightGradients, nameof(WeightGradients)),
-                                 Tuple.Create(BiasGradients, nameof(BiasGradients))
-                             };
-                result.RemoveAll(t => t.Item1 == null);
-                return result;
-            }
-        }
         public string ContentStats()
         {
             var result = "";
@@ -289,7 +301,7 @@ namespace SharpNet.Layers
         {
             foreach (var l in layers)
             {
-                if (l.Trainable && l.HasWeights)
+                if (l.Trainable && l.HasParameters)
                 {
                     return l;
                 }
@@ -319,27 +331,7 @@ namespace SharpNet.Layers
 
             return false; //no need to keep layer output in memory
         }
-
-        #region parameters and gradients
-        /// <summary>
-        /// the weight if any (used only for tests)
-        /// </summary>
-        public virtual Tensor Weights => null;
-        /// <summary>
-        /// the weight gradient if any (used only for tests)
-        /// </summary>
-        public virtual Tensor WeightGradients => null;
-        /// <summary>
-        /// the bias if any (used only for tests)
-        /// </summary>
-        public virtual Tensor Bias => null;
-        /// <summary>
-        /// the bias gradient if any (used only for tests)
-        /// </summary>
-        public virtual Tensor BiasGradients => null;
-        protected virtual Optimizer Optimizer => null;
-        #endregion
-
+        
         protected string ShapeChangeDescription()
         {
             return Utils.ShapeToStringWithBatchSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBatchSize(OutputShape(1));
@@ -387,7 +379,7 @@ namespace SharpNet.Layers
         }
         protected virtual List<Tensor> EmbeddedTensors(bool includeOptimizeTensors)
         {
-            var result = Parameters.Concat(ParameterGradients).Select(t=>t.Item1).ToList();
+            var result = Parameters.Select(t=>t.Item1).Concat(ParameterGradients).ToList();
             if (includeOptimizeTensors && Optimizer != null)
             {
                 result.AddRange(Optimizer.EmbeddedTensors);
@@ -434,7 +426,6 @@ namespace SharpNet.Layers
         /// <summary>
         /// true if the layer has associated weights (or bias) to train
         /// </summary>
-        private bool HasWeights => Weights != null;
         private void FreeFloatTensor(Tensor t)
         {
             Network.MemoryPool.FreeFloatTensor(t);

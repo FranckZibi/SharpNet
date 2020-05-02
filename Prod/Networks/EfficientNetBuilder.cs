@@ -28,7 +28,8 @@ namespace SharpNet.Networks
                 {
                     LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
-                    lambdaL2Regularization = 0.0005
+                    lambdaL2Regularization = 0.0005,
+                    LogDirectory = System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "ImageNet")
                 }
                     .WithSGD(0.9, false)
                     //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
@@ -65,7 +66,8 @@ namespace SharpNet.Networks
                 {
                     LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
-                    lambdaL2Regularization = 0.0005
+                    lambdaL2Regularization = 0.0005,
+                    LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CIFAR-10")
                 }
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)

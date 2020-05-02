@@ -67,7 +67,7 @@ namespace SharpNet.Layers
             _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
 
             _optimizer = Network.GetOptimizer(_weights.Shape, _bias?.Shape);
-            ResetWeights(false);
+            ResetParameters(false);
         }
 
         #region forward and backward propagation
@@ -120,11 +120,25 @@ namespace SharpNet.Layers
 
         #region parameters and gradients
         public override Tensor Weights => _weights;
-        public override Tensor WeightGradients => _weightGradients;
         public override Tensor Bias => _bias;
+        public override Tensor WeightGradients => _weightGradients;
         public override Tensor BiasGradients => _biasGradients;
         protected override Optimizer Optimizer => _optimizer;
-        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        protected override bool HasParameters => true;
+        public override List<Tuple<Tensor, string>> Parameters
+        {
+            get
+            {
+                var result = new List<Tuple<Tensor, string>>
+                             {
+                                 Tuple.Create(_weights, WeightDatasetPath),
+                                 Tuple.Create(_bias, BiasDatasetPath)
+                             };
+                result.RemoveAll(t => t.Item1 == null);
+                return result;
+            }
+        }
+        public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
             _weights.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
@@ -135,7 +149,7 @@ namespace SharpNet.Layers
                 _optimizer.ZeroMemory();
             }
         }
-        public override void SetParameters(List<Tensor> newParameters)
+        public override void ReplaceParameters(List<Tensor> newParameters)
         {
             FreeFloatTensor(ref _weights);
             _weights = newParameters[0];
@@ -150,7 +164,19 @@ namespace SharpNet.Layers
                 Debug.Assert(newParameters.Count == 1);
             }
         }
-        public override void SetGradients(List<Tensor> newGradients)
+        public override void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            h5FileDataset[WeightDatasetPath].CopyTo(_weights);
+            h5FileDataset[BiasDatasetPath].CopyTo(_bias);
+        }
+        public override int DisableBias()
+        {
+            int nbDisabledWeights = (_bias?.Count ?? 0);
+            FreeFloatTensor(ref _bias);
+            FreeFloatTensor(ref _biasGradients);
+            return nbDisabledWeights;
+        }
+        public override void ReplaceGradients(List<Tensor> newGradients)
         {
             FreeFloatTensor(ref _weightGradients);
             _weightGradients = newGradients[0];
@@ -165,6 +191,8 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
+        private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");
+        private string BiasDatasetPath => DatasetNameToDatasetPath("bias:0");
         #endregion
 
         #region serialization
@@ -182,9 +210,8 @@ namespace SharpNet.Layers
             LambdaL2Regularization = (double)serialized[nameof(LambdaL2Regularization)];
 
             //trainable params
-            var useBias = serialized.ContainsKey(nameof(_bias));
-            _weights = (Tensor)serialized[nameof(_weights)];
-            _bias = useBias ? (Tensor)serialized[nameof(_bias)] : null;
+            _weights = (Tensor)serialized[WeightDatasetPath];
+            _bias = serialized.TryGet<Tensor>(BiasDatasetPath);
 
             //gradients
             _weightGradients = GetFloatTensor(_weights.Shape);
@@ -203,13 +230,6 @@ namespace SharpNet.Layers
         {
             return new[] { batchSize, CategoryCount };
         }
-        public override int DisableBias()
-        {
-            int nbDisabledWeights = (_bias?.Count ?? 0);
-            FreeFloatTensor(ref _bias);
-            FreeFloatTensor(ref _biasGradients);
-            return nbDisabledWeights;
-        }
         public override string ToString()
         {
             var result = LayerName+": "+ShapeChangeDescription();
@@ -220,17 +240,7 @@ namespace SharpNet.Layers
             result += " " + _weights+ " " + _bias + " (" +TotalParams+" neurons)";
             return result;
         }
-        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            //var cpuTensor = (CpuTensor<float>)h5FileDataset[weightDatasetPath];
-            //var reshapedCpuTensor = cpuTensor.WithNewShape(new[] { cpuTensor.Shape[0], cpuTensor.Shape[1], 1, 1 });
-            h5FileDataset[DatasetNameToDatasetPath("kernel:0")].CopyTo(_weights);
 
-            //var biasCpuTensor = (CpuTensor<float>)h5FileDataset[biasDatasetPath];
-            //var reshapedBiasCpuTensor = biasCpuTensor.WithNewShape(new[] {1, biasCpuTensor.Shape[0]});
-            h5FileDataset[DatasetNameToDatasetPath("bias:0")].CopyTo(_bias);
-        }
-   
         private bool UseL2Regularization => LambdaL2Regularization > 0.0;
         private bool UseBias => _bias != null;
     }

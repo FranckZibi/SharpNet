@@ -39,12 +39,11 @@ namespace SharpNet.Networks
                 Config = new NetworkConfig
                     {
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                        lambdaL2Regularization = 1e-4
+                        lambdaL2Regularization = 1e-4,
+                        LogDirectory = System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "CIFAR-10")
                     }
                     .WithSGD(0.9, true)
                     .WithCifar10DenseNetLearningRateScheduler(false, true, false),
-
-
                 NumEpochs = 300,
                 BatchSize = 64,
                 InitialLearningRate = 0.1

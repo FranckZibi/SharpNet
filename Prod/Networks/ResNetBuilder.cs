@@ -1,4 +1,5 @@
-﻿using SharpNet.DataAugmentation;
+﻿using System.IO;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -39,15 +40,15 @@ namespace SharpNet.Networks
                 Config = new NetworkConfig
                     {
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                        lambdaL2Regularization = 1e-4
-                    }
+                        lambdaL2Regularization = 1e-4,
+                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CIFAR-10")
+                }
                     .WithSGD(0.9, false) // SGD : validated on 19-apr-2019: +70 bps
                     .WithCifar10ResNetLearningRateScheduler(true, true, false),
-
-            //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
-            NumEpochs = 160, //64k iterations
-            BatchSize = 128,
-            InitialLearningRate = 0.1,
+                //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
+                NumEpochs = 160, //64k iterations
+                BatchSize = 128,
+                InitialLearningRate = 0.1,
         };
 
         var da = builder.Config.DataAugmentation;

@@ -18,10 +18,6 @@ namespace SharpNet.Optimizers
             bias?.Update_Adding_Alpha_X(-ponderedLearningRate, biasGradients);
         }
         public override List<Tensor> EmbeddedTensors => new List<Tensor>();
-        public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)
-        {
-            return Utils.Equals(GetType(), other.GetType(), id + nameof(GetType), ref errors);
-        }
 
         #region serialization
         public override string Serialize() {return "";}

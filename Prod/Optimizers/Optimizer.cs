@@ -24,7 +24,6 @@ namespace SharpNet.Optimizers
             }
             return VanillaSgd.Instance;
         }
-        public abstract bool Equals(Optimizer other, double epsilon, string id, ref string foundError);
         public abstract List<Tensor> EmbeddedTensors { get; }
         public abstract void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient);
         /// <summary>

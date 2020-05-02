@@ -1,4 +1,5 @@
-﻿using SharpNet.DataAugmentation;
+﻿using System.IO;
+using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.Layers;
 
@@ -12,46 +13,6 @@ namespace SharpNet.Networks
     /// </summary>
     public class WideResNetBuilder : NetworkBuilder
     {
-
-        /// <summary>
-        /// The default WRN Meta Parameters for Recursion Cellular Image Classification
-        /// </summary>
-        /// <returns></returns>
-        public static WideResNetBuilder RecursionCellularImageClassification()
-        {
-            var builder = new WideResNetBuilder
-            {
-                Config = new NetworkConfig
-                    {
-                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                        lambdaL2Regularization = 0.0005
-                    }
-                    .WithSGD(0.9, false)
-                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-                ,
-                WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_8,
-                NumEpochs = 70,
-                BatchSize = 128,
-                WRN_DropOut = 0.0, //by default we disable dropout
-                InitialLearningRate = 0.1,
-            };
-
-            //Data augmentation
-            var da = builder.Config.DataAugmentation;
-            //da.WidthShiftRangeInPercentage = 0.1;
-            //da.HeightShiftRangeInPercentage = 0.1;
-            da.HorizontalFlip = true;
-            da.VerticalFlip = true;
-            //da.RotationRangeInDegrees = 180;
-            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            da.AlphaCutMix = 0.0; //no CutMix
-            da.AlphaMixup = 1.0; //with mixup
-            da.CutoutPatchPercentage = 0.0; //no cutout
-
-
-            return builder;
-        }
-
         /// <summary>
         /// The default WRN Meta Parameters for CIFAR10
         /// </summary>
@@ -64,13 +25,13 @@ namespace SharpNet.Networks
                     {
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                         ConvolutionAlgoPreference  = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
-                        lambdaL2Regularization = 0.0005
-                    }
+                        lambdaL2Regularization = 0.0005,
+                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CIFAR-10")
+                }
                     .WithSGD(0.9, false)
                     //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2) //new default value on 14-aug-2019
                 ,
-
                 NumEpochs = 150, //changed on 8-aug-2019 : new default batch size : 150 (was 200)
                 BatchSize = 128,
                 WRN_DropOut = 0.0, //by default we disable dropout
@@ -119,11 +80,11 @@ namespace SharpNet.Networks
                     {
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                         ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
-                        lambdaL2Regularization = 0.0005
-                    }
+                        lambdaL2Regularization = 0.0005,
+                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CIFAR-100")
+                }
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
-
                 NumEpochs = 150,
                 BatchSize = 128,
                 WRN_DropOut = 0.0,
@@ -157,14 +118,14 @@ namespace SharpNet.Networks
             var builder = new WideResNetBuilder
                           {
                               Config = new NetworkConfig
-                                       {
-                                           LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                                           ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
-                                           lambdaL2Regularization = 0.0005
-                                       }
+                                    {
+                                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                                        ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
+                                        lambdaL2Regularization = 0.0005,
+                                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "SVHN")
+                                    }
                                   .WithSGD(0.9, false)
                                   .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
-
                               NumEpochs = 70,
                               BatchSize = 128,
                               WRN_DropOut = 0.0,

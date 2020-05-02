@@ -70,7 +70,7 @@ namespace SharpNet.Layers
             Bias_a = GetFloatTensor(new[] { 1, aLength });
             Bias_y = GetFloatTensor(new[] { 1, yLength });
             //a_init = Network.GetFloatTensor(new[] { batchSize, aLength }, a_init, nameof(a_init));
-            ResetWeights(false);
+            ResetParameters(false);
         }
 
         #region forward and backward propagation
@@ -114,7 +114,7 @@ namespace SharpNet.Layers
         {
             throw new NotImplementedException();
         }
-        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             var prevLayerNX = PrevLayer.n_x;
             Weights_aa.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / prevLayerNX) /*stdDev*/);
@@ -124,6 +124,8 @@ namespace SharpNet.Layers
             Bias_y?.ZeroMemory();
         }
         #endregion
+
+        protected override bool HasParameters => true;
 
         #region serialization
         public override string Serialize()

@@ -42,24 +42,6 @@ namespace SharpNet.Optimizers
             ZeroMemory();
         }
 
-        public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)
-        {
-            if (!Utils.Equals(GetType(), other.GetType(), id + nameof(GetType), ref errors))
-            {
-                return false;
-            }
-            var b = (Adam)other;
-            return  
-                    Utils.Equals(_timestep, b._timestep, id+ "_timestep", ref errors)
-                && Utils.Equals(_adam_beta1, b._adam_beta1, epsilon, id+ "_adam_beta1", ref errors)
-                && Utils.Equals(_adam_beta2, b._adam_beta2, epsilon, id+ "_adam_beta2", ref errors)
-                && Utils.Equals(_adam_epsilon, b._adam_epsilon, epsilon, id+ "_adam_epsilon", ref errors)
-                && _adam_VW.Equals(b._adam_VW, epsilon, id + "_adam_VW", ref errors)
-                && _adam_SW.Equals(b._adam_SW, epsilon, id + "_adam_SW", ref errors)
-                && _adam_VB.Equals(b._adam_VB, epsilon, id + "_adam_VB", ref errors)
-                && _adam_SB.Equals(b._adam_SB, epsilon, id + "_adam_SB", ref errors);
-        }
-
         public override List<Tensor> EmbeddedTensors
         {
             get
@@ -87,7 +69,7 @@ namespace SharpNet.Optimizers
             }
             _isDisposed = true;
             base.Dispose();
-            EmbeddedTensors.ForEach(t => _memoryPool.FreeFloatTensor(t));
+            EmbeddedTensors.ForEach(t => _memoryPool?.FreeFloatTensor(t));
         }
 
         #region serialization

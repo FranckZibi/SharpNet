@@ -90,7 +90,7 @@ namespace SharpNet.Layers
 
             _optimizer = Network.GetOptimizer(_convolution.Shape, _convolutionBias?.Shape);
 
-            ResetWeights(false);
+            ResetParameters(false);
         }
 
         #region forward and backward propagation
@@ -210,7 +210,29 @@ namespace SharpNet.Layers
         public override Tensor Bias => _convolutionBias;
         public override Tensor BiasGradients => _convolutionBiasGradients;
         protected override Optimizer Optimizer => _optimizer;
-        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        protected override bool HasParameters => true;
+
+        public override List<Tuple<Tensor, string>> Parameters
+        {
+            get
+            {
+                var result = new List<Tuple<Tensor, string>>
+                             {
+                                 Tuple.Create(_convolution, ConvolutionDatasetPath), 
+                                 Tuple.Create(_convolutionBias, ConvolutionBiasDatasetPath)
+                             };
+                result.RemoveAll(t => t.Item1 == null);
+                return result;
+            }
+        }
+        public override int DisableBias()
+        {
+            int nbDisabledWeights = (_convolutionBias?.Count ?? 0);
+            FreeFloatTensor(ref _convolutionBias);
+            FreeFloatTensor(ref _convolutionBiasGradients);
+            return nbDisabledWeights;
+        }
+        public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             Debug.Assert(_optimizer != null);
             var fanIn = _convolution.MultDim0;
@@ -226,7 +248,7 @@ namespace SharpNet.Layers
                 _optimizer.ZeroMemory();
             }
         }
-        public override void SetParameters(List<Tensor> newParameters)
+        public override void ReplaceParameters(List<Tensor> newParameters)
         {
             FreeFloatTensor(ref _convolution);
             _convolution = newParameters[0];
@@ -241,7 +263,15 @@ namespace SharpNet.Layers
                 Debug.Assert(newParameters.Count == 1);
             }
         }
-        public override void SetGradients(List<Tensor> newGradients)
+        public override void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            h5FileDataset[ConvolutionDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(_convolution);
+            if (UseBias) //we load bias if necessary
+            {
+                h5FileDataset[ConvolutionBiasDatasetPath].CopyTo(_convolutionBias);
+            }
+        }
+        public override void ReplaceGradients(List<Tensor> newGradients)
         {
             FreeFloatTensor(ref _convolutionGradients);
             _convolutionGradients = newGradients[0];
@@ -256,6 +286,8 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
+        private string ConvolutionDatasetPath => DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_kernel:0" : "kernel:0");
+        private string ConvolutionBiasDatasetPath => DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_bias:0" : "bias:0");
         #endregion
 
         #region serialization
@@ -279,12 +311,10 @@ namespace SharpNet.Layers
             _paddingType = (PADDING_TYPE)serialized[nameof(_paddingType)];
             _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
 
-            //bias may be null if it has been disabled
-            var useBias = serialized.ContainsKey(nameof(_convolutionBias));
-
             //trainable params
-            _convolution = (Tensor)serialized[nameof(_convolution)];
-            _convolutionBias = useBias ? (Tensor)serialized[nameof(_convolutionBias)] : null;
+            _convolution = (Tensor)serialized[ConvolutionDatasetPath];
+            //bias may be null if it has been disabled
+            _convolutionBias = serialized.TryGet<Tensor>(ConvolutionBiasDatasetPath);
 
             //gradients
             _convolutionGradients = GetFloatTensor(_convolution.Shape);
@@ -299,13 +329,7 @@ namespace SharpNet.Layers
             otherNetwork.Layers.Add(new ConvolutionLayer(_isDepthwiseConvolution, _filtersCount, _depthMultiplier, _f, _stride, _paddingType, _lambdaL2Regularization, UseBias, PreviousLayerIndexes[0], otherNetwork, LayerName));
         }
 
-        public override int DisableBias()
-        {
-            int nbDisabledWeights = (_convolutionBias?.Count ?? 0);
-            FreeFloatTensor(ref _convolutionBias);
-            FreeFloatTensor(ref _convolutionBiasGradients);
-            return nbDisabledWeights;
-        }
+       
         public override string Type()
         {
             return _isDepthwiseConvolution? "DepthwiseConv2D" : "Conv2D";
@@ -319,17 +343,7 @@ namespace SharpNet.Layers
             result += " ("+ TotalParams+" neurons)";
             return result;
         }
-        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            var weightDatasetPath = DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_kernel:0" : "kernel:0");
-            h5FileDataset[weightDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(_convolution);
-            //we load bias if necessary
-            if (UseBias)
-            {
-                var biasDatasetPath = DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_bias:0" : "bias:0");
-                h5FileDataset[biasDatasetPath].CopyTo(_convolutionBias);
-            }
-        }
+      
         public override int[] OutputShape(int batchSize)
         {
             var inputShape = PrevLayer.OutputShape(batchSize);

@@ -52,6 +52,7 @@ namespace SharpNet.Networks
         public Random Rand { get; }
         public Logger Logger { get; set; } = Logger.ConsoleLogger;
 
+        public string DataSetName { get; set; }
 
         public DataAugmentationConfig DataAugmentation { get; set; }
 
@@ -95,8 +96,9 @@ namespace SharpNet.Networks
         /// </summary>
         public string LastLayerNameToFreeze { get; set; } = "";
 
-        public string LogDirectory { get; } = DefaultLogDirectory;
+        public string LogDirectory { get; set; } = DefaultLogDirectory;
         public static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet");
+
         public static string DefaultDataDirectory => Path.Combine(DefaultLogDirectory, "Data");
         #endregion
 

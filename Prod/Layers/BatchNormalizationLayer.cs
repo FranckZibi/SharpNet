@@ -85,7 +85,7 @@ namespace SharpNet.Layers
             _optimizer = Network.GetOptimizer(_scale.Shape, _bias.Shape);
 
             //no need to reset optimizer weights: it has just been done above
-            ResetWeights(false);
+            ResetParameters(false);
 
             //temporary buffers
             _meanBuffer = GetFloatTensor(scaleAndBiasShape);
@@ -114,28 +114,28 @@ namespace SharpNet.Layers
         }
         #endregion
 
-
         #region parameters and gradients
         public override Tensor Weights => _scale;
         public override Tensor Bias => _bias;
         public override Tensor WeightGradients => _scaleGradients;
         public override Tensor BiasGradients => _biasGradients;
         protected override Optimizer Optimizer => _optimizer;
-        /// <summary>
-        /// '_resultRunningMean' & '_resultRunningVariance' are non trainable parameters
-        /// </summary>
+        protected override bool HasParameters => true;
         public override List<Tuple<Tensor, string>> Parameters
         {
             get
             {
-                var res = base.Parameters;
-                res.Add(Tuple.Create(_resultRunningMean, nameof(_resultRunningMean)));
-                res.Add(Tuple.Create(_resultRunningVariance, nameof(_resultRunningVariance)));
-                return res;
-
+                var result = new List<Tuple<Tensor, string>>
+                             {
+                                 Tuple.Create(_scale, ScaleDatasetPath),
+                                 Tuple.Create(_bias, BiasDatasetPath),
+                                 Tuple.Create(_resultRunningMean, RunningMeanDatasetPath),
+                                 Tuple.Create(_resultRunningVariance, RunningVarianceDatasetPath)
+                             };
+                return result;
             }
         }
-        public override void SetParameters(List<Tensor> newParameters)
+        public override void ReplaceParameters(List<Tensor> newParameters)
         {
             Debug.Assert(newParameters.Count == 4);
             FreeFloatTensor(ref _scale);
@@ -147,7 +147,7 @@ namespace SharpNet.Layers
             FreeFloatTensor(ref _resultRunningVariance);
             _resultRunningVariance = newParameters[3];
         }
-        public override void ResetWeights(bool resetAlsoOptimizerWeights = true)
+        public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
             _scale.SetValue(1);
@@ -160,7 +160,7 @@ namespace SharpNet.Layers
                 _optimizer.ZeroMemory();
             }
         }
-        public override void SetGradients(List<Tensor> newGradients)
+        public override void ReplaceGradients(List<Tensor> newGradients)
         {
             FreeFloatTensor(ref _scaleGradients);
             _scaleGradients = newGradients[0];
@@ -175,13 +175,25 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
+        public override void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            h5FileDataset[ScaleDatasetPath].CopyTo(_scale);
+            h5FileDataset[BiasDatasetPath].CopyTo(_bias);
+            h5FileDataset[RunningMeanDatasetPath].CopyTo(_resultRunningMean);
+            h5FileDataset[RunningVarianceDatasetPath].CopyTo(_resultRunningVariance);
+        }
+        private string ScaleDatasetPath => DatasetNameToDatasetPath("gamma:0");
+        private string BiasDatasetPath => DatasetNameToDatasetPath("beta:0");
+        private string RunningMeanDatasetPath => DatasetNameToDatasetPath("moving_mean:0");
+        private string RunningVarianceDatasetPath => DatasetNameToDatasetPath("moving_variance:0");
         #endregion
 
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
-                .Add(nameof(_epsilon), _epsilon).Add(nameof(_momentum), _momentum)
+            return RootSerializer() // 'RootSerializer()' will also serialize layer  parameters
+                .Add(nameof(_epsilon), _epsilon)
+                .Add(nameof(_momentum), _momentum)
                 .Add(_optimizer.Serialize())
                 .ToString();
         }
@@ -191,11 +203,12 @@ namespace SharpNet.Layers
             _momentum = (double)serialized[nameof(_momentum)];
 
             //trainable params
-            _scale = (Tensor)serialized[nameof(_scale)];
-            _bias = (Tensor)serialized[nameof(_bias)];
+            _scale = (Tensor)serialized[ScaleDatasetPath];
+            _bias = serialized.TryGet<Tensor>(BiasDatasetPath);
+
             //non trainable params
-            _resultRunningMean = (Tensor)serialized[nameof(_resultRunningMean)];
-            _resultRunningVariance = (Tensor)serialized[nameof(_resultRunningVariance)];
+            _resultRunningMean = (Tensor)serialized[RunningMeanDatasetPath];
+            _resultRunningVariance = (Tensor)serialized[RunningVarianceDatasetPath];
 
             //gradients
             _scaleGradients = GetFloatTensor(_scale.Shape);
@@ -214,13 +227,6 @@ namespace SharpNet.Layers
             otherNetwork.Layers.Add(new BatchNormalizationLayer(_momentum, _epsilon, otherNetwork, LayerName));
         }
         
-        public override void LoadFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            h5FileDataset[DatasetNameToDatasetPath("beta:0")].CopyTo(_bias);
-            h5FileDataset[DatasetNameToDatasetPath("moving_mean:0")].CopyTo(_resultRunningMean);
-            h5FileDataset[DatasetNameToDatasetPath("gamma:0")].CopyTo(_scale);
-            h5FileDataset[DatasetNameToDatasetPath("moving_variance:0")].CopyTo(_resultRunningVariance);
-        }
         public override string ToString()
         {
             var result = LayerName + ": " + ShapeChangeDescription();

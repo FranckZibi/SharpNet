@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
@@ -66,8 +67,16 @@ namespace SharpNet.Networks
 
         protected Network BuildEmptyNetwork(string networkName)
         {
-            var configLogger = NetworkLogger(networkName);
-            Config.Logger = configLogger;
+            Config.Logger = Logger.NullLogger;
+            if (DisableLogging)
+            {
+                Config.Logger = Logger.NullLogger;
+            }
+            else
+            {
+                var logFileName = Utils.ConcatenatePathWithFileName(Config.LogDirectory, networkName + ExtraDescription + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+                Config.Logger = new Logger(logFileName, true);
+            }
             var network = new Network(Config, ResourceIds);
             network.Description = networkName + ExtraDescription;
             return network;
@@ -77,12 +86,6 @@ namespace SharpNet.Networks
             return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @".keras\models\", modelFileName);
         }
 
-
-
-        public Logger NetworkLogger(string networkName)
-        {
-            return DisableLogging ? Logger.NullLogger : Utils.Logger(networkName + ExtraDescription);
-        }
         public DataAugmentationConfig DA => Config.DataAugmentation;
     }
 }

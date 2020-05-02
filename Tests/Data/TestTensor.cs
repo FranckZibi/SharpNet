@@ -27,7 +27,7 @@ namespace SharpNetTests.Data
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-9));
             Tensor aGpu = a.ToGPU<float>(GpuWrapper);
             var aGpuSerialized = new Serializer().Add("aGpu", aGpu).ToString();
-            var aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["a"];
+            var aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["aGpu"];
             Assert.IsTrue(SameContent(aGpu, aGpuDeserialized, 1e-9));
 
             //float test
@@ -37,7 +37,7 @@ namespace SharpNetTests.Data
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-5));
             aGpu = a.ToGPU<float>(GpuWrapper);
             aGpuSerialized = new Serializer().Add("aGpu", aGpu).ToString();
-            aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["a"];
+            aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["aGpu"];
             Assert.IsTrue(SameContent(aGpu,aGpuDeserialized, 1e-5));
         }
 

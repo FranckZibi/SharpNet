@@ -24,6 +24,12 @@ namespace SharpNet.Networks
         private readonly Stopwatch _swComputeAccuracy;
         private readonly List<EpochData> _epochData = new List<EpochData>();
         private readonly IDictionary<string,Stopwatch> _updateWeightsTime = new Dictionary<string, Stopwatch>();
+        /// <summary>
+        /// all resources (CPU or GPU) available for the current network
+        /// values superior or equal to 0 means GPU resources (device)
+        /// values strictly less then 0 mean CPU resources (host)
+        /// </summary>
+        private readonly List<int> _resourceIds;
         private Tensor _bufferComputeAccuracy;
         private Tensor _bufferComputeLoss;
         private readonly DateTime _timeStampCreation = DateTime.Now;
@@ -43,7 +49,6 @@ namespace SharpNet.Networks
         private Tensor _compactedParametersIfAny;
         private Tensor _compactedGradientsIfAny;
         public GPUWrapper GpuWrapper { get; }
-        private int GpuDeviceId { get; }
         #endregion
 
         /// <param name="config"></param>
@@ -79,8 +84,8 @@ namespace SharpNet.Networks
             Debug.Assert(masterNetworkIfAny == null || resourceIds.Count == 1);
             Config = config;
             _masterNetworkIfAny = masterNetworkIfAny;
-            GpuDeviceId = resourceIds[0];
-            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(GpuDeviceId) : null;
+            _resourceIds = resourceIds.ToList();
+            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0]) : null;
             _swComputeLoss = new Stopwatch();
             _swComputeAccuracy = new Stopwatch();
             CreateLogDirectoryIfNeeded();
@@ -117,7 +122,7 @@ namespace SharpNet.Networks
         {
             if (_compactedParametersIfAny == null)
             {
-                _compactedParametersIfAny = Compact(l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.SetParameters(tensors));
+                _compactedParametersIfAny = Compact(l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.ReplaceParameters(tensors));
             }
         }
 
@@ -125,14 +130,14 @@ namespace SharpNet.Networks
         {
             if (_compactedGradientsIfAny == null)
             {
-                _compactedGradientsIfAny = Compact(l => l.ParameterGradients.Select(t => t.Item1).ToList(), (l, tensors) => l.SetGradients(tensors));
+                _compactedGradientsIfAny = Compact(l => l.ParameterGradients, (l, tensors) => l.ReplaceGradients(tensors));
             }
         }
         public void UnCompactParameters()
         {
             if (_compactedParametersIfAny != null)
             {
-                UnCompact(_compactedParametersIfAny, l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.SetParameters(tensors));
+                UnCompact(_compactedParametersIfAny, l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.ReplaceParameters(tensors));
                 MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
             }
         }
@@ -140,7 +145,7 @@ namespace SharpNet.Networks
         {
             if (_compactedGradientsIfAny != null)
             {
-                UnCompact(_compactedGradientsIfAny, l => l.ParameterGradients.Select(t => t.Item1).ToList(), (l, tensors) => l.SetGradients(tensors));
+                UnCompact(_compactedGradientsIfAny, l => l.ParameterGradients, (l, tensors) => l.ReplaceGradients(tensors));
                 MemoryPool.FreeFloatTensor(ref _compactedGradientsIfAny);
             }
         }
@@ -304,23 +309,14 @@ namespace SharpNet.Networks
             Debug.Assert(!x_miniBatch_cpu_slave.UseGPU);
             Debug.Assert(!yExpected_miniBatch_cpu_slave.UseGPU);
             Debug.Assert(yPredicted_miniBatch_master.UseGPU == UseGPU);
-            
-            //We load the weights from the master network
-            StartTimer("Slave_CopyWeights", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-
             Debug.Assert(_masterNetworkIfAny._compactedParametersIfAny != null);
             Debug.Assert(_compactedParametersIfAny != null);
+
+            //TODO try to do this copy in the master network and not in the slave network
+            //We copy the weights from the master network to the slave network
+            StartTimer("CopyWeights_Master2Slave", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
             _masterNetworkIfAny._compactedParametersIfAny.CopyTo(_compactedParametersIfAny);
-
-            //var parameters_master = _masterNetworkIfAny.Parameters.Select(t=>t.Item1).ToList();
-            //var parameters_slave = Parameters.Select(t => t.Item1).ToList();
-            //Debug.Assert(parameters_master.Count == parameters_slave.Count);
-            //for (int i = 0; i < parameters_master.Count; ++i)
-            //{
-            //    parameters_master[i].CopyTo(parameters_slave[i]);
-            //}
-
-            StopTimer("Slave_CopyWeights", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+            StopTimer("CopyWeights_Master2Slave", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
             //we initialize '_xMiniBatch' & '_yExpected_miniBatch_slave'
             MemoryPool.GetFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_slave.Shape);
@@ -652,8 +648,8 @@ namespace SharpNet.Networks
             var allLines = File.ReadAllLines(path);
             var dicoFirstLine = Serializer.Deserialize(allLines[0], null);
             var config = NetworkConfig.ValueOf(dicoFirstLine);
-            var gpuDeviceId = overrideGpuDeviceId ?? (int)dicoFirstLine[nameof(GpuDeviceId)];
-            var network = new Network(config, new List<int>{gpuDeviceId});
+            int[] gpuDeviceId = overrideGpuDeviceId.HasValue ? new []{overrideGpuDeviceId.Value} : (int[])dicoFirstLine[nameof(_resourceIds)];
+            var network = new Network(config, gpuDeviceId.ToList());
             var epochsData = (EpochData[])dicoFirstLine[nameof(_epochData)];
             network._epochData.AddRange(epochsData);
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
@@ -663,22 +659,19 @@ namespace SharpNet.Networks
             }
             return network;
         }
-        public void Save(string fileName = "")
+
+        private void Save(string filePath)
         {
-            if (string.IsNullOrEmpty(fileName))
-            {
-                fileName = Path.Combine(Config.LogDirectory, UniqueId + ".txt");
-            }
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
-                .Add(nameof(GpuDeviceId), GpuDeviceId)
+                .Add(nameof(_resourceIds), _resourceIds.ToArray())
                 .Add(nameof(_epochData), _epochData.ToArray())
                 .ToString();
-            File.AppendAllLines(fileName, new[] { firstLine });
+            File.AppendAllLines(filePath, new[] { firstLine });
             foreach (var l in Layers)
             {
-                File.AppendAllLines(fileName, new[] { l.Serialize() });
+                File.AppendAllLines(filePath, new[] { l.Serialize() });
             }
         }
         public void LogContent()
@@ -764,7 +757,7 @@ namespace SharpNet.Networks
                     //the layer is trainable
                     layer.Trainable = true;
                     //we reset the layer weights to their default values
-                    layer.ResetWeights();
+                    layer.ResetParameters();
                 }
             }
         }
@@ -900,9 +893,9 @@ namespace SharpNet.Networks
                         )
                     {
                         var swSaveTime = Stopwatch.StartNew();
-                        var fileName = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
-                        Save(fileName);
-                        Info("Network '" + Description + "' saved in " + fileName + " in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
+                        var filePath = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
+                        Save(filePath);
+                        Info("Network '" + Description + "' saved in " + filePath + " in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
                         lastAutoSaveTime = DateTime.Now;
                     }
                     #endregion
@@ -1095,7 +1088,7 @@ namespace SharpNet.Networks
 
             foreach (var l in Layers.Skip(1)) //we skip the input layer
             {
-                l.LoadFromH5Dataset(h5FileDataset, originFramework);
+                l.LoadParametersFromH5Dataset(h5FileDataset, originFramework);
             }
         }
         // ReSharper disable once UnusedMember.Global
@@ -1330,7 +1323,7 @@ namespace SharpNet.Networks
 
         public int LastLayerIndex => Layers.Last().LayerIndex;
 
-        private bool UseGPU => GpuDeviceId >= 0;
+        private bool UseGPU => _resourceIds.Max() >= 0;
         private string MemoryInfo()
         {
             string result = "Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);
@@ -1481,7 +1474,7 @@ namespace SharpNet.Networks
             {
                 if (l != null && l.Trainable)
                 {
-                    l.ResetWeights();
+                    l.ResetParameters();
                 }
             }
         }
@@ -1503,7 +1496,7 @@ namespace SharpNet.Networks
             {
                 miniBatchSize -= (miniBatchSize % 4);
             }
-            return (int)miniBatchSize;
+            return miniBatchSize;
         }
         private string ContentStats()
         {

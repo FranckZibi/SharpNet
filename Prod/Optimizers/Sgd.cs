@@ -29,21 +29,7 @@ namespace SharpNet.Optimizers
             }
             ZeroMemory();
         }
-        
-        public override bool Equals(Optimizer other, double epsilon, string id, ref string errors)
-        {
-            if (!Utils.Equals(GetType(), other.GetType(), id + nameof(GetType), ref errors))
-            {
-                return false;
-            }
-            var b = (Sgd)other;
-            return 
-                      Utils.Equals(_iterations, b._iterations, id + nameof(_iterations), ref errors)
-                   && Utils.Equals(_SGD_momentum, b._SGD_momentum, epsilon, id + nameof(_SGD_momentum), ref errors)
-                   && Utils.Equals(_SGD_usenesterov, b._SGD_usenesterov, id + nameof(_SGD_usenesterov), ref errors)
-                   && _velocityWeight.Equals(b._velocityWeight, epsilon, id + nameof(_velocityWeight), ref errors)
-                   && _velocityBias.Equals(b._velocityBias, epsilon, id + nameof(_velocityBias), ref errors);
-        }
+
         public override List<Tensor> EmbeddedTensors
         {
             get
@@ -72,7 +58,7 @@ namespace SharpNet.Optimizers
             }
             _isDisposed = true;
             base.Dispose();
-            EmbeddedTensors.ForEach(t=>_memoryPool.FreeFloatTensor(t));
+            EmbeddedTensors.ForEach(t=>_memoryPool?.FreeFloatTensor(t));
         }
 
         #region serialization

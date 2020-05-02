@@ -6,7 +6,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using SharpNet.Data;
-using SharpNet.Networks;
 
 namespace SharpNet
 {
@@ -238,13 +237,7 @@ namespace SharpNet
             }
             return default;
         }
-        public static Logger Logger(string networkName)
-        {
-            var logFileName = ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory,
-                networkName + "_" + Process.GetCurrentProcess().Id + "_" +
-                System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-            return new Logger(logFileName, true);
-        }
+
         public static bool Equals<T>(T a, T b, string id, ref string errors)
         {
             if (!Equals(a, b))

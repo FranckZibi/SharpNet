@@ -16,8 +16,8 @@ namespace SharpNetTests
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Efficientnet(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
-            WideResNetTests();
-            //SVHNTests();
+            //WideResNetTests();
+            SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -69,11 +69,12 @@ namespace SharpNetTests
 
         private static void EfficientNetTests()
         {
+            const bool useMultiGpu = false;
             var networkGeometries = new List<Action<EfficientNetBuilder, int>>
             {
-                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription += "_only_dense";Train_CIFAR10_EfficientNet(p);},
+                //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription += "_only_dense";Train_CIFAR10_EfficientNet(p);},
                 //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.ExtraDescription += "_all_top";Train_CIFAR10_EfficientNet(p);},
-                //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.ExtraDescription += "_no_freezing";Train_CIFAR10_EfficientNet(p);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.ExtraDescription += "_no_freezing_MultiGPU";Train_CIFAR10_EfficientNet(p);},
             };
 
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
@@ -84,28 +85,26 @@ namespace SharpNetTests
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.001;p.NumEpochs = 30;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.ExtraDescription = "_lr_0_001_batchAuto_zoom7_30epochs_only_top";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.10;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_10_batchAuto_zoom_30epochs";return p;},
             };
-            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
         private static void Train_CIFAR10_EfficientNet(EfficientNetBuilder p)
         {
             const int zoomFactor = 7;
-            using (var cifar10Original = new CIFAR10DataSet())
-            using (var cifar10 = new ZoomedTrainingAndTestDataSet(cifar10Original, zoomFactor, zoomFactor))
-            using (var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, cifar10.Training.InputShape_CHW))
-            {
-                network.Info(network.ToString());
-                //network.FindBestLearningRate(cifar10.Training, 1e-7, 10, p.BatchSize);return;
+            using var cifar10Original = new CIFAR10DataSet();
+            using var cifar10 = new ZoomedTrainingAndTestDataSet(cifar10Original, zoomFactor, zoomFactor);
+            using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, cifar10.Training.InputShape_CHW);
+            network.Info(network.ToString());
+            //network.FindBestLearningRate(cifar10.Training, 1e-7, 10, p.BatchSize);return;
 
-                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
-            }
-
+            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
         }
         #endregion
 
         #region WideResNet Training
         private static void WideResNetTests()
         {
+            const bool useMultiGpu = false;
             var networkGeometries = new List<Action<WideResNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,4);},
@@ -124,7 +123,7 @@ namespace SharpNetTests
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 64;p.ExtraDescription = "_BatchSize64";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = -1;p.ExtraDescription = "_BatchSizeAuto";return p;},
             };
-            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, false);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
@@ -202,11 +201,12 @@ namespace SharpNetTests
         #region SVHN Training
         private static void SVHNTests()
         {
+            const bool useMultiGpu = true;
             var networkGeometries = new List<Action<WideResNetBuilder, int>>
             {
-                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
-                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,8);},
-                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,8);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,8);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,10);},
@@ -214,20 +214,20 @@ namespace SharpNetTests
 
             var networkMetaParameters = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.ExtraDescription = "_30Epochs";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 71;p.BatchSize=-1;p.ExtraDescription = "_30Epochs_MultiGPU";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.ExtraDescription = "_30Epochs";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS;  p.ExtraDescription = "_30Epochs_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS";return p;},
             };
-            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
 
         private static void Train_SVHN_WRN(WideResNetBuilder p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
-            using (var svhn = new SVHNDataSet(loadExtraFileForTraining))
-            using (var network = p.WRN(WRN_depth, WRN_k, svhn.InputShape_CHW, svhn.CategoryCount))
-            {
-                var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-                network.Fit(svhn.Training, learningRateComputer, p.NumEpochs, p.BatchSize, svhn.Test);
-            }
+            using var svhn = new SVHNDataSet(loadExtraFileForTraining);
+            using var network = p.WRN(WRN_depth, WRN_k, svhn.InputShape_CHW, svhn.CategoryCount);
+            //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\SVHN\WRN-16-10_30Epochs_MultiGPU_20200501_1147_30.txt");
+            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            network.Fit(svhn.Training, learningRateComputer, p.NumEpochs, p.BatchSize, svhn.Test);
         }
         #endregion
 
