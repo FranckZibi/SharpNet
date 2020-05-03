@@ -34,7 +34,7 @@ namespace SharpNet.Data
         #region not implemented methods
         public override void ZeroMemory() {throw new NotImplementedException();}
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta) {throw new NotImplementedException();}
-        public override void MultiplyTensor(Tensor a, Tensor x){throw new NotImplementedException();}
+        public override void MultiplyTensor(Tensor a, Tensor diagonalMatrix){throw new NotImplementedException();}
         public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight) {throw new NotImplementedException();}
         public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight) {throw new NotImplementedException();}
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b){throw new NotImplementedException();}

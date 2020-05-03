@@ -9,17 +9,16 @@ namespace SharpNet.Layers
 {
     public class MultiplyLayer : Layer
     {
-        public MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2, Network network, string layerName) : base(network, previousLayerIndex2, layerName)
+        public MultiplyLayer(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network, string layerName) : base(network, mainMatrixLayerIndex, layerName)
         {
             Debug.Assert(LayerIndex >= 2);
-            Debug.Assert(previousLayerIndex1 >= 0);
-            Debug.Assert(previousLayerIndex2 >= 0);
-            //we add the identity shortcut connection
-            AddPreviousLayer(previousLayerIndex1);
+            Debug.Assert(mainMatrixLayerIndex >= 0);
+            Debug.Assert(diagonalMatrixLayerIndex >= 0);
 
-            if (!ValidLayerShapeToMultiply(PreviousLayer1.OutputShape(1), PreviousLayer2.OutputShape(1)))
+            AddPreviousLayer(diagonalMatrixLayerIndex);
+            if (!ValidLayerShapeToMultiply(PreviousLayerMainMatrix.OutputShape(1), PreviousLayerDiagonalMatrix.OutputShape(1)))
             {
-                throw new ArgumentException("invalid layers to multiply between " + PreviousLayer1 + " and " + previousLayerIndex2);
+                throw new ArgumentException("invalid layers to multiply between " + PreviousLayerMainMatrix + " and " + diagonalMatrixLayerIndex);
             }
         }
 
@@ -27,62 +26,62 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 2);
-            var x1 = allX[0];
-            var x2 = allX[1]; //vector with the content of the diagonal matrix
-            y.MultiplyTensor(x1, x2);
+            var a = allX[0];
+            var diagonalMatrix = allX[1]; //vector with the content of the diagonal matrix
+            y.MultiplyTensor(a, diagonalMatrix);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> allDx)
         {
             Debug.Assert(allDx.Count == 2);
             var dx1 = allDx[0];
             var dx2 = allDx[1];
-            var x1 = allX[0];
-            var x2 = allX[1];
+            var a = allX[0];
+            var diagonalMatrix = allX[1];
             Debug.Assert(dx1.SameShape(dy));
-            Debug.Assert(dx1.SameShape(x1));
-            Debug.Assert(dx2.SameShape(x2));
+            Debug.Assert(dx1.SameShape(a));
+            Debug.Assert(dx2.SameShape(diagonalMatrix));
 
 
             StartBackwardTimer(Type() + ">SameShape");
-            dx1.MultiplyTensor(dy, x2);
+            dx1.MultiplyTensor(dy, diagonalMatrix);
             StopBackwardTimer(Type() + ">SameShape");
             if (dx2.SameShape(dy))
             {
                 StartBackwardTimer(Type() + ">SameShape");
-                dx2.MultiplyTensor(dy, x1);
+                dx2.MultiplyTensor(dy, a);
                 StopBackwardTimer(Type() + ">SameShape");
             }
             else
             {
                 StartBackwardTimer(Type() + ">DistinctShape");
-                dx2.MultiplyEachRowIntoSingleValue(dy, x1);
+                dx2.MultiplyEachRowIntoSingleValue(dy, a);
                 StopBackwardTimer(Type() + ">DistinctShape");
             }
         }
         #endregion
 
         #region serialization
-        public MultiplyLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static MultiplyLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
+            var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
+            return new MultiplyLayer(previousLayerIndexes[0], previousLayerIndexes[1], network, (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new MultiplyLayer(PreviousLayerIndexes[1], PreviousLayerIndexes[0], otherNetwork, LayerName)); 
-        }
 
         public override int[] OutputShape(int batchSize)
         {
-            var result1 = PreviousLayer1.OutputShape(batchSize);
-            var result2 = PreviousLayer2.OutputShape(batchSize);
+            var result1 = PreviousLayerMainMatrix.OutputShape(batchSize);
+            var result2 = PreviousLayerDiagonalMatrix.OutputShape(batchSize);
             var result = (int[])result1.Clone();
             result[1] = Math.Max(result1[1], result2[1]);
             return result;
         }
 
-        private Layer PreviousLayer1 => PreviousLayers[0];
-        private Layer PreviousLayer2 => PreviousLayers[1];
+        public int MainMatrixLayerIndex => PreviousLayerIndexes[0];
+        public int DiagonalMatrixLayerIndex => PreviousLayerIndexes[1];
+        private Layer PreviousLayerMainMatrix => PreviousLayers[0];
+        private Layer PreviousLayerDiagonalMatrix => PreviousLayers[1];
         //TODO add tests
         /// <summary>
         /// Check that the 2 layer shapes we want to multiply are valid:

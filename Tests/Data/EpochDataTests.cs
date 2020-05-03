@@ -15,7 +15,7 @@ namespace SharpNetTests.Data
             var epochData3 = new EpochData(21,22.0,23.0,24.0,25.0,26.0,27.0, 0);
             var epochDatas = new [] {epochData1, epochData2, epochData3};
             var serialized = new Serializer().Add("array", epochDatas).ToString();
-            var deserialized = Serializer.Deserialize(serialized, null).Values.First() as EpochData[];
+            var deserialized = Serializer.Deserialize(serialized).Values.First() as EpochData[];
             Assert.IsNotNull(deserialized);
             Assert.AreEqual(3, deserialized.Length);
             for (var i = 0; i < epochDatas.Length; i++)

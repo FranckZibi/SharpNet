@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -137,19 +138,36 @@ namespace SharpNet.Layers
         /// </summary>
         /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
         /// <param name="originFramework">the ML Framework from where the *.h5 file comes from</param>
-        public virtual void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        // ReSharper disable once UnusedParameter.Global
+        public virtual void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
+            foreach (var layerParameters in Parameters)
+            {
+                var parameterId = layerParameters.Item2;
+                if (h5FileDataset.ContainsKey(parameterId))
+                {
+                    h5FileDataset[parameterId].CopyTo(layerParameters.Item1);
+                }
+            }
         }
+
         /// <summary>
         /// Save layer weights & bias in Tensor(s) so that they can be stored in datasets objects in a *.h5 (HDF) file
         /// </summary>
-        /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
         /// <param name="originFramework">the ML Framework for which we want to save the *.h5 file
-        /// (so this file will be compatible with this Framework</param>
-        public virtual void SaveToH5Dataset(List<Tuple<string, Tensor>> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        ///     (so this file will be compatible with this Framework</param>
+        // ReSharper disable once UnusedParameter.Global
+        public virtual IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
         {
-            throw new NotImplementedException(); //TODO
+            var result = new Dictionary<string, CpuTensor<float>>();
+            foreach (var p in Parameters)
+            {
+                //TODO : take into account 'originFramework'
+                result.Add(p.Item2, p.Item1.ToCpuFloat());
+            }
+            return result;
         }
+
         protected string DatasetNameToDatasetPath(string datasetName)
         {
             return "/" + LayerName + "/" + LayerName + "/" + datasetName;
@@ -159,57 +177,48 @@ namespace SharpNet.Layers
 
 
         #region serialization
+
         public virtual string Serialize()
         {
             return RootSerializer().ToString();
         }
         protected Serializer RootSerializer()
         {
-            var res = new Serializer().Add(nameof(Layer), GetType())
-                    .Add(nameof(LayerIndex), LayerIndex)
-                    .Add(nameof(LayerName), LayerName)
+            var res = new Serializer()
+                    .Add(nameof(Layer), GetType())
                     .Add(nameof(PreviousLayerIndexes), PreviousLayerIndexes.ToArray())
-                    .Add(nameof(NextLayerIndexes), NextLayerIndexes.ToArray())
-                    .Add(nameof(Trainable), Trainable);
-            //we serialize all trainable parameters (weights) and not trainable parameters
-            foreach (var parameter in Parameters)
-            {
-                res = res.Add(parameter.Item2, parameter.Item1);
-            }
+                    .Add(nameof(LayerName), LayerName);
             return res;
         }
-        protected Layer(IDictionary<string, object> serialized, Network network)
-        {
-            Network = network;
-            LayerIndex = (int)serialized[nameof(LayerIndex)];
-            LayerName = (string)serialized[nameof(LayerName)];
-            PreviousLayerIndexes = ((int[])serialized[nameof(PreviousLayerIndexes)]).ToList();
-            NextLayerIndexes = ((int[])serialized[nameof(NextLayerIndexes)]).ToList();
-            Trainable = (bool)serialized[nameof(Trainable)];
-        }
+
         public static Layer ValueOf(IDictionary<string, object> serialized, Network network)
         {
             var layerType = (string)serialized[nameof(Layer)];
             switch (layerType)
             {
-                case nameof(ActivationLayer): return new ActivationLayer(serialized, network);
-                case nameof(AddLayer): return new AddLayer(serialized, network);
-                case nameof(BatchNormalizationLayer): return new BatchNormalizationLayer(serialized, network);
-                case nameof(ConcatenateLayer): return new ConcatenateLayer(serialized, network);
-                case nameof(ConvolutionLayer): return new ConvolutionLayer(serialized, network);
-                case nameof(DenseLayer): return new DenseLayer(serialized, network);
-                case nameof(DropoutLayer): return new DropoutLayer(serialized, network);
-                case nameof(FlattenLayer): return new FlattenLayer(serialized, network);
-                case nameof(InputLayer): return new InputLayer(serialized, network);
-                case nameof(PoolingLayer): return new PoolingLayer(serialized, network);
-                case nameof(MultiplyLayer): return new MultiplyLayer(serialized, network);
-                case nameof(SimpleRnnLayer): return new SimpleRnnLayer(serialized, network);
+                case nameof(ActivationLayer): return ActivationLayer.Deserialize(serialized, network);
+                case nameof(AddLayer): return AddLayer.Deserialize(serialized, network);
+                case nameof(BatchNormalizationLayer): return BatchNormalizationLayer.Deserialize(serialized, network);
+                case nameof(ConcatenateLayer): return ConcatenateLayer.Deserialize(serialized, network);
+                case nameof(ConvolutionLayer): return ConvolutionLayer.Deserialize(serialized, network);
+                case nameof(DenseLayer): return DenseLayer.Deserialize(serialized, network);
+                case nameof(DropoutLayer): return DropoutLayer.Deserialize(serialized, network);
+                case nameof(FlattenLayer): return FlattenLayer.Deserialize(serialized, network);
+                case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
+                case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
+                case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
+                case nameof(SimpleRnnLayer): return SimpleRnnLayer.Deserialize(serialized, network);
                 default: throw new NotImplementedException("don't know how to deserialize " + layerType);
             }
         }
         #endregion
 
         public abstract void AddToOtherNetwork(Network otherNetwork);
+        protected void AddToOtherNetwork(Network otherNetwork, Func<IDictionary<string, object>, Network, Layer> deserialize)
+        {
+            otherNetwork.Layers.Add(deserialize(Serializer.Deserialize(Serialize()), otherNetwork));
+        }
+
 
         public int n_x
         {

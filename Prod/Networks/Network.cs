@@ -13,17 +13,15 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Optimizers;
+using H5GroupId = System.Int64;
+
 
 namespace SharpNet.Networks
 {
-    public class Network : IDisposable
+    public partial class Network : IDisposable
     {
         #region private fields
-        private readonly Stopwatch _spInternalFit = new Stopwatch();
-        private readonly Stopwatch _swComputeLoss;
-        private readonly Stopwatch _swComputeAccuracy;
         private readonly List<EpochData> _epochData = new List<EpochData>();
-        private readonly IDictionary<string,Stopwatch> _updateWeightsTime = new Dictionary<string, Stopwatch>();
         /// <summary>
         /// all resources (CPU or GPU) available for the current network
         /// values superior or equal to 0 means GPU resources (device)
@@ -42,12 +40,7 @@ namespace SharpNet.Networks
         public List<Layer> Layers { get; } = new List<Layer>();
         public string Description { private get; set; } = "";
         public PropagationManager PropagationManager { get; }
-        public IDictionary<string, Stopwatch> ForwardPropagationTrainingTime { get; } = new Dictionary<string, Stopwatch>();
-        public IDictionary<string, Stopwatch> ForwardPropagationInferenceTime { get; } = new Dictionary<string, Stopwatch>();
-        public IDictionary<string, Stopwatch> BackwardPropagationTime { get; } = new Dictionary<string, Stopwatch>();
         public TensorMemoryPool MemoryPool { get; }
-        private Tensor _compactedParametersIfAny;
-        private Tensor _compactedGradientsIfAny;
         public GPUWrapper GpuWrapper { get; }
         #endregion
 
@@ -105,244 +98,6 @@ namespace SharpNet.Networks
             }
         }
 
-        #region Multi GPU Support
-
-        private int DegreeOfParallelism
-        {
-            get
-            {
-                if (IsMaster)
-                {
-                    return 1 + _slaveNetworks.Count;
-                }
-                return _masterNetworkIfAny.DegreeOfParallelism;
-            }
-        }
-        private void CompactParameters()
-        {
-            if (_compactedParametersIfAny == null)
-            {
-                _compactedParametersIfAny = Compact(l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.ReplaceParameters(tensors));
-            }
-        }
-
-        private void CompactGradients()
-        {
-            if (_compactedGradientsIfAny == null)
-            {
-                _compactedGradientsIfAny = Compact(l => l.ParameterGradients, (l, tensors) => l.ReplaceGradients(tensors));
-            }
-        }
-        public void UnCompactParameters()
-        {
-            if (_compactedParametersIfAny != null)
-            {
-                UnCompact(_compactedParametersIfAny, l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.ReplaceParameters(tensors));
-                MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
-            }
-        }
-        public void UnCompactGradients()
-        {
-            if (_compactedGradientsIfAny != null)
-            {
-                UnCompact(_compactedGradientsIfAny, l => l.ParameterGradients, (l, tensors) => l.ReplaceGradients(tensors));
-                MemoryPool.FreeFloatTensor(ref _compactedGradientsIfAny);
-            }
-        }
-
-        private Tensor Compact(Func<Layer, List<Tensor>> layer2Tensors, Action<Layer, List<Tensor>> storeTensorsInLayer)
-        {
-            var totalCount = Layers.SelectMany(layer2Tensors).Select(t => t.Count).Sum();
-            var compacted = MemoryPool.GetFloatTensor(new[] { totalCount });
-            int nextIndex = 0;
-            foreach (var l in Layers)
-            {
-                var layerCompactedTensors = new List<Tensor>();
-                foreach (var p in layer2Tensors(l))
-                {
-                    Debug.Assert(p.IsOwnerOfMemory);
-                    var sliceFromCompacted = compacted.Slice(nextIndex, p.Shape);
-                    layerCompactedTensors.Add(sliceFromCompacted);
-                    p.CopyTo(sliceFromCompacted);
-                    nextIndex += sliceFromCompacted.Count;
-                }
-                storeTensorsInLayer(l, layerCompactedTensors);
-            }
-            Debug.Assert(nextIndex == totalCount);
-            return compacted;
-        }
-
-        private void UnCompact(Tensor compactedTensor, Func<Layer, List<Tensor>> layer2Tensors, Action<Layer, List<Tensor>> storeTensorsInLayer)
-        {
-            foreach (var l in Layers)
-            {
-                var layerUncompactedParameters = new List<Tensor>();
-                foreach (var p in layer2Tensors(l))
-                {
-                    Debug.Assert(!p.IsOwnerOfMemory);
-                    var uncompacted = MemoryPool.GetFloatTensor(p.Shape);
-                    p.CopyTo(uncompacted);
-                    layerUncompactedParameters.Add(uncompacted);
-                }
-                storeTensorsInLayer(l, layerUncompactedParameters);
-            }
-        }
-        public bool IsMaster => _masterNetworkIfAny == null;
-
-        #region Master Network data
-        private Tensor _x_miniBatch;
-        /// <summary>
-        /// list of all slave networks
-        /// empty list of:
-        ///     the 'this' network is a slave network
-        ///     or
-        ///     the 'this' network is a master network  but we are not using multi GPU computation
-        ///     (all computation is performed on the master network)
-        /// </summary>
-        private readonly List<Network> _slaveNetworks = new List<Network>();
-        private Tensor _yExpectedForEpoch;
-        private Tensor _yPredictedForEpoch;
-        /// <summary>
-        /// number of resources (CPU or GPU) that will perform the computation
-        /// </summary>
-        private void WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS status)
-        {
-            while (_slaveNetworks.Any(s => s._slaveStatus != status))
-            {
-                Thread.Sleep(1);
-            }
-        }
-        private void SetStatusForAllSlaves(SLAVE_NETWORK_STATUS newStatus)
-        {
-            _slaveNetworks.ForEach(s => s._slaveStatus = newStatus);
-        }
-        #endregion
-
-        #region Slave Networks data
-        private enum SLAVE_NETWORK_STATUS
-        {
-            IDLE,
-            PREPARE_MINIBATCH_GRADIENT_DESCENT,
-            PERFORM_FORWARD_AND_BACKWARD_PROPAGATION,
-            TO_ABORT,
-            DISPOSED
-        }
-        private SLAVE_NETWORK_STATUS _slaveStatus = SLAVE_NETWORK_STATUS.IDLE;
-        /// <summary>
-        /// if the current network is a slave network doing computation for its master network:
-        ///     the reference of the master network
-        /// if current network is a master network:
-        ///     null
-        /// </summary>
-        private readonly Network _masterNetworkIfAny;
-        //Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining
-        private Tuple<Tensor, Tensor, Tensor, bool> _slaveParamForMiniBatchGradientDescent;
-
-        private static void SlaveThread(Network master, int slaveDeviceId)
-        {
-            //if slave thread will run on a GPU
-            if (slaveDeviceId >= 0) 
-            {
-                //we associate the current running (slave) thread with GPU 'slaveDeviceId'
-                GPUWrapper.FromDeviceId(slaveDeviceId).AssociateCurrentThreadWithDevice();
-            }
-
-            var slave = new Network(master.Config.Clone(), new List<int> { slaveDeviceId }, master);
-            slave.Config.Logger = slave.Config.Logger.CloneWithNewFileSuffix("_slave" + slaveDeviceId);
-            slave.Description = master.Description + "_slave_"+ slaveDeviceId;
-            lock (master._slaveNetworks)
-            {
-                master._slaveNetworks.Add(slave);
-            }
-            slave._spInternalFit.Start();
-
-            for (;;)
-            {
-                switch (slave._slaveStatus)
-                {
-                    case SLAVE_NETWORK_STATUS.PREPARE_MINIBATCH_GRADIENT_DESCENT:
-                        if (slave.Layers.Count == 0)
-                        {
-                            foreach (var l in master.Layers)
-                            {
-                                l.AddToOtherNetwork(slave);
-                            }
-                            slave.CompactParameters();
-                            slave.CompactGradients();
-                        }
-                        slave._slaveStatus = SLAVE_NETWORK_STATUS.IDLE;
-                        break;
-                    case SLAVE_NETWORK_STATUS.PERFORM_FORWARD_AND_BACKWARD_PROPAGATION:
-                        var param = slave._slaveParamForMiniBatchGradientDescent;
-                        if (param == null)
-                        {
-                            var errorMsg = "null parameters for " + slave._slaveStatus;
-                            slave.Info(errorMsg);
-                            throw new ArgumentException(errorMsg);
-                        }
-                        slave.MiniBatchGradientDescentForSlave(param.Item1, param.Item2, param.Item3, param.Item4);
-                        slave._slaveParamForMiniBatchGradientDescent = null;
-                        slave._slaveStatus = SLAVE_NETWORK_STATUS.IDLE;
-                        break;
-                    case SLAVE_NETWORK_STATUS.TO_ABORT:
-                        slave._spInternalFit.Stop();
-                        slave.LogDebug("stopping thread for network " + slave.Description);
-                        slave.LogDebug(slave.MemoryInfo());
-                        slave.LogDebug(slave.LayersKpi());
-                        slave.Dispose();
-                        slave._slaveStatus = SLAVE_NETWORK_STATUS.DISPOSED;
-                        return;
-                    default:
-                    //case SLAVE_NETWORK_STATUS.IDLE:
-                        Thread.Sleep(1);
-                        break;
-                }
-            }
-        }
-
-        private void MiniBatchGradientDescentForSlave(Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining)
-        {
-            Debug.Assert(_yPredictedForEpoch == null);
-            Debug.Assert(_yExpectedForEpoch == null);
-            Debug.Assert(yExpected_miniBatch_cpu_slave.SameShape(yPredicted_miniBatch_master));
-            Debug.Assert(x_miniBatch_cpu_slave.Shape[0] == yExpected_miniBatch_cpu_slave.Shape[0]);
-            Debug.Assert(!x_miniBatch_cpu_slave.UseGPU);
-            Debug.Assert(!yExpected_miniBatch_cpu_slave.UseGPU);
-            Debug.Assert(yPredicted_miniBatch_master.UseGPU == UseGPU);
-            Debug.Assert(_masterNetworkIfAny._compactedParametersIfAny != null);
-            Debug.Assert(_compactedParametersIfAny != null);
-
-            //TODO try to do this copy in the master network and not in the slave network
-            //We copy the weights from the master network to the slave network
-            StartTimer("CopyWeights_Master2Slave", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-            _masterNetworkIfAny._compactedParametersIfAny.CopyTo(_compactedParametersIfAny);
-            StopTimer("CopyWeights_Master2Slave", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-
-            //we initialize '_xMiniBatch' & '_yExpected_miniBatch_slave'
-            MemoryPool.GetFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_slave.Shape);
-            x_miniBatch_cpu_slave.CopyTo(_x_miniBatch);
-            MemoryPool.GetFloatTensor(ref _yExpected_miniBatch_slave, yExpected_miniBatch_cpu_slave.Shape);
-            yExpected_miniBatch_cpu_slave.CopyTo(_yExpected_miniBatch_slave);
-            MemoryPool.GetFloatTensor(ref _yPredicted_miniBatch_slave, _yExpected_miniBatch_slave.Shape);
-            PropagationManager.Forward(_x_miniBatch, _yPredicted_miniBatch_slave, isTraining);
-            if (isTraining)
-            {
-                PropagationManager.Backward(_yExpected_miniBatch_slave, _yPredicted_miniBatch_slave);
-            }
-
-            //copy miniBatch prediction (computed in slave network) to master network
-            _yPredicted_miniBatch_slave.CopyTo(yPredicted_miniBatch_master);
-        }
-
-        private Tensor _yExpected_miniBatch_slave;
-        private Tensor _yPredicted_miniBatch_slave;
-
-        #endregion
-
-
-
-
-        #endregion
 
         #region Transfer Learning
         /// <summary>
@@ -490,9 +245,9 @@ namespace SharpNet.Networks
             Layers.Add(new ConcatenateLayer(previousLayerIndex1, previousLayerIndex2, this, layerName));
             return this;
         }
-        public Network MultiplyLayer(int previousLayerIndex1, int previousLayerIndex2, string layerName = "")
+        public Network MultiplyLayer(int previousLayerIndex1, int previousLayerIndexDiagonalMatrix, string layerName = "")
         {
-            Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndex2, this, layerName));
+            Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndexDiagonalMatrix, this, layerName));
             return this;
         }
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
@@ -569,12 +324,10 @@ namespace SharpNet.Networks
             var poolingStride = Math.Max(lastLayerHeight, lastLayerWidth);
             return AvgPooling(lastLayerHeight, lastLayerWidth, poolingStride, layerName);
         }
-
         public Network GlobalMaxPooling(string layerName = "")
         {
             return GlobalMaxPooling(Layers.Count - 1, layerName);
         }
-
         public Network GlobalMaxPooling(int previousLayerIndex, string layerName = "")
         {
             var previousLayerShape = Layers[previousLayerIndex].OutputShape(1);
@@ -591,7 +344,6 @@ namespace SharpNet.Networks
             int globalMaxPoolingLayerIndex = LastLayerIndex;
             return ConcatenateLayer(globalAvgPoolingLayerIndex, globalMaxPoolingLayerIndex);
         }
-
         public Network BatchNorm(double momentum, double epsilon, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
@@ -643,10 +395,11 @@ namespace SharpNet.Networks
 
         #region serialization
         // ReSharper disable once UnusedMember.Global
-        public static Network ValueOf(string path, int?overrideGpuDeviceId = null)
+        public static Network ValueOf(string modelFilePath, int?overrideGpuDeviceId = null)
         {
-            var allLines = File.ReadAllLines(path);
-            var dicoFirstLine = Serializer.Deserialize(allLines[0], null);
+            //we load the model (network description)
+            var allLines = File.ReadAllLines(modelFilePath);
+            var dicoFirstLine = Serializer.Deserialize(allLines[0]);
             var config = NetworkConfig.ValueOf(dicoFirstLine);
             int[] gpuDeviceId = overrideGpuDeviceId.HasValue ? new []{overrideGpuDeviceId.Value} : (int[])dicoFirstLine[nameof(_resourceIds)];
             var network = new Network(config, gpuDeviceId.ToList());
@@ -655,23 +408,80 @@ namespace SharpNet.Networks
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
             for (int i = 1; i < allLines.Length; ++i)
             {
-                network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(allLines[i], network.GpuWrapper), network));
+                network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(allLines[i]), network));
             }
+
+            //we load the parameters into the network
+            var parametersFilePath = Utils.UpdateFilePathChangingExtension(modelFilePath, "", "", ".h5");
+            if (File.Exists(parametersFilePath))
+            {
+                network.LoadParametersFromH5File(parametersFilePath, network.Config.CompatibilityMode);
+            }
+
             return network;
         }
 
-        private void Save(string filePath)
+        private void Save(string modelFilePath)
         {
+            //we save the model
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
                 .Add(nameof(_resourceIds), _resourceIds.ToArray())
                 .Add(nameof(_epochData), _epochData.ToArray())
                 .ToString();
-            File.AppendAllLines(filePath, new[] { firstLine });
+            File.AppendAllLines(modelFilePath, new[] { firstLine });
             foreach (var l in Layers)
             {
-                File.AppendAllLines(filePath, new[] { l.Serialize() });
+                File.AppendAllLines(modelFilePath, new[] { l.Serialize() });
+            }
+
+
+            SaveParametersToH5File(Utils.UpdateFilePathChangingExtension(modelFilePath, "", "", ".h5"));
+        }
+
+        /// <summary>
+        /// load the parameters from h5 file 'h5FilePath' into the network
+        /// </summary>
+        /// <param name="h5FilePath"></param>
+        /// <param name="originFramework"></param>
+        private void SaveParametersToH5File(string h5FilePath)
+        {
+            if (File.Exists(h5FilePath))
+            {
+                File.Delete(h5FilePath);
+            }
+            using var h5File = new H5File(h5FilePath);
+            foreach (var l in Layers)
+            {
+                foreach (var p in l.GetParametersAsCpuFloatTensors(Config.CompatibilityMode))
+                {
+                    h5File.Write(p.Key, p.Value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// load the parameters from h5 file 'h5FilePath' into the network
+        /// </summary>
+        /// <param name="h5FilePath"></param>
+        /// <param name="originFramework"></param>
+        public void LoadParametersFromH5File(string h5FilePath, NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            using var h5File = new H5File(h5FilePath);
+            var h5FileParameters = h5File.Datasets();
+            Layers.ForEach(l=>l.LoadParameters(h5FileParameters, originFramework));
+
+            var networkParametersKeys = Layers.SelectMany(t => t.Parameters).Select(t => t.Item2).ToList();
+            var elementMissingInH5Files = networkParametersKeys.Except(h5FileParameters.Keys).ToList();
+            if (elementMissingInH5Files.Count != 0)
+            {
+                Info(elementMissingInH5Files.Count + " parameters are missing in file " + h5FilePath + ": " + string.Join(", ", elementMissingInH5Files));
+            }
+            var elementMissingInNetwork = h5FileParameters.Keys.Except(networkParametersKeys).ToList();
+            if (elementMissingInNetwork.Count != 0)
+            {
+                Info(elementMissingInNetwork.Count + " parameters are missing in network " + h5FilePath + ": " + string.Join(", ", elementMissingInNetwork));
             }
         }
         public void LogContent()
@@ -893,9 +703,9 @@ namespace SharpNet.Networks
                         )
                     {
                         var swSaveTime = Stopwatch.StartNew();
-                        var filePath = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
-                        Save(filePath);
-                        Info("Network '" + Description + "' saved in " + filePath + " in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
+                        var modelFilePath = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
+                        Save(modelFilePath);
+                        Info("Network '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
                         lastAutoSaveTime = DateTime.Now;
                     }
                     #endregion
@@ -992,115 +802,6 @@ namespace SharpNet.Networks
 
             _bytesByBatchSize = null; //we need tor recompute the batch size in bytes
         }
-
-        #region profiling
-        private string LayersKpi()
-        {
-            var totalSeconds = _spInternalFit.Elapsed.TotalSeconds;
-            var result = "Took " + Math.Round(totalSeconds, 1) + "s";
-            result += " (Loss:" + Math.Round(100 * _swComputeLoss.Elapsed.TotalSeconds / totalSeconds, 0) + "%+Accuracy:"+ Math.Round(100 * _swComputeAccuracy.Elapsed.TotalSeconds / totalSeconds, 0) +"%])"+ Environment.NewLine;
-            result += KpiByLayerType(totalSeconds);
-            return result;
-        }
-
-        private string KpiByLayerType(double totalSeconds)
-        {
-            double PercentageOfTimeTaken(IDictionary<string, Stopwatch> layerTypeToTimer, string layerType)
-            {
-                return layerTypeToTimer.TryGetValue(layerType, out var sw) ? (sw.Elapsed.TotalSeconds/Math.Max(totalSeconds, 1e-6)) : 0.0;
-            }
-            string ParentLayerName(string keyName)
-            {
-                int idx = keyName.IndexOf(">", StringComparison.Ordinal);
-                return (idx > 0) ? keyName.Substring(0, idx) : keyName;
-            }
-            double ParentTime(string keyName, List<Tuple<string, double, double, double, double>> values)
-            {
-                var parent = ParentLayerName(keyName);
-                var parentTuple = values.FirstOrDefault(t => t.Item1 == parent);
-                return parentTuple==null?0:parentTuple.Item2 + parentTuple.Item3 + parentTuple.Item4 + parentTuple.Item5;
-            }
-            var data = new List<Tuple<string, double, double, double, double>>();
-            var separatingLine = new string('=', 100);
-            var allKeys = ForwardPropagationTrainingTime.Keys.Union(BackwardPropagationTime.Keys).Union(ForwardPropagationInferenceTime.Keys).Union(_updateWeightsTime.Keys).ToList();
-            foreach (var layerType in allKeys)
-            {
-                data.Add(Tuple.Create(layerType, PercentageOfTimeTaken(ForwardPropagationTrainingTime, layerType), PercentageOfTimeTaken(BackwardPropagationTime, layerType), PercentageOfTimeTaken(ForwardPropagationInferenceTime, layerType), PercentageOfTimeTaken(_updateWeightsTime, layerType)));
-            }
-
-            data = data.OrderByDescending(t => ParentTime(t.Item1, data)).ThenBy(t => t.Item1).ToList();
-            var result = separatingLine + Environment.NewLine;
-            result += "LayerName              Forward(Training)  Backward(Training)  Forward(Inference)        UpdateHeight" + Environment.NewLine;
-            result += separatingLine + Environment.NewLine;
-            result += string.Join(Environment.NewLine, data.Select(d => KpiByLayerTypeSingleLine(d.Item1, d.Item2, d.Item3, d.Item4, d.Item5))) + Environment.NewLine;
-            //we compute the total by column
-            result += separatingLine+Environment.NewLine;
-            var dataWithoutDuplicate = data.Where(t => !t.Item1.Contains(">")).ToList();
-            result += KpiByLayerTypeSingleLine("", dataWithoutDuplicate.Select(t => t.Item2).Sum(), dataWithoutDuplicate.Select(t => t.Item3).Sum(), dataWithoutDuplicate.Select(t => t.Item4).Sum(), dataWithoutDuplicate.Select(t => t.Item5).Sum()) + Environment.NewLine;
-            result += separatingLine + Environment.NewLine;
-            return result;
-        }
-
-        private static string KpiByLayerTypeSingleLine(string layerType, double forwardPropagationTraining, double forwardPropagationInference, double backwardPropagation, double totalUpdateWeights)
-        {
-            string AsDisplayString(double d)
-            {
-                return Math.Round(d * 100, 1) + "%";
-            }
-            string SubCategoryLayerName(string keyName)
-            {
-                int idx = keyName.IndexOf(">", StringComparison.Ordinal);
-                return (idx >= 0) ? keyName.Substring(idx) : "";
-            }
-            const int columnWidth = 20;
-            return (layerType.Contains(">")?$"{SubCategoryLayerName(layerType),20}":$"{layerType,-20}")
-                    +$"{AsDisplayString(forwardPropagationTraining),columnWidth}{AsDisplayString(forwardPropagationInference),columnWidth}{AsDisplayString(backwardPropagation),columnWidth}{AsDisplayString(totalUpdateWeights),columnWidth}".TrimEnd();
-        }
-
-        public static void StartTimer(string key, IDictionary<string, Stopwatch> layerTypeToStopWatch)
-        {
-            if (layerTypeToStopWatch.TryGetValue(key, out Stopwatch sw))
-            {
-                sw.Start();
-                return;
-            }
-            layerTypeToStopWatch[key] = Stopwatch.StartNew();
-        }
-
-        public static void StopTimer(string key, IDictionary<string, Stopwatch> layerTypeToStopWatch)
-        {
-            Debug.Assert(layerTypeToStopWatch.ContainsKey(key));
-            layerTypeToStopWatch[key].Stop();
-        }
-        #endregion
-
-        public void LoadFromH5Dataset(List<Tuple<string, Tensor>> h5FileDatasetAsList, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            var h5FileDataset = new Dictionary<string, Tensor>();
-            foreach (var e in h5FileDatasetAsList)
-            {
-                if (h5FileDataset.ContainsKey(e.Item1))
-                {
-                    throw new ArgumentException("duplicate dataset path for "+e.Item1);
-                }
-                h5FileDataset[e.Item1] = e.Item2;
-            }
-
-            foreach (var l in Layers.Skip(1)) //we skip the input layer
-            {
-                l.LoadParametersFromH5Dataset(h5FileDataset, originFramework);
-            }
-        }
-        // ReSharper disable once UnusedMember.Global
-        public List<Tuple<string, Tensor>> SaveToH5Dataset(NetworkConfig.CompatibilityModeEnum targetFramework)
-        {
-            var result = new List<Tuple<string, Tensor>>();
-            foreach (var l in Layers.Skip(1)) //we skip the input layer
-            {
-                l.SaveToH5Dataset(result, targetFramework);
-            }
-            return result;
-        }
         public void Info(string msg) { Config.Logger.Info(msg); }
         public void LogDebug(string msg) { Config.Logger.Debug(msg); }
 
@@ -1122,11 +823,6 @@ namespace SharpNet.Networks
             PropagationManager.Forward(X, yPredicted, isTraining);
             return yPredicted;
         }
-
-
-
-
-
         /// <summary>
         /// Perform a mini batch gradient descent for an entire epoch, each mini batch will have (at most) 'miniBatchSize' elements
         /// </summary>
@@ -1288,39 +984,6 @@ namespace SharpNet.Networks
 
             return _yPredictedForEpoch;
         }
-
-
-        private Tensor _bufferAddGradientFromSlaveNetwork;
-
-        private void AddGradientFromSlaveNetwork(Network slave)
-        {
-            Debug.Assert(IsMaster);
-            Debug.Assert(!slave.IsMaster);
-            Debug.Assert(_compactedGradientsIfAny != null);
-            Debug.Assert(slave._compactedGradientsIfAny != null);
-            MemoryPool.GetFloatTensor(ref _bufferAddGradientFromSlaveNetwork, _compactedGradientsIfAny.Shape);
-            slave._compactedGradientsIfAny.CopyTo(_bufferAddGradientFromSlaveNetwork); //Device to other Device copy (not in the same GPU)
-            _compactedGradientsIfAny.Update_Adding_Alpha_X(1, _bufferAddGradientFromSlaveNetwork);
-        }
-
-        //private void AddGradientFromSlaveNetwork(Network slave)
-        //{
-        //    Debug.Assert(IsMaster);
-        //    Debug.Assert(!slave.IsMaster);
-        //    var slaveGradients = slave.ParameterGradients;
-        //    var masterGradients = ParameterGradients;
-        //    Debug.Assert(slaveGradients.Count == masterGradients.Count);
-        //    for (int i = 0; i < masterGradients.Count; ++i)
-        //    {
-        //        var masterTensor = masterGradients[i].Item1;
-        //        var slaveTensor = slaveGradients[i].Item1;
-        //        Debug.Assert(masterTensor.SameShape(slaveTensor));
-        //        MemoryPool.GetFloatTensor(ref _bufferAddGradientFromSlaveNetwork, masterTensor.Shape);
-        //        slaveTensor.CopyTo(_bufferAddGradientFromSlaveNetwork); //Device to other Device copy (not in the same GPU)
-        //        masterTensor.Update_Adding_Alpha_X(1, _bufferAddGradientFromSlaveNetwork);
-        //    }
-        //}
-
         public int LastLayerIndex => Layers.Last().LayerIndex;
 
         private bool UseGPU => _resourceIds.Max() >= 0;

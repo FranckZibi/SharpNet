@@ -21,8 +21,8 @@ namespace SharpNetTests.GPU
             var km = new KernelManager(GpuWrapper);
             var size = 1 << 20;
             var shape = new[] { 1, size, 1, 1 };
-            var aCpu = RandomTensor(shape, "aCpu");
-            var bCpu = RandomTensor(shape, "bCpu");
+            var aCpu = RandomTensor(shape);
+            var bCpu = RandomTensor(shape);
             var resultCpu = new CpuTensor<float>(shape);
             for (int i = 0; i < aCpu.Count; ++i)
             {
@@ -61,8 +61,8 @@ namespace SharpNetTests.GPU
 
             int size = 1<<20;
             var shape = new [] {1, size, 1, 1};
-            var aCpu = RandomTensor(shape, "aCpu");
-            var bCpu = RandomTensor(shape, "bCpu");
+            var aCpu = RandomTensor(shape);
+            var bCpu = RandomTensor(shape);
             var resultCpu = new CpuTensor<float>(shape);
             int nbBatchCpu = 10;
             int nbBatchGPU = 1000;
@@ -88,9 +88,9 @@ namespace SharpNetTests.GPU
             Console.WriteLine("1 GPU Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
         }
 
-        private CpuTensor<float> RandomTensor(int[] shape, string description)
+        private CpuTensor<float> RandomTensor(int[] shape)
         {
-            return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5, description);
+            return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
         }
     }
 }

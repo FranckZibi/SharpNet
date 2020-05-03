@@ -58,7 +58,7 @@ namespace SharpNetTests
             var lr = isConstantByInterval
                     ?LearningRateScheduler.ConstantByInterval(1, 0.1, 3, 0.3, 6, 0.9)
                     : LearningRateScheduler.InterpolateByInterval(1, 0.1, 3, 0.3, 6, 0.9);
-            var serialized = Serializer.Deserialize(lr.Serialize(), null);
+            var serialized = Serializer.Deserialize(lr.Serialize());
             var lr2 = LearningRateScheduler.ValueOf(serialized);
             for (int epoch = -1; epoch <= 100; ++epoch)
             {

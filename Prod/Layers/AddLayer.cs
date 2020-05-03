@@ -21,7 +21,6 @@ namespace SharpNet.Layers
             //we add the identity shortcut connection
             AddPreviousLayer(previousIdentityLayerIndex);
         }
-
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
@@ -38,17 +37,13 @@ namespace SharpNet.Layers
         #endregion
 
         #region serialization
-        public AddLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
-        {
-        }
-        #endregion
 
-        #region clone layer
-
-        public override void AddToOtherNetwork(Network otherNetwork)
+        public static AddLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            otherNetwork.Layers.Add(new AddLayer(PreviousLayerIndexes[1], PreviousLayerIndexes[0], otherNetwork, LayerName));
+            var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
+            return new AddLayer(previousLayerIndexes[1], previousLayerIndexes[0], network, (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
     }
 }

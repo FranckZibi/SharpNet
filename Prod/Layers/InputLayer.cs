@@ -49,18 +49,17 @@ namespace SharpNet.Layers
         {
             return RootSerializer().Add(nameof(_c), _c).Add(nameof(_h), _h).Add(nameof(_w), _w).ToString();
         }
-        public InputLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static InputLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            _c = (int)serialized[nameof(_c)];
-            _h = (int)serialized[nameof(_h)];
-            _w = (int)serialized[nameof(_w)];
+            return new InputLayer(
+                (int)serialized[nameof(_c)],
+                (int)serialized[nameof(_h)],
+                (int)serialized[nameof(_w)],
+                network,
+                (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new InputLayer(_c, _h, _w, otherNetwork, LayerName));
-        }
 
         public override int[] OutputShape(int batchSize) { return new[] { batchSize, _c, _h, _w }; }
         public override string ToString()

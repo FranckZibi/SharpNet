@@ -53,18 +53,19 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(ActivationFunction), (int)ActivationFunction).ToString();
+            return RootSerializer()
+                .Add(nameof(ActivationFunction), (int)ActivationFunction)
+                .ToString();
         }
-        public ActivationLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static ActivationLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            ActivationFunction = (cudnnActivationMode_t)serialized[nameof(ActivationFunction)];
+            return new ActivationLayer(
+                (cudnnActivationMode_t)serialized[nameof(ActivationFunction)],
+                network,
+                (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new ActivationLayer(ActivationFunction, otherNetwork, LayerName));
-        }
  
         private static string ToString(cudnnActivationMode_t activationFunction)
         {

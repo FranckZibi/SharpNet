@@ -29,17 +29,11 @@ namespace SharpNet.Layers
         #endregion
 
         #region serialization
-        public FlattenLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static FlattenLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
+            return new FlattenLayer(network, (string)serialized[nameof(LayerName)]);
         }
-        #endregion
-
-        #region clone layer
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new FlattenLayer(otherNetwork, LayerName));
-        }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
         public override int[] OutputShape(int batchSize) {return new []{batchSize, PrevLayer.n_x};}

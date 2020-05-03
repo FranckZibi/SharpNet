@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using HDF.PInvoke;
+using SharpNet.CPU;
 using H5FileId = System.Int64;
 using H5GroupId = System.Int64;
 // ReSharper disable UnusedMember.Global
@@ -16,46 +17,26 @@ namespace SharpNet.Data
         private bool _disposed;
         #endregion
 
-        public H5File(string filePath)
+        public H5File(string filePath, uint flags = H5F.ACC_RDONLY)
         {
+            _filePath = filePath;
             if (!File.Exists(filePath))
             {
-                throw new ArgumentException("missing file "+filePath);
+                //we create the file
+                _fileId = H5F.create(_filePath, H5F.ACC_TRUNC);
+                if (_fileId < 0)
+                {
+                    throw new ApplicationException("H5F.create fail for file " + filePath);
+                }
             }
-            _filePath = filePath;
-            _fileId = H5F.open(filePath, H5F.ACC_RDONLY);
-        }
-
-        /// <summary>
-        /// list of all dataset objects paths contained in a specific group.
-        /// only the names (paths) of the dataset are returned (not the dataset content)
-        /// </summary>
-        /// <param name="groupPath">group where to look for datasets</param>
-        /// <returns>list of all dataset paths contained in the group</returns>
-        // ReSharper disable once MemberCanBePrivate.Global
-        public List<string> DatasetPaths(string groupPath = "/")
-        {
-            H5GroupId groupId = H5G.open(_fileId, groupPath);
-            var result = new List<string>();
-            foreach (var objectName in HDFUtils.ObjectNames(groupId))
+            else
             {
-                var objectPath = HDFUtils.Join(groupPath, objectName);
-                var objectType = HDFUtils.GetObjectType(groupId, objectName);
-                if (objectType == H5O.type_t.DATASET)
+                _fileId = H5F.open(_filePath, flags);
+                if (_fileId < 0)
                 {
-                    result.Add(objectPath);
-                }
-                else if (objectType == H5O.type_t.GROUP)
-                {
-                    result.AddRange(DatasetPaths(objectPath));
-                }
-                else
-                {
-                    throw new NotImplementedException("can't process object type "+objectType+" for path "+objectPath+" in file "+_filePath );
+                    throw new ApplicationException("H5F.open fail for file "+filePath);
                 }
             }
-            H5G.close(groupId);
-            return result;
         }
 
         /// <summary>
@@ -63,17 +44,31 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="groupPath">group where to look for datasets</param>
         /// <returns>the  list of all datasets contained in the group</returns>
-        public List<Tuple<string, Tensor>> Datasets(string groupPath = "/")
+        public IDictionary<string, Tensor> Datasets(string groupPath = "/")
         {
             H5GroupId groupId = H5G.open(_fileId, groupPath);
-            var result = new List<Tuple<string, Tensor>>();
-            foreach (var datasetPath in DatasetPaths(groupPath))
+            var result = new Dictionary<string, Tensor>();
+            foreach (var datasetPath in HDFUtils.DatasetPaths(_fileId, groupPath))
             {
-                var tensor = HDFUtils.SingleDataset(groupId, datasetPath);
-                result.Add(Tuple.Create(datasetPath, tensor));
+                if (result.ContainsKey(datasetPath))
+                {
+                    throw new ArgumentException("duplicate dataset path for " + datasetPath);
+                }
+                result[datasetPath] = HDFUtils.SingleDataset(groupId, datasetPath);
             }
             H5G.close(groupId);
             return result;
+        }
+
+        /// <summary>
+        /// add the dataset 'dataSet' in the file at path 'datasetPathWithName'
+        /// </summary>
+        /// <param name="datasetPathWithName">the path where to store the dataSet. It will be automatically created if needed</param>
+        /// <param name="dataSet">the dataSet to store in the file</param>
+        /// <returns>true if successful; otherwise false</returns>
+        public bool Write<T>(string datasetPathWithName, CpuTensor<T> dataSet)
+        {
+            return HDFUtils.WriteDataSet(_fileId, datasetPathWithName, dataSet);
         }
 
         public override string ToString()

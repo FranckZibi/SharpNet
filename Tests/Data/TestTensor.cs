@@ -21,24 +21,16 @@ namespace SharpNetTests.Data
             //double test
             var shape = new[] {10, 5};
             var rand = new Random(0);
-            Tensor a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
+            Tensor a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5);
             var aSerialized = new Serializer().Add("a", a).ToString();
-            var aDeserialized = (Tensor)Serializer.Deserialize(aSerialized, null)["a"];
+            var aDeserialized = (Tensor)Serializer.Deserialize(aSerialized)["a"];
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-9));
-            Tensor aGpu = a.ToGPU<float>(GpuWrapper);
-            var aGpuSerialized = new Serializer().Add("aGpu", aGpu).ToString();
-            var aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["aGpu"];
-            Assert.IsTrue(SameContent(aGpu, aGpuDeserialized, 1e-9));
 
             //float test
-            a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5, "a");
+            a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5);
             aSerialized = new Serializer().Add("a", a).ToString();
-            aDeserialized = (Tensor)Serializer.Deserialize(aSerialized, null)["a"];
+            aDeserialized = (Tensor)Serializer.Deserialize(aSerialized)["a"];
             Assert.IsTrue(SameContent(a, aDeserialized, 1e-5));
-            aGpu = a.ToGPU<float>(GpuWrapper);
-            aGpuSerialized = new Serializer().Add("aGpu", aGpu).ToString();
-            aGpuDeserialized = (Tensor)Serializer.Deserialize(aGpuSerialized, GpuWrapper)["aGpu"];
-            Assert.IsTrue(SameContent(aGpu,aGpuDeserialized, 1e-5));
         }
 
         [Test]

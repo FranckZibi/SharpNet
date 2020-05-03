@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
+using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -263,7 +264,7 @@ namespace SharpNet.Layers
                 Debug.Assert(newParameters.Count == 1);
             }
         }
-        public override void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
         {
             h5FileDataset[ConvolutionDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(_convolution);
             if (UseBias) //we load bias if necessary
@@ -271,6 +272,19 @@ namespace SharpNet.Layers
                 h5FileDataset[ConvolutionBiasDatasetPath].CopyTo(_convolutionBias);
             }
         }
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            var result = new Dictionary<string, CpuTensor<float>>();
+            result.Add(ConvolutionDatasetPath,(CpuTensor<float>) _convolution.ToCpuFloat().ChangeAxis(new[] {2, 3, 1, 0}));
+            if (UseBias) //we load bias if necessary
+            {
+                // ReSharper disable once PossibleNullReferenceException
+                result.Add(ConvolutionBiasDatasetPath, _convolutionBias.ToCpuFloat());
+            }
+
+            return result;
+        }
+
         public override void ReplaceGradients(List<Tensor> newGradients)
         {
             FreeFloatTensor(ref _convolutionGradients);
@@ -293,43 +307,37 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
-                .Add(nameof(_isDepthwiseConvolution), _isDepthwiseConvolution).Add(nameof(_filtersCount), _filtersCount).Add(nameof(_depthMultiplier), _depthMultiplier)
-                .Add(nameof(_f), _f).Add(nameof(_stride), _stride)
+            return RootSerializer()
+                .Add(nameof(_isDepthwiseConvolution), _isDepthwiseConvolution)
+                .Add(nameof(_filtersCount), _filtersCount)
+                .Add(nameof(_depthMultiplier), _depthMultiplier)
+                .Add(nameof(_f), _f)
+                .Add(nameof(_stride), _stride)
                 .Add(nameof(_paddingType), (int)_paddingType)
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
-                .Add(_optimizer.Serialize())
+                .Add(nameof(UseBias), UseBias)
+                .Add(nameof(PreviousLayerIndex), PreviousLayerIndex)
                 .ToString();
         }
-        public ConvolutionLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static ConvolutionLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            _isDepthwiseConvolution = (bool)serialized[nameof(_isDepthwiseConvolution)];
-            _filtersCount = (int)serialized[nameof(_filtersCount)];
-            _depthMultiplier = (int)serialized[nameof(_depthMultiplier)];
-            _f = (int)serialized[nameof(_f)];
-            _stride = (int)serialized[nameof(_stride)];
-            _paddingType = (PADDING_TYPE)serialized[nameof(_paddingType)];
-            _lambdaL2Regularization = (double)serialized[nameof(_lambdaL2Regularization)];
-
-            //trainable params
-            _convolution = (Tensor)serialized[ConvolutionDatasetPath];
-            //bias may be null if it has been disabled
-            _convolutionBias = serialized.TryGet<Tensor>(ConvolutionBiasDatasetPath);
-
-            //gradients
-            _convolutionGradients = GetFloatTensor(_convolution.Shape);
-            _convolutionBiasGradients = (_convolutionBias != null) ? GetFloatTensor(_convolutionBias.Shape) : null;
-
-            _optimizer = Optimizer.ValueOf(network.Config, serialized);
+            var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
+            return new ConvolutionLayer(
+                (bool) serialized[nameof(_isDepthwiseConvolution)],
+                (int) serialized[nameof(_filtersCount)],
+                (int) serialized[nameof(_depthMultiplier)],
+                (int) serialized[nameof(_f)],
+                (int)serialized[nameof(_stride)],
+                (PADDING_TYPE)serialized[nameof(_paddingType)], 
+                (double)serialized[nameof(_lambdaL2Regularization)],
+                (bool)serialized[nameof(UseBias)],
+                previousLayerIndexes[0],
+                network,
+                (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new ConvolutionLayer(_isDepthwiseConvolution, _filtersCount, _depthMultiplier, _f, _stride, _paddingType, _lambdaL2Regularization, UseBias, PreviousLayerIndexes[0], otherNetwork, LayerName));
-        }
-
-       
+        private int PreviousLayerIndex => PreviousLayerIndexes[0];
         public override string Type()
         {
             return _isDepthwiseConvolution? "DepthwiseConv2D" : "Conv2D";

@@ -21,7 +21,10 @@ namespace SharpNet.Layers
         private readonly int _aLength;      //length of a hidden state for a specific time step / specific sentence
         private readonly int _yLength;
         private readonly bool _returnSequences;
+#pragma warning disable 649
         private Tensor a_init;         //(batchSize, aLength)
+#pragma warning restore 649
+        // ReSharper disable once CollectionNeverUpdated.Local
         private readonly List<Tensor> a_t = new List<Tensor>();   //vector of length 'timeSteps_x' / each element: (batchSize, aLength)
         //a_t(t) hidden state at time step 't' (batchSize, aLength)
         //a_t(t): tanh( x_t(t)*Weights_ax + a_t(t-1)*Weights_aa + Bias_a)
@@ -33,6 +36,7 @@ namespace SharpNet.Layers
         //Bias
         public readonly Tensor Bias_a;                  // (1, aLength) 
         //vector of length 'timeSteps_y' / each element: (batchSize, yLength)
+        // ReSharper disable once CollectionNeverUpdated.Local
         private readonly List<Tensor> y_t = new List<Tensor>();       //y(t) = softmax( a(t)*Weights_ay + Bias_y)
         public readonly Tensor Weights_ay;              // (aLength, yLength) 
         //Bias relating the hidden-state to the output
@@ -131,26 +135,24 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(_timeSteps_x), _timeSteps_x).Add(nameof(_xLength), _xLength)
+                .Add(nameof(_xLength), _xLength)
                 .Add(nameof(_aLength), _aLength)
-                .Add(nameof(_returnSequences), _returnSequences)
                 .Add(nameof(_yLength), _yLength)
+                .Add(nameof(_returnSequences), _returnSequences)
                 .ToString();
         }
-        public SimpleRnnLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static SimpleRnnLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            _timeSteps_x = (int)serialized[nameof(_timeSteps_x)];
-            _xLength = (int)serialized[nameof(_xLength)];
-            _aLength = (int)serialized[nameof(_aLength)];
-            _yLength = (int)serialized[nameof(_yLength)];
-            _returnSequences = (bool)serialized[nameof(_returnSequences)];
+            return new SimpleRnnLayer(
+                (int)serialized[nameof(_xLength)],
+                (int)serialized[nameof(_aLength)],
+                (int)serialized[nameof(_yLength)],
+                (bool)serialized[nameof(_returnSequences)],
+                network,
+                (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new SimpleRnnLayer(_xLength, _aLength, _yLength, _returnSequences, otherNetwork, LayerName));
-        }
 
         public override int[] OutputShape(int batchSize)
         {

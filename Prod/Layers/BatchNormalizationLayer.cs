@@ -175,13 +175,6 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
-        public override void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            h5FileDataset[ScaleDatasetPath].CopyTo(_scale);
-            h5FileDataset[BiasDatasetPath].CopyTo(_bias);
-            h5FileDataset[RunningMeanDatasetPath].CopyTo(_resultRunningMean);
-            h5FileDataset[RunningVarianceDatasetPath].CopyTo(_resultRunningVariance);
-        }
         private string ScaleDatasetPath => DatasetNameToDatasetPath("gamma:0");
         private string BiasDatasetPath => DatasetNameToDatasetPath("beta:0");
         private string RunningMeanDatasetPath => DatasetNameToDatasetPath("moving_mean:0");
@@ -191,41 +184,18 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer() // 'RootSerializer()' will also serialize layer  parameters
-                .Add(nameof(_epsilon), _epsilon)
-                .Add(nameof(_momentum), _momentum)
-                .Add(_optimizer.Serialize())
-                .ToString();
+            return RootSerializer().Add(nameof(_epsilon), _epsilon).Add(nameof(_momentum), _momentum).ToString();
         }
-        public BatchNormalizationLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static BatchNormalizationLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            _epsilon = (double)serialized[nameof(_epsilon)];
-            _momentum = (double)serialized[nameof(_momentum)];
-
-            //trainable params
-            _scale = (Tensor)serialized[ScaleDatasetPath];
-            _bias = serialized.TryGet<Tensor>(BiasDatasetPath);
-
-            //non trainable params
-            _resultRunningMean = (Tensor)serialized[RunningMeanDatasetPath];
-            _resultRunningVariance = (Tensor)serialized[RunningVarianceDatasetPath];
-
-            //gradients
-            _scaleGradients = GetFloatTensor(_scale.Shape);
-            _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
-
-            //temporary buffers
-            _meanBuffer = GetFloatTensor(_scale.Shape);
-            _invertOfUnbiasedVolatilityBuffer = GetFloatTensor(_scale.Shape);
-
-            _optimizer = Optimizer.ValueOf(network.Config, serialized);
+            return new BatchNormalizationLayer(
+                (double)serialized[nameof(_epsilon)],
+                (double)serialized[nameof(_momentum)],
+                network,
+                (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new BatchNormalizationLayer(_momentum, _epsilon, otherNetwork, LayerName));
-        }
         
         public override string ToString()
         {

@@ -60,16 +60,12 @@ namespace SharpNet.Layers
         {
             return RootSerializer().Add(nameof(_dropProbability), _dropProbability).ToString();
         }
-        public DropoutLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static DropoutLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            _dropProbability = (double)serialized[nameof(_dropProbability)];
+            return new DropoutLayer((double)serialized[nameof(_dropProbability)], network, (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new DropoutLayer(_dropProbability,otherNetwork, LayerName));
-        }
 
         public override void Dispose()
         {

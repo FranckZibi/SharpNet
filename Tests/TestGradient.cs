@@ -90,9 +90,9 @@ namespace SharpNetTests
             CompareExpectedVsObservedGradients(network, batchNormLayer, true, X, Y, _rand, 1);
         }
 
-        private static CpuTensor<float> FromNumpyArray(string s, string description)
+        private static CpuTensor<float> FromNumpyArray(string s)
         {
-            var tensor = TensorExtensions.FromNumpyArray(s, description);
+            var tensor = TensorExtensions.FromNumpyArray(s);
             return tensor.AsFloatCpu;
         }
         private static double ComputeGradientAndReturnLoss(Network network, Tensor X, CpuTensor<float> yExpected)
@@ -174,12 +174,12 @@ namespace SharpNetTests
         }
         private static CpuTensor<float> GetY()
         {
-            return FromNumpyArray(TestNetworkPropagation.Y_2_3, "Y");
+            return FromNumpyArray(TestNetworkPropagation.Y_2_3);
         }
 
         private static CpuTensor<float> GetX()
         {
-            return FromNumpyArray(TestNetworkPropagation.X_2_1_4_4, "X");
+            return FromNumpyArray(TestNetworkPropagation.X_2_1_4_4);
         }
 
     }

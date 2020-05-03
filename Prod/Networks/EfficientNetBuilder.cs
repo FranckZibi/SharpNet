@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -219,9 +218,8 @@ namespace SharpNet.Networks
                 {
                     throw new ArgumentException("missing "+weights+" model file "+modelPath);
                 }
-                var efficientnet = new H5File(modelPath).Datasets();
                 net.Info("loading weights from " + modelPath);
-                net.LoadFromH5Dataset(efficientnet, NetworkConfig.CompatibilityModeEnum.TensorFlow1);
+                net.LoadParametersFromH5File(modelPath, NetworkConfig.CompatibilityModeEnum.TensorFlow1);
             }
 
 
@@ -268,7 +266,7 @@ namespace SharpNet.Networks
                     .Activation(DefaultActivation);
                 network.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
-                network.MultiplyLayer(network.LastLayerIndex, xLayerIndex, layerPrefix + "se_excite");
+                network.MultiplyLayer(xLayerIndex, network.LastLayerIndex /*diagonal matrix */, layerPrefix + "se_excite");
             }
 
             //Output phase

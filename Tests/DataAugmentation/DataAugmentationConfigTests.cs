@@ -25,7 +25,7 @@ namespace SharpNetTests.DataAugmentation
             da.ZoomRange = 1.2;
 
             var serialized = da.Serialize();
-            var deserialized = DataAugmentationConfig.ValueOf(Serializer.Deserialize(serialized, null));
+            var deserialized = DataAugmentationConfig.ValueOf(Serializer.Deserialize(serialized));
             var errors = "";
             var equals = da.Equals(deserialized, 1e-6, "id", ref errors);
             Assert.IsTrue(equals, errors);

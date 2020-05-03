@@ -14,7 +14,7 @@ namespace SharpNetTests.DataAugmentation.Operations
         {
             var rand = new Random(0);
             var shape = new [] {10, 3, 32, 32};
-            var xOriginalMiniBatch = TestCpuTensor.RandomFloatTensor(shape, rand, -1, 1, "");
+            var xOriginalMiniBatch = TestCpuTensor.RandomFloatTensor(shape, rand, -1, 1);
             var cutout = new Cutout(0, 0, 10, 10);
             var mixup = new Mixup(1, 0, xOriginalMiniBatch);
             var cutMix = new CutMix(0,0,10,10,0,xOriginalMiniBatch);

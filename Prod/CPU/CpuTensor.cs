@@ -482,28 +482,28 @@ namespace SharpNet.CPU
             Update_Adding_Alpha_X(alpha, x);
         }
 
-        public override void MultiplyTensor(Tensor a, Tensor x)
+        public override void MultiplyTensor(Tensor a, Tensor diagonalMatrix)
         {
             Debug.Assert(this.SameShape(a));
-            Debug.Assert(a.Count >= x.Count);
-            Debug.Assert(Count % x.Count == 0);
+            Debug.Assert(a.Count >= diagonalMatrix.Count);
+            Debug.Assert(Count % diagonalMatrix.Count == 0);
 
             var aFloat = a.AsFloatCpuSpan;
-            var xFloat = x.AsFloatCpuSpan;
+            var xFloat = diagonalMatrix.AsFloatCpuSpan;
             var thisFloat = AsFloatCpuSpan;
-            if (a.Count == x.Count)
+            if (a.Count == diagonalMatrix.Count)
             {
-                for (int i = 0; i < x.Count; ++i)
+                for (int i = 0; i < diagonalMatrix.Count; ++i)
                 {
                     thisFloat[i] = aFloat[i] * xFloat[i];
                 }
             }
             else
             {
-                Debug.Assert(x.Shape[0]*x.Shape[1] == x.Count);
+                Debug.Assert(diagonalMatrix.Shape[0]*diagonalMatrix.Shape[1] == diagonalMatrix.Count);
                 int indexInX = 0;
                 int indexInThis = 0;
-                int toAddInThis = a.Count / x.Count;
+                int toAddInThis = a.Count / diagonalMatrix.Count;
                 while(indexInThis<Count)
                 {
                     int endIndexInThis = indexInThis + toAddInThis;
@@ -1142,10 +1142,10 @@ namespace SharpNet.CPU
             switch (lossFunction)
             {
                 case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
-                    cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction)), "BinaryCrossentropy").NaNSum();
+                    cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction))).NaNSum();
                     break;
                 case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
-                    cost = (-1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction)), "CategoricalCrossentropy").NaNSum();
+                    cost = (-1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction))).NaNSum();
                     break;
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
@@ -1402,7 +1402,7 @@ namespace SharpNet.CPU
             var volatility = Math.Sqrt(Math.Max(0, variance));
             return Tuple.Create((float)mean, (float)volatility);
         }
-        private CpuTensor<T> Merge(CpuTensor<T> b, Func<T, T, T> func, string description)
+        private CpuTensor<T> Merge(CpuTensor<T> b, Func<T, T, T> func)
         {
             Debug.Assert(Dimension == b.Dimension);
             Debug.Assert(Count == b.Count);

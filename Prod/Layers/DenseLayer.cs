@@ -53,6 +53,7 @@ namespace SharpNet.Layers
         public int CategoryCount { get; }
         #endregion
 
+        #region constructor
         public DenseLayer(int categoryCount, double lambdaL2Regularization, Network network, string layerName) : base(network, layerName)
         {
             CategoryCount = categoryCount;
@@ -69,6 +70,7 @@ namespace SharpNet.Layers
             _optimizer = Network.GetOptimizer(_weights.Shape, _bias?.Shape);
             ResetParameters(false);
         }
+        #endregion
 
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
@@ -164,11 +166,6 @@ namespace SharpNet.Layers
                 Debug.Assert(newParameters.Count == 1);
             }
         }
-        public override void LoadParametersFromH5Dataset(Dictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            h5FileDataset[WeightDatasetPath].CopyTo(_weights);
-            h5FileDataset[BiasDatasetPath].CopyTo(_bias);
-        }
         public override int DisableBias()
         {
             int nbDisabledWeights = (_bias?.Count ?? 0);
@@ -191,6 +188,7 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
+
         private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");
         private string BiasDatasetPath => DatasetNameToDatasetPath("bias:0");
         #endregion
@@ -198,33 +196,18 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer() // 'RootSerializer()' will also serialize layer trainable params
-                .Add(nameof(CategoryCount), CategoryCount)
-                .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
-                .Add(_optimizer.Serialize())
-                .ToString();
+            return RootSerializer().Add(nameof(CategoryCount), CategoryCount).Add(nameof(LambdaL2Regularization), LambdaL2Regularization).ToString();
         }
-        public DenseLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            CategoryCount = (int)serialized[nameof(CategoryCount)];
-            LambdaL2Regularization = (double)serialized[nameof(LambdaL2Regularization)];
-
-            //trainable params
-            _weights = (Tensor)serialized[WeightDatasetPath];
-            _bias = serialized.TryGet<Tensor>(BiasDatasetPath);
-
-            //gradients
-            _weightGradients = GetFloatTensor(_weights.Shape);
-            _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
-
-            _optimizer = Optimizer.ValueOf(network.Config, serialized);
+            return new DenseLayer(
+                (int)serialized[nameof(CategoryCount)],
+                (double)serialized[nameof(LambdaL2Regularization)],
+                network,
+                (string)serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new DenseLayer(CategoryCount, LambdaL2Regularization, otherNetwork, LayerName));
-        }
 
         public override int[] OutputShape(int batchSize)
         {

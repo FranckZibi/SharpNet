@@ -71,9 +71,9 @@ namespace SharpNetTests.CPU
             var rand = new Random(0);
             var shape = new[] {32, 1157, 7, 7};
             var maxValue = 10.0;
-            var c = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
-            var a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
-            var x = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            var c = RandomFloatTensor(shape, rand, -maxValue, maxValue);
+            var a = RandomFloatTensor(shape, rand, -maxValue, maxValue);
+            var x = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             var expected = new CpuTensor<float>(shape, null);
             for (int i = 0; i < expected.Count; ++i)
             {
@@ -81,9 +81,9 @@ namespace SharpNetTests.CPU
             }
             c.MultiplyTensor(a, x);
             Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
-            c = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
-            a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
-            x = RandomFloatTensor(new[] { 32, 1157, 1, 1 }, rand, -maxValue, maxValue, "");
+            c = RandomFloatTensor(shape, rand, -maxValue, maxValue);
+            a = RandomFloatTensor(shape, rand, -maxValue, maxValue);
+            x = RandomFloatTensor(new[] { 32, 1157, 1, 1 }, rand, -maxValue, maxValue);
             expected = new CpuTensor<float>(shape, null);
             for (int i = 0; i < expected.Count; ++i)
             {
@@ -109,14 +109,14 @@ namespace SharpNetTests.CPU
             var rand = new Random(0);
             foreach (var shape in new[] {new [] {7, 3, 7, 8}, new[] { 4, 5, 12, 5 } })
             {
-                var src = RandomFloatTensor(shape, rand, -100.0, 100.0, "");
+                var src = RandomFloatTensor(shape, rand, -100.0, 100.0);
                 foreach (var top_pad in new[] {0, 1, 3})
                 foreach (var bottom_pad in new[] {0, 1, 3})
                 foreach (var left_pad in new[] {0, 1, 3})
                 foreach (var right_pad in new[] {0, 1, 3})
                 {
                     var destShape = new[] { shape[0], shape[1], top_pad + shape[2] + bottom_pad, left_pad + shape[3] + right_pad};
-                    var observedDest = RandomFloatTensor(destShape, rand, -100.0, 100.0, "");
+                    var observedDest = RandomFloatTensor(destShape, rand, -100.0, 100.0);
                     observedDest.ZeroPadding(src, top_pad, bottom_pad, left_pad, right_pad);
 
                     var expectedDest = new CpuTensor<float>(destShape, null);
@@ -140,8 +140,8 @@ namespace SharpNetTests.CPU
             var rand = new Random(0);
             var shape = new[] { 32, 1157, 7, 7 };
             var maxValue = 10.0;
-            var a = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
-            var b = RandomFloatTensor(shape, rand, -maxValue, maxValue, "");
+            var a = RandomFloatTensor(shape, rand, -maxValue, maxValue);
+            var b = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             var result = new CpuTensor<float>(new[] { 32, 1157, 1, 1 }, null);
             result.MultiplyEachRowIntoSingleValue(a,b);
             var expected = new CpuTensor<float>(result.Shape, null);
@@ -160,8 +160,8 @@ namespace SharpNetTests.CPU
         public void TestDropoutForward(int nbRows, double dropProbability, bool isTraining, int minEqualToZeroAfterDropout, int maxEqualToZeroAfterDropout)
         {
             var rand = new Random(0);
-            var x = RandomFloatTensor(new []{nbRows, 1}, rand, 10, 20, "x");
-            var y = RandomFloatTensor(x.Shape, rand, 10, 20, "y");
+            var x = RandomFloatTensor(new []{nbRows, 1}, rand, 10, 20);
+            var y = RandomFloatTensor(x.Shape, rand, 10, 20);
             var memoryPool = new TensorMemoryPool(null, false);
             var dropoutReserveSpace = memoryPool.GetFloatTensor(y.Shape);
             x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace, memoryPool);
@@ -216,13 +216,13 @@ namespace SharpNetTests.CPU
             Assert.AreEqual(owner.ContentAsFloatArray(), new float[] { 10, 11, 12, 13, 24, 25, 26, 27, 28, 29 });
         }
 
-        public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue, string description)
+        public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue)
         {
             var content = new float[Utils.Product(shape)];
             Utils.Randomize(content, rand, minValue, maxValue);
             return new CpuTensor<float>(shape, content);
         }
-        public static CpuTensor<byte> RandomByteTensor(int[] shape, Random rand, byte minValue, byte maxValue, string description)
+        public static CpuTensor<byte> RandomByteTensor(int[] shape, Random rand, byte minValue, byte maxValue)
         {
             var content = new byte[Utils.Product(shape)];
             Utils.Randomize(content, rand, minValue, maxValue);

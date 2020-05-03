@@ -203,14 +203,14 @@ namespace SharpNet.Data
 
         /// <summary>
         /// Compute the element wise multiplication:
-        ///     this = a (element_wise_multiplication) Diag(c)
-        ///     where c is a vector containing a diagonal matrix
+        ///     [out] this = a (element_wise_multiplication) Diag(diagonalMatrix)
+        ///     where 'diagonalMatrix' is a vector containing a diagonal matrix
         /// and stores it in the 'this' tensor
         /// </summary>
         /// <param name="a">[in] a matrix</param>
-        /// <param name="x">[in] a vector containing a diagonal matrix
-        /// (only the diagonal of the diagonal matrix is contained in vector 'x'</param>
-        public abstract void MultiplyTensor(Tensor a, Tensor x);
+        /// <param name="diagonalMatrix">[in] a vector containing a diagonal matrix
+        /// (only the diagonal of the diagonal matrix is contained in vector 'diagonalMatrix'</param>
+        public abstract void MultiplyTensor(Tensor a, Tensor diagonalMatrix);
 
         /// <summary>
         /// this = [out] zero padded version of the 'unpaddedTensor' tensor received as input

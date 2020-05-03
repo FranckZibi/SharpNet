@@ -274,7 +274,7 @@ namespace SharpNet.Networks
 
         public NetworkConfig Clone()
         {
-            return new NetworkConfig(Serializer.Deserialize(Serialize(), null));
+            return new NetworkConfig(Serializer.Deserialize(Serialize()));
         }
 
         private NetworkConfig(IDictionary<string, object> serialized)

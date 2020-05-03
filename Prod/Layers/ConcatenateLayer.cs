@@ -48,16 +48,12 @@ namespace SharpNet.Layers
         #endregion
 
         #region serialization
-        public ConcatenateLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static ConcatenateLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
+            var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
+            return new ConcatenateLayer(previousLayerIndexes[0], previousLayerIndexes[1], network, (string)serialized[nameof(LayerName)]);
         }
-        #endregion
-
-        #region clone layer
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new ConcatenateLayer(PreviousLayerIndexes[0], PreviousLayerIndexes[1], otherNetwork, LayerName));
-        }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
         public override int[] OutputShape(int batchSize)

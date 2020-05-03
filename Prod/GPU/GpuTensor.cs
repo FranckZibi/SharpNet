@@ -675,20 +675,20 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnAddTensor(CudnnHandle, &alpha, xDesc, x, &beta, cDesc, c);
             CheckStatus(res);
         }
-        public override void MultiplyTensor(Tensor a, Tensor x)
+        public override void MultiplyTensor(Tensor a, Tensor diagonalMatrix)
         {
             var c = this;
+            //'a' shape:                (lda, n) with lda = m
+            //'c' shape:                (ldc, n) with ldc = m
+            //'diagonalMatrix' shape:   (1, n) for mode == CUBLAS_SIDE_RIGHT (and (1, m) for mode == CUBLAS_SIDE_LEFT)
             var mode = cublasSideMode_t.CUBLAS_SIDE_RIGHT;
-            Debug.Assert(Count%x.Count == 0);
-            int m = Count/x.Count; //number of rows of matrix A and C.
-            int n = x.Count; //number of columns of matrix A and C.
-            //IntPtr A; //input<type> array of dimensions lda x n with lda >= max(1, m)
-            int lda = m; //leading dimension of two-dimensional array used to store the matrix A.
-            //IntPtr x; //input one-dimensional < type > array of size | i n c | × m if mode == CUBLAS_SIDE_LEFT and | i n c | × n if mode == CUBLAS_SIDE_RIGHT
-            int incx = 1; //stride of one - dimensional array x.
-            //IntPtr C; //in/out	< type > array of dimensions ldc x n with ldc >= max(1, m).
-            int ldc = lda; //leading dimension of a two - dimensional array used to store the matrix C.
-            var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, x, incx, c, ldc);
+            Debug.Assert(Count%diagonalMatrix.Count == 0);
+            int m = Count/diagonalMatrix.Count; //number of rows of matrix 'a and 'c'
+            int n = diagonalMatrix.Count; //number of columns of matrix 'a'and 'c'
+            int lda = m; //leading dimension of two-dimensional array used to store the matrix 'a'
+            int incx = 1; //stride of one
+            int ldc = lda; //leading dimension of a two-dimensional array used to store the matrix 'c'
+            var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, diagonalMatrix, incx, c, ldc);
             GPUWrapper.CheckStatus(res);
         }
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b)

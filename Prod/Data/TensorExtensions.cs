@@ -27,7 +27,7 @@ namespace SharpNet.Data
             return res; 
         }
 
-        public static Tensor FromNumpyArray(string s, string description)
+        public static Tensor FromNumpyArray(string s)
         {
             //we extract the shape of the numpy array
             int currentDepth = -1;

@@ -42,6 +42,9 @@ namespace SharpNet.Layers
             _poolingStride = poolingStride;
         }
 
+
+        private int PreviousLayerIndex => PreviousLayerIndexes[0];
+
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
@@ -60,24 +63,27 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(_poolingHeight), _poolingHeight).Add(nameof(_poolingWidth), _poolingWidth)
-                .Add(nameof(_poolingStride), _poolingStride)
                 .Add(nameof(_poolingMode), (int)_poolingMode)
+                .Add(nameof(_poolingHeight), _poolingHeight)
+                .Add(nameof(_poolingWidth), _poolingWidth)
+                .Add(nameof(_poolingStride), _poolingStride)
                 .ToString();
         }
-        public PoolingLayer(IDictionary<string, object> serialized, Network network) : base(serialized, network)
+        public static PoolingLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            _poolingMode = (cudnnPoolingMode_t)(int)serialized[nameof(_poolingMode)];
-            _poolingHeight = (int)serialized[nameof(_poolingHeight)];
-            _poolingWidth = (int)serialized[nameof(_poolingWidth)];
-            _poolingStride = (int)serialized[nameof(_poolingStride)];
+            var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
+            return new PoolingLayer(
+                (cudnnPoolingMode_t) (int) serialized[nameof(_poolingMode)],
+                (int) serialized[nameof(_poolingHeight)],
+                (int) serialized[nameof(_poolingWidth)],
+                (int) serialized[nameof(_poolingStride)],
+                previousLayerIndexes[0],
+                network,
+                (string) serialized[nameof(LayerName)]);
         }
+        public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
-        public override void AddToOtherNetwork(Network otherNetwork)
-        {
-            otherNetwork.Layers.Add(new PoolingLayer(_poolingMode, _poolingHeight, _poolingWidth, _poolingStride, PreviousLayerIndexes[0], otherNetwork, LayerName));
-        }
         public override string Type() { return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AveragePooling"; }
         public static bool IsMaxPooling(cudnnPoolingMode_t poolingMode)
         {

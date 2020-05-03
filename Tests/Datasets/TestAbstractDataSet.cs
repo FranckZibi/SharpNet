@@ -14,7 +14,7 @@ namespace SharpNetTests.Datasets
         {
             var rand = new Random(0);
             var shape = new[] { 10, 3, 32, 32 };
-            var tensorX = TestCpuTensor.RandomByteTensor(shape, rand, 0, 255, "tensorX");
+            var tensorX = TestCpuTensor.RandomByteTensor(shape, rand, 0, 255);
             var dataSet = GetRandomDataSet(tensorX, 2, rand);
             for (int elementId = 0; elementId < shape[0]; ++elementId)
             {
@@ -34,7 +34,7 @@ namespace SharpNetTests.Datasets
 
         private static AbstractDataSet GetRandomDataSet(CpuTensor<byte> tensorX, int categoryCount, Random rand)
         {
-            var tensorY = TestCpuTensor.RandomByteTensor(new[] { tensorX.Shape[0], 1 }, rand, 0, 1, "tensorY");
+            var tensorY = TestCpuTensor.RandomByteTensor(new[] { tensorX.Shape[0], 1 }, rand, 0, 1);
 
             //var categoryIndexToDescription = new string[categoryCount];
             //for (int i = 0; i < categoryCount; ++i)
