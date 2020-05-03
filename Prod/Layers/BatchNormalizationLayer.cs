@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
+using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -175,6 +176,41 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
+        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            foreach (var layerParameters in Parameters)
+            {
+                var parameterId = layerParameters.Item2;
+                if (h5FileDataset.ContainsKey(parameterId))
+                {
+                    h5FileDataset[parameterId].CopyTo(layerParameters.Item1);
+                }
+            }
+        }
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            var result = new Dictionary<string, CpuTensor<float>>();
+            result[ScaleDatasetPath] = _scale.ToCpuFloat();
+            result[BiasDatasetPath] = _bias.ToCpuFloat();
+            result[RunningMeanDatasetPath] = _resultRunningMean.ToCpuFloat();
+            result[RunningVarianceDatasetPath] = _resultRunningVariance.ToCpuFloat();
+
+            if ((LayerBatchNormalizationMode() != cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
+                && (originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
+            )
+            {
+                Debug.Assert(_scale.Count == _scale.Shape[1]);
+                var tensorFlowShape = new[] { _scale.Shape[1]};
+                result[ScaleDatasetPath].Reshape(tensorFlowShape);
+                result[BiasDatasetPath].Reshape(tensorFlowShape);
+                result[RunningMeanDatasetPath].Reshape(tensorFlowShape);
+                result[RunningVarianceDatasetPath].Reshape(tensorFlowShape);
+            }
+
+            return result;
+        }
+
+
         private string ScaleDatasetPath => DatasetNameToDatasetPath("gamma:0");
         private string BiasDatasetPath => DatasetNameToDatasetPath("beta:0");
         private string RunningMeanDatasetPath => DatasetNameToDatasetPath("moving_mean:0");
@@ -189,8 +225,8 @@ namespace SharpNet.Layers
         public static BatchNormalizationLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new BatchNormalizationLayer(
-                (double)serialized[nameof(_epsilon)],
                 (double)serialized[nameof(_momentum)],
+                (double)serialized[nameof(_epsilon)],
                 network,
                 (string)serialized[nameof(LayerName)]);
         }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using JetBrains.Annotations;
+using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
@@ -172,6 +173,25 @@ namespace SharpNet.Layers
             FreeFloatTensor(ref _bias);
             FreeFloatTensor(ref _biasGradients);
             return nbDisabledWeights;
+        }
+
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+        {
+            var result = new Dictionary<string, CpuTensor<float>>();
+            result.Add(WeightDatasetPath, _weights.ToCpuFloat());
+            if (UseBias)
+            {
+                // ReSharper disable once PossibleNullReferenceException
+                result.Add(BiasDatasetPath, _bias.ToCpuFloat());
+                if (originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
+                {
+                    // ReSharper disable once PossibleNullReferenceException
+                    Debug.Assert(_bias.Count == _bias.Shape[1]);
+                    var tensorFlowShape = new[] { _bias.Shape[1] };
+                    result[BiasDatasetPath].Reshape(tensorFlowShape);
+                }
+            }
+            return result;
         }
         public override void ReplaceGradients(List<Tensor> newGradients)
         {

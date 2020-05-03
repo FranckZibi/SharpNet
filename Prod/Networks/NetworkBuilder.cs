@@ -46,7 +46,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// resources (both CPU & GPU) available for the network
         /// </summary>
-        public List<int> ResourceIds { get; set; }
+        public List<int> ResourceIds { get; set; } = new List<int> {0};
         public void SetResourceId(int resourceId)
         {
             if (resourceId == int.MaxValue)
@@ -81,7 +81,7 @@ namespace SharpNet.Networks
             network.Description = networkName + ExtraDescription;
             return network;
         }
-        protected static string GetKerasModelPath(string modelFileName)
+        public static string GetKerasModelPath(string modelFileName)
         {
             return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @".keras\models\", modelFileName);
         }

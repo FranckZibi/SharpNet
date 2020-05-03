@@ -9,6 +9,7 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
+using SharpNetTests.Data;
 
 namespace SharpNetTests.NonReg
 {
@@ -18,7 +19,41 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class ParallelRunWithTensorFlow
     {
+        [Test]
+        public void TestParallelRunWithTensorFlow_Efficientnet_Inference()
+        {
+            var xFileName = File.ReadAllText(Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt"));
+            var yExpectedFileName = File.ReadAllText(Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "YExpected_1_224_224_3.txt"));
+            if (!File.Exists(xFileName) || !File.Exists(yExpectedFileName))
+            {
+                return;
+            }
+            var X = TestNetworkPropagation.FromNumpyArray(xFileName);
+            X = (CpuTensor<float>)X.ChangeAxis(new[] { 0, 3, 1, 2 });
+            var yExpectedFromKeras = TestNetworkPropagation.FromNumpyArray(yExpectedFileName);
 
+            //we ensure that the network prediction is the same as in Keras
+            var networkBuilder = EfficientNetBuilder.CIFAR10();
+            networkBuilder.SetResourceId(0);
+            var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] {3, 224, 224});
+            var yPredicted = network.Predict(X, false);
+            Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredicted, 1e-5));
+
+            //we save the network
+            var savedModelFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.txt");
+            var saveParametersFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.h5");
+            network.Save(savedModelFile);
+            network.Dispose();
+
+            //we ensure that the saved version of the network behave the same as the original one
+            var networkFromSavedFile = Network.ValueOf(savedModelFile);
+            var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
+            Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
+
+            File.Delete(savedModelFile);
+            File.Delete(saveParametersFile);
+        }
+        
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow_Efficientnet()
         {
@@ -39,7 +74,7 @@ namespace SharpNetTests.NonReg
             //var logger = new Logger(logFileName, true);
 
             //var xShape = new[] { 1, 3, defaultHeight, defaultHeight };
-            var X = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(@"C:\Users\fzibi\AppData\Local\SharpNet\X_1_224_224_3.txt"));
+            var X = TestNetworkPropagation.FromNumpyArray(Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt"));
             X = (CpuTensor<float>)X.ChangeAxis(new[] { 0, 3, 1, 2 });
             //for (int i = 0; i < X.Count; ++i)
             //{

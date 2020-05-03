@@ -94,7 +94,7 @@ namespace SharpNet.Data
                 //managed memory
             }
             //unmanaged memory
-            if (_fileId != 0)
+            if (_fileId >= 0)
             {
                 H5F.close(_fileId);
             }

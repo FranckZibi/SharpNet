@@ -22,6 +22,7 @@ namespace SharpNet.Data
             var datasetId = H5D.open(objectId, datasetPath);
             var shape = DatasetShape(datasetId);
             var type = H5D.get_type(datasetId);
+            H5D.close(datasetId);
             H5T.class_t typeClass = H5T.get_class(type);
             var typeSize = H5T.get_size(type).ToInt32();
 
