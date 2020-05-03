@@ -17,23 +17,23 @@ namespace SharpNet.Pictures
         /// <param name="filename"></param>
         /// <param name="description"></param>
         /// <returns></returns>
-        public static BitmapContent ValueFomSingleRgbBitmap(string filename, string description)
+        public static BitmapContent ValueFomSingleRgbBitmap(string filename)
         {
             using (var bmp = new Bitmap(filename))
             {
-                return ValueFomSingleRgbBitmap(bmp, description);
+                return ValueFomSingleRgbBitmap(bmp);
             }
         }
+
         /// <summary>
         /// Construct an element stacking several bitmaps, each bitmap containing a single channel
         /// </summary>
         /// <param name="singleChannelBitmaps">list of bitmap files, each containing a single channel (meaning R=G=B)</param>
-        /// <param name="description"></param>
         /// <returns></returns>
-        public static BitmapContent ValueFromSeveralSingleChannelBitmaps(IEnumerable<string> singleChannelBitmaps, string description)
+        public static BitmapContent ValueFromSeveralSingleChannelBitmaps(IEnumerable<string> singleChannelBitmaps)
         {
             var bmps = singleChannelBitmaps.Select(filename => new Bitmap(filename)).ToList();
-            var result = ValueFromSeveralSingleChannelBitmaps(bmps, description);
+            var result = ValueFromSeveralSingleChannelBitmaps(bmps);
             bmps.ForEach(bmp=>bmp.Dispose());
             return result;
         }
@@ -414,9 +414,8 @@ namespace SharpNet.Pictures
         /// Construct a Volume from several bitmaps: each contain a single (grey scale) channel
         /// </summary>
         /// <param name="bmps">List of bitmap, one per channel</param>
-        /// <param name="description"></param>
         /// <returns></returns>
-        private static BitmapContent ValueFromSeveralSingleChannelBitmaps(IReadOnlyList<Bitmap> bmps, string description)
+        private static BitmapContent ValueFromSeveralSingleChannelBitmaps(IReadOnlyList<Bitmap> bmps)
         {
             var width = bmps[0].Width;
             var height = bmps[0].Height;
@@ -453,7 +452,7 @@ namespace SharpNet.Pictures
             return result;
         }
 
-        private static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp, string description)
+        private static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp)
         {
             var width = bmp.Width;
             var height = bmp.Height;

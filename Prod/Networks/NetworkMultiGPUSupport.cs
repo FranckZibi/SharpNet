@@ -29,7 +29,6 @@ namespace SharpNet.Networks
         private readonly List<Network> _slaveNetworks = new List<Network>();
         private Tensor _yExpectedForEpoch;
         private Tensor _yPredictedForEpoch;
-        private Tensor _bufferAddGradientFromSlaveNetwork;
         #endregion
 
         #region private fields used by slave networks only
@@ -156,13 +155,16 @@ namespace SharpNet.Networks
         }
         private void AddGradientFromSlaveNetwork(Network slave)
         {
-            Debug.Assert(IsMaster);
+            var master = this;
+            Debug.Assert(master.IsMaster);
             Debug.Assert(!slave.IsMaster);
-            Debug.Assert(_compactedGradientsIfAny != null);
+            Debug.Assert(master._compactedGradientsIfAny != null);
             Debug.Assert(slave._compactedGradientsIfAny != null);
-            MemoryPool.GetFloatTensor(ref _bufferAddGradientFromSlaveNetwork, _compactedGradientsIfAny.Shape);
-            slave._compactedGradientsIfAny.CopyTo(_bufferAddGradientFromSlaveNetwork); //Device to other Device copy (not in the same GPU)
-            _compactedGradientsIfAny.Update_Adding_Alpha_X(1, _bufferAddGradientFromSlaveNetwork);
+            Debug.Assert(master._compactedGradientsIfAny.SameShape(slave._compactedGradientsIfAny));
+            var bufferAddGradientFromSlaveNetwork = MemoryPool.GetFloatTensor(master._compactedGradientsIfAny.Shape);
+            slave._compactedGradientsIfAny.CopyTo(bufferAddGradientFromSlaveNetwork); //Device to other Device copy (not in the same GPU)
+            master._compactedGradientsIfAny.Update_Adding_Alpha_X(1, bufferAddGradientFromSlaveNetwork);
+            MemoryPool.FreeFloatTensor(ref bufferAddGradientFromSlaveNetwork);
         }
 
         #endregion

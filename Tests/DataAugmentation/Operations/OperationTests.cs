@@ -40,7 +40,7 @@ namespace SharpNetTests.DataAugmentation.Operations
 
         public static void ApplyToPicture(List<Operation> subPolicy, string picturePath, string augmentedPicturePath, bool normalizeInput = false)
         {
-            var bmp = BitmapContent.ValueFomSingleRgbBitmap(picturePath, picturePath);
+            var bmp = BitmapContent.ValueFomSingleRgbBitmap(picturePath);
 
             var input = bmp.ReadonlyContent.Select(x => (float)x).ToArray();
             var inputShape = new []{1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2]};

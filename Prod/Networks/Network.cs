@@ -30,6 +30,7 @@ namespace SharpNet.Networks
         private readonly List<int> _resourceIds;
         private Tensor _bufferComputeAccuracy;
         private Tensor _bufferComputeLoss;
+        private Tensor _randomNumberGeneratorStatesBufferForGPU;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         // bytes/batchSize needed for forward & backward propagation
         private ulong? _bytesByBatchSize;
@@ -98,62 +99,6 @@ namespace SharpNet.Networks
             }
         }
 
-
-        #region Transfer Learning
-        /// <summary>
-        /// set the number of output categories of the current network by updating the head layers (Dense+Activation layers)
-        /// if the number of output categories is already 'newCategoryCount'
-        ///     does nothing at all
-        /// else
-        ///     update the last Dense Layers (resetting all its weights) to match the required number of categories
-        /// </summary>
-        /// <param name="newCategoryCount">the target number of categories</param>
-        public void SetCategoryCount(int newCategoryCount)
-        {
-            if (Layers.Count>=2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count-2] is DenseLayer)
-            {
-                var denseLayer = (DenseLayer)Layers[Layers.Count - 2];
-                if (denseLayer.CategoryCount == newCategoryCount)
-                {
-                    Info("no need to set the CategoryCount to "+newCategoryCount);
-                    return; //already at target category count
-                }
-
-                //we remove the ActivationLayer (last layer)
-                var activationLayer = (ActivationLayer)Layers.Last();
-                var activationFunctionType = activationLayer.ActivationFunction;
-                var activationLayerName = activationLayer.LayerName;
-                RemoveAndDisposeLastLayer();
-
-                //we remove the Dense layer
-                var lambdaL2Regularization = denseLayer.LambdaL2Regularization;
-                var denseLayerName = denseLayer.LayerName;
-                RemoveAndDisposeLastLayer();
-
-                //We add a new DenseLayer (with weight reseted)
-                Info("Resetting weights of layer "+ denseLayerName + " to have " + newCategoryCount+" categories");
-                Dense(newCategoryCount, lambdaL2Regularization, denseLayerName);
-
-                //we put back the ActivationLayer
-                Activation(activationFunctionType, activationLayerName);
-
-                return;
-            }
-            throw new NotImplementedException("can only update a network where the 2 last layers are DenseLayer & ActivationLayer");
-        }
-        private void RemoveAndDisposeLastLayer()
-        {
-            var lastLayer = Layers.Last();
-            foreach (var previousLayers in lastLayer.PreviousLayers)
-            {
-                previousLayers.NextLayerIndexes.Remove(lastLayer.LayerIndex);
-            }
-            lastLayer.Dispose();
-            Layers.RemoveAt(Layers.Count - 1);
-            OnLayerAddOrRemove();
-        }
-        #endregion
-        
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
 
         public void Dispose()
@@ -171,10 +116,10 @@ namespace SharpNet.Networks
             _epochData.Clear();
             MemoryPool.FreeFloatTensor(ref _bufferComputeAccuracy);
             MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
+            MemoryPool.FreeFloatTensor(ref _randomNumberGeneratorStatesBufferForGPU);
             MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
             MemoryPool.FreeFloatTensor(ref _yExpectedForEpoch);
             MemoryPool.FreeFloatTensor(ref _x_miniBatch);
-            MemoryPool.FreeFloatTensor(ref _bufferAddGradientFromSlaveNetwork);
             MemoryPool.FreeFloatTensor(ref _yExpected_miniBatch_slave);
             MemoryPool.FreeFloatTensor(ref _yPredicted_miniBatch_slave);
             MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
@@ -190,7 +135,26 @@ namespace SharpNet.Networks
                 GC.Collect();
                 LogDebug("After clearing memory: " + MemoryInfo());
             }
+        }
 
+        /// <summary>
+        /// build a buffer needed by all Dropout layers when run on GPU
+        /// this tensor is null for CPU
+        /// </summary>
+        /// <returns></returns>
+        public Tensor GetRandomNumberGeneratorStatesBuffer()
+        {
+            if (!UseGPU)
+            {
+                return null;
+            }
+            if (_randomNumberGeneratorStatesBufferForGPU == null)
+            {
+                var res = CudnnWrapper.cudnnDropoutGetStatesSize(GpuWrapper.CudnnHandle, out var dropoutStateSize);
+                GPUWrapper.CheckStatus(res);
+                _randomNumberGeneratorStatesBufferForGPU = MemoryPool.GetBuffer(dropoutStateSize);
+            }
+            return _randomNumberGeneratorStatesBufferForGPU;
         }
 
         #region network construction: adding layers
@@ -209,7 +173,7 @@ namespace SharpNet.Networks
         public Network Dense(int categoryCount, double lambdaL2Regularization, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(categoryCount, lambdaL2Regularization, this, layerName);
+            var fullyConnectedLayer = new DenseLayer(categoryCount, lambdaL2Regularization, true, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
@@ -277,13 +241,13 @@ namespace SharpNet.Networks
         public Network Convolution(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(false, filtersCount, -1, f, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, this, layerName));
+            Layers.Add(new ConvolutionLayer(false, filtersCount, -1, f, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));
             return this;
         }
         public Network DepthwiseConvolution(int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, int depthMultiplier, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(true, -1, depthMultiplier, f, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, this, layerName));
+            Layers.Add(new ConvolutionLayer(true, -1, depthMultiplier, f, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, true, this, layerName));
             return this;
         }
         public Network Dropout(double dropProbability, string layerName = "")
@@ -347,7 +311,7 @@ namespace SharpNet.Networks
         public Network BatchNorm(double momentum, double epsilon, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new BatchNormalizationLayer(momentum, epsilon, this, layerName));
+            Layers.Add(new BatchNormalizationLayer(momentum, epsilon, true, this, layerName));
             return this;
         }
         public Network Dense_Activation(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
@@ -393,129 +357,6 @@ namespace SharpNet.Networks
         }
         public int TotalParams => Layers.SelectMany(x => x.Parameters).Select(t=> t.Item1.Count).Sum();
 
-        #region serialization
-        // ReSharper disable once UnusedMember.Global
-        public static Network ValueOf(string modelFilePath, int?overrideGpuDeviceId = null)
-        {
-            //we load the model (network description)
-            var allLines = File.ReadAllLines(modelFilePath);
-            var dicoFirstLine = Serializer.Deserialize(allLines[0]);
-            var config = NetworkConfig.ValueOf(dicoFirstLine);
-            int[] gpuDeviceId = overrideGpuDeviceId.HasValue ? new []{overrideGpuDeviceId.Value} : (int[])dicoFirstLine[nameof(_resourceIds)];
-            var network = new Network(config, gpuDeviceId.ToList());
-            var epochsData = (EpochData[])dicoFirstLine[nameof(_epochData)];
-            network._epochData.AddRange(epochsData);
-            network.Description = dicoFirstLine.TryGet<string>(nameof(Description))??"";
-            for (int i = 1; i < allLines.Length; ++i)
-            {
-                network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(allLines[i]), network));
-            }
-
-            //we load the parameters into the network
-            var parametersFilePath = ModelFilePath2ParameterFilePath(modelFilePath);
-            if (File.Exists(parametersFilePath))
-            {
-                network.LoadParametersFromH5File(parametersFilePath, network.Config.CompatibilityMode);
-            }
-
-            return network;
-        }
-
-        public void Save(string modelFilePath)
-        {
-            SaveModel(modelFilePath);
-            SaveParameters(ModelFilePath2ParameterFilePath(modelFilePath));
-        }
-
-        private static string ModelFilePath2ParameterFilePath(string modelFilePath)
-        {
-            return Utils.UpdateFilePathChangingExtension(modelFilePath, "", "", ".h5");
-        }
-
-
-        /// <summary>
-        /// save network model in file 'modelFilePath'
-        /// </summary>
-        /// <param name="modelFilePath">the file where to store the network model
-        /// if it already exist, it will be removed first</param>
-        private void SaveModel(string modelFilePath)
-        {
-            if (File.Exists(modelFilePath))
-            {
-                File.Delete(modelFilePath);
-            }
-            var firstLine = new Serializer()
-                .Add(nameof(Description), Description)
-                .Add(Config.Serialize())
-                .Add(nameof(_resourceIds), _resourceIds.ToArray())
-                .Add(nameof(_epochData), _epochData.ToArray())
-                .ToString();
-            File.AppendAllLines(modelFilePath, new[] {firstLine});
-            foreach (var l in Layers)
-            {
-                File.AppendAllLines(modelFilePath, new[] {l.Serialize()});
-            }
-        }
-
-        /// <summary>
-        /// save network the parameters in h5 file 'h5FilePath'
-        /// </summary>
-        /// <param name="h5FilePath">the 5h file where to store the network parameters.
-        /// if it already exist, it will be removed first</param>
-        public void SaveParameters(string h5FilePath)
-        {
-            if (File.Exists(h5FilePath))
-            {
-                File.Delete(h5FilePath);
-            }
-            using var h5File = new H5File(h5FilePath);
-            foreach (var l in Layers)
-            {
-                foreach (var p in l.GetParametersAsCpuFloatTensors(Config.CompatibilityMode))
-                {
-                    h5File.Write(p.Key, p.Value);
-                }
-            }
-        }
-
-        /// <summary>
-        /// load the parameters from h5 file 'h5FilePath' into the network
-        /// </summary>
-        /// <param name="h5FilePath"></param>
-        /// <param name="originFramework"></param>
-        public void LoadParametersFromH5File(string h5FilePath, NetworkConfig.CompatibilityModeEnum originFramework)
-        {
-            using var h5File = new H5File(h5FilePath);
-            var h5FileParameters = h5File.Datasets();
-            Layers.ForEach(l=>l.LoadParameters(h5FileParameters, originFramework));
-
-            var networkParametersKeys = Layers.SelectMany(t => t.Parameters).Select(t => t.Item2).ToList();
-            var elementMissingInH5Files = networkParametersKeys.Except(h5FileParameters.Keys).ToList();
-            if (elementMissingInH5Files.Count != 0)
-            {
-                Info(elementMissingInH5Files.Count + " parameters are missing in file " + h5FilePath + ": " + string.Join(", ", elementMissingInH5Files));
-            }
-            var elementMissingInNetwork = h5FileParameters.Keys.Except(networkParametersKeys).ToList();
-            if (elementMissingInNetwork.Count != 0)
-            {
-                Info(elementMissingInNetwork.Count + " parameters are missing in network " + h5FilePath + ": " + string.Join(", ", elementMissingInNetwork));
-            }
-        }
-        public void LogContent()
-        {
-            for (int layerIndex = 0; layerIndex < Layers.Count; ++layerIndex)
-            {
-                //if (layerIndex > 10 && layerIndex < Layers.Count - 10) continue;
-                var layer = Layers[layerIndex];
-                layer.LogContent();
-            }
-            if (IsMaster)
-            {
-                _slaveNetworks.ForEach(n=>n.LogContent());
-            }
-        }
-        #endregion
-
         public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers = -1)
         {
             Info("Looking for best learning rate...");
@@ -552,42 +393,6 @@ namespace SharpNet.Networks
             return bestLearningRate;
         }
 
-        public void FreezeSelectedLayers()
-        {
-            if (string.IsNullOrEmpty(Config.FirstLayerNameToFreeze) && string.IsNullOrEmpty(Config.LastLayerNameToFreeze))
-            {
-                //no layers to freeze : we'll train the entire network
-                return; 
-            }
-            var firstLayerIndexToFreeze = LayerNameToLayerIndex(Config.FirstLayerNameToFreeze);
-            if (firstLayerIndexToFreeze == -1)
-            {
-                firstLayerIndexToFreeze = 0;
-            }
-            var lastLayerIndexToFreeze = LayerNameToLayerIndex(Config.LastLayerNameToFreeze);
-            if (lastLayerIndexToFreeze == -1)
-            {
-                lastLayerIndexToFreeze = LastLayerIndex;
-            }
-
-            Info("Freezing " + (lastLayerIndexToFreeze - firstLayerIndexToFreeze + 1) + " layers (between " + Layers[firstLayerIndexToFreeze].LayerName + " and " + Layers[lastLayerIndexToFreeze].LayerName + ")");
-            for (int layerIndex = 0; layerIndex < Layers.Count; ++layerIndex)
-            {
-                var layer = Layers[layerIndex];
-                if (layerIndex >= firstLayerIndexToFreeze && layerIndex <= lastLayerIndexToFreeze)
-                {
-                    //we need to freeze the weights/bias associated with the layer
-                    layer.Trainable = false;
-                }
-                else
-                {
-                    //the layer is trainable
-                    layer.Trainable = true;
-                    //we reset the layer weights to their default values
-                    layer.ResetParameters();
-                }
-            }
-        }
 
         /// <summary>
         /// Here is a summary of what is used at each step ('forward pass' / 'backward pass' / 'weights update' of the training
@@ -719,10 +524,9 @@ namespace SharpNet.Networks
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
                         )
                     {
-                        var swSaveTime = Stopwatch.StartNew();
                         var modelFilePath = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
-                        Save(modelFilePath);
-                        Info("Network '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveTime.Elapsed.TotalSeconds, 1) + "s");
+                        var parametersFilePath = ModelFilePath2ParameterFilePath(modelFilePath);
+                        SaveModelAndParameters(modelFilePath, parametersFilePath);
                         lastAutoSaveTime = DateTime.Now;
                     }
                     #endregion
@@ -914,7 +718,6 @@ namespace SharpNet.Networks
 
             var x_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.XMiniBatch_Shape(miniBatchSizeForAllWorkers), null);
             var yExpected_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.YMiniBatch_Shape(miniBatchSizeForAllWorkers), null);
-
 
             for (int firstIndexInShuffledElementId_master= 0; firstIndexInShuffledElementId_master< totalElementCount; firstIndexInShuffledElementId_master+= miniBatchSizeForAllWorkers)
             {
@@ -1129,23 +932,6 @@ namespace SharpNet.Networks
             }
             result += "Total params: " + TotalParams;
             return result;
-        }
-        /// <summary>
-        /// return the index of the layer whose name is 'layerName' or -1 if there is no such layer
-        /// </summary>
-        /// <param name="layerName">the layer name for which we want to know the layer index</param>
-        /// <returns></returns>
-        private int LayerNameToLayerIndex(string layerName)
-        {
-            for (var layerIndex = 0; layerIndex < Layers.Count; layerIndex++)
-            {
-                var layer = Layers[layerIndex];
-                if (string.Equals(layer.LayerName, layerName ?? "", StringComparison.OrdinalIgnoreCase))
-                {
-                    return layerIndex;
-                }
-            }
-            return -1;
         }
         private void ResetWeights()
         {

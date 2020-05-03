@@ -21,7 +21,7 @@ namespace SharpNetTests
             var networkBuilder = EfficientNetBuilder.CIFAR10();
             var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] { 3, 224, 224 });
 
-            //we save the network
+            //we save the network parameters
             var saveParametersFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.h5");
             network.SaveParameters(saveParametersFile);
             network.Dispose();
@@ -41,7 +41,6 @@ namespace SharpNetTests
             }
             File.Delete(saveParametersFile);
         }
-
 
         public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {

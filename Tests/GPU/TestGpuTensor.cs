@@ -178,8 +178,8 @@ namespace SharpNetTests.GPU
         {
             var data = new float[]{0,1,2,3,4,5,6,7,8,9};
             var owner = new GPUTensor<float>(new []{5,2}, data, GpuWrapper);
-            var tensorTop2Rows = new GPUTensor<float>(new[] { 2, 2}, owner.Pointer, 0, GpuWrapper);
-            var tensorBottom3Rows = new GPUTensor<float>(new[] { 3, 2 }, owner.Pointer, 4* owner.TypeSize, GpuWrapper);
+            var tensorTop2Rows = owner.Slice(0, new[] { 2, 2});
+            var tensorBottom3Rows = owner.Slice(tensorTop2Rows.Count, new[] { 3, 2 });
             var contentTop = tensorTop2Rows.ContentAsFloatArray();
             Assert.AreEqual(new float[]{0,1,2,3}, contentTop.ToArray());
             var contentBottom = tensorBottom3Rows.ContentAsFloatArray();

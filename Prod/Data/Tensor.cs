@@ -479,8 +479,10 @@ namespace SharpNet.Data
         /// <param name="isTraining"></param>
         /// <param name="dropoutRandom"></param>
         /// <param name="dropoutReservedSpaceForTraining">a reserved space used only for training (null for inference)</param>
-        /// <param name="memoryPool"></param>
-        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, TensorMemoryPool memoryPool);
+        /// <param name="randomNumberGeneratorStatesBufferForGPU"></param>
+        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
+            Tensor dropoutReservedSpaceForTraining,
+            Tensor randomNumberGeneratorStatesBufferForGPU);
 
         /// <summary>
         /// 

@@ -19,48 +19,58 @@ namespace SharpNet.GPU
         /// else (the tensor is only a slice of a memory area owned by another tensor
         ///     null
         /// </summary>
-        private readonly DeviceMemory _deviceMemory;
+        //private readonly DeviceMemory _deviceMemory;
         /// <summary>
         /// if the tensor is only a slice of a memory area owned by another tensor
-        ///     the pointer to the start of the gpu area 
+        ///     the pointer to this already allocated memory area
         /// else (the gpu tensor is the owner of its memory)
         ///     null
         /// </summary>
-        private IntPtr _pointerToStartOfMemoryOwner;
+        private readonly IntPtr _pointerToStartOfTensor;
+        #endregion
+        #region public properties
         /// <summary>
-        /// if the tensor is only a slice of a memory area owned by another tensor
-        ///     the offset in bytes to add to the start of the gpu area 
-        /// else (the gpu tensor is the owner of its memory)
-        ///     0
+        /// true if the 'this' tensor is the owner of the associate memory
+        ///     => in this case the memory associated with the 'this' tensor should be freed by the tensor when it is disposed
+        /// false if the 'this' tensor is a span to an already allocated memory area in the device
+        ///     => in this case this memory associated with the 'this' tensor should not be de allocated by the tensor when it is disposed
         /// </summary>
-        private readonly int _offsetInBytesInPointerToStartOfMemoryOwner;
+        public override bool IsOwnerOfMemory {get;}
         #endregion
 
         #region constructors
-        public GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, int offsetInBytesInPointerToStartOfMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
+        /// <summary>
+        /// construct a tensor that is a span to an already allocated memory
+        /// this memory should not be de allocated 
+        /// </summary>
+        /// <param name="shape">shape of the tensor</param>
+        /// <param name="pointerToMemoryOwner">the already allocated memory area that the tensor will use</param>
+        /// <param name="offsetInBytesInPointerToStartOfMemoryOwner">an offset in the memory area that indicates the start of the memory allocated for the 'this' tensor</param>
+        /// <param name="wrapper"></param>
+        private GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
         {
             _wrapper = wrapper;
             _wrapper.CheckThreadId();
             CapacityInBytes = ReallyNeededMemoryInBytes;
-            _pointerToStartOfMemoryOwner = pointerToMemoryOwner;
-            _offsetInBytesInPointerToStartOfMemoryOwner = offsetInBytesInPointerToStartOfMemoryOwner;
-            _deviceMemory = null;
+            _pointerToStartOfTensor = pointerToMemoryOwner;
+            IsOwnerOfMemory = false;
         }
         public GPUTensor(int[] shape, Memory<T>? unpinnedHostMemory, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
         {
             _wrapper = wrapper;
             _wrapper.CheckThreadId();
             CapacityInBytes = ReallyNeededMemoryInBytes;
-            _pointerToStartOfMemoryOwner = IntPtr.Zero;
-            _offsetInBytesInPointerToStartOfMemoryOwner = 0;
-            _deviceMemory = new DeviceMemory(CapacityInBytes);
+            _pointerToStartOfTensor = IntPtr.Zero;
+
+            var res = NVCudaWrapper.cuMemAlloc_v2(out _pointerToStartOfTensor, CapacityInBytes);
+            GPUWrapper.CheckStatus(res);
             if (unpinnedHostMemory.HasValue)
             {
                 InitializeFromHostMemory(unpinnedHostMemory.Value);
             }
+            IsOwnerOfMemory = true;
         }
         #endregion
-
 
         /// <summary>
         /// copy from CPU (Host) pinned memory to GPU (Device) memory
@@ -394,7 +404,7 @@ namespace SharpNet.GPU
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;
             var one = &oneFloat;
-            var storageBuffer = memoryPool.GetBuffer(workspaceSize, "workspaceSize");
+            var storageBuffer = memoryPool.GetBuffer(workspaceSize);
             res = CudnnWrapper.cudnnConvolutionForward(CudnnHandle, one, xDesc, x, filterDesc, filters, convDesc, forwardAlgo, storageBuffer.Pointer, workspaceSize, zero, yDesc, y);
             memoryPool.FreeFloatTensor(ref storageBuffer);
             CheckStatus(res);
@@ -441,7 +451,7 @@ namespace SharpNet.GPU
             var one = &oneFloat;
 
             //we compute 'convGradient'
-            var filterStorageBuffer = memoryPool.GetBuffer(filterWorkspaceSize, "filterWorkspaceSize");
+            var filterStorageBuffer = memoryPool.GetBuffer(filterWorkspaceSize);
             res = CudnnWrapper.cudnnConvolutionBackwardFilter(CudnnHandle, one, xDesc, x, dyDesc, dy, convDesc, backwardFilterAlgo, filterStorageBuffer.Pointer, filterWorkspaceSize, zero, dwDesc, convGradient);
             memoryPool.FreeFloatTensor(ref filterStorageBuffer);
             CheckStatus(res);
@@ -456,7 +466,7 @@ namespace SharpNet.GPU
             var backwardDataAlgo = _wrapper.ConvolutionBackwardDataAlgorithm(dwDesc, dyDesc, convDesc, xDesc, backwardAlgoPreference);
             res = CudnnWrapper.cudnnGetConvolutionBackwardDataWorkspaceSize(CudnnHandle, dwDesc, dyDesc, convDesc, dxDesc, backwardDataAlgo, out var dataWorkspaceSize);
             CheckStatus(res);
-            var dataStorageBuffer = memoryPool.GetBuffer(dataWorkspaceSize, "dataStorageBuffer");
+            var dataStorageBuffer = memoryPool.GetBuffer(dataWorkspaceSize);
             res = CudnnWrapper.cudnnConvolutionBackwardData(CudnnHandle, one, wDesc, convolution, dyDesc, dy, convDesc, backwardDataAlgo, dataStorageBuffer.Pointer, dataWorkspaceSize, zero, dxDesc, dx);
             CheckStatus(res);
             memoryPool.FreeFloatTensor(ref dataStorageBuffer);
@@ -562,7 +572,7 @@ namespace SharpNet.GPU
             _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, categoryIndexes, yPredicted });
             return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, TensorMemoryPool memoryPool)
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU) 
         {
             var x = this;
             if (!isTraining)
@@ -572,9 +582,11 @@ namespace SharpNet.GPU
             }
             Debug.Assert(dropoutReservedSpaceForTraining != null);
             Debug.Assert(dropoutReservedSpaceForTraining.UseGPU);
+            Debug.Assert(randomNumberGeneratorStatesBufferForGPU != null);
+            Debug.Assert(randomNumberGeneratorStatesBufferForGPU.UseGPU);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
-            var dropoutDesc = _wrapper.DropoutDesc(dropProbability, memoryPool);
+            var dropoutDesc = _wrapper.DropoutDesc(dropProbability, randomNumberGeneratorStatesBufferForGPU);
             var res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, dropoutDesc, xDesc, x, yDesc, y, dropoutReservedSpaceForTraining.Pointer, dropoutReservedSpaceForTraining.CapacityInBytes);
             CheckStatus(res);
         }
@@ -760,12 +772,9 @@ namespace SharpNet.GPU
         }
         public override Tensor Slice(int startIndex, int[] sliceShape)
         {
-            return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer, startIndex*TypeSize, _wrapper);
+            return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);
         }
-        public override bool IsOwnerOfMemory => _deviceMemory != null;
-
         protected override int DeviceId => _wrapper.DeviceId;
-
         public override void ZeroMemory()
         {
             AssertIsNotDisposed();
@@ -781,13 +790,13 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res);
         }
 
-        public void SetPointerToStartOfMemoryOwner(IntPtr pointerToStartOfMemoryOwner)
+        public override void AssertIsNotDisposed()
         {
-            Debug.Assert(_pointerToStartOfMemoryOwner == IntPtr.Zero);
-            Debug.Assert(pointerToStartOfMemoryOwner != IntPtr.Zero);
-            _pointerToStartOfMemoryOwner = pointerToStartOfMemoryOwner;
+            if (_disposed)
+            {
+                throw new Exception("Tensor is disposed " + this);
+            }
         }
-
         /// <summary>
         /// pointer to device memory (in GPU)
         /// </summary>
@@ -796,48 +805,36 @@ namespace SharpNet.GPU
             get
             {
                 AssertIsNotDisposed();
-                if (IsOwnerOfMemory)
-                {
-                    return _deviceMemory.Pointer;
-                }
-                Debug.Assert(_pointerToStartOfMemoryOwner != IntPtr.Zero);
-                return _pointerToStartOfMemoryOwner+_offsetInBytesInPointerToStartOfMemoryOwner;
+                Debug.Assert(_pointerToStartOfTensor != IntPtr.Zero);
+                return _pointerToStartOfTensor;
             }
-        }
-        public override void AssertIsNotDisposed()
-        {
-            if (_disposed)
-            {
-                throw new Exception("Tensor is disposed " + this);
-            }
-            _deviceMemory?.AssertIsNotDisposed();
         }
         #endregion
 
         #region Dispose pattern
         public override void Dispose()
         {
-            Dispose(true);
+            FreeDeviceMemory();
             GC.SuppressFinalize(this);
         }
-        private void Dispose(bool disposing)
+        ~GPUTensor()
+        {
+            FreeDeviceMemory();
+        }
+        // ReSharper disable once UnusedParameter.Local
+        private void FreeDeviceMemory()
         {
             if (_disposed)
             {
                 return;
             }
             _disposed = true;
-            if (disposing)
-            {
-                //managed memory
-                _deviceMemory?.Dispose();
-            }
-
             //unmanaged memory
-        }
-        ~GPUTensor()
-        {
-            Dispose(false);
+            if (IsOwnerOfMemory)
+            {
+                /*var res =*/ NVCudaWrapper.cuMemFree_v2(_pointerToStartOfTensor);
+                //GPUWrapper.CheckStatus(res);
+            }
         }
         #endregion
 

@@ -83,13 +83,11 @@ namespace SharpNet.Data
         }
         public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient,cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer){throw new NotImplementedException();}
 
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
-            Tensor dropoutReservedSpaceForTraining, TensorMemoryPool memoryPool) 
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU)
         {
             throw new NotImplementedException();
         }
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
-            Tensor dropoutReserveSpace)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
         {
             throw new NotImplementedException();
         }

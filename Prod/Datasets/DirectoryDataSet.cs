@@ -340,13 +340,13 @@ namespace SharpNet.Datasets
             if (fullNames.Count == 1 && Channels == 3)
             {
                 //single file containing all channels of the element
-                return BitmapContent.ValueFomSingleRgbBitmap(fullNames[0], elementId.ToString());
+                return BitmapContent.ValueFomSingleRgbBitmap(fullNames[0]);
             }
             else
             {
                 Debug.Assert(Channels == fullNames.Count);
                 //each file contains 1 channel of the element
-                return BitmapContent.ValueFromSeveralSingleChannelBitmaps(fullNames, elementId.ToString());
+                return BitmapContent.ValueFromSeveralSingleChannelBitmaps(fullNames);
             }
         }
     }

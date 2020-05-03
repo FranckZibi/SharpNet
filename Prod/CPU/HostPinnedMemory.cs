@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Buffers;
 
 namespace SharpNet.CPU
@@ -11,38 +10,24 @@ namespace SharpNet.CPU
         private bool _disposed;
         #endregion
 
+        #region public properties
+        public IntPtr Pointer { get; }
+        #endregion
+
         public HostPinnedMemory(Memory<T> hostMemoryToBePinned)
         {
             _handle = hostMemoryToBePinned.Pin();
             Pointer = (IntPtr)_handle.Pointer;
         }
-        public IntPtr Pointer { get; private set; }
 
-        #region Dispose pattern
         public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-        private void Dispose(bool disposing)
         {
             if (_disposed)
             {
                 return;
             }
             _disposed = true;
-            if (disposing)
-            {
-                //managed memory
-                _handle.Dispose();
-            }
-            //unmanaged memory
-            Pointer = IntPtr.Zero;
+            _handle.Dispose();
         }
-        ~HostPinnedMemory()
-        {
-            Dispose(false);
-        }
-        #endregion
    }
 }

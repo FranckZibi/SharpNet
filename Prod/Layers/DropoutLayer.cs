@@ -36,14 +36,13 @@ namespace SharpNet.Layers
                 //no need of dropout reserved space for inference
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
-
-            x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropoutReservedSpaceForTraining, Network.MemoryPool);
+            x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropoutReservedSpaceForTraining, Network.GetRandomNumberGeneratorStatesBuffer());
             if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining))
             {
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
-
         }
+
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
@@ -81,7 +80,7 @@ namespace SharpNet.Layers
                 var xDesc = Network.GpuWrapper.TensorDesc(cudnnDataType_t.CUDNN_DATA_FLOAT, x.Shape);
                 var res = CudnnWrapper.cudnnDropoutGetReserveSpaceSize(xDesc, out var dropoutReservedSpaceInBytes);
                 GPUWrapper.CheckStatus(res);
-                Network.MemoryPool.GetBuffer(ref _dropoutReservedSpaceForTraining, dropoutReservedSpaceInBytes, nameof(_dropoutReservedSpaceForTraining));
+                Network.MemoryPool.GetBuffer(ref _dropoutReservedSpaceForTraining, dropoutReservedSpaceInBytes);
             }
             else
             {

@@ -66,10 +66,12 @@ namespace SharpNet.Layers
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public BatchNormalizationLayer(double momentum, double epsilon, Network network, string layerName) : base(network, layerName)
+        public BatchNormalizationLayer(double momentum, double epsilon, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             _momentum = momentum;
             _epsilon = epsilon;
+            Trainable = trainable;
+
             var scaleAndBiasShape = ScaleAndBiasShape();
 
             //trainable parameters 
@@ -227,6 +229,7 @@ namespace SharpNet.Layers
             return new BatchNormalizationLayer(
                 (double)serialized[nameof(_momentum)],
                 (double)serialized[nameof(_epsilon)],
+                (bool)serialized[nameof(Trainable)],
                 network,
                 (string)serialized[nameof(LayerName)]);
         }

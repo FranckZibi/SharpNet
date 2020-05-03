@@ -41,7 +41,6 @@ namespace SharpNet.GPU
         private int _copyDeviceToHostCalls;
         private ulong _bytesCopiedDeviceToHost;
         private int _threadId;
-        private Tensor _randomNumberGeneratorStatesBuffer;
         private static readonly IDictionary<int, GPUWrapper> Cache = new Dictionary<int, GPUWrapper>();
         #endregion
 
@@ -411,25 +410,13 @@ namespace SharpNet.GPU
 
 
         #endregion
-
-        private Tensor GetRandomNumberGeneratorStatesBuffer(TensorMemoryPool memoryPool)
-        {
-            if (_randomNumberGeneratorStatesBuffer == null)
-            {
-                var res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var dropoutStateSize);
-                CheckStatus(res);
-                _randomNumberGeneratorStatesBuffer = memoryPool.GetBuffer(dropoutStateSize, nameof(_randomNumberGeneratorStatesBuffer));
-            }
-            return _randomNumberGeneratorStatesBuffer;
-        }
-        public IntPtr DropoutDesc(double dropoutRate, TensorMemoryPool memoryPool)
+        public IntPtr DropoutDesc(double dropoutRate, Tensor randomNumberGeneratorStatesBuffer)
         {
             CheckThreadId();
             if (!cacheDropoutDesc.TryGetValue(dropoutRate, out IntPtr desc))
             {
                 var res = CudnnWrapper.cudnnCreateDropoutDescriptor(out desc);
                 CheckStatus(res);
-                var randomNumberGeneratorStatesBuffer = GetRandomNumberGeneratorStatesBuffer(memoryPool);
                 res = CudnnWrapper.cudnnSetDropoutDescriptor(desc, _cudnnHandle, (float) dropoutRate, randomNumberGeneratorStatesBuffer, randomNumberGeneratorStatesBuffer.CapacityInBytes, 0);
                 CheckStatus(res);
                 cacheDropoutDesc[dropoutRate] = desc;

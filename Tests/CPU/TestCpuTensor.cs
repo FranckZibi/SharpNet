@@ -164,7 +164,7 @@ namespace SharpNetTests.CPU
             var y = RandomFloatTensor(x.Shape, rand, 10, 20);
             var memoryPool = new TensorMemoryPool(null, false);
             var dropoutReserveSpace = memoryPool.GetFloatTensor(y.Shape);
-            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace, memoryPool);
+            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace, null);
             int nbObservedZeroAfterDropout = y.ReadonlyContent.Count(i => Math.Abs(i) < 1e-8);
             Assert.IsTrue(nbObservedZeroAfterDropout>=minEqualToZeroAfterDropout);
             Assert.IsTrue(nbObservedZeroAfterDropout<= maxEqualToZeroAfterDropout);
@@ -234,7 +234,7 @@ namespace SharpNetTests.CPU
             input.Convolution(convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, outputCPU, false, GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, null);
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
         }
-        public static CpuTensor<float> RandomOneHotTensor(int[] shape, Random rand, string description)
+        public static CpuTensor<float> RandomOneHotTensor(int[] shape, Random rand)
         {
             var result = new CpuTensor<float>(shape);
             for (int row = 0; row < result.Shape[0]; ++row)
@@ -257,7 +257,7 @@ namespace SharpNetTests.CPU
 
         //random tensor
         //in each row: only 2 elements with non zero value, the sum of the 2 elements is always = 1.0
-        public static CpuTensor<float> RandomTwoHotTensor(int[] shape, Random rand, string description)
+        public static CpuTensor<float> RandomTwoHotTensor(int[] shape, Random rand)
         {
             var result = new CpuTensor<float>(shape);
             int categoryCount = result.Shape[1];

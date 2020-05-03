@@ -6,31 +6,31 @@ namespace SharpNet.Networks
 {
     public class EnsembleLearning
     {
-        private readonly string[] _files;
+        private readonly string[] _modelFilesPath;
 
-        public EnsembleLearning(string[] files)
+        public EnsembleLearning(string[] modelFilesPath)
         {
-            _files = files;
+            _modelFilesPath = modelFilesPath;
         }
 
         public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet)
         {
             var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape);
-            foreach (var file in _files)
+            foreach (var modelFilePath in _modelFilesPath)
             {
-                Console.WriteLine("Loading " + file + " ...");
-                using(var network = Network.ValueOf(file, 0))
+                Console.WriteLine("Loading " + modelFilePath + " ...");
+                var parametersFilePath = Network.ModelFilePath2ParameterFilePath(modelFilePath);
+                using(var network = Network.ValueOf(modelFilePath, parametersFilePath, new [] {0}))
                 { 
                     Console.WriteLine("File loaded");
                     Console.WriteLine("Computing accuracy for single network...");
                     
                     var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet);
-
                     var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
                     var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);
                     Console.WriteLine("Single Network Accuracy=" + accuracy);
 
-                    yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _files.Length, yCpuPredictedSingleNetwork);
+                    yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _modelFilesPath.Length, yCpuPredictedSingleNetwork);
                 }
             }
             var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, null);

@@ -41,12 +41,12 @@ namespace SharpNetTests.NonReg
 
             //we save the network
             var savedModelFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.txt");
-            var saveParametersFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.h5");
-            network.Save(savedModelFile);
+            var saveParametersFile = Network.ModelFilePath2ParameterFilePath(savedModelFile);
+            network.SaveModelAndParameters(savedModelFile, saveParametersFile);
             network.Dispose();
 
             //we ensure that the saved version of the network behave the same as the original one
-            var networkFromSavedFile = Network.ValueOf(savedModelFile);
+            var networkFromSavedFile = Network.ValueOf(savedModelFile, saveParametersFile);
             var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
 

@@ -254,6 +254,7 @@ namespace SharpNet.Data
         }
         private static CpuTensor<float> TensorDeserialize(string[] splitted, out string description, ref int startIndex)
         {
+            ++startIndex;
             description = splitted[startIndex++];
             var typeAsString = splitted[startIndex++];
             var dimension = int.Parse(splitted[startIndex++]);

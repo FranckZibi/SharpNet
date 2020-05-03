@@ -503,7 +503,7 @@ namespace SharpNetTests
         {
             var nbRows = 1000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
-            var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand, "yExpectedOneHot");
+            var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
         }
@@ -527,7 +527,7 @@ namespace SharpNetTests
         {
             var nbRows = 10000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
-            var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand, "yExpectedOneHot");
+            var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows});
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
@@ -538,7 +538,7 @@ namespace SharpNetTests
         {
             var nbRows = 10000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
-            var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand, "yExpectedTwoHot");
+            var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }

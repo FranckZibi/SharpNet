@@ -187,7 +187,8 @@ namespace SharpNet.Layers
             var res = new Serializer()
                     .Add(nameof(Layer), GetType())
                     .Add(nameof(PreviousLayerIndexes), PreviousLayerIndexes.ToArray())
-                    .Add(nameof(LayerName), LayerName);
+                    .Add(nameof(LayerName), LayerName)
+                    .Add(nameof(Trainable), Trainable);
             return res;
         }
 

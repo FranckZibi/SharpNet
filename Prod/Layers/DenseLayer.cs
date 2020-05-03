@@ -55,10 +55,11 @@ namespace SharpNet.Layers
         #endregion
 
         #region constructor
-        public DenseLayer(int categoryCount, double lambdaL2Regularization, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int categoryCount, double lambdaL2Regularization, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             CategoryCount = categoryCount;
             LambdaL2Regularization = lambdaL2Regularization;
+            Trainable = trainable;
 
             //trainable params
             _weights = GetFloatTensor(new[] { PrevLayer.n_x, CategoryCount });
@@ -223,6 +224,7 @@ namespace SharpNet.Layers
             return new DenseLayer(
                 (int)serialized[nameof(CategoryCount)],
                 (double)serialized[nameof(LambdaL2Regularization)],
+                (bool)serialized[nameof(Trainable)],
                 network,
                 (string)serialized[nameof(LayerName)]);
         }

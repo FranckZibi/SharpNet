@@ -117,19 +117,19 @@ namespace SharpNet.Data
             FreeFloatTensor(ref bufferIfAny);
             bufferIfAny = GetFloatTensor(shape);
         }
+
         /// <summary>
         /// return a buffer with a minimal capacity of 'minimalSizeInBytes' bytes
         /// </summary>
         /// <param name="minimalSizeInBytes">the minimal size in bytes of the buffer</param>
-        /// <param name="description"></param>
         /// <returns></returns>
-        public Tensor GetBuffer(size_t minimalSizeInBytes, string description)
+        public Tensor GetBuffer(size_t minimalSizeInBytes)
         {
             Tensor buffer = null;
-            GetBuffer(ref buffer, minimalSizeInBytes, description);
+            GetBuffer(ref buffer, minimalSizeInBytes);
             return buffer;
         }
-        public void GetBuffer(ref Tensor buffer, size_t minimalSizeInBytes, string description)
+        public void GetBuffer(ref Tensor buffer, size_t minimalSizeInBytes)
         {
             var count = (minimalSizeInBytes + sizeof(float) - 1) / sizeof(float);
             count = Math.Max(count, 1);
@@ -163,33 +163,17 @@ namespace SharpNet.Data
             list[index] = null;
         }
 
-        #region Dispose pattern
         public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-        private void Dispose(bool disposing)
         {
             if (_disposed)
             {
                 return;
             }
             _disposed = true;
-            if (disposing)
-            {
-                //managed memory
-                _allAllocatedTensors.ForEach(t => t.Dispose());
-                _allAllocatedTensors.Clear();
-                _availableTensorOrderedByCount.Clear();
-            }
-            //unmanaged memory
+            _allAllocatedTensors.ForEach(t => t.Dispose());
+            _allAllocatedTensors.Clear();
+            _availableTensorOrderedByCount.Clear();
         }
-        ~TensorMemoryPool()
-        {
-            Dispose(false);
-        }
-        #endregion
         
         private Tensor AllocateNewTensor(int[] shape)
         {

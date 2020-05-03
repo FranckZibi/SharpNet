@@ -66,7 +66,7 @@ namespace SharpNet.Layers
         /// <summary>
         /// No need to configure the number of channels by filter: it is always the same as in previous layer
         /// </summary>
-        public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, Network network, string layerName)
+        public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, bool trainable, Network network, string layerName)
             : base(network, previousLayerIndex, layerName)
         {
             _isDepthwiseConvolution = isDepthwiseConvolution;
@@ -80,6 +80,7 @@ namespace SharpNet.Layers
             _stride = stride;
             _paddingType = paddingType;
             _lambdaL2Regularization = lambdaL2Regularization;
+            Trainable = trainable;
 
             //trainable params
             _convolution = GetFloatTensor(ConvolutionShape);
@@ -340,6 +341,7 @@ namespace SharpNet.Layers
                 (double)serialized[nameof(_lambdaL2Regularization)],
                 (bool)serialized[nameof(UseBias)],
                 previousLayerIndexes[0],
+                (bool)serialized[nameof(Trainable)],
                 network,
                 (string)serialized[nameof(LayerName)]);
         }
