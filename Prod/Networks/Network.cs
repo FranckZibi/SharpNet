@@ -74,7 +74,7 @@ namespace SharpNet.Networks
         /// </param>
         public Network(NetworkConfig config, List<int> resourceIds, Network masterNetworkIfAny = null)
         {
-            //a slave network will have access to only one resource (Cpu or GPU device id)
+            //a slave network will have access to only one resource (1 Cpu or 1 GPU)
             Debug.Assert(masterNetworkIfAny == null || resourceIds.Count == 1);
             Config = config;
             _masterNetworkIfAny = masterNetworkIfAny;
@@ -85,14 +85,14 @@ namespace SharpNet.Networks
             CreateLogDirectoryIfNeeded();
             MemoryPool = new TensorMemoryPool(GpuWrapper, false);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-            if (IsMaster && resourceIds.Count>=2)
+            if (IsMaster && _resourceIds.Count>=2)
             {
                 //we create the slave networks
-                foreach(var slaveResourceId in resourceIds.Skip(1))
+                foreach(var slaveResourceId in _resourceIds.Skip(1))
                 {
                     new Thread(() => SlaveThread(this, slaveResourceId)).Start();
                 }
-                while (_slaveNetworks.Count != resourceIds.Count - 1)
+                while (_slaveNetworks.Count != _resourceIds.Count - 1)
                 {
                     Thread.Sleep(1);
                 }
@@ -369,23 +369,17 @@ namespace SharpNet.Networks
 
         public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers = -1)
         {
+            Debug.Assert(minLearningRate >= 0);
+            Debug.Assert(maxLearningRate >= 0);
+            Debug.Assert(maxLearningRate > minLearningRate);
             Info("Looking for best learning rate...");
-            ResetWeights(); //restore weights to there original values
-            var maxMiniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(trainingDataSet.XMiniBatch_Shape(1), false);
-            if (miniBatchSizeForAllWorkers < 1)
+            ResetWeights(); //restore weights to their original values
+            if (miniBatchSizeForAllWorkers <= 0)
             {
-                miniBatchSizeForAllWorkers = maxMiniBatchSizeForAllWorkers;
+                miniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(trainingDataSet.XMiniBatch_Shape(1), true);
             }
-            else
-            {
-                if (miniBatchSizeForAllWorkers > maxMiniBatchSizeForAllWorkers)
-                {
-                    Info("Reducing BatchSize from "+miniBatchSizeForAllWorkers+" to "+ maxMiniBatchSizeForAllWorkers);
-                    miniBatchSizeForAllWorkers = maxMiniBatchSizeForAllWorkers;
-                }
-            }
+            LogDebug("BatchSize: "+ miniBatchSizeForAllWorkers);
             var learningRateFinder = new LearningRateFinder(miniBatchSizeForAllWorkers, trainingDataSet.Count, minLearningRate, maxLearningRate);
-                
 
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
             {
@@ -755,6 +749,8 @@ namespace SharpNet.Networks
                     {
                         break;
                     }
+
+
                     var currentMiniBatchSize_slave = Math.Min(totalElementCount - firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
                     Debug.Assert(currentMiniBatchSize_slave >= 1);
                     var x_miniBatch_cpu_slave = x_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId_master, currentMiniBatchSize_slave);

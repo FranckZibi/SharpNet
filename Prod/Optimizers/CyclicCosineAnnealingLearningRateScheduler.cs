@@ -11,6 +11,7 @@ namespace SharpNet.Optimizers
     public class CyclicCosineAnnealingLearningRateScheduler : ILearningRateScheduler
     {
         #region private fields
+        private readonly double _minLearningRate;
         private readonly double _maxLearningRate;
         private readonly List<Tuple<double, double>> _values = new List<Tuple<double, double>>();
         #endregion
@@ -21,11 +22,12 @@ namespace SharpNet.Optimizers
         /// <summary>
         /// see https://arxiv.org/pdf/1608.03983.pdf
         /// </summary>
+        /// <param name="minLearningRate"></param>
         /// <param name="maxLearningRate"></param>
         /// <param name="nbEpochsInFirstRun">Number of epochs in the first warm started run</param>
         /// <param name="nbEpochInNextRunMultiplier">factor to multiply the number of epochs in the previous run</param>
         /// <param name="nbEpochs">total number of epochs to get the number of epochs in the next run</param>
-        public CyclicCosineAnnealingLearningRateScheduler(double maxLearningRate, int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier, int nbEpochs)
+        public CyclicCosineAnnealingLearningRateScheduler(double minLearningRate, double maxLearningRate, int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier, int nbEpochs)
         {
             Debug.Assert(nbEpochsInFirstRun>=1);
             Debug.Assert(nbEpochInNextRunMultiplier >= 1);
@@ -54,6 +56,7 @@ namespace SharpNet.Optimizers
                 firstEpochInCurrentRun = firstEpochInNextRun;
                 nbEpochsInCurrentRun = nbEpochsInNextRun;
             }
+            _minLearningRate = minLearningRate;
             _maxLearningRate = maxLearningRate;
             RelevantEpochSnapshot.Reverse();
         }
@@ -67,8 +70,7 @@ namespace SharpNet.Optimizers
         {
             var currentEpoch = epoch + percentagePerformedInEpoch;
             var multiplier = Utils.Interpolate(_values, currentEpoch);
-            var minLearningRate = 1e-6;
-            var learningRate = minLearningRate + 0.5* (_maxLearningRate -minLearningRate) * (1.0 + Math.Cos(multiplier * Math.PI));
+            var learningRate = _minLearningRate + 0.5* (_maxLearningRate -_minLearningRate) * (1.0 + Math.Cos(multiplier * Math.PI));
             return learningRate;
         }
     }

@@ -30,21 +30,6 @@ namespace SharpNet.GPU
         #endregion
 
         #region constructors
-        /// <summary>
-        /// construct a tensor that is a span to an already allocated memory
-        /// this memory should not be de allocated 
-        /// </summary>
-        /// <param name="shape">shape of the tensor</param>
-        /// <param name="pointerToMemoryOwner">the already allocated memory area that the tensor will use</param>
-        /// <param name="wrapper"></param>
-        private GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
-        {
-            _wrapper = wrapper;
-            _wrapper.CheckThreadId();
-            CapacityInBytes = ReallyNeededMemoryInBytes;
-            _pointerToStartOfTensor = pointerToMemoryOwner;
-            IsOwnerOfMemory = false;
-        }
         public GPUTensor(int[] shape, Memory<T>? unpinnedHostMemory, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
         {
             _wrapper = wrapper;
@@ -59,6 +44,21 @@ namespace SharpNet.GPU
                 InitializeFromHostMemory(unpinnedHostMemory.Value);
             }
             IsOwnerOfMemory = true;
+        }
+        /// <summary>
+        /// construct a tensor that is a span to an already allocated memory
+        /// this memory should not be de allocated 
+        /// </summary>
+        /// <param name="shape">shape of the tensor</param>
+        /// <param name="pointerToMemoryOwner">the already allocated memory area that the tensor will use</param>
+        /// <param name="wrapper"></param>
+        private GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
+        {
+            _wrapper = wrapper;
+            _wrapper.CheckThreadId();
+            CapacityInBytes = ReallyNeededMemoryInBytes;
+            _pointerToStartOfTensor = pointerToMemoryOwner;
+            IsOwnerOfMemory = false;
         }
         #endregion
 

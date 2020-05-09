@@ -62,7 +62,7 @@ namespace SharpNet.Data
         /// split a path to a dataSet between the path and the dataSetName
         /// </summary>
         /// <param name="datasetPath">the datasetPath to split (ex: /batch_normalization_10/batch_normalization_10/beta:0)</param>
-        /// <param name="path">the associate path (ex: /batch_normalization_10/batch_normalization_10/)</</param>
+        /// <param name="path">the associate path (ex: /batch_normalization_10/batch_normalization_10/)</param>
         /// <param name="datasetName">the name of the dataset (ex: beta:0)</param>
         public static void SplitPathAndName(string datasetPath, out string path, out string datasetName)
         {
@@ -143,10 +143,12 @@ namespace SharpNet.Data
             H5G.close(groupId);
             return result>=0;
         }
+
         /// <summary>
         /// list of all dataset objects paths contained in a specific group.
         /// only the names (paths) of the dataset are returned (not the dataset content)
         /// </summary>
+        /// <param name="fileId"></param>
         /// <param name="groupPath">group where to look for datasets</param>
         /// <returns>list of all dataset paths contained in the group</returns>
         public static List<string> DatasetPaths(H5FileId fileId, string groupPath = "/")

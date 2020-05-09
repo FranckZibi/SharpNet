@@ -23,9 +23,16 @@ namespace SharpNet.Networks
         private int CyclicCosineAnnealing_nbEpochsInFirstRun { get; set; } = 10;
 
         private int CyclicCosineAnnealing_nbEpochInNextRunMultiplier { get; set; } = 2;
-        //for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
+        /// <summary>
+        /// for one cycle policy: by how much we have to divide the max learning rate to reach the min learning rate
+        /// </summary>
         private int OneCycle_DividerForMinLearningRate { get; set; } = 10;
         private double OneCycle_PercentInAnnealing { get; set; } = 0.2;
+
+        /// <summary>
+        /// the minimum value for the learning rate (default value:  1e-6)
+        /// </summary>
+        private double CyclicCosineAnnealing_MinLearningRate { get; set; } = 1e-6;
         public bool DisableReduceLROnPlateau { get; set; }
         private bool DivideBy10OnPlateau { get; set; } = true; // 'true' : validated on 19-apr-2019: +20 bps
         private bool LinearLearningRate { get; set; }
@@ -145,8 +152,9 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + nameof(SGD_momentum), ref errors);
             equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + nameof(SGD_usenesterov), ref errors);
             equals &= Utils.Equals((int)LearningRateSchedulerType, (int)other.LearningRateSchedulerType, id + nameof(LearningRateSchedulerType), ref errors);
-            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochsInFirstRun, other.CyclicCosineAnnealing_nbEpochsInFirstRun, epsilon, id + nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), ref errors);
-            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochInNextRunMultiplier, other.CyclicCosineAnnealing_nbEpochInNextRunMultiplier, epsilon, id + nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), ref errors);
+            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochsInFirstRun, other.CyclicCosineAnnealing_nbEpochsInFirstRun, id + nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), ref errors);
+            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochInNextRunMultiplier, other.CyclicCosineAnnealing_nbEpochInNextRunMultiplier, id + nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), ref errors);
+            equals &= Utils.Equals(CyclicCosineAnnealing_MinLearningRate, other.CyclicCosineAnnealing_MinLearningRate, epsilon, id + nameof(CyclicCosineAnnealing_MinLearningRate), ref errors);
             equals &= Utils.Equals(OneCycle_DividerForMinLearningRate, other.OneCycle_DividerForMinLearningRate, id + nameof(OneCycle_DividerForMinLearningRate), ref errors);
             equals &= Utils.Equals(OneCycle_PercentInAnnealing, other.OneCycle_PercentInAnnealing, epsilon, id + nameof(OneCycle_PercentInAnnealing), ref errors);
             equals &= Utils.Equals(DisableReduceLROnPlateau, other.DisableReduceLROnPlateau, id + nameof(DisableReduceLROnPlateau), ref errors);
@@ -164,12 +172,13 @@ namespace SharpNet.Networks
         }
 
         #region Learning Rate Scheduler
-        public NetworkConfig WithCyclicCosineAnnealingLearningRateScheduler(int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier)
+        public NetworkConfig WithCyclicCosineAnnealingLearningRateScheduler(int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier, double minLearningRate = 0.0)
         {
             DisableReduceLROnPlateau = true;
             LearningRateSchedulerType = LearningRateSchedulerEnum.CyclicCosineAnnealing;
             CyclicCosineAnnealing_nbEpochsInFirstRun = nbEpochsInFirstRun;
             CyclicCosineAnnealing_nbEpochInNextRunMultiplier = nbEpochInNextRunMultiplier;
+            CyclicCosineAnnealing_MinLearningRate = minLearningRate;
             return this;
         }
         public NetworkConfig WithOneCycleLearningRateScheduler(int dividerForMinLearningRate, double percentInAnnealing)
@@ -225,7 +234,7 @@ namespace SharpNet.Networks
                 case LearningRateSchedulerEnum.OneCycle:
                     return new OneCycleLearningRateScheduler(initialLearningRate, OneCycle_DividerForMinLearningRate, OneCycle_PercentInAnnealing, numEpochs);
                 case LearningRateSchedulerEnum.CyclicCosineAnnealing:
-                    return new CyclicCosineAnnealingLearningRateScheduler(initialLearningRate, CyclicCosineAnnealing_nbEpochsInFirstRun, CyclicCosineAnnealing_nbEpochInNextRunMultiplier, numEpochs);
+                    return new CyclicCosineAnnealingLearningRateScheduler(CyclicCosineAnnealing_MinLearningRate, initialLearningRate, CyclicCosineAnnealing_nbEpochsInFirstRun, CyclicCosineAnnealing_nbEpochInNextRunMultiplier, numEpochs);
                 case LearningRateSchedulerEnum.Cifar10DenseNet:
                     return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 150, initialLearningRate / 10, 225, initialLearningRate / 100);
                 case LearningRateSchedulerEnum.Cifar10ResNet:
@@ -251,7 +260,7 @@ namespace SharpNet.Networks
 
                 //learning rate scheduler fields
                 .Add(nameof(LearningRateSchedulerType), (int)LearningRateSchedulerType)
-                .Add(nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), CyclicCosineAnnealing_nbEpochsInFirstRun).Add(nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), CyclicCosineAnnealing_nbEpochInNextRunMultiplier)
+                .Add(nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), CyclicCosineAnnealing_nbEpochsInFirstRun).Add(nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), CyclicCosineAnnealing_nbEpochInNextRunMultiplier).Add(nameof(CyclicCosineAnnealing_MinLearningRate), CyclicCosineAnnealing_MinLearningRate)
                 .Add(nameof(OneCycle_DividerForMinLearningRate), OneCycle_DividerForMinLearningRate).Add(nameof(OneCycle_PercentInAnnealing), OneCycle_PercentInAnnealing)
                 .Add(nameof(DisableReduceLROnPlateau), DisableReduceLROnPlateau).Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau).Add(nameof(LinearLearningRate), LinearLearningRate)
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
@@ -294,6 +303,7 @@ namespace SharpNet.Networks
             LearningRateSchedulerType = (LearningRateSchedulerEnum)serialized[nameof(LearningRateSchedulerType)];
             CyclicCosineAnnealing_nbEpochsInFirstRun = (int)serialized[nameof(CyclicCosineAnnealing_nbEpochsInFirstRun)];
             CyclicCosineAnnealing_nbEpochInNextRunMultiplier = (int)serialized[nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier)];
+            CyclicCosineAnnealing_MinLearningRate = (double)serialized[nameof(CyclicCosineAnnealing_MinLearningRate)];
             OneCycle_DividerForMinLearningRate = (int)serialized[nameof(OneCycle_DividerForMinLearningRate)];
             OneCycle_PercentInAnnealing = (double)serialized[nameof(OneCycle_PercentInAnnealing)];
             DisableReduceLROnPlateau = (bool)serialized[nameof(DisableReduceLROnPlateau)];
