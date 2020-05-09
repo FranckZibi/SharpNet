@@ -186,7 +186,7 @@ namespace SharpNet.GPU
                 invertOfUnbiasedVolatilityBuffer);
             CheckStatus(res);
         }
-        public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)
+        public override void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y)
         {
             AssertIsNotDisposed();
             y.AssertIsNotDisposed();
@@ -206,10 +206,16 @@ namespace SharpNet.GPU
             {
                 res = CudnnWrapper.cudnnSoftmaxForward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, xDesc, x, zero, yDesc, y);
             }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
+            {
+                var activationDes = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDes, one, xDesc, x, zero, yDesc, y);
+                y.AddTensor((float)alphaActivation, x, 1- (float)alphaActivation);
+            }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
                 // y = x * sigmoid(x) 
-                ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, y);
+                ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, alphaActivation, y);
                 y.Update_Multiply_By_x(this);
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
@@ -220,7 +226,7 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
-        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, Tensor dx)
+        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, double alphaActivation, Tensor dx)
         {
             var y = this;
             Debug.Assert(AreCompatible(new List<Tensor> {y, dy, x, dx}));
@@ -238,6 +244,12 @@ namespace SharpNet.GPU
             if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
             {
                 res = CudnnWrapper.cudnnSoftmaxBackward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, yDesc, y, dyDesc, dy, zero, dxDesc, dx);
+            }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
+            {
+                var activationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
+                dx.AddTensor((float)alphaActivation, dy, 1 - (float)alphaActivation);
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {

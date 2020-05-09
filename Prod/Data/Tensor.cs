@@ -299,9 +299,23 @@ namespace SharpNet.Data
         public abstract void Split(Tensor a, Tensor b);
         public abstract void Update_Multiplying_By_Alpha(float alpha);
 
-        //this = x
-        public abstract void ActivationForward(cudnnActivationMode_t activationType, Tensor y);
+        /// <summary>
+        /// this = x = [in] input
+        /// </summary>
+        /// <param name="activationType">the king of activation</param>
+        /// <param name="alphaActivation">only used for Leaky Activation</param>
+        /// <param name="y">[out] output after activation</param>
+        public abstract void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y);
 
+        /// <summary>
+        /// this  = y = [in] output
+        /// </summary>
+        /// <param name="dy">[in] gradient of the output</param>
+        /// <param name="x">[in] input</param>
+        /// <param name="activationType"></param>
+        /// <param name="alphaActivation">only used for Leaky Activation</param>
+        /// <param name="dx">[out] gradient of the input</param>
+        public abstract void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, double alphaActivation, Tensor dx);
 
         #region Convolution
         /// <summary>
@@ -384,8 +398,6 @@ namespace SharpNet.Data
             int poolingWidth, int poolingStride);
         public abstract void CopyTo(Tensor b);
         public abstract void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount);
-        //this  = y
-        public abstract void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, Tensor dx);
         //this = dy
         public abstract void Compute_BiasGradient_from_dy(Tensor biasGradient);
         //this = Weights or B

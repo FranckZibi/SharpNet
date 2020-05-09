@@ -258,8 +258,12 @@ namespace SharpNet.Networks
         }
         public Network Activation(cudnnActivationMode_t activationFunction, string layerName = "")
         {
+            return Activation(activationFunction, 0.0, layerName);
+        }
+        public Network Activation(cudnnActivationMode_t activationFunction, double alphaActivation, string layerName = "")
+        {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ActivationLayer(activationFunction, this, layerName));
+            Layers.Add(new ActivationLayer(activationFunction, alphaActivation, this, layerName));
             return this;
         }
 

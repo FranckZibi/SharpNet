@@ -45,7 +45,7 @@ namespace SharpNet.Data
         public override void Concatenate(Tensor a, Tensor b){throw new NotImplementedException();}
         public override void Split(Tensor a, Tensor b){throw new NotImplementedException();}
         public override void Update_Multiplying_By_Alpha(float alpha){throw new NotImplementedException();}
-        public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y){throw new NotImplementedException();}
+        public override void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y){throw new NotImplementedException();}
         public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft,
             int paddingRight, int stride,
             Tensor y, bool isDepthwiseConvolution, GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference,
@@ -66,7 +66,8 @@ namespace SharpNet.Data
         public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth,int poolingStride){throw new NotImplementedException();}
         public override void CopyTo(Tensor b){throw new NotImplementedException();}
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount){throw new NotImplementedException();}
-        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, Tensor dx){throw new NotImplementedException();}
+        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType,
+            double alphaActivation, Tensor dx){throw new NotImplementedException();}
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient){throw new NotImplementedException();}
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW,Tensor adam_sW, int timestep){throw new NotImplementedException();}
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity){throw new NotImplementedException();}

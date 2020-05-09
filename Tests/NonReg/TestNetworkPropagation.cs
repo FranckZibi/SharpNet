@@ -206,6 +206,40 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.6792957186698914, 0.5);
         }
 
+
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestLeakyReluActivation_NCHW_2_1_4_4(List<int> resourceIds)
+        {
+            var learningRate = 0.1;
+            var numEpochs = 10;
+            var momentum = 0.9;
+
+            var X = FromNumpyArray(X_2_1_4_4);
+            var Y = FromNumpyArray(Y_2_3);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
+            network.Config.WithSGD(momentum, false);
+            network
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
+                .Dense(3, 0.0)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU, 0.1)
+                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+
+            FromNumpyArray("[[0.023770928382873535, -0.36406564712524414, 0.2011132836341858], [-0.022573411464691162, 0.4929857850074768, 0.3783552050590515], [-0.33265596628189087, 0.22183668613433838, 0.41303348541259766], [0.03862738609313965, 0.45694905519485474, -0.04652899503707886], [-0.5435763001441956, 0.41159480810165405, 0.5266854166984558], [-0.04584687948226929, -0.08123898506164551, 0.4334854483604431], [-0.2302585244178772, -0.24818822741508484, -0.3167213797569275], [-0.13403433561325073, -0.3995753526687622, 0.34845834970474243], [-0.1195337176322937, -0.1887650191783905, -0.19744089245796204], [-0.5492820739746094, 0.5230247378349304, 0.32086360454559326], [0.18945717811584473, 0.040142059326171875, -0.3605096936225891], [-0.4736575186252594, -0.2625374495983124, -0.2964716851711273], [-0.24349680542945862, -0.3485376536846161, -0.2378036081790924], [0.43136709928512573, 0.5169172883033752, -0.43086883425712585], [0.008988022804260254, 0.24687832593917847, 0.17265933752059937], [0.023125171661376953, -0.22023779153823853, 0.31369251012802124]]")
+                .CopyTo(((DenseLayer)network.Layers[1]).Weights);
+            FromNumpyArray("[[-0.3802216053009033, -0.8489081859588623, -0.08725166320800781], [-0.7802162170410156, -0.7194366455078125, -0.9523963928222656], [-0.11738991737365723, 0.7826731204986572, -0.5935578346252441]]")
+                .CopyTo(((DenseLayer)network.Layers[3]).Weights);
+
+            //predictions before training
+            TestPredict(network, X, "[[0.4370572865009308, 0.5525224208831787, 0.3667464256286621], [0.43723082542419434, 0.6376928091049194, 0.32504063844680786]]");
+            TestLossAccuracy(network, X, Y, 0.8004429340362549, 0);
+
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
+
+            //predictions after training
+            TestPredict(network, X,"[[0.3570849895477295, 0.1356194019317627, 0.339799165725708], [0.3754737973213196, 0.15078075230121613, 0.35905107855796814]]");
+            TestLossAccuracy(network, X, Y, 0.5415375232696533, 0.5);
+        }
+
         [Test, TestCaseSource(nameof(GetTestCases))]
         public void TestConvolutionWithReluActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
@@ -753,8 +787,9 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction, List<int> resourceIds)
         {
-            return new Network(new NetworkConfig{ Logger = Logger.NullLogger, LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, resourceIds);
-            //return new Network(new NetworkConfig{ Logger = new Logger(System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "test_"+DateTime.Now.Ticks+".txt"), true), LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, resourceIds);
+            var logger = Logger.NullLogger;
+            //logger = new Logger(System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "test_" + DateTime.Now.Ticks + ".txt"), true);
+            return new Network(new NetworkConfig{ Logger = logger, LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, resourceIds);
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {

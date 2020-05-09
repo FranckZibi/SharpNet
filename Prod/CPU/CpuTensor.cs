@@ -409,7 +409,7 @@ namespace SharpNet.CPU
         }
         //this = dy
 
-        public override void ActivationForward(cudnnActivationMode_t activationType, Tensor y)
+        public override void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> {x, y}));
@@ -417,6 +417,9 @@ namespace SharpNet.CPU
             {
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU:
                     CpuTensorActivationFunctions.Relu(x, y);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
+                    CpuTensorActivationFunctions.LeakyRelu(x, y, alphaActivation);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
                     CpuTensorActivationFunctions.Elu(x, y, 1.0);
@@ -437,7 +440,7 @@ namespace SharpNet.CPU
                     throw new ArgumentException("invalid activation mode " + activationType);
             }
         }
-        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, Tensor dx)
+        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, double alphaActivation, Tensor dx)
         {
             var y = this;
             Debug.Assert(AreCompatible(new List<Tensor> { y, dy, x, dx }));
@@ -445,6 +448,9 @@ namespace SharpNet.CPU
             {
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU:
                     CpuTensorActivationFunctions.ReluGradient(dy, x, dx);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
+                    CpuTensorActivationFunctions.LeakyReluGradient(dy, x, dx, alphaActivation);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
                     CpuTensorActivationFunctions.EluGradient(y, dy, x, dx, 1f);

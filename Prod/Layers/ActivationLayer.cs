@@ -8,13 +8,18 @@ namespace SharpNet.Layers
 {
     public class ActivationLayer : Layer
     {
+        #region private fields
+        private readonly double _alphaActivation;
+        #endregion
+
         #region public fields and properties
         public cudnnActivationMode_t ActivationFunction { get; }
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public ActivationLayer(cudnnActivationMode_t activationFunctionType, Network network, string layerName) : base(network, layerName)
+        public ActivationLayer(cudnnActivationMode_t activationFunctionType, double alphaActivation, Network network, string layerName) : base(network, layerName)
         {
+            _alphaActivation = alphaActivation;
             ActivationFunction = activationFunctionType;
         }
 
@@ -23,7 +28,7 @@ namespace SharpNet.Layers
         {
             Debug.Assert(allX.Count == 1);
             StartForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
-            allX[0].ActivationForward(ActivationFunction, y);
+            allX[0].ActivationForward(ActivationFunction, _alphaActivation, y);
             StopForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
@@ -44,7 +49,7 @@ namespace SharpNet.Layers
             }
             else
             {
-                y.ActivationBackward(dy, allX[0], ActivationFunction, dx[0]);
+                y.ActivationBackward(dy, allX[0], ActivationFunction, _alphaActivation, dx[0]);
             }
             StopBackwardTimer(Type() + ">" + ToString(ActivationFunction));
         }
@@ -55,12 +60,14 @@ namespace SharpNet.Layers
         {
             return RootSerializer()
                 .Add(nameof(ActivationFunction), (int)ActivationFunction)
+                .Add(nameof(_alphaActivation), _alphaActivation)
                 .ToString();
         }
         public static ActivationLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new ActivationLayer(
                 (cudnnActivationMode_t)serialized[nameof(ActivationFunction)],
+                (double)serialized[nameof(_alphaActivation)],
                 network,
                 (string)serialized[nameof(LayerName)]);
         }

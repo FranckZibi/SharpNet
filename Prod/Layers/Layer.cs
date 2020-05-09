@@ -221,6 +221,11 @@ namespace SharpNet.Layers
         }
 
 
+        public void Log(string msg)
+        {
+            Network.Info(msg);
+        }
+
         public int n_x
         {
             get

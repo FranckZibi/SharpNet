@@ -107,11 +107,11 @@ namespace SharpNet.Layers
                 a_buffer2.Dot(a_prev, Weights_aa);
                 a_buffer1.AddTensor(1, a_buffer2, 1);
                 Bias_a.BroadcastAddVectorToOutput(a_buffer1);
-                a_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, a_t[t]);
+                a_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, 0, a_t[t]);
 
                 y_buffer1.Dot(a_t[t], Weights_ay);
                 Bias_y.BroadcastAddVectorToOutput(y_buffer1);
-                y_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, y_t[t]);
+                y_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, 0, y_t[t]);
             }
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)

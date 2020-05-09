@@ -99,7 +99,6 @@ namespace SharpNet.Networks
         {
             for (int layerIndex = 0; layerIndex < Layers.Count; ++layerIndex)
             {
-                //if (layerIndex > 10 && layerIndex < Layers.Count - 10) continue;
                 var layer = Layers[layerIndex];
                 layer.LogContent();
             }

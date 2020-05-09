@@ -95,6 +95,18 @@ namespace SharpNet.CPU
         }
         #endregion
 
+        #region Leaky Relu
+        public static void LeakyRelu<T>(CpuTensor<T> X, Tensor Y, double alpha)
+        {
+            X.AsFloatCpu.Map(x => (x>=0)?x:((float)alpha)*x, Y.AsFloatCpu);
+        }
+        public static void LeakyReluGradient(Tensor dY, Tensor X, Tensor dX, double alpha)
+        {
+            Debug.Assert(Tensor.AreCompatible(new List<Tensor> { dY, X, dX }));
+            dX.AsFloatCpu.BuildEntirelyFromInput(dY, X, (dy, x) => (x >= 0f ? dy : ((float)alpha)*dy));
+        }
+        #endregion
+
         #region Elu
         public static void Elu<T>(CpuTensor<T> X, Tensor Y, double alpha)
         {

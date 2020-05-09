@@ -207,5 +207,73 @@ namespace SharpNetTests.NonReg
             logger.Info("C# prediction_after= " + predict_after);
             logger.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
         }
+
+        [Test, Explicit]
+        public void TestParallelRunWithTensorFlow_LeakyRelu()
+        {
+            const int numEpochs = 10;
+            const double learningRate = 0.1;
+            const double lambdaL2Regularization = 0.00;
+            const double momentum = 0.9;
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            var logger = new Logger(logFileName, true);
+
+            var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_1_4_4);
+            var Y = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.Y_2_3);
+
+            int batchSize = X.Shape[0];
+            //var gpuDeviceId = -1;
+            var gpuDeviceId = 0;
+            var network = new Network(new NetworkConfig
+            {
+                Logger = logger,
+                LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
+                RandomizeOrder = false,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
+            }
+                       .WithSGD(momentum, false),
+                        new List<int> { gpuDeviceId }
+                );
+
+            network
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
+                .Dense_Activation(3, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+
+
+            logger.Info(network.Summary() + Environment.NewLine);
+
+
+            TestNetworkPropagation.FromNumpyArray("[[0.023770928382873535, -0.36406564712524414, 0.2011132836341858], [-0.022573411464691162, 0.4929857850074768, 0.3783552050590515], [-0.33265596628189087, 0.22183668613433838, 0.41303348541259766], [0.03862738609313965, 0.45694905519485474, -0.04652899503707886], [-0.5435763001441956, 0.41159480810165405, 0.5266854166984558], [-0.04584687948226929, -0.08123898506164551, 0.4334854483604431], [-0.2302585244178772, -0.24818822741508484, -0.3167213797569275], [-0.13403433561325073, -0.3995753526687622, 0.34845834970474243], [-0.1195337176322937, -0.1887650191783905, -0.19744089245796204], [-0.5492820739746094, 0.5230247378349304, 0.32086360454559326], [0.18945717811584473, 0.040142059326171875, -0.3605096936225891], [-0.4736575186252594, -0.2625374495983124, -0.2964716851711273], [-0.24349680542945862, -0.3485376536846161, -0.2378036081790924], [0.43136709928512573, 0.5169172883033752, -0.43086883425712585], [0.008988022804260254, 0.24687832593917847, 0.17265933752059937], [0.023125171661376953, -0.22023779153823853, 0.31369251012802124]]")
+                .CopyTo(((DenseLayer)network.Layers[1]).Weights);
+            TestNetworkPropagation.FromNumpyArray("[[-0.3802216053009033, -0.8489081859588623, -0.08725166320800781], [-0.7802162170410156, -0.7194366455078125, -0.9523963928222656], [-0.11738991737365723, 0.7826731204986572, -0.5935578346252441]]")
+                .CopyTo(((DenseLayer)network.Layers[3]).Weights);
+
+
+            var predict_before = network.Predict(X, false).ToNumpy();
+            network.LogContent();
+
+            var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], "", null);
+            var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            logger.Info("-");
+            logger.Info("--------------------------------------------------------------------");
+            logger.Info("-");
+
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+
+            var predict_after = network.Predict(X, false).ToNumpy();
+            network.LogContent();
+            var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            logger.Info("C# numEpochs= " + numEpochs);
+            logger.Info("C# learningRate= " + learningRate);
+            logger.Info("C# l2regularizer= " + lambdaL2Regularization);
+            logger.Info("C# momentum= " + momentum);
+            logger.Info("C# prediction_before= " + predict_before);
+            logger.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
+            logger.Info("C# prediction_after= " + predict_after);
+            logger.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
+        }
     }
 }

@@ -373,33 +373,37 @@ namespace SharpNetTests
             TestAll(new[] { src, dest }, tensors => tensors[0].CopyTo(20,tensors[1],60,40));
         }
 
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)]
-	    public void TestActivationForward(cudnnActivationMode_t activationMode)
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU, 0.1)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU, 0.3)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH, 0)]
+	    public void TestActivationForward(cudnnActivationMode_t activationMode, double alphaActivation)
 	    {
 	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
 	        var y = RandomTensor(x.Shape);
-	        TestAll(new[] { x, y }, tensors => tensors[0].ActivationForward(activationMode, tensors[1]));
+	        TestAll(new[] { x, y }, tensors => tensors[0].ActivationForward(activationMode, alphaActivation, tensors[1]));
 	    }
 
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)]
-        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)]
-	    public void TestActivationBackward(cudnnActivationMode_t activationMode)
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU, 0.1)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU, 0.3)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH, 0)]
+	    public void TestActivationBackward(cudnnActivationMode_t activationMode, double alphaActivation)
 	    {
             var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
             var dy = RandomTensor(y.Shape);
             var x = RandomTensor(y.Shape);
             var dx = RandomTensor(y.Shape);
-	        x.ActivationForward(activationMode, y);
-            TestAll(new[] { y, dy, x, dx }, tensors => tensors[0].ActivationBackward(tensors[1], tensors[2], activationMode, tensors[3]));
+	        x.ActivationForward(activationMode, alphaActivation, y);
+            TestAll(new[] { y, dy, x, dx }, tensors => tensors[0].ActivationBackward(tensors[1], tensors[2], activationMode, alphaActivation, tensors[3]));
 	    }
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 1)]
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 2)]
