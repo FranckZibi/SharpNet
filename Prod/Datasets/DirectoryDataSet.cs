@@ -7,7 +7,6 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SharpNet.Datasets
@@ -15,49 +14,67 @@ namespace SharpNet.Datasets
     public class DirectoryDataSet : AbstractDataSet
     {
         #region private fields
-        private readonly string _csvFileName;
+        /// <summary>
+        /// path to a file (or directory) with the description of the dataset elements (categories, etc.)
+        /// </summary>
+        private readonly string _descriptionPath;
+        /// <summary>
+        /// directory with all elements of the dataset. 
+        /// </summary>
         private readonly string _dataDirectory;
         private readonly string[] _categoryIndexToDescription;
         private readonly bool _ignoreZeroPixel;
-        private readonly Action<string, string, List<int>, List<string>, List<List<string>>, Logger> _computeCategoryIndexDescriptionFullName;
+        private readonly Action<string, string, Logger, List<int>, List<string>, List<List<string>>> _computeCategoryIndexDescriptionFullName;
         /// <summary>
         /// For each element id, the list of path to files (starting from 'DataDirectory') used to construct it
         /// If this list contains 1 element:
         ///    this element contains all channels used to construct the element id
         ///  If this list contains several element:
         ///     each element is a single channel of the target element id
-        ///     we'll need ot stack all those channels to build the element id
+        ///     we'll need to stack all those channels to build the element id
         /// </summary>
         private readonly List<List<string>> _elementIdToSubPath = new List<List<string>>();
         private readonly List<string> _elementIdToDescription = new List<string>();
         private readonly List<int> _elementIdToCategoryIndex = new List<int>();
         #endregion
+        /// <summary>
+        /// height of each element in the directory
+        /// -1 if element may have different height
+        /// </summary>
         public override int Height { get; }
+        /// <summary>
+        /// width of each element in the directory
+        /// -1 if element may have different width
+        /// </summary>
         public override int Width { get; }
 
         public override CpuTensor<float> Y { get; }
 
-        public DirectoryDataSet(string csvFileName, string dataDirectory, Logger logger,
+        public DirectoryDataSet(string descriptionPath, string dataDirectory, Logger logger,
             string name, int channels, int height, int width, string[] categoryIndexToDescription,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             bool ignoreZeroPixel,
-            Action<string,string,List<int>,List<string>,List<List<string>>,Logger> computeCategoryIndexDescriptionFullName
-            )
-            : base(name, channels, categoryIndexToDescription.Length, null, logger)
+            Action<string, string, Logger, List<int>, List<string>, List<List<string>>>
+                computeCategoryIndexDescriptionFullName)
+            : base(name, channels, categoryIndexToDescription.Length, meanAndVolatilityForEachChannel, logger)
         {
-            _csvFileName = csvFileName;
+            _descriptionPath = descriptionPath;
             Height = height;
             Width = width;
-            _dataDirectory = dataDirectory ?? Path.GetDirectoryName(csvFileName) ?? "";
+            _dataDirectory = dataDirectory ?? Path.GetDirectoryName(descriptionPath) ?? "";
             _categoryIndexToDescription = categoryIndexToDescription;
             _ignoreZeroPixel = ignoreZeroPixel;
             Debug.Assert(computeCategoryIndexDescriptionFullName != null);
             _computeCategoryIndexDescriptionFullName = computeCategoryIndexDescriptionFullName;
-            _computeCategoryIndexDescriptionFullName(
-                _csvFileName, _dataDirectory, _elementIdToCategoryIndex, _elementIdToDescription,
-                _elementIdToSubPath, Logger);
-            if (!LoadStatsFile())
+            _computeCategoryIndexDescriptionFullName(_descriptionPath, _dataDirectory, Logger, _elementIdToCategoryIndex, _elementIdToDescription,_elementIdToSubPath);
+            //if (!LoadStatsFile())
+            //{
+            //    CreateStatsFile();
+            //}
+            if (meanAndVolatilityForEachChannel == null)
             {
-                CreateStatsFile();
+                ComputeMeanAndVolatilityForEachChannel();
+                throw new ArgumentException("please update mean and volatility for dataSet " + name);
             }
             //We compute Y 
             Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _elementIdToCategoryIndex.Count, CategoryCount);
@@ -65,10 +82,11 @@ namespace SharpNet.Datasets
         public static void DefaultCompute_CategoryIndex_Description_FullName(
             string csvFileName,
             string directoryWithElements,
+            Logger logger,
             List<int> elementIdToCategoryIndex,
             List<string> elementIdToDescription,
-            List<List<string>> elementIdToSubPath, 
-            Logger _logger)
+            List<List<string>> elementIdToSubPath
+            )
         {
             elementIdToCategoryIndex.Clear();
             elementIdToDescription.Clear();
@@ -76,7 +94,7 @@ namespace SharpNet.Datasets
 
             if (!File.Exists(csvFileName))
             {
-                _logger.Info("missing file " + csvFileName);
+                logger.Info("missing file " + csvFileName);
                 throw new ArgumentException("missing file " + csvFileName);
             }
 
@@ -101,11 +119,11 @@ namespace SharpNet.Datasets
                     {
                         if (index == 0)
                         {
-                            _logger.Debug("ignoring (header) first line: " + lines[index]);
+                            logger.Debug("ignoring (header) first line: " + lines[index]);
                         }
                         else
                         {
-                            _logger.Info("invalid categoryIndex in line: " + lines[index]);
+                            logger.Info("invalid categoryIndex in line: " + lines[index]);
                             throw new ArgumentException("invalid categoryIndex in line: " + lines[index]);
                         }
                         continue;
@@ -114,7 +132,7 @@ namespace SharpNet.Datasets
                 var elementFileNameWithoutExtension = Path.GetFileNameWithoutExtension(description) ?? "";
                 if (!fileNameWithoutExtensionToSubPath.ContainsKey(elementFileNameWithoutExtension))
                 {
-                    _logger.Debug("WARNING: no matching file for line: " + lines[index]);
+                    logger.Debug("WARNING: no matching file for line: " + lines[index]);
                     continue;
                 }
                 elementIdToCategoryIndex.Add(categoryIndex);
@@ -153,59 +171,60 @@ namespace SharpNet.Datasets
                 yBuffer?.Set(indexInBuffer, cat, (cat==categoryIndex)?1f: 0f);
             }
         }
+
+        //// ReSharper disable once UnusedMember.Global
+        //public DirectoryDataSet CropBorder(bool skipIfFileAlreadyExists = true)
+        //{
+        //    var targetDirectory = _dataDirectory + "_cropped";
+        //    if (!Directory.Exists(targetDirectory))
+        //    {
+        //        Directory.CreateDirectory(targetDirectory);
+        //    }
+        //    Logger.Info("Cropping " + Count + " elements and copying them in " + targetDirectory);
+        //    int nbPerformed = 0;
+        //    Parallel.For(0, Count, elementId => CropBorder(elementId, targetDirectory, skipIfFileAlreadyExists, ref nbPerformed));
+        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
+        //}
+        //// ReSharper disable once UnusedMember.Global
+        //public DirectoryDataSet Filter(Func<BitmapContent, bool> isIncluded, bool skipIfFileAlreadyExists = true)
+        //{
+        //    var targetDirectory = _dataDirectory + "_filter";
+        //    if (!Directory.Exists(targetDirectory))
+        //    {
+        //        Directory.CreateDirectory(targetDirectory);
+        //    }
+        //    Logger.Info("Filtering " + Count + " elements and copying them in " + targetDirectory);
+        //    int nbPerformed = 0;
+        //    Parallel.For(0, Count, elementId => Filter(elementId, targetDirectory, isIncluded, skipIfFileAlreadyExists, ref nbPerformed));
+        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
+        //}
+        //// ReSharper disable once UnusedMember.Global
+        //public DirectoryDataSet Resize(int newWidth, int newHeight, bool skipIfFileAlreadyExists = true)
+        //{
+        //    var targetDirectory = _dataDirectory + "_resize_" + newWidth + "_" + newHeight;
+        //    if (!Directory.Exists(targetDirectory))
+        //    {
+        //        Directory.CreateDirectory(targetDirectory);
+        //    }
+        //    Logger.Info("Resizing " + Count + " elements and copying them in " + targetDirectory);
+        //    var nbPerformed = 0;
+        //    Parallel.For(0, Count, elementId => Resize(elementId, targetDirectory, newWidth, newHeight, skipIfFileAlreadyExists, ref nbPerformed));
+        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
+        //}
         // ReSharper disable once UnusedMember.Global
-        public DirectoryDataSet CropBorder(bool skipIfFileAlreadyExists = true)
-        {
-            var targetDirectory = _dataDirectory + "_cropped";
-            if (!Directory.Exists(targetDirectory))
-            {
-                Directory.CreateDirectory(targetDirectory);
-            }
-            Logger.Info("Cropping " + Count + " elements and copying them in " + targetDirectory);
-            int nbPerformed = 0;
-            Parallel.For(0, Count, elementId => CropBorder(elementId, targetDirectory, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSet(_csvFileName, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        }
-        // ReSharper disable once UnusedMember.Global
-        public DirectoryDataSet Filter(Func<BitmapContent, bool> isIncluded, bool skipIfFileAlreadyExists = true)
-        {
-            var targetDirectory = _dataDirectory + "_filter";
-            if (!Directory.Exists(targetDirectory))
-            {
-                Directory.CreateDirectory(targetDirectory);
-            }
-            Logger.Info("Filtering " + Count + " elements and copying them in " + targetDirectory);
-            int nbPerformed = 0;
-            Parallel.For(0, Count, elementId => Filter(elementId, targetDirectory, isIncluded, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSet(_csvFileName, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        }
-        // ReSharper disable once UnusedMember.Global
-        public DirectoryDataSet Resize(int newWidth, int newHeight, bool skipIfFileAlreadyExists = true)
-        {
-            var targetDirectory = _dataDirectory + "_resize_" + newWidth + "_" + newHeight;
-            if (!Directory.Exists(targetDirectory))
-            {
-                Directory.CreateDirectory(targetDirectory);
-            }
-            Logger.Info("Resizing " + Count + " elements and copying them in " + targetDirectory);
-            var nbPerformed = 0;
-            Parallel.For(0, Count, elementId => Resize(elementId, targetDirectory, newWidth, newHeight, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSet(_csvFileName, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        }
-        // ReSharper disable once UnusedMember.Global
-        public DirectoryDataSet MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor = null, bool skipIfFileAlreadyExists = true)
-        {
-            fillingColor = fillingColor ?? Tuple.Create((byte)0, (byte)0, (byte)0);
-            var targetDirectory = _dataDirectory + "_square";
-            if (!Directory.Exists(targetDirectory))
-            {
-                Directory.CreateDirectory(targetDirectory);
-            }
-            Logger.Info("Making " + Count + " elements square pictures and copying them in " + targetDirectory);
-            int nbPerformed = 0;
-            Parallel.For(0, Count, elementId => MakeSquarePictures(elementId, targetDirectory, alwaysUseBiggestSideForWidthSide, alwaysCropInsidePicture, fillingColor, skipIfFileAlreadyExists, ref nbPerformed));
-            return new DirectoryDataSet(_csvFileName, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        }
+        //public DirectoryDataSet MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor = null, bool skipIfFileAlreadyExists = true)
+        //{
+        //    fillingColor = fillingColor ?? Tuple.Create((byte)0, (byte)0, (byte)0);
+        //    var targetDirectory = _dataDirectory + "_square";
+        //    if (!Directory.Exists(targetDirectory))
+        //    {
+        //        Directory.CreateDirectory(targetDirectory);
+        //    }
+        //    Logger.Info("Making " + Count + " elements square pictures and copying them in " + targetDirectory);
+        //    int nbPerformed = 0;
+        //    Parallel.For(0, Count, elementId => MakeSquarePictures(elementId, targetDirectory, alwaysUseBiggestSideForWidthSide, alwaysCropInsidePicture, fillingColor, skipIfFileAlreadyExists, ref nbPerformed));
+        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
+        //}
         public override int Count => _elementIdToCategoryIndex.Count;
         public override int ElementIdToCategoryIndex(int elementId)
         {
@@ -289,22 +308,22 @@ namespace SharpNet.Datasets
             }
         }
         private string StatsFileName => Path.Combine(_dataDirectory, "SharpNet.ini");
-        private void CreateStatsFile()
-        {
-            Logger.Info("Creating stats file");
-            var sb = new StringBuilder();
-            //We compute Mean and volatility stats
-            _meanAndVolatilityForEachChannel = new List<Tuple<float, float>>();
-            _meanAndVolatilityForEachChannel.Clear();
-            sb.Append(MEAN_VOLATILITY + "=");
-            foreach (var meanVolatility in ComputeMeanAndVolatilityForEachChannel())
-            {
-                _meanAndVolatilityForEachChannel.Add(meanVolatility);
-                sb.Append(meanVolatility.Item1.ToString(CultureInfo.InvariantCulture) + ";" + meanVolatility.Item2.ToString(CultureInfo.InvariantCulture) + ";");
-            }
-            sb.Append(Environment.NewLine);
-            File.WriteAllText(StatsFileName, sb.ToString());
-        }
+        //private void CreateStatsFile()
+        //{
+        //    Logger.Info("Creating stats file");
+        //    var sb = new StringBuilder();
+        //    //We compute Mean and volatility stats
+        //    _meanAndVolatilityForEachChannel = new List<Tuple<float, float>>();
+        //    _meanAndVolatilityForEachChannel.Clear();
+        //    sb.Append(MEAN_VOLATILITY + "=");
+        //    foreach (var meanVolatility in ComputeMeanAndVolatilityForEachChannel())
+        //    {
+        //        _meanAndVolatilityForEachChannel.Add(meanVolatility);
+        //        sb.Append(meanVolatility.Item1.ToString(CultureInfo.InvariantCulture) + ";" + meanVolatility.Item2.ToString(CultureInfo.InvariantCulture) + ";");
+        //    }
+        //    sb.Append(Environment.NewLine);
+        //    File.WriteAllText(StatsFileName, sb.ToString());
+        //}
         const string MEAN_VOLATILITY = "MEAN_VOLATILITY";
         private bool LoadStatsFile()
         {

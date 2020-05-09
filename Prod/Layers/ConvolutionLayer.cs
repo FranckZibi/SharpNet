@@ -430,7 +430,6 @@ namespace SharpNet.Layers
                     }
                     else
                     {
-                        //TODO check formula
                         paddingStart = (totalPadding + 1) / 2;
                         paddingEnd = paddingStart;
                     }

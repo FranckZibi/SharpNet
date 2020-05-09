@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Xml;
 using SharpNet.Data;
 
 namespace SharpNet
@@ -418,5 +419,20 @@ namespace SharpNet
                 return "";
             }
         }
+
+
+        public static string GetString(XmlNode node, string keyName)
+        {
+            return node?.SelectSingleNode(keyName)?.InnerText ?? "";
+        }
+        public static int GetInt(XmlNode node, string keyName, int defaultValue)
+        {
+            return int.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
+        }
+        public static bool GetBool(XmlNode node, string keyName, bool defaultValue)
+        {
+            return bool.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
+        }
+
     }
 }

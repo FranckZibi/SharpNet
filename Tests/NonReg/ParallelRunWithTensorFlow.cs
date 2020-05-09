@@ -22,15 +22,17 @@ namespace SharpNetTests.NonReg
         [Test]
         public void TestParallelRunWithTensorFlow_Efficientnet_Inference()
         {
-            var xFileName = File.ReadAllText(Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt"));
-            var yExpectedFileName = File.ReadAllText(Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "YExpected_1_224_224_3.txt"));
+            var xFileName = Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt");
+            var yExpectedFileName = Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "YExpected_1_224_224_3.txt");
             if (!File.Exists(xFileName) || !File.Exists(yExpectedFileName))
             {
+                Console.WriteLine("ignoring test "+nameof(TestParallelRunWithTensorFlow_Efficientnet_Inference)+" because some files are missing");
                 return;
             }
-            var X = TestNetworkPropagation.FromNumpyArray(xFileName);
+
+            var X = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(xFileName));
             X = (CpuTensor<float>)X.ChangeAxis(new[] { 0, 3, 1, 2 });
-            var yExpectedFromKeras = TestNetworkPropagation.FromNumpyArray(yExpectedFileName);
+            var yExpectedFromKeras = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(yExpectedFileName));
 
             //we ensure that the network prediction is the same as in Keras
             var networkBuilder = EfficientNetBuilder.CIFAR10();
