@@ -209,27 +209,28 @@ namespace SharpNetTests.NonReg
         }
 
         [Test, Explicit]
-        public void TestParallelRunWithTensorFlow_LeakyRelu()
+        public void TestParallelRunWithTensorFlow_DownSampling2D()
         {
             const int numEpochs = 10;
-            const double learningRate = 0.1;
+            const double learningRate = 0.01;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
             var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var logger = new Logger(logFileName, true);
 
-            var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_1_4_4);
+            var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_3_4_5);
             var Y = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.Y_2_3);
 
             int batchSize = X.Shape[0];
-            //var gpuDeviceId = -1;
-            var gpuDeviceId = 0;
+            var gpuDeviceId = -1;
+            //var gpuDeviceId = 0;
             var network = new Network(new NetworkConfig
             {
                 Logger = logger,
-                LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
+                LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                 RandomizeOrder = false,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM
             }
                        .WithSGD(momentum, false),
                         new List<int> { gpuDeviceId }
@@ -237,17 +238,30 @@ namespace SharpNetTests.NonReg
 
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Dense_Activation(3, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Convolution(4,1,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
+                .UpSampling2D(3,2,UpSampling2DLayer.InterpolationEnum.Nearest)
+                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
+                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+
+
+//            conv1 = tf.keras.layers.Conv2D(1, kernel_size = 1, strides = 1, padding = 'same', use_bias = True, data_format = 'channels_first')(inputs)
+//#flatten = tf.keras.layers.Flatten(data_format='channels_last')(inputs)
+//            activation1 = tf.keras.layers.UpSampling2D(size = (3, 2), interpolation = 'nearest')(conv1)
+//            conv2 = tf.keras.layers.Conv2D(1, kernel_size = 3, strides = 2, padding = 'same', use_bias = True, data_format = 'channels_first')(activation1)
+//            flatten = tf.keras.layers.Flatten(data_format = 'channels_first')(conv2)
+
+//            dense2 = tf.keras.layers.Dense(numClasses)(flatten)
+//            activation2 = tf.keras.layers.Activation('softmax')(dense2)
+//            model = tf.keras.models.Model(inputs = inputs, outputs = activation2)
+
 
 
             logger.Info(network.Summary() + Environment.NewLine);
 
 
-            TestNetworkPropagation.FromNumpyArray("[[0.023770928382873535, -0.36406564712524414, 0.2011132836341858], [-0.022573411464691162, 0.4929857850074768, 0.3783552050590515], [-0.33265596628189087, 0.22183668613433838, 0.41303348541259766], [0.03862738609313965, 0.45694905519485474, -0.04652899503707886], [-0.5435763001441956, 0.41159480810165405, 0.5266854166984558], [-0.04584687948226929, -0.08123898506164551, 0.4334854483604431], [-0.2302585244178772, -0.24818822741508484, -0.3167213797569275], [-0.13403433561325073, -0.3995753526687622, 0.34845834970474243], [-0.1195337176322937, -0.1887650191783905, -0.19744089245796204], [-0.5492820739746094, 0.5230247378349304, 0.32086360454559326], [0.18945717811584473, 0.040142059326171875, -0.3605096936225891], [-0.4736575186252594, -0.2625374495983124, -0.2964716851711273], [-0.24349680542945862, -0.3485376536846161, -0.2378036081790924], [0.43136709928512573, 0.5169172883033752, -0.43086883425712585], [0.008988022804260254, 0.24687832593917847, 0.17265933752059937], [0.023125171661376953, -0.22023779153823853, 0.31369251012802124]]")
-                .CopyTo(((DenseLayer)network.Layers[1]).Weights);
-            TestNetworkPropagation.FromNumpyArray("[[-0.3802216053009033, -0.8489081859588623, -0.08725166320800781], [-0.7802162170410156, -0.7194366455078125, -0.9523963928222656], [-0.11738991737365723, 0.7826731204986572, -0.5935578346252441]]")
-                .CopyTo(((DenseLayer)network.Layers[3]).Weights);
+            TestNetworkPropagation.FromConvNumpyArray("[[[[-0.41233378648757935, -0.5469635725021362, -0.09478795528411865, 0.20379328727722168], [-0.45642712712287903, -0.6934521198272705, 0.7060458660125732, 0.6550993919372559], [-0.40876543521881104, 0.5751461982727051, 0.0005752444267272949, 0.8542157411575317]]]]").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
+            TestNetworkPropagation.FromConvNumpyArray("[[[[-0.1615283042192459], [-0.0656551718711853], [0.1326923966407776], [0.21013426780700684]], [[0.23147475719451904], [0.15308880805969238], [0.0008010268211364746], [0.2704615592956543]], [[-0.2763732671737671], [-0.11263367533683777], [-0.3622085750102997], [0.03678843379020691]]], [[[-0.1616799682378769], [0.029316306114196777], [-0.15289030969142914], [-0.21387864649295807]], [[0.032195329666137695], [-0.013419240713119507], [0.10481679439544678], [-0.18447379767894745]], [[-0.15118040144443512], [0.052129119634628296], [0.07085898518562317], [-0.08211708068847656]]], [[[-0.02411407232284546], [0.17931300401687622], [-0.2963199317455292], [-0.019487440586090088]], [[-0.2584547698497772], [0.23713970184326172], [-0.351848304271698], [0.3424469232559204]], [[0.22793227434158325], [0.13822901248931885], [-0.12481275200843811], [-0.32772859930992126]]]]").CopyTo(((ConvolutionLayer)network.Layers[3]).Weights);
+            TestNetworkPropagation.FromNumpyArray("[[0.07366013526916504, 0.3170207142829895, -0.1550242304801941], [0.420951247215271, -0.4191424548625946, 0.3381590247154236], [0.11008310317993164, 0.0986890196800232, 0.31357908248901367], [0.41440945863723755, 0.30317842960357666, 0.3536931872367859], [-0.010290741920471191, -0.21904385089874268, -0.020769357681274414], [-0.2869524359703064, -0.3439455032348633, 0.2285328507423401], [-0.022606879472732544, -0.1754196584224701, -0.12093043327331543], [-0.19505150616168976, 0.32367968559265137, 0.27787232398986816], [0.1375676393508911, -0.1417226493358612, 0.33683180809020996], [-0.36117273569107056, 0.001855224370956421, 0.24049299955368042], [-0.02008679509162903, 0.22243833541870117, -0.27483871579170227], [-0.20811842381954193, -0.17607355117797852, -0.1847764253616333], [-0.41185829043388367, 0.14473176002502441, 0.10743755102157593], [0.3232056498527527, -0.2687329947948456, 0.041926443576812744], [-0.07551324367523193, 0.23673099279403687, -0.4212562143802643], [-0.32285287976264954, -0.20976179838180542, 0.35986894369125366], [-0.42236655950546265, 0.06221747398376465, 0.19280701875686646], [-0.1036037802696228, 0.22280341386795044, 0.2663360834121704], [-0.278300404548645, 0.3701552152633667, -0.3987610638141632], [-0.2845539450645447, 0.08112376928329468, -0.06442150473594666], [0.13321810960769653, 0.39671868085861206, -0.34261322021484375], [-0.23947212100028992, -0.10445082187652588, -0.36301395297050476], [0.20646917819976807, 0.11567127704620361, 0.15597444772720337], [-0.3057088851928711, 0.39422833919525146, -0.23814217746257782], [0.1633470058441162, 0.12872058153152466, 0.2478216290473938], [-0.3868710696697235, -0.335817813873291, 0.42601829767227173], [-0.3151834011077881, 0.30162113904953003, -0.06157597899436951], [-0.19710223376750946, 0.0573333203792572, 0.2074006199836731], [-0.28093406558036804, 0.2030026912689209, 0.4050601124763489], [0.29869991540908813, -0.31979823112487793, 0.41144388914108276]]").CopyTo(((DenseLayer)network.Layers[4]).Weights);
 
 
             var predict_before = network.Predict(X, false).ToNumpy();

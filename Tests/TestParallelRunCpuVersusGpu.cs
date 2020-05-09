@@ -219,7 +219,29 @@ namespace SharpNetTests
 	        TestAll(new[] { a, b, result}, tensors => tensors[2].Dot(tensors[0], false, tensors[1], false, 1, 0));
         }
 
-	    [Test]
+        [Test]
+        public void TestUpSampling()
+        {
+            const int rowFactor = 3;
+            const int colFactor = 4;
+            var shapeBefore = new[] { 5, 3, 8, 10};
+            var tensorBeforeUpSampling = RandomTensor(shapeBefore);
+            var shapeAfter = new[] { shapeBefore[0], shapeBefore[1], rowFactor * shapeBefore[2], colFactor * shapeBefore[3] };
+            var tensorAfterUpSampling = RandomTensor(shapeAfter);
+            TestAll(new[] { tensorAfterUpSampling, tensorBeforeUpSampling}, tensors => tensors[0].UpSampling2D(tensors[1], rowFactor, colFactor, UpSampling2DLayer.InterpolationEnum.Nearest));
+        }
+
+        [Test]
+        public void TestDownSampling()
+        {
+            const int rowFactor = 3;
+            const int colFactor = 4;
+            var tensorAfterDownSampling = RandomTensor(new[] { 5, 3, 8, 10 });
+            var tensorBeforeDownSampling = RandomTensor(new[] { 5, 3, 8 * rowFactor, 10 * colFactor });
+            TestAll(new[] { tensorAfterDownSampling, tensorBeforeDownSampling }, tensors => tensors[0].DownSampling2D(tensors[1], rowFactor, colFactor));
+        }
+
+        [Test]
 	    public void TestDotV2()
 	    {
 	        var a = RandomTensor(new[] { 8, 10 });

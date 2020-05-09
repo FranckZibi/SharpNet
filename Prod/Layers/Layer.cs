@@ -208,6 +208,7 @@ namespace SharpNet.Layers
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
+                case nameof(UpSampling2DLayer): return UpSampling2DLayer.Deserialize(serialized, network);
                 case nameof(SimpleRnnLayer): return SimpleRnnLayer.Deserialize(serialized, network);
                 default: throw new NotImplementedException("don't know how to deserialize " + layerType);
             }
@@ -219,7 +220,6 @@ namespace SharpNet.Layers
         {
             otherNetwork.Layers.Add(deserialize(Serializer.Deserialize(Serialize()), otherNetwork));
         }
-
 
         public void Log(string msg)
         {

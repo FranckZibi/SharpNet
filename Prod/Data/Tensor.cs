@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using SharpNet.CPU;
 using SharpNet.GPU;
+using SharpNet.Layers;
 using SharpNet.Networks;
 
 namespace SharpNet.Data
@@ -212,6 +213,31 @@ namespace SharpNet.Data
         /// (only the diagonal of the diagonal matrix is contained in vector 'diagonalMatrix'</param>
         public abstract void MultiplyTensor(Tensor a, Tensor diagonalMatrix);
 
+
+        /// <summary>
+        /// this = y [out] output tensor
+        /// upSample the tensor 'tensorToUpSample' by multiplying the number of rows by 'rowMultiplier' and the number of columns by 'colMultiplier'
+        /// stores the result in 'this' tensor
+        /// </summary>
+        /// <param name="tensorBeforeUpSampling">[in] the tensor to up sample. must be of shape (n, c, h, w)</param>
+        /// <param name="rowFactor">row multiplier</param>
+        /// <param name="colFactor">col multiplier</param>
+        /// <param name="interpolation">the type of interpolation (nearest or bilinear)</param>
+        public abstract void UpSampling2D(Tensor tensorBeforeUpSampling, int rowFactor, int colFactor, UpSampling2DLayer.InterpolationEnum interpolation);
+
+        /// <summary>
+        /// this = x [out] input tensor
+        /// down sample the tensor 'upSampledTensor' by dividing the number of rows by 'rowMultiplier' and the number of columns by 'colMultiplier'
+        /// and summing each element
+        /// stores the result in 'this' tensor
+        /// </summary>
+        /// <param name="tensorBeforeDownSampling">[in] the tensor to down sample. must be of shape (n, c, h, w)</param>
+        /// <param name="rowFactor">row multiplier</param>
+        /// <param name="colFactor">col multiplier</param>
+        public abstract void DownSampling2D(Tensor tensorBeforeDownSampling, int rowFactor, int colFactor);
+
+
+
         /// <summary>
         /// this = [out] zero padded version of the 'unpaddedTensor' tensor received as input
         /// </summary>
@@ -413,6 +439,10 @@ namespace SharpNet.Data
             var extractedShape = (int[])Shape.Clone();
             extractedShape[0] = nbRows; //new number of rows
             return Slice(Idx(startRowIndex), extractedShape);
+        }
+        public Tensor ElementSlice(int elementIndex)
+        {
+            return RowSlice(elementIndex, 1);
         }
         public abstract Tensor Slice(int startIndex, int[] sliceShape);
 

@@ -49,7 +49,8 @@ namespace SharpNet.GPU
                     "Split",
                     "MultiplyEachRowIntoSingleValue",
                     "SwishGradient",
-                    "ApplyZeroPaddingForRowId"
+                    "ApplyZeroPaddingForRowId",
+                    "UpSampling2D"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

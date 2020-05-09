@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Layers;
 using SharpNet.Networks;
 
 namespace SharpNet.GPU
@@ -14,17 +15,7 @@ namespace SharpNet.GPU
         #region Private fields
         private readonly GPUWrapper _wrapper;
         /// <summary>
-        /// if the gpu tensor is the owner of its memory
-        ///     the pointer to this device memory space
-        /// else (the tensor is only a slice of a memory area owned by another tensor
-        ///     null
-        /// </summary>
-        //private readonly DeviceMemory _deviceMemory;
-        /// <summary>
-        /// if the tensor is only a slice of a memory area owned by another tensor
-        ///     the pointer to this already allocated memory area
-        /// else (the gpu tensor is the owner of its memory)
-        ///     null
+        /// pointer to the start of the tensor in the device (GPU) memory 
         /// </summary>
         private readonly IntPtr _pointerToStartOfTensor;
         #endregion
@@ -45,7 +36,6 @@ namespace SharpNet.GPU
         /// </summary>
         /// <param name="shape">shape of the tensor</param>
         /// <param name="pointerToMemoryOwner">the already allocated memory area that the tensor will use</param>
-        /// <param name="offsetInBytesInPointerToStartOfMemoryOwner">an offset in the memory area that indicates the start of the memory allocated for the 'this' tensor</param>
         /// <param name="wrapper"></param>
         private GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
         {
@@ -715,6 +705,28 @@ namespace SharpNet.GPU
             var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, diagonalMatrix, incx, c, ldc);
             GPUWrapper.CheckStatus(res);
         }
+
+        public override void UpSampling2D(Tensor tensorBeforeUpSampling, int rowFactor, int colFactor, UpSampling2DLayer.InterpolationEnum interpolation)
+        {
+            Debug.Assert(rowFactor>=1);
+            Debug.Assert(colFactor >= 1);
+            Debug.Assert(rowFactor * tensorBeforeUpSampling.Shape[2] == Shape[2]);
+            Debug.Assert(colFactor * tensorBeforeUpSampling.Shape[3] == Shape[3]);
+            if (interpolation == UpSampling2DLayer.InterpolationEnum.Bilinear)
+            {
+                throw new NotImplementedException("only "+ UpSampling2DLayer.InterpolationEnum.Nearest+" interpolation is supported (not "+interpolation+")");
+            }
+            _wrapper.RunKernel("UpSampling2D", tensorBeforeUpSampling.Count, new object[] { tensorBeforeUpSampling.Shape[1], tensorBeforeUpSampling.Shape[2], tensorBeforeUpSampling.Shape[3], rowFactor, colFactor, tensorBeforeUpSampling , this, true});
+        }
+        public override void DownSampling2D(Tensor tensorBeforeDownSampling, int rowFactor, int colFactor)
+        {
+            Debug.Assert(rowFactor >= 1);
+            Debug.Assert(colFactor >= 1);
+            Debug.Assert(rowFactor * Shape[2] == tensorBeforeDownSampling.Shape[2]);
+            Debug.Assert(colFactor * Shape[3] == tensorBeforeDownSampling.Shape[3]);
+            _wrapper.RunKernel("UpSampling2D", Count, new object[] { Shape[1], Shape[2], Shape[3], rowFactor, colFactor, this, tensorBeforeDownSampling, false});
+        }
+
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b)
         {
             Debug.Assert(a.SameShape(b));

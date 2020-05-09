@@ -214,6 +214,12 @@ namespace SharpNet.Networks
             Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndexDiagonalMatrix, this, layerName));
             return this;
         }
+        public Network UpSampling2D(int rowFactor, int colFactor, UpSampling2DLayer.InterpolationEnum interpolation, string layerName = "")
+        {
+            Layers.Add(new UpSampling2DLayer(rowFactor, colFactor, interpolation, this, layerName));
+            return this;
+        }
+
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
         public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int filtersCount, int stride, double lambdaL2Regularization)
         {

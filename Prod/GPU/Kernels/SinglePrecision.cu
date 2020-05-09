@@ -69,7 +69,7 @@
 		}
 	}
 
-	// src tensor (unpadded tenssor) has shape (n, c, h_src, w_src)
+	// src tensor (unpadded tensor) has shape (n, c, h_src, w_src)
 	// dest tensor (padded tensor) has shape (n, c, h_dest, w_dest) with:
     //		h_dest = top_pad + h_src + bottom_pad;
     //      w_dest = left_pad + w_src + right_pad;
@@ -89,6 +89,47 @@
 				memcpy(unpaddedTensor+rowIdx, paddedTensor+destRowIdx, sizeof(float)*w_src);
 			else
 				memcpy(paddedTensor+destRowIdx, unpaddedTensor+rowIdx, sizeof(float)*w_src);
+		}
+	}
+
+
+	// src tensor (tensor before up sampling) has shape (n, c, h_src, w_src)
+	// dest tensor (tensor after upsampling) has shape (n, c, rowFactor*h_src, colFactor*w_dest)
+	// isUpscaling : true if we are up sampling (from 'src' to 'dest') / false if we are down sampling (from 'dest' to 'src')
+	__global__ void UpSampling2D(int N, int channels, int h_src, int w_src, int rowFactor, int colFactor, float* src, float* dest, bool isUpscaling) 
+	{
+		int srcIndex = blockIdx.x * blockDim.x + threadIdx.x;
+		if (srcIndex < N) {
+			int h_dest = h_src * rowFactor;
+			int w_dest = w_src * colFactor;
+			float originalElement = src[srcIndex];
+			int srcIndexbackup = srcIndex;
+	
+			int elementId = srcIndex / (channels*h_src*w_src);
+			srcIndex = srcIndex %(channels*h_src*w_src);
+			int channel = srcIndex / (h_src*w_src);
+			srcIndex = srcIndex %(h_src*w_src);
+			int row_src = srcIndex / (w_src);
+			int col_src = srcIndex %(w_src);
+			srcIndex = srcIndexbackup;
+			float sum = 0; //only used when down sampling (isUpscaling = false)
+
+			int startOfRow = elementId*(channels*h_dest*w_dest)+channel*(h_dest*w_dest)+ row_src*rowFactor *w_dest + col_src* colFactor;
+			for(int rowOffset=0;rowOffset<rowFactor;++rowOffset)
+			{
+				int idx_dest = startOfRow;
+				for(int colOffset=0;colOffset<colFactor;++colOffset)
+				{
+					if (isUpscaling)
+						dest[idx_dest] = originalElement;
+					else
+						sum += dest[idx_dest];
+					++idx_dest;
+				}
+				startOfRow += w_dest;
+			}
+			if (!isUpscaling)
+				src[srcIndex] = sum;
 		}
 	}
 

@@ -74,6 +74,7 @@ namespace SharpNet.Networks
                 if (!_memoryPool.IsMock)
                 {
                     layer.ForwardPropagation(allX, yBuffer, isTraining);
+                    //layer.Log("output of "+layer+": "+yBuffer+" "+yBuffer.ToNumpy());
                 }
 
                 //we collect any output layers that are not needed anymore

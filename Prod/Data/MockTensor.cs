@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using SharpNet.GPU;
+using SharpNet.Layers;
 using SharpNet.Networks;
 
 namespace SharpNet.Data
@@ -35,6 +36,8 @@ namespace SharpNet.Data
         public override void ZeroMemory() {throw new NotImplementedException();}
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta) {throw new NotImplementedException();}
         public override void MultiplyTensor(Tensor a, Tensor diagonalMatrix){throw new NotImplementedException();}
+        public override void UpSampling2D(Tensor tensorBeforeUpSampling, int rowFactor, int colFactor, UpSampling2DLayer.InterpolationEnum interpolation) {throw new NotImplementedException();}
+        public override void DownSampling2D(Tensor tensorBeforeDownSampling, int rowFactor, int colFactor) {throw new NotImplementedException();}
         public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight) {throw new NotImplementedException();}
         public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight) {throw new NotImplementedException();}
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b){throw new NotImplementedException();}

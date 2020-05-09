@@ -15,7 +15,6 @@ namespace SharpNet.Pictures
         /// Load a RGB bitmap (with 3 channels)
         /// </summary>
         /// <param name="filename"></param>
-        /// <param name="description"></param>
         /// <returns></returns>
         public static BitmapContent ValueFomSingleRgbBitmap(string filename)
         {
