@@ -28,16 +28,22 @@ namespace SharpNet.Layers
         #endregion
 
         #region constructors
-        protected Layer(Network network, int previousLayerIndex, string layerName)
+        protected Layer(Network network, int[] previousLayerIndexes, string layerName)
         {
             Network = network;
             LayerIndex = network.Layers.Count;
             // ReSharper disable once VirtualMemberCallInConstructor
             LayerName = string.IsNullOrEmpty(layerName) ? DefaultLayerName() : layerName;
-            AddPreviousLayer(previousLayerIndex);
+            foreach (var previousLayerIndex in previousLayerIndexes)
+            {
+                Debug.Assert(previousLayerIndex>=0);
+                Debug.Assert(previousLayerIndex< LayerIndex);
+                PreviousLayerIndexes.Add(previousLayerIndex);
+                Layers[previousLayerIndex].NextLayerIndexes.Add(LayerIndex);
+            }
             network.OnLayerAddOrRemove();
         }
-        protected Layer(Network network, string layerName) : this(network, network.Layers.Count - 1, layerName)
+        protected Layer(Network network, string layerName) : this(network, new[]{network.Layers.Count - 1}, layerName)
         {
         }
         #endregion
@@ -101,6 +107,7 @@ namespace SharpNet.Layers
         protected virtual Optimizer Optimizer => null;
 
         public int TotalParams => Parameters.Select(t => t.Item1.Count).Sum();
+        public virtual int NonTrainableParams => 0;
         public virtual List<Tuple<Tensor, string>> Parameters => new List<Tuple<Tensor, string>>();
         protected virtual bool HasParameters => false;
 
@@ -208,8 +215,10 @@ namespace SharpNet.Layers
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
+                case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
                 case nameof(SimpleRnnLayer): return SimpleRnnLayer.Deserialize(serialized, network);
                 case nameof(UpSampling2DLayer): return UpSampling2DLayer.Deserialize(serialized, network);
+                case nameof(YOLOV3Layer): return YOLOV3Layer.Deserialize(serialized, network);
                 case nameof(ZeroPadding2DLayer): return ZeroPadding2DLayer.Deserialize(serialized, network);
                 default: throw new NotImplementedException("don't know how to deserialize " + layerType);
             }
@@ -222,10 +231,8 @@ namespace SharpNet.Layers
             otherNetwork.Layers.Add(deserialize(Serializer.Deserialize(Serialize()), otherNetwork));
         }
 
-        public void Log(string msg)
-        {
-            Network.Info(msg);
-        }
+        public void Log(string msg) {Network.Info(msg);}
+        public void LogDebug(string msg) {Network.LogDebug(msg);}
 
         public int n_x
         {
@@ -283,15 +290,6 @@ namespace SharpNet.Layers
             EmbeddedTensors(false).ForEach(FreeFloatTensor);
             Optimizer?.Dispose();
         }
-        public void LogContent()
-        {
-            Network.Info(ToString());
-            foreach (var v in EmbeddedTensors(true))
-            {
-                Network.LogDebug(v + ": " + v.ToNumpy());
-            }
-            Network.Info("");
-        }
         public override string ToString()
         {
             return LayerName + ": " + ShapeChangeDescription();
@@ -324,7 +322,7 @@ namespace SharpNet.Layers
             }
             return null;
         }
-        public List<Layer> PreviousLayers => PreviousLayerIndexes.Select(idx => Network.Layers[idx]).ToList();
+        public List<Layer> PreviousLayers => PreviousLayerIndexes.Select(idx => Layers[idx]).ToList();
         public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining, Layer firstTrainableLayer)
         {
             if ((firstTrainableLayer == null)     //if there is no trainable layer in the network
@@ -352,28 +350,19 @@ namespace SharpNet.Layers
         {
             return Utils.ShapeToStringWithBatchSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBatchSize(OutputShape(1));
         }
-        protected Layer PrevLayer => (PreviousLayerIndexes.Count == 0) ? null : Network.Layers[PreviousLayerIndexes[0]];
-        protected void AddPreviousLayer(int previousLayerIndex)
-        {
-            if (previousLayerIndex >= 0)
-            {
-                PreviousLayerIndexes.Add(previousLayerIndex);
-                Network.Layers[previousLayerIndex].NextLayerIndexes.Add(LayerIndex);
-            }
-        }
-
+        protected Layer PrevLayer => (PreviousLayerIndexes.Count == 0) ? null : Layers[PreviousLayerIndexes[0]];
         #region memory management
         protected void GetFloatTensor(ref Tensor bufferIfAny, int[] shape)
         {
-            Network.MemoryPool.GetFloatTensor(ref bufferIfAny, shape);
+            MemoryPool.GetFloatTensor(ref bufferIfAny, shape);
         }
         protected Tensor GetFloatTensor(int[] shape)
         {
-            return Network.MemoryPool.GetFloatTensor(shape);
+            return MemoryPool.GetFloatTensor(shape);
         }
         protected void FreeFloatTensor(ref Tensor t)
         {
-            Network.MemoryPool.FreeFloatTensor(ref t);
+            MemoryPool.FreeFloatTensor(ref t);
         }
         #endregion
 
@@ -408,7 +397,7 @@ namespace SharpNet.Layers
             {
                 return false; //no need to keep layer output
             }
-            return LayerOutputShouldBeKeptForBackwardPropagation(true, FirstTrainableLayer(Network.Layers));
+            return LayerOutputShouldBeKeptForBackwardPropagation(true, FirstTrainableLayer(Layers));
         }
         //https://docs.nvidia.com/deeplearning/sdk/cudnn-archived/cudnn_701/cudnn-user-guide/index.html#cudnnBatchNormMode_t
         protected cudnnBatchNormMode_t LayerBatchNormalizationMode()
@@ -431,20 +420,34 @@ namespace SharpNet.Layers
             int result = 0;
             for (var layerIndex = 0; layerIndex < LayerIndex; ++layerIndex)
             {
-                if (Network.Layers[layerIndex].GetType() == GetType())
+                if (Layers[layerIndex].GetType() == GetType())
                 {
                     ++result;
                 }
             }
             return result;
         }
+        protected Random Rand => Config.Rand;
+        protected TensorMemoryPool MemoryPool => Network.MemoryPool;
+        protected List<Layer> Layers => Network.Layers;
+        protected NetworkConfig Config => Network.Config;
+        protected Optimizer GetOptimizer(int[] weightShape, int[] biasShape)
+        {
+            switch (Config.OptimizerType)
+            {
+                case Optimizer.OptimizationEnum.Adam: return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.SGD: return new Sgd(MemoryPool, Config.SGD_momentum, Config.SGD_usenesterov, weightShape, biasShape);
+                default: return VanillaSgd.Instance;
+            }
+        }
+
 
         /// <summary>
         /// true if the layer has associated weights (or bias) to train
         /// </summary>
         private void FreeFloatTensor(Tensor t)
         {
-            Network.MemoryPool.FreeFloatTensor(t);
+            MemoryPool.FreeFloatTensor(t);
         }
     }
 }

@@ -9,13 +9,9 @@ namespace SharpNet.Layers
 {
     public class MultiplyLayer : Layer
     {
-        public MultiplyLayer(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network, string layerName) : base(network, mainMatrixLayerIndex, layerName)
+        public MultiplyLayer(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network, string layerName) : base(network, new []{ mainMatrixLayerIndex, diagonalMatrixLayerIndex }, layerName)
         {
             Debug.Assert(LayerIndex >= 2);
-            Debug.Assert(mainMatrixLayerIndex >= 0);
-            Debug.Assert(diagonalMatrixLayerIndex >= 0);
-
-            AddPreviousLayer(diagonalMatrixLayerIndex);
             if (!ValidLayerShapeToMultiply(PreviousLayerMainMatrix.OutputShape(1), PreviousLayerDiagonalMatrix.OutputShape(1)))
             {
                 throw new ArgumentException("invalid layers to multiply between " + PreviousLayerMainMatrix + " and " + diagonalMatrixLayerIndex);
@@ -78,8 +74,6 @@ namespace SharpNet.Layers
             return result;
         }
 
-        public int MainMatrixLayerIndex => PreviousLayerIndexes[0];
-        public int DiagonalMatrixLayerIndex => PreviousLayerIndexes[1];
         private Layer PreviousLayerMainMatrix => PreviousLayers[0];
         private Layer PreviousLayerDiagonalMatrix => PreviousLayers[1];
         //TODO add tests

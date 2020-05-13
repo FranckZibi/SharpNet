@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using SharpNet.Data;
@@ -419,8 +420,11 @@ namespace SharpNet
                 return "";
             }
         }
-
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Sigmoid(float x)
+        {
+            return (float)(1 / (1 + Math.Exp(-x)));
+        }
         public static string GetString(XmlNode node, string keyName)
         {
             return node?.SelectSingleNode(keyName)?.InnerText ?? "";

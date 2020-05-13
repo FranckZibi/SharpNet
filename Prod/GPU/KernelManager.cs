@@ -37,20 +37,23 @@ namespace SharpNet.GPU
             _gpu = gpu;
             bool success = TryLoadKernel(new[]
                 {
-                    "Sum",
-                    "UpdateAdamOptimizer",
+                    "ApplyZeroPaddingForRowId",
                     "ComputeAccuracy",
                     "ComputeCategoricalCrossentropyLoss",
                     "ComputeBinaryCrossentropyLoss",
-                    "Concatenate",
                     "ComputeAccuracyFromCategoryIndexes",
                     "ComputeCategoricalCrossentropyLossFromCategoryIndexes",
                     "ComputeBinaryCrossentropyLossFromCategoryIndexes",
-                    "Split",
+                    "Concatenate",
+                    "Concatenate3",
                     "MultiplyEachRowIntoSingleValue",
+                    "Split",
+                    "Split3",
                     "SwishGradient",
-                    "ApplyZeroPaddingForRowId",
-                    "UpSampling2D"
+                    "Sum",
+                    "UpdateAdamOptimizer",
+                    "UpSampling2D",
+                    "YOLOV3Forward"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

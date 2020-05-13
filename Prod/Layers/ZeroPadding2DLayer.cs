@@ -14,7 +14,7 @@ namespace SharpNet.Layers
         private readonly int _paddingRight;
         #endregion
 
-        public ZeroPadding2DLayer(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, Network network, string layerName) : base(network, layerName)
+        public ZeroPadding2DLayer(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int previousLayerIndex, Network network, string layerName) : base(network, new[] { previousLayerIndex}, layerName)
         {
             _paddingTop = paddingTop;
             _paddingBottom = paddingBottom;
@@ -49,11 +49,13 @@ namespace SharpNet.Layers
         }
         public static ZeroPadding2DLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
+            var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
             return new ZeroPadding2DLayer(
                 (int)serialized[nameof(_paddingTop)],
                 (int)serialized[nameof(_paddingBottom)],
                 (int)serialized[nameof(_paddingLeft)],
                 (int)serialized[nameof(_paddingRight)],
+                previousLayerIndexes[0],
                 network,
                 (string)serialized[nameof(LayerName)]);
         }

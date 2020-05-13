@@ -657,23 +657,31 @@ namespace SharpNet.CPU
             return output;
         }
 
-        public override void Concatenate(Tensor a, Tensor b)
+        public override void Concatenate(IList<Tensor> tensors)
         {
-            CheckConcatenate(a, b);
+            CheckConcatenate(tensors);
             void ConcatenateSingleRow(int m)
             {
-                a.CopyTo(a.Idx(m), this, Idx(m), a.MultDim0);
-                b.CopyTo(b.Idx(m), this, Idx(m) + a.MultDim0, b.MultDim0);
+                int startIdx = Idx(m);
+                foreach (var t in tensors)
+                {
+                    t.CopyTo(t.Idx(m), this, startIdx, t.MultDim0);
+                    startIdx += t.MultDim0;
+                }
             }
             System.Threading.Tasks.Parallel.For(0, Shape[0], ConcatenateSingleRow);
         }
-        public override void Split(Tensor a, Tensor b)
+        public override void Split(IList<Tensor> tensors)
         {
-            CheckConcatenate(a, b);
+            CheckConcatenate(tensors);
             void SplitSingleRow(int m)
             {
-                CopyTo(Idx(m), a, a.Idx(m), a.MultDim0);
-                CopyTo(Idx(m) + a.MultDim0, b, b.Idx(m), b.MultDim0);
+                int startIdx = Idx(m);
+                foreach (var t in tensors)
+                {
+                    CopyTo(startIdx, t, t.Idx(m), t.MultDim0);
+                    startIdx += t.MultDim0;
+                }
             }
             System.Threading.Tasks.Parallel.For(0, Shape[0], SplitSingleRow);
         }
@@ -1284,6 +1292,14 @@ namespace SharpNet.CPU
         {
             return AsFloatCpuSpan.ToArray();
         }
+
+        public override Tensor Clone()
+        {
+            var cloned = new CpuTensor<T>(Shape);
+            CopyTo(cloned);
+            return cloned;
+        }
+
         //this method is only called for display / logging testing
         //this = yExpectedOneHot
         public override double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer)
@@ -1375,6 +1391,62 @@ namespace SharpNet.CPU
             return new CpuTensor<T>((int[])sliceShape.Clone(), this, startIndex);
         }
 
+        public override void YOLOV3Forward(Tensor x, int inputImageHeight, int inputImageWidth, int[] anchors)
+        {
+            Debug.Assert(anchors.Length %2 == 0);
+            int nbAnchors = anchors.Length / 2;
+            var y = AsFloatCpu;
+            Debug.Assert(inputImageHeight % x.Shape[2] == 0);
+            Debug.Assert(inputImageWidth % x.Shape[3] == 0);
+            Debug.Assert(y.Shape[0] == x.Shape[0]);
+            Debug.Assert(x.Shape[1] % nbAnchors == 0);
+            Debug.Assert(nbAnchors * y.Shape[2] == x.Shape[1]);
+            Debug.Assert(y.Shape[1] == nbAnchors * x.Shape[2] * x.Shape[3]);
+
+            var xContent = x.AsFloatCpuSpan;
+            var yContent = y.SpanContent;
+
+            //2 for box centers + 2 for box size + 1 for box confidence + N for categories (N == 80 for COCO)
+            int predictionLength = x.Shape[1] / nbAnchors;
+            int categories = predictionLength - 5;
+            int rowStride = inputImageHeight / x.Shape[2];
+            int colStride = inputImageWidth / x.Shape[3];
+
+            var yNextIndex = 0;
+            for (int n = 0; n < x.Shape[0]; ++n)
+            for (int h = 0; h < x.Shape[2]; ++h)
+            for (int w = 0; w < x.Shape[3]; ++w)
+            {
+                for (int boxId = 0; boxId < anchors.Length/2; ++boxId)
+                {
+                    //box center
+                    var xNextIndex = x.Idx(n, boxId* predictionLength, h, w);
+                    yContent[yNextIndex++] = (w + Utils.Sigmoid(xContent[xNextIndex])) * colStride;
+                    xNextIndex += x.MultDim1;
+                    yContent[yNextIndex++] = (h + Utils.Sigmoid(xContent[xNextIndex])) * rowStride;
+                    xNextIndex += x.MultDim1;
+
+                    //box size
+                    var anchorWidth = anchors[2 * boxId];
+                    yContent[yNextIndex++] = (float) (anchorWidth * Math.Exp(xContent[xNextIndex]));
+                    xNextIndex += x.MultDim1;
+                    var anchorHeight = anchors[2 * boxId+1];
+                    yContent[yNextIndex++] = (float)(anchorHeight * Math.Exp(xContent[xNextIndex]));
+                    xNextIndex += x.MultDim1;
+
+                    //box confidence
+                    yContent[yNextIndex++] = Utils.Sigmoid(xContent[xNextIndex]);
+                    xNextIndex += x.MultDim1;
+
+                    //categories
+                    for (int i = 0; i < categories; ++i)
+                    {
+                        yContent[yNextIndex++] = Utils.Sigmoid(xContent[xNextIndex]);
+                        xNextIndex += x.MultDim1;
+                    }
+                }
+            }
+        }
 
         public override void ZeroMemory()
         {

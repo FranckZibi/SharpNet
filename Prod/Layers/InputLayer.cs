@@ -26,7 +26,7 @@ namespace SharpNet.Layers
         private readonly int _w;
         #endregion
 
-        public InputLayer(int c, int h, int w, Network network, string layerName) : base(network, layerName)
+        public InputLayer(int c, int h, int w, Network network, string layerName) : base(network, new int[]{}, layerName)
         {
             _c = c;
             _h = h;

@@ -73,22 +73,22 @@ namespace SharpNet.Networks
                 _compactedGradientsIfAny = Compact(l => l.ParameterGradients, (l, tensors) => l.ReplaceGradients(tensors));
             }
         }
-        private void UnCompactParameters()
-        {
-            if (_compactedParametersIfAny != null)
-            {
-                UnCompact(l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.ReplaceParameters(tensors));
-                MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
-            }
-        }
-        private void UnCompactGradients()
-        {
-            if (_compactedGradientsIfAny != null)
-            {
-                UnCompact(l => l.ParameterGradients, (l, tensors) => l.ReplaceGradients(tensors));
-                MemoryPool.FreeFloatTensor(ref _compactedGradientsIfAny);
-            }
-        }
+        //private void UnCompactParameters()
+        //{
+        //    if (_compactedParametersIfAny != null)
+        //    {
+        //        UnCompact(l => l.Parameters.Select(t => t.Item1).ToList(), (l, tensors) => l.ReplaceParameters(tensors));
+        //        MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
+        //    }
+        //}
+        //private void UnCompactGradients()
+        //{
+        //    if (_compactedGradientsIfAny != null)
+        //    {
+        //        UnCompact(l => l.ParameterGradients, (l, tensors) => l.ReplaceGradients(tensors));
+        //        MemoryPool.FreeFloatTensor(ref _compactedGradientsIfAny);
+        //    }
+        //}
         private Tensor Compact(Func<Layer, List<Tensor>> layer2Tensors, Action<Layer, List<Tensor>> storeTensorsInLayer)
         {
             var totalCount = Layers.SelectMany(layer2Tensors).Select(t => t.Count).Sum();
@@ -110,21 +110,21 @@ namespace SharpNet.Networks
             Debug.Assert(nextIndex == totalCount);
             return compacted;
         }
-        private void UnCompact(Func<Layer, List<Tensor>> layer2Tensors, Action<Layer, List<Tensor>> storeTensorsInLayer)
-        {
-            foreach (var l in Layers)
-            {
-                var layerUncompactedParameters = new List<Tensor>();
-                foreach (var p in layer2Tensors(l))
-                {
-                    Debug.Assert(!p.IsOwnerOfMemory);
-                    var uncompacted = MemoryPool.GetFloatTensor(p.Shape);
-                    p.CopyTo(uncompacted);
-                    layerUncompactedParameters.Add(uncompacted);
-                }
-                storeTensorsInLayer(l, layerUncompactedParameters);
-            }
-        }
+        //private void UnCompact(Func<Layer, List<Tensor>> layer2Tensors, Action<Layer, List<Tensor>> storeTensorsInLayer)
+        //{
+        //    foreach (var l in Layers)
+        //    {
+        //        var layerUncompactedParameters = new List<Tensor>();
+        //        foreach (var p in layer2Tensors(l))
+        //        {
+        //            Debug.Assert(!p.IsOwnerOfMemory);
+        //            var uncompacted = MemoryPool.GetFloatTensor(p.Shape);
+        //            p.CopyTo(uncompacted);
+        //            layerUncompactedParameters.Add(uncompacted);
+        //        }
+        //        storeTensorsInLayer(l, layerUncompactedParameters);
+        //    }
+        //}
         #endregion
 
         #region methods used in master network only

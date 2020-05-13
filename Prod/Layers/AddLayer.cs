@@ -11,15 +11,8 @@ namespace SharpNet.Layers
     /// </summary>
     public class AddLayer : Layer
     {
-        public AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, Network network, string layerName = "") : base(network, previousResidualLayerIndex, layerName)
+        public AddLayer(int[] previousResidualLayerIndexes, Network network, string layerName = "") : base(network, previousResidualLayerIndexes, layerName)
         {
-            Debug.Assert(LayerIndex>=2);
-            Debug.Assert(previousIdentityLayerIndex >= 0);
-            Debug.Assert(previousIdentityLayerIndex < LayerIndex);
-            Debug.Assert(previousResidualLayerIndex >= 0);
-            Debug.Assert(previousResidualLayerIndex < LayerIndex);
-            //we add the identity shortcut connection
-            AddPreviousLayer(previousIdentityLayerIndex);
         }
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
@@ -40,8 +33,7 @@ namespace SharpNet.Layers
 
         public static AddLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
-            return new AddLayer(previousLayerIndexes[1], previousLayerIndexes[0], network, (string)serialized[nameof(LayerName)]);
+            return new AddLayer((int[])serialized[nameof(PreviousLayerIndexes)], network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion

@@ -33,6 +33,11 @@ namespace SharpNet.Networks
         }
 
         /// <summary>
+        /// when set to true, will log all forward and backward propagation
+        /// </summary>
+        public bool LogPropagation { get; set; }
+
+        /// <summary>
         /// = ForwardPropagation
         /// </summary>
         /// <param name="X"></param>
@@ -74,7 +79,13 @@ namespace SharpNet.Networks
                 if (!_memoryPool.IsMock)
                 {
                     layer.ForwardPropagation(allX, yBuffer, isTraining);
-                    //layer.Log("output of "+layer+": "+yBuffer+" "+yBuffer.ToNumpy());
+                    if (LogPropagation)
+                    {
+                        layer.Log(layer.ToString());
+                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
+                        layer.LogDebug("output:" + Environment.NewLine + yBuffer.ToNumpy());
+                        layer.LogDebug("");
+                    }
                 }
 
                 //we collect any output layers that are not needed anymore
@@ -183,6 +194,33 @@ namespace SharpNet.Networks
                 {
                     //computes 'dx' and weight gradients of current layer
                     layer.BackwardPropagation(allX, y, dy, dxBuffer);
+
+                    if (LogPropagation)
+                    {
+                        layer.Log(layer.ToString());
+                        if (layer.WeightGradients != null)
+                        {
+                            layer.Log("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
+                        }
+                        if (layer.BiasGradients != null)
+                        {
+                            layer.Log("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
+                        }
+                        for (var index = 0; index < dxBuffer.Count; index++)
+                        {
+                            layer.Log("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index].ToNumpy());
+                        }
+                        layer.Log("");
+                    }
+
+
+
+
+
+
+
+
+
                 }
 
                 //we'll update/store the output gradients (dy) of all previous layers connected to the current layer

@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="GPU/Kernels/SinglePrecision.cu" />
+    <EmbeddedResource Include="ObjectDetection\yolov3.cfg" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="4.7.0" />
     <PackageReference Include="System.Drawing.Common" Version="4.7.0" />
 	<PackageReference Include="JetBrains.Annotations" Version="2019.1.3" />

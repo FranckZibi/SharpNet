@@ -3,7 +3,6 @@ using System.Linq;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNetTests.CPU;
 
@@ -12,9 +11,6 @@ namespace SharpNetTests.Data
     [TestFixture]
     public class TestTensor
     {
-        private static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
-
-
         [Test]
         public void TestSerialization()
         {

@@ -73,7 +73,20 @@ namespace SharpNet.Layers
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
- 
+
+        public override string Type()
+        {
+            switch (ActivationFunction)
+            {
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU: return "LeakyReLU";
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU: return "ReLU";
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX: return "Softmax";
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH: return "Swish";
+                default: return base.Type();
+            }
+        }
+
+
         private static string ToString(cudnnActivationMode_t activationFunction)
         {
             return activationFunction.ToString().Replace("CUDNN_ACTIVATION_", "");

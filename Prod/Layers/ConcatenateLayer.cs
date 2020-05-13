@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using SharpNet.Data;
 using SharpNet.Networks;
 
@@ -12,19 +12,18 @@ namespace SharpNet.Layers
     /// </summary>
     public class ConcatenateLayer : Layer
     {
-        public ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2, Network network, string layerName) : base(network, previousLayerIndex1, layerName)
+        public ConcatenateLayer(int[] previousLayers, Network network, string layerName) : base(network, previousLayers, layerName)
         {
-            Debug.Assert(LayerIndex>=2);
-            Debug.Assert(previousLayerIndex1 >= 0);
-            Debug.Assert(previousLayerIndex2 >= 0);
-            AddPreviousLayer(previousLayerIndex2);
+            Debug.Assert(LayerIndex >= 2);
+            Debug.Assert(previousLayers.Length >= 2);
+            Debug.Assert(previousLayers.Min()>= 0);
         }
 
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            Debug.Assert(allX.Count == 2);
-            y.Concatenate(allX[0], allX[1]);
+            Debug.Assert(allX.Count >= 2);
+            y.Concatenate(allX);
         }
         /// <summary>
         /// At this stage, we already know dy (output layer gradient)
@@ -36,14 +35,8 @@ namespace SharpNet.Layers
         /// <param name="dx">the 2 values to compute (from dy)</param>
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
-            Debug.Assert(dx.Count == 2);
-            var dx0 = dx[0];
-            var dx1 = dx[1];
-            if (ReferenceEquals(dx0, dx1))
-            {
-                throw new Exception("the same buffer has been used twice in " + this);
-            }
-            dy.Split(dx0, dx1);
+            Debug.Assert(dx.Count >= 2);
+            dy.Split(dx);
         }
         #endregion
 
@@ -51,16 +44,16 @@ namespace SharpNet.Layers
         public static ConcatenateLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
-            return new ConcatenateLayer(previousLayerIndexes[0], previousLayerIndexes[1], network, (string)serialized[nameof(LayerName)]);
+            return new ConcatenateLayer(previousLayerIndexes, network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
         public override int[] OutputShape(int batchSize)
         {
-            // the number of channels is the sum of the 2 previous layers
             var result = PreviousLayers[0].OutputShape(batchSize);
-            result[1] += PreviousLayers[1].OutputShape(batchSize)[1];
+            // the number of channels is the sum of channels of all previous layers
+            result[1] = PreviousLayers.Select(l => l.OutputShape(1)[1]).Sum();
             return result;
         }
     }

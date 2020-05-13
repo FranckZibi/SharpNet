@@ -231,6 +231,16 @@ namespace SharpNetTests
             TestAll(new[] { tensorAfterUpSampling, tensorBeforeUpSampling}, tensors => tensors[0].UpSampling2D(tensors[1], rowFactor, colFactor, UpSampling2DLayer.InterpolationEnum.Nearest));
         }
 
+
+        [Test]
+        public void TestYOLOV3Forward()
+        {
+            var anchors = new[] { 116,90, 156, 198, 373, 326};
+            var x = RandomTensor(new []{3,255,13,13});
+            var y = RandomTensor(new []{x.Shape[0],3* x.Shape[2]* x.Shape[3], x.Shape[1]/3 });
+            TestAll(new[] { y, x }, tensors => tensors[0].YOLOV3Forward(tensors[1], 416, 416, anchors));
+        }
+
         [Test]
         public void TestDownSampling()
         {
@@ -343,21 +353,41 @@ namespace SharpNetTests
         }
 
         [Test]
-        public void TestConcatenate()
+        public void TestConcatenate2Tensors()
         {
             var x1 = RandomTensor(new[] { BatchSize, 17, Height, Width });
             var x2 = RandomTensor(new[] { BatchSize, 13, Height, Width });
             var concat = RandomTensor(new[] { BatchSize, 17 + 13, Height, Width });
-            TestAll(new[] { concat, x1, x2 }, tensors => tensors[0].Concatenate(tensors[1], tensors[2]));
+            TestAll(new[] { concat, x1, x2 }, tensors => tensors[0].Concatenate(new[]{ tensors[1], tensors[2]}));
         }
 
         [Test]
-        public void TestSplit()
+        public void TestConcatenate3Tensors()
+        {
+            var x1 = RandomTensor(new[] { BatchSize, 17, Height, Width });
+            var x2 = RandomTensor(new[] { BatchSize, 13, Height, Width });
+            var x3 = RandomTensor(new[] { BatchSize, 10, Height, Width });
+            var concat = RandomTensor(new[] { BatchSize, 17+13+10, Height, Width });
+            TestAll(new[] { concat, x1, x2, x3 }, tensors => tensors[0].Concatenate(new[] { tensors[1], tensors[2], tensors[3] }));
+        }
+
+        [Test]
+        public void TestSplit2Tensors()
         {
             var toSplit = RandomTensor(new[] { BatchSize, 17 + 13, Height, Width });
             var x1 = RandomTensor(new[] { BatchSize, 17, Height, Width });
             var x2 = RandomTensor(new[] { BatchSize, 13, Height, Width });
-            TestAll(new[] { toSplit, x1, x2 }, tensors => tensors[0].Split(tensors[1], tensors[2]));
+            TestAll(new[] { toSplit, x1, x2 }, tensors => tensors[0].Split( new[]{tensors[1], tensors[2]}));
+        }
+
+        [Test]
+        public void TestSplit3Tensors()
+        {
+            var toSplit = RandomTensor(new[] { BatchSize, 17 + 13 + 10, Height, Width });
+            var x1 = RandomTensor(new[] { BatchSize, 17, Height, Width });
+            var x2 = RandomTensor(new[] { BatchSize, 13, Height, Width });
+            var x3 = RandomTensor(new[] { BatchSize, 10, Height, Width });
+            TestAll(new[] { toSplit, x1, x2, x3 }, tensors => tensors[0].Split(new[] { tensors[1], tensors[2], tensors[3] }));
         }
 
         [Test]

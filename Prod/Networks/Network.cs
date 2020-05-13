@@ -198,15 +198,19 @@ namespace SharpNet.Networks
                 .Activation(activationFunction)
                 .Convolution(filtersCount, f, stride, paddingType, lambdaL2Regularization, useBias);
         }
-        public Network AddLayer(int previousIdentityLayerIndex, int previousResidualLayerIndex, string layerName = "")
+        public Network AddLayer(int previousResidualLayerIndex, int previousIdentityLayerIndex, string layerName = "")
         {
-            Layers.Add(new AddLayer(previousIdentityLayerIndex, previousResidualLayerIndex, this, layerName));
+            Layers.Add(new AddLayer(new []{previousResidualLayerIndex, previousIdentityLayerIndex}, this, layerName));
             Debug.Assert(Layers[previousIdentityLayerIndex].SameOutputShape(Layers[previousResidualLayerIndex]));
             return this;
         }
         public Network ConcatenateLayer(int previousLayerIndex1, int previousLayerIndex2, string layerName = "")
         {
-            Layers.Add(new ConcatenateLayer(previousLayerIndex1, previousLayerIndex2, this, layerName));
+            return ConcatenateLayer(new []{previousLayerIndex1, previousLayerIndex2}, layerName);
+        }
+        public Network ConcatenateLayer(int[] previousLayers, string layerName = "")
+        {
+            Layers.Add(new ConcatenateLayer(previousLayers, this, layerName));
             return this;
         }
         public Network MultiplyLayer(int previousLayerIndex1, int previousLayerIndexDiagonalMatrix, string layerName = "")
@@ -214,14 +218,28 @@ namespace SharpNet.Networks
             Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndexDiagonalMatrix, this, layerName));
             return this;
         }
+        public Network NonMaxSuppression(float minScore, float IOU_threshold_for_duplicate, int maxOutputSize, int maxOutputSizePerClass, string layerName)
+        {
+            Layers.Add(new NonMaxSuppressionLayer(minScore, IOU_threshold_for_duplicate, maxOutputSize, maxOutputSizePerClass, this, layerName));
+            return this;
+        }
         public Network UpSampling2D(int rowFactor, int colFactor, UpSampling2DLayer.InterpolationEnum interpolation, string layerName = "")
         {
             Layers.Add(new UpSampling2DLayer(rowFactor, colFactor, interpolation, this, layerName));
             return this;
         }
+        public Network YOLOV3Layer(int[] anchors, int previousLayerIndex, string layerName)
+        {
+            Layers.Add(new YOLOV3Layer(anchors, previousLayerIndex, this, layerName));
+            return this;
+        }
         public Network ZeroPadding2D(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, string layerName = "")
         {
-            Layers.Add(new ZeroPadding2DLayer(paddingTop, paddingBottom, paddingLeft, paddingRight, this, layerName));
+            return ZeroPadding2D(paddingTop, paddingBottom, paddingLeft, paddingRight, Layers.Count-1, layerName);
+        }
+        public Network ZeroPadding2D(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int previousLayerIndex, string layerName = "")
+        {
+            Layers.Add(new ZeroPadding2DLayer(paddingTop, paddingBottom, paddingLeft, paddingRight, previousLayerIndex, this, layerName));
             return this;
         }
 
@@ -233,14 +251,14 @@ namespace SharpNet.Networks
             var sameInputAndOutputShapeInBlock = Layers.Last().SameOutputShape(Layers[startOfBlockLayerIndex]);
             if (sameInputAndOutputShapeInBlock)
             {
-                Layers.Add(new AddLayer(startOfBlockLayerIndex, previousResidualLayerIndex, this));
+                Layers.Add(new AddLayer(new []{previousResidualLayerIndex, startOfBlockLayerIndex}, this));
             }
             else
             {
                 //we need to add a convolution layer to make correct output format
                 Convolution(filtersCount, 1, stride, 0, lambdaL2Regularization, true, startOfBlockLayerIndex);
                 int convLayerIdInIdentityBlock = LastLayerIndex;
-                Layers.Add(new AddLayer(convLayerIdInIdentityBlock, previousResidualLayerIndex, this));
+                Layers.Add(new AddLayer(new[]{previousResidualLayerIndex, convLayerIdInIdentityBlock}, this));
                 Debug.Assert(Layers[convLayerIdInIdentityBlock].SameOutputShape(Layers[previousResidualLayerIndex]));
             }
             return this;
@@ -361,17 +379,9 @@ namespace SharpNet.Networks
             result += Utils.MemoryBytesToString(BytesByBatchSizeForwardAndBackward(xShape, true)) + "/batchSize";
             return result;
         }
-        public Optimizer GetOptimizer(int[] weightShape, int[] biasShape)
-        {
-            switch (Config.OptimizerType)
-            {
-                case Optimizer.OptimizationEnum.Adam: return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, weightShape, biasShape);
-                case Optimizer.OptimizationEnum.SGD: return new Sgd(MemoryPool, Config.SGD_momentum, Config.SGD_usenesterov, weightShape, biasShape);
-                default: return VanillaSgd.Instance;
-            }
-        }
-        public int TotalParams => Layers.SelectMany(x => x.Parameters).Select(t=> t.Item1.Count).Sum();
-
+      
+        public int TotalParams => Layers.SelectMany(l => l.Parameters).Select(t=> t.Item1.Count).Sum();
+        private int NonTrainableParams => Layers.Select(l => l.NonTrainableParams).Sum();
         public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers = -1)
         {
             Debug.Assert(minLearningRate >= 0);
@@ -817,6 +827,12 @@ namespace SharpNet.Networks
         }
         public int LastLayerIndex => Layers.Last().LayerIndex;
 
+        public int NbLayerOfType(Type layerType)
+        {
+            return Layers.Count(l => l.GetType() == layerType);
+        }
+
+
         private bool UseGPU => _resourceIds.Max() >= 0;
         private string MemoryInfo()
         {
@@ -903,7 +919,7 @@ namespace SharpNet.Networks
                 {
                     firstColumn = firstColumn.Substring(0, firstColumnWidth - 1);
                 }
-                var previousLayers = layer.PreviousLayers.OrderBy(x => x.LayerIndex).ToList();
+                var previousLayers = layer.PreviousLayers.ToList();
                 var firstPreviousLayer = (previousLayers.Count == 0 ? "" : previousLayers[0].LayerName + "[0][0]");
                 result += ($"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{layer.TotalParams,-thirdColumnWidth}{firstPreviousLayer,-forthColumnWidth}").TrimEnd() + Environment.NewLine;
                 for (int i = 1; i < previousLayers.Count; ++i)
@@ -912,7 +928,9 @@ namespace SharpNet.Networks
                 }
                 result += (layer.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
-            result += "Total params: " + TotalParams;
+            result += "Total params: " + TotalParams.ToString("N0", CultureInfo.InvariantCulture)+Environment.NewLine;
+            result += "Trainable params: " + (TotalParams-NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
+            result += "Non-trainable params: " + (NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture);
             return result;
         }
         private string SummaryWithoutConnectedTo()
@@ -941,7 +959,9 @@ namespace SharpNet.Networks
                 result += ($"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}").TrimEnd() + Environment.NewLine;
                 result += (l.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
-            result += "Total params: " + TotalParams;
+            result += "Total params: " + TotalParams.ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
+            result += "Trainable params: " + (TotalParams - NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
+            result += "Non-trainable params: " + (NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture);
             return result;
         }
         private void ResetWeights()

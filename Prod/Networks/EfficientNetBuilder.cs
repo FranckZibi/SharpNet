@@ -278,7 +278,7 @@ namespace SharpNet.Networks
                 {
                     network.Dropout(dropRate, layerPrefix + "drop");
                 }
-                network.AddLayer(inputLayerIndex, network.LastLayerIndex, layerPrefix + "add");
+                network.AddLayer(network.LastLayerIndex, inputLayerIndex, layerPrefix + "add");
             }
         }
 

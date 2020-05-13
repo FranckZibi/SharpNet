@@ -85,7 +85,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
             var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
 
-            yOriginal = Clone(yOriginal);
+            yOriginal = (CpuTensor<float>)yOriginal.Clone();
             SubPolicy.Apply(
                 subPolicy,
                 0,
@@ -103,17 +103,5 @@ namespace SharpNetTests.DataAugmentation.Operations
                 Assert.IsTrue(TestTensor.SameContent(yExpected, yOriginal, 1e-6));
             }
         }
-
-        private static CpuTensor<float> Clone(CpuTensor<float> t)
-        {
-            if (t == null)
-            {
-                return null;
-            }
-            return new CpuTensor<float>((int[])t.Shape.Clone(), t.Content.ToArray());
-        }
-
-
-
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -45,8 +46,8 @@ namespace SharpNet.Data
         public override void From_NCH_to_NH(Tensor tensor_NH, int channel){throw new NotImplementedException();}
         public override void Update_Adding_Alpha_X(float alpha, Tensor x){throw new NotImplementedException();}
         public override void AddTensor(float alpha, Tensor x, float beta){throw new NotImplementedException();}
-        public override void Concatenate(Tensor a, Tensor b){throw new NotImplementedException();}
-        public override void Split(Tensor a, Tensor b){throw new NotImplementedException();}
+        public override void Concatenate(IList<Tensor> tensors){throw new NotImplementedException();}
+        public override void Split(IList<Tensor> tensors){throw new NotImplementedException();}
         public override void Update_Multiplying_By_Alpha(float alpha){throw new NotImplementedException();}
         public override void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y){throw new NotImplementedException();}
         public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft,
@@ -69,11 +70,11 @@ namespace SharpNet.Data
         public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth,int poolingStride){throw new NotImplementedException();}
         public override void CopyTo(Tensor b){throw new NotImplementedException();}
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount){throw new NotImplementedException();}
-        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType,
-            double alphaActivation, Tensor dx){throw new NotImplementedException();}
+        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, double alphaActivation, Tensor dx){throw new NotImplementedException();}
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient){throw new NotImplementedException();}
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW,Tensor adam_sW, int timestep){throw new NotImplementedException();}
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity){throw new NotImplementedException();}
+        public override void YOLOV3Forward(Tensor x, int inputImageHeight, int inputImageWidth, int[] anchors) {throw new NotImplementedException();}
         public override Tensor Slice(int startIndex, int[] sliceShape) { throw new NotImplementedException(); }
         public override bool IsOwnerOfMemory => true;
 
@@ -103,6 +104,8 @@ namespace SharpNet.Data
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev){throw new NotImplementedException();}
         public override void SetValue(float sameValue){throw new NotImplementedException();}
         public override float[] ContentAsFloatArray(){throw new NotImplementedException();}
+        public override Tensor Clone() {throw new NotImplementedException();}
+
         #endregion
     }
 }

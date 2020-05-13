@@ -1,5 +1,10 @@
 ﻿extern "C" {
 
+
+	__device__ float sigmoidf(float x) {
+		return 1.0f / (1 + expf(-x));
+	}
+
     __global__ void Sum(int N, const float* __restrict left, const float* __restrict right, float* __restrict output) {
 		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x)
 			output[i] = left[i] + right[i];
@@ -89,6 +94,55 @@
 				memcpy(unpaddedTensor+rowIdx, paddedTensor+destRowIdx, sizeof(float)*w_src);
 			else
 				memcpy(paddedTensor+destRowIdx, unpaddedTensor+rowIdx, sizeof(float)*w_src);
+		}
+	}
+
+	__global__ void YOLOV3Forward(int N, float* y, float* x, int x_c, int x_h, int x_w, int inputImageHeight, int inputImageWidth, int anchor0Width, int anchor0Height, int anchor1Width, int anchor1Height, int anchor2Width, int anchor2Height) 
+	{
+		int xpredictionIndex = blockIdx.x * blockDim.x + threadIdx.x;
+		if (xpredictionIndex < N) {
+
+			int nbAnchors = 3;
+			int predictionLength = x_c/nbAnchors;
+            int categories = predictionLength - 5;
+            int rowStride = inputImageHeight / x_h;
+            int colStride = inputImageWidth / x_w;
+			int xpredictionIndexBackup = xpredictionIndex;
+			int elementId = xpredictionIndex / (nbAnchors*x_h*x_w);
+			xpredictionIndex = xpredictionIndex %(nbAnchors*x_h*x_w);
+			int boxId = xpredictionIndex / (x_h*x_w);
+			xpredictionIndex = xpredictionIndex %(x_h*x_w);
+			int x_row = xpredictionIndex / (x_w);
+			int x_col = xpredictionIndex %(x_w);
+
+			xpredictionIndex= xpredictionIndexBackup;
+			int xIndex = elementId*x_c*x_h*x_w + boxId*predictionLength*x_h*x_w + x_row*x_w  + x_col;
+			int yIndex = elementId*x_c*x_h*x_w + x_row*x_c*x_w + x_col*x_c + boxId*predictionLength;
+
+            //box center
+            y[yIndex++] = (x_col + sigmoidf(x[xIndex])) * colStride;
+            xIndex += x_h*x_w;
+            y[yIndex++] = (x_row + sigmoidf(x[xIndex])) * rowStride;
+            xIndex += x_h*x_w;
+
+            //box size
+            int anchorWidth = (boxId == 0) ? anchor0Width : ((boxId == 1) ? anchor1Width : anchor2Width);
+            y[yIndex++] = anchorWidth * expf(x[xIndex]);
+            xIndex += x_h*x_w;
+            int anchorHeight = (boxId == 0) ? anchor0Height : ((boxId == 1) ? anchor1Height : anchor2Height);
+            y[yIndex++] = anchorHeight * expf(x[xIndex]);
+            xIndex += x_h*x_w;
+
+            //box confidence
+            y[yIndex++] = sigmoidf(x[xIndex]);
+            xIndex += x_h*x_w;
+
+            //categories
+            for (int i = 0; i < categories; ++i)
+            {
+                y[yIndex++] = sigmoidf(x[xIndex]);
+                xIndex += x_h*x_w;
+            }
 		}
 	}
 
@@ -230,8 +284,25 @@
 		if (i >= N)  return;
 		int row = i/concatMultDim0;
 		int colInConcat = i%concatMultDim0;
-		concat[i] = (colInConcat<aMultDim0)?a[row*aMultDim0+colInConcat]:b[row*bMultDim0+colInConcat-aMultDim0];
+		if (colInConcat<aMultDim0)
+			concat[i] = a[row*aMultDim0+colInConcat];
+		else
+			concat[i] = b[row*bMultDim0+colInConcat-aMultDim0];
+
 	}
+
+	__global__ void Concatenate3(int N, int m, float* __restrict concat, int concatMultDim0, const float* __restrict a, int aMultDim0, const float* __restrict b, int bMultDim0, const float* __restrict c, int cMultDim0)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i >= N)  return;
+		int row = i/concatMultDim0;
+		int colInConcat = i%concatMultDim0;
+		if (colInConcat<aMultDim0)
+			concat[i] = a[row*aMultDim0+colInConcat];
+		else
+			concat[i] = (colInConcat<(aMultDim0+bMultDim0))?b[row*bMultDim0+colInConcat-aMultDim0]:c[row*cMultDim0+colInConcat-aMultDim0-bMultDim0];
+	}
+
 
 	__global__ void Split(int N, int m, const float* __restrict concat, int concatMultDim0, float* __restrict a, int aMultDim0, float* __restrict b, int bMultDim0)
 	{
@@ -244,4 +315,19 @@
 		else
 			b[row*bMultDim0+colInConcat-aMultDim0] = concat[i];
 	}
+
+	__global__ void Split3(int N, int m, const float* __restrict concat, int concatMultDim0, float* __restrict a, int aMultDim0, float* __restrict b, int bMultDim0, float* __restrict c, int cMultDim0)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i >= N)  return;
+		int row = i/concatMultDim0;
+		int colInConcat = i%concatMultDim0;
+		if (colInConcat<aMultDim0)
+			a[row*aMultDim0+colInConcat] = concat[i];
+		else if (colInConcat<(aMultDim0+bMultDim0))
+			b[row*bMultDim0+colInConcat-aMultDim0] = concat[i];
+		else
+			c[row*cMultDim0+colInConcat-aMultDim0-bMultDim0] = concat[i];
+	}
+
 }

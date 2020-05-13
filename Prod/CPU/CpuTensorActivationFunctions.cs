@@ -123,8 +123,11 @@ namespace SharpNet.CPU
         public static void Sigmoid<T>(CpuTensor<T> X, Tensor Y)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {X, Y}));
-            X.AsFloatCpu.Map(x => (float) (1 / (1 + Math.Exp(-x))), Y.AsFloatCpu);
+            X.AsFloatCpu.Map(Utils.Sigmoid, Y.AsFloatCpu);
         }
+
+
+
         public static void SigmoidGradient(Tensor Y, Tensor dY, Tensor dX)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> { Y, dY, dX }));

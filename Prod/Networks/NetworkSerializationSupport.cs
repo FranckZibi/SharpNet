@@ -95,20 +95,6 @@ namespace SharpNet.Networks
             }
         }
 
-        public void LogContent()
-        {
-            for (int layerIndex = 0; layerIndex < Layers.Count; ++layerIndex)
-            {
-                var layer = Layers[layerIndex];
-                layer.LogContent();
-            }
-
-            if (IsMaster)
-            {
-                _slaveNetworks.ForEach(n => n.LogContent());
-            }
-        }
-
         public static string ModelFilePath2ParameterFilePath(string modelFilePath)
         {
             return Utils.UpdateFilePathChangingExtension(modelFilePath, "", "", ".h5");

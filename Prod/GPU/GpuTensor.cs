@@ -294,22 +294,47 @@ namespace SharpNet.GPU
         {
             throw new NotImplementedException();
         }
-        public override void Concatenate(Tensor a, Tensor b)
+        public override void Concatenate(IList<Tensor> tensors)
         {
 #if DEBUG
-            CheckConcatenate(a, b);
+            CheckConcatenate(tensors);
+            Debug.Assert(tensors.Count >= 2);
+            Debug.Assert(tensors.Count <= 3);
 #endif
             var concat = this;
-            _wrapper.RunKernel("Concatenate", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0});
+            var a = tensors[0];
+            var b = tensors[1];
+            if (tensors.Count == 2)
+            {
+                _wrapper.RunKernel("Concatenate", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0 });
+            }
+            else
+            {
+                var c = tensors[2];
+                _wrapper.RunKernel("Concatenate3", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0, c, c.MultDim0 });
+            }
+
         }
 
-        public override void Split(Tensor a, Tensor b)
+        public override void Split(IList<Tensor> tensors)
         {
 #if DEBUG
-            CheckConcatenate(a, b);
+            CheckConcatenate(tensors);
+            Debug.Assert(tensors.Count>=2);
+            Debug.Assert(tensors.Count<=3);
 #endif
             var concat = this;
-            _wrapper.RunKernel("Split", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0 });
+            var a = tensors[0];
+            var b = tensors[1];
+            if (tensors.Count == 2)
+            {
+                _wrapper.RunKernel("Split", Count, new object[] {Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0});
+            }
+            else
+            {
+                var c = tensors[2];
+                _wrapper.RunKernel("Split3", Count, new object[] { Shape[0], concat, concat.MultDim0, a, a.MultDim0, b, b.MultDim0, c, c.MultDim0 });
+            }
         }
         /// <summary>
         /// resize the current GPU tensor to a different shape
@@ -494,6 +519,14 @@ namespace SharpNet.GPU
         {
             return (DeviceContent() as float[]);
         }
+
+        public override Tensor Clone()
+        {
+            var cloned  = new GPUTensor<T>(Shape, null, _wrapper);
+            CopyTo(cloned);
+            return cloned;
+        }
+
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
@@ -794,6 +827,22 @@ namespace SharpNet.GPU
             //var res = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, srcPointer, 1, destPointer, 1);
             GPUWrapper.CheckStatus(res);
         }
+
+        public override void YOLOV3Forward(Tensor x, int inputImageHeight, int inputImageWidth, int[] anchors)
+        {
+            var y = this;
+            Debug.Assert(anchors.Length == 6);
+            int nbAnchors = anchors.Length / 2;
+            Debug.Assert(inputImageHeight % x.Shape[2] == 0);
+            Debug.Assert(inputImageWidth % x.Shape[3] == 0);
+            Debug.Assert(y.Shape[0] == x.Shape[0]);
+            Debug.Assert(x.Shape[1] % nbAnchors == 0);
+            Debug.Assert(nbAnchors * y.Shape[2] == x.Shape[1]);
+            Debug.Assert(y.Shape[1] == nbAnchors * x.Shape[2] * x.Shape[3]);
+            int predictionLength = x.Shape[1] / nbAnchors;
+            _wrapper.RunKernel("YOLOV3Forward", x.Count/predictionLength, new object[] { y, x, x.Shape[1], x.Shape[2], x.Shape[3], inputImageHeight, inputImageWidth, anchors[0], anchors[1], anchors[2], anchors[3], anchors[4], anchors[5] });
+        }
+
         public override Tensor Slice(int startIndex, int[] sliceShape)
         {
             return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);

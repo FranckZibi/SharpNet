@@ -22,6 +22,20 @@ namespace SharpNet.Data
         public int TypeSize { get; }
         #endregion
 
+        #region constructors
+        protected Tensor(int[] shape, int typeSize, bool useGpu)
+        {
+            Debug.Assert(shape.Length >= 1);
+            Debug.Assert(shape.Length <= 4);
+            Debug.Assert(shape.Min() >= 1);
+            Shape = shape;
+            UseGPU = useGpu;
+            TypeSize = typeSize;
+            RecomputeMultDim();
+        }
+        #endregion
+
+
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
         public override string ToString()
@@ -37,6 +51,9 @@ namespace SharpNet.Data
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
+
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
         public int Count => Shape[0] * MultDim0;
@@ -307,22 +324,20 @@ namespace SharpNet.Data
         public abstract void AddTensor(float alpha, Tensor x, float beta);
 
         /// <summary>
-        /// Concatenate the 2 tensors 'a' & 'b'  (through the 'Channel' dimension) into the 'this' tensor.
-        /// 'this', 'a' and 'b'  must have exactly the same geometry apart from the number of channels (at index 1)
-        /// 'this' : Tensor of Dimension (N, Ca+Cb, H, W)
+        /// Concatenate all tensors (through the 'Channel' dimension) into the 'this' tensor.
+        /// those tensors must have exactly the same geometry apart from the number of channels (at index 1)
+        /// 'this' : Tensor of Dimension (N, C_1+C_2+ .... +C_t, H, W)
         /// </summary>
-        /// <param name="a">Tensor of Dimension (N, Ca, H, W)</param>
-        /// <param name="b">Tensor of Dimension (N, Cb, H, W)</param>
-        public abstract void Concatenate(Tensor a, Tensor b);
+        /// <param name="tensors">'T' Tensors of Dimension (N, C_t, H, W)</param>
+        public abstract void Concatenate(IList<Tensor> tensors);
 
         /// <summary>
-        /// Split the this tensor into the tensors 'a' & 'b'.
-        /// 'this', 'a' and 'b' must have exactly the same geometry apart from the number of channels (at index 1)
-        /// 'this' : Tensor of Dimension (N, Ca+Cb, H, W)
+        /// Split the this tensor into the tensors 'tensors'
+        /// those 'tensors'  must have exactly the same geometry apart from the number of channels (at index 1)
+        /// 'this' : Tensor of Dimension (N, C_1+C_2+ ... C_t, H, W)
         /// </summary>
-        /// <param name="a">Tensor of Dimension (N, Ca, H, W)</param>
-        /// <param name="b">Tensor of Dimension (N, Cb, H, W)</param>
-        public abstract void Split(Tensor a, Tensor b);
+        /// <param name="tensors">'T' Tensor of Dimension (N, C_i, H, W)</param>
+        public abstract void Split(IList<Tensor> tensors);
         public abstract void Update_Multiplying_By_Alpha(float alpha);
 
         /// <summary>
@@ -444,6 +459,16 @@ namespace SharpNet.Data
         {
             return RowSlice(elementIndex, 1);
         }
+
+        /// <summary>
+        /// [out) y = output tensor of shape (n, 3*h*w, c/3)
+        /// </summary>
+        /// <param name="x">[in] input tensor with shape (n, c, h , w)</param>
+        /// <param name="anchors"></param>
+        /// <param name="inputImageHeight"></param>
+        /// <param name="inputImageWidth"></param>
+        /// <returns></returns>
+        public abstract void YOLOV3Forward(Tensor x, int inputImageHeight, int inputImageWidth, int[] anchors);
         public abstract Tensor Slice(int startIndex, int[] sliceShape);
 
         /// <summary>
@@ -583,31 +608,23 @@ namespace SharpNet.Data
         /// <param name="sameValue"></param>
         public abstract void SetValue(float sameValue);
         public abstract float[] ContentAsFloatArray();
-        protected Tensor(int[] shape, int typeSize, bool useGpu)
-        {
-            Debug.Assert(shape.Length >= 1);
-            Debug.Assert(shape.Length <= 4);
-            Debug.Assert(shape.Min() >= 1);
-            Shape = shape;
-            UseGPU = useGpu;
-            TypeSize = typeSize;
-            RecomputeMultDim();
-        }
+
+        public abstract Tensor Clone();
 
         public ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
-        protected void CheckConcatenate(Tensor a, Tensor b)
+        protected void CheckConcatenate(IList<Tensor> tensors)
         {
             Debug.Assert(Shape.Length >= 2);
-            Debug.Assert(Shape.Length == a.Shape.Length);
-            Debug.Assert(Shape.Length == b.Shape.Length);
             //same number of elements
-            Debug.Assert(Shape[0] == a.Shape[0]);
-            Debug.Assert(Shape[0] == b.Shape[0]);
-            Debug.Assert(Shape[1] == (a.Shape[1] + b.Shape[1]));
-            Debug.Assert(Shape.Skip(2).SequenceEqual(a.Shape.Skip(2)));
-            Debug.Assert(Shape.Skip(2).SequenceEqual(b.Shape.Skip(2)));
+            Debug.Assert(Shape[1] == tensors.Select(a=>a.Shape[1]).Sum());
+            Debug.Assert(Count == tensors.Select(a=>a.Count).Sum());
+            foreach (var t in tensors)
+            {
+                Debug.Assert(Shape.Length == t.Shape.Length);
+                Debug.Assert(Shape[0] == t.Shape[0]);
+                Debug.Assert(Shape.Skip(2).SequenceEqual(t.Shape.Skip(2)));
+            }
         }
-        protected int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
         protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
         protected void RecomputeMultDim()
         {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
 using SharpNet;
@@ -55,7 +56,30 @@ namespace SharpNetTests.NonReg
             File.Delete(savedModelFile);
             File.Delete(saveParametersFile);
         }
-        
+
+        [Test, Explicit]
+        public void TestParallelRunWithTensorFlow_YOLOV3()
+        {
+            var xFileName = Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_416_416_3.txt");
+            if (!File.Exists(xFileName))
+            {
+                Console.WriteLine("ignoring test " + nameof(TestParallelRunWithTensorFlow_YOLOV3) + " because some files are missing");
+                return;
+            }
+
+            var X = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(xFileName));
+            X = (CpuTensor<float>)X.ChangeAxis(new[] { 0, 3, 1, 2 });
+            //var yExpectedFromKeras = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(yExpectedFileName));
+
+            var network = new YOLOV3NetBuilder().Value(new List<int>{0}, new[] { 3, 416, 416 });
+            //network.PropagationManager.LogPropagation = true; 
+            network.LoadParametersFromH5File(@"C:\Projects\YOLOv3_TF2\weights\yolov3_weights.h5", NetworkConfig.CompatibilityModeEnum.TensorFlow2);
+
+            var yPredicted = network.Predict(X, false);
+            Debug.Assert(yPredicted != null);
+        }
+
+
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow_Efficientnet()
         {
@@ -147,7 +171,7 @@ namespace SharpNetTests.NonReg
             const double learningRate = 0.01;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
-            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var logger = new Logger(logFileName, true);
 
             var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_3_4_5);
@@ -182,8 +206,8 @@ namespace SharpNetTests.NonReg
             TestNetworkPropagation.FromConvNumpyArray("[[[[-0.7247111797332764, -0.3986714482307434], [-0.4940018653869629, 0.04389345645904541]]]]").CopyTo(((ConvolutionLayer)network.Layers[2]).Weights);
             TestNetworkPropagation.FromNumpyArray("[[-0.029460519552230835, 0.1628669798374176], [-0.28001704812049866, -0.23855498433113098], [0.07715305685997009, 0.11627233028411865], [0.32925912737846375, 0.011087954044342041], [0.12424156069755554, -0.05900973081588745], [-0.2703372836112976, 0.12233385443687439], [-0.08240920305252075, 0.006095200777053833], [-0.023135006427764893, 0.08786126971244812], [-0.2075882852077484, -0.3384675085544586], [0.10181871056556702, -0.08105111122131348], [0.04287368059158325, -0.014433145523071289], [-0.050517499446868896, 0.19285127520561218], [0.16756221652030945, -0.06256869435310364], [-0.1878374218940735, -0.17477598786354065], [0.3118181526660919, 0.36103251576423645], [0.16790542006492615, 0.27620890736579895], [0.21295377612113953, -0.15440134704113007], [0.03934970498085022, -0.35186851024627686], [-0.19449061155319214, -0.2855254113674164], [-0.08950188755989075, 0.2891680896282196], [-0.37375181913375854, 0.18617329001426697], [0.07124421000480652, 0.28268447518348694], [0.041756272315979004, 0.13584479689598083], [0.12497344613075256, 0.151188462972641], [0.3146173655986786, -0.22298070788383484], [-0.22048203647136688, -0.30460700392723083], [0.12072917819023132, -0.2646358907222748], [-0.15740737318992615, 0.17554828524589539], [0.13976749777793884, -0.357845664024353], [-0.365357369184494, -0.15716126561164856], [0.14519938826560974, 0.22951403260231018], [0.03488221764564514, 0.1870688498020172], [0.28289076685905457, 0.14199396967887878], [0.31583401560783386, 0.08595579862594604], [0.005727171897888184, 0.2800586521625519], [0.013508498668670654, 0.3192369043827057], [-0.14768590033054352, -0.05077126622200012], [-0.28260645270347595, -0.3034713864326477], [-0.05905658006668091, -0.3151003122329712], [-0.12471392750740051, -0.2689373791217804]]").CopyTo(((DenseLayer)network.Layers[6]).Weights);
 
+            network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
-            network.LogContent();
 
             var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], "", null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
@@ -195,7 +219,6 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            network.LogContent();
             var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             logger.Info("C# numEpochs= " + numEpochs);
@@ -215,7 +238,7 @@ namespace SharpNetTests.NonReg
             const double learningRate = 0.01;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
-            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var logger = new Logger(logFileName, true);
 
             var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_3_4_5);
@@ -236,6 +259,9 @@ namespace SharpNetTests.NonReg
                         new List<int> { gpuDeviceId }
                 );
 
+
+            network.PropagationManager.LogPropagation = true;
+
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(4,1,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
@@ -243,16 +269,18 @@ namespace SharpNetTests.NonReg
                 .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
+            network.PropagationManager.LogPropagation = true;
 
-//            conv1 = tf.keras.layers.Conv2D(1, kernel_size = 1, strides = 1, padding = 'same', use_bias = True, data_format = 'channels_first')(inputs)
-//#flatten = tf.keras.layers.Flatten(data_format='channels_last')(inputs)
-//            activation1 = tf.keras.layers.UpSampling2D(size = (3, 2), interpolation = 'nearest')(conv1)
-//            conv2 = tf.keras.layers.Conv2D(1, kernel_size = 3, strides = 2, padding = 'same', use_bias = True, data_format = 'channels_first')(activation1)
-//            flatten = tf.keras.layers.Flatten(data_format = 'channels_first')(conv2)
 
-//            dense2 = tf.keras.layers.Dense(numClasses)(flatten)
-//            activation2 = tf.keras.layers.Activation('softmax')(dense2)
-//            model = tf.keras.models.Model(inputs = inputs, outputs = activation2)
+            //            conv1 = tf.keras.layers.Conv2D(1, kernel_size = 1, strides = 1, padding = 'same', use_bias = True, data_format = 'channels_first')(inputs)
+            //#flatten = tf.keras.layers.Flatten(data_format='channels_last')(inputs)
+            //            activation1 = tf.keras.layers.UpSampling2D(size = (3, 2), interpolation = 'nearest')(conv1)
+            //            conv2 = tf.keras.layers.Conv2D(1, kernel_size = 3, strides = 2, padding = 'same', use_bias = True, data_format = 'channels_first')(activation1)
+            //            flatten = tf.keras.layers.Flatten(data_format = 'channels_first')(conv2)
+
+            //            dense2 = tf.keras.layers.Dense(numClasses)(flatten)
+            //            activation2 = tf.keras.layers.Activation('softmax')(dense2)
+            //            model = tf.keras.models.Model(inputs = inputs, outputs = activation2)
 
 
 
@@ -265,7 +293,6 @@ namespace SharpNetTests.NonReg
 
 
             var predict_before = network.Predict(X, false).ToNumpy();
-            network.LogContent();
 
             var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], "", null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
@@ -277,7 +304,6 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            network.LogContent();
             var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             logger.Info("C# numEpochs= " + numEpochs);

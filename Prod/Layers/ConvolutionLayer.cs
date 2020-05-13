@@ -67,7 +67,7 @@ namespace SharpNet.Layers
         /// No need to configure the number of channels by filter: it is always the same as in previous layer
         /// </summary>
         public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, bool trainable, Network network, string layerName)
-            : base(network, previousLayerIndex, layerName)
+            : base(network, new[] { previousLayerIndex}, layerName)
         {
             _isDepthwiseConvolution = isDepthwiseConvolution;
             _filtersCount = filtersCount;
@@ -90,7 +90,7 @@ namespace SharpNet.Layers
             _convolutionGradients = GetFloatTensor(_convolution.Shape);
             _convolutionBiasGradients = (_convolutionBias!=null)? GetFloatTensor(_convolutionBias.Shape) : null;
 
-            _optimizer = Network.GetOptimizer(_convolution.Shape, _convolutionBias?.Shape);
+            _optimizer = GetOptimizer(_convolution.Shape, _convolutionBias?.Shape);
 
             ResetParameters(false);
         }
@@ -115,7 +115,7 @@ namespace SharpNet.Layers
                 _padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 StopForwardTimer(Type() + ">0Pad", isTraining);
                 StartForwardTimer(Type() + ">ConvAsym", isTraining);
-                _padded_X.Convolution(_convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
+                _padded_X.Convolution(_convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining))
                 {
                     FreeFloatTensor(ref _padded_X);
@@ -126,7 +126,7 @@ namespace SharpNet.Layers
             {
                 //symmetric padding
                 StartForwardTimer(Type() + ">Conv", isTraining);
-                x.Convolution(_convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
+                x.Convolution(_convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 StopForwardTimer(Type() + ">Conv", isTraining);
             }
 
@@ -175,7 +175,7 @@ namespace SharpNet.Layers
                 Debug.Assert(_padded_X != null);
                 StartBackwardTimer(Type() + ">ConvAsym");
                 var _padded_dX = GetFloatTensor(_padded_X.Shape);
-                _padded_X.ConvolutionGradient(_convolution, dy, 0, 0, 0, 0, _stride, _padded_dX, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
+                _padded_X.ConvolutionGradient(_convolution, dy, 0, 0, 0, 0, _stride, _padded_dX, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 FreeFloatTensor(ref _padded_X); //no more need of '_padded_X'
                 StopBackwardTimer(Type() + ">ConvAsym");
                 StartBackwardTimer(Type() + ">0Pad");
@@ -189,7 +189,7 @@ namespace SharpNet.Layers
                 //symmetric padding
                 Debug.Assert(_padded_X == null);
                 StartBackwardTimer(Type() + ">Conv");
-                x.ConvolutionGradient(_convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, Network.MemoryPool);
+                x.ConvolutionGradient(_convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 StopBackwardTimer(Type() + ">Conv");
             }
 
@@ -242,7 +242,7 @@ namespace SharpNet.Layers
             var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
 
             //trainable params
-            _convolution.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, stdDev);
+            _convolution.RandomMatrixNormalDistribution(Rand, 0.0 /* mean */, stdDev);
             _convolutionBias?.ZeroMemory();
 
             if (resetAlsoOptimizerWeights)
@@ -458,8 +458,8 @@ namespace SharpNet.Layers
         private void Padding(int[] xShape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight)
         {
             Debug.Assert(xShape.Length == 4);
-            Padding(xShape[2], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingTop, out paddingBottom);
-            Padding(xShape[3], _f, _stride, _paddingType, Network.Config.CompatibilityMode, out paddingLeft, out paddingRight);
+            Padding(xShape[2], _f, _stride, _paddingType, Config.CompatibilityMode, out paddingTop, out paddingBottom);
+            Padding(xShape[3], _f, _stride, _paddingType, Config.CompatibilityMode, out paddingLeft, out paddingRight);
         }
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
         private int[] ConvolutionShape
@@ -488,7 +488,7 @@ namespace SharpNet.Layers
                 }
             }
         }
-        private GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference => Network.Config.ConvolutionAlgoPreference;
+        private GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference => Config.ConvolutionAlgoPreference;
         private static int[] PaddedXShape(int[] xShape, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             return new[] { xShape[0], xShape[1], paddingTop + xShape[2] + paddingBottom, paddingLeft + xShape[3] + paddingRight };

@@ -34,16 +34,13 @@ namespace SharpNet.Layers
         /// <param name="previousLayerIndex"></param>
         /// <param name="network"></param>
         /// <param name="layerName"></param>
-        public PoolingLayer(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, Network network, string layerName) : base(network, previousLayerIndex, layerName)
+        public PoolingLayer(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, Network network, string layerName) : base(network, new[] { previousLayerIndex}, layerName)
         {
             _poolingMode = poolingMode;
             _poolingHeight = poolingHeight;
             _poolingWidth = poolingWidth;
             _poolingStride = poolingStride;
         }
-
-
-        private int PreviousLayerIndex => PreviousLayerIndexes[0];
 
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)

@@ -8,6 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+// ReSharper disable UnusedMember.Local
 
 namespace SharpNet.Datasets
 {
@@ -79,6 +80,7 @@ namespace SharpNet.Datasets
             //We compute Y 
             Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _elementIdToCategoryIndex.Count, CategoryCount);
         }
+        // ReSharper disable once UnusedMember.Global
         public static void DefaultCompute_CategoryIndex_Description_FullName(
             string csvFileName,
             string directoryWithElements,

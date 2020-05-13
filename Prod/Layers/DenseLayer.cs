@@ -69,7 +69,7 @@ namespace SharpNet.Layers
             _weightGradients = GetFloatTensor(_weights.Shape);
             _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
 
-            _optimizer = Network.GetOptimizer(_weights.Shape, _bias?.Shape);
+            _optimizer = GetOptimizer(_weights.Shape, _bias?.Shape);
             ResetParameters(false);
         }
         #endregion
@@ -92,7 +92,7 @@ namespace SharpNet.Layers
 
             //we compute dW
             var multiplier = 1f / batchSize;
-            if (Network.Config.TensorFlowCompatibilityMode)
+            if (Config.TensorFlowCompatibilityMode)
             {
                 multiplier = 1f; //used only for tests and parallel run
             }
@@ -145,7 +145,7 @@ namespace SharpNet.Layers
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
-            _weights.RandomMatrixNormalDistribution(Network.Config.Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+            _weights.RandomMatrixNormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
             _bias?.ZeroMemory();
 
             if (resetAlsoOptimizerWeights)

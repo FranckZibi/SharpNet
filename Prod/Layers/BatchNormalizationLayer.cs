@@ -85,7 +85,7 @@ namespace SharpNet.Layers
             _scaleGradients = GetFloatTensor(scaleAndBiasShape);
             _biasGradients = GetFloatTensor(scaleAndBiasShape);
 
-            _optimizer = Network.GetOptimizer(_scale.Shape, _bias.Shape);
+            _optimizer = GetOptimizer(_scale.Shape, _bias.Shape);
 
             //no need to reset optimizer weights: it has just been done above
             ResetParameters(false);
@@ -98,7 +98,7 @@ namespace SharpNet.Layers
             var nbDisabledWeights = PreviousLayers.Select(l=>l.DisableBias()).Sum();
             if (nbDisabledWeights != 0)
             {
-                Network.LogDebug(nbDisabledWeights + " weights (bias) disabled thanks to batchNorm layer " + LayerName);
+                Log(nbDisabledWeights + " weights (bias) disabled thanks to batchNorm layer " + LayerName);
             }
         }
 
@@ -138,6 +138,7 @@ namespace SharpNet.Layers
                 return result;
             }
         }
+        public override int NonTrainableParams => _resultRunningMean.Count + _resultRunningVariance.Count;
         public override void ReplaceParameters(List<Tensor> newParameters)
         {
             Debug.Assert(newParameters.Count == 4);
