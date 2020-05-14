@@ -117,8 +117,7 @@ namespace SharpNet.ObjectDetection
         {
             return ToString().GetHashCode();
         }
-
-        private bool Equals(BoundingBox other, double epsilon)
+        public bool Equals(BoundingBox other, double epsilon)
         {
             return    Math.Abs(_colCenter - other._colCenter) <= epsilon
                    && Math.Abs(_rowCenter - other._rowCenter) <= epsilon

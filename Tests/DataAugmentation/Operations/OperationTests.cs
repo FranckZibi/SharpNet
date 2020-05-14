@@ -85,7 +85,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
             var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
 
-            yOriginal = (CpuTensor<float>)yOriginal.Clone();
+            yOriginal = (CpuTensor<float>)yOriginal?.Clone();
             SubPolicy.Apply(
                 subPolicy,
                 0,
