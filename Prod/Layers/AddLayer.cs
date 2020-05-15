@@ -21,12 +21,16 @@ namespace SharpNet.Layers
             allX[0].CopyTo(y);
             y.Update_Adding_Alpha_X(1, allX[1]);
         }
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> allDx)
+        public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
+            Debug.Assert(allX_NotUsed.Count == 0);
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(allDx.Count == 2);
             Debug.Assert(allDx[0].SameShape(dy));
             allDx.ForEach(dy.CopyTo);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
+        public override bool InputNeededForBackwardPropagation => false;
         #endregion
 
         #region serialization

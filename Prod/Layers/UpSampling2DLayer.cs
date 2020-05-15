@@ -31,12 +31,16 @@ namespace SharpNet.Layers
             var x = allX[0];
             y.UpSampling2D(x, _rowFactor, _colFactor, _interpolation);
         }
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> allDx)
+        public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
+            Debug.Assert(allX_NotUsed.Count == 0);
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(allDx.Count == 1);
             var dx = allDx[0];
             dx.DownSampling2D(dy, _rowFactor, _colFactor);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
+        public override bool InputNeededForBackwardPropagation => false;
         #endregion
 
         #region serialization

@@ -189,13 +189,21 @@ namespace SharpNet.Networks
                 var dy = all_dY[layerIndex];
                 Debug.Assert(dy != null);
                 var y = (layerIndex == lastLayerIndex)? yPredicted : _all_allocated_Y[layerIndex];
-                Debug.Assert(y != null);
 
                 //we allocate the buffers for the 'dx' tensors of current layer
                 var dxBuffer = layer.PreviousLayers.Select(prev => prev.IsInputLayer ? null : Get_dxBuffer(prev, miniBatchSize)).ToList();
                 var allX = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
                 if (!_memoryPool.IsMock)
                 {
+                    if (!layer.InputNeededForBackwardPropagation)
+                    {
+                        allX.Clear();
+                    }
+                    if (!layer.OutputNeededForBackwardPropagation)
+                    {
+                        y = null;
+                    }
+
                     //computes 'dx' and weight gradients of current layer
                     layer.BackwardPropagation(allX, y, dy, dxBuffer);
 

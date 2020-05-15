@@ -109,12 +109,14 @@ namespace SharpNet.Layers
             var exponentialAverageSmoothingFactor = 1 - _momentum;
             allX[0].BatchNormalization(y, _scale, _bias, exponentialAverageSmoothingFactor, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer, isTraining);
         }
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
+            Debug.Assert(y_NotUsed == null);
             var x = allX[0];
             x.BatchNormalizationBackward(dy, dx[0], _scale, _scaleGradients, _biasGradients, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
         #endregion
 
         #region parameters and gradients

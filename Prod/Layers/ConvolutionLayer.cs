@@ -116,7 +116,7 @@ namespace SharpNet.Layers
                 StopForwardTimer(Type() + ">0Pad", isTraining);
                 StartForwardTimer(Type() + ">ConvAsym", isTraining);
                 _padded_X.Convolution(_convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
-                if (!LayerOutputShouldBeKeptForBackwardPropagation(isTraining))
+                if (PreviousLayers.All(l=>!l.LayerOutputShouldBeKeptForBackwardPropagation(isTraining)))
                 {
                     FreeFloatTensor(ref _padded_X);
                 }
@@ -151,11 +151,12 @@ namespace SharpNet.Layers
         /// <summary>
         /// dy => _convolutionGradients & _convolutionBiasGradients & dx 
         /// </summary>
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
-            var x = allX[0];
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
+            var x = allX[0];
 
             if (UseBias)
             {
@@ -200,6 +201,7 @@ namespace SharpNet.Layers
                 _convolutionGradients.Update_Adding_Alpha_X(alpha, _convolution);
             }
         }
+        public override bool OutputNeededForBackwardPropagation => false;
         public override int ExtraElementCountForBackwardPropagation(int batchSize)
         {
             return ExtraElementCountForForwardPropagation(batchSize);

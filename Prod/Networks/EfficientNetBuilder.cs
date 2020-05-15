@@ -51,7 +51,7 @@ namespace SharpNet.Networks
         /// used for transfer learning
         /// </summary>
         public string WeightForTransferLearning { get; set; } = "";
-        private cudnnActivationMode_t DefaultActivation { get;} = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
+        public cudnnActivationMode_t DefaultActivation { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
 
         /// <summary>
         /// The default EfficientNet Meta Parameters for CIFAR10

@@ -33,8 +33,17 @@ namespace SharpNet.Layers
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
-            Debug.Assert(allX.Count == 1);
             Debug.Assert(dx.Count == 1);
+
+            if (!InputNeededForBackwardPropagation)
+            {
+                Debug.Assert(allX.Count == 0);
+                allX.Add(y);
+            }
+            else
+            {
+                Debug.Assert(allX.Count == 1);
+            }
 
             if (PrevLayer.IsInputLayer)
             {
@@ -53,6 +62,11 @@ namespace SharpNet.Layers
             }
             StopBackwardTimer(Type() + ">" + ToString(ActivationFunction));
         }
+        /// <summary>
+        /// true if the input feature map 'x' is needed to compute the backward propagation of current layer
+        /// </summary>
+        public override bool InputNeededForBackwardPropagation => ActivationFunction==cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH||ActivationFunction == cudnnActivationMode_t.CUDNN_ACTIVATION_ELU;
+
         #endregion
 
         #region serialization

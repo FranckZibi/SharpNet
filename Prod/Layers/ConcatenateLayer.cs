@@ -29,15 +29,17 @@ namespace SharpNet.Layers
         /// At this stage, we already know dy (output layer gradient)
         /// we want to compute PreviousLayerIndex1.dy (=dx[0]) & PreviousLayerIndex2.dy (=dx[1]) by backward propagation
         /// </summary>
-        /// <param name="allX"></param>
-        /// <param name="y"></param>
         /// <param name="dy">already computed output layer gradient</param>
         /// <param name="dx">the 2 values to compute (from dy)</param>
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(allX_NotUsed.Count == 0);
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count >= 2);
             dy.Split(dx);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
+        public override bool InputNeededForBackwardPropagation => false;
         #endregion
 
         #region serialization

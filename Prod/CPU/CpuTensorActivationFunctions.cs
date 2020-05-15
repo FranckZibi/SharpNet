@@ -88,10 +88,10 @@ namespace SharpNet.CPU
         {
             X.AsFloatCpu.Map(x => Math.Max(0, x), Y.AsFloatCpu);
         }
-        public static void ReluGradient(Tensor dY, Tensor X, Tensor dX)
+        public static void ReluGradient(Tensor Y, Tensor dY, Tensor dX)
         {
-            Debug.Assert(Tensor.AreCompatible(new List<Tensor> { dY, X, dX }));
-            dX.AsFloatCpu.BuildEntirelyFromInput(dY, X, (dy, x) => (x >= 0f ? dy : 0f));
+            Debug.Assert(Tensor.AreCompatible(new List<Tensor> { dY, Y, dX }));
+            dX.AsFloatCpu.BuildEntirelyFromInput(dY, Y, (dy, y) => (y > 0f ? dy : 0f));
         }
         #endregion
 
@@ -100,10 +100,11 @@ namespace SharpNet.CPU
         {
             X.AsFloatCpu.Map(x => (x>=0)?x:((float)alpha)*x, Y.AsFloatCpu);
         }
-        public static void LeakyReluGradient(Tensor dY, Tensor X, Tensor dX, double alpha)
+        public static void LeakyReluGradient(Tensor Y, Tensor dY, Tensor dX, double alpha)
         {
-            Debug.Assert(Tensor.AreCompatible(new List<Tensor> { dY, X, dX }));
-            dX.AsFloatCpu.BuildEntirelyFromInput(dY, X, (dy, x) => (x >= 0f ? dy : ((float)alpha)*dy));
+            Debug.Assert(alpha>=0);
+            Debug.Assert(Tensor.AreCompatible(new List<Tensor> { dY, Y, dX }));
+            dX.AsFloatCpu.BuildEntirelyFromInput(dY, Y, (dy, y) => (y >= 0f ? dy : ((float)alpha)*dy));
         }
         #endregion
 

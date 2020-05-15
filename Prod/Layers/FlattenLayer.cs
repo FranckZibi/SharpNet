@@ -17,8 +17,10 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             allX[0].CopyTo(y);
         }
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
+            Debug.Assert(allX_NotUsed.Count == 0);
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
             if (PrevLayer.IsInputLayer)
             {
@@ -26,6 +28,9 @@ namespace SharpNet.Layers
             }
             dy.CopyTo(dx[0]);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
+        public override bool InputNeededForBackwardPropagation => false;
+
         #endregion
 
         #region serialization

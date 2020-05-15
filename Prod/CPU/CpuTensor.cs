@@ -447,10 +447,10 @@ namespace SharpNet.CPU
             switch (activationType)
             {
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU:
-                    CpuTensorActivationFunctions.ReluGradient(dy, x, dx);
+                    CpuTensorActivationFunctions.ReluGradient(y, dy, dx);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
-                    CpuTensorActivationFunctions.LeakyReluGradient(dy, x, dx, alphaActivation);
+                    CpuTensorActivationFunctions.LeakyReluGradient(y, dy, dx, alphaActivation);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
                     CpuTensorActivationFunctions.EluGradient(y, dy, x, dx, 1f);

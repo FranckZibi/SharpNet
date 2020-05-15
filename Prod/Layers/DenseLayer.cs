@@ -83,9 +83,10 @@ namespace SharpNet.Layers
             y.Dot(x, _weights);
             _bias?.BroadcastAddVectorToOutput(y);
         }
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
             var x = allX[0];
             int batchSize = dy.Shape[0];
@@ -120,6 +121,7 @@ namespace SharpNet.Layers
             // we compute dx = dy * Weights.T
             dx[0].Dot(dy, false, _weights, true, 1, 0);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
         #endregion
 
         #region parameters and gradients

@@ -43,6 +43,8 @@ namespace SharpNet.Layers
         {
             throw new NotImplementedException();
         }
+        public override bool OutputNeededForBackwardPropagation => false;
+        public override bool InputNeededForBackwardPropagation => false;
         #endregion
 
         #region serialization

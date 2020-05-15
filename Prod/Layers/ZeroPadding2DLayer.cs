@@ -29,12 +29,16 @@ namespace SharpNet.Layers
             var x = allX[0];
             y.ZeroPadding(x, _paddingTop, _paddingBottom, _paddingLeft, _paddingRight);
         }
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> allDx)
+        public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
+            Debug.Assert(allX_NotUsed.Count == 0);
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(allDx.Count == 1);
             var dx = allDx[0];
             dx.ZeroUnpadding(dy, _paddingTop, _paddingBottom, _paddingLeft, _paddingRight);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
+        public override bool InputNeededForBackwardPropagation => false;
         #endregion
 
         #region serialization

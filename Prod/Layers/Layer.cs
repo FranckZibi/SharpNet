@@ -24,7 +24,7 @@ namespace SharpNet.Layers
         public bool Trainable { get; set; } = true;
         protected readonly Network Network;
         private bool _isDisposed;
-        public int[] LazyOutputShape { get; set; }
+        public int[] LazyOutputShape { private get; set; }
         #endregion
 
         #region constructors
@@ -65,6 +65,17 @@ namespace SharpNet.Layers
         /// <param name="dy">[in] the already computed output gradient</param>
         /// <param name="dx">[out] input gradient (dx) to compute from the output gradient (dy)</param>
         public abstract void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx);
+
+        /// <summary>
+        /// true if the output feature map 'y' is needed to compute the backward propagation of current layer
+        /// </summary>
+        public virtual bool OutputNeededForBackwardPropagation => true;
+        /// <summary>
+        /// true if the input feature map 'x' is needed to compute the backward propagation of current layer
+        /// </summary>
+        public virtual bool InputNeededForBackwardPropagation => true;
+
+
         /// <summary>
         /// update all weights of the layer thanks to the weight (& bias)  gradients computed in the backward propagation step
         /// only used in master network
@@ -331,6 +342,11 @@ namespace SharpNet.Layers
                 return false; //no need to keep layer output
             }
 
+            if ( !OutputNeededForBackwardPropagation && NextLayers.All(l=>!l.InputNeededForBackwardPropagation) )
+            {
+                return false;
+            }
+
             //if the layer is among the trainable layer
             if (LayerIndex >= firstTrainableLayer.LayerIndex)
             {
@@ -391,7 +407,7 @@ namespace SharpNet.Layers
             }
             return result;
         }
-        protected bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining)
+        public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining)
         {
             if (!isTraining) //if we are doing only inference 
             {
@@ -445,6 +461,7 @@ namespace SharpNet.Layers
         /// <summary>
         /// true if the layer has associated weights (or bias) to train
         /// </summary>
+        private List<Layer> NextLayers => NextLayerIndexes.Select(idx => Layers[idx]).ToList();
         private void FreeFloatTensor(Tensor t)
         {
             MemoryPool.FreeFloatTensor(t);

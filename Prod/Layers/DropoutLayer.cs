@@ -43,15 +43,16 @@ namespace SharpNet.Layers
             }
         }
 
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
+            Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
             Debug.Assert(_dropoutReservedSpaceForTraining != null);
-            Debug.Assert(_dropoutReservedSpaceForTraining.UseGPU == y.UseGPU);
             allX[0].DropoutBackward(dy, dx[0], _dropProbability, _dropoutReservedSpaceForTraining);
             FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
         }
+        public override bool OutputNeededForBackwardPropagation => false;
         #endregion
 
         #region serialization
