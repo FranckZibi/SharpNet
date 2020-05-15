@@ -35,6 +35,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// when set to true, will log all forward and backward propagation
         /// </summary>
+        // ReSharper disable once MemberCanBePrivate.Global
         public bool LogPropagation { get; set; }
 
         /// <summary>
@@ -52,10 +53,12 @@ namespace SharpNet.Networks
             FreeAllMemory();
             Debug.Assert(_all_allocated_Y.Count == 0);
             var stopwatchDico = isTraining ? _forwardPropagationTrainingTime : _forwardPropagationInferenceTime;
+            ((InputLayer)_layers[0]).SetInputShape(X.Shape);
             //referenceCountToLayer[layerIndex] : number of layers using the output of layer 'layerIndex'
             var referenceCountToLayer = new List<int>();
             int batchSize = X.Shape[0];
             _all_allocated_Y.Add(X); //input layer (layerIndex = 0) as output 'X'
+
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
             var lastLayerIndex = _layers.Last().LayerIndex;
             referenceCountToLayer.Add(_layers[0].NextLayerIndexes.Count);
@@ -79,6 +82,7 @@ namespace SharpNet.Networks
                 if (!_memoryPool.IsMock)
                 {
                     layer.ForwardPropagation(allX, yBuffer, isTraining);
+
                     if (LogPropagation)
                     {
                         layer.Log(layer.ToString());

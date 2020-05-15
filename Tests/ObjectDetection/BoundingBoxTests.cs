@@ -75,9 +75,9 @@ namespace SharpNetTests.ObjectDetection
         }
 
         [Test]
-        public void Test_UpScale()
+        public void Test_UpSampling()
         {
-            Assert.IsTrue(new BoundingBox(3*132.625, 2*76.742, 3*24.594, 2*41.12).Equals(b1.UpSampling2DLayer(2.0, 3.0), 1e-6));
+            Assert.IsTrue(new BoundingBox(3*132.625, 2*76.742, 3*24.594, 2*41.12).Equals(b1.UpSampling(2.0, 3.0), 1e-6));
         }
 
     }

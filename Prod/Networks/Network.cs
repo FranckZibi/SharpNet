@@ -220,7 +220,7 @@ namespace SharpNet.Networks
         }
         public Network NonMaxSuppression(float minScore, float IOU_threshold_for_duplicate, int maxOutputSize, int maxOutputSizePerClass, string layerName)
         {
-            Layers.Add(new NonMaxSuppressionLayer(minScore, IOU_threshold_for_duplicate, maxOutputSize, maxOutputSizePerClass, this, layerName));
+            Layers.Add(new NonMaxSuppressionLayer(maxOutputSizePerClass, maxOutputSize, IOU_threshold_for_duplicate, minScore, this, layerName));
             return this;
         }
         public Network UpSampling2D(int rowFactor, int colFactor, UpSampling2DLayer.InterpolationEnum interpolation, string layerName = "")
@@ -657,6 +657,7 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public Tensor Predict(Tensor X, bool isTraining)
         {
+            ((InputLayer)Layers[0]).SetInputShape(X.Shape);
             X = ReformatToCorrectDevice_GPU_or_CPU(X);
             var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(X.Shape[0]));
             X = ReformatToCorrectDevice_GPU_or_CPU(X);

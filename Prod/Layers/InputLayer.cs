@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.Networks;
 
@@ -15,15 +16,15 @@ namespace SharpNet.Layers
         /// <summary>
         /// channel count
         /// </summary>
-        private readonly int _c;
+        private int _c;
         /// <summary>
         /// height
         /// </summary>
-        private readonly int _h;
+        private int _h;
         /// <summary>
         /// width
         /// </summary>
-        private readonly int _w;
+        private int _w;
         #endregion
 
         public InputLayer(int c, int h, int w, Network network, string layerName) : base(network, new int[]{}, layerName)
@@ -73,5 +74,14 @@ namespace SharpNet.Layers
         public override string Type() { return "InputLayer"; }
 
         protected override string DefaultLayerName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
+
+        public void SetInputShape(int[] shape)
+        {
+            Debug.Assert(shape.Length == 4);
+            _c = shape[1];
+            _h = shape[2];
+            _w = shape[3];
+            Layers.ForEach(l=>l.LazyOutputShape = null);
+        }
     }
 }

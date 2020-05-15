@@ -547,7 +547,7 @@ namespace SharpNet.CPU
         public override void DownSampling2D(Tensor tensorBeforeDownSampling, int rowFactor, int colFactor)
         {
             var beforeDownSampling = (CpuTensor<float>)tensorBeforeDownSampling;
-            var afterDownSampling = this as CpuTensor<float>;
+            var afterDownSampling = AsFloatCpu;
             Debug.Assert(afterDownSampling != null);
             afterDownSampling.ZeroMemory();
             Debug.Assert(rowFactor >= 1);

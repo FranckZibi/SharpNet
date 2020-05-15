@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using NUnit.Framework;
 using SharpNet;
@@ -10,7 +11,9 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
+using SharpNet.Pictures;
 using SharpNetTests.Data;
+// ReSharper disable AccessToDisposedClosure
 
 namespace SharpNetTests.NonReg
 {
@@ -60,23 +63,63 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow_YOLOV3()
         {
-            var xFileName = Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_416_416_3.txt");
-            if (!File.Exists(xFileName))
+            var weightPath = Path.Combine(NetworkConfig.DefaultDataDirectory, "YOLO", "yolov3_weights.h5");
+            if (!File.Exists(weightPath))
             {
-                Console.WriteLine("ignoring test " + nameof(TestParallelRunWithTensorFlow_YOLOV3) + " because some files are missing");
+                Console.WriteLine("ignoring test " + nameof(TestParallelRunWithTensorFlow_YOLOV3) + " because weight file is missing");
                 return;
             }
 
-            var X = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(xFileName));
-            X = (CpuTensor<float>)X.ChangeAxis(new[] { 0, 3, 1, 2 });
-            //var yExpectedFromKeras = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(yExpectedFileName));
-
-            var network = new YOLOV3NetBuilder().Value(new List<int>{0}, new[] { 3, 416, 416 });
+            var network = new YOLOV3NetBuilder().Value(new List<int> { 0 });
             //network.PropagationManager.LogPropagation = true; 
-            network.LoadParametersFromH5File(@"C:\Projects\YOLOv3_TF2\weights\yolov3_weights.h5", NetworkConfig.CompatibilityModeEnum.TensorFlow2);
+            network.LoadParametersFromH5File(weightPath, NetworkConfig.CompatibilityModeEnum.TensorFlow2);
 
-            var yPredicted = network.Predict(X, false);
-            Debug.Assert(yPredicted != null);
+            //var imagePaths = new DirectoryInfo(@"C:\Franck\Photos\2019\Madagascar").GetFiles("*.jpg").Select(f => f.FullName).ToList();
+            var imagePaths = new List<string>{ @"C:\Projects\YOLOv3_TF2\data\images\test.jpg"};
+            foreach(var imagePath in imagePaths)
+            { 
+                network.Info("processing "+imagePath);
+
+                using var originalBmp = new Bitmap(imagePath);
+                PreferredResizedSizeForYoloV3(originalBmp.Height, originalBmp.Width, out var resizedHeight,out var resizedWidth);
+                var resizedOriginalBitmap = Utils.ResizeImage(originalBmp, resizedWidth, resizedHeight);
+                var content = BitmapContent.ValueFomSingleRgbBitmap(resizedOriginalBitmap);
+                var X = content.Select((x, y, b) => b / 255f);
+                X.Reshape(new []{1, content.Shape[0], content.Shape[1], content.Shape[2]});
+                var yPredicted = network.Predict(X, false);
+                var predictions = NonMaxSuppressionLayer.ExtractSelectedAfterNonMaxSuppression(yPredicted.ToCpuFloat(), 0, int.MaxValue, int.MaxValue, 0.5, 0.5);
+                predictions.ForEach(p=>p.Box.UpSampling(originalBmp.Height/ (double)resizedHeight, originalBmp.Width/ (double)resizedWidth).Draw(originalBmp, p.CaptionFor(COCODataSet.CategoryIndexToDescription)));
+                originalBmp.Save(imagePath+"_"+DateTime.Now.Ticks+"_output.jpg");
+                
+                network.Info("finished processing of " + imagePath);
+            }
+        }
+
+        /// <summary>
+        /// the width and height of the processed image must be a multiple of '32' in YOLO V3
+        /// </summary>
+        /// <param name="originalHeight"></param>
+        /// <param name="originalWidth"></param>
+        /// <param name="resizedHeight"></param>
+        /// <param name="resizedWidth"></param>
+        private static void PreferredResizedSizeForYoloV3(int originalHeight, int originalWidth, out int resizedHeight, out int resizedWidth)
+        {
+            double capacity = 608 * 608;
+            double originalCount = originalHeight * originalWidth;
+
+            resizedHeight = originalHeight;
+            resizedWidth = originalWidth;
+
+            if (originalCount > capacity)
+            {
+                double coeff = Math.Sqrt(originalCount / capacity);
+                resizedHeight = (int)(resizedHeight / coeff);
+                resizedWidth = (int)(resizedWidth / coeff);
+            }
+
+            const int forcedSizeMultiple = 32;
+            resizedHeight = forcedSizeMultiple * ((resizedHeight + forcedSizeMultiple - 1) / forcedSizeMultiple);
+            resizedWidth = forcedSizeMultiple * ((resizedWidth + forcedSizeMultiple - 1) / forcedSizeMultiple);
         }
 
 

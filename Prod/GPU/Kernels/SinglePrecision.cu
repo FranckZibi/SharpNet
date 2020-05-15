@@ -1,7 +1,7 @@
 ﻿extern "C" {
 
 
-	__device__ float sigmoidf(float x) {
+	__device__ inline float sigmoidf(float x) {
 		return 1.0f / (1 + expf(-x));
 	}
 

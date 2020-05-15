@@ -451,7 +451,7 @@ namespace SharpNet.Pictures
             return result;
         }
 
-        private static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp)
+        public static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp)
         {
             var width = bmp.Width;
             var height = bmp.Height;

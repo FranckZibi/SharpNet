@@ -12,23 +12,28 @@ namespace SharpNet.Layers
     {
         #region private fields
         /// <summary>
-        /// the threshold for deciding when to remove boxes based on score.
+        /// maximum number of boxes to be selected by non-max suppression per class
         /// </summary>
-        private readonly float _score_Threshold;
+        private readonly int _maxOutputSizePerClass;
+        /// <summary>
+        /// maximum number of boxes retained over all classes.
+        /// </summary>
+        private readonly int _maxOutputSize;
         /// <summary>
         /// the threshold for deciding whether boxes overlap too much with respect to IOU
         /// </summary>
-        private readonly float _IOU_threshold;
-        private readonly int _maxOutputSize;
-        private readonly int _maxOutputSizePerClass;
+        private readonly double _IOU_threshold;
+        /// <summary>
+        /// the threshold for deciding when to remove boxes based on score.
+        /// </summary>
+        private readonly double _score_Threshold;
         #endregion
-
-        public NonMaxSuppressionLayer(float score_Threshold, float IOU_threshold, int maxOutputSize, int maxOutputSizePerClass, Network network, string layerName) : base(network, layerName)
+        public NonMaxSuppressionLayer(int maxOutputSizePerClass, int maxOutputSize, double IOU_threshold, double score_Threshold, Network network, string layerName) : base(network, layerName)
         {
-            _score_Threshold = score_Threshold;
-            _IOU_threshold = IOU_threshold;
-            _maxOutputSize = maxOutputSize;
             _maxOutputSizePerClass = maxOutputSizePerClass;
+            _maxOutputSize = maxOutputSize;
+            _IOU_threshold = IOU_threshold;
+            _score_Threshold = score_Threshold;
         }
 
         #region forward and backward propagation
@@ -37,30 +42,29 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
 
-            var xAsCpu = new CpuTensor<float>(x.Shape);
-            x.CopyTo(xAsCpu);
+
+            //Non Max Suppression is implemented only on CPU side (no GPU)
+            var yAsCpu = new CpuTensor<float>(y.Shape);
+            x.CopyTo(yAsCpu);
+
             int predictionsByElement = x.Shape[1];
-            int predictionLength = x.Shape[2];
             for (int m = 0; m < x.Shape[0]; ++m)
             {
-                var element = xAsCpu.ElementSlice(m).AsFloatCpuSpan;
-                var elementPredictions = new List<PredictionDescription>();
-                for (int predictionId = 0; predictionId < predictionsByElement; ++predictionId)
-                {
-                    elementPredictions.Add(PredictionDescription.ValueOf(predictionId, element.Slice(predictionId*predictionLength,predictionLength)));
-                }
-                var selectedPredictions = ExtractSelectedAfterNonMaxSuppression(elementPredictions, _score_Threshold, _IOU_threshold, _maxOutputSize, _maxOutputSizePerClass);
+                var selectedPredictions = ExtractSelectedAfterNonMaxSuppression(yAsCpu, m, _maxOutputSizePerClass, _maxOutputSize, _IOU_threshold, _score_Threshold);
+
+                //we set the box confidence of discarded predictions to 0
                 var isSelected = new bool[predictionsByElement];
-                selectedPredictions.ForEach(p=> isSelected[p.IndexInInput] = true);
+                selectedPredictions.ForEach(p => isSelected[p.IndexInInput] = true);
                 for (int predictionId = 0; predictionId < predictionsByElement; ++predictionId)
                 {
                     if (!isSelected[predictionId])
                     {
-                        xAsCpu.Set(m, predictionId, 4, 0); //we set the box confidence of removed element to 0
+                        yAsCpu.Set(m, predictionId, 4, 0); 
                     }
                 }
             }
-            xAsCpu.CopyTo(x);
+
+            yAsCpu.CopyTo(y);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> allDx)
         {
@@ -72,20 +76,20 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(_score_Threshold), _score_Threshold)
-                .Add(nameof(_IOU_threshold), _IOU_threshold)
-                .Add(nameof(_maxOutputSize), _maxOutputSize)
                 .Add(nameof(_maxOutputSizePerClass), _maxOutputSizePerClass)
+                .Add(nameof(_maxOutputSize), _maxOutputSize)
+                .Add(nameof(_IOU_threshold), _IOU_threshold)
+                .Add(nameof(_score_Threshold), _score_Threshold)
                 .ToString();
         }
         public static NonMaxSuppressionLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new NonMaxSuppressionLayer(
-                (float)serialized[nameof(_score_Threshold)],
-                (float)serialized[nameof(_IOU_threshold)],
-                (int)serialized[nameof(_maxOutputSize)],
                 (int)serialized[nameof(_maxOutputSizePerClass)],
-                network,
+                (int)serialized[nameof(_maxOutputSize)],
+                (double)serialized[nameof(_IOU_threshold)], 
+                (double)serialized[nameof(_score_Threshold)], 
+                network, 
                 (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
@@ -96,20 +100,25 @@ namespace SharpNet.Layers
             return PrevLayer.OutputShape(batchSize);
         }
 
-        private static List<PredictionDescription> ExtractSelectedAfterNonMaxSuppression(IReadOnlyList<PredictionDescription> predictions, float score_Threshold, float IOU_threshold, int maxOutputSize, int maxOutputSizePerClass)
+        public static List<PredictionDescription> ExtractSelectedAfterNonMaxSuppression(CpuTensor<float> tensor, int elementId, int maxOutputSizePerClass, int maxOutputSize, double IOU_threshold, double score_Threshold)
         {
-            var selectedPredictions = new List<PredictionDescription>();
+            var predictions = PredictionsAboveBoxConfidenceThreshold(tensor, elementId, score_Threshold);
             var sortedPredictions = new List<PredictionDescription>(predictions.Where(p=>p.Score >= score_Threshold).OrderByDescending(p=>p.Score));
+            if (sortedPredictions.Count == 0)
+            {
+                return new List<PredictionDescription>();
+            }
+            var countByClasses = new int[1+ sortedPredictions.Select(p=>p.ArgMaxClass).Max()];
 
-            int[] countByCategories = new int[1+ sortedPredictions.Select(p=>p.ArgMaxClass).Max()];
-
+            var selectedPredictions = new List<PredictionDescription>();
             for (int i = 0; i < sortedPredictions.Count; ++i)
             {
-                if (sortedPredictions[i] == null || selectedPredictions.Count >= maxOutputSize || countByCategories[sortedPredictions[i].ArgMaxClass] >= maxOutputSizePerClass)
+                if (sortedPredictions[i] == null || selectedPredictions.Count >= maxOutputSize || countByClasses[sortedPredictions[i].ArgMaxClass] >= maxOutputSizePerClass)
                 {
                     continue;
                 }
-                ++countByCategories[sortedPredictions[i].ArgMaxClass];
+                selectedPredictions.Add(sortedPredictions[i]);
+                ++countByClasses[sortedPredictions[i].ArgMaxClass];
                 for (int j = i + 1; j < sortedPredictions.Count; ++j)
                 {
                     if (   sortedPredictions[j] != null
@@ -122,5 +131,29 @@ namespace SharpNet.Layers
             }
             return selectedPredictions;
         }
+
+
+        /// <summary>
+        /// extract all predictions (related to image 'elementId') in the 'predictions' tensor with a box confidence above 'boxConfidence_Threshold'
+        /// </summary>
+        /// <param name="predictions">tensor with all predictions (for all images in the mini batch)</param>
+        /// <param name="elementId">id of the image to process</param>
+        /// <param name="boxConfidence_Threshold">minimum box confidence to select the associate prediction</param>
+        /// <returns>list of predictions for image 'elementId' with a box confidence above the threshold</returns>
+        private static List<PredictionDescription> PredictionsAboveBoxConfidenceThreshold(CpuTensor<float> predictions, int elementId, double boxConfidence_Threshold)
+        {
+            int predictionsByElement = predictions.Shape[1];
+            int predictionLength = predictions.Shape[2];
+            var predictionsAboveScoreThreshold = new List<PredictionDescription>();
+            for (int predictionId = 0; predictionId < predictionsByElement; ++predictionId)
+            {
+                if (predictions.Get(elementId, predictionId, 4) >= boxConfidence_Threshold) //box confidence must be at least 'boxConfidence_Threshold'
+                {
+                    predictionsAboveScoreThreshold.Add(PredictionDescription.ValueOf(predictionId, predictions.ReadonlyContent.Slice(predictions.Idx(elementId, predictionId), predictionLength)));
+                }
+            }
+            return predictionsAboveScoreThreshold;
+        }
+
     }
 }

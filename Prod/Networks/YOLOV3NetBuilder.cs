@@ -22,8 +22,8 @@ namespace SharpNet.Networks
         private float MinScore { get; } = 0.5f;
         private float IOU_threshold_for_duplicate { get; } = 0.5f;
 
-        private int MaxOutputSize { get; } = 40;
-        private int MaxOutputSizePerClass { get; } = 20;
+        private int MaxOutputSize { get; } = int.MaxValue;
+        private int MaxOutputSizePerClass { get; } = int.MaxValue;
         #endregion
 
         #region constructor
@@ -43,13 +43,12 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        public Network Value(List<int> resourceIds, int[] inputShape_CHW)
+        public Network Value(List<int> resourceIds)
         {
             LoadNetDescription();
             ResourceIds = resourceIds;
             var network = BuildEmptyNetwork("YOLO V3");
 
-            InputShape_CHW = inputShape_CHW;
             network.Input(InputShape_CHW[0], InputShape_CHW[1], InputShape_CHW[2], "input_1");
 
             for (int i = 1; i < _blocks.Count; ++i)

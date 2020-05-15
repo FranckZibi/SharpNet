@@ -24,7 +24,7 @@ namespace SharpNet.Layers
         public bool Trainable { get; set; } = true;
         protected readonly Network Network;
         private bool _isDisposed;
-        private int[] _lazyOutputShape;
+        public int[] LazyOutputShape { get; set; }
         #endregion
 
         #region constructors
@@ -263,7 +263,7 @@ namespace SharpNet.Layers
         {
             return 0;
         }
-        
+
         /// <summary>
         /// by default (if not overriden) output shape is the same as the previous layer
         /// </summary>
@@ -271,14 +271,14 @@ namespace SharpNet.Layers
         /// <returns></returns>
         public virtual int[] OutputShape(int batchSize)
         {
-            if (_lazyOutputShape != null)
+            if (LazyOutputShape != null)
             {
-                var result = (int[]) _lazyOutputShape.Clone();
+                var result = (int[])LazyOutputShape.Clone();
                 result[0] = batchSize;
                 return result;
             }
-            _lazyOutputShape = PrevLayer.OutputShape(batchSize);
-            return (int[])_lazyOutputShape.Clone();
+            LazyOutputShape = PrevLayer.OutputShape(batchSize);
+            return (int[])LazyOutputShape.Clone();
         }
         public virtual void Dispose()
         {
