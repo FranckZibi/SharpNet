@@ -11,7 +11,7 @@ namespace SharpNet.Datasets
         private readonly List<int> _shuffledElementIdToOriginalElementId;
 
         public ShuffledDataSet(IDataSet original, Random rand)
-            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel, original.Logger)
+            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel)
         {
             _original = original;
             _shuffledElementIdToOriginalElementId = Enumerable.Range(0, original.Count).ToList();

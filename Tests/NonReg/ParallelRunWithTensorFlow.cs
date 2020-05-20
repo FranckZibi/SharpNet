@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using log4net;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
@@ -23,6 +23,8 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class ParallelRunWithTensorFlow
     {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(ParallelRunWithTensorFlow));
+
         [Test]
         public void TestParallelRunWithTensorFlow_Efficientnet_Inference()
         {
@@ -40,6 +42,7 @@ namespace SharpNetTests.NonReg
 
             //we ensure that the network prediction is the same as in Keras
             var networkBuilder = EfficientNetBuilder.CIFAR10();
+            networkBuilder.Config.LogDirectory = "";
             networkBuilder.SetResourceId(0);
             var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] {3, 224, 224});
             var yPredicted = network.Predict(X, false);
@@ -70,7 +73,8 @@ namespace SharpNetTests.NonReg
                 return;
             }
 
-            var network = new YOLOV3NetBuilder().Value(new List<int> { 0 });
+            var networkBuilder = new YOLOV3NetBuilder();
+            var network = networkBuilder.Value(new List<int> { 0 });
             //network.PropagationManager.LogPropagation = true; 
             network.LoadParametersFromH5File(weightPath, NetworkConfig.CompatibilityModeEnum.TensorFlow2);
 
@@ -169,7 +173,7 @@ namespace SharpNetTests.NonReg
 
             //network.LogContent();
 
-            var trainingDataSet = new InMemoryDataSet(X, Y, new int[batchSize], "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[batchSize], "", null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             network.Info("-");
@@ -214,22 +218,20 @@ namespace SharpNetTests.NonReg
             const double learningRate = 0.01;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
-            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-            var logger = new Logger(logFileName, true);
-
             var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_3_4_5);
             var Y = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.Y_2_2);
 
             int batchSize = X.Shape[0];
             //var gpuDeviceId = -1;
             var gpuDeviceId = 0;
-            var network = new Network(new NetworkConfig
-            {
-                Logger = logger,
-                LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                RandomizeOrder = false,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
-            }
+            var network = new Network(
+                        new NetworkConfig
+                        {
+                            LogFile = "TestParallelRunWithTensorFlow_Convolution",
+                            LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                            RandomizeOrder = false,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
+                        }
                        .WithSGD(momentum, false),
                         new List<int> {gpuDeviceId}
                 );
@@ -243,7 +245,7 @@ namespace SharpNetTests.NonReg
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
 
-            logger.Info(network.Summary() + Environment.NewLine);
+            Logger.Info(network.Summary() + Environment.NewLine);
 
             TestNetworkPropagation.FromConvNumpyArray("[[[[-0.4878799319267273, -0.6471760272979736], [-0.11215460300445557, 0.24113142490386963], [-0.5400518774986267, -0.8205036520957947]]]]").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             TestNetworkPropagation.FromConvNumpyArray("[[[[-0.7247111797332764, -0.3986714482307434], [-0.4940018653869629, 0.04389345645904541]]]]").CopyTo(((ConvolutionLayer)network.Layers[2]).Weights);
@@ -252,26 +254,26 @@ namespace SharpNetTests.NonReg
             network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], "", null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
-            logger.Info("-");
-            logger.Info("--------------------------------------------------------------------");
-            logger.Info("-");
+            Logger.Info("-");
+            Logger.Info("--------------------------------------------------------------------");
+            Logger.Info("-");
 
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
             var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
-            logger.Info("C# numEpochs= " + numEpochs);
-            logger.Info("C# learningRate= " + learningRate);
-            logger.Info("C# l2regularizer= " + lambdaL2Regularization);
-            logger.Info("C# momentum= " + momentum);
-            logger.Info("C# prediction_before= " + predict_before);
-            logger.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
-            logger.Info("C# prediction_after= " + predict_after);
-            logger.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
+            Logger.Info("C# numEpochs= " + numEpochs);
+            Logger.Info("C# learningRate= " + learningRate);
+            Logger.Info("C# l2regularizer= " + lambdaL2Regularization);
+            Logger.Info("C# momentum= " + momentum);
+            Logger.Info("C# prediction_before= " + predict_before);
+            Logger.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
+            Logger.Info("C# prediction_after= " + predict_after);
+            Logger.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
         }
 
         [Test, Explicit]
@@ -281,23 +283,21 @@ namespace SharpNetTests.NonReg
             const double learningRate = 0.01;
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
-            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "NetworkPropagation" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-            var logger = new Logger(logFileName, true);
-
             var X = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.X_2_3_4_5);
             var Y = TestNetworkPropagation.FromNumpyArray(TestNetworkPropagation.Y_2_3);
 
             int batchSize = X.Shape[0];
             var gpuDeviceId = -1;
             //var gpuDeviceId = 0;
-            var network = new Network(new NetworkConfig
-            {
-                Logger = logger,
-                LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                RandomizeOrder = false,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
-                ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM
-            }
+            var network = new Network(
+                        new NetworkConfig
+                        {
+                            LogFile = "TestParallelRunWithTensorFlow_DownSampling2D",
+                            LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                            RandomizeOrder = false,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                            ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM
+                        }
                        .WithSGD(momentum, false),
                         new List<int> { gpuDeviceId }
                 );
@@ -327,7 +327,7 @@ namespace SharpNetTests.NonReg
 
 
 
-            logger.Info(network.Summary() + Environment.NewLine);
+            Logger.Info(network.Summary() + Environment.NewLine);
 
 
             TestNetworkPropagation.FromConvNumpyArray("[[[[-0.41233378648757935, -0.5469635725021362, -0.09478795528411865, 0.20379328727722168], [-0.45642712712287903, -0.6934521198272705, 0.7060458660125732, 0.6550993919372559], [-0.40876543521881104, 0.5751461982727051, 0.0005752444267272949, 0.8542157411575317]]]]").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
@@ -337,26 +337,26 @@ namespace SharpNetTests.NonReg
 
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], "", null);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
-            logger.Info("-");
-            logger.Info("--------------------------------------------------------------------");
-            logger.Info("-");
+            Logger.Info("-");
+            Logger.Info("--------------------------------------------------------------------");
+            Logger.Info("-");
 
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
             var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
-            logger.Info("C# numEpochs= " + numEpochs);
-            logger.Info("C# learningRate= " + learningRate);
-            logger.Info("C# l2regularizer= " + lambdaL2Regularization);
-            logger.Info("C# momentum= " + momentum);
-            logger.Info("C# prediction_before= " + predict_before);
-            logger.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
-            logger.Info("C# prediction_after= " + predict_after);
-            logger.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
+            Logger.Info("C# numEpochs= " + numEpochs);
+            Logger.Info("C# learningRate= " + learningRate);
+            Logger.Info("C# l2regularizer= " + lambdaL2Regularization);
+            Logger.Info("C# momentum= " + momentum);
+            Logger.Info("C# prediction_before= " + predict_before);
+            Logger.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
+            Logger.Info("C# prediction_after= " + predict_after);
+            Logger.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
         }
     }
 }

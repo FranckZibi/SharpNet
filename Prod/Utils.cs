@@ -9,7 +9,11 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Xml;
+using log4net;
+using log4net.Config;
+using log4net.Util;
 
 namespace SharpNet
 {
@@ -445,5 +449,15 @@ namespace SharpNet
             return destImage;
         }
 
+        public static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties, bool configure)
+        {
+            properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
+            properties["logdirectory"] = logDirectory?.Replace("\\", "/")??"";
+            properties["logfile"] = logFile;
+            if (configure)
+            {
+                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo("log4net.config"));
+            }
+        }
     }
 }

@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using log4net;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
@@ -16,6 +17,7 @@ namespace SharpNet.Datasets
     public abstract class AbstractDataSet : IDataSet
     {
         #region private & protected fields
+        protected static readonly ILog Logger = LogManager.GetLogger(typeof(AbstractDataSet));
         /// <summary>
         /// tensor with all original elements (no data augmentation) in the order needed for the current mini batch 
         /// </summary>
@@ -41,18 +43,15 @@ namespace SharpNet.Datasets
         /// </summary>
         protected List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
 
-        public Logger Logger { get; }
-
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, int categoryCount, List<Tuple<float, float>> meanAndVolatilityForEachChannel, Logger logger)
+        protected AbstractDataSet(string name, int channels, int categoryCount, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
         {
             Name = name;
             Channels = channels;
             CategoryCount = categoryCount;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
-            Logger = logger ?? Logger.ConsoleLogger;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -326,7 +325,7 @@ namespace SharpNet.Datasets
                 var mean = (sum / count);
                 var variance = (sumSquare / count) - mean * mean;
                 var volatility = (float)Math.Sqrt(Math.Max(0, variance));
-                Logger?.Info("Mean and volatility for channel#" + channel + " : " + mean.ToString(CultureInfo.InvariantCulture) + " ; " + volatility.ToString(CultureInfo.InvariantCulture));
+                Logger.Info("Mean and volatility for channel#" + channel + " : " + mean.ToString(CultureInfo.InvariantCulture) + " ; " + volatility.ToString(CultureInfo.InvariantCulture));
                 result.Add(Tuple.Create(mean, volatility));
             }
             return result;
@@ -502,7 +501,7 @@ namespace SharpNet.Datasets
 
         private readonly Thread thread;
         private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT, TO_ABORT };
-        private BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;
+        private volatile BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;
         private Tuple<bool, int[], int, DataAugmentationConfig, int[], int[]> threadParameters;
         private void BackgroundThread()
         {

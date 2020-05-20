@@ -13,7 +13,7 @@ namespace SharpNet.Datasets
         #endregion
 
         public ZoomedDataSet(IDataSet original, int rowFactor, int colFactor)
-            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel, original.Logger)
+            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel)
         {
             _original = original;
             _rowFactor = rowFactor;

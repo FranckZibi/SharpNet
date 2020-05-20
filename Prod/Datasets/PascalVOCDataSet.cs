@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using SharpNet.CPU;
 using SharpNet.Datasets.PascalVOC;
 using SharpNet.Networks;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Datasets
 {
@@ -21,30 +22,30 @@ namespace SharpNet.Datasets
             "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"
         };
 
-        public PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, Logger logger) : base(subDirectory, 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel, logger)
+        private PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel) : base(subDirectory, 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel)
         {
             var annotationsDirection = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
             var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
-            _directoryDataSet = new DirectoryDataSet(annotationsDirection, dataDirectory, logger, subDirectory, Channels, -1, -1, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, false,
-                (a, b, c, d, e, f) => DefaultCompute_CategoryIndex_Description_FullName(a, b, c, d, e, f, _annotations));
+            Y = null;
+            _directoryDataSet = new DirectoryDataSet(annotationsDirection, dataDirectory, subDirectory, Channels, -1, -1, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, false,
+                (a, b, c, d, e) => DefaultCompute_CategoryIndex_Description_FullName(a, b, c, d, e, _annotations));
         }
 
-        public static PascalVOCDataSet PascalVOC2007(Logger logger)
+        public static PascalVOCDataSet PascalVOC2007()
         {
             var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(114.31998f, 70.2124f), Tuple.Create(108.32131f, 69.44353f), Tuple.Create(99.885704f, 72.41173f) };
-            return new PascalVOCDataSet("VOCdevkit2007", "VOC2007", meanAndVolatilityOfEachChannel, logger);
+            return new PascalVOCDataSet("VOCdevkit2007", "VOC2007", meanAndVolatilityOfEachChannel);
         }
-        public static PascalVOCDataSet PascalVOC2012(Logger logger)
+        public static PascalVOCDataSet PascalVOC2012()
         {
             var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(114.79079f, 70.890755f), Tuple.Create(109.19967f, 69.943886f), Tuple.Create(101.14191f, 72.790565f) };
-            return new PascalVOCDataSet("VOCdevkit2012", "VOC2012", meanAndVolatilityOfEachChannel, logger);
+            return new PascalVOCDataSet("VOCdevkit2012", "VOC2012", meanAndVolatilityOfEachChannel);
         }
 
 
         private static void DefaultCompute_CategoryIndex_Description_FullName(
             string annotationsDirectory,
             string dataDirectory,
-            Logger logger,
             List<int> elementIdToCategoryIndex,
             List<string> elementIdToDescription,
             List<List<string>> elementIdToSubPath,
@@ -80,7 +81,7 @@ namespace SharpNet.Datasets
             if (missingAnnotations.Any())
             {
                 var errorMsg = missingAnnotations.Count+ " file(s) with missing annotation (ignoring all of them) " +Environment.NewLine + "First 5:"+Environment.NewLine + string.Join(Environment.NewLine, missingAnnotations.Take(5));
-                logger.Info(errorMsg);
+                Logger.Info(errorMsg);
             }
 
             for (int i = 0; i < allFiles.Length; ++i)
@@ -99,10 +100,8 @@ namespace SharpNet.Datasets
 
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
-            Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]);
+            Debug.Assert(xBuffer.Shape[0] == yBuffer?.Shape[0]);
             Debug.Assert(xBuffer.Shape[1] == Channels);
-            var targetHeight = xBuffer.Shape[2];
-            var targetWidth = xBuffer.Shape[3];
             throw new NotImplementedException();
         }
 

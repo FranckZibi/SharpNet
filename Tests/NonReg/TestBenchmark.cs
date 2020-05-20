@@ -18,36 +18,32 @@ namespace SharpNetTests.NonReg
     [TestFixture]
     public class TestBenchmark
     {
-        private static string LogFileName => Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-
         [Test, Explicit]
         public void TestGPUBenchmark_Memory()
         {
-            var logger = new Logger(LogFileName, true);
-
             //check RAM => GPU Copy perf
             var tmp_2GB = new float[500 * 1000000];
 
             var gpuContext = GPUWrapper.FromDeviceId(0);
-            logger.Info(gpuContext.ToString());
+            Console.WriteLine(gpuContext.ToString());
             double maxSpeed = 0;
             for (int i = 1; i <= 3; ++i)
             {
-                logger.Info(Environment.NewLine + "Loop#" + i);
+                Console.WriteLine(Environment.NewLine + "Loop#" + i);
                 var sw = Stopwatch.StartNew();
                 var tensors = new GPUTensor<float>[1];
                 for(int t=0;t<tensors.Length;++t)
                 {
                     tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, tmp_2GB, gpuContext);
                 }
-                logger.Info(gpuContext.ToString());
+                Console.WriteLine(gpuContext.ToString());
                 foreach (var t in tensors)
                 {
                     t.Dispose();
                 }
                 var speed = (tensors.Length*((double)tensors[0].CapacityInBytes) / sw.Elapsed.TotalSeconds)/1e9;
                 maxSpeed = Math.Max(speed, maxSpeed);
-                logger.Info("speed: " + speed + " GB/s");
+                Console.WriteLine("speed: " + speed + " GB/s");
             }
 
             System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Memory.csv"),
@@ -119,11 +115,11 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void TestGPUBenchmark_Speed()
         {
-            var logger = new Logger(LogFileName, true);
             const int batchSize = 64;
             const int numEpochs = 5;
             var mnist = new MNISTDataSet();
-            var network = new Network(new NetworkConfig() { Logger = logger, DisableReduceLROnPlateau =true}.WithAdam(), new List<int> {0});
+
+            var network = new Network(new NetworkConfig() { LogFile = "GPUBenchmark", DisableReduceLROnPlateau =true}.WithAdam(), new List<int> {0});
             network
                 .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
 

@@ -20,7 +20,7 @@ namespace SharpNet.Datasets
         #endregion
 
         public SplittedFileDataSet([NotNull] List<string> files, string name, int categoryCount, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
-            : base(name, singleElementShape_CHW[0], categoryCount, meanAndVolatilityForEachChannel, null)
+            : base(name, singleElementShape_CHW[0], categoryCount, meanAndVolatilityForEachChannel)
         {
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);

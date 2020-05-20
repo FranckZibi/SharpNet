@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using log4net;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Optimizers;
@@ -57,7 +58,6 @@ namespace SharpNet.Networks
         public double MinimumLearningRate { get; } = 1e-7;
         public bool SGD_usenesterov { get; private set; }
         public Random Rand { get; }
-        public Logger Logger { get; set; } = Logger.ConsoleLogger;
 
         public string DataSetName { get; set; }
 
@@ -103,19 +103,29 @@ namespace SharpNet.Networks
         /// </summary>
         public string LastLayerNameToFreeze { get; set; } = "";
 
+        #region logging
         public string LogDirectory { get; set; } = DefaultLogDirectory;
+        public string LogFile { get; set; } = "SharpNet";
         public static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet");
-
         public static string DefaultDataDirectory => Path.Combine(DefaultLogDirectory, "Data");
+        public bool LogEnabled => !string.IsNullOrEmpty(LogDirectory);
         #endregion
 
+        #endregion
+
+        #region constructors
         public NetworkConfig()
         {
             Rand = new Random(0);
             DataAugmentation = new DataAugmentationConfig();
         }
+        static NetworkConfig()
+        {
+            Utils.ConfigureLog4netProperties(DefaultLogDirectory, "SharpNet", GlobalContext.Properties, false);
+        }
+        #endregion
 
-        public bool DisableLogging => ReferenceEquals(Logger, Logger.NullLogger);
+        //public bool DisableLogging => ReferenceEquals(Logger, Logger.NullLogger);
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4;
@@ -272,7 +282,8 @@ namespace SharpNet.Networks
                 .Add(nameof(AutoSaveIntervalInMinutes), AutoSaveIntervalInMinutes)
                 .Add(nameof(SaveNetworkStatsAfterEachEpoch), SaveNetworkStatsAfterEachEpoch)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
-                .Add(Logger.Serialize())
+                .Add(nameof(LogDirectory), LogDirectory)
+                .Add(nameof(LogFile), LogFile)
                 .Add(DataAugmentation.Serialize())
                 .ToString();
         }
@@ -320,7 +331,8 @@ namespace SharpNet.Networks
                     : (int) serialized["AutoSaveIntervalInMinuts"];
             SaveNetworkStatsAfterEachEpoch = (bool)serialized[nameof(SaveNetworkStatsAfterEachEpoch)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
-            Logger = Logger.ValueOf(serialized);
+            LogDirectory = (string)serialized[nameof(LogDirectory)];
+            LogFile = (string)serialized[nameof(LogFile)];
             DataAugmentation = DataAugmentationConfig.ValueOf(serialized);
             Rand = new Random(0);
         }

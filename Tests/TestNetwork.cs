@@ -19,6 +19,7 @@ namespace SharpNetTests
         {
             //we build an efficientNet-B0 network loading the weights from in Keras
             var networkBuilder = EfficientNetBuilder.CIFAR10();
+            networkBuilder.Config.LogDirectory = "";
             var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] { 3, 224, 224 });
 
             //we save the network parameters
@@ -45,7 +46,7 @@ namespace SharpNetTests
         public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
-            var trainingDataSet = new InMemoryDataSet(X, Y, Y_to_Categories(Y), "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y, Y_to_Categories(Y), "", null);
             var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
             network.Fit(trainingDataSet, learningRateComputer, numEpochs, batchSize, testDataSet);
         }

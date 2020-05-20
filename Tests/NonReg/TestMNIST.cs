@@ -26,7 +26,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                 new NetworkConfig
                     {
-                        Logger = new Logger(logFileName, true), 
+                        LogFile = "MNIST", 
                         DisableReduceLROnPlateau =true
                 }
                 //.WithAdam()

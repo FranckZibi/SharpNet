@@ -170,7 +170,7 @@ namespace SharpNetTests
         private static Network GetNetwork()
         {
             var resourceIds = new List<int> {-1};
-            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1 }, resourceIds);
+            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, LogDirectory = ""}, resourceIds);
         }
         private static CpuTensor<float> GetY()
         {

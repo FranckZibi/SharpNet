@@ -6,15 +6,24 @@ namespace SharpNet.Datasets
 {
     public class COCODataSet : AbstractDataSet
     {
+        #region private fields
+        private readonly string _cocoDirectory;
+        #endregion
+
+        #region cosntructor
+        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel) : base("COCO", 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel)
+        {
+            Y = null;
+            _cocoDirectory = cocoDirectory;
+            throw new NotImplementedException();
+        }
+        #endregion
+
         public static readonly string[] CategoryIndexToDescription = new[]
         {
             "person","bicycle","car","motorbike","aeroplane","bus","train","truck","boat","traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow","elephant","bear","zebra","giraffe","backpack","umbrella","handbag","tie","suitcase","frisbee","skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket","bottle","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich","orange","broccoli","carrot","hot dog","pizza","donut","cake","chair","sofa","pottedplant","bed","diningtable","toilet","tvmonitor","laptop","mouse","remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator","book","clock","vase","scissors","teddy bear","hair drier","toothbrush"
         };
 
-        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, Logger logger) : base("COCO", 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel, logger)
-        {
-            throw new NotImplementedException();
-        }
 
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {

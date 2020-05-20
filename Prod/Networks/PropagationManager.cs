@@ -220,7 +220,7 @@ namespace SharpNet.Networks
                         }
                         for (var index = 0; index < dxBuffer.Count; index++)
                         {
-                            layer.Log("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index].ToNumpy());
+                            layer.Log("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ToNumpy());
                         }
                         layer.Log("");
                     }

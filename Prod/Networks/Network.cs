@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime;
 using System.Text;
 using System.Threading;
+using log4net;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
@@ -21,6 +22,9 @@ namespace SharpNet.Networks
     public partial class Network : IDisposable
     {
         #region private fields
+
+        private readonly ILog logger = LogManager.GetLogger(typeof(Network));
+
         private readonly List<EpochData> _epochData = new List<EpochData>();
         /// <summary>
         /// all resources (CPU or GPU) available for the current network
@@ -97,6 +101,8 @@ namespace SharpNet.Networks
                     Thread.Sleep(1);
                 }
             }
+
+            Utils.ConfigureLog4netProperties(Config.LogDirectory, Config.LogFile, ThreadContext.Properties, true);
         }
 
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
@@ -574,9 +580,9 @@ namespace SharpNet.Networks
                         + validationLossAndAccuracy?.Item1 + ";"
                         + validationLossAndAccuracy?.Item2
                         + Environment.NewLine;
-                    if (!Config.DisableLogging)
+                    var testsCsv = string.IsNullOrEmpty(trainingDataSetCpu.Name)?"Tests.csv": ("Tests_"+ trainingDataSetCpu.Name + ".csv");
+                    if (Config.LogEnabled)
                     {
-                        var testsCsv = string.IsNullOrEmpty(trainingDataSetCpu.Name)?"Tests.csv": ("Tests_"+ trainingDataSetCpu.Name + ".csv");
                         File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, testsCsv), line);
                     }
                 }
@@ -642,8 +648,8 @@ namespace SharpNet.Networks
 
             _bytesByBatchSize = null; //we need tor recompute the batch size in bytes
         }
-        public void Info(string msg) { Config.Logger.Info(msg); }
-        public void LogDebug(string msg) { Config.Logger.Debug(msg); }
+        public void Info(string msg) { logger.Info(msg); }
+        public void LogDebug(string msg) { logger.Debug(msg); }
 
         /// <summary>
         /// = ForwardPropagation

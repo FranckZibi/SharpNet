@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
@@ -63,20 +62,10 @@ namespace SharpNet.Networks
         public int NumEpochs { get; set; }
         public int BatchSize { get; set; }
         public double InitialLearningRate { get; set; }
-        public bool DisableLogging { private get; set; }
 
         protected Network BuildEmptyNetwork(string networkName)
         {
-            Config.Logger = Logger.NullLogger;
-            if (DisableLogging)
-            {
-                Config.Logger = Logger.NullLogger;
-            }
-            else
-            {
-                var logFileName = Utils.ConcatenatePathWithFileName(Config.LogDirectory, networkName + ExtraDescription + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
-                Config.Logger = new Logger(logFileName, true);
-            }
+            Config.LogFile = networkName + ExtraDescription;
             var network = new Network(Config, ResourceIds);
             network.Description = networkName + ExtraDescription;
             return network;

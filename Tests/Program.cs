@@ -11,13 +11,15 @@ namespace SharpNetTests
 {
     static class Program
     {
+        //private static readonly log4net.ILog Logger = log4net.LogManager.GetLogger(typeof(Program));
+  
         private static void Main()
         {
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
-            //SVHNTests();
+            SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -28,8 +30,8 @@ namespace SharpNetTests
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
         }
 
-            #region DenseNet Training
-            private static void DenseNetTests()
+        #region DenseNet Training
+        private static void DenseNetTests()
         {
             var networkGeometries = new List<Action<DenseNetBuilder, int>>
             {
@@ -168,8 +170,6 @@ namespace SharpNetTests
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
         #endregion
-
-
 
         #region CIFAR-100 Training
         private static void CIFAR100Tests()

@@ -63,7 +63,6 @@ namespace SharpNet.Datasets
         double OriginalChannelVolatility(int channel);
 
         List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
-        Logger Logger { get; }
 
         /// <summary>
         /// true if the current data set is normalized (with mean=0 and volatility=1 in each channel)

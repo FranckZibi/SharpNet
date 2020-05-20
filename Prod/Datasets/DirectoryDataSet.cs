@@ -25,7 +25,7 @@ namespace SharpNet.Datasets
         private readonly string _dataDirectory;
         private readonly string[] _categoryIndexToDescription;
         private readonly bool _ignoreZeroPixel;
-        private readonly Action<string, string, Logger, List<int>, List<string>, List<List<string>>> _computeCategoryIndexDescriptionFullName;
+        private readonly Action<string, string, List<int>, List<string>, List<List<string>>> _computeCategoryIndexDescriptionFullName;
         /// <summary>
         /// For each element id, the list of path to files (starting from 'DataDirectory') used to construct it
         /// If this list contains 1 element:
@@ -51,13 +51,13 @@ namespace SharpNet.Datasets
 
         public override CpuTensor<float> Y { get; }
 
-        public DirectoryDataSet(string descriptionPath, string dataDirectory, Logger logger,
+        public DirectoryDataSet(string descriptionPath, string dataDirectory,
             string name, int channels, int height, int width, string[] categoryIndexToDescription,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             bool ignoreZeroPixel,
-            Action<string, string, Logger, List<int>, List<string>, List<List<string>>>
+            Action<string, string, List<int>, List<string>, List<List<string>>>
                 computeCategoryIndexDescriptionFullName)
-            : base(name, channels, categoryIndexToDescription.Length, meanAndVolatilityForEachChannel, logger)
+            : base(name, channels, categoryIndexToDescription.Length, meanAndVolatilityForEachChannel)
         {
             _descriptionPath = descriptionPath;
             Height = height;
@@ -67,7 +67,7 @@ namespace SharpNet.Datasets
             _ignoreZeroPixel = ignoreZeroPixel;
             Debug.Assert(computeCategoryIndexDescriptionFullName != null);
             _computeCategoryIndexDescriptionFullName = computeCategoryIndexDescriptionFullName;
-            _computeCategoryIndexDescriptionFullName(_descriptionPath, _dataDirectory, Logger, _elementIdToCategoryIndex, _elementIdToDescription,_elementIdToSubPath);
+            _computeCategoryIndexDescriptionFullName(_descriptionPath, _dataDirectory, _elementIdToCategoryIndex, _elementIdToDescription,_elementIdToSubPath);
             //if (!LoadStatsFile())
             //{
             //    CreateStatsFile();
@@ -84,7 +84,6 @@ namespace SharpNet.Datasets
         public static void DefaultCompute_CategoryIndex_Description_FullName(
             string csvFileName,
             string directoryWithElements,
-            Logger logger,
             List<int> elementIdToCategoryIndex,
             List<string> elementIdToDescription,
             List<List<string>> elementIdToSubPath
@@ -96,7 +95,7 @@ namespace SharpNet.Datasets
 
             if (!File.Exists(csvFileName))
             {
-                logger.Info("missing file " + csvFileName);
+                Logger.Info("missing file " + csvFileName);
                 throw new ArgumentException("missing file " + csvFileName);
             }
 
@@ -121,11 +120,11 @@ namespace SharpNet.Datasets
                     {
                         if (index == 0)
                         {
-                            logger.Debug("ignoring (header) first line: " + lines[index]);
+                            Logger.Debug("ignoring (header) first line: " + lines[index]);
                         }
                         else
                         {
-                            logger.Info("invalid categoryIndex in line: " + lines[index]);
+                            Logger.Info("invalid categoryIndex in line: " + lines[index]);
                             throw new ArgumentException("invalid categoryIndex in line: " + lines[index]);
                         }
                         continue;
@@ -134,7 +133,7 @@ namespace SharpNet.Datasets
                 var elementFileNameWithoutExtension = Path.GetFileNameWithoutExtension(description) ?? "";
                 if (!fileNameWithoutExtensionToSubPath.ContainsKey(elementFileNameWithoutExtension))
                 {
-                    logger.Debug("WARNING: no matching file for line: " + lines[index]);
+                    Logger.Debug("WARNING: no matching file for line: " + lines[index]);
                     continue;
                 }
                 elementIdToCategoryIndex.Add(categoryIndex);

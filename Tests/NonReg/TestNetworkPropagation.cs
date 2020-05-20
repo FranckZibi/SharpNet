@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
@@ -849,9 +848,7 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction, List<int> resourceIds)
         {
-            var logger = Logger.NullLogger;
-            //logger = new Logger(System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "test_" + DateTime.Now.Ticks + ".txt"), true);
-            return new Network(new NetworkConfig{ Logger = logger, LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1}, resourceIds);
+            return new Network(new NetworkConfig{ LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, LogDirectory = ""}, resourceIds);
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString)
         {
@@ -863,7 +860,7 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];
-            var dataSet = new InMemoryDataSet(X, Y_expected, new int[batchSize], "", null);
+            using var dataSet = new InMemoryDataSet(X, Y_expected, new int[batchSize], "", null);
             var observedLossAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
