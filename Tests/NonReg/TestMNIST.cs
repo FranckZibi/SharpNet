@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
-using SharpNet;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -22,7 +20,6 @@ namespace SharpNetTests.NonReg
             int batchSize = 32;
             const int numEpochs = 1000;
 
-            var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "MNIST" + "_" + Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             var network = new Network(
                 new NetworkConfig
                     {

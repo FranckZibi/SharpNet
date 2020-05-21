@@ -25,12 +25,15 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count >= 2);
             y.Concatenate(allX);
         }
+
         /// <summary>
         /// At this stage, we already know dy (output layer gradient)
         /// we want to compute PreviousLayerIndex1.dy (=dx[0]) & PreviousLayerIndex2.dy (=dx[1]) by backward propagation
         /// </summary>
+        /// <param name="y_NotUsed"></param>
         /// <param name="dy">already computed output layer gradient</param>
         /// <param name="dx">the 2 values to compute (from dy)</param>
+        /// <param name="allX_NotUsed"></param>
         public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX_NotUsed.Count == 0);

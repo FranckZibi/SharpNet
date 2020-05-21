@@ -23,8 +23,8 @@ namespace SharpNet.Networks
             var config = NetworkConfig.ValueOf(dicoFirstLine);
             var resourceIds = overrideResourceIds??(int[])dicoFirstLine[nameof(_resourceIds)];
             var network = new Network(config, resourceIds.ToList());
-            var epochsData = (EpochData[])dicoFirstLine[nameof(_epochData)];
-            network._epochData.AddRange(epochsData);
+            var epochsData = (EpochData[])dicoFirstLine[nameof(EpochData)];
+            network.EpochData.AddRange(epochsData);
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description)) ?? "";
             for (int i = 1; i < allLines.Length; ++i)
             {
@@ -117,7 +117,7 @@ namespace SharpNet.Networks
                 .Add(nameof(Description), Description)
                 .Add(Config.Serialize())
                 .Add(nameof(_resourceIds), _resourceIds.ToArray())
-                .Add(nameof(_epochData), _epochData.ToArray())
+                .Add(nameof(EpochData), EpochData.ToArray())
                 .ToString();
             File.AppendAllLines(modelFilePath, new[] { firstLine });
             foreach (var l in Layers)

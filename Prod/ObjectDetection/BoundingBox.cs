@@ -46,10 +46,11 @@ namespace SharpNet.ObjectDetection
         {
             return new BoundingBox(colFactor*_colCenter, rowFactor*_rowCenter, colFactor*_width, rowFactor*_height);
         }
-        
+
         /// <summary>
         /// draw the bounding box in the bitmap 'bitmap'
         /// </summary>
+        /// <param name="bitmap"></param>
         /// <param name="boxCaption">the caption to add at the top of the bounding box</param>
         public void Draw(Bitmap bitmap, string boxCaption)
         {

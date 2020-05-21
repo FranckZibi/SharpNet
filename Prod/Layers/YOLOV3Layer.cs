@@ -7,6 +7,8 @@ using SharpNet.ObjectDetection;
 
 namespace SharpNet.Layers
 {
+
+    /// <summary>
     /// input shape (n, totalPrediction, predictionDescription)
     /// predictionDescription:
     ///   predictionDescription[0] & [1]        = box center (colCenter + rowCenter)
@@ -33,7 +35,7 @@ namespace SharpNet.Layers
             return categoryIndexToDescription[ArgMaxClass]+" "+Math.Round(Score, 4);
         }
 
-        public PredictionDescription(int indexInInput, BoundingBox box, float boxConfidence, int argMaxClass, float argMaxClassPrediction)
+        private PredictionDescription(int indexInInput, BoundingBox box, float boxConfidence, int argMaxClass, float argMaxClassPrediction)
         {
             IndexInInput = indexInInput;
             Box = box;

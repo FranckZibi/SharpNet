@@ -71,12 +71,12 @@ namespace SharpNetTests
 
         private static void EfficientNetTests()
         {
-            const bool useMultiGpu = false;
+            const bool useMultiGpu = true;
             var networkGeometries = new List<Action<EfficientNetBuilder, int>>
             {
                 //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription += "_only_dense";Train_CIFAR10_EfficientNet(p);},
                 //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.ExtraDescription += "_all_top";Train_CIFAR10_EfficientNet(p);},
-                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.ExtraDescription += "_no_freezing";Train_CIFAR10_EfficientNet(p);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.ExtraDescription += "";Train_CIFAR10_EfficientNet(p);},
             };
 
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
@@ -85,6 +85,11 @@ namespace SharpNetTests
                 () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.30;p.NumEpochs = 1;p.ExtraDescription = "_lr_0_30_batchAuto_test";return p;},
                 
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.30;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_30_batchAuto";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 64;p.InitialLearningRate = 0.01;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_30_batch64_test";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 32;p.InitialLearningRate = 0.01;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_30_batch32_test";return p;},
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 16;p.InitialLearningRate = 0.30;p.NumEpochs = 2;p.ExtraDescription = "_lr_0_30_batch16_test";return p;},
+                
+                //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 16;p.InitialLearningRate = 0.30;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_30_batchAuto";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = 32;p.InitialLearningRate = 0.01;p.NumEpochs = 150;p.ExtraDescription = "_lr_0_01_batchAuto_zoom_150epochs";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.001;p.NumEpochs = 30;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.ExtraDescription = "_lr_0_001_batchAuto_zoom7_30epochs_only_probs";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.001;p.NumEpochs = 30;p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.ExtraDescription = "_lr_0_001_batchAuto_zoom7_30epochs_only_top";return p;},
@@ -99,7 +104,7 @@ namespace SharpNetTests
             using var cifar10 = new ZoomedTrainingAndTestDataSet(cifar10Original, zoomFactor, zoomFactor);
             using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, cifar10.Training.InputShape_CHW);
             network.Info(network.ToString());
-            //network.FindBestLearningRate(cifar10.Training, 1e-7, 10, p.BatchSize);return;
+            //network.FindBestLearningRate(cifar10.Training, 1e-5, 10, p.BatchSize);return;
 
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
@@ -113,18 +118,20 @@ namespace SharpNetTests
             var networkGeometries = new List<Action<WideResNetBuilder, int>>
             {
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 40,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
             };
 
+            //var batchSize = useMultiGpu ? 256 : 128;
             var networkMetaParameters = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = -1;p.NumEpochs=3;p.ExtraDescription = "_AutoBatchSize";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 256;p.ExtraDescription = "_MultiGPU";return p;},
+                () =>{var p = WideResNetBuilder.WRN_CIFAR10();p.NumEpochs = 310;p.BatchSize = 128;p.ExtraDescription = "_BatchSize128_310epochs";return p;},
                 
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.ExtraDescription = "_BatchSize128";return p;},
+                //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = batchSize;p.ExtraDescription = "_MultiGPU";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.ExtraDescription = "_BatchSize128";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 128;p.ExtraDescription = "_BatchSize128";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.BatchSize = 64;p.ExtraDescription = "_BatchSize64";return p;},
@@ -206,20 +213,20 @@ namespace SharpNetTests
         #region SVHN Training
         private static void SVHNTests()
         {
-            const bool useMultiGpu = true;
+            const bool useMultiGpu = false;
             var networkGeometries = new List<Action<WideResNetBuilder, int>>
             {
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,8);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
-                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
+                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,8);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,10);},
             };
 
             var networkMetaParameters = new List<Func<WideResNetBuilder>>
             {
-                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 71;p.BatchSize=-1;p.ExtraDescription = "_30Epochs_MultiGPU";return p;},
+                () =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.BatchSize=-1;p.ExtraDescription = "_30Epochs_MultiGPU";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.ExtraDescription = "_30Epochs";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.NumEpochs = 30;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS;  p.ExtraDescription = "_30Epochs_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS";return p;},
             };
@@ -254,16 +261,18 @@ namespace SharpNetTests
         /// <summary>
         /// perform as much actions as possible among 'allActionsToPerform'
         /// </summary>
-        /// <param name="gpuId"></param>
+        /// <param name="gpuId">GPU deviceId to use 
+        /// int.MaxValue means uses all available GPU</param>
         /// <param name="allActionsToPerform"></param>
         private static void PerformActionsInSingleGpu(int gpuId, List<Action<int>> allActionsToPerform)
         {
             for (; ; )
             {
                 Action<int> nexActionToPerform;
+                var gpuIdPrefix = "GpuId#" + (gpuId==int.MaxValue?"All":gpuId.ToString()) + " : ";
                 lock (allActionsToPerform)
                 {
-                    Console.WriteLine("GpuId#" + gpuId + " : " + allActionsToPerform.Count + " remaining computation(s)");
+                    Console.WriteLine(gpuIdPrefix + allActionsToPerform.Count + " remaining computation(s)");
                     if (allActionsToPerform.Count == 0)
                     {
                         return;
@@ -273,14 +282,14 @@ namespace SharpNetTests
                 }
                 try
                 {
-                    Console.WriteLine("GpuId#" + gpuId + " : starting new computation");
+                    Console.WriteLine(gpuIdPrefix+"starting new computation");
                     nexActionToPerform(gpuId);
-                    Console.WriteLine("GpuId#" + gpuId + " : ended new computation");
+                    Console.WriteLine(gpuIdPrefix + "ended new computation");
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("GpuId#" + gpuId + " : " + e);
-                    Console.WriteLine("GpuId#" + gpuId + " : ignoring error");
+                    Console.WriteLine(gpuIdPrefix + e);
+                    Console.WriteLine(gpuIdPrefix + "ignoring error");
                 }
             }
         }
@@ -299,15 +308,28 @@ namespace SharpNetTests
                     taskToBePerformed.Add(gpuDeviceId => networkGeometry(networkMetaParameter(), gpuDeviceId));
                 }
             }
-            int nbGPUs = Math.Min(GPUWrapper.GetDeviceCount(), taskToBePerformed.Count);
-            Console.WriteLine(taskToBePerformed.Count + " computation(s) will be done on " + nbGPUs + " GPU(s)");
-            //if multi GPU support is enabled, we'll use a single task that will use all GPU
-            var gpuTasks = new Task[useMultiGPU?1:nbGPUs];
-            for (int i = 0; i < gpuTasks.Length; ++i)
+
+            Task[] gpuTasks;
+            if (useMultiGPU)
             {
-                var gpuId = (useMultiGPU&& GPUWrapper.GetDeviceCount() >= 2) ? int.MaxValue:i;
-                gpuTasks[i] = new Task(() => PerformActionsInSingleGpu(gpuId, taskToBePerformed));
-                gpuTasks[i].Start();
+                //if multi GPU support is enabled, we'll use a single task that will use all GPU
+                Console.WriteLine(taskToBePerformed.Count + " computation(s) will be done on All (" + GPUWrapper.GetDeviceCount() + ") GPU");
+                gpuTasks = new Task[1];
+                gpuTasks[0] = new Task(() => PerformActionsInSingleGpu(int.MaxValue, taskToBePerformed));
+                gpuTasks[0].Start();
+            }
+            else
+            {
+                int nbGPUs = Math.Min(GPUWrapper.GetDeviceCount(), taskToBePerformed.Count);
+                Console.WriteLine(taskToBePerformed.Count + " computation(s) will be done on " + nbGPUs + " GPU");
+                gpuTasks = new Task[nbGPUs];
+                for (int i = 0; i < gpuTasks.Length; ++i)
+                {
+                    var gpuId = i;
+                    gpuTasks[i] = new Task(() => PerformActionsInSingleGpu(gpuId, taskToBePerformed));
+                    gpuTasks[i].Start();
+                }
+
             }
             Task.WaitAll(gpuTasks);
         }

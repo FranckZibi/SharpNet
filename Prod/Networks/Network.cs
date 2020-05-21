@@ -23,9 +23,9 @@ namespace SharpNet.Networks
     {
         #region private fields
 
-        private readonly ILog logger = LogManager.GetLogger(typeof(Network));
+        private readonly ILog Logger = LogManager.GetLogger(typeof(Network));
 
-        private readonly List<EpochData> _epochData = new List<EpochData>();
+        private readonly List<EpochData> EpochData = new List<EpochData>();
         /// <summary>
         /// all resources (CPU or GPU) available for the current network
         /// values superior or equal to 0 means GPU resources (device)
@@ -102,7 +102,7 @@ namespace SharpNet.Networks
                 }
             }
 
-            Utils.ConfigureLog4netProperties(Config.LogDirectory, Config.LogFile, ThreadContext.Properties, true);
+            Utils.ConfigureThreadLog4netProperties(Config.LogDirectory, Config.LogFile);
         }
 
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
@@ -119,7 +119,7 @@ namespace SharpNet.Networks
             Layers.ForEach(l => l?.Dispose());
             Layers.Clear();
             PropagationManager.Dispose();
-            _epochData.Clear();
+            EpochData.Clear();
             MemoryPool.FreeFloatTensor(ref _bufferComputeAccuracy);
             MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
             MemoryPool.FreeFloatTensor(ref _randomNumberGeneratorStatesBufferForGPU);
@@ -489,7 +489,7 @@ namespace SharpNet.Networks
                 Tuple<double, double> validationLossAndAccuracy = null;
                 for (;;)
                 {
-                    int epoch = _epochData.Count + 1;
+                    int epoch = EpochData.Count + 1;
                     if (epoch > numEpochs)
                     {
                         break;
@@ -497,8 +497,8 @@ namespace SharpNet.Networks
 
                     var swEpoch = Stopwatch.StartNew();
 
-                    var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(_epochData);
-                    if (learningRateComputer.ShouldReduceLrOnPlateau(_epochData))
+                    var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(EpochData);
+                    if (learningRateComputer.ShouldReduceLrOnPlateau(EpochData))
                     {
                         Info("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
                     }
@@ -538,7 +538,7 @@ namespace SharpNet.Networks
 
                     #region we save stats about the just finished epoch
                     var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracyForEpoch.Item1, trainLossAndAccuracyForEpoch.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
-                    _epochData.Add(currentEpochData);
+                    EpochData.Add(currentEpochData);
                     #endregion
 
                     #region we save the network in a file if necessary
@@ -648,8 +648,8 @@ namespace SharpNet.Networks
 
             _bytesByBatchSize = null; //we need tor recompute the batch size in bytes
         }
-        public void Info(string msg) { logger.Info(msg); }
-        public void LogDebug(string msg) { logger.Debug(msg); }
+        public void Info(string msg) { Logger.Info(msg); }
+        public void LogDebug(string msg) { Logger.Debug(msg); }
 
         /// <summary>
         /// = ForwardPropagation
@@ -715,8 +715,8 @@ namespace SharpNet.Networks
 
 
             //the first epoch is #1
-            int epoch = _epochData.Count + 1;
-            var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(_epochData) ?? 1.0;
+            int epoch = EpochData.Count + 1;
+            var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(EpochData) ?? 1.0;
             MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, dataSet.Y_Shape);
             MemoryPool.GetFloatTensor(ref _yExpectedForEpoch, dataSet.Y_Shape);
 
@@ -771,7 +771,6 @@ namespace SharpNet.Networks
                     {
                         break;
                     }
-
 
                     var currentMiniBatchSize_slave = Math.Min(totalElementCount - firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
                     Debug.Assert(currentMiniBatchSize_slave >= 1);
@@ -994,7 +993,7 @@ namespace SharpNet.Networks
         //TODO add tests
         private static int MaxMiniBatchSizeForEachWorker(ulong bytesByBatchSize, ulong freeMemoryInBytes)
         {
-            freeMemoryInBytes -= 1_500_000_000;
+            freeMemoryInBytes -= 2_000_000_000;
             var miniBatchSize = (int)(freeMemoryInBytes / (1.2*bytesByBatchSize));
             if (miniBatchSize > 4)
             {

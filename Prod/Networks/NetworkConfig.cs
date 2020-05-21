@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using log4net;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Optimizers;
@@ -121,11 +120,9 @@ namespace SharpNet.Networks
         }
         static NetworkConfig()
         {
-            Utils.ConfigureLog4netProperties(DefaultLogDirectory, "SharpNet", GlobalContext.Properties, false);
+            Utils.ConfigureGlobalLog4netProperties(DefaultLogDirectory, "SharpNet");
         }
         #endregion
-
-        //public bool DisableLogging => ReferenceEquals(Logger, Logger.NullLogger);
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4;

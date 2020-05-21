@@ -179,7 +179,9 @@ namespace SharpNet.Networks
                 GPUWrapper.FromDeviceId(slaveDeviceId).AssociateCurrentThreadWithDevice();
             }
 
-            var slave = new Network(master.Config.Clone(), new List<int> { slaveDeviceId }, master);
+            var slaveNetworkConfig = master.Config.Clone();
+            slaveNetworkConfig.LogFile += "_slave";
+            var slave = new Network(slaveNetworkConfig, new List<int> { slaveDeviceId }, master);
             lock (master._slaveNetworks)
             {
                 master._slaveNetworks.Add(slave);

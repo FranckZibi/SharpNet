@@ -449,15 +449,23 @@ namespace SharpNet
             return destImage;
         }
 
-        public static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties, bool configure)
+        public static void ConfigureGlobalLog4netProperties(string logDirectory, string logFile)
+        {
+            ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties);
+        }
+
+
+        public static void ConfigureThreadLog4netProperties(string logDirectory, string logFile)
+        {
+            ConfigureLog4netProperties(logDirectory, logFile, ThreadContext.Properties);
+            XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo("log4net.config"));
+        }
+
+        private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)
         {
             properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
-            properties["logdirectory"] = logDirectory?.Replace("\\", "/")??"";
+            properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
             properties["logfile"] = logFile;
-            if (configure)
-            {
-                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo("log4net.config"));
-            }
         }
     }
 }
