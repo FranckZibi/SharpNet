@@ -23,6 +23,10 @@ namespace SharpNet.DataAugmentation
         /// randomly flip images vertically
         /// </summary>
         public bool VerticalFlip { get; set; } = false;
+        /// <summary>
+        /// randomly rotate the image by 180°
+        /// </summary>
+        public bool Rotate180Degrees { get; set; } = false;
 
         /// <summary>
         /// set mode for filling points outside the input boundaries
@@ -140,6 +144,7 @@ namespace SharpNet.DataAugmentation
             equals &= Utils.Equals(HeightShiftRangeInPercentage, other.HeightShiftRangeInPercentage, epsilon, id + nameof(HeightShiftRangeInPercentage), ref errors);
             equals &= Utils.Equals(HorizontalFlip, other.HorizontalFlip, id + nameof(HorizontalFlip), ref errors);
             equals &= Utils.Equals(VerticalFlip, other.VerticalFlip, id + nameof(VerticalFlip), ref errors);
+            equals &= Utils.Equals(Rotate180Degrees, other.Rotate180Degrees, id + nameof(Rotate180Degrees), ref errors);
             equals &= Utils.Equals(FillMode, other.FillMode, id + nameof(FillMode), ref errors);
             equals &= Utils.Equals(FillModeConstantVal, other.FillModeConstantVal, epsilon, id + nameof(FillModeConstantVal), ref errors);
             equals &= Utils.Equals(CutoutPatchPercentage, other.CutoutPatchPercentage, epsilon, id + nameof(CutoutPatchPercentage), ref errors);

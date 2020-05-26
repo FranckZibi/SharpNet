@@ -4,14 +4,16 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
+    // ReSharper disable once ClassNeverInstantiated.Global
     public class COCODataSet : AbstractDataSet
     {
         #region private fields
+        // ReSharper disable once NotAccessedField.Local
         private readonly string _cocoDirectory;
         #endregion
 
         #region cosntructor
-        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel) : base("COCO", 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel)
+        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy)
         {
             Y = null;
             _cocoDirectory = cocoDirectory;
@@ -36,16 +38,6 @@ namespace SharpNet.Datasets
         {
             throw new ArgumentException("several categories may be associated with a single image");
         }
-
-
-        /// <summary>
-        /// in COCO dataSet, each element may have different height
-        /// </summary>
-        public override int Height => -1;
-        /// <summary>
-        /// in COCO dataSet, each element may have different width
-        /// </summary>
-        public override int Width => -1;
         public override CpuTensor<float> Y { get; }
     }
 }

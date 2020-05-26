@@ -4,12 +4,12 @@
     {
         private readonly AbstractTrainingAndTestDataSet _original;
 
-        public ZoomedTrainingAndTestDataSet(AbstractTrainingAndTestDataSet original, int heightMultiplier, int widthMultiplier) 
-            : base(original.Name, original.Channels, heightMultiplier*original.Height, widthMultiplier * original.Width, original.CategoryCount)
+        public ZoomedTrainingAndTestDataSet(AbstractTrainingAndTestDataSet original, int[] originalShape_CHW, int heightMultiplier, int widthMultiplier) 
+            : base(original.Name, original.CategoryCount)
         {
             _original = original;
-            Training = new ZoomedDataSet(original.Training, heightMultiplier, widthMultiplier);
-            Test = new ZoomedDataSet(original.Test, heightMultiplier, widthMultiplier);
+            Training = new ZoomedDataSet(original.Training, originalShape_CHW, heightMultiplier, widthMultiplier);
+            Test = new ZoomedDataSet(original.Test, originalShape_CHW, heightMultiplier, widthMultiplier);
         }
 
         public override IDataSet Training { get; }

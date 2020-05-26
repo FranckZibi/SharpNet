@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -11,15 +12,58 @@ namespace SharpNetTests
 {
     static class Program
     {
-        //private static readonly log4net.ILog Logger = log4net.LogManager.GetLogger(typeof(Program));
-  
+        private static readonly log4net.ILog Log = log4net.LogManager.GetLogger(typeof(Program));
+
+
+        public static bool Accept(DataSetBuilder.DataSetBuilderEntry entry, string mandatoryPrefix)
+        {
+            if (entry.RemovedDate.HasValue)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(entry.Cancel))
+            {
+                return false;
+            }
+            if (!string.IsNullOrEmpty(mandatoryPrefix) && !entry.Cancel.StartsWith(mandatoryPrefix))
+            {
+                return false;
+            }
+            return true;
+        }
+
         private static void Main()
         {
+            SharpNet.Utils.ConfigureGlobalLog4netProperties();
+            SharpNet.Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
+
+            //var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
+            //foreach (var cat in new[] { "ancre", "cad", "cad_perle", "etoile", "gc", "imprime", "mint", "pc" })
+            //{
+            //    builder.CreateIDM(System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement", cat + ".csv"), e => Accept(e, cat));
+            //}
+
+            //var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
+            //using var network = Network.ValueOf(@"C:\Users\fzibi\AppData\Local\SharpNet\CustomDataset\efficientnet-b0_DA_SVHN_20200526_1736_70.txt");
+            //var xShape = network.Layers[0].OutputShape(1);
+            //using var dataSet = builder.ExtractDataSet(e=> !string.IsNullOrEmpty(e.Cancel) && e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), new[] { "gc", "cad", "etoile", "mint" }, 10000);
+            //network.Predict(dataSet, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Prediction.csv"));
+            //return;
+
+            //EfficientNetTests_CustomDataset();
+
+            //builder.FlushDatabase();
+            //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures.20190414");
+            //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures.20180813");
+            //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures");
+
+
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
-            SVHNTests();
+            //SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -67,7 +111,42 @@ namespace SharpNetTests
         }
         #endregion
 
-        #region EfficientNet Training
+
+        #region EfficientNet Custom DataSet Training
+
+        private static void EfficientNetTests_CustomDataset()
+        {
+            const bool useMultiGpu = true;
+            var networkGeometries = new List<Action<EfficientNetBuilder, int>>
+            {
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN ;p.ExtraDescription += "_DA_SVHN";Train_CustomDataset_EfficientNet(p);},
+                //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.InitialLearningRate = 0.10;p.ExtraDescription += "_lr_0_10";Train_CustomDataset_EfficientNet(p);},
+            };
+
+            var networkMetaParameters = new List<Func<EfficientNetBuilder>>
+            {
+                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.BatchSize = -1;p.NumEpochs = 70;p.ExtraDescription = "";return p;},
+            };
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
+        }
+        private static void Train_CustomDataset_EfficientNet(EfficientNetBuilder p)
+        {
+            var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
+            var categories = new[] { "gc","cad","etoile", "mint"};
+            //var targetWidth = 400;var targetHeight = 470;
+            //var targetWidth = 200;var targetHeight = 235;
+            var targetWidth = 100;var targetHeight = 118;
+            using var customDataset = builder.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05), categories,5000);
+            using var customTraining = customDataset.SplitIntoTrainingAndValidation(0.8);
+            //using var network = p.EfficientNetB0(true, "", new[] { customTraining.Training.Channels, targetHeight, targetWidth }, categories.Length);
+            using var network =Network.ValueOf(@"C:\Users\fzibi\AppData\Local\SharpNet\CustomDataset\efficientnet-b0_DA_SVHN_20200526_1522_30.txt");
+            //network.FindBestLearningRate(customDataset, 1e-5, 10, p.BatchSize);return;
+            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            network.Fit(customTraining.Training, learningRateComputer, p.NumEpochs, p.BatchSize, customTraining.Test);
+        }
+        #endregion
+
+      #region EfficientNet Training
 
         private static void EfficientNetTests()
         {
@@ -81,7 +160,6 @@ namespace SharpNetTests
 
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {
-                () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.30;p.NumEpochs = 1;p.ExtraDescription = "_lr_0_30_batchAuto_test";return p;},
                 () =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.30;p.NumEpochs = 1;p.ExtraDescription = "_lr_0_30_batchAuto_test";return p;},
                 
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.30;p.NumEpochs = 30;p.ExtraDescription = "_lr_0_30_batchAuto";return p;},
@@ -101,13 +179,14 @@ namespace SharpNetTests
         {
             const int zoomFactor = 7;
             using var cifar10Original = new CIFAR10DataSet();
-            using var cifar10 = new ZoomedTrainingAndTestDataSet(cifar10Original, zoomFactor, zoomFactor);
-            using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, cifar10.Training.InputShape_CHW);
-            network.Info(network.ToString());
+            var zoomedInputShape = new []{CIFAR10DataSet.Shape_CHW[0], zoomFactor * CIFAR10DataSet.Shape_CHW[1],zoomFactor * CIFAR10DataSet.Shape_CHW[2]};
+            using var cifar10Zoomed = new ZoomedTrainingAndTestDataSet(cifar10Original, CIFAR10DataSet.Shape_CHW, zoomFactor, zoomFactor);
+            using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, zoomedInputShape);
+            Log.Info(network.ToString());
             //network.FindBestLearningRate(cifar10.Training, 1e-5, 10, p.BatchSize);return;
 
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
-            network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
+            network.Fit(cifar10Zoomed.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10Zoomed.Test);
         }
         #endregion
 
@@ -142,7 +221,7 @@ namespace SharpNetTests
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             using var cifar10 = new CIFAR10DataSet();
-            using var network = p.WRN(WRN_depth, WRN_k, cifar10.InputShape_CHW, cifar10.CategoryCount);
+            using var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataSet.Shape_CHW, cifar10.CategoryCount);
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
         }
@@ -202,7 +281,7 @@ namespace SharpNetTests
         private static void Train_CIFAR100_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             using (var cifar100 = new CIFAR100DataSet())
-            using (var network = p.WRN(WRN_depth, WRN_k, cifar100.InputShape_CHW, cifar100.CategoryCount))
+            using (var network = p.WRN(WRN_depth, WRN_k, CIFAR100DataSet.Shape_CHW, cifar100.CategoryCount))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar100.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar100.Test);
@@ -236,7 +315,7 @@ namespace SharpNetTests
         private static void Train_SVHN_WRN(WideResNetBuilder p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
             using var svhn = new SVHNDataSet(loadExtraFileForTraining);
-            using var network = p.WRN(WRN_depth, WRN_k, svhn.InputShape_CHW, svhn.CategoryCount);
+            using var network = p.WRN(WRN_depth, WRN_k, SVHNDataSet.Shape_CHW, svhn.CategoryCount);
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\SVHN\WRN-16-10_30Epochs_MultiGPU_20200501_1147_30.txt");
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(svhn.Training, learningRateComputer, p.NumEpochs, p.BatchSize, svhn.Test);
@@ -248,7 +327,7 @@ namespace SharpNetTests
         /// <summary>
         /// Train a network on CIFAR-10 data set 
         /// </summary>
-        private static void Train_CIFAR10(NetworkBuilder p, Func<AbstractTrainingAndTestDataSet, Network> buildNetwork)
+        private static void Train_CIFAR10(NetworkBuilder p, Func<CIFAR10DataSet, Network> buildNetwork)
         {
             using (var cifar10 = new CIFAR10DataSet())
             using (var network = buildNetwork(cifar10))

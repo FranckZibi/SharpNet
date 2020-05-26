@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using SharpNet.CPU;
 
 namespace SharpNet.Pictures
@@ -18,10 +19,8 @@ namespace SharpNet.Pictures
         /// <returns></returns>
         public static BitmapContent ValueFomSingleRgbBitmap(string filename)
         {
-            using (var bmp = new Bitmap(filename))
-            {
-                return ValueFomSingleRgbBitmap(bmp);
-            }
+            using var bmp = new Bitmap(filename);
+            return ValueFomSingleRgbBitmap(bmp);
         }
 
         /// <summary>
@@ -77,6 +76,18 @@ namespace SharpNet.Pictures
             return result;
 
         }
+
+        /// <summary>
+        /// return the SHA-1 of a bitmap (160 bits stored in a string of 40 bytes in hexadecimal format: 0=>f)
+        /// </summary>
+        public string SHA1()
+        {
+            var byteArray = Content.ToArray();
+            using var sha1 = new SHA1CryptoServiceProvider();
+            var hashBytes = sha1.ComputeHash(byteArray);
+            return BitConverter.ToString(hashBytes).Replace("-", "");
+        }
+
         public BitmapContent CropBorder()
         {
             var cropped = GetBorderCoordinates();
@@ -114,25 +125,8 @@ namespace SharpNet.Pictures
         /// _Sum_SumSquare_Count_For_Each_Channel[3*channel+1] : sum of squares of all elements in channel 'channel'
         /// _Sum_SumSquare_Count_For_Each_Channel[3*channel+2] : count of all elements in channel 'channel'
         /// </param>
-        /// <param name="ignoreZeroPixel"></param>
-        public void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(float[] _sum_SumSquare_Count_For_Each_Channel, bool ignoreZeroPixel)
+        public void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(float[] _sum_SumSquare_Count_For_Each_Channel)
         {
-            int nbZeroPixelsToRemove = 0;
-
-            if (ignoreZeroPixel)
-            {
-                for (int row = 0; row < GetHeight(); ++row)
-                {
-                    for (int col = 0; col < GetWidth(); ++col)
-                    {
-                        if (IsZeroPixel(row,col))
-                        {
-                            ++nbZeroPixelsToRemove;
-                        }
-                    }
-                }
-            }
-
             var content = ReadonlyContent;
             for (int channel = 0; channel < GetChannels(); ++channel)
             {
@@ -150,27 +144,9 @@ namespace SharpNet.Pictures
                 {
                     _sum_SumSquare_Count_For_Each_Channel[3 * channel] += sum;
                     _sum_SumSquare_Count_For_Each_Channel[3 * channel + 1] += sumSquare;
-                    _sum_SumSquare_Count_For_Each_Channel[3 * channel + 2] += GetWidth()*GetHeight()- nbZeroPixelsToRemove;
+                    _sum_SumSquare_Count_For_Each_Channel[3 * channel + 2] += GetWidth()*GetHeight();
                 }
             }
-        }
-
-        /// <summary>
-        /// returns true if the pixel (r,g,b) at index (row, col) is (0,0,0) (entirely made with zero for each channel
-        /// </summary>
-        /// <param name="row"></param>
-        /// <param name="col"></param>
-        /// <returns></returns>
-        public bool IsZeroPixel(int row, int col)
-        {
-            for (int channel = 0; channel < GetChannels(); ++channel)
-            {
-                if (Get(channel, row, col) != 0)
-                {
-                    return false;
-                }
-            }
-            return true;
         }
 
         /// <summary>

@@ -7,21 +7,23 @@ namespace SharpNet.Datasets
     {
         #region private fields
         private readonly IDataSet _original;
+        private readonly int[] _originalShape_CHW;
         private readonly int _rowFactor;
         private readonly int _colFactor;
         private readonly CpuTensor<float> _xBufferBeforeZoom = new CpuTensor<float>(new[] { 1 });
         #endregion
 
-        public ZoomedDataSet(IDataSet original, int rowFactor, int colFactor)
-            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel)
+        public ZoomedDataSet(IDataSet original, int[] originalShape_CHW, int rowFactor, int colFactor)
+            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy)
         {
             _original = original;
+            _originalShape_CHW = originalShape_CHW;
             _rowFactor = rowFactor;
             _colFactor = colFactor;
         }
         public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
-            _xBufferBeforeZoom.Reshape_ThreadSafe(_original.XMiniBatch_Shape(xBuffer.Shape[0]));
+            _xBufferBeforeZoom.Reshape_ThreadSafe(new []{xBuffer.Shape[0], _originalShape_CHW[1], _originalShape_CHW [2], _originalShape_CHW[3]});
             _original.LoadAt(subElementId, indexInBuffer, _xBufferBeforeZoom, yBuffer);
             var tensorBeforeUpSampling = _xBufferBeforeZoom.ElementSlice(indexInBuffer);
             var tensorAfterUpSampling = xBuffer.ElementSlice(indexInBuffer);
@@ -33,8 +35,6 @@ namespace SharpNet.Datasets
         {
             return _original.ElementIdToCategoryIndex(elementId);
         }
-        public override int Height => _rowFactor*_original.Height;
-        public override int Width => _colFactor*_original.Width;
         public override CpuTensor<float> Y => _original.Y;
 
         public override string ToString()

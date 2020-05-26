@@ -1,24 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Xml;
 using log4net;
 using log4net.Config;
 using log4net.Util;
+using SharpNet.Networks;
+using SharpNet.Pictures;
 
 namespace SharpNet
 {
     public static class Utils
     {
+
+        private static readonly ILog Log = LogManager.GetLogger(typeof(Utils));
+
         public static void AddLineToFile(string filePath, string s)
         {
             var f = new FileInfo(filePath);
@@ -416,42 +419,9 @@ namespace SharpNet
             return bool.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
         }
 
-        /// <summary>
-        /// Resize the image to the specified width and height.
-        /// from: https://stackoverflow.com/questions/1922040/how-to-resize-an-image-c-sharp/24199315
-        /// </summary>
-        /// <param name="image">The image to resize.</param>
-        /// <param name="width">The width to resize to.</param>
-        /// <param name="height">The height to resize to.</param>
-        /// <returns>The resized image.</returns>
-        public static Bitmap ResizeImage(Image image, int width, int height)
+        public static void ConfigureGlobalLog4netProperties()
         {
-            var destRect = new Rectangle(0, 0, width, height);
-            var destImage = new Bitmap(width, height);
-
-            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
-
-            using (var graphics = Graphics.FromImage(destImage))
-            {
-                graphics.CompositingMode = CompositingMode.SourceCopy;
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = SmoothingMode.HighQuality;
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                using (var wrapMode = new ImageAttributes())
-                {
-                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
-                }
-            }
-
-            return destImage;
-        }
-
-        public static void ConfigureGlobalLog4netProperties(string logDirectory, string logFile)
-        {
-            ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties);
+            ConfigureLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet", GlobalContext.Properties);
         }
 
 
@@ -466,6 +436,54 @@ namespace SharpNet
             properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
             properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
             properties["logfile"] = logFile;
+        }
+
+        /// <summary>
+        /// return the SHA-1 of the image file (160 bits stored in a string of 40 bytes in hexadecimal format: 0=>f)
+        /// ignoring all metadata associated with the image
+        /// </summary>
+        /// <param name="imagePath">path to the image</param>
+        /// <returns>
+        /// empty string if the file do not exists
+        /// the SHA-1 of the file if it exists
+        /// </returns>
+        public static string ImagePathToSHA1(string imagePath)
+        {
+            try
+            {
+                return BitmapContent.ValueFomSingleRgbBitmap(imagePath).SHA1();
+            }
+            catch (Exception e)
+            {
+                Log.Error("error", e);
+                return "";
+            }
+        }
+
+        /// <summary>
+        /// return the SHA-1 of a file (160 bits stored in a string of 40 bytes in hexadecimal format: 0=>f)
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns>
+        /// empty string if the file do not exists
+        /// the SHA-1 of the file if it exists
+        /// </returns>
+        public static string FileSHA1(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                return "";
+            }
+            using var fs = new FileStream(filePath, FileMode.Open);
+            using var bs = new BufferedStream(fs);
+            using var sha1 = new SHA1Managed();
+            var hash = sha1.ComputeHash(bs);
+            var formatted = new StringBuilder(2 * hash.Length);
+            foreach (byte b in hash)
+            {
+                formatted.AppendFormat("{0:X2}", b);
+            }
+            return formatted.ToString();
         }
     }
 }

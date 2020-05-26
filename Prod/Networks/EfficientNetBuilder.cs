@@ -16,7 +16,7 @@ namespace SharpNet.Networks
     public class EfficientNetBuilder : NetworkBuilder
     {
         /// <summary>
-        /// The default WRN Meta Parameters for ImageNet
+        /// The default EfficientNet Meta Parameters for ImageNet
         /// </summary>
         /// <returns></returns>
         public static EfficientNetBuilder EfficientNet_ImageNet()
@@ -28,7 +28,7 @@ namespace SharpNet.Networks
                     LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                     lambdaL2Regularization = 0.0005,
-                    LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "ImageNet")
+                    LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CustomDataset")
                 }
                     .WithSGD(0.9, false)
                     //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
@@ -40,6 +40,47 @@ namespace SharpNet.Networks
                 BatchNormMomentum =  0.99,
                 BatchNormEpsilon = 0.001
             };
+            return builder;
+        }
+
+
+        /// <summary>
+        /// The default EfficientNet Meta Parameters for Custom Dataset
+        /// </summary>
+        /// <returns></returns>
+        public static EfficientNetBuilder EfficientNet_CustomDataset()
+        {
+            var builder = new EfficientNetBuilder
+            {
+                Config = new NetworkConfig
+                    {
+                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                        lambdaL2Regularization = 0.0005,
+                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CustomDataset")
+                    }
+                    .WithSGD(0.9, false)
+                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+                ,
+                NumEpochs = 150,
+                BatchSize = 128,
+                InitialLearningRate = 0.03,
+                BatchNormMomentum = 0.99,
+                BatchNormEpsilon = 0.001
+            };
+
+            //Data augmentation
+            var da = builder.Config.DataAugmentation;
+            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+            //da.WidthShiftRangeInPercentage = 0.1;
+            //da.HeightShiftRangeInPercentage = 0.1;
+            da.HorizontalFlip = false;
+            da.VerticalFlip = false;
+            da.Rotate180Degrees = true;
+            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
+            da.AlphaMixup = 0.0;    //Mixup is discarded
+            da.AlphaCutMix = 0.0;   //CutMix is discarded
+            da.CutoutPatchPercentage = 0.1;
             return builder;
         }
 
@@ -143,10 +184,7 @@ namespace SharpNet.Networks
             //TODO compute actual inputShape_CHW
             //inputShape_CHW = _obtain_input_shape(inputShape_CHW, default_size=defaultResolution, min_size=32, data_format="NCHW", require_flatten=includeTop, weights=weights)
 
-            var channelCount = inputShape_CHW[0];
-            var height = inputShape_CHW[1];
-            var width = inputShape_CHW[2];
-            net.Input(channelCount, height, width);
+            net.Input(inputShape_CHW);
 
 
             //Build stem
@@ -218,7 +256,7 @@ namespace SharpNet.Networks
                 {
                     throw new ArgumentException("missing "+weights+" model file "+modelPath);
                 }
-                net.Info("loading weights from " + modelPath);
+                Network.Log.Info("loading weights from " + modelPath);
                 net.LoadParametersFromH5File(modelPath, NetworkConfig.CompatibilityModeEnum.TensorFlow1);
             }
 
@@ -296,7 +334,7 @@ namespace SharpNet.Networks
         public Network EfficientNetB0_CIFAR10(string weight, int[] inputShape_CHW)
         {
             var net = EfficientNetB0(true, weight, inputShape_CHW);
-            net.Info("setting number of output categoryCount to 10");
+            Network.Log.Info("setting number of output categoryCount to 10");
             net.SetCategoryCount(10);
             return net;
         }
@@ -305,9 +343,8 @@ namespace SharpNet.Networks
             bool includeTop, //= True,
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
-            POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE,
-            int categoryCount  = 1000
-        )
+            int categoryCount = 1000,
+            POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
         {
             return EfficientNet(1.0f, 1.0f, 224, 0.2f, 
                 0.2f, 8, MobileBlocksDescription.Default(), "efficientnet-b0", includeTop, weights, inputShape_CHW, pooling, categoryCount);

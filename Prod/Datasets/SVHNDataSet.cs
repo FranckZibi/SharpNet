@@ -36,7 +36,7 @@ namespace SharpNet.Datasets
 
     public class SVHNDataSet : AbstractTrainingAndTestDataSet
     {
-        //private readonly string[] CategoryIndexToDescription = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+        private static readonly string[] CategoryIndexToDescription = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
@@ -51,24 +51,26 @@ namespace SharpNet.Datasets
         }
 
 
+        public static readonly int[] Shape_CHW = { 3, 32, 32 };
+
         /// <summary>
         /// 
         /// </summary>
         /// <param name="loadExtraFileForTraining">
         /// true if we should load both the train file (73.257 entries) and the extra file (531.131 entries) for training
         /// false if we should only load the train file (73.257 entries) for training</param>
-        public SVHNDataSet(bool loadExtraFileForTraining = true) : base("SVHN", 3,32,32,10)
+        public SVHNDataSet(bool loadExtraFileForTraining = true) : base("SVHN", CategoryIndexToDescription.Length)
         {
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
             
             var directory = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
             var trainFiles = SplittedFileDataSet.AllBinFilesInDirectory(directory, loadExtraFileForTraining?new []{ "data_batch", "extra_batch"} : new [] { "data_batch"});
-            Training = new SplittedFileDataSet(trainFiles, Name, CategoryCount, InputShape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
+            Training = new SplittedFileDataSet(trainFiles, Name, CategoryIndexToDescription, Shape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
             //to recompute the mean and volatility of each channel, uncomment the following line
             //meanAndVolatilityOfEachChannelInTrainingSet = ((SplittedFileDataSet)Training).ComputeMeanAndVolatilityForEachChannel();
 
             var testFiles = SplittedFileDataSet.AllBinFilesInDirectory(directory, "test_batch");
-            Test = new SplittedFileDataSet(testFiles, Name, CategoryCount, InputShape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
+            Test = new SplittedFileDataSet(testFiles, Name, CategoryIndexToDescription, Shape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
         }
 
         //public static void CreateBinFile()

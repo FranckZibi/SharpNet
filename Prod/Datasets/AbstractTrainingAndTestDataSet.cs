@@ -6,19 +6,11 @@
         public abstract IDataSet Test { get; }
 
         public string Name { get; }
-        public int Channels { get; }
-        public int Height { get; }
-        public int Width { get; }
         public int CategoryCount { get; }
-        public int[] InputShape_CHW => new[]{ Channels, Height, Width };
 
-
-        protected AbstractTrainingAndTestDataSet(string name, int channels, int height, int width, int categoryCount)
+        protected AbstractTrainingAndTestDataSet(string name, int categoryCount)
         {
             Name = name;
-            Channels = channels;
-            Height = height;
-            Width = width;
             CategoryCount = categoryCount;
         }
 

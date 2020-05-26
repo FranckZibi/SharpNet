@@ -58,7 +58,7 @@ namespace SharpNet.Layers
             }
             else
             {
-                y.ActivationBackward(dy, allX[0], ActivationFunction, _alphaActivation, dx[0]);
+                dx[0].ActivationBackward(ActivationFunction, _alphaActivation, dy, allX[0], y);
             }
             StopBackwardTimer(Type() + ">" + ToString(ActivationFunction));
         }

@@ -860,7 +860,8 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
         {
             var batchSize = X.Shape[0];
-            using var dataSet = new InMemoryDataSet(X, Y_expected, new int[batchSize], "", null);
+            var categories = Enumerable.Range(0, Y_expected.Shape[1]).Select(i => i.ToString()).ToArray();
+            using var dataSet = new InMemoryDataSet(X, Y_expected, new int[batchSize], categories, "", null);
             var observedLossAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 

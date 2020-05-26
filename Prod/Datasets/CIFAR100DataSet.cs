@@ -31,26 +31,27 @@ namespace SharpNet.Datasets
 {
     public class CIFAR100DataSet : AbstractTrainingAndTestDataSet
     {
-        //private readonly string[] CategoryIndexToDescription = new[] { "beaver", "dolphin", "otter", "seal", "whale",
-        //    "aquarium fish", "flatfish", "ray", "shark", "trout",
-        //    "orchids", "poppies", "roses", "sunflowers", "tulips",
-        //    "bottles", "bowls", "cans", "cups", "plates",
-        //    "apples", "mushrooms", "oranges", "pears", "sweet peppers",
-        //    "clock", "computer keyboard", "lamp", "telephone", "television",
-        //    "bed", "chair", "couch", "table", "wardrobe",
-        //    "bee", "beetle", "butterfly", "caterpillar", "cockroach",
-        //    "bear", "leopard", "lion", "tiger", "wolf",
-        //    "bridge", "castle", "house", "road", "skyscraper",
-        //    "cloud", "forest", "mountain", "plain", "sea",
-        //    "camel", "cattle", "chimpanzee", "elephant", "kangaroo",
-        //    "fox", "porcupine", "possum", "raccoon", "skunk",
-        //    "crab", "lobster", "snail", "spider", "worm",
-        //    "baby", "boy", "girl", "man", "woman",
-        //    "crocodile", "dinosaur", "lizard", "snake", "turtle",
-        //    "hamster", "mouse", "rabbit", "shrew", "squirrel",
-        //    "maple", "oak", "palm", "pine", "willow",
-        //    "bicycle", "bus", "motorcycle", "pickup truck", "train",
-        //    "lawn-mower", "rocket", "streetcar", "tank", "tractor" };
+        private static readonly string[] CategoryIndexToDescription = new[] {
+            "beaver", "dolphin", "otter", "seal", "whale",
+            "aquarium fish", "flatfish", "ray", "shark", "trout",
+            "orchids", "poppies", "roses", "sunflowers", "tulips",
+            "bottles", "bowls", "cans", "cups", "plates",
+            "apples", "mushrooms", "oranges", "pears", "sweet peppers",
+            "clock", "computer keyboard", "lamp", "telephone", "television",
+            "bed", "chair", "couch", "table", "wardrobe",
+            "bee", "beetle", "butterfly", "caterpillar", "cockroach",
+            "bear", "leopard", "lion", "tiger", "wolf",
+            "bridge", "castle", "house", "road", "skyscraper",
+            "cloud", "forest", "mountain", "plain", "sea",
+            "camel", "cattle", "chimpanzee", "elephant", "kangaroo",
+            "fox", "porcupine", "possum", "raccoon", "skunk",
+            "crab", "lobster", "snail", "spider", "worm",
+            "baby", "boy", "girl", "man", "woman",
+            "crocodile", "dinosaur", "lizard", "snake", "turtle",
+            "hamster", "mouse", "rabbit", "shrew", "squirrel",
+            "maple", "oak", "palm", "pine", "willow",
+            "bicycle", "bus", "motorcycle", "pickup truck", "train",
+            "lawn-mower", "rocket", "streetcar", "tank", "tractor" };
 
         //private readonly string[] SuperclassIdToDescription = new[]
         //{
@@ -79,12 +80,14 @@ namespace SharpNet.Datasets
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
 
-        public CIFAR100DataSet() : base("CIFAR-100", 3, 32, 32, 100)
+        public static readonly int[] Shape_CHW = { 3, 32, 32 };
+
+        public CIFAR100DataSet() : base("CIFAR-100", CategoryIndexToDescription.Length)
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 
             //We load the training set
-            var xTrainingSet = new CpuTensor<byte>(new[] { 50000, Channels, Height, Width });
+            var xTrainingSet = new CpuTensor<byte>(new[] { 50000, Shape_CHW[0], Shape_CHW[1], Shape_CHW[2] });
             var yTrainingSet = new CpuTensor<byte>(new[] { 50000, 1, 1, 1 });
             Load(Path.Combine(path, "train.bin"), xTrainingSet, yTrainingSet);
             //We normalize the input with 0 mean / 1 volatility
@@ -97,7 +100,7 @@ namespace SharpNet.Datasets
             Debug.Assert(trainElementIdToCategoryIndex.Length == xTrainingSet.Shape[0]);
 
             //We load the test set
-            var xTestSet = new CpuTensor<byte>(new[] { 10000, Channels, Height, Width });
+            var xTestSet = new CpuTensor<byte>(new[] { 10000, Shape_CHW[0], Shape_CHW[1], Shape_CHW[2]});
             var yTestSet = new CpuTensor<byte>(new[] { 10000, 1, 1, 1 });
             Load(Path.Combine(path, "test.bin"), xTestSet, yTestSet);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
@@ -111,12 +114,15 @@ namespace SharpNet.Datasets
             //Uncomment the following line to take only the first elements
             //xTrain = (CpuTensor<float>)xTrain.Slice(0, 1000);yTrain = (CpuTensor<float>)yTrain.Slice(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.Slice(0, 1000); ; yTest = (CpuTensor<float>)yTest.Slice(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
-            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, CategoryIndexToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, CategoryIndexToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
         }
 
         private static void Load(string path, CpuTensor<byte> x, CpuTensor<byte> y)
         {
+            Debug.Assert(x.Shape[1] == Shape_CHW[0]); //channels
+            Debug.Assert(x.Shape[2] == Shape_CHW[1]); //height
+            Debug.Assert(x.Shape[3] == Shape_CHW[2]); //width
             var b = File.ReadAllBytes(path);
             for (int count = 0; count < x.Shape[0]; ++count)
             {

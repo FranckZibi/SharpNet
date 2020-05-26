@@ -18,7 +18,7 @@ namespace SharpNetTests.Datasets
             var dataSet = GetRandomDataSet(tensorX, 2, rand);
             for (int elementId = 0; elementId < shape[0]; ++elementId)
             {
-                var bmp = dataSet.OriginalElementContent(elementId);
+                var bmp = dataSet.OriginalElementContent(elementId, shape[2], shape[3]);
                 for (int channel = 0; channel < shape[1]; ++channel)
                 {
                     for (int row = 0; row < shape[2]; ++row)
@@ -36,11 +36,11 @@ namespace SharpNetTests.Datasets
         {
             var tensorY = TestCpuTensor.RandomByteTensor(new[] { tensorX.Shape[0], 1 }, rand, 0, 1);
 
-            //var categoryIndexToDescription = new string[categoryCount];
-            //for (int i = 0; i < categoryCount; ++i)
-            //{
-            //    categoryIndexToDescription[i] = rand.Next(categoryCount).ToString();
-            //}
+            var categoryIndexToDescription = new string[categoryCount];
+            for (int i = 0; i < categoryCount; ++i)
+            {
+                categoryIndexToDescription[i] = rand.Next(categoryCount).ToString();
+            }
             var elementIdToCategoryIndex = new int[tensorX.Shape[0]];
             for (int i = 0; i < elementIdToCategoryIndex.Length; ++i)
             {
@@ -50,7 +50,7 @@ namespace SharpNetTests.Datasets
             var meanAndVolatilityForEachChannel = tensorX.ComputeMeanAndVolatilityOfEachChannel(t => t);
             var x = AbstractDataSet.ToXWorkingSet(tensorX, meanAndVolatilityForEachChannel);
             var y = AbstractDataSet.ToYWorkingSet(tensorY, categoryCount, categoryByte=>categoryByte);
-            return new InMemoryDataSet(x, y, elementIdToCategoryIndex, name, meanAndVolatilityForEachChannel);
+            return new InMemoryDataSet(x, y, elementIdToCategoryIndex, categoryIndexToDescription, name, meanAndVolatilityForEachChannel);
         }
     }
 }

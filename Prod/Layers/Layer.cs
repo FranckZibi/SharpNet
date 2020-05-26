@@ -242,8 +242,8 @@ namespace SharpNet.Layers
             otherNetwork.Layers.Add(deserialize(Serializer.Deserialize(Serialize()), otherNetwork));
         }
 
-        public void Log(string msg) {Network.Info(msg);}
-        public void LogDebug(string msg) {Network.LogDebug(msg);}
+        public void Log(string msg) {Network.Log.Info(msg);}
+        public void LogDebug(string msg) {Network.Log.Debug(msg);}
 
         public int n_x
         {
@@ -334,17 +334,40 @@ namespace SharpNet.Layers
             return null;
         }
         public List<Layer> PreviousLayers => PreviousLayerIndexes.Select(idx => Layers[idx]).ToList();
+        public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining)
+        {
+            if (!isTraining) //if we are doing only inference 
+            {
+                return false; //no need to keep layer output
+            }
+            return LayerOutputShouldBeKeptForBackwardPropagation(true, FirstTrainableLayer(Layers));
+        }
         public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining, Layer firstTrainableLayer)
+        {
+            if (!BackwardPropagationNeeded(isTraining, firstTrainableLayer))
+            {
+                //the BackwardPropagation method will not be called for this layer
+                return false; //no need to keep in memory the layer output
+            }
+            if ( !OutputNeededForBackwardPropagation && NextLayers.All(l=>!l.InputNeededForBackwardPropagation) )
+            {
+                return false; //no need to keep in memory the layer output
+            }
+            return true; //we need to keep layer output in memory : it will be needed by BackwardPropagation
+        }
+
+        /// <summary>
+        /// true if the BackwardPropagation method will be called for this layer
+        /// </summary>
+        /// <param name="isTraining"></param>
+        /// <param name="firstTrainableLayer"></param>
+        /// <returns></returns>
+        public bool BackwardPropagationNeeded(bool isTraining, Layer firstTrainableLayer)
         {
             if ((firstTrainableLayer == null)     //if there is no trainable layer in the network
                 || !isTraining) //or if we are doing only inference 
             {
                 return false; //no need to keep layer output
-            }
-
-            if ( !OutputNeededForBackwardPropagation && NextLayers.All(l=>!l.InputNeededForBackwardPropagation) )
-            {
-                return false;
             }
 
             //if the layer is among the trainable layer
@@ -361,7 +384,6 @@ namespace SharpNet.Layers
 
             return false; //no need to keep layer output in memory
         }
-        
         protected string ShapeChangeDescription()
         {
             return Utils.ShapeToStringWithBatchSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBatchSize(OutputShape(1));
@@ -406,14 +428,6 @@ namespace SharpNet.Layers
                 result.AddRange(Optimizer.EmbeddedTensors);
             }
             return result;
-        }
-        public bool LayerOutputShouldBeKeptForBackwardPropagation(bool isTraining)
-        {
-            if (!isTraining) //if we are doing only inference 
-            {
-                return false; //no need to keep layer output
-            }
-            return LayerOutputShouldBeKeptForBackwardPropagation(true, FirstTrainableLayer(Layers));
         }
         //https://docs.nvidia.com/deeplearning/sdk/cudnn-archived/cudnn_701/cudnn-user-guide/index.html#cudnnBatchNormMode_t
         protected cudnnBatchNormMode_t LayerBatchNormalizationMode()

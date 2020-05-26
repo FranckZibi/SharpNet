@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using NUnit.Framework;
 using SharpNet.DataAugmentation;
 using SharpNet.DataAugmentation.Operations;
@@ -96,6 +97,36 @@ namespace SharpNetTests.DataAugmentation.Operations
 
             Assert.IsTrue(verticalFlip.ChangeCoordinates());
             Assert.IsTrue(horizontalFlip.ChangeCoordinates());
+        }
+
+
+        [Test]
+        public void TestRotate180Degrees()
+        {
+            //single element
+            var input = new[] { 12f };
+            var inputShape = new[] { 1, 1, 1, 1 };
+            var expected = new[] { 12f };
+            OperationTests.Check(new Rotate180Degrees(inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            //single line
+            input = new[] { 12f, 13, 14 };
+            inputShape = new[] { 1, 1, 1, 3 };
+            expected = new[] { 14f, 13, 12 };
+            OperationTests.Check(new Rotate180Degrees(inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            //single column
+            input = new[] { 12f, 13, 14 };
+            inputShape = new[] { 1, 1, 3, 1 };
+            expected = new[] { 14f, 13, 12 };
+            OperationTests.Check(new Rotate180Degrees(inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+            // 4x4 matrix
+            input = Enumerable.Range(0, 16).Select(x => (float)x).ToArray();
+            inputShape = new[] { 1, 1, 4, 4 };
+            expected = (float[])input.Clone();
+            Array.Reverse(expected);
+            OperationTests.Check(new Rotate180Degrees(inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
         }
     }
 }

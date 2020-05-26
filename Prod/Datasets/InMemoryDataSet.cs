@@ -12,11 +12,12 @@ namespace SharpNet.Datasets
         private readonly int[] _elementIdToCategoryIndex;
         #endregion
 
-        public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryIndex,
+        public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryIndex, string[] categoryDescriptions,
             string name, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
-            : base(name, x.Shape[1], y.Shape[1], meanAndVolatilityForEachChannel)
+            : base(name, x.Shape[1], categoryDescriptions, meanAndVolatilityForEachChannel, ResizeStrategyEnum.None)
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
+            Debug.Assert(categoryDescriptions.Length == y.Shape[1]);
             if (elementIdToCategoryIndex == null)
             {
                 throw new ArgumentException("elementIdToCategoryIndex must be provided");
@@ -49,8 +50,6 @@ namespace SharpNet.Datasets
         }
 
         public override int Count => _x.Shape[0];
-        public override int Height => _x.Shape[2];
-        public override int Width => _x.Shape[3];
         public override int ElementIdToCategoryIndex(int elementId)
         {
             return _elementIdToCategoryIndex[elementId];

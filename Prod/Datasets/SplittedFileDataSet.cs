@@ -19,8 +19,8 @@ namespace SharpNet.Datasets
         [NotNull] private readonly Func<byte, int> CategoryByteToCategoryIndex;
         #endregion
 
-        public SplittedFileDataSet([NotNull] List<string> files, string name, int categoryCount, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
-            : base(name, singleElementShape_CHW[0], categoryCount, meanAndVolatilityForEachChannel)
+        public SplittedFileDataSet([NotNull] List<string> files, string name, string[] categoryDescriptions, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
+            : base(name, singleElementShape_CHW[0], categoryDescriptions, meanAndVolatilityForEachChannel, ResizeStrategyEnum.None)
         {
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);
@@ -53,8 +53,9 @@ namespace SharpNet.Datasets
         {
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
             Debug.Assert(Channels == xBuffer.Shape[1]); //same number of channels
-            Debug.Assert(Height == xBuffer.Shape[2]); //same height
-            Debug.Assert(Width == xBuffer.Shape[3]); //same width
+
+            var targetHeight = xBuffer.Shape[2];
+            var targetWidth = xBuffer.Shape[3];
 
             //we load the element content from the file
             var xByte = LoadElementIdFromFile(elementId);
@@ -65,9 +66,9 @@ namespace SharpNet.Datasets
             int xBufferIndex = xBuffer.Idx(indexInBuffer);
             for (int channel = 0; channel < Channels; ++channel)
             {
-                for (int row = 0; row < Height; ++row)
+                for (int row = 0; row < targetHeight; ++row)
                 {
-                    for (int col = 0; col < Width; ++col)
+                    for (int col = 0; col < targetWidth; ++col)
                     {
                         var val = (double)xByte[xByteIndex++];
                         val = (val - OriginalChannelMean(channel)) / OriginalChannelVolatility(channel);
@@ -105,8 +106,6 @@ namespace SharpNet.Datasets
         //    return Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(sumSumSquareCountForEachChannel);
         //}
         public override int Count { get; }
-        public override int Height => _singleElementShape_CHW[1];
-        public override int Width => _singleElementShape_CHW[1];
         public override CpuTensor<float> Y { get; }
         public override string ToString()
         {

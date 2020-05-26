@@ -10,7 +10,7 @@ namespace SharpNet.Datasets
         private readonly List<int> subElementIdToOriginalElementId = new List<int>();
 
         public SubDataSet(IDataSet original, Func<int,bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet) 
-            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel)
+            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy)
         {
             _original = original;
             for (int originalElementId = 0; originalElementId < _original.Count; ++originalElementId)
@@ -32,8 +32,6 @@ namespace SharpNet.Datasets
         {
             return _original.ElementIdToCategoryIndex(subElementIdToOriginalElementId[elementId]);
         }
-        public override int Height => _original.Height;
-        public override int Width => _original.Width;
         public override CpuTensor<float> Y { get; }
     }
 }

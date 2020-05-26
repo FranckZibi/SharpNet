@@ -349,14 +349,14 @@ namespace SharpNet.Data
         public abstract void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y);
 
         /// <summary>
-        /// this  = y = [in] output
+        /// this  = dx = [out] gradient of the output
         /// </summary>
-        /// <param name="dy">[in] gradient of the output</param>
-        /// <param name="x">[in] input</param>
         /// <param name="activationType"></param>
         /// <param name="alphaActivation">only used for Leaky Activation</param>
-        /// <param name="dx">[out] gradient of the input</param>
-        public abstract void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, double alphaActivation, Tensor dx);
+        /// <param name="dy">[in] gradient of the output</param>
+        /// <param name="x">[in] input</param>
+        /// <param name="y">[in] output</param>
+        public abstract void ActivationBackward(cudnnActivationMode_t activationType, double alphaActivation, Tensor dy, Tensor x, Tensor y);
 
         #region Convolution
         /// <summary>

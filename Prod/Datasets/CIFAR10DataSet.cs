@@ -30,17 +30,18 @@ namespace SharpNet.Datasets
 {
     public class CIFAR10DataSet : AbstractTrainingAndTestDataSet
     {
-        //private readonly string[] CategoryIndexToDescription = { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
+        private static readonly string[] CategoryIndexToDescription = { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
 
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
 
-        public CIFAR10DataSet() : base("CIFAR-10", 3, 32, 32, 10)
+        public static readonly int[] Shape_CHW = { 3, 32, 32 };
+        public CIFAR10DataSet() : base("CIFAR-10", CategoryIndexToDescription.Length)
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 
             //We load the training set
-            var xTrainingSet = new CpuTensor<byte>(new[] { 50000, Channels, Height, Width });
+            var xTrainingSet = new CpuTensor<byte>(new[] { 50000, Shape_CHW[0], Shape_CHW[1], Shape_CHW[2] });
             var yTrainingSet = new CpuTensor<byte>(new[] { 50000, 1, 1, 1 });
             for (int i = 0; i < 5; ++i)
             {
@@ -57,7 +58,7 @@ namespace SharpNet.Datasets
             Debug.Assert(trainElementIdToCategoryIndex.Length == xTrainingSet.Shape[0]);
 
             //We load the test set
-            var xTestSet = new CpuTensor<byte>(new[] { 10000, Channels, Height, Width });
+            var xTestSet = new CpuTensor<byte>(new[] { 10000, Shape_CHW[0], Shape_CHW[1], Shape_CHW[2] });
             var yTestSet = new CpuTensor<byte>(new[] { 10000, 1, 1, 1 });
             LoaAllFileAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
@@ -71,12 +72,15 @@ namespace SharpNet.Datasets
             //Uncomment the following line to take only the first 'count' elements
             //const int count = 1000;xTrain = (CpuTensor<float>)xTrain.RowSlice(0, count);yTrain = (CpuTensor<float>)yTrain.RowSlice(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.RowSlice(0, count); ; yTest = (CpuTensor<float>)yTest.RowSlice(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
-            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, CategoryIndexToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, CategoryIndexToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
         }
 
         private static void LoaAllFileAt(string path, CpuTensor<byte> x, CpuTensor<byte> categoryBytes, int indexFirst)
         {
+            Debug.Assert(x.Shape[1] == Shape_CHW[0]); //channels
+            Debug.Assert(x.Shape[2] == Shape_CHW[1]); //height
+            Debug.Assert(x.Shape[3] == Shape_CHW[2]); //width
             int bytesInSingleElement = x.MultDim0 + 1;
 
             int elementCountInPath = (int)(Utils.FileLength(path) / bytesInSingleElement);

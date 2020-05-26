@@ -453,9 +453,9 @@ namespace SharpNetTests
             var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
             var dy = RandomTensor(y.Shape);
             var x = RandomTensor(y.Shape);
-            var dx = RandomTensor(y.Shape);
+            var dx = RandomTensor(x.Shape);
 	        x.ActivationForward(activationMode, alphaActivation, y);
-            TestAll(new[] { y, dy, x, dx }, tensors => tensors[0].ActivationBackward(tensors[1], tensors[2], activationMode, alphaActivation, tensors[3]));
+            TestAll(new[] { dx, dy, x, y }, tensors => tensors[0].ActivationBackward(activationMode, alphaActivation, tensors[1], tensors[2], tensors[3]));
 	    }
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 1)]
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 2)]

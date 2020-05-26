@@ -216,15 +216,15 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
-        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, double alphaActivation, Tensor dx)
+        public override void ActivationBackward(cudnnActivationMode_t activationType, double alphaActivation, Tensor dy, Tensor x, Tensor y)
         {
-            var y = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {y, dy, x, dx}));
-            Debug.Assert(y.SameShape(dy, x, dx));
-            var yDesc = TensorDesc(y);
-            var xDesc = TensorDesc(x);
-            var dyDesc = TensorDesc(dy);
+            var dx = this;
+            Debug.Assert(AreCompatible(new List<Tensor> {dx, dy, x, y}));
+            Debug.Assert(dx.SameShape(dy, x, y));
             var dxDesc = TensorDesc(dx);
+            var dyDesc = dxDesc;
+            var xDesc = dxDesc;
+            var yDesc = dxDesc;
 
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;

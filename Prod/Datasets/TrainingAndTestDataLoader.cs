@@ -3,7 +3,7 @@
     public class TrainingAndTestDataLoader : AbstractTrainingAndTestDataSet
     {
         public TrainingAndTestDataLoader(IDataSet training, IDataSet test, AbstractDataSet parent)
-            : base(parent.Name, parent.Channels, parent.Height, parent.Width, parent.CategoryCount)
+            : base(parent.Name, parent.CategoryCount)
         {
             Training = training;
             Test = test;

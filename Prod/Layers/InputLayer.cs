@@ -29,6 +29,9 @@ namespace SharpNet.Layers
 
         public InputLayer(int c, int h, int w, Network network, string layerName) : base(network, new int[]{}, layerName)
         {
+            Debug.Assert(c>=1);
+            Debug.Assert(h>=1);
+            Debug.Assert(w>=1);
             _c = c;
             _h = h;
             _w = w;

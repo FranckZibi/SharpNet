@@ -28,7 +28,7 @@ namespace SharpNet.Datasets.PascalVOC
         public static ObjectDescription ValueOf(XmlNode node, int imageHeight, int imageWidth)
         {
             var categoryName = Utils.GetString(node, "name");
-            var categoryId = Array.IndexOf(PascalVOCDataSet.CategoryIndexToDescription, categoryName);
+            var categoryId = Array.IndexOf(PascalVOCDataSet._CategoryIndexToDescription, categoryName);
             if (categoryId < 0)
             {
                 throw new ArgumentException("invalid category "+categoryName);

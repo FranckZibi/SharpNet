@@ -11,7 +11,7 @@ namespace SharpNet.Datasets
         private readonly List<int> _shuffledElementIdToOriginalElementId;
 
         public ShuffledDataSet(IDataSet original, Random rand)
-            : base(original.Name, original.Channels, original.CategoryCount, original.MeanAndVolatilityForEachChannel)
+            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy)
         {
             _original = original;
             _shuffledElementIdToOriginalElementId = Enumerable.Range(0, original.Count).ToList();
@@ -28,8 +28,6 @@ namespace SharpNet.Datasets
         {
             return _original.ElementIdToCategoryIndex(_shuffledElementIdToOriginalElementId[elementId]);
         }
-        public override int Height => _original.Height;
-        public override int Width => _original.Width;
         public override CpuTensor<float> Y { get; }
     }
 }

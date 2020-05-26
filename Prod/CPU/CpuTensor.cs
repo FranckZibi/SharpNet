@@ -440,9 +440,9 @@ namespace SharpNet.CPU
                     throw new ArgumentException("invalid activation mode " + activationType);
             }
         }
-        public override void ActivationBackward(Tensor dy, Tensor x, cudnnActivationMode_t activationType, double alphaActivation, Tensor dx)
+        public override void ActivationBackward(cudnnActivationMode_t activationType, double alphaActivation, Tensor dy, Tensor x, Tensor y)
         {
-            var y = this;
+            var dx = this;
             Debug.Assert(AreCompatible(new List<Tensor> { y, dy, x, dx }));
             switch (activationType)
             {
@@ -687,8 +687,8 @@ namespace SharpNet.CPU
         }
         public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryIndex, int elementCount, int categoryCount)
         {
-            var yShape = new[] { elementCount, categoryCount };
-            var yContent = new float[Utils.Product(yShape)];
+            var result = new CpuTensor<float>(new[] { elementCount, categoryCount });
+            var yContent = result.SpanContent;
             for (int elementId = 0; elementId < elementCount; ++elementId)
             {
                 var categoryIndex = elementIdToCategoryIndex(elementId);
@@ -697,7 +697,7 @@ namespace SharpNet.CPU
                     yContent[elementId * categoryCount + categoryIndex] = 1f;
                 }
             }
-            return new CpuTensor<float>(yShape);
+            return result;
         }
 
 

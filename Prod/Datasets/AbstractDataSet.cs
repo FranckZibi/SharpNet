@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -14,10 +15,41 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
+    public enum ResizeStrategyEnum
+    {
+        /// <summary>
+        /// we do n ot resize the image from disk to the target size for training/inference
+        /// we expect them to be the same
+        /// an exception is thrown if it is not the case
+        /// </summary>
+        None,
+
+
+        /// <summary>
+        /// we'll resize the image from disk to the target size for training/inference
+        /// without keeping the same proportion.
+        /// It means that the picture can be distorted to fit the target size
+        /// </summary>
+        ResizeToTargetSize,
+
+        /// <summary>
+        /// We'll resize the image so that it will have exactly the same width as the size fo the training/inference tensor
+        /// We'll keep the same proportion as in the original image (no distortion)
+        /// </summary>
+        ResizeToWidthSizeKeepingSameProportion,
+
+        /// <summary>
+        /// We'll resize the image so that it will have exactly the same height as the size fo the training/inference tensor
+        /// We'll keep the same proportion as in the original image (no distortion)
+        /// </summary>
+        ResizeToHeightSizeKeepingSameProportion
+    }
+
+
     public abstract class AbstractDataSet : IDataSet
     {
         #region private & protected fields
-        protected static readonly ILog Logger = LogManager.GetLogger(typeof(AbstractDataSet));
+        protected static readonly ILog Log = LogManager.GetLogger(typeof(AbstractDataSet));
         /// <summary>
         /// tensor with all original elements (no data augmentation) in the order needed for the current mini batch 
         /// </summary>
@@ -37,21 +69,22 @@ namespace SharpNet.Datasets
         /// </summary>
         private long alreadyComputedMiniBatchId = -1;
         private readonly Random[] _rands;
+
         /// <summary>
         /// the mean and volatility used to normalize the 'this' DataSet
         /// will be null or empty if no normalization occured in the DataSet
         /// </summary>
-        protected List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
-
+        protected readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, int categoryCount, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+        protected AbstractDataSet(string name, int channels, string[ ] categoryDescriptions, List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy)
         {
             Name = name;
             Channels = channels;
-            CategoryCount = categoryCount;
+            CategoryDescriptions = categoryDescriptions;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
+            ResizeStrategy = resizeStrategy;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -65,6 +98,8 @@ namespace SharpNet.Datasets
             }
         }
         #endregion
+
+        public string[] CategoryDescriptions { get; }
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer, [CanBeNull] CpuTensor<float> yBuffer);
         public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
@@ -138,12 +173,6 @@ namespace SharpNet.Datasets
             }
         }
 
-        /// <summary>
-        ///dimension of a single element in the training data (in shape (channels,height, width)
-        /// </summary>
-        public int[] InputShape_CHW => new[] { Channels, Height, Width };
-
-
         public static CpuTensor<float> ToXWorkingSet(CpuTensor<byte> x, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
         {
             var xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
@@ -170,17 +199,22 @@ namespace SharpNet.Datasets
         /// </summary>
         /// <param name="elementId">the index of element to retrieve (between 0 and Count-1) </param>
         /// <returns>a byte tensor containing the element at index 'elementId' </returns>
-        public virtual BitmapContent OriginalElementContent(int elementId)
+        public virtual BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth)
         {
-            var buffer = LoadSingleElement(elementId);
-            var bufferContent = buffer.ReadonlyContent;
+            var xBuffer = new CpuTensor<float>(new[] { 1, Channels, targetHeight, targetWidth });
+            LoadAt(elementId, 0, xBuffer, null);
+
+            var inputShape_CHW = new[]{Channels, targetHeight, targetWidth};
+
+            xBuffer.Reshape(inputShape_CHW); //from (1,c,h,w) shape to (c,h,w) shape
+            var bufferContent = xBuffer.ReadonlyContent;
 
 
-            var resultContent = new byte[Channels * Height * Width];
+            var resultContent = new byte[Channels * targetHeight * targetWidth];
             int idxInResultContent = 0;
-            var result = new BitmapContent(InputShape_CHW, resultContent);
+            var result = new BitmapContent(inputShape_CHW, resultContent);
 
-            int nbBytesByChannel = Height * Width;
+            int nbBytesByChannel = targetHeight * targetWidth;
             var isNormalized = IsNormalized;
             for (int channel = 0; channel < Channels; ++channel)
             {
@@ -210,16 +244,28 @@ namespace SharpNet.Datasets
         /// </summary>
         /// <param name="elementId"></param>
         /// <returns></returns>
-        public ImageStatistic ElementIdToImageStatistic(int elementId)
+        public ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
         {
-            return ImageStatistic.ValueOf(OriginalElementContent(elementId));
+            return ImageStatistic.ValueOf(OriginalElementContent(elementId, targetHeight, targetWidth));
         }
 
 
         public abstract int Count { get; }
         public string Name { get; }
+        public ResizeStrategyEnum ResizeStrategy { get; }
         public int Channels { get; }
-        public int CategoryCount { get; }
+        public int CategoryCount => CategoryDescriptions.Length;
+
+
+        public string CategoryDescription(int categoryIndex)
+        {
+            return CategoryDescriptions[categoryIndex];
+        }
+
+        public virtual string ElementIdToDescription(int elementId)
+        {
+            return elementId.ToString();
+        }
 
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel => _meanAndVolatilityForEachChannel;
         public double OriginalChannelMean(int channel)
@@ -240,8 +286,12 @@ namespace SharpNet.Datasets
         /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
         /// <returns>the associated category id, or -1 if the category is not known</returns>
         public abstract int ElementIdToCategoryIndex(int elementId);
-        public abstract int Height { get; }
-        public abstract int Width { get; }
+        public virtual string ElementIdToPathIfAny(int elementId)
+        {
+            return "";
+        }
+
+
         public int[] Y_Shape => new[] { Count, CategoryCount };
         public void Dispose()
         {
@@ -260,13 +310,9 @@ namespace SharpNet.Datasets
                 Thread.Sleep(1);
                 if (i + 1 == 1000)
                 {
-                    Logger.Info("fail to stop BackgroundThread in "+Name);
+                    Log.Info("fail to stop BackgroundThread in "+Name);
                 }
             }
-        }
-        public int[] XMiniBatch_Shape(int miniBatchSize)
-        {
-            return new[] { miniBatchSize, Channels, Height, Width };
         }
         public int[] YMiniBatch_Shape(int miniBatchSize)
         {
@@ -294,18 +340,46 @@ namespace SharpNet.Datasets
                                && (Y.Shape.Length == 2);
         }
         public abstract CpuTensor<float> Y { get; }
-        public void CreatePredictionFile(CpuTensor<float> prediction, string outputFile, string headerIfAny = null)
+        public void CreatePredictionFile(CpuTensor<float> prediction, string outputFile)
         {
-            var categories = prediction.ComputePrediction();
-            File.Delete(outputFile);
-            if (!string.IsNullOrEmpty(headerIfAny))
+            var predictedCategories = prediction.ComputePrediction();
+            var sb = new StringBuilder();
+
+            var headerColumn = new List<string>{"ElementId", "ElementDescription", "PredictedCategoryId", "PredictedCategoryDescription", "Correct?","ExpectedCategoryId", "ExpectedCategoryDescription"};
+            headerColumn.AddRange(CategoryDescriptions);
+            while (headerColumn.Count < 13)
             {
-                File.AppendAllText(outputFile, headerIfAny + Environment.NewLine);
+                headerColumn.Add(headerColumn.Count.ToString());
             }
+            headerColumn.Insert(11, "Path");
+            headerColumn.Insert(12, "Date");
+
+            sb.Append(string.Join(";",headerColumn)).Append(Environment.NewLine);
             for (int elementId = 0; elementId < Count; ++elementId)
             {
-                File.AppendAllText(outputFile, elementId + "," + categories[elementId] + Environment.NewLine);
+                var predictedCategoryId = predictedCategories[elementId];
+                var expectedCategoryId = ElementIdToCategoryIndex(elementId);
+                var elements = new List<string>
+                {
+                    elementId.ToString(), ElementIdToDescription(elementId),
+                    predictedCategoryId.ToString(), CategoryDescription(predictedCategoryId),
+                    predictedCategoryId == expectedCategoryId ? "OK" : "KO",
+                    expectedCategoryId.ToString(), CategoryDescription(expectedCategoryId)
+                };
+                for (var categoryIndex = 0; categoryIndex < CategoryDescriptions.Length; categoryIndex++)
+                {
+                    elements.Add(prediction.Get(elementId, categoryIndex).ToString(CultureInfo.InvariantCulture));
+                }
+                while (elements.Count < 13)
+                {
+                    elements.Add(elements.Count.ToString());
+                }
+                elements.Insert(11, ElementIdToPathIfAny(elementId));
+                elements.Insert(12, "");
+                sb.Append(string.Join(";", elements));
+                sb.Append(Environment.NewLine);
             }
+            File.WriteAllText(outputFile, sb.ToString());
         }
 
         protected static bool IsValidYSet(Tensor data)
@@ -313,38 +387,15 @@ namespace SharpNet.Datasets
             Debug.Assert(!data.UseGPU);
             return data.AsReadonlyFloatCpuContent.All(x => IsValidY(x));
         }
-        protected List<Tuple<float, float>> Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(float[] sumSumSquareCountForEachChannel)
-        {
-            const int DistinctValuesToComputeInEachChannel = 3; //sum + sumSquare + count
-            var result = new List<Tuple<float, float>>();
-            for (int channel = 0; channel < Channels; ++channel)
-            {
-                var sum = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel];
-                var sumSquare = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel + 1];
-                var count = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel + 2];
-                var mean = (sum / count);
-                var variance = (sumSquare / count) - mean * mean;
-                var volatility = (float)Math.Sqrt(Math.Max(0, variance));
-                Logger.Info("Mean and volatility for channel#" + channel + " : " + mean.ToString(CultureInfo.InvariantCulture) + " ; " + volatility.ToString(CultureInfo.InvariantCulture));
-                result.Add(Tuple.Create(mean, volatility));
-            }
-            return result;
-        }
         protected void UpdateStatus(ref int nbPerformed)
         {
             int delta = Math.Max(Count / 100, 1);
             var newNbPerformed = Interlocked.Increment(ref nbPerformed);
             if ((newNbPerformed % delta == 0) || (newNbPerformed == Count))
             {
-                Logger.Info("Done: " + (100 * newNbPerformed) / Count + "%");
+                Log.Info("Done: " + (100 * newNbPerformed) / Count + "%");
             }
         }
-        protected void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(int elementId, float[] _sum_SumSquare_Count_For_Each_Channel, bool ignoreZeroPixel, ref int nbPerformed)
-        {
-            UpdateStatus(ref nbPerformed);
-            OriginalElementContent(elementId).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, ignoreZeroPixel);
-        }
-
         /// <summary>
         /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the mini batch starting
         /// at 'firstIndexInShuffledElementId'
@@ -360,6 +411,7 @@ namespace SharpNet.Datasets
             DataAugmentationConfig dataAugmentationConfig,
             int[] xMiniBatchShape, int[] yMiniBatchShape)
         {
+            Debug.Assert(Channels == xMiniBatchShape[1]);
             var miniBatchSize = xMiniBatchShape[0];
 
             var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, miniBatchSize);
@@ -383,7 +435,9 @@ namespace SharpNet.Datasets
 
             Debug.Assert(AreCompatible_X_Y(xDataAugmentedMiniBatch, yDataAugmentedMiniBatch));
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
-            ImageStatistic MiniBatchIdxToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx));
+            int targetHeight = xMiniBatchShape[2];
+            int targetWidth = xMiniBatchShape[3];
+            ImageStatistic MiniBatchIdxToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth);
 
     
 
@@ -466,18 +520,6 @@ namespace SharpNet.Datasets
         private static bool IsValidY(double x)
         {
             return Math.Abs(x) <= 1e-9 || Math.Abs(x - 1.0) <= 1e-9;
-        }
-        /// <summary>
-        /// return the element at index 'elementId'
-        /// </summary>
-        /// <param name="elementId">index of the element to load (between 0 and Count-1) </param>
-        /// <returns>the element at index 'elementId'</returns>
-        private CpuTensor<float> LoadSingleElement(int elementId)
-        {
-            var xBuffer = new CpuTensor<float>(new[] { 1, Channels, Height, Width });
-            LoadAt(elementId, 0, xBuffer, null);
-            xBuffer.Reshape(InputShape_CHW);
-            return xBuffer;
         }
 
         private Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)

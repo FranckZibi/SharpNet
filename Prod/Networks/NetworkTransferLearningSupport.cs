@@ -16,13 +16,13 @@ namespace SharpNet.Networks
         /// <param name="newCategoryCount">the target number of categories</param>
         public void SetCategoryCount(int newCategoryCount)
         {
-            if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer &&
-                Layers[Layers.Count - 2] is DenseLayer)
+            Log.Info("setting number of output categoryCount to " + newCategoryCount);
+            if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is DenseLayer)
             {
                 var denseLayer = (DenseLayer) Layers[Layers.Count - 2];
                 if (denseLayer.CategoryCount == newCategoryCount)
                 {
-                    Info("no need to set the CategoryCount to " + newCategoryCount);
+                    Log.Info("no need to set the CategoryCount to " + newCategoryCount);
                     return; //already at target category count
                 }
 
@@ -38,7 +38,7 @@ namespace SharpNet.Networks
                 RemoveAndDisposeLastLayer();
 
                 //We add a new DenseLayer (with weight reseted)
-                Info("Resetting weights of layer " + denseLayerName + " to have " + newCategoryCount + " categories");
+                Log.Info("Resetting weights of layer " + denseLayerName + " to have " + newCategoryCount + " categories");
                 Dense(newCategoryCount, lambdaL2Regularization, denseLayerName);
 
                 //we put back the ActivationLayer
@@ -85,8 +85,8 @@ namespace SharpNet.Networks
                 lastLayerIndexToFreeze = LastLayerIndex;
             }
 
-            Info("Freezing " + (lastLayerIndexToFreeze - firstLayerIndexToFreeze + 1) + " layers (between " +
-                 Layers[firstLayerIndexToFreeze].LayerName + " and " + Layers[lastLayerIndexToFreeze].LayerName + ")");
+            Log.Info("Freezing " + (lastLayerIndexToFreeze - firstLayerIndexToFreeze + 1) + " layers (between " +
+                     Layers[firstLayerIndexToFreeze].LayerName + " and " + Layers[lastLayerIndexToFreeze].LayerName + ")");
             for (int layerIndex = 0; layerIndex < Layers.Count; ++layerIndex)
             {
                 var layer = Layers[layerIndex];

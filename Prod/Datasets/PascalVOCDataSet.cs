@@ -14,50 +14,24 @@ namespace SharpNet.Datasets
     public class PascalVOCDataSet : AbstractDataSet
     {
         private readonly DirectoryDataSet _directoryDataSet;
-        private readonly List<PascalVOCImageDescription> _annotations = new List<PascalVOCImageDescription>();
+        private readonly List<PascalVOCImageDescription> _annotations;
 
-        public static readonly string[] CategoryIndexToDescription = new[]
+        public static readonly string[] _CategoryIndexToDescription = new[]
         {
             "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
             "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"
         };
 
-        private PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel) : base(subDirectory, 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel)
+        private PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base(subDirectory, 3, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy)
         {
-            var annotationsDirection = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
-            var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
             Y = null;
-            _directoryDataSet = new DirectoryDataSet(annotationsDirection, dataDirectory, subDirectory, Channels, -1, -1, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, false,
-                (a, b, c, d, e) => DefaultCompute_CategoryIndex_Description_FullName(a, b, c, d, e, _annotations));
-        }
-
-        public static PascalVOCDataSet PascalVOC2007()
-        {
-            var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(114.31998f, 70.2124f), Tuple.Create(108.32131f, 69.44353f), Tuple.Create(99.885704f, 72.41173f) };
-            return new PascalVOCDataSet("VOCdevkit2007", "VOC2007", meanAndVolatilityOfEachChannel);
-        }
-        public static PascalVOCDataSet PascalVOC2012()
-        {
-            var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(114.79079f, 70.890755f), Tuple.Create(109.19967f, 69.943886f), Tuple.Create(101.14191f, 72.790565f) };
-            return new PascalVOCDataSet("VOCdevkit2012", "VOC2012", meanAndVolatilityOfEachChannel);
-        }
-
-
-        private static void DefaultCompute_CategoryIndex_Description_FullName(
-            string annotationsDirectory,
-            string dataDirectory,
-            List<int> elementIdToCategoryIndex,
-            List<string> elementIdToDescription,
-            List<List<string>> elementIdToSubPath,
-            List<PascalVOCImageDescription> pascalVOCImageDescriptions
-            )
-        {
-            elementIdToCategoryIndex.Clear();
-            elementIdToDescription.Clear();
-            elementIdToSubPath.Clear();
-            pascalVOCImageDescriptions.Clear();
+            var annotationsDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
+            var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
+            var elementIdToCategoryIndex = new List<int>();
+            var elementIdToDescription = new List<string>();
+            var elementIdToPaths = new List<List<string>>();
+            _annotations  = new List<PascalVOCImageDescription>();
             var missingAnnotations = new List<string>();
-
             var allFiles = new DirectoryInfo(dataDirectory).GetFiles().OrderBy(f => f.Name).ToArray();
             var pascalVOCImageDescriptionsArray = new PascalVOCImageDescription[allFiles.Length];
             void ProcessSingleElement(int elementIndex)
@@ -81,7 +55,7 @@ namespace SharpNet.Datasets
             if (missingAnnotations.Any())
             {
                 var errorMsg = missingAnnotations.Count+ " file(s) with missing annotation (ignoring all of them) " +Environment.NewLine + "First 5:"+Environment.NewLine + string.Join(Environment.NewLine, missingAnnotations.Take(5));
-                Logger.Info(errorMsg);
+                Log.Info(errorMsg);
             }
 
             for (int i = 0; i < allFiles.Length; ++i)
@@ -90,14 +64,28 @@ namespace SharpNet.Datasets
                 {
                     continue;
                 }
-                var subPath = allFiles[i].Name;
-                elementIdToSubPath.Add(new List<string> { subPath });
-                elementIdToDescription.Add(Path.GetFileNameWithoutExtension(subPath));
-                pascalVOCImageDescriptions.Add(pascalVOCImageDescriptionsArray[i]);
+                elementIdToPaths.Add(new List<string> { allFiles[i].FullName });
+                elementIdToDescription.Add(Path.GetFileNameWithoutExtension(allFiles[i].Name));
+                _annotations.Add(pascalVOCImageDescriptionsArray[i]);
                 elementIdToCategoryIndex.Add(-1); //the category index of each object in the image can be found in the 'annotation' above
             }
+
+            _directoryDataSet = new DirectoryDataSet(
+                    elementIdToPaths, elementIdToDescription, elementIdToCategoryIndex
+                    , subDirectory, Channels, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize);
         }
 
+        public static PascalVOCDataSet PascalVOC2007()
+        {
+            var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(114.31998f, 70.2124f), Tuple.Create(108.32131f, 69.44353f), Tuple.Create(99.885704f, 72.41173f) };
+            return new PascalVOCDataSet("VOCdevkit2007", "VOC2007", meanAndVolatilityOfEachChannel, ResizeStrategyEnum.None);
+        }
+        public static PascalVOCDataSet PascalVOC2012()
+        {
+            var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(114.79079f, 70.890755f), Tuple.Create(109.19967f, 69.943886f), Tuple.Create(101.14191f, 72.790565f) };
+            return new PascalVOCDataSet("VOCdevkit2012", "VOC2012", meanAndVolatilityOfEachChannel, ResizeStrategyEnum.None);
+        }
+    
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
             Debug.Assert(xBuffer.Shape[0] == yBuffer?.Shape[0]);
@@ -111,17 +99,7 @@ namespace SharpNet.Datasets
         {
             throw new ArgumentException("several categories may be associated with a single image");
         }
-
-
-        /// <summary>
-        /// in Pascal VOC dataSet, each element may have different height
-        /// </summary>
-        public override int Height => -1;
         public int ElementIdToHeight(int elementId) { return _annotations[elementId].Height; }
-        /// <summary>
-        /// in Pascal VOC dataSet, each element may have different width
-        /// </summary>
-        public override int Width => -1;
         public int ElementIdToWidth(int elementId) { return _annotations[elementId].Width; }
         public override CpuTensor<float> Y { get; }
     }

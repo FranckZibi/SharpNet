@@ -209,7 +209,7 @@ namespace SharpNet.Networks
                         if (param == null)
                         {
                             var errorMsg = "null parameters for " + slave._slaveStatus;
-                            slave.Info(errorMsg);
+                            Log.Info(errorMsg);
                             throw new ArgumentException(errorMsg);
                         }
                         slave.MiniBatchGradientDescentForSlave(param.Item1, param.Item2, param.Item3, param.Item4);
@@ -218,9 +218,9 @@ namespace SharpNet.Networks
                         break;
                     case SLAVE_NETWORK_STATUS.TO_ABORT:
                         slave._spInternalFit.Stop();
-                        slave.LogDebug("stopping thread for network " + slave.Description);
-                        slave.LogDebug(slave.MemoryInfo());
-                        slave.LogDebug(slave.LayersKpi());
+                        Log.Debug("stopping thread for network " + slave.Description);
+                        Log.Debug(slave.MemoryInfo());
+                        Log.Debug(slave.LayersKpi());
                         slave.Dispose();
                         slave._slaveStatus = SLAVE_NETWORK_STATUS.DISPOSED;
                         return;

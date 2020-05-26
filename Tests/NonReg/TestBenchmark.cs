@@ -121,8 +121,7 @@ namespace SharpNetTests.NonReg
 
             var network = new Network(new NetworkConfig() { LogFile = "GPUBenchmark", DisableReduceLROnPlateau =true}.WithAdam(), new List<int> {0});
             network
-                .Input(mnist.Training.Channels, mnist.Training.Height, mnist.Training.Width)
-
+                .Input(MNISTDataSet.Shape_CHW)
                 .Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)

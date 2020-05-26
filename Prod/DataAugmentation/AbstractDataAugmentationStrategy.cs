@@ -215,14 +215,22 @@ namespace SharpNet.DataAugmentation
             return new HorizontalFlip(NbCols);
         }
 
-        //protected Operation VerticalFlip(double probability)
-        //{
-        //    if (!IsEnabled(probability, _rand))
-        //    {
-        //        return null;
-        //    }
-        //    return new VerticalFlip(NbCols);
-        //}
+        protected Operation VerticalFlip(double probability)
+        {
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
+            {
+                return null;
+            }
+            return new VerticalFlip(NbCols);
+        }
+        protected Operation Rotate180Degrees(double probability)
+        {
+            if (!ImageDataGenerator.IsEnabled(probability, _rand))
+            {
+                return null;
+            }
+            return new Rotate180Degrees(NbRows, NbCols);
+        }
 
         /// <summary>
         /// Invert all pixels strictly above a threshold value of magnitude

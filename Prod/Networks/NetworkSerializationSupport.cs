@@ -65,7 +65,7 @@ namespace SharpNet.Networks
                     h5File.Write(p.Key, p.Value);
                 }
             }
-            Info("Network Parameters '" + Description + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");
+            Log.Info("Network Parameters '" + Description + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");
         }
 
         /// <summary>
@@ -83,15 +83,15 @@ namespace SharpNet.Networks
             var elementMissingInH5Files = networkParametersKeys.Except(h5FileParameters.Keys).ToList();
             if (elementMissingInH5Files.Count != 0)
             {
-                Info(elementMissingInH5Files.Count + " parameters are missing in file " + h5FilePath + ": " +
-                     string.Join(", ", elementMissingInH5Files));
+                Log.Info(elementMissingInH5Files.Count + " parameters are missing in file " + h5FilePath + ": " +
+                         string.Join(", ", elementMissingInH5Files));
             }
 
             var elementMissingInNetwork = h5FileParameters.Keys.Except(networkParametersKeys).ToList();
             if (elementMissingInNetwork.Count != 0)
             {
-                Info(elementMissingInNetwork.Count + " parameters are missing in network " + h5FilePath + ": " +
-                     string.Join(", ", elementMissingInNetwork));
+                Log.Info(elementMissingInNetwork.Count + " parameters are missing in network " + h5FilePath + ": " +
+                         string.Join(", ", elementMissingInNetwork));
             }
         }
 
@@ -125,7 +125,7 @@ namespace SharpNet.Networks
                 File.AppendAllLines(modelFilePath, new[] { l.Serialize() });
             }
 
-            Info("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
+            Log.Info("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
         }
     }
 }

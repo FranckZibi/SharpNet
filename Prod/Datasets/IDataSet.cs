@@ -76,29 +76,25 @@ namespace SharpNet.Datasets
         /// <returns>index of the associated category (between 0 and 'CategoryCount-1')</returns>
         int ElementIdToCategoryIndex(int elementId);
 
-        ImageStatistic ElementIdToImageStatistic(int elementId);
+        string ElementIdToDescription(int elementId);
+        string ElementIdToPathIfAny(int elementId);
+
+        string CategoryDescription(int categoryIndex);
+
+        ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth);
 
         /// <summary>
         /// number of channels of each elements
         /// </summary>
         int Channels { get; }
-        /// <summary>
-        /// Current height of elements to load
-        /// </summary>
-        int Height { get; }
-        /// <summary>
-        /// Current width of elements to load
-        /// </summary>
-        int Width { get; }
-
-        int[] InputShape_CHW {get;}
         int[] Y_Shape { get; }
-        int[] XMiniBatch_Shape(int miniBatchSize);
         int[] YMiniBatch_Shape(int miniBatchSize);
         CpuTensor<float> Y { get; }
 
         string Name { get; }
 
-        void CreatePredictionFile(CpuTensor<float> prediction, string outputFile, string headerIfAny = null);
+        ResizeStrategyEnum ResizeStrategy { get; }
+
+        void CreatePredictionFile(CpuTensor<float> prediction, string outputFile);
     }
 }

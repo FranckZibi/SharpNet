@@ -14,19 +14,13 @@ namespace SharpNetTests.Pictures
             const float epsilon = 1e-6f;
             var bc = new BitmapContent(new[]{1,1,1}, new byte[]{0});
             var _sum_SumSquare_Count_For_Each_Channel = new float[3 * bc.GetChannels()];
-            bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, false);
+            bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
             AssertAreEqual(new float[]{0,0,1}, _sum_SumSquare_Count_For_Each_Channel, epsilon);
-            _sum_SumSquare_Count_For_Each_Channel = new float[3 * bc.GetChannels()];
-            bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, true);
-            AssertAreEqual(new float[] { 0, 0, 0 }, _sum_SumSquare_Count_For_Each_Channel, epsilon);
 
             bc = new BitmapContent(new[] { 3, 2, 2 }, new byte[] { 0,0,0,0 ,1,1,0,0, 2,0,2,0 });
             _sum_SumSquare_Count_For_Each_Channel = new float[3 * bc.GetChannels()];
-            bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, false);
+            bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
             AssertAreEqual(new float[] { 0,0,4, 2,2,4, 4,8,4 }, _sum_SumSquare_Count_For_Each_Channel, epsilon);
-            _sum_SumSquare_Count_For_Each_Channel = new float[3 * bc.GetChannels()];
-            bc.UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel, true);
-            AssertAreEqual(new float[] { 0,0,3, 2,2,3, 4,8, 3 }, _sum_SumSquare_Count_For_Each_Channel, epsilon);
         }
 
         [Test]

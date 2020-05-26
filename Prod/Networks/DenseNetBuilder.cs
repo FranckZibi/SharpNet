@@ -62,11 +62,11 @@ namespace SharpNet.Networks
             return builder;
         }
 
-        public Network DenseNet_12_40(AbstractTrainingAndTestDataSet dataSet)
+        public Network DenseNet_12_40(CIFAR10DataSet dataSet)
         {
             return Build(
                 nameof(DenseNet_12_40) + "_" + dataSet.Name,
-                new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
+                new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2]},
                 dataSet.CategoryCount,
                 false,
                 new[] { 12, 12, 12 },
@@ -75,11 +75,11 @@ namespace SharpNet.Networks
                 1.0,
                 null);
         }
-        public Network DenseNetBC_12_100(AbstractTrainingAndTestDataSet dataSet)
+        public Network DenseNetBC_12_100(CIFAR10DataSet dataSet)
         {
             return Build(
                 nameof(DenseNetBC_12_100) + "_" + dataSet.Name,
-                new[] { 1, dataSet.Channels, dataSet.Height, dataSet.Width },
+                new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2] },
                 dataSet.CategoryCount,
                 false,
                 new[] { 32 / 2, 32 / 2, 32 / 2 },
@@ -102,7 +102,7 @@ namespace SharpNet.Networks
         /// <param name="compression"> 1.0 = no compression</param>
         /// <param name="dropProbability"></param>
         /// <returns></returns>
-        public Network Build(
+        private Network Build(
             string networkName,
             int[] xShape, 
             int categoryCount,

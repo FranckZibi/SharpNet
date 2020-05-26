@@ -10,16 +10,21 @@ namespace SharpNet.DataAugmentation
         private const float MAGNITUDE_MAX = 9f;
         private readonly double _widthShiftRangeInPercentage;
         private readonly double _heightShiftRangeInPercentage;
+        private readonly bool _horizontalFlip;
+        private readonly bool _verticalFlip;
+        private readonly bool _rotate180Degrees;
 
         public AutoAugment(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel, ImageStatistic stats, Random rand,
             double widthShiftRangeInPercentage, double heightShiftRangeInPercentage, double cutoutPatchPercentage,
-            double alphaCutMix, double alphaMixup) : base(indexInMiniBatch, xOriginalMiniBatch,
-            meanAndVolatilityForEachChannel, stats, rand, 
-            cutoutPatchPercentage, alphaCutMix, alphaMixup)
+            double alphaCutMix, double alphaMixup, bool horizontalFlip, bool verticalFlip, bool rotate180Degrees) : 
+            base(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)
         {
             _widthShiftRangeInPercentage = widthShiftRangeInPercentage;
             _heightShiftRangeInPercentage = heightShiftRangeInPercentage;
+            _horizontalFlip = horizontalFlip;
+            _verticalFlip = verticalFlip;
+            _rotate180Degrees = rotate180Degrees;
         }
 
         public List<Operation> GetSubPolicyCifar10()
@@ -127,7 +132,9 @@ namespace SharpNet.DataAugmentation
                             {
                                 Operations.TranslateX.ValueOf(_widthShiftRangeInPercentage, _rand, NbCols),
                                 Operations.TranslateY.ValueOf(_heightShiftRangeInPercentage, _rand, NbRows),
-                                HorizontalFlip(0.5),
+                                HorizontalFlip(_horizontalFlip?0.5:0.0),
+                                VerticalFlip(_verticalFlip?0.5:0.0),
+                                Rotate180Degrees(_rotate180Degrees?0.5:0.0),
                                 op1,
                                 op2,
                                 CutMix.ValueOf(_alphaCutMix, _indexInMiniBatch, _xOriginalMiniBatch, _rand),

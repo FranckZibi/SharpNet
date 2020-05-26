@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using SharpNet.CPU;
 using SharpNet.Data;
@@ -46,7 +47,8 @@ namespace SharpNetTests
         public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
-            using var trainingDataSet = new InMemoryDataSet(X, Y, Y_to_Categories(Y), "", null);
+            var categories = Enumerable.Range(0, Y.Shape[1]).Select(i => i.ToString()).ToArray();
+            using var trainingDataSet = new InMemoryDataSet(X, Y, Y_to_Categories(Y), categories, "", null);
             var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
             network.Fit(trainingDataSet, learningRateComputer, numEpochs, batchSize, testDataSet);
         }
