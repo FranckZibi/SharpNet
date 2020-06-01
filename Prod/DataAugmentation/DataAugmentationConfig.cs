@@ -127,6 +127,7 @@ namespace SharpNet.DataAugmentation
         /// </summary>
         public int RandAugment_M { get; set; } = 0;
 
+        // ReSharper disable once UnusedMember.Global
         public void WithRandAugment(int N, int M)
         {
             DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.RAND_AUGMENT;

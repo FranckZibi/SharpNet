@@ -15,7 +15,7 @@ namespace SharpNet.DataAugmentation
         private readonly bool _rotate180Degrees;
 
         public AutoAugment(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel, ImageStatistic stats, Random rand,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
             double widthShiftRangeInPercentage, double heightShiftRangeInPercentage, double cutoutPatchPercentage,
             double alphaCutMix, double alphaMixup, bool horizontalFlip, bool verticalFlip, bool rotate180Degrees) : 
             base(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)

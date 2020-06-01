@@ -34,7 +34,7 @@ namespace SharpNet.DataAugmentation
         private List<Operation> GetSubPolicy(int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
-            Func<int, ImageStatistic> indexInOriginalMiniBatchToImageStatistic,
+            Func<int, Lazy<ImageStatistic>> indexInOriginalMiniBatchToImageStatistic,
             Random rand)
         {
             Debug.Assert(_config.WidthShiftRangeInPercentage >= 0);
@@ -72,9 +72,9 @@ namespace SharpNet.DataAugmentation
                     Debug.Assert(_config.Rotate180Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 0, 1.0, _config.HorizontalFlip, _config.VerticalFlip, _config.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
-                    Debug.Assert(_config.HorizontalFlip == true);
+                    //Debug.Assert(_config.HorizontalFlip == true);
                     Debug.Assert(_config.VerticalFlip == false);
-                    Debug.Assert(_config.Rotate180Degrees == false);
+                    //Debug.Assert(_config.Rotate180Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _config.HorizontalFlip, _config.VerticalFlip, _config.Rotate180Degrees).GetSubPolicyImageNet();
                 case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
                     Debug.Assert(_config.HorizontalFlip == false);
@@ -95,12 +95,12 @@ namespace SharpNet.DataAugmentation
             int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
-            Func<int, ImageStatistic> indexInMiniBatchToImageStatistic,
+            Func<int, Lazy<ImageStatistic>> indexInMiniBatchToImageStatistic,
             Random rand)
         {
             var result = new List<Operation>();
 
-            var lazyStats = new Lazy<ImageStatistic>(() => indexInMiniBatchToImageStatistic(indexInMiniBatch));
+            var lazyStats = indexInMiniBatchToImageStatistic(indexInMiniBatch);
 
             var nbRows = xOriginalMiniBatch.Shape[2];
             var nbCols = xOriginalMiniBatch.Shape[3];
@@ -178,7 +178,7 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> xDataAugmentedMiniBatch, 
             CpuTensor<float> yDataAugmentedMiniBatch,
             Func<int, int> indexInOriginalMiniBatchToCategoryIndex,
-            Func<int, ImageStatistic> indexInOriginalMiniBatchToImageStatistic,
+            Func<int, Lazy<ImageStatistic>> indexInOriginalMiniBatchToImageStatistic,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             Random rand,
             CpuTensor<float> xBufferForDataAugmentedMiniBatch //a temporary buffer used in the mini batch

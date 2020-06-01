@@ -11,7 +11,7 @@ namespace SharpNet.DataAugmentation
         protected readonly int _indexInMiniBatch;
         protected readonly CpuTensor<float> _xOriginalMiniBatch;
         private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
-        private readonly ImageStatistic _stats;
+        private readonly Lazy<ImageStatistic> _stats;
         protected readonly Random _rand;
         protected readonly double _cutoutPatchPercentage;
         protected readonly double _alphaCutMix;
@@ -19,7 +19,7 @@ namespace SharpNet.DataAugmentation
         protected int NbRows => _xOriginalMiniBatch.Shape[2];
         protected int NbCols => _xOriginalMiniBatch.Shape[3];
         protected AbstractDataAugmentationStrategy(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel, ImageStatistic stats, Random rand,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
             double cutoutPatchPercentage, double alphaCutMix, double alphaMixup)
         {
             Debug.Assert(stats != null);
@@ -183,7 +183,7 @@ namespace SharpNet.DataAugmentation
             {
                 return null;
             }
-            var threshold = _stats.GetPixelThresholdByChannel(0);
+            var threshold = _stats.Value.GetPixelThresholdByChannel(0);
             return new AutoContrast(threshold, _meanAndVolatilityForEachChannel);
         }
 
@@ -287,7 +287,7 @@ namespace SharpNet.DataAugmentation
                 return null;
             }
             var enhancementFactor = MagnitudeToRange(magnitudePercentage, 1, 1.9f, true);
-            var greyMean = _stats.GreyMean(_meanAndVolatilityForEachChannel);
+            var greyMean = _stats.Value.GreyMean(_meanAndVolatilityForEachChannel);
             return new Contrast(enhancementFactor, greyMean);
         }
 
@@ -366,7 +366,7 @@ namespace SharpNet.DataAugmentation
                 return null;
             }
 
-            return new Equalize(Operations.Equalize.GetOriginalPixelToEqualizedPixelByChannel(_stats), _meanAndVolatilityForEachChannel);
+            return new Equalize(Operations.Equalize.GetOriginalPixelToEqualizedPixelByChannel(_stats.Value), _meanAndVolatilityForEachChannel);
         }
 
 

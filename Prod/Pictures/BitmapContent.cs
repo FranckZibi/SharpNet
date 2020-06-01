@@ -12,6 +12,7 @@ namespace SharpNet.Pictures
 {
     public class BitmapContent : CpuTensor<byte>
     {
+
         /// <summary>
         /// Load a RGB bitmap (with 3 channels)
         /// </summary>
@@ -114,8 +115,18 @@ namespace SharpNet.Pictures
             }
         }
 
+        public RGBColor AverageColor(RGBColorFactoryWithCache cache)
+        {
+            var acc = new ColorAccumulator();
+            Debug.Assert(3 == Shape[0]);
+            var content = SpanContent;
+            for (int i = 0; i < MultDim0; ++i)
+            {
+                acc.Add(cache.Build(content[i], content[i+MultDim0], content[i + 2*MultDim0]));
+            }
+            return acc.Average;
+        }
 
-      
         /// <summary>
         /// Compute Sum / Sum^2 / Count of each channel.
         /// THis will be used to compute Mean/Volatility of each channel
@@ -438,17 +449,20 @@ namespace SharpNet.Pictures
             var result = new BitmapContent(shape, null);
             var stride = bmpData.Stride;
 
+            var resultContent = result.SpanContent;
+
             unsafe
             {
                 var imgPtr = (byte*)(bmpData.Scan0);
-
+                int i = 0;
                 for (int row = 0; row < height; row++)
                 {
                     for (int col = 0; col < width; col++)
                     {
-                        result.Set(0,row, col, *(imgPtr + 2)); //R
-                        result.Set(1,row, col, *(imgPtr + 1)); //G
-                        result.Set(2,row, col, *(imgPtr + 0)); //B
+                        resultContent[i] = *(imgPtr + 2); //R
+                        resultContent[i + result.MultDim0] = *(imgPtr + 1); //G
+                        resultContent[i + 2 * result.MultDim0] = *(imgPtr + 0); //B
+                        ++i;
                         imgPtr += 3;
                     }
                     imgPtr += stride - width * 3;
@@ -457,6 +471,49 @@ namespace SharpNet.Pictures
             // Unlock the bits.
             bmp.UnlockBits(bmpData);
             return result;
+        }
+
+        public bool IsDuplicate(BitmapContent b, double epsilon, RGBColorFactoryWithCache cache)
+        {
+            if (Count > b.Count)
+            {
+                return b.IsDuplicate(this, epsilon, cache);
+            }
+
+            var a = this;
+            Debug.Assert(Count<=b.Count);
+            int aIndex = 0;
+            int aHeight = a.Shape[1];
+            int aWidth = a.Shape[2];
+            int bHeight = b.Shape[1];
+            int bWidth = b.Shape[2];
+
+            var aContent = a.SpanContent;
+            var bContent = b.SpanContent;
+
+            double distanceSum = 0;
+
+
+            for (int aRow = 0; aRow < aHeight; aRow++)
+            {
+                int bRow = Math.Min((aRow * bHeight) / aHeight, bHeight - 1);
+                for (int aCol = 0; aCol < aWidth; aCol++)
+                {
+                    var aColor = cache.Build(aContent[aIndex], aContent[aIndex + a.MultDim0], aContent[aIndex + 2 * a.MultDim0]);
+                    int bCol = Math.Min((aCol * bWidth) / aWidth, bWidth - 1);
+                    var bIndex = bCol + bRow * bWidth;
+                    var bColor = cache.Build(bContent[bIndex], bContent[bIndex + b.MultDim0], bContent[bIndex + 2 * b.MultDim0]);
+                    ++aIndex;
+                    distanceSum += aColor.ColorDistance(bColor);
+                    double currentAvgDistance = distanceSum / aIndex;
+                    if (aIndex > 100 && currentAvgDistance > 5 * epsilon)
+                    {
+                        return false;
+                    }
+                }
+            }
+            double avgDistance = distanceSum / aIndex;
+            return avgDistance < epsilon;
         }
     }
 }

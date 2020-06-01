@@ -176,7 +176,7 @@ namespace SharpNet.GPU
                 invertOfUnbiasedVolatilityBuffer);
             CheckStatus(res);
         }
-        public override void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y)
+        public override void ActivationForward(cudnnActivationMode_t activationType, Tensor activationParameter, Tensor y)
         {
             AssertIsNotDisposed();
             y.AssertIsNotDisposed();
@@ -196,16 +196,25 @@ namespace SharpNet.GPU
             {
                 res = CudnnWrapper.cudnnSoftmaxForward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, xDesc, x, zero, yDesc, y);
             }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY)
+            {
+                Debug.Assert(activationParameter != null);
+                Debug.Assert(activationParameter.UseGPU);
+                x.CopyTo(y);
+                _wrapper.RunKernel("ComputeSoftmaxWithHierarchy", y.Shape[0], new object[] { y.MultDim0, activationParameter, y});
+                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
+            }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
                 var activationDes = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDes, one, xDesc, x, zero, yDesc, y);
-                y.AddTensor((float)alphaActivation, x, 1- (float)alphaActivation);
+                var alphaActivation = activationParameter.AsReadonlyFloatCpuContent[0];
+                y.AddTensor(alphaActivation, x, 1- alphaActivation);
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
                 // y = x * sigmoid(x) 
-                ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, alphaActivation, y);
+                ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, activationParameter, y);
                 y.Update_Multiply_By_x(this);
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
@@ -216,10 +225,10 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
-        public override void ActivationBackward(cudnnActivationMode_t activationType, double alphaActivation, Tensor dy, Tensor x, Tensor y)
+        public override void ActivationBackward(cudnnActivationMode_t activationType, Tensor activationParameter, Tensor dy, Tensor x, Tensor y)
         {
             var dx = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {dx, dy, x, y}));
+            Debug.Assert(AreCompatible(new List<Tensor> {dx, dy, x, y }));
             Debug.Assert(dx.SameShape(dy, x, y));
             var dxDesc = TensorDesc(dx);
             var dyDesc = dxDesc;
@@ -235,11 +244,20 @@ namespace SharpNet.GPU
             {
                 res = CudnnWrapper.cudnnSoftmaxBackward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, yDesc, y, dyDesc, dy, zero, dxDesc, dx);
             }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY)
+            {
+                Debug.Assert(activationParameter != null);
+                Debug.Assert(activationParameter.UseGPU);
+                Debug.Assert(dx.MultDim0 == activationParameter.Count);
+                _wrapper.RunKernel("ComputeSoftmaxGradientWitHierarchy", dx.Count, new object[] { dx.MultDim0, activationParameter, y, dy, dx});
+                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
+            }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
                 var activationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
-                dx.AddTensor((float)alphaActivation, dy, 1 - (float)alphaActivation);
+                var alphaActivation = activationParameter.AsReadonlyFloatCpuContent[0];
+                dx.AddTensor(alphaActivation, dy, 1 - alphaActivation);
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
@@ -531,36 +549,37 @@ namespace SharpNet.GPU
         /// this = yExpectedOneHot
         /// </summary>
         /// <param name="yPredicted"></param>
+        /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public override double ComputeAccuracy(Tensor yPredicted, Tensor buffer)
+        public override double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
-            var yExpectedOneHot = this;
-            Debug.Assert(AreCompatible(new List<Tensor> {yExpectedOneHot, yPredicted}));
+            var yExpected = this;
+            Debug.Assert(AreCompatible(new List<Tensor> {yExpected, yPredicted}));
             Debug.Assert(yPredicted != null);
             Debug.Assert(buffer != null);
-            Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
-            Debug.Assert(yExpectedOneHot.Dimension == 2);
-            int nbRows = yExpectedOneHot.Shape[0];
-            var categoryCount = yExpectedOneHot.MultDim0;
-            _wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
-            var countOk = (int) buffer.ContentAsFloatArray().Sum();
-            return ((double)countOk) / Shape[0];
+            Debug.Assert(buffer.Shape.Length == 1);
+            Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(yExpected.Dimension == 2);
+            int nbRows = yExpected.Shape[0];
+            var nbCols = yExpected.Shape[1];
+            var kernelName = (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
+                ? "ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy"
+                : "ComputeAccuracy";
+            _wrapper.RunKernel(kernelName, nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
+            return buffer.ContentAsFloatArray().Average();
         }
-        public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor buffer)
+
+        public override void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted)
         {
-            var categoryIndexes = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { categoryIndexes, yPredicted }));
-            Debug.Assert(yPredicted != null);
-            Debug.Assert(buffer != null);
-            Debug.Assert(categoryIndexes.Dimension == 1);
-            int nbRows = yPredicted.Shape[0];
-            var categoryCount = yPredicted.Shape[1];
-            Debug.Assert(categoryIndexes.Shape[0] == nbRows);
-            _wrapper.RunKernel("ComputeAccuracyFromCategoryIndexes", nbRows, new object[] { categoryCount, buffer, categoryIndexes, yPredicted });
-            var countOk = (int)buffer.ContentAsFloatArray().Sum();
-            return ((double)countOk) / Shape[0];
+            var loss = this;
+            int nbRows = yExpected.Shape[0];
+            var nbCols = yExpected.Shape[1];
+            loss.ZeroMemory();
+            _wrapper.RunKernel("ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
         }
+
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
@@ -578,35 +597,15 @@ namespace SharpNet.GPU
             Debug.Assert(yExpectedOneHot.Dimension == 2);
             var kernelName = (lossFunction == NetworkConfig.LossFunctionEnum.BinaryCrossentropy)
                 ? "ComputeBinaryCrossentropyLoss"
-                : "ComputeCategoricalCrossentropyLoss";
+                :(lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy
+                ? "ComputeLossForCategoricalCrossentropyWithHierarchy"
+                : "ComputeCategoricalCrossentropyLoss");
             int nbRows = yExpectedOneHot.Shape[0];
             var categoryCount = yExpectedOneHot.Shape[1];
             _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
-            return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
+            return buffer.ContentAsFloatArray().Average();
         }
-        /// <summary>
-        /// this = expected Category Indexes
-        /// </summary>
-        /// <param name="yPredicted"></param>
-        /// <param name="lossFunction"></param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        public override double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
-        {
-            var categoryIndexes = this;
-            int nbRows = yPredicted.Shape[0];
-            Debug.Assert(AreCompatible(new List<Tensor> { categoryIndexes, yPredicted }));
-            Debug.Assert(yPredicted != null);
-            Debug.Assert(buffer != null);
-            Debug.Assert(categoryIndexes.Dimension == 1);
-            Debug.Assert(nbRows == categoryIndexes.Shape[0]);
-            var kernelName = (lossFunction == NetworkConfig.LossFunctionEnum.BinaryCrossentropy)
-                ? "ComputeBinaryCrossentropyLossFromCategoryIndexes"
-                : "ComputeCategoricalCrossentropyLossFromCategoryIndexes";
-            var categoryCount = yPredicted.Shape[1];
-            _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, categoryIndexes, yPredicted });
-            return ((double)buffer.ContentAsFloatArray().Sum() / nbRows);
-        }
+
         public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU) 
         {
             var x = this;

@@ -41,9 +41,9 @@ namespace SharpNet.GPU
                     "ComputeAccuracy",
                     "ComputeCategoricalCrossentropyLoss",
                     "ComputeBinaryCrossentropyLoss",
-                    "ComputeAccuracyFromCategoryIndexes",
-                    "ComputeCategoricalCrossentropyLossFromCategoryIndexes",
-                    "ComputeBinaryCrossentropyLossFromCategoryIndexes",
+                    "ComputeLossForCategoricalCrossentropyWithHierarchy",
+                    "ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy",
+                    "ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy",
                     "Concatenate",
                     "Concatenate3",
                     "MultiplyEachRowIntoSingleValue",
@@ -53,7 +53,9 @@ namespace SharpNet.GPU
                     "Sum",
                     "UpdateAdamOptimizer",
                     "UpSampling2D",
-                    "YOLOV3Forward"
+                    "YOLOV3Forward",
+                    "ComputeSoftmaxWithHierarchy",
+                    "ComputeSoftmaxGradientWitHierarchy"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

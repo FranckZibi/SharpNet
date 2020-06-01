@@ -71,7 +71,7 @@ namespace SharpNet.Datasets
             }
 
             _directoryDataSet = new DirectoryDataSet(
-                    elementIdToPaths, elementIdToDescription, elementIdToCategoryIndex
+                    elementIdToPaths, elementIdToDescription, elementIdToCategoryIndex, null
                     , subDirectory, Channels, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize);
         }
 

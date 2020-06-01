@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using log4net;
 using NUnit.Framework;
@@ -86,7 +87,7 @@ namespace SharpNetTests.NonReg
 
                 using var originalBmp = new Bitmap(imagePath);
                 PreferredResizedSizeForYoloV3(originalBmp.Height, originalBmp.Width, out var resizedHeight,out var resizedWidth);
-                var resizedOriginalBitmap = PictureTools.ResizeImage(originalBmp, resizedWidth, resizedHeight);
+                var resizedOriginalBitmap = PictureTools.ResizeImage(originalBmp, resizedWidth, resizedHeight, InterpolationMode.Bicubic);
                 var content = BitmapContent.ValueFomSingleRgbBitmap(resizedOriginalBitmap);
                 var X = content.Select((x, y, b) => b / 255f);
                 X.Reshape(new []{1, content.Shape[0], content.Shape[1], content.Shape[2]});

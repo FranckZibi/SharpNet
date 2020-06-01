@@ -99,7 +99,7 @@ namespace SharpNetTests
         {
             var yPredicted = (CpuTensor<float>)network.Predict(X, true);
             //we compute gradients
-            network.PropagationManager.Backward(yExpected, yPredicted);
+            network.PropagationManager.Backward(yExpected, yPredicted, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
             double result = 0;
             for (int i = 0; i < yExpected.Count; ++i)
             {

@@ -242,7 +242,7 @@ namespace SharpNet.Layers
             otherNetwork.Layers.Add(deserialize(Serializer.Deserialize(Serialize()), otherNetwork));
         }
 
-        public void Log(string msg) {Network.Log.Info(msg);}
+        protected void Log(string msg) {Network.Log.Info(msg);}
         public void LogDebug(string msg) {Network.Log.Debug(msg);}
 
         public int n_x
@@ -257,6 +257,10 @@ namespace SharpNet.Layers
         public bool IsSigmoidActivationLayer()
         {
             return GetType() == typeof(ActivationLayer) &&((ActivationLayer) this).ActivationFunction == cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
+        }
+        public bool IsSoftmaxActivationLayer()
+        {
+            return GetType() == typeof(ActivationLayer) && ((ActivationLayer)this).ActivationFunction == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
         }
         public bool IsInputLayer => PreviousLayerIndexes.Count == 0;
         public bool IsOutputLayer => NextLayerIndexes.Count == 0;
@@ -362,7 +366,7 @@ namespace SharpNet.Layers
         /// <param name="isTraining"></param>
         /// <param name="firstTrainableLayer"></param>
         /// <returns></returns>
-        public bool BackwardPropagationNeeded(bool isTraining, Layer firstTrainableLayer)
+        protected bool BackwardPropagationNeeded(bool isTraining, Layer firstTrainableLayer)
         {
             if ((firstTrainableLayer == null)     //if there is no trainable layer in the network
                 || !isTraining) //or if we are doing only inference 

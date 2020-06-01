@@ -1,6 +1,5 @@
 ﻿extern "C" {
 
-
 	__device__ inline float sigmoidf(float x) {
 		return 1.0f / (1 + expf(-x));
 	}
@@ -44,6 +43,159 @@
 					maxIndexExpected = j;
 			}
 			countOk[i] = (maxIndexPredicted == maxIndexExpected) ? 1.0f : 0.0f;
+		}
+	}
+
+
+	__device__  bool IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(const float* __restrict expected, const float* __restrict predicted, int endIndexExcluded, int *pNexIndexToCheck, int subCategoriesCount)
+	{
+		int subCategoriesFound = 0;
+		int predictedSubCategoryId = -1;
+		float bestPredictedSubCategoryProba = -1.0f;
+		int expectedSubCategoryId = -1;
+		float bestExpectedSubCategoryProba = -1.0f;
+		bool isAccurate = true;
+		bool previousIndexWasProba = false;
+
+		while (subCategoriesFound < subCategoriesCount && (*pNexIndexToCheck < endIndexExcluded))
+		{
+			float expectedProba = expected[*pNexIndexToCheck];
+			float predictedProba = predicted[*pNexIndexToCheck];
+			if (fabsf(expectedProba) < 9.5f)
+			{
+				previousIndexWasProba = true;
+				++subCategoriesFound;
+				if (expectedProba > bestExpectedSubCategoryProba)
+				{
+					bestExpectedSubCategoryProba = expectedProba;
+					expectedSubCategoryId = subCategoriesFound - 1;
+				}
+				if (predictedProba > bestPredictedSubCategoryProba)
+				{
+					bestPredictedSubCategoryProba = predictedProba;
+					predictedSubCategoryId = subCategoriesFound - 1;
+				}
+				*pNexIndexToCheck += 1;
+			}
+			else
+			{
+				int count = (int)(fabsf(expectedProba) + 0.5f) / 10;
+				if (expectedProba < 0)
+				{
+					//we need to skip 'count' indexes
+					*pNexIndexToCheck += count;
+				}
+				else
+				{
+					*pNexIndexToCheck += 1;
+					bool subCategoryIsAccurate = IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(expected, predicted, endIndexExcluded, pNexIndexToCheck, count);
+					isAccurate = subCategoryIsAccurate && isAccurate;
+				}
+				if (!previousIndexWasProba)
+				{
+					++subCategoriesFound;
+				}
+				previousIndexWasProba = false;
+			}
+		}
+		return (expectedSubCategoryId == predictedSubCategoryId) && isAccurate;
+	}
+
+	__device__ inline float IsCountAssociateWithAboveProba(float f) { return f > 5.0f && ((int)(f + 0.1f)) % 10 == 1; }
+	__device__ inline float IsProba(float f) { return fabsf(f) < 5.0f; }
+	__device__ inline float ExtractCount(float f) { return (int)(fabsf(f) + 0.5f) / 10; }
+
+	__global__ void ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy(int N, int nbCols, float* countOk, const float* __restrict expected, const float* __restrict predicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int nexIndexToCheck = 0;
+			countOk[i] = IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(expected + i * nbCols, predicted + i * nbCols, nbCols, &nexIndexToCheck, 10000000)
+				? 1.0f 
+				: 0.0f;
+		}
+	}
+
+	__device__  void SoftmaxWithHierarchy(const float* activationParameter, float* y, int endIndexExcluded, int* pNexIndexToCheck)
+	{
+		float param = activationParameter[*pNexIndexToCheck];
+		y[*pNexIndexToCheck] = param;
+		int subCategoriesCount = ExtractCount(param);
+		*pNexIndexToCheck += 1;
+		
+		//we only allocate an array if we have more then '10' elements
+		int smallIntArray[10];
+		int* indexesProba = (subCategoriesCount > 10) ? (int*)malloc(subCategoriesCount * sizeof(int)) : (&smallIntArray[0]);
+
+		float maxProba = -1e9f;
+		bool probaFound = false;
+
+		for (int subCategoriesFound = 0; subCategoriesFound < subCategoriesCount; ++subCategoriesFound)
+		{
+			float expectedProba = activationParameter[*pNexIndexToCheck];
+			if (IsProba(expectedProba))
+			{
+				maxProba = fmaxf(maxProba, y[*pNexIndexToCheck]);
+				indexesProba[subCategoriesFound] = *pNexIndexToCheck;
+				probaFound = true;
+				*pNexIndexToCheck += 1;
+				if (*pNexIndexToCheck < endIndexExcluded && IsCountAssociateWithAboveProba(activationParameter[*pNexIndexToCheck]))
+				{
+					SoftmaxWithHierarchy(activationParameter, y, endIndexExcluded, pNexIndexToCheck);
+				}
+			}
+			else
+			{
+				SoftmaxWithHierarchy(activationParameter, y, endIndexExcluded, pNexIndexToCheck);
+			}
+		}
+
+		if (probaFound)
+		{
+			float sumExp = 0.0f;
+			for (int i = 0; i < subCategoriesCount; ++i)
+			{
+				int idx = indexesProba[i];
+				float tmp = expf(y[idx] - maxProba);
+				sumExp += tmp;
+				y[idx] = tmp;
+			}
+			for (int i = 0; i < subCategoriesCount; ++i)
+			{
+				y[indexesProba[i]] /= sumExp;
+			}
+		}
+
+		if (subCategoriesCount > 10)
+		{
+			free(indexesProba);
+		}
+	}
+
+	__global__ void ComputeSoftmaxWithHierarchy(int N, int nbCols, const float* activationParameter, float* y)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int nexIndexToCheck = 0;
+			SoftmaxWithHierarchy(activationParameter, y + i * nbCols, nbCols, &nexIndexToCheck);
+		}
+	}
+
+	__global__ void ComputeSoftmaxGradientWitHierarchy(int N, int nbCols, const float* activationParameter, const float* y, const float* dy, float* dx)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			float expectedProba = activationParameter[i%nbCols];
+			if (IsProba(expectedProba))
+			{
+				float dyi = dy[i];
+				float yi = y[i];
+				dx[i] = (fabsf(dyi - 1.0f) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
+			}
+			else
+			{
+				dx[i] = expectedProba;
+			}
 		}
 	}
 
@@ -205,6 +357,67 @@
 		}
 	}
 
+	__global__ void ComputeLossForCategoricalCrossentropyWithHierarchy(int N, int nbCols, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			float loss = 0.0f;
+			int startIndex = i * nbCols;
+			int endIndexExcluded = startIndex + nbCols;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float expected = yExpected[j];
+				if (fabsf(expected) < 9.5f)
+				{
+					if (expected > 1e-6f)
+					{
+						//expected contains a proba between 0 and 1
+						float predicted = yPredicted[j];
+						loss += expected * logf(fmaxf(1e-6f, predicted));
+					}
+				}
+				else
+				{
+					if (expected < 0) 
+					{
+						//expected contains a description : there is no associated loss
+						int count = (int)(fabsf(expected) + 0.5f) / 10;
+						//we need to skip 'count' indexes
+						j += count - 1; //-1 because the for(;;) loop will also increment 'j'
+					}
+				}
+			}
+			losses[i] = -loss;
+		}
+	}
+
+	__global__ void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(int N, int nbCols, float* loss, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int startIndex = i * nbCols;
+			int endIndexExcluded = startIndex + nbCols;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float expected = yExpected[j];
+				if (fabsf(expected) < 9.5f)
+				{
+					//expected contains a proba between 0 and 1
+					loss[j] = yPredicted[j]- expected;
+				}
+				else
+				{
+					if (expected < 0)
+					{
+						//expected contains a number of element to skip: there is no associated loss
+						int count = (int)(fabsf(expected) + 0.5f) / 10;
+						//we need to skip 'count' indexes
+						j += count - 1; //-1 because the for(;;) loop will also increment 'j'
+					}
+				}
+			}
+		}
+	}
 	__global__ void ComputeBinaryCrossentropyLoss(int N, int categoryCount, float *losses, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -221,60 +434,6 @@
 					loss -= (expected*logf(predicted) + (1.0f-expected)*logf(1.0f-predicted))/ categoryCount;
 			}
 			losses[i] = loss;
-		}
-	}
-
-
-
-
-	__global__ void ComputeAccuracyFromCategoryIndexes(int N, int categoryCount, float *countOk, const int* __restrict categoryIndexes, const float* __restrict yPredicted) 
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
-			int startIndex = i * categoryCount;
-			int endIndexExcluded = startIndex + categoryCount;
-			int maxIndexPredicted = startIndex;
-			for (int j = startIndex+1; j < endIndexExcluded; ++j)
-			{
-				if (yPredicted[j] > yPredicted[maxIndexPredicted])
-					maxIndexPredicted = j;
-			}
-			countOk[i] = ( (maxIndexPredicted-startIndex) == categoryIndex) ? 1.0f : 0.0f;
-		}
-	}
-
-	__global__ void ComputeCategoricalCrossentropyLossFromCategoryIndexes(int N, int categoryCount, float *losses, const int* __restrict categoryIndexes, const float* __restrict yPredicted)
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
-			int startIndex = i * categoryCount;
-			float predictedForExpectedCategory = yPredicted[startIndex+categoryIndex];
-			if (predictedForExpectedCategory > 0)
-				losses[i] = -logf(predictedForExpectedCategory);
-			else
-				losses[i] = 0.0f;
-		}
-	}
-
-	__global__ void ComputeBinaryCrossentropyLossFromCategoryIndexes(int N, int categoryCount, float *losses, const int* __restrict categoryIndexes, const float* __restrict yPredicted)
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			int categoryIndex = categoryIndexes[i]; /* the expected category index for element at index 'i' */
-			int startIndex = i * categoryCount;
-			float loss = 0.0f;
-			for (int category = 0; category < categoryCount; ++category)
-			{
-				float predicted = yPredicted[startIndex+category];
-				float error = (category == categoryIndex)? predicted : (1.0f-predicted);
-				if (error > 0)
-				{
-					loss -= logf(error);
-				}
-			}
-			losses[i] = loss/ categoryCount;
 		}
 	}
 
@@ -329,5 +488,5 @@
 		else
 			c[row*cMultDim0+colInConcat-aMultDim0-bMultDim0] = concat[i];
 	}
-
 }
+

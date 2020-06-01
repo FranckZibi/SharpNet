@@ -11,7 +11,7 @@ namespace SharpNet.DataAugmentation
         private const float MAGNITUDE_MAX = 30f;
 
         public RandAugment(int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel, ImageStatistic stats, Random rand,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
             double cutoutPatchPercentage, double alphaCutMix, double alphaMixup) : 
             base(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)
         {

@@ -20,8 +20,17 @@ namespace SharpNet.Datasets
                     subElementIdToOriginalElementId.Add(originalElementId);
                 }
             }
+
             //We compute Y 
-            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, subElementIdToOriginalElementId.Count, CategoryCount);
+            Y = new CpuTensor<float>(new []{ subElementIdToOriginalElementId.Count, CategoryCount});
+            for (int elementId = 0; elementId < subElementIdToOriginalElementId.Count; ++elementId)
+            {
+                for (int col = 0; col < CategoryCount; ++col)
+                {
+                    // ReSharper disable once VirtualMemberCallInConstructor
+                    Y.Set(elementId, col, original.Y.Get(subElementIdToOriginalElementId[elementId], col));
+                }
+            }
         }
         public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {

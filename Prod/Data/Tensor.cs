@@ -97,6 +97,10 @@ namespace SharpNet.Data
             {
                 var mean = (sum / count);
                 var variance = (sumSquare / count) - mean * mean;
+                if (Math.Abs(variance) < 1e-6)
+                {
+                    variance = 0;
+                }
                 if (Math.Abs(maxValue - minValue) < 1e-6)
                 {
                     result = "Const: " + Math.Round(minValue, decimalsForRounding);
@@ -344,19 +348,20 @@ namespace SharpNet.Data
         /// this = x = [in] input
         /// </summary>
         /// <param name="activationType">the king of activation</param>
-        /// <param name="alphaActivation">only used for Leaky Activation</param>
+        /// <param name="activationParameter">use for Leaky Activation and for SoftmaxWithHierarchy, null otherwise</param>
         /// <param name="y">[out] output after activation</param>
-        public abstract void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y);
+        public abstract void ActivationForward(cudnnActivationMode_t activationType, Tensor activationParameter,
+            Tensor y);
 
         /// <summary>
         /// this  = dx = [out] gradient of the output
         /// </summary>
         /// <param name="activationType"></param>
-        /// <param name="alphaActivation">only used for Leaky Activation</param>
+        /// <param name="activationParameter"></param>
         /// <param name="dy">[in] gradient of the output</param>
         /// <param name="x">[in] input</param>
         /// <param name="y">[in] output</param>
-        public abstract void ActivationBackward(cudnnActivationMode_t activationType, double alphaActivation, Tensor dy, Tensor x, Tensor y);
+        public abstract void ActivationBackward(cudnnActivationMode_t activationType, Tensor activationParameter, Tensor dy, Tensor x, Tensor y);
 
         #region Convolution
         /// <summary>
@@ -565,18 +570,21 @@ namespace SharpNet.Data
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         /// </summary>
         /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
-        /// <param name="notUsedBuffer"></param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
         /// <returns></returns>
-        public abstract double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer);
+        public abstract double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
 
 
         /// <summary>
-        /// this = expected category index for each element
+        /// Compute the loss when we are a categorical hierarchy for categories
+        /// and stores it in the 'this' tensor
         /// </summary>
-        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
-        /// <param name="notUsedBuffer"></param>
-        /// <returns></returns>
-        public abstract double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer);
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted);
+        
+
 
         /// <summary>
         /// pointer to (device or host) pinned memory
@@ -592,16 +600,7 @@ namespace SharpNet.Data
         /// <returns></returns>
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
 
-        /// <summary>
-        /// this = expected Category Indexes (int Tensor)
-        /// </summary>
-        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
-        /// <param name="lossFunction"></param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        public abstract double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
-
-        public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
+       public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
         /// <summary>
         /// set the same value 'sameValue' in the entire tensor
         /// </summary>
@@ -662,5 +661,9 @@ namespace SharpNet.Data
             return result;
         }
 
+        public static CpuTensor<float> SingleFloat(float f)
+        {
+            return new CpuTensor<float>(new []{1}, new[] {f});
+        }
     }
 }

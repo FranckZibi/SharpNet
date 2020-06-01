@@ -128,16 +128,7 @@ namespace SharpNetTests.Data
             {
                 return false;
             }
-            var aFloatContent = a.ContentAsFloatArray();
-            var bFloatContent = b.ContentAsFloatArray();
-            for (int i = 0; i < a.Count; ++i)
-            {
-                if (Math.Abs(aFloatContent[i] - bFloatContent[i]) > epsilon)
-                {
-                    return false;
-                }
-            }
-            return true;
+            return SharpNet.Utils.SameContent(a.ContentAsFloatArray(), b.ContentAsFloatArray(), epsilon);
         }
     }
 }

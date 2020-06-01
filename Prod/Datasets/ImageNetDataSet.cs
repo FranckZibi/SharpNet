@@ -22,8 +22,6 @@ namespace SharpNet.Datasets
         {
             Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]);
             Debug.Assert(xBuffer.Shape[1] == Channels);
-            var targetHeight = xBuffer.Shape[2];
-            var targetWidth = xBuffer.Shape[3];
             throw new NotImplementedException();
         }
 

@@ -9,7 +9,7 @@ namespace SharpNet.Layers
     public class ActivationLayer : Layer
     {
         #region private fields
-        private readonly double _alphaActivation;
+        private readonly Tensor _activationParameter;
         #endregion
 
         #region public fields and properties
@@ -17,9 +17,13 @@ namespace SharpNet.Layers
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public ActivationLayer(cudnnActivationMode_t activationFunctionType, double alphaActivation, Network network, string layerName) : base(network, layerName)
+        public ActivationLayer(cudnnActivationMode_t activationFunctionType, Tensor activationParameter, Network network, string layerName) : base(network, layerName)
         {
-            _alphaActivation = alphaActivation;
+            if (activationParameter != null && activationParameter.UseGPU != Network.UseGPU)
+            {
+                activationParameter = Network.UseGPU ? activationParameter.ToGPU<float>(Network.GpuWrapper) : (Tensor)activationParameter.ToCpuFloat();
+            }
+            _activationParameter = activationParameter;
             ActivationFunction = activationFunctionType;
         }
 
@@ -28,7 +32,7 @@ namespace SharpNet.Layers
         {
             Debug.Assert(allX.Count == 1);
             StartForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
-            allX[0].ActivationForward(ActivationFunction, _alphaActivation, y);
+            allX[0].ActivationForward(ActivationFunction, _activationParameter, y);
             StopForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
@@ -58,7 +62,7 @@ namespace SharpNet.Layers
             }
             else
             {
-                dx[0].ActivationBackward(ActivationFunction, _alphaActivation, dy, allX[0], y);
+                dx[0].ActivationBackward(ActivationFunction, _activationParameter, dy, allX[0], y);
             }
             StopBackwardTimer(Type() + ">" + ToString(ActivationFunction));
         }
@@ -74,14 +78,14 @@ namespace SharpNet.Layers
         {
             return RootSerializer()
                 .Add(nameof(ActivationFunction), (int)ActivationFunction)
-                .Add(nameof(_alphaActivation), _alphaActivation)
+                .Add(nameof(_activationParameter), _activationParameter)
                 .ToString();
         }
         public static ActivationLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new ActivationLayer(
                 (cudnnActivationMode_t)serialized[nameof(ActivationFunction)],
-                (double)serialized[nameof(_alphaActivation)],
+                serialized.ContainsKey(nameof(_activationParameter)) ?(Tensor)serialized[nameof(_activationParameter)]:null,
                 network,
                 (string)serialized[nameof(LayerName)]);
         }
@@ -95,6 +99,7 @@ namespace SharpNet.Layers
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU: return "LeakyReLU";
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU: return "ReLU";
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX: return "Softmax";
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY: return "Softmax_Hierarchy";
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH: return "Swish";
                 default: return base.Type();
             }

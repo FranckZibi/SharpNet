@@ -4,8 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 // ReSharper disable UnusedMember.Local
 
@@ -24,21 +26,23 @@ namespace SharpNet.Datasets
         /// </summary>
         private readonly List<List<string>> _elementIdToPaths = new List<List<string>>();
         private readonly List<string> _elementIdToDescription = new List<string>();
-        private readonly List<int> _elementIdToCategoryIndex = new List<int>();
+        private readonly List<int> _elementIdToCategoryIndex;
         #endregion
         public override CpuTensor<float> Y { get; }
 
-        public DirectoryDataSet(List<List<string>> elementIdToPaths, List<string> elementIdToDescription, List<int> elementIdToCategoryIndex,
+        public DirectoryDataSet(
+            List<List<string>> elementIdToPaths, 
+            List<string> elementIdToDescription, 
+            List<int> elementIdToCategoryIndex,
+            CpuTensor<float> expectedYIfAny,
             string name, int channels, string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy)
             : base(name, channels, categoryDescriptions, meanAndVolatilityForEachChannel, resizeStrategy)
         {
-            //Height = height;
-            //Width = width;
             _elementIdToPaths.AddRange(elementIdToPaths);
             _elementIdToDescription.AddRange(elementIdToDescription);
-            _elementIdToCategoryIndex.AddRange(elementIdToCategoryIndex);
+            _elementIdToCategoryIndex = elementIdToCategoryIndex?.ToList();
 
             if (ResizeStrategy != ResizeStrategyEnum.ResizeToTargetSize)
             {
@@ -50,8 +54,8 @@ namespace SharpNet.Datasets
                 ComputeMeanAndVolatilityForEachChannel();
                 throw new ArgumentException("please update mean and volatility for dataSet " + name);
             }
-            //We compute Y 
-            Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _elementIdToCategoryIndex.Count, CategoryCount);
+            //We compute Y if necessary
+            Y = expectedYIfAny??CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, elementIdToDescription.Count, CategoryCount);
         }
 
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
@@ -77,9 +81,19 @@ namespace SharpNet.Datasets
                 }
             }
             var categoryIndex = ElementIdToCategoryIndex(elementId);
-            for (int cat = 0; cat < CategoryCount; ++cat)
+            if (categoryIndex == -1)
             {
-                yBuffer?.Set(indexInBuffer, cat, (cat==categoryIndex)?1f: 0f);
+                for (int cat = 0; cat < CategoryCount; ++cat)
+                {
+                    yBuffer?.Set(indexInBuffer, cat, Y.Get(elementId, cat));
+                }
+            }
+            else
+            {
+                for (int cat = 0; cat < CategoryCount; ++cat)
+                {
+                    yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
+                }
             }
         }
 
@@ -151,6 +165,7 @@ namespace SharpNet.Datasets
         }
 
 
+        // ReSharper disable once UnusedMethodReturnValue.Local
         private List<Tuple<float, float>> ComputeMeanAndVolatilityForEachChannel()
         {
             const int DistinctValuesToComputeInEachChannel = 3; //sum + sumSquare + count
@@ -280,11 +295,14 @@ namespace SharpNet.Datasets
             {
                 //single file containing all channels of the element
                 using var bmp = new Bitmap(elementPaths[0]);
-                if (targetHeight !=-1 && targetWidth !=-1 && (bmp.Width != targetWidth || bmp.Height != targetHeight) )
+                if (targetHeight != -1 && targetWidth != -1 && (bmp.Width != targetWidth || bmp.Height != targetHeight))
                 {
-                    //we need to resize the bitmap
+                    //we need to resize the bitmap 
                     Debug.Assert(ResizeStrategy == ResizeStrategyEnum.ResizeToTargetSize);
-                    using var resizedBitmap = PictureTools.ResizeImage(bmp, targetWidth, targetHeight);
+                    var interpolationMode = (bmp.Width * bmp.Height > targetWidth * targetHeight)
+                        ? InterpolationMode.NearestNeighbor //we are reducing the image size
+                        : InterpolationMode.Bicubic;        //we are increasing the image
+                    using var resizedBitmap = PictureTools.ResizeImage(bmp, targetWidth, targetHeight, interpolationMode);
                     return BitmapContent.ValueFomSingleRgbBitmap(resizedBitmap);
                 }
                 return BitmapContent.ValueFomSingleRgbBitmap(bmp);

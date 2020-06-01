@@ -5,12 +5,14 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.CPU;
 using SharpNetTests.Data;
+using SharpNetTests.Datasets;
 using SharpNetTests.NonReg;
 
 namespace SharpNetTests
@@ -437,8 +439,28 @@ namespace SharpNetTests
 	    {
 	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
 	        var y = RandomTensor(x.Shape);
-	        TestAll(new[] { x, y }, tensors => tensors[0].ActivationForward(activationMode, alphaActivation, tensors[1]));
+	        TestAll(new[] { x, y }, tensors => tensors[0].ActivationForward(activationMode, Tensor.SingleFloat((float)alphaActivation), tensors[1]));
 	    }
+
+
+        [Test]
+        public void TestActivationForwardSoftmaxWithHierarchyActivation()
+        {
+            var x = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
+            var rootPrediction = TestCategoryHierarchy.StarExample().RootPrediction();
+            var activationTensor = new CpuTensor<float>(new[] { rootPrediction.Length }, rootPrediction);
+            var y = RandomTensor(x.Shape);
+            TestAll(new[] { x, activationTensor, y }, tensors => tensors[0].ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, tensors[1], tensors[2]));
+        }
+
+        [Test, Explicit]
+        public void TestActivationForwardSoftmaxWithHierarchyActivationV2()
+        {
+            var x = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText( Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "TestActivationForwardSoftmaxWithHierarchyActivationV2_X.txt")));
+            var activationTensor = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText( Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "TestActivationForwardSoftmaxWithHierarchyActivationV2_ActivationTensor.txt")));
+            var y = RandomTensor(x.Shape);
+            TestAll(new[] { x, activationTensor, y }, tensors => tensors[0].ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, tensors[1], tensors[2]));
+        }
 
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 0)]
@@ -454,9 +476,25 @@ namespace SharpNetTests
             var dy = RandomTensor(y.Shape);
             var x = RandomTensor(y.Shape);
             var dx = RandomTensor(x.Shape);
-	        x.ActivationForward(activationMode, alphaActivation, y);
-            TestAll(new[] { dx, dy, x, y }, tensors => tensors[0].ActivationBackward(activationMode, alphaActivation, tensors[1], tensors[2], tensors[3]));
+
+            var activationParameter = Tensor.SingleFloat((float)alphaActivation);
+            x.ActivationForward(activationMode, activationParameter, y);
+            TestAll(new[] { dx, dy, x, y }, tensors => tensors[0].ActivationBackward(activationMode, activationParameter, tensors[1], tensors[2], tensors[3]));
 	    }
+
+        [Test]
+        public void TestActivationBackwardSoftmaxWithHierarchyActivation()
+        {
+            var x = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
+            var rootPrediction = TestCategoryHierarchy.StarExample().RootPrediction();
+            var activationParameter = new CpuTensor<float>(new[] { rootPrediction.Length }, rootPrediction);
+            var y = new CpuTensor<float>(x.Shape);
+            x.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, activationParameter, y);
+            var dy = RandomTensor(y.Shape);
+            var dx = RandomTensor(y.Shape);
+            TestAll(new[] { dx, activationParameter, dy, x, y }, tensors => tensors[0].ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, tensors[1], tensors[2], tensors[3], tensors[4]));
+        }
+
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 1)]
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 2)]
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 1)]
@@ -564,17 +602,22 @@ namespace SharpNetTests
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
         }
 
-        [TestCase(2, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
-        [TestCase(2, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
-        [TestCase(10, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
-        [TestCase(10, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
-        public void TestComputeLossFromCategoryIndexes(int categoryCount, NetworkConfig.LossFunctionEnum lossFunction)
+        [Test]
+        public void TestComputeLossForCategoricalCrossentropyWithHierarchy()
         {
-            const int nbRows = 10000;
-            var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
-            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, categoryCount, _rand);
-            var buffer = RandomTensor(new[] { nbRows });
-            TestAllForReturnValue(new[] { categoryIndexes }, new[] { yPredicted, buffer }, tensors => tensors[0].ComputeLossFromCategoryIndexes(tensors[1], lossFunction, tensors[2]), new List<int> { 1 });
+            var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
+            var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
+            var buffer = RandomTensor(new[] { expected.Shape[0] });
+            TestAllForReturnValue(new[] { expected, predicted, buffer }, tensors => tensors[0].ComputeLoss(tensors[1], NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy,tensors[2]));
+        }
+
+        [Test]
+        public void TestComputeBackPropagationLossCategoricalCrossentropyWithHierarchy()
+        {
+            var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
+            var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
+            var loss = RandomTensor(expected.Shape);
+            TestAll(new[] { loss, expected, predicted}, tensors => tensors[0].ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(tensors[1], tensors[2]));
         }
 
         [TestCase(10)]
@@ -585,7 +628,7 @@ namespace SharpNetTests
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows});
-            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
+            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, tensors[2]), new List<int> { 2 });
         }
 
         [TestCase(10)]
@@ -596,19 +639,18 @@ namespace SharpNetTests
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
-            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
+            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, tensors[2]), new List<int> { 2 });
         }
 
         [Test]
-        public void TestComputeAccuracyFromCategoryIndexes()
+        public void TestComputeAccuracyCategoricalCrossentropyWithHierarchy()
         {
-            const int nbRows = 10000;
-            const int categoryCount = 10;
-            var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
-            var categoryIndexes = TestCpuTensor.RandomCategoryIndexTensor(nbRows, categoryCount, _rand);
-            var buffer = RandomTensor(new[] { nbRows });
-            TestAllForReturnValue(new[] { categoryIndexes }, new[] { yPredicted, buffer }, tensors => tensors[0].ComputeAccuracyFromCategoryIndexes(tensors[1], tensors[2]), new List<int> { 1 });
+            var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
+            var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
+            var buffer = RandomTensor(new[] { expected.Shape[0] });
+            TestAllForReturnValue(new[] { expected, predicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy, tensors[2]));
         }
+
 
         private CpuTensor<float> RandomTensor(int[] shape)
 	    {
@@ -651,7 +693,6 @@ namespace SharpNetTests
             var resultCpuFloat = work(cpu);
             var gpu = gpuInt.Select(x => (Tensor)x).Union(gpuFloat.Select(x => (Tensor)x)).ToArray();
             var resultGPUFloat = work(gpu);
-            Assert.AreEqual(resultCpuFloat, resultGPUFloat, 1e-5, cpuFloat.Last().ReadonlyContent.Min() + " vs " + gpuFloat.Last().ContentAsFloatArray().Min());
             for (var i = 0; i < cpuFloat.Length; ++i)
             {
                 if (tensorIdsToIgnore != null && tensorIdsToIgnore.Contains(i))
@@ -660,6 +701,7 @@ namespace SharpNetTests
                 }
                 AreEquals(cpuFloat[i], gpuFloat[i]);
             }
+            Assert.AreEqual(resultCpuFloat, resultGPUFloat, 1e-5, cpuFloat.Last().ReadonlyContent.Min() + " vs " + gpuFloat.Last().ContentAsFloatArray().Min());
         }
 
         private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper)

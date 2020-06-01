@@ -36,12 +36,14 @@ namespace SharpNet.Datasets
         /// We'll resize the image so that it will have exactly the same width as the size fo the training/inference tensor
         /// We'll keep the same proportion as in the original image (no distortion)
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         ResizeToWidthSizeKeepingSameProportion,
 
         /// <summary>
         /// We'll resize the image so that it will have exactly the same height as the size fo the training/inference tensor
         /// We'll keep the same proportion as in the original image (no distortion)
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         ResizeToHeightSizeKeepingSameProportion
     }
 
@@ -69,12 +71,11 @@ namespace SharpNet.Datasets
         /// </summary>
         private long alreadyComputedMiniBatchId = -1;
         private readonly Random[] _rands;
-
         /// <summary>
         /// the mean and volatility used to normalize the 'this' DataSet
         /// will be null or empty if no normalization occured in the DataSet
         /// </summary>
-        protected readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
+        private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
         #endregion
 
         #region constructor
@@ -323,9 +324,9 @@ namespace SharpNet.Datasets
 
         public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
-            int lastElementIdIncludedInTrainingSet = (int)(percentageInTrainingSet * Count);
-            var training = new SubDataSet(this, id => id < lastElementIdIncludedInTrainingSet);
-            var test = new SubDataSet(this, id => id >= lastElementIdIncludedInTrainingSet);
+            int lastElementIdIncludedInTrainingSet = (int)(percentageInTrainingSet * Count)-1;
+            var training = new SubDataSet(this, id => id <= lastElementIdIncludedInTrainingSet);
+            var test = new SubDataSet(this, id => id > lastElementIdIncludedInTrainingSet);
             return new TrainingAndTestDataLoader(training, test, this);
         }
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
@@ -437,9 +438,7 @@ namespace SharpNet.Datasets
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
             int targetHeight = xMiniBatchShape[2];
             int targetWidth = xMiniBatchShape[3];
-            ImageStatistic MiniBatchIdxToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth);
-
-    
+            Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(()=>ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
 
             if (!dataAugmentationConfig.UseDataAugmentation || !withDataAugmentation)
             {
@@ -449,7 +448,7 @@ namespace SharpNet.Datasets
             else
             {
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
             }
             alreadyComputedMiniBatchId = miniBatchId;
         }
@@ -539,6 +538,7 @@ namespace SharpNet.Datasets
 
         #region Processing Thread management
         // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
+        
         private bool UseBackgroundThread { get; } = true;
 
         private readonly Thread thread;

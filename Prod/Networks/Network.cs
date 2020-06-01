@@ -30,7 +30,7 @@ namespace SharpNet.Networks
         /// values strictly less then 0 mean CPU resources (host)
         /// </summary>
         private readonly List<int> _resourceIds;
-        private Tensor _bufferComputeAccuracy;
+        private Tensor buffer;
         private Tensor _bufferComputeLoss;
         private Tensor _randomNumberGeneratorStatesBufferForGPU;
         private readonly DateTime _timeStampCreation = DateTime.Now;
@@ -118,7 +118,7 @@ namespace SharpNet.Networks
             Layers.Clear();
             PropagationManager.Dispose();
             EpochData.Clear();
-            MemoryPool.FreeFloatTensor(ref _bufferComputeAccuracy);
+            MemoryPool.FreeFloatTensor(ref buffer);
             MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
             MemoryPool.FreeFloatTensor(ref _randomNumberGeneratorStatesBufferForGPU);
             MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
@@ -296,12 +296,12 @@ namespace SharpNet.Networks
         }
         public Network Activation(cudnnActivationMode_t activationFunction, string layerName = "")
         {
-            return Activation(activationFunction, 0.0, layerName);
+            return Activation(activationFunction, null, layerName);
         }
-        public Network Activation(cudnnActivationMode_t activationFunction, double alphaActivation, string layerName = "")
+        public Network Activation(cudnnActivationMode_t activationFunction, Tensor activationParameter, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ActivationLayer(activationFunction, alphaActivation, this, layerName));
+            Layers.Add(new ActivationLayer(activationFunction, activationParameter, this, layerName));
             return this;
         }
 
@@ -468,8 +468,7 @@ namespace SharpNet.Networks
                 }
                 else if (miniBatchSizeForAllWorkers > maxMiniBatchSizeForAllWorkers)
                 {
-                    Log.Info("Reducing MiniBatchSize from "+ miniBatchSizeForAllWorkers+" to "+ maxMiniBatchSizeForAllWorkers+" because of memory limit.");
-                    miniBatchSizeForAllWorkers = maxMiniBatchSizeForAllWorkers;
+                    Log.Warn("MiniBatchSize "+ miniBatchSizeForAllWorkers+" is above advised maximum "+ maxMiniBatchSizeForAllWorkers);
                 }
 
                 if (UseGPU)
@@ -627,8 +626,8 @@ namespace SharpNet.Networks
             _swComputeAccuracy?.Start();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
             yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
-            MemoryPool.GetFloatTensor(ref _bufferComputeAccuracy, new[] { yExpected.Shape[0] });
-            var accuracy = yExpected.ComputeAccuracy(yPredicted, _bufferComputeAccuracy);
+            MemoryPool.GetFloatTensor(ref buffer, new[] { yExpected.Shape[0] });
+            var accuracy = yExpected.ComputeAccuracy(yPredicted, Config.LossFunction, buffer);
             _swComputeAccuracy?.Stop();
             _swComputeLoss?.Start();
             MemoryPool.GetFloatTensor(ref _bufferComputeLoss, new[] { yExpected.Shape[0] });
@@ -676,6 +675,7 @@ namespace SharpNet.Networks
             return yPredicted;
         }
 
+        // ReSharper disable once UnusedMember.Global
         public CpuTensor<float> Predict(IDataSet dataSet, string predictionFileIfAny = "")
         {
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataSet, -1);
@@ -769,6 +769,7 @@ namespace SharpNet.Networks
                 Debug.Assert(currentMiniBatchSize_master>=1);
                 x_miniBatch_cpu_allWorkers.Reshape(XMiniBatch_Shape(currentMiniBatchSize_allWorkers));
                 yExpected_miniBatch_cpu_allWorkers.Reshape(dataSet.YMiniBatch_Shape(currentMiniBatchSize_allWorkers));
+                //Log.Debug("Processing epoch " + epoch + " for elements [" + firstIndexInShuffledElementId_master + "," + (firstIndexInShuffledElementId_master + currentMiniBatchSize_master - 1) + "]");
 
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
@@ -809,7 +810,7 @@ namespace SharpNet.Networks
                 PropagationManager.Forward(_x_miniBatch, yPredicted_miniBatch_master, isTraining);
                 if (isTraining)
                 {
-                    PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master);
+                    PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Config.LossFunction);
                 }
 
                 //we wait for all slave to finish the forward & backward propagation pass
@@ -856,7 +857,7 @@ namespace SharpNet.Networks
         }
 
 
-        private bool UseGPU => _resourceIds.Max() >= 0;
+        public bool UseGPU => _resourceIds.Max() >= 0;
         private string MemoryInfo()
         {
             string result = "Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);
@@ -908,7 +909,7 @@ namespace SharpNet.Networks
             if (isTraining)
             {
                 var yExpected = yPredicted;
-                propagationManager.Backward(yExpected, yPredicted);
+                propagationManager.Backward(yExpected, yPredicted, Config.LossFunction);
             }
             return mockMemoryPooling.CapacityInBytes;
         }
@@ -1042,6 +1043,25 @@ namespace SharpNet.Networks
                 }
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Change the last activation layer from SoftMax to SoftMaxWithHierarchy
+        /// (the input has categories with sub categories)
+        /// </summary>
+        /// <param name="activationParameters"></param>
+        public void SetSoftmaxWithHierarchy(float[] activationParameters)
+        {
+            if (!Layers.Last().IsSoftmaxActivationLayer())
+            {
+                throw new ArgumentException("last layer must be SoftMax Layer");
+            }
+            var layerName = Layers.Last().LayerName;
+            RemoveAndDisposeLastLayer();
+            var shape = new []{activationParameters.Length};
+            var tensor = MemoryPool.GetFloatTensor(shape);
+            new CpuTensor<float>(shape, activationParameters).CopyTo(tensor);
+            Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, tensor, layerName);
         }
     }
 }

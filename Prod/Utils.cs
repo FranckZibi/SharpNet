@@ -19,21 +19,8 @@ namespace SharpNet
 {
     public static class Utils
     {
-
         private static readonly ILog Log = LogManager.GetLogger(typeof(Utils));
-
-        public static void AddLineToFile(string filePath, string s)
-        {
-            var f = new FileInfo(filePath);
-            if (f.Directory != null && !f.Directory.Exists)
-            {
-                f.Directory.Create();
-            }
-            using (var writer = new StreamWriter(f.FullName, true, Encoding.ASCII))
-            {
-                writer.WriteLine(s);
-            }
-        }
+      
         public static string ToValidFileName(string fileName)
         {
             var invalids = new HashSet<char>(Path.GetInvalidFileNameChars());
@@ -204,13 +191,7 @@ namespace SharpNet
         {
             return new FileInfo(path).Length;
         }
-        public static String UpdateFilePathWithPrefixSuffix(string filePath, string prefix, string suffix)
-        {
-            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
-            string extension = Path.GetExtension(filePath);
-            string path = GetDirectoryName(filePath);
-            return ConcatenatePathWithFileName(path, prefix + fileNameWithoutExtension + suffix + extension);
-        }
+
         /// <summary>
         /// read a part of a binary file, starting at position 'startIndex' in the file
         /// </summary>
@@ -355,6 +336,24 @@ namespace SharpNet
             return result;
         }
 
+        private static float Sum(this ReadOnlySpan<float> s)
+        {
+            var result = 0f;
+            foreach (var t in s)
+            {
+                result += t;
+            }
+            return result;
+        }
+        public static float Average(this ReadOnlySpan<float> s)
+        {
+            if (s == null || s.Length == 0)
+            {
+                return 0;
+            }
+            return Sum(s) / s.Length;
+        }
+
         private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
         {
             if (i == data.Count - 1)
@@ -468,6 +467,7 @@ namespace SharpNet
         /// empty string if the file do not exists
         /// the SHA-1 of the file if it exists
         /// </returns>
+        // ReSharper disable once UnusedMember.Global
         public static string FileSHA1(string filePath)
         {
             if (!File.Exists(filePath))
@@ -485,5 +485,31 @@ namespace SharpNet
             }
             return formatted.ToString();
         }
+
+        public static int NearestInt(double d)
+        {
+            return (int)Math.Round(d);
+        }
+
+        public static bool SameContent(float[] a, float[] b, double epsilon)
+        {
+            if (a.Length != b.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < a.Length; ++i)
+            {
+                if (double.IsNaN(a[i]) != double.IsNaN(b[i]))
+                {
+                    return false;
+                }
+                if (Math.Abs(a[i] - b[i]) > epsilon)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
     }
 }

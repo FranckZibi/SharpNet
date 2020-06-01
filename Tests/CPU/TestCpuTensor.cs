@@ -6,7 +6,9 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
+using SharpNet.Networks;
 using SharpNetTests.Data;
+using SharpNetTests.Datasets;
 
 namespace SharpNetTests.CPU
 {
@@ -102,6 +104,149 @@ namespace SharpNetTests.CPU
             Assert.IsTrue(t1.ReadonlyContent.SequenceEqual(t2.ReadonlyContent));
             Assert.IsTrue(t1.ReadonlyContent.SequenceEqual(new []{ 0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15 }));
         }
+
+
+        public static CpuTensor<float> GetExpectedCategoricalCrossentropyWithHierarchy()
+        {
+            var stars = TestCategoryHierarchy.StarExample();
+            var allRows = new[] {
+                stars.ExpectedPrediction(new string[] { }),                //no clue
+                stars.ExpectedPrediction(new[] { "full" }),              //star/full
+                stars.ExpectedPrediction(new[] { "1digit" }),              //1 digit star
+                stars.ExpectedPrediction(new[] { "1digit", "5" }),         //star 5
+                stars.ExpectedPrediction(new[] { "2digits", "1", "6" }),   //star 16
+                stars.ExpectedPrediction(new[] { "2digits", "*", "6" })    //star *6
+            };
+            
+            var expected = new CpuTensor<float>(new[] { allRows.Length, allRows[0].Length });
+            for (var row = 0; row < allRows.Length; row++)
+            {
+                var p = allRows[row];
+                for (int col = 0; col < p.Length; ++col)
+                {
+                    expected.Set(row, col, p[col]);
+                }
+            }
+
+            return expected;
+        }
+        public static CpuTensor<float> GetPredictedCategoricalCrossentropyWithHierarchy()
+        {
+            int nbRows = GetExpectedCategoricalCrossentropyWithHierarchy().Shape[0];
+            //we'll make the following prediction for all (6) elements
+            // 20% sure it is star/2digits
+            //      tens    = 35% 1 / 65% 3
+            //      units   = 40% 2 / 60% 6
+            // 50% sure is it star/full
+            // 30% sure it is star/1digit
+            //      25% 5 / 75% 6
+            var singlePrediction = new[] { 30, 0.2f, 20, 30, 0.35f, 0, 0.65f, 100, 0, 0, 0.4f, 0, 0, 0, 0.6f, 0, 0, 0, 0.5f, 0.3f, 90, 0, 0, 0, 0, 0.25f, 0.75f, 0, 0, 0 };
+            var predicted = new CpuTensor<float>(new []{ nbRows, 30});
+            for(int row=0;row< nbRows; ++row)
+            {
+                for (int col = 0; col < predicted.Shape[1]; ++col)
+                {
+                    predicted.Set(row, col, singlePrediction[col]);
+                }
+            }
+            return predicted;
+        }
+
+
+
+        [Test]
+        public void TestComputeBackPropagationLossCategoricalCrossentropyWithHierarchy()
+        {
+            var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
+            var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
+            var expectedLossContent = new[]
+            {
+                //no clue
+                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                //star/full
+                0,0.2f,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.5f,0.3f,0,0,0,0,0,0,0,0,0,0,
+                //1 digit star
+                0,0.2f,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5f,-0.7f,0,0,0,0,0,0,0,0,0,0,
+                //star 5
+                0,0.2f,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5f,-0.7f,0,0,0,0,0,-0.75f,0.75f,0,0,0,
+                //star 16
+                0,-0.8f,0,0,-0.65f,0,0.65f,0,0,0,0.4f,0,0,0,-0.4f,0,0,0,0.5f,0.3f,0,0,0,0,0,0,0,0,0,0,
+                //star *6
+                0,-0.8f,0,0,0,0,0,0,0,0,0.4f,0,0,0,-0.4f,0,0,0,0.5f,0.3f,0,0,0,0,0,0,0,0,0,0
+            };
+            var predictedLoss = new CpuTensor<float>(expected.Shape);
+            predictedLoss.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(expected, predicted);
+            var expectedLoss= new CpuTensor<float>(predictedLoss.Shape, expectedLossContent);
+            Assert.IsTrue(TestTensor.SameContent(expectedLoss, predictedLoss, 1e-6));
+        }
+
+        [Test]
+        public void TestComputeLossForCategoricalCrossentropyWithHierarchy()
+        {
+            var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
+            var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
+            var buffer = new CpuTensor<float>(new[]{expected.Shape[0]});
+            var observedLoss = expected.ComputeLoss(predicted, NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy, buffer);
+            var expectedLossBuffer = new []
+            {
+                //no clue
+                0f, 
+                //star/pleine
+                (float)-Math.Log(0.5), 
+                //1 digit star
+                (float)-Math.Log(0.3), 
+                //star 5
+                (float)-Math.Log(0.3)+(float)-Math.Log(0.25), 
+                //star 16
+                (float)-Math.Log(0.2)+(float)-Math.Log(0.35)+(float)-Math.Log(0.6), 
+                //star *6
+                (float)-Math.Log(0.2)+(float)-Math.Log(0.6),
+            };
+            Assert.IsTrue(Utils.SameContent(expectedLossBuffer, buffer.ContentAsFloatArray(), 1e-6));
+            var expectedLoss = expectedLossBuffer.Average();
+            Assert.AreEqual(expectedLoss, observedLoss, 1e-6);
+        }
+
+        [Test]
+        public void TestComputeAccuracy_CategoricalCrossentropyWithHierarchy()
+        {
+            var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
+            var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
+            var buffer = new CpuTensor<float>(new[] { expected.Shape[0] });
+            var acc = expected.ComputeAccuracy(predicted, NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy, buffer);
+            Assert.IsTrue(Utils.SameContent(new []{1f,1,0,0,0,0}, buffer.ContentAsFloatArray(), 1e-6));
+            Assert.AreEqual(2.0/6, acc, 1e-6);
+        }
+
+
+        [Test]
+        public void TestSoftmaxWithHierarchyActivation()
+        {
+            var root = TestCategoryHierarchy.StarExample();
+            var x = GetPredictedCategoricalCrossentropyWithHierarchy();
+            var observedActivation = new CpuTensor<float>(x.Shape);
+            var rootPrediction = root.RootPrediction();
+            var activationTensor = new CpuTensor<float>(new []{ rootPrediction.Length}, rootPrediction);
+            CpuTensorActivationFunctions.SoftmaxWithHierarchy(x,observedActivation, activationTensor);
+            var expectedActivationContent = new[]
+            {
+                //no clue6
+                30f,0.28943312f,21f,30f,0.3273808f,0.23070136f,0.44191784f,100f,0.08838651f,0.08838651f,0.13185719f,0.08838651f,0.08838651f,0.08838651f,0.16105072f,0.08838651f,0.08838651f,0.08838651f,0.39069384f,0.31987306f,91f,0.09614436f,0.09614436f,0.09614436f,0.09614436f,0.12345181f,0.20353763f,0.09614436f,0.09614436f,0.09614436f,
+                //star/full
+                30f,0.28943312f,21f,30f,0.3273808f,0.23070136f,0.44191784f,100f,0.08838651f,0.08838651f,0.13185719f,0.08838651f,0.08838651f,0.08838651f,0.16105072f,0.08838651f,0.08838651f,0.08838651f,0.39069384f,0.31987306f,91f,0.09614436f,0.09614436f,0.09614436f,0.09614436f,0.12345181f,0.20353763f,0.09614436f,0.09614436f,0.09614436f,
+                //1 digit star
+                30f,0.28943312f,21f,30f,0.3273808f,0.23070136f,0.44191784f,100f,0.08838651f,0.08838651f,0.13185719f,0.08838651f,0.08838651f,0.08838651f,0.16105072f,0.08838651f,0.08838651f,0.08838651f,0.39069384f,0.31987306f,91f,0.09614436f,0.09614436f,0.09614436f,0.09614436f,0.12345181f,0.20353763f,0.09614436f,0.09614436f,0.09614436f,
+                //star 5
+                30f,0.28943312f,21f,30f,0.3273808f,0.23070136f,0.44191784f,100f,0.08838651f,0.08838651f,0.13185719f,0.08838651f,0.08838651f,0.08838651f,0.16105072f,0.08838651f,0.08838651f,0.08838651f,0.39069384f,0.31987306f,91f,0.09614436f,0.09614436f,0.09614436f,0.09614436f,0.12345181f,0.20353763f,0.09614436f,0.09614436f,0.09614436f,
+                //star 16
+                30f,0.28943312f,21f,30f,0.3273808f,0.23070136f,0.44191784f,100f,0.08838651f,0.08838651f,0.13185719f,0.08838651f,0.08838651f,0.08838651f,0.16105072f,0.08838651f,0.08838651f,0.08838651f,0.39069384f,0.31987306f,91f,0.09614436f,0.09614436f,0.09614436f,0.09614436f,0.12345181f,0.20353763f,0.09614436f,0.09614436f,0.09614436f,
+                //star *6
+                30f,0.28943312f,21f,30f,0.3273808f,0.23070136f,0.44191784f,100f,0.08838651f,0.08838651f,0.13185719f,0.08838651f,0.08838651f,0.08838651f,0.16105072f,0.08838651f,0.08838651f,0.08838651f,0.39069384f,0.31987306f,91f,0.09614436f,0.09614436f,0.09614436f,0.09614436f,0.12345181f,0.20353763f,0.09614436f,0.09614436f,0.09614436f
+            };
+            Assert.IsTrue(Utils.SameContent(expectedActivationContent, observedActivation.ContentAsFloatArray(), 1e-6));
+        }
+
+        
 
         [Test]
         public void TestZeroPadding()
@@ -242,16 +387,6 @@ namespace SharpNetTests.CPU
                 result.Set(row, rand.Next(result.Shape[1]), 1f);
             }
             return result;
-        }
-
-        public static CpuTensor<int> RandomCategoryIndexTensor(int nbRows, int categoryCount, Random rand)
-        {
-            var data = new int[nbRows];
-            for (int i = 0; i < nbRows; ++i)
-            {
-                data[i] = rand.Next(categoryCount);
-            }
-            return new CpuTensor<int>(new[]{nbRows}, data);
         }
 
 

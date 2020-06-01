@@ -15,7 +15,8 @@ namespace SharpNetTests
         private static readonly log4net.ILog Log = log4net.LogManager.GetLogger(typeof(Program));
 
 
-        public static bool Accept(DataSetBuilder.DataSetBuilderEntry entry, string mandatoryPrefix)
+        // ReSharper disable once UnusedMember.Global
+        public static bool Accept(DataSetBuilderEntry entry, string mandatoryPrefix)
         {
             if (entry.RemovedDate.HasValue)
             {
@@ -38,27 +39,16 @@ namespace SharpNetTests
             SharpNet.Utils.ConfigureGlobalLog4netProperties();
             SharpNet.Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
 
+            //var builderIDM = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
             //var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
-            //foreach (var cat in new[] { "ancre", "cad", "cad_perle", "etoile", "gc", "imprime", "mint", "pc" })
-            //{
-            //    builder.CreateIDM(System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement", cat + ".csv"), e => Accept(e, cat));
-            //}
-
-            //var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
-            //using var network = Network.ValueOf(@"C:\Users\fzibi\AppData\Local\SharpNet\CustomDataset\efficientnet-b0_DA_SVHN_20200526_1736_70.txt");
-            //var xShape = network.Layers[0].OutputShape(1);
-            //using var dataSet = builder.ExtractDataSet(e=> !string.IsNullOrEmpty(e.Cancel) && e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), new[] { "gc", "cad", "etoile", "mint" }, 10000);
+            //builder.CreateIDM(System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement", "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));
+            //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures");
+            //using var network = Network.ValueOf(Path.Combine(@"C:\Users\fzibi\AppData\Local\SharpNet\", "CustomDataset", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
+            //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Prediction.csv"));
             //return;
 
-            //EfficientNetTests_CustomDataset();
-
-            //builder.FlushDatabase();
-            //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures.20190414");
-            //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures.20180813");
-            //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures");
-
-
+            EfficientNetTests_CustomDataset();
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
@@ -116,30 +106,36 @@ namespace SharpNetTests
 
         private static void EfficientNetTests_CustomDataset()
         {
-            const bool useMultiGpu = true;
+            const bool useMultiGpu = false;
             var networkGeometries = new List<Action<EfficientNetBuilder, int>>
             {
-                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN ;p.ExtraDescription += "_DA_SVHN";Train_CustomDataset_EfficientNet(p);},
-                //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.InitialLearningRate = 0.10;p.ExtraDescription += "_lr_0_10";Train_CustomDataset_EfficientNet(p);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_CustomDataset_EfficientNet(p);},
             };
 
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {
-                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.BatchSize = -1;p.NumEpochs = 70;p.ExtraDescription = "";return p;},
+                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.BatchSize = 200;p.NumEpochs = 30;p.ExtraDescription = "";return p;},
+                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.BatchSize = 200;p.NumEpochs = 30;p.ExtraDescription = "_SVHN";return p;},
+                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.BatchSize = 200;p.NumEpochs = 30;p.ExtraDescription = "_Imagenet";return p;},
+                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.InitialLearningRate = 0.01;p.BatchSize = 200;p.NumEpochs = 30;p.ExtraDescription = "_0_01";return p;},
+                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.InitialLearningRate = 0.30;p.BatchSize = 200;p.NumEpochs = 30;p.ExtraDescription = "_0_30";return p;},
+                () =>{var p = EfficientNetBuilder.EfficientNet_CustomDataset();p.InitialLearningRate = 0.10;p.BatchSize = 200;p.NumEpochs = 30;p.ExtraDescription = "_0_10";return p;},
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
         private static void Train_CustomDataset_EfficientNet(EfficientNetBuilder p)
         {
-            var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
-            var categories = new[] { "gc","cad","etoile", "mint"};
+            var root = CategoryHierarchy.ComputeRootNode();
+            var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"), root);
+            //var categories = new[] { "gc","cad","etoile", "mint"};
             //var targetWidth = 400;var targetHeight = 470;
             //var targetWidth = 200;var targetHeight = 235;
             var targetWidth = 100;var targetHeight = 118;
-            using var customDataset = builder.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05), categories,5000);
+            using var customDataset = builder.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05));
             using var customTraining = customDataset.SplitIntoTrainingAndValidation(0.8);
-            //using var network = p.EfficientNetB0(true, "", new[] { customTraining.Training.Channels, targetHeight, targetWidth }, categories.Length);
-            using var network =Network.ValueOf(@"C:\Users\fzibi\AppData\Local\SharpNet\CustomDataset\efficientnet-b0_DA_SVHN_20200526_1522_30.txt");
+            using var network = p.EfficientNetB0(true, "", new[] { customTraining.Training.Channels, targetHeight, targetWidth }, root.RootPrediction().Length);
+            network.SetSoftmaxWithHierarchy(root.RootPrediction());
+            //using var network =Network.ValueOf(@"C:\Users\fzibi\AppData\Local\SharpNet\CustomDataset\efficientnet-b0_DA_SVHN_20200526_1522_30.txt");
             //network.FindBestLearningRate(customDataset, 1e-5, 10, p.BatchSize);return;
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(customTraining.Training, learningRateComputer, p.NumEpochs, p.BatchSize, customTraining.Test);

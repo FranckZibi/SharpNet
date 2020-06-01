@@ -49,7 +49,8 @@ namespace SharpNet.Data
         public override void Concatenate(IList<Tensor> tensors){throw new NotImplementedException();}
         public override void Split(IList<Tensor> tensors){throw new NotImplementedException();}
         public override void Update_Multiplying_By_Alpha(float alpha){throw new NotImplementedException();}
-        public override void ActivationForward(cudnnActivationMode_t activationType, double alphaActivation, Tensor y){throw new NotImplementedException();}
+        public override void ActivationForward(cudnnActivationMode_t activationType, Tensor activationParameter,
+            Tensor y){throw new NotImplementedException();}
         public override void Convolution(Tensor convolution, int paddingTop, int paddingBottom, int paddingLeft,
             int paddingRight, int stride,
             Tensor y, bool isDepthwiseConvolution, GPUWrapper.ConvolutionAlgoPreference forwardAlgoPreference,
@@ -70,7 +71,8 @@ namespace SharpNet.Data
         public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth,int poolingStride){throw new NotImplementedException();}
         public override void CopyTo(Tensor b){throw new NotImplementedException();}
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount){throw new NotImplementedException();}
-        public override void ActivationBackward(cudnnActivationMode_t activationType, double alphaActivation, Tensor dy,
+        public override void ActivationBackward(cudnnActivationMode_t activationType, Tensor activationParameter,
+            Tensor dy,
             Tensor x, Tensor y){throw new NotImplementedException();}
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient){throw new NotImplementedException();}
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW,Tensor adam_sW, int timestep){throw new NotImplementedException();}
@@ -88,20 +90,12 @@ namespace SharpNet.Data
             throw new NotImplementedException();
         }
         public override void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient,cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer){throw new NotImplementedException();}
-
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU)
-        {
-            throw new NotImplementedException();
-        }
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
-        {
-            throw new NotImplementedException();
-        }
-        public override double ComputeAccuracy(Tensor yPredicted, Tensor notUsedBuffer){throw new NotImplementedException();}
-        public override double ComputeAccuracyFromCategoryIndexes(Tensor yPredicted, Tensor notUsedBuffer){throw new NotImplementedException();}
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU) {throw new NotImplementedException();}
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace) {throw new NotImplementedException();}
+        public override double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
+        public override void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted) {throw new NotImplementedException();}
         public override IntPtr Pointer => throw new NotImplementedException();
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
-        public override double ComputeLossFromCategoryIndexes(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev){throw new NotImplementedException();}
         public override void SetValue(float sameValue){throw new NotImplementedException();}
         public override float[] ContentAsFloatArray(){throw new NotImplementedException();}

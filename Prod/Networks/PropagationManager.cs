@@ -85,9 +85,11 @@ namespace SharpNet.Networks
 
                     if (LogPropagation)
                     {
-                        layer.Log(layer.ToString());
+                        layer.LogDebug("Forward: "+layer);
                         layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
+                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ContentStats()));
                         layer.LogDebug("output:" + Environment.NewLine + yBuffer.ToNumpy());
+                        layer.LogDebug("output:" + Environment.NewLine + yBuffer.ContentStats());
                         layer.LogDebug("");
                     }
                 }
@@ -145,7 +147,7 @@ namespace SharpNet.Networks
             return new[] { batchSize, (currentElementCount + extraElementCount) / batchSize, 1, 1 };
         }
 
-        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
+        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
         {
             Debug.Assert(yExpected != null);
             Debug.Assert(yExpected.SameShape(yPredicted));
@@ -159,12 +161,20 @@ namespace SharpNet.Networks
             }
             else
             {
-                //we compute: _dyPredicted = (1.0 / categoryCount)*(yPredicted - yExpected)
                 dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
-                yPredicted.CopyTo(dyPredicted);
-                var categoryCount = yPredicted.Shape[1];
-                var multiplier = _layers.Last().IsSigmoidActivationLayer() ? (1f / categoryCount) : 1f;
-                dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
+
+                if (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
+                {
+                    dyPredicted.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(yExpected, yPredicted);
+                }
+                else
+                {
+                    //we compute: _dyPredicted = (1.0 / categoryCount)*(yPredicted - yExpected)
+                    yPredicted.CopyTo(dyPredicted);
+                    var categoryCount = yPredicted.Shape[1];
+                    var multiplier = _layers.Last().IsSigmoidActivationLayer() ? (1f / categoryCount) : 1f;
+                    dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
+                }
             }
 
             var all_dY = new Tensor[_layers.Count];
@@ -209,20 +219,23 @@ namespace SharpNet.Networks
 
                     if (LogPropagation)
                     {
-                        layer.Log(layer.ToString());
+                        layer.LogDebug("backward: "+layer);
                         if (layer.WeightGradients != null)
                         {
-                            layer.Log("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
+                            layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
+                            layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ContentStats());
                         }
                         if (layer.BiasGradients != null)
                         {
-                            layer.Log("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
+                            layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
+                            layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ContentStats());
                         }
                         for (var index = 0; index < dxBuffer.Count; index++)
                         {
-                            layer.Log("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ToNumpy());
+                            layer.LogDebug("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ToNumpy());
+                            layer.LogDebug("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ContentStats());
                         }
-                        layer.Log("");
+                        layer.LogDebug("");
                     }
 
 

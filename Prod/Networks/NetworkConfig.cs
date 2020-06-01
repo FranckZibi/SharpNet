@@ -70,10 +70,11 @@ namespace SharpNet.Networks
         /// </summary>
         public bool TensorFlowCompatibilityMode => CompatibilityMode == CompatibilityModeEnum.TensorFlow1 || CompatibilityMode == CompatibilityModeEnum.TensorFlow2;
         /// <summary>
-        /// true if we want t display statistics about the weights tensors.
+        /// true if we want to display statistics about the weights tensors.
         /// Used only for debugging 
         /// </summary>
         public bool DisplayTensorContentStats{ get; set; }
+        public bool SaveNetworkStatsAfterEachEpoch { get; set; }
 
         /// <summary>
         /// Interval in minutes for saving the network
@@ -83,7 +84,6 @@ namespace SharpNet.Networks
         ///     => the network will be saved after each iteration
         /// </summary>
         public int AutoSaveIntervalInMinutes { get; set; } = 5*60;
-        public bool SaveNetworkStatsAfterEachEpoch { get; set; }
 
         /// <summary>
         /// name of the the first layer for which we want ot freeze the weights
@@ -347,9 +347,9 @@ namespace SharpNet.Networks
 
         /// <summary>
         /// Conventions: 
-        ///   the output layer has a shape of (N, C) where:
-        ///       'N' is the number of batches
-        ///       'C' the number of distinct categoryCount
+        ///   the output layer has a shape of (M, C) where:
+        ///       'M' is the batch size
+        ///       'C' the number of distinct categories
         /// </summary>
         public enum LossFunctionEnum
         {
@@ -365,7 +365,30 @@ namespace SharpNet.Networks
             /// In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
             /// Do not support multi labels (each element can belong to exactly 1 category)
             /// </summary>
-            CategoricalCrossentropy
+            CategoricalCrossentropy,
+
+
+            /* Hierarchical Category:
+                                  Object
+                              /           \
+                             /             \
+                            /               \
+                         Fruit             Flower
+                          75%                25%
+                       /   |   \            |    \
+                 Cherry  Apple  Orange    Rose    Tulip 
+                  70%     20%    10%      50%      50%
+                         /   \            
+                       Fuji  Golden
+                        15%   85%
+            */
+            /// <summary>
+            /// To be used with SoftmaxWithHierarchy activation layer.
+            /// Each category (parent node) can be divided into several sub categories (children nodes)
+            /// For any parent node: all children will have a proba in [0,1] range, and the sum of all children proba will be equal to 1.0 (= 100%)
+            /// </summary>
+            CategoricalCrossentropyWithHierarchy
+
         }
     }
 }

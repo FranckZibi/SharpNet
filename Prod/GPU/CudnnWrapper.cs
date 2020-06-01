@@ -308,7 +308,8 @@ namespace SharpNet.GPU
         CUDNN_ACTIVATION_IDENTITY,
         CUDNN_ACTIVATION_SOFTMAX=1000,
         CUDNN_ACTIVATION_SWISH= 1001,     //Selects the swish function ( f(x) = x*sigmoid(x) , see https://arxiv.org/abs/1710.05941)
-        CUDNN_ACTIVATION_LEAKY_RELU = 1002     //Leaky Relu (requires an additional alpha coefficient)
+        CUDNN_ACTIVATION_LEAKY_RELU = 1002,     //Leaky Relu (requires an additional alpha coefficient)
+        CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY = 1003     //Softmax with hierarchical categories
     }
     public enum cudnnBatchNormMode_t
     {

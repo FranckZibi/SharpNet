@@ -16,24 +16,24 @@ namespace SharpNet.Networks
         public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet)
         {
             var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape);
+            var buffer = new CpuTensor<float>(new []{ testDataSet.Y_Shape [0]});
+            var lossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy;
             foreach (var modelFilePath in _modelFilesPath)
             {
                 Console.WriteLine("Loading " + modelFilePath + " ...");
                 var parametersFilePath = Network.ModelFilePath2ParameterFilePath(modelFilePath);
-                using(var network = Network.ValueOf(modelFilePath, parametersFilePath, new [] {0}))
-                { 
-                    Console.WriteLine("File loaded");
-                    Console.WriteLine("Computing accuracy for single network...");
+                using var network = Network.ValueOf(modelFilePath, parametersFilePath, new [] {0});
+                Console.WriteLine("File loaded");
+                Console.WriteLine("Computing accuracy for single network...");
                     
-                    var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet);
-                    var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
-                    var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, null);
-                    Console.WriteLine("Single Network Accuracy=" + accuracy);
-
-                    yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _modelFilesPath.Length, yCpuPredictedSingleNetwork);
-                }
+                var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet);
+                var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
+                lossFunction = network.Config.LossFunction;
+                var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, lossFunction, buffer);
+                Console.WriteLine("Single Network Accuracy=" + accuracy);
+                yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _modelFilesPath.Length, yCpuPredictedSingleNetwork);
             }
-            var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, null);
+            var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, lossFunction, buffer);
 
             Console.WriteLine("Ensemble Network Accuracy=" + accuracyEnsembleNetwork);
             return Tuple.Create(yCpuPredictedAllNetworks, accuracyEnsembleNetwork);

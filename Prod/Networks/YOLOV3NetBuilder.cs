@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using SharpNet.Data;
 
 namespace SharpNet.Networks
 {
@@ -214,12 +215,12 @@ namespace SharpNet.Networks
             }
             return _blockIdToLastLayerIndex[blockId + offset];
         }
-        private cudnnActivationMode_t ExtractActivation(string activationName, out double alphaActivation)
+        private cudnnActivationMode_t ExtractActivation(string activationName, out Tensor activationParameter)
         {
             switch (activationName)
             {
                 case "leaky":
-                    alphaActivation = Alpha_LeakyRelu;
+                    activationParameter = Tensor.SingleFloat((float)Alpha_LeakyRelu);
                     return cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU;
                 default:
                     throw new ArgumentException("invalid activation function: " + activationName);
