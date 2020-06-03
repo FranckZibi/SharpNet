@@ -19,8 +19,20 @@ namespace SharpNet.Layers
     {
         #region Fields
         private readonly cudnnPoolingMode_t _poolingMode;
+        /// <summary>
+        /// pooling height
+        /// -1 if we are using global pooling
+        /// </summary>
         private readonly int _poolingHeight;
+        /// <summary>
+        /// pooling width
+        /// -1 if we are using global pooling
+        /// </summary>
         private readonly int _poolingWidth;
+        /// <summary>
+        /// pooling stride
+        /// -1 if we are using global pooling
+        /// </summary>
         private readonly int _poolingStride;
         #endregion
 
@@ -46,13 +58,25 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            allX[0].Pooling(y, _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
+            var x = allX[0];
+            if (IsGlobalPooling(_poolingHeight, _poolingWidth, _poolingStride))
+            {
+                x.Pooling(y, _poolingMode, x.Shape[2], x.Shape[3], System.Math.Max(x.Shape[2], x.Shape[3]));
+                return;
+            }
+            x.Pooling(y, _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
             Debug.Assert(dx.Count == 1);
-            dy.PoolingGradient(y, allX[0], dx[0], _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
+            var x = allX[0];
+            if (IsGlobalPooling(_poolingHeight, _poolingWidth, _poolingStride))
+            {
+                dy.PoolingGradient(y, x, dx[0], _poolingMode, x.Shape[2], x.Shape[3], System.Math.Max(x.Shape[2], x.Shape[3]));
+                return;
+            }
+            dy.PoolingGradient(y, x, dx[0], _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
         }
         #endregion
 
@@ -109,13 +133,36 @@ namespace SharpNet.Layers
         public static int[] PoolingOutputShape(int[] inputShape, int poolingHeight, int poolingWidth, int poolingStride)
         {
             Debug.Assert(inputShape.Length == 4);
-            Debug.Assert(poolingStride >= 1);
-            var batchSize = inputShape[0];
+            if (IsGlobalPooling(poolingHeight, poolingWidth, poolingStride))
+            {
+                return new[] { inputShape[0], inputShape[1], 1, 1};
+            }
             var heightInput = inputShape[2];
             var widthInput = inputShape[3];
             var heightOutput = (heightInput - poolingHeight) / poolingStride + 1;
             var widthOutput = (widthInput - poolingWidth) / poolingStride + 1;
-            return new[] { batchSize, inputShape[1], heightOutput, widthOutput };
+            return new[] { inputShape[0], inputShape[1], heightOutput, widthOutput };
+        }
+
+        /// <summary>
+        /// TODO : add tests
+        /// </summary>
+        /// <param name="poolingHeight"></param>
+        /// <param name="poolingWidth"></param>
+        /// <param name="poolingStride"></param>
+        /// <returns></returns>
+        private static bool IsGlobalPooling(int poolingHeight, int poolingWidth, int poolingStride)
+        {
+            if (poolingHeight == -1)
+            {
+                Debug.Assert(poolingWidth == -1);
+                Debug.Assert(poolingStride == -1);
+                return true;
+            }
+            Debug.Assert(poolingHeight >= 1);
+            Debug.Assert(poolingWidth >= 1);
+            Debug.Assert(poolingStride >= 1);
+            return false;
         }
 
         protected override string DefaultLayerName()

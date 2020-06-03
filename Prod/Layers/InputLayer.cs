@@ -16,7 +16,7 @@ namespace SharpNet.Layers
         /// <summary>
         /// channel count
         /// </summary>
-        private int _c;
+        private readonly int _c;
         /// <summary>
         /// height
         /// </summary>
@@ -80,12 +80,10 @@ namespace SharpNet.Layers
 
         protected override string DefaultLayerName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
 
-        public void SetInputShape(int[] shape)
+        public void SetInputHeightAndWidth(int height, int width)
         {
-            Debug.Assert(shape.Length == 4);
-            _c = shape[1];
-            _h = shape[2];
-            _w = shape[3];
+            _h = height;
+            _w = width;
             Layers.ForEach(l=>l.LazyOutputShape = null);
         }
     }

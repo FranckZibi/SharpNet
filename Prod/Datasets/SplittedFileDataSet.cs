@@ -92,19 +92,10 @@ namespace SharpNet.Datasets
             Debug.Assert(res>=0);
             return res;
         }
-        //public List<Tuple<float, float>> ComputeMeanAndVolatilityForEachChannel()
-        //{
-        //    var sumSumSquareCountForEachChannel = new float[Channels * 3]; //3 == sum + sumSquare + count
-        //    int nbPerformed = 0;
-        //    int firstElementIdInFile = 0;
-        //    foreach (var file in Files)
-        //    {
-        //        LoadTensorsContainingElementId(firstElementIdInFile);
-        //        Parallel.For(firstElementIdInFile, firstElementIdInFile+NbElementsInFile(file), elementId => UpdateWith_Sum_SumSquare_Count_For_Each_Channel(elementId, sumSumSquareCountForEachChannel, false, ref nbPerformed));
-        //        firstElementIdInFile += NbElementsInFile(file);
-        //    }
-        //    return Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(sumSumSquareCountForEachChannel);
-        //}
+        public override string ElementIdToPathIfAny(int elementId)
+        {
+            return "";
+        }
         public override int Count { get; }
         public override CpuTensor<float> Y { get; }
         public override string ToString()

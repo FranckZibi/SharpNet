@@ -126,10 +126,7 @@ namespace SharpNet.Datasets
             var elementIdToDescription = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
             var entries = _database.Values.Where(e => !e.IsRemoved && accept(e) && (_root.ToPath(e.Cancel)?.Length??0)>=1
-
-                                                      //?D
-                                                      && _root.CategoryPathToCategoryName(_root.ToPath(e.Cancel)).Contains("used/star/")
-
+                                                      //&& _root.CategoryPathToCategoryName(_root.ToPath(e.Cancel)).Contains("used/star/")
                                                       ).OrderBy(e => e.SHA1).ToArray();
 
             var yExpected = new CpuTensor<float>(new [] {entries.Length, _root.RootPrediction().Length});
@@ -163,9 +160,11 @@ namespace SharpNet.Datasets
             Log.Info(string.Join(Environment.NewLine, categoryNameToCount.OrderBy(e=>e.Key).Select(e=>e.Key +" : "+e.Value)));
             var categoryDescription = Enumerable.Range(0, yExpected.Shape[1]).Select(i=>i.ToString()).ToArray();
             return new DirectoryDataSet(elementIdToPaths, elementIdToDescription, elementIdToCategoryIndex, yExpected, nameof(DataSetBuilder), 3, categoryDescription,
-                new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) },
+                CancelMeanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.ResizeToTargetSize);
         }
+        
+        public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };
 
 
         /// <summary>

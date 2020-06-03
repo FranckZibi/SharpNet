@@ -71,11 +71,10 @@ namespace SharpNet.Datasets
         /// </summary>
         private long alreadyComputedMiniBatchId = -1;
         private readonly Random[] _rands;
-        /// <summary>
-        /// the mean and volatility used to normalize the 'this' DataSet
-        /// will be null or empty if no normalization occured in the DataSet
-        /// </summary>
-        private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
+        #endregion
+
+        #region public properties
+        public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
         #endregion
 
         #region constructor
@@ -84,7 +83,7 @@ namespace SharpNet.Datasets
             Name = name;
             Channels = channels;
             CategoryDescriptions = categoryDescriptions;
-            _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
+            MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
@@ -180,7 +179,6 @@ namespace SharpNet.Datasets
             //xWorkingSet = x.Select((n, c, val) => (float)val/255f);
             return xWorkingSet;
         }
-
         public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int categoryCount , Func<byte, int> categoryByteToCategoryIndex)
         {
             Debug.Assert(categoryBytes.MultDim0 == 1);
@@ -194,11 +192,12 @@ namespace SharpNet.Datasets
             return newY;
         }
 
-
         /// <summary>
         /// original content (no data augmentation/no normalization) of the element at index 'elementId'
         /// </summary>
         /// <param name="elementId">the index of element to retrieve (between 0 and Count-1) </param>
+        /// <param name="targetHeight"></param>
+        /// <param name="targetWidth"></param>
         /// <returns>a byte tensor containing the element at index 'elementId' </returns>
         public virtual BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth)
         {
@@ -244,6 +243,8 @@ namespace SharpNet.Datasets
         /// TODO : check if we should use a cache to avoid recomputing the image stat at each epoch
         /// </summary>
         /// <param name="elementId"></param>
+        /// <param name="targetHeight"></param>
+        /// <param name="targetWidth"></param>
         /// <returns></returns>
         public ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
         {
@@ -256,19 +257,6 @@ namespace SharpNet.Datasets
         public ResizeStrategyEnum ResizeStrategy { get; }
         public int Channels { get; }
         public int CategoryCount => CategoryDescriptions.Length;
-
-
-        public string CategoryDescription(int categoryIndex)
-        {
-            return CategoryDescriptions[categoryIndex];
-        }
-
-        public virtual string ElementIdToDescription(int elementId)
-        {
-            return elementId.ToString();
-        }
-
-        public List<Tuple<float, float>> MeanAndVolatilityForEachChannel => _meanAndVolatilityForEachChannel;
         public double OriginalChannelMean(int channel)
         {
             Debug.Assert(IsNormalized);
@@ -281,20 +269,29 @@ namespace SharpNet.Datasets
         }
         public bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
 
+        public string CategoryDescription(int categoryIndex)
+        {
+            if (categoryIndex < 0 || categoryIndex >= CategoryCount || CategoryDescriptions == null)
+            {
+                return "";
+            }
+            return CategoryDescriptions[categoryIndex];
+        }
+
+        public virtual string ElementIdToDescription(int elementId)
+        {
+            return elementId.ToString();
+        }
         /// <summary>
         /// retrieve the category associated with a specific element
         /// </summary>
         /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
         /// <returns>the associated category id, or -1 if the category is not known</returns>
         public abstract int ElementIdToCategoryIndex(int elementId);
-        public virtual string ElementIdToPathIfAny(int elementId)
-        {
-            return "";
-        }
-
+        public abstract string ElementIdToPathIfAny(int elementId);
 
         public int[] Y_Shape => new[] { Count, CategoryCount };
-        public void Dispose()
+        public virtual void Dispose()
         {
             xOriginalNotAugmentedMiniBatch?.Dispose();
             xDataAugmentedMiniBatch?.Dispose();
@@ -322,11 +319,18 @@ namespace SharpNet.Datasets
 
         public int TypeSize => 4; //float size
 
+
+
+        public IDataSet Slice(int firstElementId, int count)
+        {
+            return new SubDataSet(this, id => id >= firstElementId && id <(firstElementId+count) );
+        }
+
         public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
-            int lastElementIdIncludedInTrainingSet = (int)(percentageInTrainingSet * Count)-1;
-            var training = new SubDataSet(this, id => id <= lastElementIdIncludedInTrainingSet);
-            var test = new SubDataSet(this, id => id > lastElementIdIncludedInTrainingSet);
+            int countInTrainingSet = (int)(percentageInTrainingSet * Count+0.1);
+            var training = Slice(0, countInTrainingSet);
+            var test = Slice(countInTrainingSet, Count- countInTrainingSet);
             return new TrainingAndTestDataLoader(training, test, this);
         }
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)

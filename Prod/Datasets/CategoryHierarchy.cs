@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+
 // ReSharper disable EnforceIfStatementBraces
 
 namespace SharpNet.Datasets
@@ -9,54 +10,97 @@ namespace SharpNet.Datasets
     public class CategoryHierarchy
     {
         #region private fields
-        private readonly List<CategoryHierarchy> _children = new List<CategoryHierarchy>();
         private readonly string _name;
+        private readonly CategoryHierarchy _parentIfAny;
         private readonly bool _onlyOneChildrenValidAtATime;
-        private int? _lazyCount;
+        private readonly List<CategoryHierarchy> _children = new List<CategoryHierarchy>();
+        private readonly int _startIndex;
         private float[] _lazyRootTemplate = null;
-        private CategoryHierarchy _parentIfAny;
         #endregion
+
+        private int IndexWithProba => HasAssociatedProba ? _startIndex : -1;
+        private int IndexWithElementCount
+        {
+            get
+            {
+                if (_children.Count == 0)
+                {
+                    return -1;
+                }
+                return _startIndex+(HasAssociatedProba?1:0);
+            }
+        } 
+
+        private int EndIndexExcluded
+        {
+            get
+            {
+                if (_children.Count >= 1)
+                {
+                    return _children.Last().EndIndexExcluded;
+                }
+                return _startIndex + ((IsRoot||HasAssociatedProba) ?1:0);
+            }
+        }
+
+
+        public static CategoryHierarchy NewRoot(string rootName)
+        {
+            return new CategoryHierarchy(rootName, null);
+        }
 
         #region constructor
-        public CategoryHierarchy(string name, bool onlyOneChildrenValidAtATime = true)
+        private CategoryHierarchy(string name, CategoryHierarchy parentIfAny, bool onlyOneChildrenValidAtATime = true)
         {
             _name = name;
+            _parentIfAny = parentIfAny;
             _onlyOneChildrenValidAtATime = onlyOneChildrenValidAtATime;
+
+            if (_parentIfAny == null)
+            {
+                //root node
+                _startIndex = 0;
+            }
+            else
+            {
+                if (_parentIfAny._children.Count == 0)
+                {
+                    //first child
+                    _startIndex = _parentIfAny.EndIndexExcluded+(_parentIfAny.IsRoot?0:1); // sub categories count
+                }
+                else
+                {
+                    _startIndex = _parentIfAny._children.Last().EndIndexExcluded;
+                }
+                _parentIfAny._children.Add(this);
+            }
         }
         #endregion
 
-        public void Add(CategoryHierarchy child)
+        public CategoryHierarchy Add(string name, bool onlyOneChildrenValidAtATime = true)
         {
-            Debug.Assert(child._parentIfAny == null);
-            _children.Add(child);
-            child._parentIfAny = this;
+            return new CategoryHierarchy(name, this, onlyOneChildrenValidAtATime);
         }
+
         public void AddAllNumbersWithSameNumberOfDigits(string name, int maxNumber)
         {
             Debug.Assert(maxNumber < 10000);
             if (maxNumber <= 9)
             {
-                var subCategorySingleDigit = new CategoryHierarchy(name);
-                subCategorySingleDigit.AddRange(Range(1, maxNumber));
-                Add(subCategorySingleDigit);
+                var subCategorySingleDigit = Add(name);
+                subCategorySingleDigit.AddRange(1, maxNumber);
                 return;
             }
-            var subCategory = new CategoryHierarchy(name, false);
-            var cat = new List<CategoryHierarchy>();
+            var subCategory = Add(name, false);
             var names = new[] { "units", "tens", "hundreds", "thousands" };
-            int index = 0;
-            while (maxNumber > 0)
+            int[] digits = maxNumber.ToString().Select(c => c - '0').ToArray();
+            for (int i=0;i<digits.Length;++i)
             {
-                int minNumber = maxNumber >= 10 ? 0 : 1;
-                int count = maxNumber >= 10 ? 10 : maxNumber;
-                var c = new CategoryHierarchy(names[index]);
-                c.AddRange(Range(minNumber, count));
-                cat.Insert(0, c);
-                maxNumber /= 10;
-                ++index;
+                int startNumber = i==0? 1 : 0;
+                int count = i==0 ? digits[i] : 10;
+                var c = subCategory.Add(names[digits.Length-i-1]);
+                c.AddRange(startNumber, count);
             }
-            subCategory.AddRange(cat);
-            Add(subCategory);
         }
         public float[] RootPrediction()
         {
@@ -73,48 +117,75 @@ namespace SharpNet.Datasets
             return _lazyRootTemplate;
         }
 
+        public string ExtractPrediction(ReadOnlySpan<float> prediction)
+        {
+            string result = HasAssociatedProba?_name:"";
+            if (_children.Count == 0)
+            {
+                return result;
+            }
+            if (_onlyOneChildrenValidAtATime)
+            {
+                var selectedChildren = _children[0];
+                foreach(var c in _children.Skip(1))
+                {
+                    if (prediction[c.IndexWithProba] > prediction[selectedChildren.IndexWithProba])
+                    {
+                        selectedChildren = c;
+                    }
+                }
+                result += selectedChildren.ExtractPrediction(prediction);
+            }
+            else
+            {
+                var childrenPrediction = new List<string>();
+                foreach (var c in _children)
+                {
+                    childrenPrediction.Add(c.ExtractPrediction(prediction));
+                }
+                result += string.Join("", childrenPrediction);
+            }
+            return result;
+        }
+
         public static CategoryHierarchy ComputeRootNode()
         {
-            var root = new CategoryHierarchy("");
-            root.Add(new CategoryHierarchy("mint"));
+            var root = NewRoot("");
+            root.Add("mint");
             
-            var used = new CategoryHierarchy("used");
-            var used_star = new CategoryHierarchy("star");
+            var used = root.Add("used");
+            var used_star = used.Add("star");
             used_star.AddAllNumbersWithSameNumberOfDigits("2digits", 39);
-            used_star.Add(new CategoryHierarchy("full"));
-            used_star.Add(new CategoryHierarchy("empty"));
+            used_star.Add("full");
+            used_star.Add("empty");
             used_star.AddAllNumbersWithSameNumberOfDigits("1digit", 9);
-            used.Add(used_star);
-            var used_gc = new CategoryHierarchy("gc");
+            var used_gc = used.Add("gc");
             used_gc.AddAllNumbersWithSameNumberOfDigits("4digits", 6999);
             used_gc.AddAllNumbersWithSameNumberOfDigits("3digits", 999);
             used_gc.AddAllNumbersWithSameNumberOfDigits("2digits", 99);
             used_gc.AddAllNumbersWithSameNumberOfDigits("1digit", 9);
-            used.Add(used_gc);
-            var used_pc = new CategoryHierarchy("pc");
+            var used_pc = used.Add("pc");
             used_pc.AddAllNumbersWithSameNumberOfDigits("4digits", 4999);
             used_pc.AddAllNumbersWithSameNumberOfDigits("3digits", 999);
             used_pc.AddAllNumbersWithSameNumberOfDigits("2digits", 99);
             used_pc.AddAllNumbersWithSameNumberOfDigits("1digit", 9);
-            used.Add(used_pc);
-            used.Add(new CategoryHierarchy("preo1893"));
-            used.Add(new CategoryHierarchy("ir"));
-            used.Add(new CategoryHierarchy("cad"));
-            used.Add(new CategoryHierarchy("cad_perle"));
-            used.Add(new CategoryHierarchy("cad_octo"));
-            used.Add(new CategoryHierarchy("cad_ondule"));
-            used.Add(new CategoryHierarchy("cad_imprime"));
-            used.Add(new CategoryHierarchy("cad_passe"));
-            used.Add(new CategoryHierarchy("cad_barcelona"));
-            used.Add(new CategoryHierarchy("amb"));
-            used.Add(new CategoryHierarchy("anchor"));
-            used.Add(new CategoryHierarchy("typo"));
-            used.Add(new CategoryHierarchy("grille"));
-            used.Add(new CategoryHierarchy("grille_ss_fin"));
-            used.Add(new CategoryHierarchy("gros_points"));
-            used.Add(new CategoryHierarchy("asna"));
-            used.Add(new CategoryHierarchy("plume"));
-            root.Add(used);
+            used.Add("preo1893");
+            used.Add("ir");
+            used.Add("cad");
+            used.Add("cad_perle");
+            used.Add("cad_octo");
+            used.Add("cad_ondule");
+            used.Add("cad_imprime");
+            used.Add("cad_passe");
+            used.Add("cad_barcelona");
+            used.Add("amb");
+            used.Add("anchor");
+            used.Add("typo");
+            used.Add("grille");
+            used.Add("grille_ss_fin");
+            used.Add("gros_points");
+            used.Add("asna");
+            used.Add("plume");
 
             return root;
         }
@@ -127,9 +198,7 @@ namespace SharpNet.Datasets
         public float[] ExpectedPrediction(string[] pathExpected)
         {
             var expected = (float[])RootPrediction().Clone();
-            int indexInExpected = 0;
-            GetExpected(pathExpected, 0, expected, ref indexInExpected);
-            //System.IO.File.AppendAllText("c:/download/toto2.txt", "new float[]{"+string.Join(", ", expected  )+"}"+System.Environment.NewLine);
+            GetExpected(pathExpected, 0, expected);
             return expected;
         }
         public override string ToString()
@@ -204,21 +273,11 @@ namespace SharpNet.Datasets
             return null;
         }
 
-        private void SetWrongPath(float[] expected, ref int indexInExpected)
-        {
-            Debug.Assert(HasAssociatedProba);
-            expected[indexInExpected++] = 0f;
-            if (_children.Count != 0)
-            {
-                expected[indexInExpected] = -10 * GetLengthOfSubCategoriesDescription();
-                indexInExpected += GetLengthOfSubCategoriesDescription();
-            }
-        }
-        private void GetExpected(string[] pathExpected, int indexInPathExpected, float[] expected, ref int indexInExpected)
+        private void GetExpected(string[] pathExpected, int indexInPathExpected, float[] expected)
         {
             if (HasAssociatedProba)
             {
-                expected[indexInExpected++] = 1f;
+                expected[IndexWithProba] = 1f;
             }
             if (_children.Count == 0)
             {
@@ -234,21 +293,24 @@ namespace SharpNet.Datasets
                 {
                     //we ignore the sub categories
                     Debug.Assert(_children.Count != 0);
-                    expected[indexInExpected] = -10*GetLengthOfSubCategoriesDescription();
-                    indexInExpected += GetLengthOfSubCategoriesDescription();
+                    expected[IndexWithElementCount] = -10* FloatLengthOfSubCategoriesDescription;
                     return;
                 }
 
-                ++indexInExpected;
                 foreach (var c in _children)
                 {
                     if (c._name == desc)
                     {
-                        c.GetExpected(pathExpected, indexInPathExpected+ ((IsRoot || _parentIfAny._onlyOneChildrenValidAtATime) ? 1 : 0), expected, ref indexInExpected);
+                        c.GetExpected(pathExpected, indexInPathExpected+ ((IsRoot || _parentIfAny._onlyOneChildrenValidAtATime) ? 1 : 0), expected);
                     }
                     else
                     {
-                        c.SetWrongPath(expected, ref indexInExpected);
+                        Debug.Assert(c.HasAssociatedProba);
+                        expected[c.IndexWithProba] = 0f;
+                        if (c._children.Count != 0)
+                        {
+                            expected[c.IndexWithElementCount] = -10 * c.FloatLengthOfSubCategoriesDescription;
+                        }
                     }
                 }
             }
@@ -258,15 +320,13 @@ namespace SharpNet.Datasets
                 {
                     //we ignore the sub categories
                     Debug.Assert(_children.Count != 0);
-                    expected[indexInExpected] = -10*GetLengthOfSubCategoriesDescription();
-                    indexInExpected += GetLengthOfSubCategoriesDescription();
+                    expected[IndexWithElementCount] = -10* FloatLengthOfSubCategoriesDescription;
                     return;
                 }
                 Debug.Assert(pathExpected.Length- indexInPathExpected == _children.Count);
-                ++indexInExpected;
                 for (var index = 0; index < _children.Count; index++)
                 {
-                    _children[index].GetExpected(pathExpected, indexInPathExpected + index, expected, ref indexInExpected);
+                    _children[index].GetExpected(pathExpected, indexInPathExpected + index, expected);
                 }
             }
         }
@@ -289,31 +349,11 @@ namespace SharpNet.Datasets
         /// will be 0 if the node has no sub categories
         /// </summary>
         /// <returns></returns>
-        private int GetLengthOfSubCategoriesDescription()
-        {
-            if (_lazyCount.HasValue)
-            {
-                return _lazyCount.Value;
-            }
-            //int res = HasAssociatedProba ? 1 : 0; //no proba associated with the root element
-            if (_children.Count == 0)
-            {
-                _lazyCount = 0;
-                return 0;
-            }
-            int res = 1; //count of sub categories  (if positive) or number of elements to skip
-            res += _children.Select(c => c.GetLengthOfSubCategoriesDescription() + (c.HasAssociatedProba ? 1 : 0)).Sum();
-            _lazyCount = res;
-            return _lazyCount.Value;
+        private int FloatLengthOfSubCategoriesDescription => EndIndexExcluded - _startIndex-(HasAssociatedProba?1:0);
 
-        }
-        private static List<CategoryHierarchy> Range(int start, int count)
+        private void AddRange(int start, int count)
         {
-            return Enumerable.Range(start, count).Select(i => new CategoryHierarchy(i.ToString())).ToList();
-        }
-        private void AddRange(List<CategoryHierarchy> children)
-        {
-            children.ForEach(Add);
+            Enumerable.Range(start, count).ToList().ForEach((i => Add(i.ToString())));
         }
     }
 }

@@ -324,11 +324,7 @@ namespace SharpNet.Networks
         }
         public Network GlobalAvgPooling(string layerName = "")
         {
-            var lastLayerShape = Layers.Last().OutputShape(1);
-            var lastLayerHeight = lastLayerShape[2];
-            var lastLayerWidth = lastLayerShape[3];
-            var poolingStride = Math.Max(lastLayerHeight, lastLayerWidth);
-            return AvgPooling(lastLayerHeight, lastLayerWidth, poolingStride, layerName);
+            return AvgPooling(-1, -1, -1, layerName);
         }
         public Network GlobalMaxPooling(string layerName = "")
         {
@@ -336,11 +332,7 @@ namespace SharpNet.Networks
         }
         public Network GlobalMaxPooling(int previousLayerIndex, string layerName = "")
         {
-            var previousLayerShape = Layers[previousLayerIndex].OutputShape(1);
-            var previousLayerHeight = previousLayerShape[2];
-            var previousLayerWidth = previousLayerShape[3];
-            var poolingStride = Math.Max(previousLayerHeight, previousLayerWidth);
-            return MaxPooling(previousLayerHeight, previousLayerWidth, poolingStride, previousLayerIndex, layerName);
+            return MaxPooling(-1, -1, -1, previousLayerIndex, layerName);
         }
         public Network GlobalAvgPooling_And_GlobalMaxPooling()
         {
@@ -535,7 +527,7 @@ namespace SharpNet.Networks
                     double nbStepsByEpoch = ((double)trainingDataSetCpu.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
                     Log.Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg);
-                    Log.Info(MemoryInfo());
+                    Log.Debug(MemoryInfo());
                     //if it is the last epoch, we'll save Layer KPI
                     if (epoch == numEpochs)
                     {
@@ -667,7 +659,7 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public Tensor Predict(Tensor X, bool isTraining)
         {
-            ((InputLayer)Layers[0]).SetInputShape(X.Shape);
+            ((InputLayer)Layers[0]).SetInputHeightAndWidth(X.Shape[2], X.Shape[3]);
             X = ReformatToCorrectDevice_GPU_or_CPU(X);
             var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(X.Shape[0]));
             X = ReformatToCorrectDevice_GPU_or_CPU(X);

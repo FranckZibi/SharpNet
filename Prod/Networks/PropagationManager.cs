@@ -53,7 +53,7 @@ namespace SharpNet.Networks
             FreeAllMemory();
             Debug.Assert(_all_allocated_Y.Count == 0);
             var stopwatchDico = isTraining ? _forwardPropagationTrainingTime : _forwardPropagationInferenceTime;
-            ((InputLayer)_layers[0]).SetInputShape(X.Shape);
+            ((InputLayer)_layers[0]).SetInputHeightAndWidth(X.Shape[2], X.Shape[3]);
             //referenceCountToLayer[layerIndex] : number of layers using the output of layer 'layerIndex'
             var referenceCountToLayer = new List<int>();
             int batchSize = X.Shape[0];
@@ -86,10 +86,10 @@ namespace SharpNet.Networks
                     if (LogPropagation)
                     {
                         layer.LogDebug("Forward: "+layer);
-                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
-                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ContentStats()));
-                        layer.LogDebug("output:" + Environment.NewLine + yBuffer.ToNumpy());
-                        layer.LogDebug("output:" + Environment.NewLine + yBuffer.ContentStats());
+                        //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
+                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
+                        //layer.LogDebug("output:" + Environment.NewLine + yBuffer.ToNumpy());
+                        layer.LogDebug("output:" + yBuffer.ContentStats());
                         layer.LogDebug("");
                     }
                 }
@@ -222,18 +222,18 @@ namespace SharpNet.Networks
                         layer.LogDebug("backward: "+layer);
                         if (layer.WeightGradients != null)
                         {
-                            layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
-                            layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ContentStats());
+                            //layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
+                            layer.LogDebug("dW: " + layer.WeightGradients.ContentStats());
                         }
                         if (layer.BiasGradients != null)
                         {
-                            layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
-                            layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ContentStats());
+                            //layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
+                            layer.LogDebug("dB: " + layer.BiasGradients.ContentStats());
                         }
                         for (var index = 0; index < dxBuffer.Count; index++)
                         {
-                            layer.LogDebug("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ToNumpy());
-                            layer.LogDebug("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ContentStats());
+                            //layer.LogDebug("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ToNumpy());
+                            layer.LogDebug("dx["+index+ "]: " + dxBuffer[index]?.ContentStats());
                         }
                         layer.LogDebug("");
                     }

@@ -35,6 +35,15 @@ namespace SharpNet.Datasets
         {
             return _original.ElementIdToCategoryIndex(elementId);
         }
+        public override string ElementIdToDescription(int elementId)
+        {
+            return _original.ElementIdToDescription(elementId);
+        }
+        public override string ElementIdToPathIfAny(int elementId)
+        {
+            return _original.ElementIdToPathIfAny(elementId);
+        }
+
         public override CpuTensor<float> Y => _original.Y;
 
         public override string ToString()

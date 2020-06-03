@@ -30,6 +30,33 @@ namespace SharpNet.Datasets
         #endregion
         public override CpuTensor<float> Y { get; }
 
+
+        public static DirectoryDataSet FromDirectory(string path, int nbCategories)
+        {
+            var allFiles = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories).Where(PictureTools.IsPicture).ToList();
+            var elementIdToDescription = allFiles.ToList();
+            var elementIdToPaths = new List<List<string>>();
+            var elementIdToCategoryIndex = new List<int>();
+            foreach (var f in allFiles)
+            {
+                elementIdToPaths.Add(new List<string> {f});
+                elementIdToCategoryIndex.Add(-1);
+            }
+            var categoryDescriptions = Enumerable.Range(0, nbCategories).Select(i=>i.ToString()).ToArray();
+                
+            return new DirectoryDataSet(
+                elementIdToPaths,
+                elementIdToDescription,
+                elementIdToCategoryIndex,
+                null,
+                path, 
+                3, 
+                categoryDescriptions,
+                DataSetBuilder.CancelMeanAndVolatilityForEachChannel,
+                ResizeStrategyEnum.ResizeToTargetSize);
+
+        }
+
         public DirectoryDataSet(
             List<List<string>> elementIdToPaths, 
             List<string> elementIdToDescription, 
@@ -172,7 +199,7 @@ namespace SharpNet.Datasets
             var sumSumSquareCountForEachChannel = new float[Channels * DistinctValuesToComputeInEachChannel];
             int nbPerformed = 0;
             Parallel.For(0, Count, elementId => UpdateWith_Sum_SumSquare_Count_For_Each_Channel(elementId, sumSumSquareCountForEachChannel, ref nbPerformed));
-            return Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(sumSumSquareCountForEachChannel);
+            return Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(sumSumSquareCountForEachChannel, Channels);
         }
 
         //private void MakeSquarePictures(int elementId, string targetDirectory, bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor, bool skipIfFileAlreadyExists, ref int nbPerformed)
@@ -312,11 +339,11 @@ namespace SharpNet.Datasets
             //each file contains 1 channel of the element
             return BitmapContent.ValueFromSeveralSingleChannelBitmaps(elementPaths);
         }
-        private List<Tuple<float, float>> Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(float[] sumSumSquareCountForEachChannel)
+        private static List<Tuple<float, float>> Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(float[] sumSumSquareCountForEachChannel, int channelCount)
         {
             const int DistinctValuesToComputeInEachChannel = 3; //sum + sumSquare + count
             var result = new List<Tuple<float, float>>();
-            for (int channel = 0; channel < Channels; ++channel)
+            for (int channel = 0; channel < channelCount; ++channel)
             {
                 var sum = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel];
                 var sumSquare = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel + 1];

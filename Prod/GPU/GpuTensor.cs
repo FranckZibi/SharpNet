@@ -730,7 +730,7 @@ namespace SharpNet.GPU
             var mode = cublasSideMode_t.CUBLAS_SIDE_RIGHT;
             Debug.Assert(Count%diagonalMatrix.Count == 0);
             int m = Count/diagonalMatrix.Count; //number of rows of matrix 'a and 'c'
-            int n = diagonalMatrix.Count; //number of columns of matrix 'a'and 'c'
+            int n = diagonalMatrix.Count; //number of columns of matrix 'a' and 'c'
             int lda = m; //leading dimension of two-dimensional array used to store the matrix 'a'
             int incx = 1; //stride of one
             int ldc = lda; //leading dimension of a two-dimensional array used to store the matrix 'c'

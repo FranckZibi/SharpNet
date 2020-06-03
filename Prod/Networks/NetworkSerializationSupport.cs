@@ -21,6 +21,10 @@ namespace SharpNet.Networks
             var allLines = File.ReadAllLines(modelFilePath);
             var dicoFirstLine = Serializer.Deserialize(allLines[0]);
             var config = NetworkConfig.ValueOf(dicoFirstLine);
+            if (!string.IsNullOrEmpty(config.LogDirectory) && !Directory.Exists(config.LogDirectory))
+            {
+                config.LogDirectory = new FileInfo(modelFilePath).Directory.FullName;
+            }
             var resourceIds = overrideResourceIds??(int[])dicoFirstLine[nameof(_resourceIds)];
             var network = new Network(config, resourceIds.ToList());
             var epochsData = (EpochData[])dicoFirstLine[nameof(EpochData)];
@@ -75,6 +79,7 @@ namespace SharpNet.Networks
         /// <param name="originFramework"></param>
         public void LoadParametersFromH5File(string h5FilePath, NetworkConfig.CompatibilityModeEnum originFramework)
         {
+            Network.Log.Info("loading weights from " + h5FilePath);
             using var h5File = new H5File(h5FilePath);
             var h5FileParameters = h5File.Datasets();
             Layers.ForEach(l => l.LoadParameters(h5FileParameters, originFramework));

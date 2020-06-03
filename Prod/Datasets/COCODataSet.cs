@@ -12,7 +12,7 @@ namespace SharpNet.Datasets
         private readonly string _cocoDirectory;
         #endregion
 
-        #region cosntructor
+        #region constructor
         public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy)
         {
             Y = null;
@@ -38,6 +38,11 @@ namespace SharpNet.Datasets
         {
             throw new ArgumentException("several categories may be associated with a single image");
         }
+        public override string ElementIdToPathIfAny(int elementId)
+        {
+            return "";
+        }
+
         public override CpuTensor<float> Y { get; }
     }
 }

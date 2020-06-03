@@ -28,6 +28,15 @@ namespace SharpNet.Datasets
         {
             return _original.ElementIdToCategoryIndex(_shuffledElementIdToOriginalElementId[elementId]);
         }
+        public override string ElementIdToDescription(int elementId)
+        {
+            return _original.ElementIdToDescription(_shuffledElementIdToOriginalElementId[elementId]);
+        }
+        public override string ElementIdToPathIfAny(int elementId)
+        {
+            return _original.ElementIdToPathIfAny(_shuffledElementIdToOriginalElementId[elementId]);
+        }
+        
         public override CpuTensor<float> Y { get; }
     }
 }

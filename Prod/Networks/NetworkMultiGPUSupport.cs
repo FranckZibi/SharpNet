@@ -180,7 +180,6 @@ namespace SharpNet.Networks
             }
 
             var slaveNetworkConfig = master.Config.Clone();
-            slaveNetworkConfig.LogFile += "_slave";
             var slave = new Network(slaveNetworkConfig, new List<int> { slaveDeviceId }, master);
             lock (master._slaveNetworks)
             {

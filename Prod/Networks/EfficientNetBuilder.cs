@@ -28,7 +28,7 @@ namespace SharpNet.Networks
                     LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                     lambdaL2Regularization = 0.0005,
-                    LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CustomDataset")
+                    LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "ImageNet")
                 }
                     .WithSGD(0.9, false)
                     //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
@@ -45,10 +45,10 @@ namespace SharpNet.Networks
 
 
         /// <summary>
-        /// The default EfficientNet Meta Parameters for Custom Dataset
+        /// The default EfficientNet Meta Parameters for Cancel Dataset
         /// </summary>
         /// <returns></returns>
-        public static EfficientNetBuilder EfficientNet_CustomDataset()
+        public static EfficientNetBuilder EfficientNet_CancelDataset()
         {
             var builder = new EfficientNetBuilder
             {
@@ -57,7 +57,7 @@ namespace SharpNet.Networks
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                         lambdaL2Regularization = 0.0005,
-                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CustomDataset")
+                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset")
                     }
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
@@ -256,7 +256,6 @@ namespace SharpNet.Networks
                 {
                     throw new ArgumentException("missing "+weights+" model file "+modelPath);
                 }
-                Network.Log.Info("loading weights from " + modelPath);
                 net.LoadParametersFromH5File(modelPath, NetworkConfig.CompatibilityModeEnum.TensorFlow1);
             }
 

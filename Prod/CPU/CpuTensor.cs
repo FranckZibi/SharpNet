@@ -822,8 +822,7 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode,
-            int poolingHeight, int poolingWidth, int poolingStride)
+        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             int batchSize = x.Shape[0];
 #if DEBUG
