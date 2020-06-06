@@ -12,12 +12,12 @@ using SharpNet.Optimizers;
 namespace SharpNet.Layers
 {
     /// <summary>
-    /// Input shape ('x' tensor) shape:
+    /// Input 'x' shape:
     ///     (batchSize, x.C, x.H, x.W)
-    /// Output shape ('y' tensor) for Depthwise Convolution:
-    ///     (batchSize, _depthMultiplier*x.C, y.H, y.W)
-    /// Output shape ('y' tensor) for standard Convolution:
-    ///     (batchSize, FiltersCount, y.H, y.W)
+    /// Output 'y' tensor shape for Depthwise Convolution:
+    ///     (batchSize, depthMultiplier*x.C, y.H, y.W)
+    /// Output 'y' tensor shape for Standard Convolution:
+    ///     (batchSize, filtersCount, y.H, y.W)
     ///     y.H = (x.H−F+2×pads) /Stride + 1
     ///     y.W = (x.W−F+2×pads) /Stride + 1
     /// </summary>
@@ -109,12 +109,10 @@ namespace SharpNet.Layers
             {
                 // cuDNN 7.x doesn't support asymmetric padding
                 // we'll pad the input tensor 'x' so that we can use a symmetric padding
-                StartForwardTimer(Type() + ">0Pad", isTraining);
+                StartForwardTimer(Type() + ">ConvAsym", isTraining);
                 var paddedXShape = PaddedXShape(x.Shape, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 GetFloatTensor(ref _padded_X, paddedXShape);
                 _padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
-                StopForwardTimer(Type() + ">0Pad", isTraining);
-                StartForwardTimer(Type() + ">ConvAsym", isTraining);
                 _padded_X.Convolution(_convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 if (PreviousLayers.All(l=>!l.LayerOutputShouldBeKeptForBackwardPropagation(isTraining)))
                 {
@@ -173,23 +171,21 @@ namespace SharpNet.Layers
             if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
                 // cuDNN 7.x doesn't support asymmetric padding, we'll use the padded version of input tensor 'x'
-                Debug.Assert(_padded_X != null);
                 StartBackwardTimer(Type() + ">ConvAsym");
+                Debug.Assert(_padded_X != null);
                 var _padded_dX = GetFloatTensor(_padded_X.Shape);
                 _padded_X.ConvolutionGradient(_convolution, dy, 0, 0, 0, 0, _stride, _padded_dX, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 FreeFloatTensor(ref _padded_X); //no more need of '_padded_X'
-                StopBackwardTimer(Type() + ">ConvAsym");
-                StartBackwardTimer(Type() + ">0Pad");
                 dx[0]?.ZeroUnpadding(_padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 FreeFloatTensor(ref _padded_dX); //no more need of '_padded_dX'
-                StopBackwardTimer(Type() + ">0Pad");
                 Debug.Assert(_padded_X == null);
+                StopBackwardTimer(Type() + ">ConvAsym");
             }
             else
             {
                 //symmetric padding
-                Debug.Assert(_padded_X == null);
                 StartBackwardTimer(Type() + ">Conv");
+                Debug.Assert(_padded_X == null);
                 x.ConvolutionGradient(_convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 StopBackwardTimer(Type() + ">Conv");
             }

@@ -42,21 +42,18 @@ namespace SharpNetTests.Datasets
             var root = CategoryHierarchy.ComputeRootNode();
             var rootPrediction = root.RootPrediction();
             //trained on 235x200
-            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"), "", new[] { 0 });
+            //var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"), "", new[] { 0 });
+            //trained on 235x200
+            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset", "efficientnet-b0_Imagenet_20200603_1803_150.txt"), "", new[] { 0 });
+
             ((InputLayer)network.Layers[0]).SetInputHeightAndWidth(235, 200);
-            using var fullDataSet = DirectoryDataSet.FromDirectory(@"C:\Download\ToWork", rootPrediction.Length);
-            for (int elementId = 0; elementId < fullDataSet.Count; ++elementId)
+            using var dataSet = DirectoryDataSet.FromDirectory(@"C:\Download\ToWork", rootPrediction.Length, root);
+            var p = network.Predict(dataSet, @"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction.csv");
+            for (int row = 0; row < p.Shape[0]; ++row)
             {
-                using var dataSet = fullDataSet.Slice(elementId, 1);
-                //var imageSize = PictureTools.ImageSize(dataSet.ElementIdToPathIfAny(0));
-                //((InputLayer)network.Layers[0]).SetInputHeightAndWidth(imageSize.Height, imageSize.Width);
-                var p = network.Predict(dataSet, @"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction.csv");
-                for (int row = 0; row < p.Shape[0]; ++row)
-                {
-                    var rowPrediction = p.RowSlice(row, 1);
-                    var mostProba = root.ExtractPrediction(rowPrediction.AsReadonlyFloatCpuContent);
-                    Network.Log.Error(mostProba);
-                }
+                var rowPrediction = p.RowSlice(row, 1);
+                var mostProba = root.ExtractPrediction(rowPrediction.AsReadonlyFloatCpuContent);
+                Network.Log.Error(mostProba);
             }
 
         }

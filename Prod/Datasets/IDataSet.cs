@@ -95,6 +95,8 @@ namespace SharpNet.Datasets
 
         ResizeStrategyEnum ResizeStrategy { get; }
 
+        CategoryHierarchy HierarchyIfAny { get; }
+
         void CreatePredictionFile(CpuTensor<float> prediction, string outputFile);
     }
 }

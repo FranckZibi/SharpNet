@@ -659,8 +659,6 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public Tensor Predict(Tensor X, bool isTraining)
         {
-            ((InputLayer)Layers[0]).SetInputHeightAndWidth(X.Shape[2], X.Shape[3]);
-            X = ReformatToCorrectDevice_GPU_or_CPU(X);
             var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(X.Shape[0]));
             X = ReformatToCorrectDevice_GPU_or_CPU(X);
             PropagationManager.Forward(X, yPredicted, isTraining);
@@ -859,7 +857,6 @@ namespace SharpNet.Networks
             {
                 result += " - " + GpuWrapper.MemoryInfo();
             }
-            result += " - CurrentThreadId#" + Thread.CurrentThread.ManagedThreadId;
             return result;
         }
 

@@ -14,7 +14,7 @@ namespace SharpNet.Datasets
 
         public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryIndex, string[] categoryDescriptions,
             string name, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
-            : base(name, x.Shape[1], categoryDescriptions, meanAndVolatilityForEachChannel, ResizeStrategyEnum.None)
+            : base(name, x.Shape[1], categoryDescriptions, meanAndVolatilityForEachChannel, ResizeStrategyEnum.None, null)
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
             Debug.Assert(categoryDescriptions.Length == y.Shape[1]);

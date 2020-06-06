@@ -31,7 +31,7 @@ namespace SharpNet.Datasets
         public override CpuTensor<float> Y { get; }
 
 
-        public static DirectoryDataSet FromDirectory(string path, int nbCategories)
+        public static DirectoryDataSet FromDirectory(string path, int nbCategories, CategoryHierarchy hierarchyIfAny)
         {
             var allFiles = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories).Where(PictureTools.IsPicture).ToList();
             var elementIdToDescription = allFiles.ToList();
@@ -53,7 +53,8 @@ namespace SharpNet.Datasets
                 3, 
                 categoryDescriptions,
                 DataSetBuilder.CancelMeanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.ResizeToTargetSize);
+                ResizeStrategyEnum.ResizeToTargetSize,
+                hierarchyIfAny);
 
         }
 
@@ -64,8 +65,9 @@ namespace SharpNet.Datasets
             CpuTensor<float> expectedYIfAny,
             string name, int channels, string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
-            ResizeStrategyEnum resizeStrategy)
-            : base(name, channels, categoryDescriptions, meanAndVolatilityForEachChannel, resizeStrategy)
+            ResizeStrategyEnum resizeStrategy,
+            CategoryHierarchy hierarchyIfAny)
+            : base(name, channels, categoryDescriptions, meanAndVolatilityForEachChannel, resizeStrategy, hierarchyIfAny)
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
             _elementIdToDescription.AddRange(elementIdToDescription);

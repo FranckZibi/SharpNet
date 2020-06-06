@@ -161,7 +161,8 @@ namespace SharpNet.Datasets
             var categoryDescription = Enumerable.Range(0, yExpected.Shape[1]).Select(i=>i.ToString()).ToArray();
             return new DirectoryDataSet(elementIdToPaths, elementIdToDescription, elementIdToCategoryIndex, yExpected, nameof(DataSetBuilder), 3, categoryDescription,
                 CancelMeanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.ResizeToTargetSize);
+                ResizeStrategyEnum.ResizeToTargetSize,
+                _root);
         }
         
         public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };

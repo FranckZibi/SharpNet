@@ -10,7 +10,7 @@ namespace SharpNet.Datasets
         private readonly List<int> subElementIdToOriginalElementId = new List<int>();
 
         public SubDataSet(IDataSet original, Func<int,bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet) 
-            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy)
+            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy, original.HierarchyIfAny)
         {
             _original = original;
             for (int originalElementId = 0; originalElementId < _original.Count; ++originalElementId)

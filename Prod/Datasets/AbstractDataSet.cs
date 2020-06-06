@@ -78,13 +78,14 @@ namespace SharpNet.Datasets
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, string[ ] categoryDescriptions, List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy)
+        protected AbstractDataSet(string name, int channels, string[ ] categoryDescriptions, List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy, CategoryHierarchy hierarchyIfAny)
         {
             Name = name;
             Channels = channels;
             CategoryDescriptions = categoryDescriptions;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
+            HierarchyIfAny = hierarchyIfAny;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -100,6 +101,7 @@ namespace SharpNet.Datasets
         #endregion
 
         public string[] CategoryDescriptions { get; }
+        public CategoryHierarchy HierarchyIfAny { get;}
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer, [CanBeNull] CpuTensor<float> yBuffer);
         public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
@@ -362,8 +364,8 @@ namespace SharpNet.Datasets
             sb.Append(string.Join(";",headerColumn)).Append(Environment.NewLine);
             for (int elementId = 0; elementId < Count; ++elementId)
             {
-                var predictedCategoryId = predictedCategories[elementId];
                 var expectedCategoryId = ElementIdToCategoryIndex(elementId);
+                int predictedCategoryId = predictedCategories[elementId];
                 var elements = new List<string>
                 {
                     elementId.ToString(), ElementIdToDescription(elementId),
@@ -371,6 +373,11 @@ namespace SharpNet.Datasets
                     predictedCategoryId == expectedCategoryId ? "OK" : "KO",
                     expectedCategoryId.ToString(), CategoryDescription(expectedCategoryId)
                 };
+                if (HierarchyIfAny != null)
+                {
+                    elements[3] = HierarchyIfAny.ExtractPrediction(prediction.RowSlice(elementId, 1).AsReadonlyFloatCpuContent);
+                }
+
                 for (var categoryIndex = 0; categoryIndex < CategoryDescriptions.Length; categoryIndex++)
                 {
                     elements.Add(prediction.Get(elementId, categoryIndex).ToString(CultureInfo.InvariantCulture));
@@ -542,9 +549,7 @@ namespace SharpNet.Datasets
 
         #region Processing Thread management
         // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
-        
         private bool UseBackgroundThread { get; } = true;
-
         private readonly Thread thread;
         private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT, TO_ABORT };
         private volatile BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;

@@ -179,6 +179,8 @@ namespace SharpNet.Networks
                 GPUWrapper.FromDeviceId(slaveDeviceId).AssociateCurrentThreadWithDevice();
             }
 
+
+
             var slaveNetworkConfig = master.Config.Clone();
             var slave = new Network(slaveNetworkConfig, new List<int> { slaveDeviceId }, master);
             lock (master._slaveNetworks)
@@ -186,7 +188,7 @@ namespace SharpNet.Networks
                 master._slaveNetworks.Add(slave);
             }
             slave._spInternalFit.Start();
-
+            Log.Debug("starting thread for network " + slave.Description+" running on deviceId "+slaveDeviceId);
             for (; ; )
             {
                 switch (slave._slaveStatus)
