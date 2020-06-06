@@ -91,7 +91,7 @@ namespace SharpNet
             }
             return bytes + "B";
         }
-        public static double Interpolate(List<Tuple<double,double>> values, double x, bool constantByInterval = false)
+        public static double Interpolate(List<Tuple<int,double>> values, double x, bool constantByInterval = false)
         {
             if (values.Count == 1)
             {

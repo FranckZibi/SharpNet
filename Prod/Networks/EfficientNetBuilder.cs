@@ -48,7 +48,7 @@ namespace SharpNet.Networks
         /// The default EfficientNet Meta Parameters for Cancel Dataset
         /// </summary>
         /// <returns></returns>
-        public static EfficientNetBuilder EfficientNet_CancelDataset()
+        public static EfficientNetBuilder EfficientNet_Cancels()
         {
             var builder = new EfficientNetBuilder
             {
@@ -57,8 +57,10 @@ namespace SharpNet.Networks
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                         lambdaL2Regularization = 0.0005,
-                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset")
-                    }
+                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancels"),
+                        AlwaysUseFullTestDataSetForLossAndAccuracy= false
+
+                }
                     .WithSGD(0.9, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                 ,

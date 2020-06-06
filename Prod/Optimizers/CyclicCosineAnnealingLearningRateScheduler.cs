@@ -13,11 +13,18 @@ namespace SharpNet.Optimizers
         #region private fields
         private readonly double _minLearningRate;
         private readonly double _maxLearningRate;
-        private readonly List<Tuple<double, double>> _values = new List<Tuple<double, double>>();
+        private readonly List<Tuple<int, double>> _values = new List<Tuple<int, double>>();
         #endregion
 
-        private List<int> RelevantEpochSnapshot { get; }= new List<int>();
 
+        /// <summary>
+        /// the last epoch of each cycle.
+        /// For instance, if we have 3 cycles :
+        ///     1=>10 then 11=>30 then 31=>70
+        /// then it will contains
+        ///     10, 30, 70
+        /// </summary>
+        public List<int> EndEpochForEachCycle { get; }= new List<int>();
 
         /// <summary>
         /// see https://arxiv.org/pdf/1608.03983.pdf
@@ -35,7 +42,7 @@ namespace SharpNet.Optimizers
             int nbEpochsInCurrentRun = nbEpochsInFirstRun;
             for (;;)
             {
-                _values.Add(Tuple.Create((double)firstEpochInCurrentRun,0.0));
+                _values.Add(Tuple.Create(firstEpochInCurrentRun,0.0));
                 var lastEpochInCurrentRun = firstEpochInCurrentRun+ nbEpochsInCurrentRun-1;
                 var firstEpochInNextRun = firstEpochInCurrentRun+ nbEpochsInCurrentRun;
                 var nbEpochsInNextRun = nbEpochsInCurrentRun*nbEpochInNextRunMultiplier;
@@ -47,8 +54,8 @@ namespace SharpNet.Optimizers
                     //(no need to do a new run after it because it will have a smaller size)
                     lastEpochInCurrentRun = nbEpochs;
                 }
-                RelevantEpochSnapshot.Add(lastEpochInCurrentRun);
-                _values.Add(Tuple.Create(lastEpochInCurrentRun+1-1e-6, 1.0));
+                EndEpochForEachCycle.Add(lastEpochInCurrentRun);
+                _values.Add(Tuple.Create(lastEpochInCurrentRun+1, 1.0));
                 if (lastEpochInCurrentRun >= nbEpochs)
                 {
                     break;
@@ -58,12 +65,11 @@ namespace SharpNet.Optimizers
             }
             _minLearningRate = minLearningRate;
             _maxLearningRate = maxLearningRate;
-            RelevantEpochSnapshot.Reverse();
         }
         public bool ShouldCreateSnapshotForEpoch(int epoch)
         {
-            int epochIdx= RelevantEpochSnapshot.IndexOf(epoch);
-            return (epochIdx>=0) && (epochIdx <= 2);
+            int epochIdx= EndEpochForEachCycle.IndexOf(epoch);
+            return (epochIdx>=0) && (epochIdx >= EndEpochForEachCycle.Count-3);
         }
 
         public double LearningRate(int epoch, double percentagePerformedInEpoch)

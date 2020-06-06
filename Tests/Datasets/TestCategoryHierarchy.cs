@@ -42,9 +42,9 @@ namespace SharpNetTests.Datasets
             var root = CategoryHierarchy.ComputeRootNode();
             var rootPrediction = root.RootPrediction();
             //trained on 235x200
-            //var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"), "", new[] { 0 });
+            //var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancels","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"), "", new[] { 0 });
             //trained on 235x200
-            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset", "efficientnet-b0_Imagenet_20200603_1803_150.txt"), "", new[] { 0 });
+            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancels", "efficientnet-b0_Imagenet_20200603_1803_150.txt"), "", new[] { 0 });
 
             ((InputLayer)network.Layers[0]).SetInputHeightAndWidth(235, 200);
             using var dataSet = DirectoryDataSet.FromDirectory(@"C:\Download\ToWork", rootPrediction.Length, root);

@@ -63,6 +63,15 @@ namespace SharpNet.Networks
         public DataAugmentationConfig DataAugmentation { get; set; }
 
 
+        /// <summary>
+        /// if true
+        ///     we'll always use the full test data set to compute the loss and accuracy of this test data set
+        /// else
+        ///     we'll use the full test data set for some specific epochs (the first, the last, etc.)
+        ///     and a small part (10%) of this test data set for other epochs
+        /// </summary>
+        public bool AlwaysUseFullTestDataSetForLossAndAccuracy { get; set; } = true;
+
         public bool RandomizeOrder { get; set; } = true;
 
         /// <summary>
@@ -272,6 +281,7 @@ namespace SharpNet.Networks
                 .Add(nameof(DisableReduceLROnPlateau), DisableReduceLROnPlateau).Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau).Add(nameof(LinearLearningRate), LinearLearningRate)
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
+                .Add(nameof(AlwaysUseFullTestDataSetForLossAndAccuracy), AlwaysUseFullTestDataSetForLossAndAccuracy)
                 .Add(nameof(CompatibilityMode), (int)CompatibilityMode)
                 .Add(nameof(ConvolutionAlgoPreference), (int)ConvolutionAlgoPreference)
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
@@ -318,6 +328,7 @@ namespace SharpNet.Networks
             DivideBy10OnPlateau = (bool)serialized[nameof(DivideBy10OnPlateau)];
             LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
+            AlwaysUseFullTestDataSetForLossAndAccuracy = (bool)serialized[nameof(AlwaysUseFullTestDataSetForLossAndAccuracy)];
             CompatibilityMode = (CompatibilityModeEnum)serialized[nameof(CompatibilityMode)];
             ConvolutionAlgoPreference = (ConvolutionAlgoPreference)serialized[nameof(ConvolutionAlgoPreference)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];

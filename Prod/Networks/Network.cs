@@ -518,8 +518,19 @@ namespace SharpNet.Networks
                     if (testDataSetCpuIfAny != null)
                     {
                         //We compute the validation (= test) loss&accuracy
-                        validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSizeForAllWorkers, testDataSetCpuIfAny);
-                        lossAndAccuracyMsg += " - "+LossAndAccuracyToString(validationLossAndAccuracy, "val_");
+                        if (ShouldUseFullTestDataSetForLossAndAccuracy(learningRateComputer, epoch, numEpochs))
+                        {
+                            validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSizeForAllWorkers, testDataSetCpuIfAny);
+                            lossAndAccuracyMsg += " - " + LossAndAccuracyToString(validationLossAndAccuracy, "val_");
+                        }
+                        else
+                        {
+                            //we'll compute loss and accuracy using only 10% of the test data set
+                            using var subDataSet = new SubDataSet(testDataSetCpuIfAny, i => i <= testDataSetCpuIfAny.Count / 10);
+                            validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
+                            lossAndAccuracyMsg += " - " + LossAndAccuracyToString(validationLossAndAccuracy, "estimate_val_");
+                        }
+
                     }
                     StopTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
 
@@ -602,6 +613,15 @@ namespace SharpNet.Networks
                 Log.Info(e.ToString());
                 throw;
             }
+        }
+        
+        private bool ShouldUseFullTestDataSetForLossAndAccuracy(ILearningRateComputer learningRateComputer, int epoch, int numEpoch)
+        {
+            if (Config.AlwaysUseFullTestDataSetForLossAndAccuracy || epoch == 1 || epoch == numEpoch)
+            {
+                return true;
+            }
+            return learningRateComputer.ShouldCreateSnapshotForEpoch(epoch);
         }
 
         #region compute Loss and Accuracy

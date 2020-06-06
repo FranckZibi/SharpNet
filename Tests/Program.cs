@@ -39,7 +39,7 @@ namespace SharpNetTests
             SharpNet.Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
 
 
-          
+
 
 
             //var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
@@ -49,12 +49,12 @@ namespace SharpNetTests
             //var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"));
             //builder.CreateIDM(System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement", "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));
             //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures");
-            //using var network = Network.ValueOf(Path.Combine(@"C:\Users\fzibi\AppData\Local\SharpNet\", "CancelDataset", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
+            //using var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancels", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Prediction.csv"));
             //return;
 
-            EfficientNetTests_CancelDataset();
+            EfficientNetTests_Cancels();
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
@@ -110,7 +110,7 @@ namespace SharpNetTests
 
         #region EfficientNet Cancel DataSet Training
 
-        private static void EfficientNetTests_CancelDataset()
+        private static void EfficientNetTests_Cancels()
         {
             const bool useMultiGpu = true;
 
@@ -119,35 +119,36 @@ namespace SharpNetTests
             if (useMultiGpu) { batchSize *= GPUWrapper.GetDeviceCount(); }
             var networkGeometries = new List<Action<EfficientNetBuilder, int>>
             {
-                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_cancelDataset_EfficientNet(p);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_Cancels_EfficientNet(p);},
             };
 
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {
-                () =>{var p = EfficientNetBuilder.EfficientNet_CancelDataset();p.BatchSize = batchSize;p.NumEpochs = 10;p.ExtraDescription = "";return p;},
-                //() =>{var p = EfficientNetBuilder.EfficientNet_CancelDataset();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_SVHN";return p;},
-                //() =>{var p = EfficientNetBuilder.EfficientNet_CancelDataset();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.BatchSize = batchSize;p.NumEpochs = 150;p.ExtraDescription = "_Imagenet";return p;},
-                //() =>{var p = EfficientNetBuilder.EfficientNet_CancelDataset();p.InitialLearningRate = 0.01;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_01";return p;},
-                //() =>{var p = EfficientNetBuilder.EfficientNet_CancelDataset();p.InitialLearningRate = 0.30;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_30";return p;},
-                //() =>{var p = EfficientNetBuilder.EfficientNet_CancelDataset();p.InitialLearningRate = 0.10;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_10";return p;},
+                () =>{var p = EfficientNetBuilder.EfficientNet_Cancels();p.BatchSize = batchSize;p.NumEpochs = 7;p.ExtraDescription = "";return p;},
+                //() =>{var p = EfficientNetBuilder.EfficientNet_Cancels();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_SVHN";return p;},
+                //() =>{var p = EfficientNetBuilder.EfficientNet_Cancels();p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.BatchSize = batchSize;p.NumEpochs = 150;p.ExtraDescription = "_Imagenet";return p;},
+                //() =>{var p = EfficientNetBuilder.EfficientNet_Cancels();p.InitialLearningRate = 0.01;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_01";return p;},
+                //() =>{var p = EfficientNetBuilder.EfficientNet_Cancels();p.InitialLearningRate = 0.30;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_30";return p;},
+                //() =>{var p = EfficientNetBuilder.EfficientNet_Cancels();p.InitialLearningRate = 0.10;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_10";return p;},
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
-        private static void Train_cancelDataset_EfficientNet(EfficientNetBuilder p)
+        private static void Train_Cancels_EfficientNet(EfficientNetBuilder p)
         {
             var root = CategoryHierarchy.ComputeRootNode();
+            var rootPrediction = root.RootPrediction();
             var builder = new DataSetBuilder(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Stamps"), root);
             //var targetWidth = 400;var targetHeight = 470;
             var targetWidth = 200;var targetHeight = 235;
             //var targetWidth = 100;var targetHeight = 118;
             //var targetWidth = 50;var targetHeight = 59;
-            using var cancelDataset = builder.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05));
-            using var cancelTrainingAndValidation = cancelDataset.SplitIntoTrainingAndValidation(0.8);
-            using var network = p.EfficientNetB0(true, "", new[] { cancelTrainingAndValidation.Training.Channels, targetHeight, targetWidth }, root.RootPrediction().Length);
-            network.SetSoftmaxWithHierarchy(root.RootPrediction());
-            //using var network =Network.ValueOf(@"C:\Users\fzibi\AppData\Local\SharpNet\CancelDataset\efficientnet-b0_DA_SVHN_20200526_1522_30.txt");
-            //network.LoadParametersFromH5File(Path.Combine(NetworkConfig.DefaultLogDirectory, "CancelDataset", "efficientnet-b0_0_05_200_235_20200603_0747_150.h5"), NetworkConfig.CompatibilityModeEnum.TensorFlow1);
-            //network.FindBestLearningRate(cancelDataset, 1e-5, 10, p.BatchSize);return;
+            using var cancelsDataset = builder.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05));
+            using var cancelTrainingAndValidation = cancelsDataset.SplitIntoTrainingAndValidation(0.5);
+            using var network = p.EfficientNetB0(true, "", new[] { cancelTrainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
+            network.SetSoftmaxWithHierarchy(rootPrediction);
+            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancels", "efficientnet-b0_DA_SVHN_20200526_1522_30.txt"));
+            //network.LoadParametersFromH5File(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancels", "efficientnet-b0_0_05_200_235_20200603_0747_150.h5"), NetworkConfig.CompatibilityModeEnum.TensorFlow1);
+            //network.FindBestLearningRate(cancelsDataset, 1e-5, 10, p.BatchSize);return;
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(cancelTrainingAndValidation.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cancelTrainingAndValidation.Test);
         }
