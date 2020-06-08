@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -9,27 +10,27 @@ using System.Threading;
 using System.Threading.Tasks;
 using log4net;
 using SharpNet.CPU;
+using SharpNet.Networks;
 using SharpNet.Pictures;
 // ReSharper disable UnusedMember.Local
 
 namespace SharpNet.Datasets
 {
     // ReSharper disable once UnusedMember.Global
-    public class DataSetBuilder
+    public class CancelDatabase
     {
         const string Header = "SHA1;OriginalPath;FileExtension;Width;Height;AverageColor;SuggestedId;Id;IdComment;SuggestedCancel;Cancel;CancelComment;InsertionDate;RemovedDate;ValidationDate";
         const string Header_IDM = "No;Action;NotUsed;SHA1;OriginalPath;FileExtension;SuggestedId;Id;SuggestedCancel;Cancel;ValidationDate;sha1Path;Date";
         #region private fields
-        private static readonly ILog Log = LogManager.GetLogger(typeof(DataSetBuilder));
-        private readonly IDictionary<string, DataSetBuilderEntry> _database = new Dictionary<string, DataSetBuilderEntry>();
+        private static readonly ILog Log = LogManager.GetLogger(typeof(CancelDatabase));
+        private readonly IDictionary<string, CancelDatabaseEntry> _database = new Dictionary<string, CancelDatabaseEntry>();
         private readonly string _rootPath;
-        private readonly CategoryHierarchy _root;
         #endregion
+        public CategoryHierarchy Hierarchy { get; } = ComputeRootNode();
         #region constructor
-        public DataSetBuilder(string rootPath, CategoryHierarchy root)
+        public CancelDatabase()
         {
-            _rootPath = rootPath;
-            _root = root;
+            _rootPath = Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel");
             if (!Directory.Exists(_rootPath))
             {
                 Directory.CreateDirectory(_rootPath);
@@ -44,7 +45,6 @@ namespace SharpNet.Datasets
 
         public void FindInvalidCancelCategories()
         {
-            var root = CategoryHierarchy.ComputeRootNode();
             var invalids = new HashSet<string>();
             foreach (var d in _database.Values.Where(e=>!e.IsRemoved))
             {
@@ -53,13 +53,16 @@ namespace SharpNet.Datasets
                 {
                     continue;
                 }
-                if (root.ToPath(cancel) == null)
+                if (Hierarchy.ToPath(cancel) == null)
                 {
                     invalids.Add(cancel);
                 }
             }
             Log.Error(invalids.Count+"  invalid cancel: " + Environment.NewLine+string.Join(Environment.NewLine, invalids.OrderBy(s=>s)));
         }
+
+
+
 
         // ReSharper disable once UnusedMember.Global
         public void DetectDuplicate(double epsilon)
@@ -119,23 +122,182 @@ namespace SharpNet.Datasets
             Log.Info(entries.Count+" entries processed (duplicate found: " + duplicateFound + ")");
         }
 
-        public AbstractDataSet ExtractDataSet(Func<DataSetBuilderEntry, bool> accept)
+        /// <summary>
+        /// TODO : add tests
+        /// </summary>
+        /// <param name="expected"></param>
+        /// <param name="predicted"></param>
+        /// <returns></returns>
+        // ReSharper disable once MemberCanBePrivate.Global
+        public static bool IsOkPrediction(string expected, string predicted)
         {
-            var categoryNameToCount = new Dictionary<string,int>();
+            expected = expected.Replace("_bleue", "").Replace("_bleu", "").Replace("_rouge", "");
+            if (string.IsNullOrEmpty(expected))
+            {
+                return true;
+            }
+            if (string.IsNullOrEmpty(predicted))
+            {
+                return false;
+            }
+            if (expected.Equals(predicted))
+            {
+                return true;
+            }
+            if (expected.StartsWith("gc") && expected.Length > 6)
+            {
+                expected = expected.Substring(0, 6);
+            }
+            predicted = predicted.Replace("cad_imprime","imprime_rouge").Replace("anchor","ancre").Replace("cad_passe", "passe").Replace("cad_barcelona", "barcelona");
+            if (expected.StartsWith("used"))
+            {
+                return !predicted.Equals("mint");
+            }
+            if (expected.StartsWith("amb"))
+            {
+                return predicted.StartsWith("amb");
+            }
+            if (expected.StartsWith("passe"))
+            {
+                return predicted.StartsWith("passe");
+            }
+            if (expected.Length > predicted.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < expected.Length; ++i)
+            {
+                if (predicted[i] != expected[i] && expected[i] != '*')
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // ReSharper disable once UnusedMember.Global
+        public void UpdateSuggestedCancelForAllDatabase(Network network)
+        {
+            var xShape = network.Layers[0].OutputShape(1);
+            int targetHeight = xShape[2];
+            int targetWidth = xShape[3];
+
+            foreach (var e in _database.Values.Where(e => !e.IsRemoved))
+            {
+                e.SuggestedCancel = "";
+            }
+
+            using var dataSet = ExtractDataSet(e =>
+                                e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05)
+                                //Hierarchy.IsValidNonEmptyCancel(e.Cancel) 
+                                //&&e.SuggestedCancel == ""
+                                );
+            var p = network.Predict(dataSet);
+            for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
+            {
+                var rowWithPrediction = p.RowSlice(elementId, 1);
+                var sha1 = dataSet.ElementIdToDescription(elementId);
+                var prediction = Hierarchy.ExtractPrediction(rowWithPrediction.AsReadonlyFloatCpuContent);
+                _database[sha1].SuggestedCancel = prediction;
+            }
+            FlushDatabase();
+        }
+
+
+
+        // ReSharper disable once UnusedMember.Global
+        public void CreatePredictionFile(string outputFile)
+        {
+            var sb = new StringBuilder();
+            sb.Append("ElementId;ElementDescription;Expected;Predicted;Correct?;5;6;7;8;9;10;Path;Date;11;12").Append(Environment.NewLine);
+            int count = 0;
+            var totalCount = new Dictionary<string, int>();
+            var countKO = new Dictionary<string, int>();
+            foreach (var e in _database.Values.Where(
+                    e=>!e.IsRemoved 
+                       && !string.IsNullOrEmpty(e.Cancel) 
+                       && !string.IsNullOrEmpty(e.SuggestedCancel)
+                    //&& e.SHA1 == "38485D1A3622A6E5612FBB9BD505A039C746B291"
+                        ))
+            {
+                var isOkPrediction = IsOkPrediction(e.Cancel, e.SuggestedCancel);
+                var elements = new List<string>
+                {
+                    count.ToString(), 
+                    e.SHA1,
+                    e.Cancel,
+                    e.SuggestedCancel,
+                    isOkPrediction? "OK" : "KO",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    e.Path(_rootPath),
+                    "",
+                    ""
+                };
+                sb.Append(string.Join(";", elements)).Append(Environment.NewLine);
+
+                ++count;
+
+                var prefix = e.Cancel.Substring(0, 2);
+                if (!totalCount.ContainsKey(prefix))
+                {
+                    totalCount[prefix] = 0;
+                    countKO[prefix] = 0;
+
+                }
+                ++totalCount[prefix];
+                if (!isOkPrediction)
+                {
+                    ++countKO[prefix];
+                }
+            }
+
+            //We compute stats about the observed errors
+            var errorStats = new List<Tuple<string, double>>();
+            foreach (var prefix in totalCount.Keys.ToList())
+            {
+                int total = totalCount[prefix];
+                int errors = countKO[prefix];
+                errorStats.Add(Tuple.Create(prefix, ((double)errors)/ total));
+            }
+            var totalSum = totalCount.Values.Sum();
+            var totalErrors = countKO.Values.Sum();
+            Network.Log.Info("TOTAL:" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
+            Network.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
+
+            File.WriteAllText(outputFile, sb.ToString());
+        }
+
+        public AbstractDataSet ExtractDataSet(Func<CancelDatabaseEntry, bool> accept)
+        {
+            var categoryNameToCount = new ConcurrentDictionary<string,int>();
             var elementIdToPaths = new List<List<string>>();
             var elementIdToDescription = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
-            var entries = _database.Values.Where(e => !e.IsRemoved && accept(e) && (_root.ToPath(e.Cancel)?.Length??0)>=1
-                                                      //&& _root.CategoryPathToCategoryName(_root.ToPath(e.Cancel)).Contains("used/star/")
-                                                      ).OrderBy(e => e.SHA1).ToArray();
+            var entries = _database.Values.Where(e => !e.IsRemoved && accept(e))
+                .OrderBy(e => e.SHA1).ToArray();
+            //&& _root.CategoryPathToCategoryName(_root.ToPath(e.Cancel)).Contains("used/star/")
 
-            var yExpected = new CpuTensor<float>(new [] {entries.Length, _root.RootPrediction().Length});
-            for (var elementId = 0; elementId < entries.Length; elementId++)
+            while (elementIdToPaths.Count < entries.Length)
+            {
+                elementIdToPaths.Add(null);
+                elementIdToDescription.Add(null);
+                elementIdToCategoryIndex.Add(-1);
+            }
+
+            var yExpected = new CpuTensor<float>(new [] {entries.Length, Hierarchy.RootPrediction().Length});
+            //for (var elementId = 0; elementId < entries.Length; elementId++)
+            void Process(int elementId)
             {
                 var entry = entries[elementId];
-                var categoryPath = _root.ToPath(entry.Cancel);
-                Debug.Assert(categoryPath != null && categoryPath.Length >= 1);
-                var categoryName = _root.CategoryPathToCategoryName(categoryPath);
+                var categoryPath = Hierarchy.ToPath(entry.Cancel);
+                //Debug.Assert(categoryPath != null && categoryPath.Length >= 1);
+                var categoryName = Hierarchy.CategoryPathToCategoryName(categoryPath);
                 if (categoryNameToCount.ContainsKey(categoryName))
                 {
                     ++categoryNameToCount[categoryName];
@@ -144,11 +306,10 @@ namespace SharpNet.Datasets
                 {
                     categoryNameToCount[categoryName] = 1;
                 }
-
-                elementIdToPaths.Add(new List<string> {entry.Path(_rootPath)});
-                elementIdToDescription.Add(entry.SHA1 + "_" + entry.Cancel);
-                elementIdToCategoryIndex.Add(-1);
-                var elementPrediction = _root.ExpectedPrediction(categoryPath);
+                elementIdToPaths[elementId] = new List<string> {entry.Path(_rootPath)};
+                elementIdToDescription[elementId] = entry.SHA1;
+                elementIdToCategoryIndex[elementId] = -1;
+                var elementPrediction = Hierarchy.ExpectedPrediction(categoryPath);
                 Debug.Assert(elementPrediction != null);
                 Debug.Assert(elementPrediction.Length == yExpected.Shape[1]);
                 for (int col = 0; col < elementPrediction.Length; ++col)
@@ -156,13 +317,22 @@ namespace SharpNet.Datasets
                     yExpected.Set(elementId, col, elementPrediction[col]);
                 }
             }
+            Parallel.For(0, entries.Length, Process);
+
             Log.Info("found "+ elementIdToDescription.Count+" elements");
             Log.Info(string.Join(Environment.NewLine, categoryNameToCount.OrderBy(e=>e.Key).Select(e=>e.Key +" : "+e.Value)));
             var categoryDescription = Enumerable.Range(0, yExpected.Shape[1]).Select(i=>i.ToString()).ToArray();
-            return new DirectoryDataSet(elementIdToPaths, elementIdToDescription, elementIdToCategoryIndex, yExpected, nameof(DataSetBuilder), 3, categoryDescription,
+            return new DirectoryDataSet(
+                elementIdToPaths, 
+                elementIdToDescription, 
+                elementIdToCategoryIndex, 
+                yExpected, 
+                "Cancel", 
+                3, 
+                categoryDescription,
                 CancelMeanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.ResizeToTargetSize,
-                _root);
+                Hierarchy);
         }
         
         public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };
@@ -170,7 +340,6 @@ namespace SharpNet.Datasets
 
         /// <summary>
         /// load all images in 'path' into the database
-        /// return the number of images added in the database
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
@@ -195,7 +364,7 @@ namespace SharpNet.Datasets
                     var fileExtension = Path.GetExtension(originalPath).TrimStart('.');
 
                     var bmp = BitmapContent.ValueFomSingleRgbBitmap(originalPath);
-                    var entry = new DataSetBuilderEntry
+                    var entry = new CancelDatabaseEntry
                     {
                         SHA1 = sha1,
                         OriginalPath = originalPath,
@@ -228,11 +397,8 @@ namespace SharpNet.Datasets
                 {
                     Log.Error("fail to process image "+ originalPath, e);
                 }
-
             }
-
             Parallel.For(0, filesInPath.Length, i=> ProcessFile(filesInPath[i]));
-
             if (Count > initialCount)
             {
                 FlushDatabase();
@@ -240,7 +406,7 @@ namespace SharpNet.Datasets
             Log.Info("Added "+(Count-initialCount)+" files from "+path);
         }
         // ReSharper disable once UnusedMember.Global
-        public void CreateIDM(string idmPath, Func<DataSetBuilderEntry, bool> accept)
+        public void CreateIDM(string idmPath, Func<CancelDatabaseEntry, bool> accept)
         {
             var sb = new StringBuilder();
             sb.Append(Header_IDM).Append(Environment.NewLine);
@@ -296,20 +462,20 @@ namespace SharpNet.Datasets
             Log.Info("Loading database "+_rootPath);
             _database.Clear();
             var lines = File.ReadAllLines(CsvPath).Skip(1).ToArray();
-            var entries = new DataSetBuilderEntry[lines.Length];
+            var entries = new CancelDatabaseEntry[lines.Length];
             void LoadEntry(int entryIdx)
             {
                 var splitted = lines[entryIdx].Split(';');
                 Debug.Assert(splitted.Length == 15);
                 int columnIdx = 0;
-                var entry = new DataSetBuilderEntry
+                var entry = new CancelDatabaseEntry
                 {
                     SHA1 = splitted[columnIdx++],
                     OriginalPath = splitted[columnIdx++],
                     FileExtension = splitted[columnIdx++],
                     Width = int.Parse(splitted[columnIdx++]),
                     Height = int.Parse(splitted[columnIdx++]),
-                    AverageColor= DataSetBuilderEntry.StringToAverageColor(splitted[columnIdx++]),
+                    AverageColor= CancelDatabaseEntry.StringToAverageColor(splitted[columnIdx++]),
                     SuggestedId = splitted[columnIdx++],
                     Id = splitted[columnIdx++],
                     IdComment = splitted[columnIdx++],
@@ -362,24 +528,17 @@ namespace SharpNet.Datasets
                 {
                     ++withId;
                 }
-                else
+                if (!string.IsNullOrEmpty(e.Value.SuggestedId))
                 {
-                    if (!string.IsNullOrEmpty(e.Value.SuggestedId))
-                    {
-                        ++withSuggestedId;
-                    }
-
+                    ++withSuggestedId;
                 }
                 if (!string.IsNullOrEmpty(e.Value.Cancel))
                 {
                     ++withCancel;
                 }
-                else
+                if (!string.IsNullOrEmpty(e.Value.SuggestedCancel))
                 {
-                    if (!string.IsNullOrEmpty(e.Value.SuggestedCancel))
-                    {
-                        ++withSuggestedCancel;
-                    }
+                    ++withSuggestedCancel;
                 }
             }
 
@@ -406,5 +565,49 @@ namespace SharpNet.Datasets
             }
             return result;
         }
+
+        public static CategoryHierarchy ComputeRootNode()
+        {
+            var root = CategoryHierarchy.NewRoot("");
+            root.Add("mint");
+
+            var used = root.Add("used", "");
+            var used_star = used.Add("star", "etoile");
+            used_star.AddAllNumbersWithSameNumberOfDigits("2digits", "", 39);
+            used_star.Add("full", "_pleine");
+            used_star.Add("empty", "_evidee");
+            used_star.AddAllNumbersWithSameNumberOfDigits("1digit", "", 9);
+            var used_gc = used.Add("gc");
+            used_gc.AddAllNumbersWithSameNumberOfDigits("4digits", "", 6999);
+            used_gc.AddAllNumbersWithSameNumberOfDigits("3digits", "", 999);
+            used_gc.AddAllNumbersWithSameNumberOfDigits("2digits", "", 99);
+            used_gc.AddAllNumbersWithSameNumberOfDigits("1digit", "", 9);
+            var used_pc = used.Add("pc");
+            used_pc.AddAllNumbersWithSameNumberOfDigits("4digits", "", 4999);
+            used_pc.AddAllNumbersWithSameNumberOfDigits("3digits", "", 999);
+            used_pc.AddAllNumbersWithSameNumberOfDigits("2digits", "", 99);
+            used_pc.AddAllNumbersWithSameNumberOfDigits("1digit", "", 9);
+            used.Add("preo1893");
+            used.Add("ir");
+            used.Add("cad");
+            used.Add("cad_perle");
+            used.Add("cad_octo");
+            used.Add("cad_ondule");
+            used.Add("cad_imprime", "imprime_rouge");
+            used.Add("cad_passe", "passe");
+            used.Add("cad_barcelona", "barcelona");
+            used.Add("amb");
+            used.Add("anchor", "ancre");
+            used.Add("typo");
+            used.Add("grille");
+            used.Add("grille_ss_fin");
+            used.Add("gros_points");
+            used.Add("asna");
+            used.Add("plume");
+
+            return root;
+        }
+
+
     }
 }

@@ -283,8 +283,10 @@ namespace SharpNet.Layers
 
             if (UseBias && originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
             {
+                Debug.Assert(_convolutionBias != null);
                 // ReSharper disable once PossibleNullReferenceException
                 Debug.Assert(_convolutionBias.Count == _convolutionBias.Shape[1]);
+                // ReSharper disable once PossibleNullReferenceException
                 var tensorFlowShape = new[] { _convolutionBias.Shape[1] };
                 result[ConvolutionBiasDatasetPath].Reshape(tensorFlowShape);
             }

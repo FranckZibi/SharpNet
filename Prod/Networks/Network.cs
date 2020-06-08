@@ -686,14 +686,10 @@ namespace SharpNet.Networks
         }
 
         // ReSharper disable once UnusedMember.Global
-        public CpuTensor<float> Predict(IDataSet dataSet, string predictionFileIfAny = "")
+        public CpuTensor<float> Predict(IDataSet dataSet, int miniBatchSizeForAllWorkers = -1)
         {
-            var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataSet, -1);
+            var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataSet, miniBatchSizeForAllWorkers);
             var yPredictedCpu = yPredicted.ToCpuFloat();
-            if (!string.IsNullOrEmpty(predictionFileIfAny))
-            {
-                dataSet.CreatePredictionFile(yPredictedCpu, predictionFileIfAny);
-            }
             return yPredictedCpu;
         }
 
@@ -848,7 +844,7 @@ namespace SharpNet.Networks
                     var percentageDoneInEpoch = ((double) lastIndexInShuffledElementId) / totalElementCount;
                     var secondsSinceStartOfEpoch = (DateTime.Now - miniBatchGradientDescentStart).TotalSeconds;
                     var expectedSecondsToPerformEntireEpoch = secondsSinceStartOfEpoch / percentageDoneInEpoch;
-                    Log.Info("Epoch " + epoch + " in progress: " + Math.Round(100.0* percentageDoneInEpoch, 1) + "% performed ("+ Math.Round(secondsSinceStartOfEpoch, 0) + "s/"+Math.Round(expectedSecondsToPerformEntireEpoch,0)+"s)");
+                    Log.Info((isTraining ? ("Epoch " + epoch) : "Inference") + " in progress: " + Math.Round(100.0* percentageDoneInEpoch, 1) + "% performed ("+ Math.Round(secondsSinceStartOfEpoch, 0) + "s/"+Math.Round(expectedSecondsToPerformEntireEpoch,0)+"s)");
                     Log.Debug(MemoryInfo());
                     lastStatsUpdate = DateTime.Now;
                 }

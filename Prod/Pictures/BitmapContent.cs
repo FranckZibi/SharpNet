@@ -12,7 +12,6 @@ namespace SharpNet.Pictures
 {
     public class BitmapContent : CpuTensor<byte>
     {
-
         /// <summary>
         /// Load a RGB bitmap (with 3 channels)
         /// </summary>
@@ -23,7 +22,6 @@ namespace SharpNet.Pictures
             using var bmp = new Bitmap(filename);
             return ValueFomSingleRgbBitmap(bmp);
         }
-
         /// <summary>
         /// Construct an element stacking several bitmaps, each bitmap containing a single channel
         /// </summary>
@@ -77,7 +75,6 @@ namespace SharpNet.Pictures
             return result;
 
         }
-
         /// <summary>
         /// return the SHA-1 of a bitmap (160 bits stored in a string of 40 bytes in hexadecimal format: 0=>f)
         /// </summary>
@@ -87,12 +84,6 @@ namespace SharpNet.Pictures
             using var sha1 = new SHA1CryptoServiceProvider();
             var hashBytes = sha1.ComputeHash(byteArray);
             return BitConverter.ToString(hashBytes).Replace("-", "");
-        }
-
-        public BitmapContent CropBorder()
-        {
-            var cropped = GetBorderCoordinates();
-            return Crop(cropped.rowStart, cropped.rowEnd, cropped.colStart, cropped.colEnd);
         }
         public void Save(List<string> fileNames)
         {
@@ -114,7 +105,6 @@ namespace SharpNet.Pictures
                 }
             }
         }
-
         public RGBColor AverageColor(RGBColorFactoryWithCache cache)
         {
             var acc = new ColorAccumulator();
@@ -126,7 +116,6 @@ namespace SharpNet.Pictures
             }
             return acc.Average;
         }
-
         /// <summary>
         /// Compute Sum / Sum^2 / Count of each channel.
         /// THis will be used to compute Mean/Volatility of each channel
@@ -159,191 +148,83 @@ namespace SharpNet.Pictures
                 }
             }
         }
-
-        /// <summary>
-        /// compute the volatility of each row
-        /// </summary>
-        /// <returns></returns>
-        private double[] RowVolatility()
+        public static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp)
         {
-            var result = new double[GetHeight()];
-            for (int channel = 0; channel < GetChannels(); ++channel)
-            {
-                for (int row = 0; row < GetHeight(); ++row)
-                {
-                    double sumRow = 0.0;
-                    double sumRowSquare = 0.0;
-                    for (int col = 0; col < GetWidth(); ++col)
-                    {
-                        var element = (double)Get(channel, row, col);
-                        sumRow += element;
-                        sumRowSquare += element * element;
-                    }
+            var width = bmp.Width;
+            var height = bmp.Height;
+            var rect = new Rectangle(0, 0, width, height);
+            var bmpData = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
 
-                    var mean = sumRow / GetWidth();
-                    var meanSquare = mean * mean;
-                    var rowVolatility = Math.Sqrt(sumRowSquare / GetWidth() - meanSquare);
-                    result[row] += rowVolatility;
+            var shape = new []{3, height, width};
+            var result = new BitmapContent(shape, null);
+            var stride = bmpData.Stride;
+
+            var resultContent = result.SpanContent;
+
+            unsafe
+            {
+                var imgPtr = (byte*)(bmpData.Scan0);
+                int i = 0;
+                for (int row = 0; row < height; row++)
+                {
+                    for (int col = 0; col < width; col++)
+                    {
+                        resultContent[i] = *(imgPtr + 2); //R
+                        resultContent[i + result.MultDim0] = *(imgPtr + 1); //G
+                        resultContent[i + 2 * result.MultDim0] = *(imgPtr + 0); //B
+                        ++i;
+                        imgPtr += 3;
+                    }
+                    imgPtr += stride - width * 3;
                 }
             }
-
+            // Unlock the bits.
+            bmp.UnlockBits(bmpData);
             return result;
         }
-        /// <summary>
-        /// compute the volatility of each column
-        /// </summary>
-        /// <returns></returns>
-        private double[] ColumnVolatility()
+        public bool IsDuplicate(BitmapContent b, double epsilon, RGBColorFactoryWithCache cache)
         {
-            double[] result = new double[GetWidth()];
-            for (int channel = 0; channel < GetChannels(); ++channel)
+            if (Count > b.Count)
             {
-                for (int col = 0; col < GetWidth(); ++col)
-                {
-                    double sumColumn = 0.0;
-                    double sumColumnSquare = 0.0;
-                    for (int row = 0; row < GetHeight(); ++row)
-                    {
-                        var element = (double) Get(channel, row, col);
-                        sumColumn += element;
-                        sumColumnSquare += element * element;
-                    }
-                    var mean = sumColumn / GetHeight();
-                    var meanSquare = mean * mean;
-                    var colVolatility = Math.Sqrt(sumColumnSquare / GetHeight() - meanSquare);
-                    result[col] += colVolatility;
-                }
+                return b.IsDuplicate(this, epsilon, cache);
             }
-            return result;
-        }
-        private BitmapContent Crop(int rowStart, int rowEnd, int colStart, int colEnd)
-        {
-            int height = rowEnd - rowStart + 1;
-            int width = colEnd - colStart + 1;
-            var content = new byte[3 * height * width];
-            var result = new BitmapContent(new []{Shape[0], height, width}, content);
-            for (int channel = 0; channel < Shape[0]; ++channel)
+
+            var a = this;
+            Debug.Assert(Count<=b.Count);
+            int aIndex = 0;
+            int aHeight = a.Shape[1];
+            int aWidth = a.Shape[2];
+            int bHeight = b.Shape[1];
+            int bWidth = b.Shape[2];
+
+            var aContent = a.SpanContent;
+            var bContent = b.SpanContent;
+
+            double distanceSum = 0;
+
+
+            for (int aRow = 0; aRow < aHeight; aRow++)
             {
-                for (int row = rowStart; row <= rowEnd; ++row)
+                int bRow = Math.Min((aRow * bHeight) / aHeight, bHeight - 1);
+                for (int aCol = 0; aCol < aWidth; aCol++)
                 {
-                    for (int col = colStart; col <= colEnd; ++col)
+                    var aColor = cache.Build(aContent[aIndex], aContent[aIndex + a.MultDim0], aContent[aIndex + 2 * a.MultDim0]);
+                    int bCol = Math.Min((aCol * bWidth) / aWidth, bWidth - 1);
+                    var bIndex = bCol + bRow * bWidth;
+                    var bColor = cache.Build(bContent[bIndex], bContent[bIndex + b.MultDim0], bContent[bIndex + 2 * b.MultDim0]);
+                    ++aIndex;
+                    distanceSum += aColor.ColorDistance(bColor);
+                    double currentAvgDistance = distanceSum / aIndex;
+                    if (aIndex > 100 && currentAvgDistance > 5 * epsilon)
                     {
-                        result.Set(channel, row-rowStart, col-colStart, Get(channel, row, col));
+                        return false;
                     }
                 }
             }
-            return result;
+            double avgDistance = distanceSum / aIndex;
+            return avgDistance < epsilon;
         }
-        private (int rowStart, int rowEnd, int colStart, int colEnd) GetBorderCoordinates()
-        {
-            (int rowStart, int rowEnd) = GetCropped(RowVolatility());
-            (int colStart, int colEnd) = GetCropped(ColumnVolatility());
-            return (rowStart, rowEnd, colStart, colEnd);
-        }
-        private static (int leftIndex, int rightIndex) GetCropped(double[] volatilities)
-        {
-            var length = volatilities.Length;
-            var threshold = ComputeColumnVolatilityThreshold(volatilities);
-            var lowerThreshold = 0.2 * threshold;
 
-
-            var lowVolSegments = new List<KeyValuePair<int, int>>();
-
-
-
-            int currentStartLowVolSegment = -1;
-            for (int i = 0; i < length; ++i)
-            {
-                if (volatilities[i] < lowerThreshold)
-                {
-                    if (currentStartLowVolSegment == -1)
-                    {
-                        currentStartLowVolSegment = i;
-                    }
-                }
-                else
-                {
-                    if (currentStartLowVolSegment != -1)
-                    {
-                        lowVolSegments.Add(new KeyValuePair<int, int>(currentStartLowVolSegment, i-1));
-                        currentStartLowVolSegment = -1;
-                    }
-                }
-                if (i == length - 1 && currentStartLowVolSegment != -1)
-                {
-                    lowVolSegments.Add(new KeyValuePair<int, int>(currentStartLowVolSegment, i));
-                }
-            }
-
-            for (int segmentId = 1; segmentId < lowVolSegments.Count; ++segmentId)
-            {
-                int prevSegmentLength = lowVolSegments[segmentId - 1].Value - lowVolSegments[segmentId - 1].Key + 1;
-                if (lowVolSegments[segmentId - 1].Key == 0)
-                {
-                    prevSegmentLength += length/10;
-                }
-                int currentSegmentLength = lowVolSegments[segmentId].Value - lowVolSegments[segmentId].Key + 1;
-                if (lowVolSegments[segmentId].Value == length-1)
-                {
-                    currentSegmentLength += length/10;
-                }
-                int highVolSegmentLength = lowVolSegments[segmentId].Key - lowVolSegments[segmentId - 1].Value - 1;
-                if (  (highVolSegmentLength < (Math.Min(prevSegmentLength, currentSegmentLength)/5))
-                    ||(highVolSegmentLength ==1 && ((prevSegmentLength+currentSegmentLength)>=10)) )
-                {
-                    for (int i = lowVolSegments[segmentId - 1].Value + 1; i < lowVolSegments[segmentId].Key; ++i)
-                    {
-                        volatilities[i] = Math.Min(volatilities[i], lowerThreshold);
-                    }
-                    lowVolSegments[segmentId - 1] = new KeyValuePair<int, int>(lowVolSegments[segmentId - 1].Key, lowVolSegments[segmentId].Value);
-                    lowVolSegments.RemoveAt(segmentId);
-                    segmentId = 0;
-                }
-            }
-
-            int leftIndex = 0;
-            var sumFromLeft = 0.0;
-            for (; leftIndex < length - 1; ++leftIndex)
-            {
-                var vol = volatilities[leftIndex];
-                var averageFromStart = sumFromLeft / (1+leftIndex);
-                if ( (vol > threshold) ||(averageFromStart>0 && vol > (3.0 * averageFromStart) && vol > lowerThreshold) )
-                {
-                    break;
-                }
-                sumFromLeft += vol;
-            }
-            int rightIndex = length - 1;
-            var sumFromRight = 0.0;
-            for (; rightIndex > leftIndex; --rightIndex)
-            {
-                var vol = volatilities[rightIndex];
-                var averageFromStart = sumFromRight / (length - rightIndex);
-                if ((vol > threshold) || (averageFromStart > 0 && vol > (3.0 * averageFromStart) && vol > lowerThreshold))
-                {
-                    break;
-                }
-                sumFromRight += vol;
-            }
-            return (Math.Max(0, leftIndex), Math.Min(rightIndex, length - 1));
-        }
-        /// <summary>
-        /// For each column, will return the volatility threshold
-        /// A column with a volatility less then this threshold will be considered as constant
-        /// </summary>
-        /// <param name="volatilities"></param>
-        /// <returns></returns>
-        private static double ComputeColumnVolatilityThreshold(double[] volatilities)
-        {
-            var sorted = new List<double>(volatilities.Where(x=>x>=0.5));
-            if (sorted.Count == 0)
-            {
-                sorted = new List<double>(volatilities);
-            }
-            sorted.Sort();
-            var topTenPercentVolatility = sorted[(9 * sorted.Count) / 10];
-            return topTenPercentVolatility / 10;
-        }
         private Bitmap AsBitmap()
         {
             Debug.Assert(GetChannels() == 3);
@@ -395,7 +276,6 @@ namespace SharpNet.Pictures
             bmp.UnlockBits(bmpData);
             return bmp;
         }
-
         /// <summary>
         /// Construct a Volume from several bitmaps: each contain a single (grey scale) channel
         /// </summary>
@@ -418,7 +298,7 @@ namespace SharpNet.Pictures
                 var stride = bmpData.Stride;
                 unsafe
                 {
-                    var imgPtr = (byte*) (bmpData.Scan0);
+                    var imgPtr = (byte*)(bmpData.Scan0);
                     for (int row = 0; row < height; row++)
                     {
                         for (int col = 0; col < width; col++)
@@ -436,84 +316,6 @@ namespace SharpNet.Pictures
                 bmpForChannel.UnlockBits(bmpData);
             }
             return result;
-        }
-
-        public static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp)
-        {
-            var width = bmp.Width;
-            var height = bmp.Height;
-            var rect = new Rectangle(0, 0, width, height);
-            var bmpData = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-
-            var shape = new []{3, height, width};
-            var result = new BitmapContent(shape, null);
-            var stride = bmpData.Stride;
-
-            var resultContent = result.SpanContent;
-
-            unsafe
-            {
-                var imgPtr = (byte*)(bmpData.Scan0);
-                int i = 0;
-                for (int row = 0; row < height; row++)
-                {
-                    for (int col = 0; col < width; col++)
-                    {
-                        resultContent[i] = *(imgPtr + 2); //R
-                        resultContent[i + result.MultDim0] = *(imgPtr + 1); //G
-                        resultContent[i + 2 * result.MultDim0] = *(imgPtr + 0); //B
-                        ++i;
-                        imgPtr += 3;
-                    }
-                    imgPtr += stride - width * 3;
-                }
-            }
-            // Unlock the bits.
-            bmp.UnlockBits(bmpData);
-            return result;
-        }
-
-        public bool IsDuplicate(BitmapContent b, double epsilon, RGBColorFactoryWithCache cache)
-        {
-            if (Count > b.Count)
-            {
-                return b.IsDuplicate(this, epsilon, cache);
-            }
-
-            var a = this;
-            Debug.Assert(Count<=b.Count);
-            int aIndex = 0;
-            int aHeight = a.Shape[1];
-            int aWidth = a.Shape[2];
-            int bHeight = b.Shape[1];
-            int bWidth = b.Shape[2];
-
-            var aContent = a.SpanContent;
-            var bContent = b.SpanContent;
-
-            double distanceSum = 0;
-
-
-            for (int aRow = 0; aRow < aHeight; aRow++)
-            {
-                int bRow = Math.Min((aRow * bHeight) / aHeight, bHeight - 1);
-                for (int aCol = 0; aCol < aWidth; aCol++)
-                {
-                    var aColor = cache.Build(aContent[aIndex], aContent[aIndex + a.MultDim0], aContent[aIndex + 2 * a.MultDim0]);
-                    int bCol = Math.Min((aCol * bWidth) / aWidth, bWidth - 1);
-                    var bIndex = bCol + bRow * bWidth;
-                    var bColor = cache.Build(bContent[bIndex], bContent[bIndex + b.MultDim0], bContent[bIndex + 2 * b.MultDim0]);
-                    ++aIndex;
-                    distanceSum += aColor.ColorDistance(bColor);
-                    double currentAvgDistance = distanceSum / aIndex;
-                    if (aIndex > 100 && currentAvgDistance > 5 * epsilon)
-                    {
-                        return false;
-                    }
-                }
-            }
-            double avgDistance = distanceSum / aIndex;
-            return avgDistance < epsilon;
         }
     }
 }

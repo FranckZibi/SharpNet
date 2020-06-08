@@ -15,11 +15,22 @@ namespace SharpNet.Networks
     /// </summary>
     public class EfficientNetBuilder : NetworkBuilder
     {
+        private cudnnActivationMode_t DefaultActivation { get; } = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
+        private double BatchNormMomentum { get; set; } = 0.99;
+        private double BatchNormEpsilon { get; set; } = 0.001;
+
+        /// <summary>
+        /// name of the trained network to load the weights from.
+        /// used for transfer learning
+        /// </summary>
+        public string WeightForTransferLearning { get; } = "";
+
+
         /// <summary>
         /// The default EfficientNet Meta Parameters for ImageNet
         /// </summary>
         /// <returns></returns>
-        public static EfficientNetBuilder EfficientNet_ImageNet()
+        public static EfficientNetBuilder ImageNet()
         {
             var builder = new EfficientNetBuilder
             {
@@ -43,12 +54,11 @@ namespace SharpNet.Networks
             return builder;
         }
 
-
         /// <summary>
         /// The default EfficientNet Meta Parameters for Cancel Dataset
         /// </summary>
         /// <returns></returns>
-        public static EfficientNetBuilder EfficientNet_Cancels()
+        public static EfficientNetBuilder Cancel()
         {
             var builder = new EfficientNetBuilder
             {
@@ -57,7 +67,7 @@ namespace SharpNet.Networks
                         LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                         lambdaL2Regularization = 0.0005,
-                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancels"),
+                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel"),
                         AlwaysUseFullTestDataSetForLossAndAccuracy= false
 
                 }
@@ -86,15 +96,6 @@ namespace SharpNet.Networks
             return builder;
         }
 
-        private double BatchNormMomentum { get; set; } = 0.99;
-        private double BatchNormEpsilon { get; set; } = 0.001;
-
-        /// <summary>
-        /// name of the trained network to load the weights from.
-        /// used for transfer learning
-        /// </summary>
-        public string WeightForTransferLearning { get; set; } = "";
-        public cudnnActivationMode_t DefaultActivation { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
 
         /// <summary>
         /// The default EfficientNet Meta Parameters for CIFAR10

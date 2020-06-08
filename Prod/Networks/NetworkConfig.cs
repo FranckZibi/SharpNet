@@ -328,7 +328,11 @@ namespace SharpNet.Networks
             DivideBy10OnPlateau = (bool)serialized[nameof(DivideBy10OnPlateau)];
             LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
             RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
-            AlwaysUseFullTestDataSetForLossAndAccuracy = (bool)serialized[nameof(AlwaysUseFullTestDataSetForLossAndAccuracy)];
+
+
+            AlwaysUseFullTestDataSetForLossAndAccuracy = serialized.TryGet<bool>(nameof(AlwaysUseFullTestDataSetForLossAndAccuracy));
+            //AlwaysUseFullTestDataSetForLossAndAccuracy = (bool)serialized[nameof(AlwaysUseFullTestDataSetForLossAndAccuracy)];
+
             CompatibilityMode = (CompatibilityModeEnum)serialized[nameof(CompatibilityMode)];
             ConvolutionAlgoPreference = (ConvolutionAlgoPreference)serialized[nameof(ConvolutionAlgoPreference)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];

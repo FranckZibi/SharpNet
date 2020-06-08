@@ -6,10 +6,5 @@ namespace SharpNet.Datasets
     {
         IDataSet Training { get; }
         IDataSet Test { get; }
-
-        string Name { get; }
-
-        int CategoryByteToCategoryIndex(byte categoryByte);
-        byte CategoryIndexToCategoryByte(int categoryIndex);
     }
 }

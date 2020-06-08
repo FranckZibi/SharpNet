@@ -36,7 +36,6 @@ namespace SharpNet.Datasets
         /// <param name="yBuffer">buffer where to store the associate category (with a capacity of 'yBuffer.Shape[0]' elements) </param>
         void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer);
 
-
         /// <summary>
         /// number of elements in DataSet
         /// </summary>
@@ -48,26 +47,7 @@ namespace SharpNet.Datasets
         /// </summary>
         int CategoryCount { get; }
 
-        /// <summary>
-        /// return the mean of channel 'channel' of the original DataSet (before normalization)
-        /// </summary>
-        /// <param name="channel">the channel for which we want to extract the mean</param>
-        /// <returns>mean of channel 'channel'</returns>
-        double OriginalChannelMean(int channel);
-
-        /// <summary>
-        /// return the volatility of channel 'channel' of the original DataSet (before normalization)
-        /// </summary>
-        /// <param name="channel">the channel for which we want to extract the volatility</param>
-        /// <returns>volatility of channel 'channel'</returns>
-        double OriginalChannelVolatility(int channel);
-
         List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
-
-        /// <summary>
-        /// true if the current data set is normalized (with mean=0 and volatility=1 in each channel)
-        /// </summary>
-        bool IsNormalized { get; }
 
         /// <summary>
         /// element id to associated category index
@@ -78,10 +58,6 @@ namespace SharpNet.Datasets
 
         string ElementIdToDescription(int elementId);
         string ElementIdToPathIfAny(int elementId);
-
-        string CategoryDescription(int categoryIndex);
-
-        ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth);
 
         /// <summary>
         /// number of channels of each elements
@@ -96,7 +72,5 @@ namespace SharpNet.Datasets
         ResizeStrategyEnum ResizeStrategy { get; }
 
         CategoryHierarchy HierarchyIfAny { get; }
-
-        void CreatePredictionFile(CpuTensor<float> prediction, string outputFile);
     }
 }

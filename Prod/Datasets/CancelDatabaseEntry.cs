@@ -6,23 +6,25 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public class DataSetBuilderEntry
+    public class CancelDatabaseEntry
     {
+        #region public properties
         public string SHA1 { get; set; }
-        public string OriginalPath { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
+        public string OriginalPath { private get; set; }
+        public int Width { private get; set; }
+        public int Height { private get; set; }
         public RGBColor AverageColor { get; set; }
-        public string FileExtension { get; set; }
+        public string FileExtension { private get; set; }
         public string SuggestedId { get; set; }
         public string Id { get; set; }
-        public string IdComment { get; set; }
+        public string IdComment { private get; set; }
         public string SuggestedCancel { get; set; }
         public string Cancel { get; set; }
-        public string CancelComment { get; set; }
-        public DateTime InsertionDate { get; set; }
+        public string CancelComment { private get; set; }
+        public DateTime InsertionDate { private get; set; }
         public DateTime? RemovedDate { get; set; }
-        public DateTime? ValidationDate { get; set; }
+        public DateTime? ValidationDate { private get; set; }
+        #endregion
 
         /// <summary>
         /// the path of the item in the HD
@@ -40,8 +42,7 @@ namespace SharpNet.Datasets
 
             return System.IO.Path.Combine(rootPath, subDirectory, fileName);
         }
-
-        public void ImportRelevantInfoFrom(DataSetBuilderEntry e)
+        public void ImportRelevantInfoFrom(CancelDatabaseEntry e)
         {
 
             if (string.IsNullOrEmpty(Id) && !string.IsNullOrEmpty(e.Id))
@@ -61,8 +62,6 @@ namespace SharpNet.Datasets
                 SuggestedCancel = e.SuggestedCancel;
             }
         }
-
-
         /// <summary>
         /// 
         /// </summary>
@@ -75,19 +74,12 @@ namespace SharpNet.Datasets
             {
                 return false;
             }
-
             var ratio = Width / (double) Height;
             return (ratio < (1 + toleranceInPercentage) * expectedRatio) &&
                    (ratio > expectedRatio / (1 + toleranceInPercentage));
         }
-
         public int Count => Width * Height;
-
-
-
-
-
-        public bool IsDuplicate(Lazy<BitmapContent> thisBitmapContent, DataSetBuilderEntry b, string rootPath, RGBColorFactoryWithCache cache, double epsilon)
+        public bool IsDuplicate(Lazy<BitmapContent> thisBitmapContent, CancelDatabaseEntry b, string rootPath, RGBColorFactoryWithCache cache, double epsilon)
         {
             if (IsRemoved || b.IsRemoved)
             {
@@ -121,7 +113,6 @@ namespace SharpNet.Datasets
 
             return thisBitmapContent.Value.IsDuplicate(BitmapContent.ValueFomSingleRgbBitmap(b.Path(rootPath)), epsilon, cache);
         }
-
         public string AsCsv
         {
             get
@@ -139,13 +130,12 @@ namespace SharpNet.Datasets
                 sb.Append(SuggestedCancel).Append(";");
                 sb.Append(Cancel).Append(";");
                 sb.Append(CancelComment).Append(";");
-                sb.Append(DataSetBuilder.DateTimeToString(InsertionDate)).Append(";");
-                sb.Append(DataSetBuilder.DateTimeToString(RemovedDate)).Append(";");
-                sb.Append(DataSetBuilder.DateTimeToString(ValidationDate));
+                sb.Append(CancelDatabase.DateTimeToString(InsertionDate)).Append(";");
+                sb.Append(CancelDatabase.DateTimeToString(RemovedDate)).Append(";");
+                sb.Append(CancelDatabase.DateTimeToString(ValidationDate));
                 return sb.ToString();
             }
         }
-
         public static RGBColor StringToAverageColor(string averageColorAsString)
         {
             if (string.IsNullOrEmpty(averageColorAsString))
@@ -157,7 +147,6 @@ namespace SharpNet.Datasets
             Debug.Assert(splitted.Length == 3);
             return new RGBColor(splitted[0], splitted[1], splitted[2]);
         }
-
         public string AsCsv_IDM(string rootPath, int number)
         {
             var sb = new StringBuilder();
@@ -174,22 +163,16 @@ namespace SharpNet.Datasets
             sb.Append(Id).Append(";");
             sb.Append(SuggestedCancel).Append(";");
             sb.Append(Cancel).Append(";");
-            sb.Append(DataSetBuilder.DateTimeToString(ValidationDate)).Append(";");
+            sb.Append(CancelDatabase.DateTimeToString(ValidationDate)).Append(";");
             sb.Append(Path(rootPath)).Append(";");
-            sb.Append(DataSetBuilder.DateTimeToString(InsertionDate));
+            sb.Append(CancelDatabase.DateTimeToString(InsertionDate));
             return sb.ToString();
         }
-
-        public RGBColor ComputeAverageColor(string rootPath, RGBColorFactoryWithCache cache)
-        {
-            return IsRemoved ? null : BitmapContent.ValueFomSingleRgbBitmap(Path(rootPath)).AverageColor(cache);
-        }
+        public bool IsRemoved => RemovedDate.HasValue;
 
         private static string ColorToString(RGBColor c)
         {
             return c == null ? "" : c.Red + "|" + c.Green + "|" + c.Blue;
         }
-
-        public bool IsRemoved => RemovedDate.HasValue;
     }
 }

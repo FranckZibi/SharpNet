@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 // ReSharper disable UnusedMember.Local
@@ -31,33 +30,7 @@ namespace SharpNet.Datasets
         public override CpuTensor<float> Y { get; }
 
 
-        public static DirectoryDataSet FromDirectory(string path, int nbCategories, CategoryHierarchy hierarchyIfAny)
-        {
-            var allFiles = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories).Where(PictureTools.IsPicture).ToList();
-            var elementIdToDescription = allFiles.ToList();
-            var elementIdToPaths = new List<List<string>>();
-            var elementIdToCategoryIndex = new List<int>();
-            foreach (var f in allFiles)
-            {
-                elementIdToPaths.Add(new List<string> {f});
-                elementIdToCategoryIndex.Add(-1);
-            }
-            var categoryDescriptions = Enumerable.Range(0, nbCategories).Select(i=>i.ToString()).ToArray();
-                
-            return new DirectoryDataSet(
-                elementIdToPaths,
-                elementIdToDescription,
-                elementIdToCategoryIndex,
-                null,
-                path, 
-                3, 
-                categoryDescriptions,
-                DataSetBuilder.CancelMeanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.ResizeToTargetSize,
-                hierarchyIfAny);
-
-        }
-
+        #region constructor
         public DirectoryDataSet(
             List<List<string>> elementIdToPaths, 
             List<string> elementIdToDescription, 
@@ -86,6 +59,7 @@ namespace SharpNet.Datasets
             //We compute Y if necessary
             Y = expectedYIfAny??CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, elementIdToDescription.Count, CategoryCount);
         }
+        #endregion
 
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
         {
@@ -126,59 +100,6 @@ namespace SharpNet.Datasets
             }
         }
 
-        //// ReSharper disable once UnusedMember.Global
-        //public DirectoryDataSet CropBorder(bool skipIfFileAlreadyExists = true)
-        //{
-        //    var targetDirectory = _dataDirectory + "_cropped";
-        //    if (!Directory.Exists(targetDirectory))
-        //    {
-        //        Directory.CreateDirectory(targetDirectory);
-        //    }
-        //    Logger.Info("Cropping " + Count + " elements and copying them in " + targetDirectory);
-        //    int nbPerformed = 0;
-        //    Parallel.For(0, Count, elementId => CropBorder(elementId, targetDirectory, skipIfFileAlreadyExists, ref nbPerformed));
-        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        //}
-        //// ReSharper disable once UnusedMember.Global
-        //public DirectoryDataSet Filter(Func<BitmapContent, bool> isIncluded, bool skipIfFileAlreadyExists = true)
-        //{
-        //    var targetDirectory = _dataDirectory + "_filter";
-        //    if (!Directory.Exists(targetDirectory))
-        //    {
-        //        Directory.CreateDirectory(targetDirectory);
-        //    }
-        //    Logger.Info("Filtering " + Count + " elements and copying them in " + targetDirectory);
-        //    int nbPerformed = 0;
-        //    Parallel.For(0, Count, elementId => Filter(elementId, targetDirectory, isIncluded, skipIfFileAlreadyExists, ref nbPerformed));
-        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        //}
-        //// ReSharper disable once UnusedMember.Global
-        //public DirectoryDataSet Resize(int newWidth, int newHeight, bool skipIfFileAlreadyExists = true)
-        //{
-        //    var targetDirectory = _dataDirectory + "_resize_" + newWidth + "_" + newHeight;
-        //    if (!Directory.Exists(targetDirectory))
-        //    {
-        //        Directory.CreateDirectory(targetDirectory);
-        //    }
-        //    Logger.Info("Resizing " + Count + " elements and copying them in " + targetDirectory);
-        //    var nbPerformed = 0;
-        //    Parallel.For(0, Count, elementId => Resize(elementId, targetDirectory, newWidth, newHeight, skipIfFileAlreadyExists, ref nbPerformed));
-        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        //}
-        // ReSharper disable once UnusedMember.Global
-        //public DirectoryDataSet MakeSquarePictures(bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor = null, bool skipIfFileAlreadyExists = true)
-        //{
-        //    fillingColor = fillingColor ?? Tuple.Create((byte)0, (byte)0, (byte)0);
-        //    var targetDirectory = _dataDirectory + "_square";
-        //    if (!Directory.Exists(targetDirectory))
-        //    {
-        //        Directory.CreateDirectory(targetDirectory);
-        //    }
-        //    Logger.Info("Making " + Count + " elements square pictures and copying them in " + targetDirectory);
-        //    int nbPerformed = 0;
-        //    Parallel.For(0, Count, elementId => MakeSquarePictures(elementId, targetDirectory, alwaysUseBiggestSideForWidthSide, alwaysCropInsidePicture, fillingColor, skipIfFileAlreadyExists, ref nbPerformed));
-        //    return new DirectoryDataSet(_descriptionPath, targetDirectory, Logger, Name, Channels, Height, Width, _categoryIndexToDescription, TODO, _ignoreZeroPixel, _computeCategoryIndexDescriptionFullName);
-        //}
         public override int Count => _elementIdToCategoryIndex.Count;
         public override int ElementIdToCategoryIndex(int elementId)
         {
@@ -203,119 +124,6 @@ namespace SharpNet.Datasets
             Parallel.For(0, Count, elementId => UpdateWith_Sum_SumSquare_Count_For_Each_Channel(elementId, sumSumSquareCountForEachChannel, ref nbPerformed));
             return Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(sumSumSquareCountForEachChannel, Channels);
         }
-
-        //private void MakeSquarePictures(int elementId, string targetDirectory, bool alwaysUseBiggestSideForWidthSide, bool alwaysCropInsidePicture, Tuple<byte, byte, byte> fillingColor, bool skipIfFileAlreadyExists, ref int nbPerformed)
-        //{
-        //    UpdateStatus(ref nbPerformed);
-        //    var targetFileNames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
-        //    if (skipIfFileAlreadyExists && AllFileExist(targetFileNames))
-        //    {
-        //        return;
-        //    }
-        //    var bitmapContent = OriginalElementContent(elementId);
-        //    var squarePicture = bitmapContent.MakeSquarePictures(alwaysUseBiggestSideForWidthSide, alwaysCropInsidePicture, fillingColor);
-        //    squarePicture.Save(targetFileNames);
-        //}
-        private static bool AllFileExist(IEnumerable<string> fileNames)
-        {
-            foreach (var filename in fileNames)
-            {
-                if (!File.Exists(filename))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-        //private void CropBorder(int elementId, string targetDirectory, bool skipIfFileAlreadyExists, ref int nbPerformed)
-        //{
-        //    UpdateStatus(ref nbPerformed);
-        //    var targetFileNames = _elementIdToPaths[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
-        //    if (skipIfFileAlreadyExists && AllFileExist(targetFileNames))
-        //    {
-        //        return;
-        //    }
-        //    var bitmapContent = OriginalElementContent(elementId);
-        //    var cropped = bitmapContent.CropBorder();
-        //    cropped.Save(targetFileNames);
-        //}
-        //private void Resize(int elementId, string targetDirectoryWithElements, int newWidth, int newHeight, bool skipIfFileAlreadyExists, ref int nbPerformed)
-        //{
-        //    UpdateStatus(ref nbPerformed);
-        //    foreach(var subPath in _elementIdToPaths[elementId])
-        //    {
-        //        var srcFilename = Path.Combine(_dataDirectory, subPath);
-        //        var targetFilename = Path.Combine(targetDirectoryWithElements, subPath);
-        //        if (skipIfFileAlreadyExists && File.Exists(targetFilename))
-        //        {
-        //            continue;
-        //        }
-        //        using (var bmp = new Bitmap(srcFilename))
-        //        {
-        //            var resizedBmp = PictureTools.ResizeImage(bmp, newWidth, newHeight);
-        //            PictureTools.SavePng(resizedBmp, targetFilename);
-        //        }
-        //    }
-        //}
-        //private void Filter(int elementId, string targetDirectory, Func<BitmapContent, bool> isIncluded, bool skipIfFileAlreadyExists, ref int nbPerformed)
-        //{
-        //    UpdateStatus(ref nbPerformed);
-        //    var targetFileNames = _elementIdToSubPath[elementId].Select(subPath => Path.Combine(targetDirectory, subPath)).ToList();
-        //    if (skipIfFileAlreadyExists && AllFileExist(targetFileNames))
-        //    {
-        //        return;
-        //    }
-        //    var bitmapContent = OriginalElementContent(elementId);
-        //    if (isIncluded(bitmapContent))
-        //    {
-        //        bitmapContent.Save(targetFileNames);
-        //    }
-        //}
-        //private string StatsFileName => Path.Combine(_dataDirectory, "SharpNet.ini");
-        //private void CreateStatsFile()
-        //{
-        //    Logger.Info("Creating stats file");
-        //    var sb = new StringBuilder();
-        //    //We compute Mean and volatility stats
-        //    _meanAndVolatilityForEachChannel = new List<Tuple<float, float>>();
-        //    _meanAndVolatilityForEachChannel.Clear();
-        //    sb.Append(MEAN_VOLATILITY + "=");
-        //    foreach (var meanVolatility in ComputeMeanAndVolatilityForEachChannel())
-        //    {
-        //        _meanAndVolatilityForEachChannel.Add(meanVolatility);
-        //        sb.Append(meanVolatility.Item1.ToString(CultureInfo.InvariantCulture) + ";" + meanVolatility.Item2.ToString(CultureInfo.InvariantCulture) + ";");
-        //    }
-        //    sb.Append(Environment.NewLine);
-        //    File.WriteAllText(StatsFileName, sb.ToString());
-        //}
-        //const string MEAN_VOLATILITY = "MEAN_VOLATILITY";
-        //private bool LoadStatsFile()
-        //{
-        //    Log.Info("Loading stats file");
-        //    if (!File.Exists(StatsFileName))
-        //    {
-        //        return false;
-        //    }
-        //    bool fileLoadedSuccessfully = false;
-        //    var content = File.ReadAllLines(StatsFileName);
-        //    _meanAndVolatilityForEachChannel = new List<Tuple<float, float>>();
-        //    foreach (var line in content)
-        //    {
-        //        var splitted = line.Split('=');
-        //        if (splitted.Length == 2 && splitted[0] == MEAN_VOLATILITY)
-        //        {
-        //            _meanAndVolatilityForEachChannel.Clear();
-        //            var values = splitted[1].Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => float.Parse(x, CultureInfo.InvariantCulture)).ToArray();
-        //            for (int i = 0; i < values.Length; i += 2)
-        //            {
-        //                _meanAndVolatilityForEachChannel.Add(Tuple.Create(values[i], values[i + 1]));
-        //            }
-        //            fileLoadedSuccessfully = true;
-        //        }
-        //    }
-        //    Log.Info(fileLoadedSuccessfully ? "stats file loaded successfully" : "fail to load stats file");
-        //    return fileLoadedSuccessfully;
-        //}
 
         public override BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth)
         {

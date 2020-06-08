@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -248,7 +245,7 @@ namespace SharpNet.Datasets
         /// <param name="targetHeight"></param>
         /// <param name="targetWidth"></param>
         /// <returns></returns>
-        public ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
+        private ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
         {
             return ImageStatistic.ValueOf(OriginalElementContent(elementId, targetHeight, targetWidth));
         }
@@ -259,18 +256,34 @@ namespace SharpNet.Datasets
         public ResizeStrategyEnum ResizeStrategy { get; }
         public int Channels { get; }
         public int CategoryCount => CategoryDescriptions.Length;
-        public double OriginalChannelMean(int channel)
+        /// <summary>
+        /// return the mean of channel 'channel' of the original DataSet (before normalization)
+        /// </summary>
+        /// <param name="channel">the channel for which we want to extract the mean</param>
+        /// <returns>mean of channel 'channel'</returns>
+        protected double OriginalChannelMean(int channel)
         {
             Debug.Assert(IsNormalized);
             return MeanAndVolatilityForEachChannel[channel].Item1;
         }
-        public double OriginalChannelVolatility(int channel)
+
+        /// <summary>
+        /// return the volatility of channel 'channel' of the original DataSet (before normalization)
+        /// </summary>
+        /// <param name="channel">the channel for which we want to extract the volatility</param>
+        /// <returns>volatility of channel 'channel'</returns>
+        protected double OriginalChannelVolatility(int channel)
         {
             Debug.Assert(IsNormalized);
             return MeanAndVolatilityForEachChannel[channel].Item2;
         }
-        public bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
 
+        /// <summary>
+        /// true if the current data set is normalized (with mean=0 and volatility=1 in each channel)
+        /// </summary>
+        private bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
+
+        // ReSharper disable once UnusedMember.Global
         public string CategoryDescription(int categoryIndex)
         {
             if (categoryIndex < 0 || categoryIndex >= CategoryCount || CategoryDescriptions == null)
@@ -322,8 +335,7 @@ namespace SharpNet.Datasets
         public int TypeSize => 4; //float size
 
 
-
-        public IDataSet Slice(int firstElementId, int count)
+        private IDataSet Slice(int firstElementId, int count)
         {
             return new SubDataSet(this, id => id >= firstElementId && id <(firstElementId+count) );
         }
@@ -347,53 +359,7 @@ namespace SharpNet.Datasets
                                && (Y.Shape.Length == 2);
         }
         public abstract CpuTensor<float> Y { get; }
-        public void CreatePredictionFile(CpuTensor<float> prediction, string outputFile)
-        {
-            var predictedCategories = prediction.ComputePrediction();
-            var sb = new StringBuilder();
-
-            var headerColumn = new List<string>{"ElementId", "ElementDescription", "PredictedCategoryId", "PredictedCategoryDescription", "Correct?","ExpectedCategoryId", "ExpectedCategoryDescription"};
-            headerColumn.AddRange(CategoryDescriptions);
-            while (headerColumn.Count < 13)
-            {
-                headerColumn.Add(headerColumn.Count.ToString());
-            }
-            headerColumn.Insert(11, "Path");
-            headerColumn.Insert(12, "Date");
-
-            sb.Append(string.Join(";",headerColumn)).Append(Environment.NewLine);
-            for (int elementId = 0; elementId < Count; ++elementId)
-            {
-                var expectedCategoryId = ElementIdToCategoryIndex(elementId);
-                int predictedCategoryId = predictedCategories[elementId];
-                var elements = new List<string>
-                {
-                    elementId.ToString(), ElementIdToDescription(elementId),
-                    predictedCategoryId.ToString(), CategoryDescription(predictedCategoryId),
-                    predictedCategoryId == expectedCategoryId ? "OK" : "KO",
-                    expectedCategoryId.ToString(), CategoryDescription(expectedCategoryId)
-                };
-                if (HierarchyIfAny != null)
-                {
-                    elements[3] = HierarchyIfAny.ExtractPrediction(prediction.RowSlice(elementId, 1).AsReadonlyFloatCpuContent);
-                }
-
-                for (var categoryIndex = 0; categoryIndex < CategoryDescriptions.Length; categoryIndex++)
-                {
-                    elements.Add(prediction.Get(elementId, categoryIndex).ToString(CultureInfo.InvariantCulture));
-                }
-                while (elements.Count < 13)
-                {
-                    elements.Add(elements.Count.ToString());
-                }
-                elements.Insert(11, ElementIdToPathIfAny(elementId));
-                elements.Insert(12, "");
-                sb.Append(string.Join(";", elements));
-                sb.Append(Environment.NewLine);
-            }
-            File.WriteAllText(outputFile, sb.ToString());
-        }
-
+        
         protected static bool IsValidYSet(Tensor data)
         {
             Debug.Assert(!data.UseGPU);

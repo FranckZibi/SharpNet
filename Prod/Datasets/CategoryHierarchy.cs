@@ -7,10 +7,12 @@ using System.Linq;
 
 namespace SharpNet.Datasets
 {
+    [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     public class CategoryHierarchy
     {
         #region private fields
         private readonly string _name;
+        private readonly string _displayName;
         private readonly CategoryHierarchy _parentIfAny;
         private readonly bool _onlyOneChildrenValidAtATime;
         private readonly List<CategoryHierarchy> _children = new List<CategoryHierarchy>();
@@ -46,13 +48,14 @@ namespace SharpNet.Datasets
 
         public static CategoryHierarchy NewRoot(string rootName)
         {
-            return new CategoryHierarchy(rootName, null);
+            return new CategoryHierarchy(rootName, "", null);
         }
 
         #region constructor
-        private CategoryHierarchy(string name, CategoryHierarchy parentIfAny, bool onlyOneChildrenValidAtATime = true)
+        private CategoryHierarchy(string name, string displayName, CategoryHierarchy parentIfAny, bool onlyOneChildrenValidAtATime = true)
         {
             _name = name;
+            _displayName = displayName;
             _parentIfAny = parentIfAny;
             _onlyOneChildrenValidAtATime = onlyOneChildrenValidAtATime;
 
@@ -77,28 +80,28 @@ namespace SharpNet.Datasets
         }
         #endregion
 
-        public CategoryHierarchy Add(string name, bool onlyOneChildrenValidAtATime = true)
+        public CategoryHierarchy Add(string name, string displayName = null, bool onlyOneChildrenValidAtATime = true)
         {
-            return new CategoryHierarchy(name, this, onlyOneChildrenValidAtATime);
+            return new CategoryHierarchy(name, displayName??name, this, onlyOneChildrenValidAtATime);
         }
 
-        public void AddAllNumbersWithSameNumberOfDigits(string name, int maxNumber)
+        public void AddAllNumbersWithSameNumberOfDigits(string name, string displayName, int maxNumber)
         {
             Debug.Assert(maxNumber < 10000);
             if (maxNumber <= 9)
             {
-                var subCategorySingleDigit = Add(name);
+                var subCategorySingleDigit = Add(name, displayName);
                 subCategorySingleDigit.AddRange(1, maxNumber);
                 return;
             }
-            var subCategory = Add(name, false);
+            var subCategory = Add(name, displayName, false);
             var names = new[] { "units", "tens", "hundreds", "thousands" };
             int[] digits = maxNumber.ToString().Select(c => c - '0').ToArray();
             for (int i=0;i<digits.Length;++i)
             {
                 int startNumber = i==0? 1 : 0;
                 int count = i==0 ? digits[i] : 10;
-                var c = subCategory.Add(names[digits.Length-i-1]);
+                var c = subCategory.Add(names[digits.Length-i-1], "");
                 c.AddRange(startNumber, count);
             }
         }
@@ -119,22 +122,20 @@ namespace SharpNet.Datasets
 
         public string ExtractPrediction(ReadOnlySpan<float> prediction)
         {
-            string result = HasAssociatedProba?_name:"";
+            string result = HasAssociatedProba?_displayName:"";
             if (_children.Count == 0)
             {
                 return result;
             }
             if (_onlyOneChildrenValidAtATime)
             {
-                var selectedChildren = _children[0];
-                foreach(var c in _children.Skip(1))
+                var childrenOrderByProba = new List<Tuple<CategoryHierarchy, float>>();
+                foreach(var c in _children)
                 {
-                    if (prediction[c.IndexWithProba] > prediction[selectedChildren.IndexWithProba])
-                    {
-                        selectedChildren = c;
-                    }
+                    childrenOrderByProba.Add(Tuple.Create(c, prediction[c.IndexWithProba]));
                 }
-                result += selectedChildren.ExtractPrediction(prediction);
+                childrenOrderByProba = childrenOrderByProba.OrderByDescending(t => t.Item2).ToList();
+                result += childrenOrderByProba[0].Item1.ExtractPrediction(prediction);
             }
             else
             {
@@ -148,56 +149,23 @@ namespace SharpNet.Datasets
             return result;
         }
 
-        public static CategoryHierarchy ComputeRootNode()
-        {
-            var root = NewRoot("");
-            root.Add("mint");
-            
-            var used = root.Add("used");
-            var used_star = used.Add("star");
-            used_star.AddAllNumbersWithSameNumberOfDigits("2digits", 39);
-            used_star.Add("full");
-            used_star.Add("empty");
-            used_star.AddAllNumbersWithSameNumberOfDigits("1digit", 9);
-            var used_gc = used.Add("gc");
-            used_gc.AddAllNumbersWithSameNumberOfDigits("4digits", 6999);
-            used_gc.AddAllNumbersWithSameNumberOfDigits("3digits", 999);
-            used_gc.AddAllNumbersWithSameNumberOfDigits("2digits", 99);
-            used_gc.AddAllNumbersWithSameNumberOfDigits("1digit", 9);
-            var used_pc = used.Add("pc");
-            used_pc.AddAllNumbersWithSameNumberOfDigits("4digits", 4999);
-            used_pc.AddAllNumbersWithSameNumberOfDigits("3digits", 999);
-            used_pc.AddAllNumbersWithSameNumberOfDigits("2digits", 99);
-            used_pc.AddAllNumbersWithSameNumberOfDigits("1digit", 9);
-            used.Add("preo1893");
-            used.Add("ir");
-            used.Add("cad");
-            used.Add("cad_perle");
-            used.Add("cad_octo");
-            used.Add("cad_ondule");
-            used.Add("cad_imprime");
-            used.Add("cad_passe");
-            used.Add("cad_barcelona");
-            used.Add("amb");
-            used.Add("anchor");
-            used.Add("typo");
-            used.Add("grille");
-            used.Add("grille_ss_fin");
-            used.Add("gros_points");
-            used.Add("asna");
-            used.Add("plume");
-
-            return root;
-        }
-
         public string CategoryPathToCategoryName(string[] path)
         {
+            if (path == null || path.Length == 0)
+            {
+                return "";
+            }
             return string.Join("/", path.Take(3));
         }
 
         public float[] ExpectedPrediction(string[] pathExpected)
         {
             var expected = (float[])RootPrediction().Clone();
+            if (pathExpected == null)
+            {
+                return expected;
+            }
+
             GetExpected(pathExpected, 0, expected);
             return expected;
         }
@@ -207,7 +175,18 @@ namespace SharpNet.Datasets
         }
 
 
-        public string[] ToPath(string cancel)
+        public bool IsValidNonEmptyCancel(string cancel)
+        {
+
+            if (string.IsNullOrEmpty(cancel))
+            {
+                return false;
+            }
+            var path = ToPath(cancel);
+            return path != null && path.Length >= 1;
+        }
+
+            public string[] ToPath(string cancel)
         {
             cancel = cancel.Replace("_bleue", "").Replace("_bleu", "").Replace("_rouge", "");
             if (string.IsNullOrEmpty(cancel)) return new string[0];

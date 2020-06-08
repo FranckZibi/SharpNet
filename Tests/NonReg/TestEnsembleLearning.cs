@@ -18,15 +18,15 @@ namespace SharpNetTests.NonReg
             //94.94 <= 94.82 (160 epochs) + 93.57 (70 epochs)
             //var files_ResNet56V2 = new[]
             //{
-            //    @"C:\Users\fzibi\AppData\Local\SharpNet\ResNet56V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1732_160.txt"
-            //    @"C:\Users\fzibi\AppData\Local\SharpNet\ResNet56V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1732_70.txt",
+            //    Path.Combine(NetworkConfig.DefaultDataDirectory, "ResNet56V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1732_160.txt"),
+            //    Path.Combine(NetworkConfig.DefaultDataDirectory, "ResNet56V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1732_70.txt")
             //};
 
             //95.83 <= 95.21 (160 epochs) + (70 epoch)
             //var files_ResNet110V2 = new[]
             //{
-            //    @"C:\Users\fzibi\AppData\Local\SharpNet\ResNet110V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1358_160.txt"
-            //    @"C:\Users\fzibi\AppData\Local\SharpNet\ResNet110V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1358_70.txt",
+            //    Path.Combine(NetworkConfig.DefaultDataDirectory, "ResNet110V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1358_160.txt"),
+            //    Path.Combine(NetworkConfig.DefaultDataDirectory, "ResNet110V2_CIFAR10_CyclicCosineAnnealing_10_2_20190528_1358_70.txt")
             //};
 
             //96.05 <= 95.67 (150 epochs) + 94.91 (70 epochs)

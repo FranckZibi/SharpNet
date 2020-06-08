@@ -24,7 +24,7 @@ namespace SharpNet.Optimizers
         /// then it will contains
         ///     10, 30, 70
         /// </summary>
-        public List<int> EndEpochForEachCycle { get; }= new List<int>();
+        private List<int> EndEpochForEachCycle { get; }= new List<int>();
 
         /// <summary>
         /// see https://arxiv.org/pdf/1608.03983.pdf
