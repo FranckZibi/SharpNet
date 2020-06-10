@@ -13,6 +13,49 @@ namespace SharpNetTests.Datasets
     [TestFixture]
     public class TestCategoryHierarchy
     {
+
+        [Test]
+        public void TestCategoryNameToPrediction()
+        {
+            var stars = StarExample();
+            foreach (var expectedCancelName in new[]{ "etoile_pleine", "etoile*", "etoile7", "etoile**", "etoile*7", "etoile3*", "etoile37"})
+            {
+                var path = ToPathForStars(expectedCancelName);
+                var prediction = stars.ExpectedPrediction(path);
+                var observedCancelName = stars.ExtractPrediction(prediction);
+                Assert.AreEqual(expectedCancelName, observedCancelName);
+            }
+        }
+
+
+        [TestCase(new[] { "full" }, "etoile_pleine")]
+        [TestCase(new[] { "1digit"}, "etoile*")]
+        [TestCase(new[] { "1digit", "7" }, "etoile7")]
+        [TestCase(new[] { "2digits", "3", "*" }, "etoile3*")]
+        [TestCase(new[] { "2digits", "*", "7" }, "etoile*7")]
+        [TestCase(new[] { "2digits", "3", "7" }, "etoile37")]
+        [TestCase(new[] { "2digits"}, "etoile**")]
+        public void TestToPathForStars(string[] expectedPath, string cancelName)
+        {
+            Assert.AreEqual(expectedPath, ToPathForStars(cancelName));
+        }
+
+        private static string[] ToPathForStars(string cancelName)
+        {
+            if (cancelName.StartsWith("etoile_pleine")) return new[] {"full" };
+            if (cancelName.Equals("etoile*")) return new[] {"1digit" };
+            if (cancelName.Equals("etoile**")) return new[] {"2digits" };
+            if (cancelName.Length == 7)
+            {
+                return new[] {"1digit", cancelName[6].ToString()}; 
+            }
+            if (cancelName.Length == 8)
+            {
+                return new[] {"2digits", cancelName[6].ToString(), cancelName[7].ToString() };
+            }
+            return null;
+        }
+
         [Test]
         public void TestGetExpected()
         {
@@ -43,7 +86,7 @@ namespace SharpNetTests.Datasets
         [Test, Explicit]
         public void TestPredictions()
         {
-            var root = CancelDatabase.ComputeRootNode();
+            var root = CancelDatabase.Hierarchy;
             //trained on 235x200
             //var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"), "", new[] { 0 });
             //trained on 235x200
@@ -93,10 +136,10 @@ namespace SharpNetTests.Datasets
 
         public static CategoryHierarchy StarExample()
         {
-            var root = CategoryHierarchy.NewRoot("star");
-            root.AddAllNumbersWithSameNumberOfDigits("2digits", "2digits", 39);
-            root.Add("full");
-            root.AddAllNumbersWithSameNumberOfDigits("1digit", "1digit", 9);
+            var root = CategoryHierarchy.NewRoot("star", "etoile");
+            root.AddAllNumbersWithSameNumberOfDigits("2digits", "", 39);
+            root.Add("full", "_pleine");
+            root.AddAllNumbersWithSameNumberOfDigits("1digit", "", 9);
             return root;
         }
     }

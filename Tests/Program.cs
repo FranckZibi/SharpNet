@@ -45,6 +45,8 @@ namespace SharpNetTests
             //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_400_470_20200605_1924_150.txt"), "", new []{0});
             //235*200
             //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_20200603_1803_150.txt"), "", new []{0});
+            //235*200 : 53.16% accuracy
+            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_200_235_20200608_1918_30.txt"), "", new []{0});
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase(network);return;
 
             //new CancelDatabase().CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction.csv");return;
@@ -144,9 +146,9 @@ namespace SharpNetTests
         private static void Train_Cancel_EfficientNet(EfficientNetBuilder p, int targetHeight, int targetWidth)
         {
             var cancelDatabase = new CancelDatabase();
-            var rootPrediction = cancelDatabase.Hierarchy.RootPrediction();
-            using var dataset = cancelDatabase.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && cancelDatabase.Hierarchy.IsValidNonEmptyCancel(e.Cancel));
-            using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.8); //80% for training,  20% for validation
+            var rootPrediction = CancelDatabase.Hierarchy.RootPrediction();
+            using var dataset = cancelDatabase.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && CancelDatabase.IsValidNonEmptyCancel(e.Cancel));
+            using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.9); //90% for training,  10% for validation
             using var network = p.EfficientNetB0(true, "", new[] { trainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
             network.SetSoftmaxWithHierarchy(rootPrediction);
             //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1522_30.txt"));

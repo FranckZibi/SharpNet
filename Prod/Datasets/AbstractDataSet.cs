@@ -333,7 +333,7 @@ namespace SharpNet.Datasets
         }
 
         public int TypeSize => 4; //float size
-
+        public override string ToString() {return Name;}
 
         private IDataSet Slice(int firstElementId, int count)
         {

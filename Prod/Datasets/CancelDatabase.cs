@@ -26,7 +26,7 @@ namespace SharpNet.Datasets
         private readonly IDictionary<string, CancelDatabaseEntry> _database = new Dictionary<string, CancelDatabaseEntry>();
         private readonly string _rootPath;
         #endregion
-        public CategoryHierarchy Hierarchy { get; } = ComputeRootNode();
+        public static readonly CategoryHierarchy Hierarchy = ComputeRootNode();
         #region constructor
         public CancelDatabase()
         {
@@ -53,7 +53,7 @@ namespace SharpNet.Datasets
                 {
                     continue;
                 }
-                if (Hierarchy.ToPath(cancel) == null)
+                if (ToPath(cancel) == null)
                 {
                     invalids.Add(cancel);
                 }
@@ -183,14 +183,14 @@ namespace SharpNet.Datasets
             int targetHeight = xShape[2];
             int targetWidth = xShape[3];
 
-            foreach (var e in _database.Values.Where(e => !e.IsRemoved))
-            {
-                e.SuggestedCancel = "";
-            }
+            //foreach (var e in _database.Values.Where(e => !e.IsRemoved))
+            //{
+            //    e.SuggestedCancel = "";
+            //}
 
             using var dataSet = ExtractDataSet(e =>
                                 e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05)
-                                //Hierarchy.IsValidNonEmptyCancel(e.Cancel) 
+                                &&IsValidNonEmptyCancel(e.Cancel) 
                                 //&&e.SuggestedCancel == ""
                                 );
             var p = network.Predict(dataSet);
@@ -198,13 +198,93 @@ namespace SharpNet.Datasets
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1);
                 var sha1 = dataSet.ElementIdToDescription(elementId);
-                var prediction = Hierarchy.ExtractPrediction(rowWithPrediction.AsReadonlyFloatCpuContent);
-                _database[sha1].SuggestedCancel = prediction;
+                var predictedCancelName = Hierarchy.ExtractPrediction(rowWithPrediction.AsReadonlyFloatCpuContent);
+                _database[sha1].SuggestedCancel = predictedCancelName;
             }
             FlushDatabase();
         }
 
 
+        public static bool IsValidNonEmptyCancel(string cancelName)
+        {
+
+            if (string.IsNullOrEmpty(cancelName))
+            {
+                return false;
+            }
+            var path = ToPath(cancelName);
+            return path != null && path.Length >= 1;
+        }
+
+        public static string[] ToPath(string cancelName)
+        {
+            cancelName = cancelName.Replace("_bleue", "").Replace("_bleu", "").Replace("_rouge", "");
+            if (string.IsNullOrEmpty(cancelName)) return new string[0];
+            if (cancelName == "mint") return new[] { "mint" };
+            if (cancelName.StartsWith("used")) return new[] { "used" };
+            if (cancelName.StartsWith("cad_perle")) return new[] { "used", "cad_perle" };
+            if (cancelName.StartsWith("cad_octo")) return new[] { "used", "cad_octo" };
+            if (cancelName.StartsWith("cad_ondule")) return new[] { "used", "cad_ondule" };
+            if (cancelName.StartsWith("passe")) return new[] { "used", "cad_passe" };
+            if (cancelName == "imprime") return new[] { "used", "cad_imprime" };
+            if (cancelName.StartsWith("barcelona")) return new[] { "used", "cad_barcelona" };
+            if (cancelName == "cad") return new[] { "used", "cad" };
+            if (cancelName == "preo1893") return new[] { "used", "preo1893" };
+            if (cancelName == "typo") return new[] { "used", "typo" };
+            if (cancelName == "grille_ss_fin") return new[] { "used", "grille_ss_fin" };
+            if (cancelName == "grille") return new[] { "used", "grille" };
+            if (cancelName == "gros_points") return new[] { "used", "gros_points" };
+            if (cancelName == "asna") return new[] { "used", "asna" };
+            if (cancelName.StartsWith("amb")) return new[] { "used", "amb" };
+            if (cancelName.StartsWith("ancre")) return new[] { "used", "anchor" };
+            if (cancelName.StartsWith("plume")) return new[] { "used", "plume" };
+
+            if (cancelName.StartsWith("etoile"))
+            {
+                if (cancelName == "etoile") return new[] { "used", "star" };
+                if (cancelName.StartsWith("etoile_pleine")) return new[] { "used", "star", "full" };
+                if (cancelName.StartsWith("etoile_evidee")) return new[] { "used", "star", "empty" };
+                if (cancelName.Length == 7)
+                {
+                    if (cancelName.Equals("etoile*")) return new[] { "used", "star", "1digit" };
+                    return new[] { "used", "star", "1digit", cancelName[6].ToString() };
+                }
+                if (cancelName.Length == 8)
+                {
+                    if (cancelName.Equals("etoile**")) return new[] { "used", "star", "2digits" };
+                    return new[] { "used", "star", "2digits", cancelName[6].ToString(), cancelName[7].ToString() };
+                }
+                return null;
+            }
+
+            if (cancelName.StartsWith("gc") || cancelName.StartsWith("pc"))
+            {
+                var result = new List<string> { "used", cancelName.Substring(0, 2) };
+                if (cancelName.Length == 2)
+                {
+                    return result.ToArray();
+                }
+
+                var subCategory = "1digit";
+                if (cancelName.Length >= 4)
+                {
+                    subCategory = (Math.Min(cancelName.Length, 6) - 2) + "digits";
+                }
+                result.Add(subCategory);
+                if (cancelName.Skip(2).All(c => c == '*'))
+                {
+                    return result.ToArray();
+                }
+
+                for (int i = 2; i < Math.Min(cancelName.Length, 6); ++i)
+                {
+                    if (!char.IsDigit(cancelName[i]) && cancelName[i] != '*') return null;
+                    result.Add(cancelName[i].ToString());
+                }
+                return result.ToArray();
+            }
+            return null;
+        }
 
         // ReSharper disable once UnusedMember.Global
         public void CreatePredictionFile(string outputFile)
@@ -216,8 +296,8 @@ namespace SharpNet.Datasets
             var countKO = new Dictionary<string, int>();
             foreach (var e in _database.Values.Where(
                     e=>!e.IsRemoved 
-                       && !string.IsNullOrEmpty(e.Cancel) 
-                       && !string.IsNullOrEmpty(e.SuggestedCancel)
+                       && IsValidNonEmptyCancel(e.Cancel)
+                       && IsValidNonEmptyCancel(e.SuggestedCancel)
                     //&& e.SHA1 == "38485D1A3622A6E5612FBB9BD505A039C746B291"
                         ))
             {
@@ -267,8 +347,8 @@ namespace SharpNet.Datasets
             }
             var totalSum = totalCount.Values.Sum();
             var totalErrors = countKO.Values.Sum();
-            Network.Log.Info("TOTAL:" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
-            Network.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
+            Network.Log.Info("Errors (total):" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
+            Network.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).ThenByDescending(e=>totalCount[e.Item1]).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
 
             File.WriteAllText(outputFile, sb.ToString());
         }
@@ -295,7 +375,7 @@ namespace SharpNet.Datasets
             void Process(int elementId)
             {
                 var entry = entries[elementId];
-                var categoryPath = Hierarchy.ToPath(entry.Cancel);
+                var categoryPath = ToPath(entry.Cancel);
                 //Debug.Assert(categoryPath != null && categoryPath.Length >= 1);
                 var categoryName = Hierarchy.CategoryPathToCategoryName(categoryPath);
                 if (categoryNameToCount.ContainsKey(categoryName))
@@ -456,7 +536,6 @@ namespace SharpNet.Datasets
         }
         private int Count => _database.Count;
         private string CsvPath => Path.Combine(_rootPath, "Dataset.csv");
-        private string AvgColorPath => Path.Combine(_rootPath, "DatasetAvgColor.csv");
         private void LoadDatabase()
         {
             Log.Info("Loading database "+_rootPath);
@@ -566,9 +645,9 @@ namespace SharpNet.Datasets
             return result;
         }
 
-        public static CategoryHierarchy ComputeRootNode()
+        private static CategoryHierarchy ComputeRootNode()
         {
-            var root = CategoryHierarchy.NewRoot("");
+            var root = CategoryHierarchy.NewRoot("", "");
             root.Add("mint");
 
             var used = root.Add("used", "");

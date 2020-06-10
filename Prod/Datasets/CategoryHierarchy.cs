@@ -46,9 +46,9 @@ namespace SharpNet.Datasets
         }
 
 
-        public static CategoryHierarchy NewRoot(string rootName)
+        public static CategoryHierarchy NewRoot(string rootName, string displayName)
         {
-            return new CategoryHierarchy(rootName, "", null);
+            return new CategoryHierarchy(rootName, displayName, null);
         }
 
         #region constructor
@@ -122,11 +122,29 @@ namespace SharpNet.Datasets
 
         public string ExtractPrediction(ReadOnlySpan<float> prediction)
         {
-            string result = HasAssociatedProba?_displayName:"";
+            string result = (HasAssociatedProba||IsRoot)?_displayName:"";
             if (_children.Count == 0)
             {
                 return result;
             }
+
+            if (IndexWithElementCount != -1 && prediction[IndexWithElementCount] < -0.1)
+            {
+                if (!string.IsNullOrEmpty(result))
+                {
+                    return result;
+                }
+                if (_onlyOneChildrenValidAtATime)
+                {
+                    result += "*";
+                }
+                else
+                {
+                    result += new string(Enumerable.Repeat('*', _children.Count).ToArray());
+                }
+                return result;
+            }
+
             if (_onlyOneChildrenValidAtATime)
             {
                 var childrenOrderByProba = new List<Tuple<CategoryHierarchy, float>>();
@@ -175,84 +193,9 @@ namespace SharpNet.Datasets
         }
 
 
-        public bool IsValidNonEmptyCancel(string cancel)
-        {
+       
 
-            if (string.IsNullOrEmpty(cancel))
-            {
-                return false;
-            }
-            var path = ToPath(cancel);
-            return path != null && path.Length >= 1;
-        }
-
-            public string[] ToPath(string cancel)
-        {
-            cancel = cancel.Replace("_bleue", "").Replace("_bleu", "").Replace("_rouge", "");
-            if (string.IsNullOrEmpty(cancel)) return new string[0];
-            if (cancel == "mint") return new[] { "mint" };
-            if (cancel.StartsWith("used")) return new[] { "used" };
-            if (cancel.StartsWith("cad_perle")) return new[] { "used", "cad_perle" };
-            if (cancel.StartsWith("cad_octo")) return new[] { "used", "cad_octo" };
-            if (cancel.StartsWith("cad_ondule")) return new[] { "used", "cad_ondule" };
-            if (cancel.StartsWith("passe")) return new[] { "used", "cad_passe" };
-            if (cancel == "imprime") return new[] { "used", "cad_imprime" };
-            if (cancel.StartsWith("barcelona")) return new[] { "used", "cad_barcelona" };
-            if (cancel == "cad") return new[] { "used", "cad" };
-            if (cancel == "preo1893") return new[] { "used", "preo1893" };
-            if (cancel == "typo") return new[] { "used", "typo" };
-            if (cancel == "grille_ss_fin") return new[] { "used", "grille_ss_fin" };
-            if (cancel == "grille") return new[] { "used", "grille" };
-            if (cancel == "gros_points") return new[] { "used", "gros_points" };
-            if (cancel == "asna") return new[] { "used", "asna" };
-            if (cancel.StartsWith("amb")) return new[] { "used", "amb" };
-            if (cancel.StartsWith("ancre")) return new[] { "used", "anchor" };
-            if (cancel.StartsWith("plume")) return new[] { "used", "plume" };
-
-            if (cancel.StartsWith("etoile"))
-            {
-                if (cancel == "etoile") return new[] { "used", "star" };
-                if (cancel.StartsWith("etoile_pleine")) return new[] { "used", "star", "full" };
-                if (cancel.StartsWith("etoile_evidee")) return new[] { "used", "star", "empty" };
-                if (cancel.Length == 7)
-                {
-                    string units = "*";
-                    if (char.IsDigit(cancel[6])) units = cancel[6].ToString();
-                    return new[] { "used", "star", "1digit", units };
-                }
-                if (cancel.Length == 8)
-                {
-                    string tens = "*";
-                    string units = "*";
-                    if (char.IsDigit(cancel[6])) tens = cancel[6].ToString();
-                    if (char.IsDigit(cancel[7])) units = cancel[7].ToString();
-                    return new[] { "used", "star", "2digits", tens, units };
-                }
-                return null;
-            }
-
-            if (cancel.StartsWith("gc") || cancel.StartsWith("pc"))
-            {
-                var result = new List<string> { "used", cancel.Substring(0, 2) };
-
-                var subCategory = "1digit";
-                if (cancel.Length >= 4)
-                {
-                    subCategory = (Math.Min(cancel.Length, 6) - 2) + "digits";
-                }
-                result.Add(subCategory);
-
-                for (int i = 2; i < Math.Min(cancel.Length, 6); ++i)
-                {
-                    if (!char.IsDigit(cancel[i]) && cancel[i] != '*') return null;
-                    result.Add(cancel[i].ToString());
-                }
-                return result.ToArray();
-            }
-            return null;
-        }
-
-        private void GetExpected(string[] pathExpected, int indexInPathExpected, float[] expected)
+        private void GetExpected(string[] pathExpected, int childrenIndexInPathExpected, float[] expected)
         {
             if (HasAssociatedProba)
             {
@@ -265,10 +208,10 @@ namespace SharpNet.Datasets
 
             if (_onlyOneChildrenValidAtATime)
             {
-                var desc = (indexInPathExpected >= pathExpected.Length) ? "*" : pathExpected[indexInPathExpected];
-                Debug.Assert(!string.IsNullOrEmpty(desc));
+                var childrenDesc = ( childrenIndexInPathExpected >= pathExpected.Length) ? "*" : pathExpected[childrenIndexInPathExpected];
+                Debug.Assert(!string.IsNullOrEmpty(childrenDesc));
 
-                if (desc == "*")
+                if (childrenDesc == "*")
                 {
                     //we ignore the sub categories
                     Debug.Assert(_children.Count != 0);
@@ -278,9 +221,9 @@ namespace SharpNet.Datasets
 
                 foreach (var c in _children)
                 {
-                    if (c._name == desc)
+                    if (c._name == childrenDesc)
                     {
-                        c.GetExpected(pathExpected, indexInPathExpected+ ((IsRoot || _parentIfAny._onlyOneChildrenValidAtATime) ? 1 : 0), expected);
+                        c.GetExpected(pathExpected, childrenIndexInPathExpected + ((IsRoot || _parentIfAny._onlyOneChildrenValidAtATime) ? 1 : 0), expected);
                     }
                     else
                     {
@@ -295,17 +238,17 @@ namespace SharpNet.Datasets
             }
             else
             {
-                if (indexInPathExpected >= pathExpected.Length)
+                if (childrenIndexInPathExpected >= pathExpected.Length)
                 {
                     //we ignore the sub categories
                     Debug.Assert(_children.Count != 0);
                     expected[IndexWithElementCount] = -10* FloatLengthOfSubCategoriesDescription;
                     return;
                 }
-                Debug.Assert(pathExpected.Length- indexInPathExpected == _children.Count);
+                Debug.Assert(pathExpected.Length- childrenIndexInPathExpected == _children.Count);
                 for (var index = 0; index < _children.Count; index++)
                 {
-                    _children[index].GetExpected(pathExpected, indexInPathExpected + index, expected);
+                    _children[index].GetExpected(pathExpected, childrenIndexInPathExpected + index, expected);
                 }
             }
         }

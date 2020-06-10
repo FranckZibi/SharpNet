@@ -510,7 +510,7 @@ namespace SharpNet.GPU
             var result = _deviceName + " - driver " + _driverVersion;
             var cudaVersion = CudaVersionFromCudaPath();
             result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
-            result += " - cublas " + _cublasVersion + " - deviceId:" + DeviceId + " - threadId:" + _threadId;
+            result += " - cublas " + _cublasVersion + " - deviceId:" + DeviceId;
             return result;
         }
         public override string ToString()

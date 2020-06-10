@@ -9,14 +9,14 @@ namespace SharpNet.Optimizers
     public class LearningRateScheduler : ILearningRateScheduler
     {
         #region private fields
-        private readonly List<Tuple<int, double>> _values;
+        private readonly List<Tuple<double, double>> _values;
         private readonly bool _constantByInterval;
         #endregion
 
-        public bool ShouldCreateSnapshotForEpoch(int epoch) {return false;}
+        public bool ShouldCreateSnapshotForEpoch(int epoch) { return false; }
 
         #region Constructors
-        private LearningRateScheduler(List<Tuple<int, double>> values, bool constantByInterval)
+        private LearningRateScheduler(List<Tuple<double, double>> values, bool constantByInterval)
         {
             Debug.Assert(values != null);
             Debug.Assert(values.Count >= 1);
@@ -25,7 +25,7 @@ namespace SharpNet.Optimizers
         }
         public static LearningRateScheduler Constant(double learningRate)
         {
-            var values = new List<Tuple<int, double>> { Tuple.Create(1, learningRate)};
+            var values = new List<Tuple<double, double>> { Tuple.Create(1.0, learningRate) };
             return new LearningRateScheduler(values, false);
         }
         public static LearningRateScheduler ConstantByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2)
@@ -48,10 +48,10 @@ namespace SharpNet.Optimizers
         /// <returns></returns>
         public static LearningRateScheduler DivideByConstantEveryXEpoch(double initialLearningRate, int divideConstant, int XEpoch, bool isConstantByInterval)
         {
-            var values = new List<Tuple<int, double>> {Tuple.Create(1, initialLearningRate)};
+            var values = new List<Tuple<double, double>> { Tuple.Create(1.0, initialLearningRate) };
             while (values.Count < 100)
             {
-                values.Add(Tuple.Create(values.Last().Item1+XEpoch, values.Last().Item2/divideConstant));
+                values.Add(Tuple.Create(values.Last().Item1 + XEpoch, values.Last().Item2 / divideConstant));
             }
             return new LearningRateScheduler(values, isConstantByInterval);
         }
@@ -73,7 +73,8 @@ namespace SharpNet.Optimizers
         }
         #endregion
 
-        public double LearningRate(int epoch, double percentagePerformedInEpoch)
+        public double LearningRate(int epoch,
+            double percentagePerformedInEpoch)
         {
             return Utils.Interpolate(_values, epoch, _constantByInterval);
         }
@@ -88,39 +89,39 @@ namespace SharpNet.Optimizers
         }
         public static LearningRateScheduler ValueOf(IDictionary<string, object> serialized)
         {
-            var constantByInterval = (bool) serialized[nameof(_constantByInterval)];
-            var epochs = (int[]) serialized[nameof(_values) + "Key"];
-            var learningRates = (double[]) serialized[nameof(_values) + "Value"];
-            var values  = epochs.Zip(learningRates, Tuple.Create).ToList();
+            var constantByInterval = (bool)serialized[nameof(_constantByInterval)];
+            var epochs = (double[])serialized[nameof(_values) + "Key"];
+            var learningRates = (double[])serialized[nameof(_values) + "Value"];
+            var values = epochs.Zip(learningRates, Tuple.Create).ToList();
             var result = new LearningRateScheduler(values, constantByInterval);
             return result;
         }
 
         private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, bool constantByInterval)
         {
-            return new LearningRateScheduler(new List<Tuple<int, double>>
+            return new LearningRateScheduler(new List<Tuple<double, double>>
             {
-                new Tuple<int, double>(epoch1, learningRate1),
-                new Tuple<int, double>(epoch2, learningRate2)
+                new Tuple<double, double>(epoch1, learningRate1),
+                new Tuple<double, double>(epoch2, learningRate2)
             }, constantByInterval);
         }
         private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4, bool constantByInterval)
         {
-            return new LearningRateScheduler(new List<Tuple<int, double>>
+            return new LearningRateScheduler(new List<Tuple<double, double>>
             {
-                new Tuple<int, double>(epoch1, learningRate1),
-                new Tuple<int, double>(epoch2, learningRate2),
-                new Tuple<int, double>(epoch3, learningRate3),
-                new Tuple<int, double>(epoch4, learningRate4)
+                new Tuple<double, double>(epoch1, learningRate1),
+                new Tuple<double, double>(epoch2, learningRate2),
+                new Tuple<double, double>(epoch3, learningRate3),
+                new Tuple<double, double>(epoch4, learningRate4)
             }, constantByInterval);
         }
         private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, bool constantByInterval)
         {
-            return new LearningRateScheduler(new List<Tuple<int, double>>
+            return new LearningRateScheduler(new List<Tuple<double, double>>
             {
-                new Tuple<int, double>(epoch1, learningRate1),
-                new Tuple<int, double>(epoch2, learningRate2),
-                new Tuple<int, double>(epoch3, learningRate3),
+                new Tuple<double, double>(epoch1, learningRate1),
+                new Tuple<double, double>(epoch2, learningRate2),
+                new Tuple<double, double>(epoch3, learningRate3),
             }, constantByInterval);
         }
     }

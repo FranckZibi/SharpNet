@@ -13,7 +13,7 @@ namespace SharpNet.Optimizers
         #region private fields
         private readonly double _minLearningRate;
         private readonly double _maxLearningRate;
-        private readonly List<Tuple<int, double>> _values = new List<Tuple<int, double>>();
+        private readonly List<Tuple<double, double>> _values = new List<Tuple<double, double>>();
         #endregion
 
 
@@ -42,7 +42,7 @@ namespace SharpNet.Optimizers
             int nbEpochsInCurrentRun = nbEpochsInFirstRun;
             for (;;)
             {
-                _values.Add(Tuple.Create(firstEpochInCurrentRun,0.0));
+                _values.Add(Tuple.Create((double)firstEpochInCurrentRun,0.0));
                 var lastEpochInCurrentRun = firstEpochInCurrentRun+ nbEpochsInCurrentRun-1;
                 var firstEpochInNextRun = firstEpochInCurrentRun+ nbEpochsInCurrentRun;
                 var nbEpochsInNextRun = nbEpochsInCurrentRun*nbEpochInNextRunMultiplier;
@@ -55,7 +55,7 @@ namespace SharpNet.Optimizers
                     lastEpochInCurrentRun = nbEpochs;
                 }
                 EndEpochForEachCycle.Add(lastEpochInCurrentRun);
-                _values.Add(Tuple.Create(lastEpochInCurrentRun+1, 1.0));
+                _values.Add(Tuple.Create(lastEpochInCurrentRun+1 - 1e-6, 1.0));
                 if (lastEpochInCurrentRun >= nbEpochs)
                 {
                     break;
