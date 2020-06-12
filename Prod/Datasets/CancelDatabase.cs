@@ -177,8 +177,10 @@ namespace SharpNet.Datasets
         }
 
         // ReSharper disable once UnusedMember.Global
-        public void UpdateSuggestedCancelForAllDatabase(Network network)
+        public void UpdateSuggestedCancelForAllDatabase(string networkFileName)
         {
+            using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", networkFileName), "", new []{0});
+
             var xShape = network.Layers[0].OutputShape(1);
             int targetHeight = xShape[2];
             int targetWidth = xShape[3];
@@ -371,7 +373,6 @@ namespace SharpNet.Datasets
             }
 
             var yExpected = new CpuTensor<float>(new [] {entries.Length, Hierarchy.RootPrediction().Length});
-            //for (var elementId = 0; elementId < entries.Length; elementId++)
             void Process(int elementId)
             {
                 var entry = entries[elementId];
@@ -573,7 +574,6 @@ namespace SharpNet.Datasets
             {
                 _database[e.SHA1] = e;
             }
-            Log.Info(Summary());
         }
         // ReSharper disable once MemberCanBePrivate.Global
         public void FlushDatabase()
@@ -588,7 +588,7 @@ namespace SharpNet.Datasets
             }
             File.WriteAllText(CsvPath, sb.ToString());
         }
-        private string Summary()
+        public string Summary()
         {
             int removed = 0;
             int withCancel = 0;

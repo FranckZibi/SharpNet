@@ -41,14 +41,18 @@ namespace SharpNetTests
 
 
 
-            //470*200
-            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_400_470_20200605_1924_150.txt"), "", new []{0});
-            //235*200
-            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_20200603_1803_150.txt"), "", new []{0});
-            //235*200 : 53.16% accuracy
-            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_200_235_20200608_1918_30.txt"), "", new []{0});
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase(network);return;
-
+            //470*200 : 10.99% errors (150 epochs)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_400_470_20200605_1924_150.txt");
+            //235*200 : 12.61% errors (150 epochs)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_20200603_1803_150.txt");
+            //235*200 : 34.28% errors (30 epochs)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_0716_30.txt");
+            //235*200 : 13.22% errors (70 epochs , lr=0.05)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_1811_70.txt");
+            //235*200 : 12.13% errors (70 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_1346_70.txt");
+            //235*200 :  3.51% errors (150 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_2220_150.txt");
             //new CancelDatabase().CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction.csv");return;
 
 
@@ -120,18 +124,11 @@ namespace SharpNetTests
         {
             const bool useMultiGpu = true;
 
-            var targetHeight = 470; var targetWidth = 400;var batchSize = 13;var defaultInitialLearningRate = 0.01;
-            //var targetHeight = 235;var targetWidth = 200;var batchSize = 50;var defaultInitialLearningRate = 0.05; //check 0.05
+            //var targetHeight = 470; var targetWidth = 400;var batchSize = 13;var defaultInitialLearningRate = 0.01;
+            var targetHeight = 235;var targetWidth = 200;var batchSize = 50;var defaultInitialLearningRate = 0.05; //check 0.05
             //var targetHeight = 118;var targetWidth = 100;var batchSize = 200;var defaultInitialLearningRate = 0.05;
             //var targetHeight = 59;var targetWidth = 50;var batchSize = 800;var defaultInitialLearningRate = ?;
-
-            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            if (useMultiGpu) { batchSize *= GPUWrapper.GetDeviceCount(); }
-            var networkGeometries = new List<Action<EfficientNetBuilder, int>>
-            {
-                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_Cancel_EfficientNet(p, targetHeight, targetWidth);},
-            };
-            
+           
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {
                 () =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.BatchSize = batchSize;p.NumEpochs = 150;p.ExtraDescription = "_Imagenet_"+targetWidth+"_"+targetHeight;return p;},
@@ -140,17 +137,26 @@ namespace SharpNetTests
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.InitialLearningRate = 0.01;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_01";return p;},
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.InitialLearningRate = 0.30;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_30";return p;},
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.InitialLearningRate = 0.10;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_10";return p;},
-        };
+            };
+
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            if (useMultiGpu) { batchSize *= GPUWrapper.GetDeviceCount(); }
+            var networkGeometries = new List<Action<EfficientNetBuilder, int>>
+            {
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_Cancel_EfficientNet(p, targetHeight, targetWidth);},
+            };
+
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
         private static void Train_Cancel_EfficientNet(EfficientNetBuilder p, int targetHeight, int targetWidth)
         {
-            var cancelDatabase = new CancelDatabase();
+            var database = new CancelDatabase();
             var rootPrediction = CancelDatabase.Hierarchy.RootPrediction();
-            using var dataset = cancelDatabase.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && CancelDatabase.IsValidNonEmptyCancel(e.Cancel));
+            using var dataset = database.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && CancelDatabase.IsValidNonEmptyCancel(e.Cancel));
             using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.9); //90% for training,  10% for validation
             using var network = p.EfficientNetB0(true, "", new[] { trainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
             network.SetSoftmaxWithHierarchy(rootPrediction);
+            Network.Log.Debug(database.Summary());
             //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1522_30.txt"));
             //network.LoadParametersFromH5File(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_0_05_200_235_20200603_0747_150.h5"), NetworkConfig.CompatibilityModeEnum.TensorFlow1);
             //network.FindBestLearningRate(cancelDataset, 1e-5, 10, p.BatchSize);return;

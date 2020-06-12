@@ -58,7 +58,7 @@ namespace SharpNet.Optimizers
                 return Utils.Interpolate(EpochForMaxLearningRate(), MaxLearningRate(), EpochForMinLearningRate(), MinLearningRate(), currentEpoch);
             }
             //last part: annihilating the learning rate from 'MinLearningRate()' to 'LearningRateForLastEpoch()'
-            return Utils.Interpolate(EpochForMinLearningRate(), MinLearningRate(), _nbEpochs, LearningRateForLastEpoch(), currentEpoch);
+            return Utils.Interpolate(EpochForMinLearningRate(), MinLearningRate(), _nbEpochs+1, LearningRateForLastEpoch(), currentEpoch);
         }
     }
 }

@@ -92,6 +92,7 @@ namespace SharpNet.Networks
                 //we create the slave networks
                 foreach(var slaveResourceId in _resourceIds.Skip(1))
                 {
+                    Log.Debug("starting thread for network running on deviceId " + slaveResourceId);
                     new Thread(() => SlaveThread(this, slaveResourceId)).Start();
                 }
                 while (_slaveNetworks.Count != _resourceIds.Count - 1)
@@ -838,7 +839,7 @@ namespace SharpNet.Networks
 
                 CallBackAfterEachMiniBatch?.Invoke(yExpected_miniBatch_master, yPredicted_miniBatch_master);
 
-                if ((DateTime.Now-lastStatsUpdate).TotalSeconds> 5*60)
+                if ((DateTime.Now-lastStatsUpdate).TotalSeconds> 10*60)
                 {
                     var lastIndexInShuffledElementId = firstIndexInShuffledElementId_master + currentMiniBatchSize_allWorkers - 1;
                     var percentageDoneInEpoch = ((double) lastIndexInShuffledElementId) / totalElementCount;
