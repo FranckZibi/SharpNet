@@ -49,6 +49,17 @@ namespace SharpNetTests
             Assert.AreEqual(0.5, mean, epsilon);
             Assert.AreEqual(1/12.0, variance, epsilon);
         }
-
+        [Test]
+        public void TestNewVersion()
+        {
+            Assert.AreEqual(new Version(7,6,5), Utils.NewVersion(7605));
+            Assert.AreEqual(new Version(7,6,0), Utils.NewVersion(7600));
+        }
+        [Test]
+        public void TestNewVersionXXYY0()
+        {
+            Assert.AreEqual(new Version(9, 2), Utils.NewVersionXXYY0(9020));
+            Assert.AreEqual(new Version(10, 1), Utils.NewVersionXXYY0(10010));
+        }
     }
 }

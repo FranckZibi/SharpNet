@@ -7,7 +7,8 @@ using System.Linq;
 
 namespace SharpNet.GPU
 {
-    public enum CUDA_Versions { CUDA_10_0, CUDA_10_1, CUDA_10_2 };
+    public enum CUDA_Versions { CUDA_10_0, CUDA_10_1, CUDA_10_2, CUDA_11_0 };
+    public enum CUDNN_Versions { CUDNN_7};
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public unsafe class GPUWrapper : IDisposable
@@ -17,7 +18,7 @@ namespace SharpNet.GPU
         private readonly IntPtr _deviceHandle;
         private readonly string _deviceName;
         private readonly Version _cublasVersion;
-        private readonly Version _driverVersion;
+        private readonly Version _cudnnVersion;
         private readonly KernelManager _kernelManager;
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
@@ -46,6 +47,7 @@ namespace SharpNet.GPU
 
         #region readonly properties
         public int DeviceId { get; }
+        public Version CudaVersion { get; }
         public StreamWrapper DefaultStream { get; }
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
@@ -56,24 +58,46 @@ namespace SharpNet.GPU
         public Stopwatch SwCopyDeviceToHost { get; } = new Stopwatch();
         #endregion
 
+
+        public CublasWrapper CublasWrapper { get; }
+        public CudnnWrapper CudnnWrapper { get; }
+        public CudartWrapper CudartWrapper { get; }
+
         #region constructor
         private GPUWrapper(int deviceId)
         {
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CUDA_PATH")))
+            {
+                throw new Exception("CUDA_PATH environment variable is missing");
+            }
+
+            //We retrieve the cuda version
+            var cuRes = NVCudaWrapper.cuDriverGetVersion(out int cudaDriverVersion);
+            CheckStatus(cuRes);
+            CudaVersion = Utils.NewVersionXXYY0(cudaDriverVersion);
+
+            CudartWrapper = new CudartWrapper(CudaVersion);
             CudartWrapper.cudaDeviceReset();
             DeviceId = deviceId;
             AssociateCurrentThreadWithDevice();
+            CublasWrapper = new CublasWrapper(CudaVersion);
+            CudnnWrapper = new CudnnWrapper(CUDNN_Versions.CUDNN_7);
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
+
 
             //We retrieve the cublas version
             cublasRes = CublasWrapper.cublasGetVersion_v2(CudaBlasHandle, out var cublasVersion);
             CheckStatus(cublasRes);
-            _cublasVersion = NewVersion(cublasVersion);
+            _cublasVersion = Utils.NewVersion(cublasVersion);
+
+            //We retrieve the cudnn version
+            _cudnnVersion = Utils.NewVersion((int)(ulong)CudnnWrapper.cudnnGetVersion());
 
             _deviceHandle = GetDeviceHandle(deviceId);
 
-            //var cuRes = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
-            var cuRes = NVCudaWrapper.cuDevicePrimaryCtxRetain(out _contextHandle, _deviceHandle);
+            //cuRes = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
+            cuRes = NVCudaWrapper.cuDevicePrimaryCtxRetain(out _contextHandle, _deviceHandle);
             CheckStatus(cuRes);
 
             var devName = new byte[256];
@@ -81,10 +105,6 @@ namespace SharpNet.GPU
             CheckStatus(cuRes);
             System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
             _deviceName = enc.GetString(devName).Replace("\0", "");
-
-            cuRes = NVCudaWrapper.cuDriverGetVersion(out int driverVersion);
-            CheckStatus(cuRes);
-            _driverVersion = NewVersion(driverVersion);
 
             foreach (var e in Enum.GetValues(typeof(CUdevice_attribute)).Cast<CUdevice_attribute>())
             {
@@ -507,10 +527,9 @@ namespace SharpNet.GPU
         }
         public string DeviceName()
         {
-            var result = _deviceName + " - driver " + _driverVersion;
-            var cudaVersion = CudaVersionFromCudaPath();
-            result += string.IsNullOrEmpty(cudaVersion) ? " - no CUDA found" : (" - CUDA " + cudaVersion);
-            result += " - cublas " + _cublasVersion + " - deviceId:" + DeviceId;
+            var result = _deviceName;
+            result += " - cuda " + CudaVersion;
+            result += " - cublas " + _cublasVersion + " - cudnn " + _cudnnVersion + " - deviceId:" + DeviceId;
             return result;
         }
         public override string ToString()
@@ -583,22 +602,19 @@ namespace SharpNet.GPU
             }
         }
 
-        public static CUDA_Versions GetInstalledCudaVersion()
+        public static CUDA_Versions ToCUDA_Versions_enum(Version cudaVersion)
         {
-            var cudaPath = (Environment.GetEnvironmentVariable("CUDA_PATH") ?? "").ToLowerInvariant();
-            if (cudaPath.ToLowerInvariant().Contains("v10.0"))
+            if (cudaVersion.Major == 10)
             {
-                return CUDA_Versions.CUDA_10_0;
+                if (cudaVersion.Minor == 0) {return CUDA_Versions.CUDA_10_0;}
+                if (cudaVersion.Minor == 1) {return CUDA_Versions.CUDA_10_1;}
+                if (cudaVersion.Minor == 2) {return CUDA_Versions.CUDA_10_2;}
             }
-            if (cudaPath.ToLowerInvariant().Contains("v10.1"))
+            else if (cudaVersion.Major == 11)
             {
-                return CUDA_Versions.CUDA_10_1;
+                if (cudaVersion.Minor == 0) { return CUDA_Versions.CUDA_11_0; }
             }
-            if (cudaPath.ToLowerInvariant().Contains("v10.2"))
-            {
-                return CUDA_Versions.CUDA_10_2;
-            }
-            return CUDA_Versions.CUDA_10_0;
+            throw new Exception("cuda " + cudaVersion + " is not supported");
         }
         public static int GetDeviceCount()
         {
@@ -667,13 +683,8 @@ namespace SharpNet.GPU
             CheckStatus(res);
             _threadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
         }
-        private static Version NewVersion(int driverVersion)
-        {
-            var major = driverVersion / 1000;
-            var minor = driverVersion % 100;
-            var build = (driverVersion % 1000)/100;
-            return (build==0)?new Version(major, minor): new Version(major, minor, build);
-        }
+
+      
         private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
         {
             var res = NVCudaWrapper.cuMemGetInfo_v2(out freeMemoryInBytes, out totalMemoryInBytes);
@@ -699,18 +710,6 @@ namespace SharpNet.GPU
             CuMemGetInfoV2(out size_t _, out size_t totalMemoryInBytes);
             return totalMemoryInBytes;
 
-        }
-        private static string CudaVersionFromCudaPath()
-        {
-            try
-            {
-                var cudaPath = Environment.GetEnvironmentVariable("CUDA_PATH");
-                return string.IsNullOrEmpty(cudaPath) ? "" : cudaPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-            }
-            catch (Exception)
-            {
-                return "";
-            }
         }
         private static ulong FreeMemoryInBytes()
         {

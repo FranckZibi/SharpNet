@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 // ReSharper disable UnusedMember.Global
 
@@ -31,79 +32,114 @@ namespace SharpNet.GPU
         CUBLAS_SIDE_RIGHT //he matrix is on the left side in the equation
     }
 
-    public static class CublasWrapper
+    public class CublasWrapper
     {
-        private static readonly CUDA_Versions InstalledCudaVersion;
+        private readonly CUDA_Versions _cudaVersion;
 
-        static CublasWrapper()
+        public CublasWrapper(Version cudaVersion)
         {
-            InstalledCudaVersion = GPUWrapper.GetInstalledCudaVersion();
+            _cudaVersion = GPUWrapper.ToCUDA_Versions_enum(cudaVersion);
         }
 
-        public static cublasStatus_t cublasCreate_v2(ref IntPtr cublasHandle)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public cublasStatus_t cublasCreate_v2(ref IntPtr cublasHandle)
         {
-            switch (InstalledCudaVersion)
+            switch (_cudaVersion)
             {
+                case CUDA_Versions.CUDA_10_0:
+                    return CublasWrapper_cublas64_100.cublasCreate_v2(ref cublasHandle);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasCreate_v2(ref cublasHandle);
+                case CUDA_Versions.CUDA_11_0:
+                    return CublasWrapper_cublas64_11.cublasCreate_v2(ref cublasHandle);
                 default:
-                    return CublasWrapper_cublas64_100.cublasCreate_v2(ref cublasHandle);
+                    throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
         }
-        public static cublasStatus_t cublasDestroy_v2(IntPtr cublasHandle)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public cublasStatus_t cublasDestroy_v2(IntPtr cublasHandle)
         {
-            switch (InstalledCudaVersion)
+            switch (_cudaVersion)
             {
+                case CUDA_Versions.CUDA_10_0:
+                    return CublasWrapper_cublas64_100.cublasDestroy_v2(cublasHandle);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasDestroy_v2(cublasHandle);
+                case CUDA_Versions.CUDA_11_0:
+                    return CublasWrapper_cublas64_11.cublasDestroy_v2(cublasHandle);
                 default:
-                    return CublasWrapper_cublas64_100.cublasDestroy_v2(cublasHandle);
+                    throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
         }
-        public static cublasStatus_t cublasScopy_v2(IntPtr cublasHandle, int n, IntPtr x, int incx, IntPtr y, int incy)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public cublasStatus_t cublasScopy_v2(IntPtr cublasHandle, int n, IntPtr x, int incx, IntPtr y, int incy)
         {
-            switch (InstalledCudaVersion)
+            switch (_cudaVersion)
             {
+                case CUDA_Versions.CUDA_10_0:
+                    return CublasWrapper_cublas64_100.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
+                case CUDA_Versions.CUDA_11_0:
+                    return CublasWrapper_cublas64_11.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
                 default:
-                    return CublasWrapper_cublas64_100.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
+                    throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
         }
-        public static cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref float alpha, IntPtr A, int lda, IntPtr B, int ldb, ref float beta, IntPtr C, int ldc)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref float alpha, IntPtr A, int lda, IntPtr B, int ldb, ref float beta, IntPtr C, int ldc)
         {
-            switch (InstalledCudaVersion)
+            switch (_cudaVersion)
             {
+                case CUDA_Versions.CUDA_10_0:
+                    return CublasWrapper_cublas64_100.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
+                case CUDA_Versions.CUDA_11_0:
+                    return CublasWrapper_cublas64_11.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 default:
-                    return CublasWrapper_cublas64_100.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
+                    throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
         }
-        public static cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc)
         {
-            switch (InstalledCudaVersion)
+            switch (_cudaVersion)
             {
+                case CUDA_Versions.CUDA_10_0:
+                    return CublasWrapper_cublas64_100.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
+                case CUDA_Versions.CUDA_11_0:
+                    return CublasWrapper_cublas64_11.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
                 default:
-                    return CublasWrapper_cublas64_100.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
+                    throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
         }
-        public static cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion)
         {
-            switch (InstalledCudaVersion)
+            switch (_cudaVersion)
             {
+                case CUDA_Versions.CUDA_10_0:
+                    return CublasWrapper_cublas64_100.cublasGetVersion_v2(cublasHandle, out cublasVersion);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasGetVersion_v2(cublasHandle, out cublasVersion);
+                case CUDA_Versions.CUDA_11_0:
+                    return CublasWrapper_cublas64_11.cublasGetVersion_v2(cublasHandle, out cublasVersion);
                 default:
-                    return CublasWrapper_cublas64_100.cublasGetVersion_v2(cublasHandle, out cublasVersion);
+                    throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
         }
     }
@@ -111,34 +147,52 @@ namespace SharpNet.GPU
 
     public static class CublasWrapper_cublas64_100
     {
-        private const string CUBLAS64_100 = "cublas64_100";
-        [DllImport(CUBLAS64_100)]
+        private const string DLL_NAME = "cublas64_100";
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasCreate_v2(ref IntPtr cublasHandle);
-        [DllImport(CUBLAS64_100)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasDestroy_v2(IntPtr cublasHandle);
-        [DllImport(CUBLAS64_100)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasScopy_v2(IntPtr cublasHandle,int n,IntPtr x,int incx,IntPtr y,int incy);
-        [DllImport(CUBLAS64_100)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle,cublasOperation_t transa,cublasOperation_t transb,int m,int n,int k,ref float alpha,IntPtr A,int lda,IntPtr B,int ldb,ref float beta,IntPtr C,int ldc);
-        [DllImport(CUBLAS64_100)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
-        [DllImport(CUBLAS64_100)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
     }
     public static class CublasWrapper_cublas64_10
     {
-        private const string CUBLAS64_10 = "cublas64_10";
-        [DllImport(CUBLAS64_10)]
+        private const string DLL_NAME = "cublas64_10";
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasCreate_v2(ref IntPtr cublasHandle);
-        [DllImport(CUBLAS64_10)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasDestroy_v2(IntPtr cublasHandle);
-        [DllImport(CUBLAS64_10)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasScopy_v2(IntPtr cublasHandle, int n, IntPtr x, int incx, IntPtr y, int incy);
-        [DllImport(CUBLAS64_10)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref float alpha, IntPtr A, int lda, IntPtr B, int ldb, ref float beta, IntPtr C, int ldc);
-        [DllImport(CUBLAS64_10)]
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
-        [DllImport(CUBLAS64_10)]
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
+    }
+
+
+    public static class CublasWrapper_cublas64_11
+    {
+        private const string DLL_NAME = "cublas64_11";
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasCreate_v2(ref IntPtr cublasHandle);
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasDestroy_v2(IntPtr cublasHandle);
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasScopy_v2(IntPtr cublasHandle, int n, IntPtr x, int incx, IntPtr y, int incy);
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, int k, ref float alpha, IntPtr A, int lda, IntPtr B, int ldb, ref float beta, IntPtr C, int ldc);
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
+        [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
     }
 

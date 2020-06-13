@@ -159,7 +159,7 @@ namespace SharpNet.GPU
             //We load the embedded resource containing the CUDA source code
             var cudaSourceCode = Utils.LoadResourceContent(typeof(KernelManager).Assembly, embeddedResourceWithCudaSourceCode);
 
-            using (var rtc = new CudaRuntimeCompiler(cudaSourceCode, nameof(_kernels)))
+            using (var rtc = new CudaRuntimeCompiler(cudaSourceCode, nameof(_kernels), _gpu.CudaVersion))
             {
                 try
                 {

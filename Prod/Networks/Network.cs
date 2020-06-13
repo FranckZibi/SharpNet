@@ -155,7 +155,7 @@ namespace SharpNet.Networks
             }
             if (_randomNumberGeneratorStatesBufferForGPU == null)
             {
-                var res = CudnnWrapper.cudnnDropoutGetStatesSize(GpuWrapper.CudnnHandle, out var dropoutStateSize);
+                var res = GpuWrapper.CudnnWrapper.cudnnDropoutGetStatesSize(GpuWrapper.CudnnHandle, out var dropoutStateSize);
                 GPUWrapper.CheckStatus(res);
                 _randomNumberGeneratorStatesBufferForGPU = MemoryPool.GetBuffer(dropoutStateSize);
             }
@@ -527,7 +527,7 @@ namespace SharpNet.Networks
                         else
                         {
                             //we'll compute loss and accuracy using only 10% of the test data set
-                            using var subDataSet = new SubDataSet(testDataSetCpuIfAny, i => i <= testDataSetCpuIfAny.Count / 10);
+                            using var subDataSet = new SubDataSet(testDataSetCpuIfAny, i => i%10 == 0);
                             validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
                             lossAndAccuracyMsg += " - " + LossAndAccuracyToString(validationLossAndAccuracy, "estimate_val_");
                         }

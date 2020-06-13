@@ -924,6 +924,9 @@ namespace SharpNet.GPU
         private cudnnDataType_t CudaType { get; } = cudnnDataType_t.CUDNN_DATA_FLOAT;
         private IntPtr CudnnHandle => _wrapper.CudnnHandle;
         private IntPtr CublasHandle => _wrapper.CudaBlasHandle;
+        private CudartWrapper CudartWrapper => _wrapper.CudartWrapper;
+        private CudnnWrapper CudnnWrapper => _wrapper.CudnnWrapper;
+        private CublasWrapper CublasWrapper => _wrapper.CublasWrapper;
         private T[] DeviceContent()
         {
             Debug.Assert(!_disposed);

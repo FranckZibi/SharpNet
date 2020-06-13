@@ -184,94 +184,94 @@ namespace SharpNet.GPU
 
     public static class NVCudaWrapper
     {
-        private const string NVCUDA = "nvcuda";
+        private const string DLL_NAME = "nvcuda";
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemAllocHost_v2(
             ref IntPtr pp,
             size_t bytesize);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemFreeHost(
             IntPtr p);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemFree_v2(
             IntPtr dptr);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemAlloc_v2(
             out IntPtr dptr,
             size_t bytesize);
 
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemsetD8_v2(
             IntPtr dptr,
             char c,
             size_t N);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemsetD32_v2(
             IntPtr dptr,
             uint ui,
             size_t N);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemGetAddressRange_v2(
             out IntPtr pbase,
             out size_t psize,
             IntPtr dptr);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemcpyHtoD_v2(
             IntPtr dstDevice, 
             [In] IntPtr srcHost,
             size_t byteCount);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemcpyHtoDAsync_v2(
             IntPtr dstDevice,
             [In] IntPtr srcHost,
             size_t byteCount,
             IntPtr hStream);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemcpyDtoD_v2(
             IntPtr dstDevice,
             [In] IntPtr srcDevice,
             size_t byteCount);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemcpyDtoDAsync_v2(
             IntPtr dstDevice,
             [In] IntPtr srcDevice,
             size_t byteCount,
             IntPtr hStream);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemcpyDtoH_v2(
             IntPtr dstHost,
             IntPtr srcDevice,
             size_t byteCount);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuStreamCreate(
             out IntPtr streamHandle, 
             uint flags
         );
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuStreamSynchronize(
             IntPtr streamHandle
         );
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuStreamDestroy_v2(
             IntPtr streamHandle
         );
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuLaunchKernel(
             IntPtr kernelHandle, 
             uint gridDimX,
@@ -285,43 +285,43 @@ namespace SharpNet.GPU
             IntPtr[] kernelParams,
             IntPtr[] extra);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDeviceGet(out IntPtr deviceHandle, int ordinal);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDeviceGetCount(out int count);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuInit(uint flags);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDevicePrimaryCtxRetain(out IntPtr contextHandle, IntPtr deviceHandle);
         
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDevicePrimaryCtxRelease(IntPtr contextHandle);
         
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDeviceGetAttribute(out int pi, CUdevice_attribute attrib, IntPtr deviceHandle);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDeviceGetName(
             byte[] name, 
             int len,
             IntPtr deviceHandle);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuModuleLoadFatBinary(out IntPtr moduleHandle, byte[] fatBinaryObject);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDriverGetVersion(out int driverVersion);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuDeviceTotalMem_v2(out size_t bytes, IntPtr deviceHandle);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuMemGetInfo_v2(out size_t free, out size_t total);
 
-        [DllImport(NVCUDA)]
+        [DllImport(DLL_NAME)]
         public static extern CUresult cuModuleGetFunction(
             out IntPtr functionHandle, 
             IntPtr moduleHandle, 

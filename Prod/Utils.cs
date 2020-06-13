@@ -511,5 +511,32 @@ namespace SharpNet
             return true;
         }
 
+        /// <summary>
+        ///  version contains(1000 major + 100 minor + build).
+        /// For example, 7.6.5 would be represented by 7605
+        /// </summary>
+        /// <param name="version"></param>
+        /// <returns></returns>
+        public static Version NewVersion(int version)
+        {
+            var major = version / 1000;
+            var minor = (version % 1000) / 100;
+            var build = version % 100;
+            return new Version(major, minor, build);
+        }
+
+        /// <summary>
+        ///  version contains(1000 major + 10 minor).
+        /// For example, 9.2 would be represented by 9020
+        /// </summary>
+        /// <param name="version"></param>
+        /// <returns></returns>
+        public static Version NewVersionXXYY0(int version)
+        {
+            var major = version / 1000;
+            var minor = (version % 1000) / 10;
+            return new Version(major, minor);
+        }
+
     }
 }

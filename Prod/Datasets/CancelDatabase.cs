@@ -179,7 +179,19 @@ namespace SharpNet.Datasets
         // ReSharper disable once UnusedMember.Global
         public void UpdateSuggestedCancelForAllDatabase(string networkFileName)
         {
+            //foreach (var e in _database.Values.Where(e =>!e.IsRemoved))
+            //{
+            //    e.CancelComment = "";
+            //    if (IsValidNonEmptyCancel(e.Cancel) && IsValidNonEmptyCancel(e.SuggestedCancel))
+            //    {
+            //        e.CancelComment = IsOkPrediction(e.Cancel, e.SuggestedCancel)?"OK":"KO";
+            //    }
+            //}
+            //FlushDatabase();return;
+
+
             using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", networkFileName), "", new []{0});
+            
 
             var xShape = network.Layers[0].OutputShape(1);
             int targetHeight = xShape[2];
