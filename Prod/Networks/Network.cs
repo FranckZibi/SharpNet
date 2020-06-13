@@ -81,7 +81,7 @@ namespace SharpNet.Networks
             Config = config;
             _masterNetworkIfAny = masterNetworkIfAny;
             _resourceIds = resourceIds.ToList();
-            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0]) : null;
+            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0], config.cuDNNVersion) : null;
             _swComputeLoss = new Stopwatch();
             _swComputeAccuracy = new Stopwatch();
             CreateLogDirectoryIfNeeded();

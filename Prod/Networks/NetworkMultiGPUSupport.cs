@@ -176,7 +176,7 @@ namespace SharpNet.Networks
             if (slaveDeviceId >= 0)
             {
                 //we associate the current running (slave) thread with GPU 'slaveDeviceId'
-                GPUWrapper.FromDeviceId(slaveDeviceId).AssociateCurrentThreadWithDevice();
+                GPUWrapper.FromDeviceId(slaveDeviceId, master.Config.cuDNNVersion).AssociateCurrentThreadWithDevice();
             }
 
             var slaveNetworkConfig = master.Config.Clone();

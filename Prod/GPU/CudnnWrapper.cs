@@ -307,8 +307,8 @@ namespace SharpNet.GPU
         CUDNN_ACTIVATION_CLIPPED_RELU,  //Selects the clipped rectified linear function
         CUDNN_ACTIVATION_ELU,           //Selects the exponential linear function
         CUDNN_ACTIVATION_IDENTITY,
-        CUDNN_ACTIVATION_SOFTMAX=1000,
-        CUDNN_ACTIVATION_SWISH= 1001,     //Selects the swish function ( f(x) = x*sigmoid(x) , see https://arxiv.org/abs/1710.05941)
+        CUDNN_ACTIVATION_SOFTMAX = 1000,
+        CUDNN_ACTIVATION_SWISH = 1001,     //Selects the swish function ( f(x) = x*sigmoid(x) , see https://arxiv.org/abs/1710.05941)
         CUDNN_ACTIVATION_LEAKY_RELU = 1002,     //Leaky Relu (requires an additional alpha coefficient)
         CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY = 1003     //Softmax with hierarchical categories
     }
@@ -341,84 +341,96 @@ namespace SharpNet.GPU
 
     public unsafe class CudnnWrapper
     {
-        private readonly CUDNN_Versions _cudnnVersion;
+        private readonly cuDNN_Versions _cuDNNVersion;
 
-        public CudnnWrapper(CUDNN_Versions cudnnVersion)
+        public CudnnWrapper(cuDNN_Versions cuDNNVersion)
         {
-            _cudnnVersion = cudnnVersion;
+            _cuDNNVersion = cuDNNVersion;
         }
+
+        private bool UseCuDNN8 => _cuDNNVersion == cuDNN_Versions.cuDNN_8;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnGetConvolutionForwardWorkspaceSize(
-            IntPtr cudnnHandle, 
-            IntPtr xDesc, 
-            IntPtr wDesc, 
-            IntPtr convDesc, 
-            IntPtr yDesc, 
-            cudnnConvolutionFwdAlgo_t algo, 
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr wDesc,
+            IntPtr convDesc,
+            IntPtr yDesc,
+            cudnnConvolutionFwdAlgo_t algo,
             out size_t sizeInBytes)
         {
-            return CudnnWrapper64_7.cudnnGetConvolutionForwardWorkspaceSize(cudnnHandle, xDesc, wDesc, convDesc, yDesc, algo, out sizeInBytes);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnGetConvolutionForwardWorkspaceSize(cudnnHandle, xDesc, wDesc, convDesc, yDesc, algo, out sizeInBytes)
+                    : CuDNNWrapper64_7.cudnnGetConvolutionForwardWorkspaceSize(cudnnHandle, xDesc, wDesc, convDesc, yDesc, algo, out sizeInBytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnGetConvolutionForwardAlgorithm(
-            IntPtr cudnnHandle, 
-            IntPtr xDesc, 
-            IntPtr wDesc, 
-            IntPtr convDesc, 
-            IntPtr yDesc, 
-            cudnnConvolutionFwdPreference_t preference, 
-            uint memoryLimitInBytes, 
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr wDesc,
+            IntPtr convDesc,
+            IntPtr yDesc,
+            cudnnConvolutionFwdPreference_t preference,
+            uint memoryLimitInBytes,
             out cudnnConvolutionFwdAlgo_t algo)
         {
-            return CudnnWrapper64_7.cudnnGetConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, preference, memoryLimitInBytes, out algo);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnGetConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, preference, memoryLimitInBytes, out algo)
+                    : CuDNNWrapper64_7.cudnnGetConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, preference, memoryLimitInBytes, out algo);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnConvolutionForward(
-            IntPtr cudnnHandle, 
-            void* alpha, 
-            IntPtr xDesc, 
-            IntPtr x, 
-            IntPtr wDesc, 
-            IntPtr w, 
-            IntPtr convDesc, 
-            cudnnConvolutionFwdAlgo_t algo, 
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr xDesc,
+            IntPtr x,
+            IntPtr wDesc,
+            IntPtr w,
+            IntPtr convDesc,
+            cudnnConvolutionFwdAlgo_t algo,
             IntPtr workSpace,
-            size_t workSpaceSizeInBytes, 
-            void* beta, 
-            IntPtr yDesc, 
+            size_t workSpaceSizeInBytes,
+            void* beta,
+            IntPtr yDesc,
             IntPtr y)
         {
-            return CudnnWrapper64_7.cudnnConvolutionForward(cudnnHandle, alpha, xDesc, x, wDesc, w, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, yDesc, y);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnConvolutionForward(cudnnHandle, alpha, xDesc, x, wDesc, w, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, yDesc, y)
+                    : CuDNNWrapper64_7.cudnnConvolutionForward(cudnnHandle, alpha, xDesc, x, wDesc, w, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, yDesc, y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnConvolutionBackwardBias(
-            IntPtr cudnnHandle, 
-            void* alpha, 
-            IntPtr dyDesc, 
-            IntPtr dy, 
-            void* beta, 
-            IntPtr dbDesc, 
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr dyDesc,
+            IntPtr dy,
+            void* beta,
+            IntPtr dbDesc,
             IntPtr db)
         {
-            return CudnnWrapper64_7.cudnnConvolutionBackwardBias(cudnnHandle, alpha, dyDesc, dy, beta, dbDesc, db);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnConvolutionBackwardBias(cudnnHandle, alpha, dyDesc, dy, beta, dbDesc, db)
+                    : CuDNNWrapper64_7.cudnnConvolutionBackwardBias(cudnnHandle, alpha, dyDesc, dy, beta, dbDesc, db);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm(
-            IntPtr cudnnHandle, 
-            IntPtr xDesc, 
-            IntPtr dyDesc, 
-            IntPtr convDesc, 
-            IntPtr dwDesc, 
-            cudnnConvolutionBwdFilterPreference_t preference, 
-            size_t memoryLimitInBytes, 
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr dyDesc,
+            IntPtr convDesc,
+            IntPtr dwDesc,
+            cudnnConvolutionBwdFilterPreference_t preference,
+            size_t memoryLimitInBytes,
             out cudnnConvolutionBwdFilterAlgo_t algo)
         {
-            return CudnnWrapper64_7.cudnnGetConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, preference, memoryLimitInBytes, out algo);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, preference, memoryLimitInBytes, out algo)
+                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, preference, memoryLimitInBytes, out algo);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -441,7 +453,9 @@ namespace SharpNet.GPU
             cudnnConvolutionFwdAlgoPerf_t* perfResults
         )
         {
-            return CudnnWrapper64_7.cudnnFindConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnFindConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, requestedAlgoCount, out returnedAlgoCount, perfResults)
+                    : CuDNNWrapper64_7.cudnnFindConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -464,7 +478,9 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdFilterAlgoPerf_t* perfResults
         )
         {
-            return CudnnWrapper64_7.cudnnFindConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, wDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnFindConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, wDesc, requestedAlgoCount, out returnedAlgoCount, perfResults)
+                    : CuDNNWrapper64_7.cudnnFindConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, wDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -487,7 +503,9 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdDataAlgoPerf_t* perfResults
         )
         {
-            return CudnnWrapper64_7.cudnnFindConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc,xDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnFindConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, xDesc, requestedAlgoCount, out returnedAlgoCount, perfResults)
+                    : CuDNNWrapper64_7.cudnnFindConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, xDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -506,7 +524,9 @@ namespace SharpNet.GPU
             IntPtr dwDesc,
             IntPtr dw)
         {
-            return CudnnWrapper64_7.cudnnConvolutionBackwardFilter(cudnnHandle, alpha, xDesc, x, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dwDesc, dw);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnConvolutionBackwardFilter(cudnnHandle, alpha, xDesc, x, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dwDesc, dw)
+                    : CuDNNWrapper64_7.cudnnConvolutionBackwardFilter(cudnnHandle, alpha, xDesc, x, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dwDesc, dw);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -519,7 +539,9 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdFilterAlgo_t algo,
             out size_t sizeInBytes)
         {
-            return CudnnWrapper64_7.cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, algo, out sizeInBytes);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, algo, out sizeInBytes)
+                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, algo, out sizeInBytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -533,7 +555,9 @@ namespace SharpNet.GPU
             size_t memoryLimitInBytes,
             out cudnnConvolutionBwdDataAlgo_t algo)
         {
-            return CudnnWrapper64_7.cudnnGetConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, preference, memoryLimitInBytes, out algo);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, preference, memoryLimitInBytes, out algo)
+                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, preference, memoryLimitInBytes, out algo);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -546,7 +570,9 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdDataAlgo_t algo,
             out size_t sizeInBytes)
         {
-            return CudnnWrapper64_7.cudnnGetConvolutionBackwardDataWorkspaceSize(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, algo, out sizeInBytes);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardDataWorkspaceSize(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, algo, out sizeInBytes)
+                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardDataWorkspaceSize(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, algo, out sizeInBytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -565,7 +591,9 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx)
         {
-            return CudnnWrapper64_7.cudnnConvolutionBackwardData(cudnnHandle, alpha, wDesc, w, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dxDesc, dx);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnConvolutionBackwardData(cudnnHandle, alpha, wDesc, w, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dxDesc, dx)
+                    : CuDNNWrapper64_7.cudnnConvolutionBackwardData(cudnnHandle, alpha, wDesc, w, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dxDesc, dx);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -579,13 +607,17 @@ namespace SharpNet.GPU
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes)
         {
-            return CudnnWrapper64_7.cudnnDropoutForward(cudnnHandle, dropoutDesc, xDesc, x, yDesc, y, reserveSpace, reserveSpaceSizeInBytes);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDropoutForward(cudnnHandle, dropoutDesc, xDesc, x, yDesc, y, reserveSpace, reserveSpaceSizeInBytes)
+                    : CuDNNWrapper64_7.cudnnDropoutForward(cudnnHandle, dropoutDesc, xDesc, x, yDesc, y, reserveSpace, reserveSpaceSizeInBytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDropoutGetReserveSpaceSize(IntPtr xDesc, out size_t sizeInBytes)
         {
-            return CudnnWrapper64_7.cudnnDropoutGetReserveSpaceSize(xDesc, out sizeInBytes);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDropoutGetReserveSpaceSize(xDesc, out sizeInBytes)
+                    : CuDNNWrapper64_7.cudnnDropoutGetReserveSpaceSize(xDesc, out sizeInBytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -599,13 +631,17 @@ namespace SharpNet.GPU
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes)
         {
-            return CudnnWrapper64_7.cudnnDropoutBackward(cudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, reserveSpace, reserveSpaceSizeInBytes);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDropoutBackward(cudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, reserveSpace, reserveSpaceSizeInBytes)
+                    : CuDNNWrapper64_7.cudnnDropoutBackward(cudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, reserveSpace, reserveSpaceSizeInBytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDropoutGetStatesSize(IntPtr cudnnHandle, out size_t sizeInBytes)
         {
-            return CudnnWrapper64_7.cudnnDropoutGetStatesSize(cudnnHandle, out sizeInBytes);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDropoutGetStatesSize(cudnnHandle, out sizeInBytes)
+                    : CuDNNWrapper64_7.cudnnDropoutGetStatesSize(cudnnHandle, out sizeInBytes);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -623,7 +659,9 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx)
         {
-            return CudnnWrapper64_7.cudnnPoolingBackward(cudnnHandle, poolingDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnPoolingBackward(cudnnHandle, poolingDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx)
+                    : CuDNNWrapper64_7.cudnnPoolingBackward(cudnnHandle, poolingDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -637,7 +675,9 @@ namespace SharpNet.GPU
             IntPtr yDesc,
             IntPtr y)
         {
-            return CudnnWrapper64_7.cudnnPoolingForward(cudnnHandle, poolingDesc, alpha, xDesc, x, beta, yDesc, y);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnPoolingForward(cudnnHandle, poolingDesc, alpha, xDesc, x, beta, yDesc, y)
+                    : CuDNNWrapper64_7.cudnnPoolingForward(cudnnHandle, poolingDesc, alpha, xDesc, x, beta, yDesc, y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -647,7 +687,9 @@ namespace SharpNet.GPU
             cudnnNanPropagation_t reluNanOpt,
             double coef)
         {
-            return CudnnWrapper64_7.cudnnSetActivationDescriptor(activationDesc, mode, reluNanOpt, coef);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSetActivationDescriptor(activationDesc, mode, reluNanOpt, coef)
+                    : CuDNNWrapper64_7.cudnnSetActivationDescriptor(activationDesc, mode, reluNanOpt, coef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -661,7 +703,9 @@ namespace SharpNet.GPU
             IntPtr yDesc,
             IntPtr y)
         {
-            return CudnnWrapper64_7.cudnnActivationForward(cudnnHandle, activationDesc, alpha, xDesc, x, beta, yDesc, y);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnActivationForward(cudnnHandle, activationDesc, alpha, xDesc, x, beta, yDesc, y)
+                    : CuDNNWrapper64_7.cudnnActivationForward(cudnnHandle, activationDesc, alpha, xDesc, x, beta, yDesc, y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -679,7 +723,9 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx)
         {
-            return CudnnWrapper64_7.cudnnActivationBackward(cudnnHandle, activationDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnActivationBackward(cudnnHandle, activationDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx)
+                    : CuDNNWrapper64_7.cudnnActivationBackward(cudnnHandle, activationDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -694,7 +740,9 @@ namespace SharpNet.GPU
             IntPtr yDesc,
             IntPtr y)
         {
-            return CudnnWrapper64_7.cudnnSoftmaxForward(cudnnHandle, algorithm, mode, alpha, xDesc, x, beta, yDesc, y);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSoftmaxForward(cudnnHandle, algorithm, mode, alpha, xDesc, x, beta, yDesc, y)
+                    : CuDNNWrapper64_7.cudnnSoftmaxForward(cudnnHandle, algorithm, mode, alpha, xDesc, x, beta, yDesc, y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -711,7 +759,9 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx)
         {
-            return CudnnWrapper64_7.cudnnSoftmaxBackward(cudnnHandle, algorithm, mode, alpha, yDesc, yData, dyDesc, dy, beta, dxDesc, dx);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSoftmaxBackward(cudnnHandle, algorithm, mode, alpha, yDesc, yData, dyDesc, dy, beta, dxDesc, dx)
+                    : CuDNNWrapper64_7.cudnnSoftmaxBackward(cudnnHandle, algorithm, mode, alpha, yDesc, yData, dyDesc, dy, beta, dxDesc, dx);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -736,7 +786,9 @@ namespace SharpNet.GPU
             IntPtr savedMean,
             IntPtr savedInvVariance)
         {
-            return CudnnWrapper64_7.cudnnBatchNormalizationBackward(cudnnHandle, mode, alphaDataDiff, betaDataDiff, alphaParamDiff, betaParamDiff, xDesc, x, dyDesc, dy, dxDesc, dx, bnScaleBiasDiffDesc, bnScale, resultBnScaleDiff, resultBnBiasDiff, epsilon, savedMean, savedInvVariance);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnBatchNormalizationBackward(cudnnHandle, mode, alphaDataDiff, betaDataDiff, alphaParamDiff, betaParamDiff, xDesc, x, dyDesc, dy, dxDesc, dx, bnScaleBiasDiffDesc, bnScale, resultBnScaleDiff, resultBnBiasDiff, epsilon, savedMean, savedInvVariance)
+                    : CuDNNWrapper64_7.cudnnBatchNormalizationBackward(cudnnHandle, mode, alphaDataDiff, betaDataDiff, alphaParamDiff, betaParamDiff, xDesc, x, dyDesc, dy, dxDesc, dx, bnScaleBiasDiffDesc, bnScale, resultBnScaleDiff, resultBnBiasDiff, epsilon, savedMean, savedInvVariance);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -759,7 +811,9 @@ namespace SharpNet.GPU
             IntPtr resultSaveMean,
             IntPtr resultSaveInvVariance)
         {
-            return CudnnWrapper64_7.cudnnBatchNormalizationForwardTraining(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, exponentialAverageFactor, resultRunningMean, resultRunningVariance, epsilon, resultSaveMean, resultSaveInvVariance);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnBatchNormalizationForwardTraining(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, exponentialAverageFactor, resultRunningMean, resultRunningVariance, epsilon, resultSaveMean, resultSaveInvVariance)
+                    : CuDNNWrapper64_7.cudnnBatchNormalizationForwardTraining(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, exponentialAverageFactor, resultRunningMean, resultRunningVariance, epsilon, resultSaveMean, resultSaveInvVariance);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -779,7 +833,9 @@ namespace SharpNet.GPU
             IntPtr estimatedVariance,
             double epsilon)
         {
-            return CudnnWrapper64_7.cudnnBatchNormalizationForwardInference(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, estimatedMean, estimatedVariance, epsilon);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnBatchNormalizationForwardInference(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, estimatedMean, estimatedVariance, epsilon)
+                    : CuDNNWrapper64_7.cudnnBatchNormalizationForwardInference(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, estimatedMean, estimatedVariance, epsilon);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -789,26 +845,32 @@ namespace SharpNet.GPU
             IntPtr y,
             void* alpha)
         {
-            return CudnnWrapper64_7.cudnnScaleTensor(cudnnHandle, yDesc, y, alpha);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnScaleTensor(cudnnHandle, yDesc, y, alpha)
+                    : CuDNNWrapper64_7.cudnnScaleTensor(cudnnHandle, yDesc, y, alpha);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnAddTensor(
-            IntPtr cudnnHandle, 
-            void* alpha, 
-            IntPtr aDesc, 
-            IntPtr A, 
-            void* beta, 
-            IntPtr cDesc, 
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr aDesc,
+            IntPtr A,
+            void* beta,
+            IntPtr cDesc,
             IntPtr C)
         {
-            return CudnnWrapper64_7.cudnnAddTensor(cudnnHandle, alpha, aDesc, A, beta, cDesc, C);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnAddTensor(cudnnHandle, alpha, aDesc, A, beta, cDesc, C)
+                    : CuDNNWrapper64_7.cudnnAddTensor(cudnnHandle, alpha, aDesc, A, beta, cDesc, C);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnCreateTensorDescriptor(out IntPtr tensorDesc)
         {
-            return CudnnWrapper64_7.cudnnCreateTensorDescriptor(out tensorDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnCreateTensorDescriptor(out tensorDesc)
+                    : CuDNNWrapper64_7.cudnnCreateTensorDescriptor(out tensorDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -821,31 +883,41 @@ namespace SharpNet.GPU
             int h,
             int w)
         {
-            return CudnnWrapper64_7.cudnnSetTensor4dDescriptor(tensorDesc, format, dataType, n,  c, h, w);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSetTensor4dDescriptor(tensorDesc, format, dataType, n, c, h, w)
+                    : CuDNNWrapper64_7.cudnnSetTensor4dDescriptor(tensorDesc, format, dataType, n, c, h, w);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDestroyTensorDescriptor(IntPtr tensorDesc)
         {
-            return CudnnWrapper64_7.cudnnDestroyTensorDescriptor(tensorDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDestroyTensorDescriptor(tensorDesc)
+                    : CuDNNWrapper64_7.cudnnDestroyTensorDescriptor(tensorDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnCreateActivationDescriptor(out IntPtr activationDesc)
         {
-            return CudnnWrapper64_7.cudnnCreateActivationDescriptor(out activationDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnCreateActivationDescriptor(out activationDesc)
+                    : CuDNNWrapper64_7.cudnnCreateActivationDescriptor(out activationDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDestroyActivationDescriptor(IntPtr activationDesc)
         {
-            return CudnnWrapper64_7.cudnnDestroyActivationDescriptor(activationDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDestroyActivationDescriptor(activationDesc)
+                    : CuDNNWrapper64_7.cudnnDestroyActivationDescriptor(activationDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnCreatePoolingDescriptor(out IntPtr poolingDesc)
         {
-            return CudnnWrapper64_7.cudnnCreatePoolingDescriptor(out poolingDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnCreatePoolingDescriptor(out poolingDesc)
+                    : CuDNNWrapper64_7.cudnnCreatePoolingDescriptor(out poolingDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -860,27 +932,35 @@ namespace SharpNet.GPU
             int verticalStride,
             int horizontalStride)
         {
-            return CudnnWrapper64_7.cudnnSetPooling2dDescriptor(poolingDesc, mode, maxPoolingNanOpt, windowHeight, windowWidth, verticalPadding, horizontalPadding, verticalStride, horizontalStride);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSetPooling2dDescriptor(poolingDesc, mode, maxPoolingNanOpt, windowHeight, windowWidth, verticalPadding, horizontalPadding, verticalStride, horizontalStride)
+                    : CuDNNWrapper64_7.cudnnSetPooling2dDescriptor(poolingDesc, mode, maxPoolingNanOpt, windowHeight, windowWidth, verticalPadding, horizontalPadding, verticalStride, horizontalStride);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDestroyPoolingDescriptor(IntPtr poolingDesc)
         {
-            return CudnnWrapper64_7.cudnnDestroyPoolingDescriptor(poolingDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDestroyPoolingDescriptor(poolingDesc)
+                    : CuDNNWrapper64_7.cudnnDestroyPoolingDescriptor(poolingDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnCreateConvolutionDescriptor(out IntPtr convDesc)
         {
-            return CudnnWrapper64_7.cudnnCreateConvolutionDescriptor(out convDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnCreateConvolutionDescriptor(out convDesc)
+                    : CuDNNWrapper64_7.cudnnCreateConvolutionDescriptor(out convDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnSetConvolutionGroupCount(IntPtr convDesc, int groupCount)
         {
-            return CudnnWrapper64_7.cudnnSetConvolutionGroupCount(convDesc, groupCount);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSetConvolutionGroupCount(convDesc, groupCount)
+                    : CuDNNWrapper64_7.cudnnSetConvolutionGroupCount(convDesc, groupCount);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnSetConvolution2dDescriptor(
             IntPtr convDesc,
@@ -893,19 +973,25 @@ namespace SharpNet.GPU
             cudnnConvolutionMode_t mode,
             cudnnDataType_t computeType)
         {
-            return CudnnWrapper64_7.cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, u, v, dilation_h, dilation_w, mode, computeType);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, u, v, dilation_h, dilation_w, mode, computeType)
+                    : CuDNNWrapper64_7.cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, u, v, dilation_h, dilation_w, mode, computeType);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDestroyConvolutionDescriptor(IntPtr convDesc)
         {
-            return CudnnWrapper64_7.cudnnDestroyConvolutionDescriptor(convDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDestroyConvolutionDescriptor(convDesc)
+                    : CuDNNWrapper64_7.cudnnDestroyConvolutionDescriptor(convDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnCreateFilterDescriptor(out IntPtr filterDesc)
         {
-            return CudnnWrapper64_7.cudnnCreateFilterDescriptor(out filterDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnCreateFilterDescriptor(out filterDesc)
+                    : CuDNNWrapper64_7.cudnnCreateFilterDescriptor(out filterDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -918,59 +1004,75 @@ namespace SharpNet.GPU
             int h,
             int w)
         {
-            return CudnnWrapper64_7.cudnnSetFilter4dDescriptor(filterDesc, dataType, format, k, c, h, w);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSetFilter4dDescriptor(filterDesc, dataType, format, k, c, h, w)
+                    : CuDNNWrapper64_7.cudnnSetFilter4dDescriptor(filterDesc, dataType, format, k, c, h, w);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDestroyFilterDescriptor(IntPtr filterDesc)
         {
-            return CudnnWrapper64_7.cudnnDestroyFilterDescriptor(filterDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDestroyFilterDescriptor(filterDesc)
+                    : CuDNNWrapper64_7.cudnnDestroyFilterDescriptor(filterDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnCreateDropoutDescriptor(out IntPtr dropoutDesc)
         {
-            return CudnnWrapper64_7.cudnnCreateDropoutDescriptor(out dropoutDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnCreateDropoutDescriptor(out dropoutDesc)
+                    : CuDNNWrapper64_7.cudnnCreateDropoutDescriptor(out dropoutDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnSetDropoutDescriptor(IntPtr dropoutDesc, IntPtr cudnnHandle, float dropout, IntPtr states, size_t stateSizeInBytes, ulong seed)
         {
-            return CudnnWrapper64_7.cudnnSetDropoutDescriptor(dropoutDesc, cudnnHandle, dropout, states, stateSizeInBytes, seed);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnSetDropoutDescriptor(dropoutDesc, cudnnHandle, dropout, states, stateSizeInBytes, seed)
+                    : CuDNNWrapper64_7.cudnnSetDropoutDescriptor(dropoutDesc, cudnnHandle, dropout, states, stateSizeInBytes, seed);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDestroyDropoutDescriptor(IntPtr dropoutDesc)
         {
-            return CudnnWrapper64_7.cudnnDestroyDropoutDescriptor(dropoutDesc);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDestroyDropoutDescriptor(dropoutDesc)
+                    : CuDNNWrapper64_7.cudnnDestroyDropoutDescriptor(dropoutDesc);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnCreate(out IntPtr cudnnHandle)
         {
-            return CudnnWrapper64_7.cudnnCreate(out cudnnHandle);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnCreate(out cudnnHandle)
+                    : CuDNNWrapper64_7.cudnnCreate(out cudnnHandle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cudnnStatus_t cudnnDestroy(IntPtr cudnnHandle)
         {
-            return CudnnWrapper64_7.cudnnDestroy(cudnnHandle);
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnDestroy(cudnnHandle)
+                    : CuDNNWrapper64_7.cudnnDestroy(cudnnHandle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public size_t cudnnGetVersion()
         {
-            return CudnnWrapper64_7.cudnnGetVersion();
+            return UseCuDNN8
+                    ? CuDNNWrapper64_8.cudnnGetVersion()
+                    : CuDNNWrapper64_7.cudnnGetVersion();
         }
     }
 
 
 
-    public static unsafe class CudnnWrapper64_7
+    public static unsafe class CuDNNWrapper64_8
     {
-        private const string CUDNN64_7 = "cudnn64_7.dll";
+        private const string DLL_NAME = "cudnn64_8.dll";
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionForwardWorkspaceSize(
             IntPtr cudnnHandle,
             IntPtr xDesc,
@@ -980,7 +1082,7 @@ namespace SharpNet.GPU
             cudnnConvolutionFwdAlgo_t algo,
             out size_t sizeInBytes);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionForwardAlgorithm(
             IntPtr cudnnHandle,
             IntPtr xDesc,
@@ -991,7 +1093,7 @@ namespace SharpNet.GPU
             uint memoryLimitInBytes,
             out cudnnConvolutionFwdAlgo_t algo);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionForward(
             IntPtr cudnnHandle,
             void* alpha,
@@ -1007,7 +1109,7 @@ namespace SharpNet.GPU
             IntPtr yDesc,
             IntPtr y);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionBackwardBias(
             IntPtr cudnnHandle,
             void* alpha,
@@ -1017,7 +1119,7 @@ namespace SharpNet.GPU
             IntPtr dbDesc,
             IntPtr db);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm(
             IntPtr cudnnHandle,
             IntPtr xDesc,
@@ -1029,7 +1131,7 @@ namespace SharpNet.GPU
             out cudnnConvolutionBwdFilterAlgo_t algo);
 
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnFindConvolutionForwardAlgorithm(
             IntPtr cudnnHandle,
             IntPtr xDesc,
@@ -1041,7 +1143,7 @@ namespace SharpNet.GPU
             cudnnConvolutionFwdAlgoPerf_t* perfResults
             );
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnFindConvolutionBackwardFilterAlgorithm(
             IntPtr cudnnHandle,
             IntPtr xDesc,
@@ -1053,7 +1155,7 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdFilterAlgoPerf_t* perfResults
         );
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnFindConvolutionBackwardDataAlgorithm(
             //[in] Handle to a previously created cuDNN context
             IntPtr cudnnHandle,
@@ -1073,7 +1175,7 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdDataAlgoPerf_t* perfResults
         );
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionBackwardFilter(
             IntPtr cudnnHandle,
             void* alpha,
@@ -1089,7 +1191,7 @@ namespace SharpNet.GPU
             IntPtr dwDesc,
             IntPtr dw);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterWorkspaceSize(
             IntPtr cudnnHandle,
             IntPtr xDesc,
@@ -1099,7 +1201,7 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdFilterAlgo_t algo,
             out size_t sizeInBytes);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataAlgorithm(
             IntPtr cudnnHandle,
             IntPtr wDesc,
@@ -1110,7 +1212,7 @@ namespace SharpNet.GPU
             size_t memoryLimitInBytes,
             out cudnnConvolutionBwdDataAlgo_t algo);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataWorkspaceSize(
             IntPtr cudnnHandle,
             IntPtr wDesc,
@@ -1120,7 +1222,7 @@ namespace SharpNet.GPU
             cudnnConvolutionBwdDataAlgo_t algo,
             out size_t sizeInBytes);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionBackwardData(
             IntPtr cudnnHandle,
             void* alpha,
@@ -1136,7 +1238,7 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutForward(
             IntPtr cudnnHandle,
             IntPtr dropoutDesc,
@@ -1147,12 +1249,12 @@ namespace SharpNet.GPU
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutGetReserveSpaceSize(
             IntPtr xDesc,
             out size_t sizeInBytes);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutBackward(
             IntPtr cudnnHandle,
             IntPtr dropoutDesc,
@@ -1163,12 +1265,12 @@ namespace SharpNet.GPU
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutGetStatesSize(
             IntPtr cudnnHandle,
             out size_t sizeInBytes);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnPoolingBackward(
             IntPtr cudnnHandle,
             IntPtr poolingDesc,
@@ -1183,7 +1285,7 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnPoolingForward(
             IntPtr cudnnHandle,
             IntPtr poolingDesc,
@@ -1194,14 +1296,14 @@ namespace SharpNet.GPU
             IntPtr yDesc,
             IntPtr y);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetActivationDescriptor(
             IntPtr activationDesc,
             cudnnActivationMode_t mode,
             cudnnNanPropagation_t reluNanOpt,
             double coef);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnActivationForward(
             IntPtr cudnnHandle,
             IntPtr activationDesc,
@@ -1212,7 +1314,7 @@ namespace SharpNet.GPU
             IntPtr yDesc,
             IntPtr y);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnActivationBackward(
             IntPtr cudnnHandle,
             IntPtr activationDesc,
@@ -1227,7 +1329,7 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSoftmaxForward(
             IntPtr cudnnHandle,
             cudnnSoftmaxAlgorithm_t algorithm,
@@ -1239,7 +1341,7 @@ namespace SharpNet.GPU
             IntPtr yDesc,
             IntPtr y);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSoftmaxBackward(
             IntPtr cudnnHandle,
             cudnnSoftmaxAlgorithm_t algorithm,
@@ -1253,7 +1355,7 @@ namespace SharpNet.GPU
             IntPtr dxDesc,
             IntPtr dx);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnBatchNormalizationBackward(
             IntPtr cudnnHandle,
             cudnnBatchNormMode_t mode,
@@ -1275,7 +1377,7 @@ namespace SharpNet.GPU
             IntPtr savedMean,
             IntPtr savedInvVariance);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnBatchNormalizationForwardTraining(
             IntPtr cudnnHandle,
             cudnnBatchNormMode_t mode,
@@ -1295,7 +1397,7 @@ namespace SharpNet.GPU
             IntPtr resultSaveMean,
             IntPtr resultSaveInvVariance);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnBatchNormalizationForwardInference(
             IntPtr cudnnHandle,
             cudnnBatchNormMode_t mode,
@@ -1312,14 +1414,14 @@ namespace SharpNet.GPU
             IntPtr estimatedVariance,
             double epsilon);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnScaleTensor(
             IntPtr cudnnHandle,
             IntPtr yDesc,
             IntPtr y,
             void* alpha);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnAddTensor(
             IntPtr cudnnHandle,
             void* alpha,
@@ -1329,11 +1431,11 @@ namespace SharpNet.GPU
             IntPtr cDesc,
             IntPtr C);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateTensorDescriptor(
             out IntPtr tensorDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetTensor4dDescriptor(
             IntPtr tensorDesc,
             cudnnTensorFormat_t format,
@@ -1343,23 +1445,23 @@ namespace SharpNet.GPU
             int h,
             int w);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyTensorDescriptor(
             IntPtr tensorDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateActivationDescriptor(
             out IntPtr activationDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyActivationDescriptor(
             IntPtr activationDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreatePoolingDescriptor(
             out IntPtr poolingDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetPooling2dDescriptor(
             IntPtr poolingDesc,
             cudnnPoolingMode_t mode,
@@ -1371,17 +1473,17 @@ namespace SharpNet.GPU
             int verticalStride,
             int horizontalStride);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyPoolingDescriptor(
             IntPtr poolingDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateConvolutionDescriptor(out IntPtr convDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetConvolutionGroupCount(IntPtr convDesc, int groupCount);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetConvolution2dDescriptor(
             IntPtr convDesc,
             int pad_h,
@@ -1393,15 +1495,15 @@ namespace SharpNet.GPU
             cudnnConvolutionMode_t mode,
             cudnnDataType_t computeType);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyConvolutionDescriptor(
             IntPtr convDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateFilterDescriptor(
             out IntPtr filterDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetFilter4dDescriptor(
             IntPtr filterDesc,
             cudnnDataType_t dataType,
@@ -1411,15 +1513,15 @@ namespace SharpNet.GPU
             int h,
             int w);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyFilterDescriptor(
             IntPtr filterDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateDropoutDescriptor(
             out IntPtr dropoutDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetDropoutDescriptor(
             IntPtr dropoutDesc,
             IntPtr cudnnHandle,
@@ -1428,19 +1530,496 @@ namespace SharpNet.GPU
             size_t stateSizeInBytes,
             ulong seed);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyDropoutDescriptor(
             IntPtr dropoutDesc);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreate(
             out IntPtr cudnnHandle);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroy(
             IntPtr cudnnHandle);
 
-        [DllImport(CUDNN64_7)]
+        [DllImport(DLL_NAME)]
+        public static extern size_t cudnnGetVersion();
+    }
+    public static unsafe class CuDNNWrapper64_7
+    {
+        private const string DLL_NAME = "cudnn64_7.dll";
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetConvolutionForwardWorkspaceSize(
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr wDesc,
+            IntPtr convDesc,
+            IntPtr yDesc,
+            cudnnConvolutionFwdAlgo_t algo,
+            out size_t sizeInBytes);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetConvolutionForwardAlgorithm(
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr wDesc,
+            IntPtr convDesc,
+            IntPtr yDesc,
+            cudnnConvolutionFwdPreference_t preference,
+            uint memoryLimitInBytes,
+            out cudnnConvolutionFwdAlgo_t algo);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnConvolutionForward(
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr xDesc,
+            IntPtr x,
+            IntPtr wDesc,
+            IntPtr w,
+            IntPtr convDesc,
+            cudnnConvolutionFwdAlgo_t algo,
+            IntPtr workSpace,
+            size_t workSpaceSizeInBytes,
+            void* beta,
+            IntPtr yDesc,
+            IntPtr y);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnConvolutionBackwardBias(
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr dyDesc,
+            IntPtr dy,
+            void* beta,
+            IntPtr dbDesc,
+            IntPtr db);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm(
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr dyDesc,
+            IntPtr convDesc,
+            IntPtr dwDesc,
+            cudnnConvolutionBwdFilterPreference_t preference,
+            size_t memoryLimitInBytes,
+            out cudnnConvolutionBwdFilterAlgo_t algo);
+
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnFindConvolutionForwardAlgorithm(
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr wDesc,
+            IntPtr convDesc,
+            IntPtr yDesc,
+            int requestedAlgoCount,
+            out int returnedAlgoCount,
+            cudnnConvolutionFwdAlgoPerf_t* perfResults
+            );
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnFindConvolutionBackwardFilterAlgorithm(
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr dyDesc,
+            IntPtr convDesc,
+            IntPtr wDesc,
+            int requestedAlgoCount,
+            out int returnedAlgoCount,
+            cudnnConvolutionBwdFilterAlgoPerf_t* perfResults
+        );
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnFindConvolutionBackwardDataAlgorithm(
+            //[in] Handle to a previously created cuDNN context
+            IntPtr cudnnHandle,
+            //[in] filter descriptor
+            IntPtr wDesc,
+            //[in] output tensor descriptor
+            IntPtr dyDesc,
+            //[in] convolution descriptor
+            IntPtr convDesc,
+            //[in] input tensor descriptor
+            IntPtr xDesc,
+            //[in] The maximum number of elements to be stored in perfResults
+            int requestedAlgoCount,
+            //[out] The number of output elements stored in perfResults
+            out int returnedAlgoCount,
+            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
+            cudnnConvolutionBwdDataAlgoPerf_t* perfResults
+        );
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnConvolutionBackwardFilter(
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr xDesc,
+            IntPtr x,
+            IntPtr dyDesc,
+            IntPtr dy,
+            IntPtr convDesc,
+            cudnnConvolutionBwdFilterAlgo_t algo,
+            IntPtr workSpace,
+            size_t workSpaceSizeInBytes,
+            void* beta,
+            IntPtr dwDesc,
+            IntPtr dw);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterWorkspaceSize(
+            IntPtr cudnnHandle,
+            IntPtr xDesc,
+            IntPtr dyDesc,
+            IntPtr convDesc,
+            IntPtr dwDesc,
+            cudnnConvolutionBwdFilterAlgo_t algo,
+            out size_t sizeInBytes);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataAlgorithm(
+            IntPtr cudnnHandle,
+            IntPtr wDesc,
+            IntPtr dyDesc,
+            IntPtr convDesc,
+            IntPtr dxDesc,
+            cudnnConvolutionBwdDataPreference_t preference,
+            size_t memoryLimitInBytes,
+            out cudnnConvolutionBwdDataAlgo_t algo);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataWorkspaceSize(
+            IntPtr cudnnHandle,
+            IntPtr wDesc,
+            IntPtr dyDesc,
+            IntPtr convDesc,
+            IntPtr dxDesc,
+            cudnnConvolutionBwdDataAlgo_t algo,
+            out size_t sizeInBytes);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnConvolutionBackwardData(
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr wDesc,
+            IntPtr w,
+            IntPtr dyDesc,
+            IntPtr dy,
+            IntPtr convDesc,
+            cudnnConvolutionBwdDataAlgo_t algo,
+            IntPtr workSpace,
+            size_t workSpaceSizeInBytes,
+            void* beta,
+            IntPtr dxDesc,
+            IntPtr dx);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDropoutForward(
+            IntPtr cudnnHandle,
+            IntPtr dropoutDesc,
+            IntPtr xDesc,
+            IntPtr x,
+            IntPtr yDesc,
+            IntPtr y,
+            IntPtr reserveSpace,
+            size_t reserveSpaceSizeInBytes);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDropoutGetReserveSpaceSize(
+            IntPtr xDesc,
+            out size_t sizeInBytes);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDropoutBackward(
+            IntPtr cudnnHandle,
+            IntPtr dropoutDesc,
+            IntPtr dyDesc,
+            IntPtr dy,
+            IntPtr dxDesc,
+            IntPtr dx,
+            IntPtr reserveSpace,
+            size_t reserveSpaceSizeInBytes);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDropoutGetStatesSize(
+            IntPtr cudnnHandle,
+            out size_t sizeInBytes);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnPoolingBackward(
+            IntPtr cudnnHandle,
+            IntPtr poolingDesc,
+            void* alpha,
+            IntPtr yDesc,
+            IntPtr y,
+            IntPtr dyDesc,
+            IntPtr dy,
+            IntPtr xDesc,
+            IntPtr x,
+            void* beta,
+            IntPtr dxDesc,
+            IntPtr dx);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnPoolingForward(
+            IntPtr cudnnHandle,
+            IntPtr poolingDesc,
+            void* alpha,
+            IntPtr xDesc,
+            IntPtr x,
+            void* beta,
+            IntPtr yDesc,
+            IntPtr y);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetActivationDescriptor(
+            IntPtr activationDesc,
+            cudnnActivationMode_t mode,
+            cudnnNanPropagation_t reluNanOpt,
+            double coef);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnActivationForward(
+            IntPtr cudnnHandle,
+            IntPtr activationDesc,
+            void* alpha,
+            IntPtr xDesc,
+            IntPtr x,
+            void* beta,
+            IntPtr yDesc,
+            IntPtr y);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnActivationBackward(
+            IntPtr cudnnHandle,
+            IntPtr activationDesc,
+            void* alpha,
+            IntPtr yDesc,
+            IntPtr y,
+            IntPtr dyDesc,
+            IntPtr dy,
+            IntPtr xDesc,
+            IntPtr x,
+            void* beta,
+            IntPtr dxDesc,
+            IntPtr dx);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSoftmaxForward(
+            IntPtr cudnnHandle,
+            cudnnSoftmaxAlgorithm_t algorithm,
+            cudnnSoftmaxMode_t mode,
+            void* alpha,
+            IntPtr xDesc,
+            IntPtr x,
+            void* beta,
+            IntPtr yDesc,
+            IntPtr y);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSoftmaxBackward(
+            IntPtr cudnnHandle,
+            cudnnSoftmaxAlgorithm_t algorithm,
+            cudnnSoftmaxMode_t mode,
+            void* alpha,
+            IntPtr yDesc,
+            IntPtr yData,
+            IntPtr dyDesc,
+            IntPtr dy,
+            void* beta,
+            IntPtr dxDesc,
+            IntPtr dx);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnBatchNormalizationBackward(
+            IntPtr cudnnHandle,
+            cudnnBatchNormMode_t mode,
+            void* alphaDataDiff,
+            void* betaDataDiff,
+            void* alphaParamDiff,
+            void* betaParamDiff,
+            IntPtr xDesc,
+            IntPtr x,
+            IntPtr dyDesc,
+            IntPtr dy,
+            IntPtr dxDesc,
+            IntPtr dx,
+            IntPtr bnScaleBiasDiffDesc,
+            IntPtr bnScale,
+            IntPtr resultBnScaleDiff,
+            IntPtr resultBnBiasDiff,
+            double epsilon,
+            IntPtr savedMean,
+            IntPtr savedInvVariance);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnBatchNormalizationForwardTraining(
+            IntPtr cudnnHandle,
+            cudnnBatchNormMode_t mode,
+            void* alpha,
+            void* beta,
+            IntPtr xDesc,
+            IntPtr x,
+            IntPtr yDesc,
+            IntPtr y,
+            IntPtr bnScaleBiasMeanVarDesc,
+            IntPtr bnScale,
+            IntPtr bnBias,
+            double exponentialAverageFactor,
+            IntPtr resultRunningMean,
+            IntPtr resultRunningVariance,
+            double epsilon,
+            IntPtr resultSaveMean,
+            IntPtr resultSaveInvVariance);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnBatchNormalizationForwardInference(
+            IntPtr cudnnHandle,
+            cudnnBatchNormMode_t mode,
+            void* alpha,
+            void* beta,
+            IntPtr xDesc,
+            IntPtr x,
+            IntPtr yDesc,
+            IntPtr y,
+            IntPtr bnScaleBiasMeanVarDesc,
+            IntPtr bnScale,
+            IntPtr bnBias,
+            IntPtr estimatedMean,
+            IntPtr estimatedVariance,
+            double epsilon);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnScaleTensor(
+            IntPtr cudnnHandle,
+            IntPtr yDesc,
+            IntPtr y,
+            void* alpha);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnAddTensor(
+            IntPtr cudnnHandle,
+            void* alpha,
+            IntPtr aDesc,
+            IntPtr A,
+            void* beta,
+            IntPtr cDesc,
+            IntPtr C);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnCreateTensorDescriptor(
+            out IntPtr tensorDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetTensor4dDescriptor(
+            IntPtr tensorDesc,
+            cudnnTensorFormat_t format,
+            cudnnDataType_t dataType,
+            int n,
+            int c,
+            int h,
+            int w);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDestroyTensorDescriptor(
+            IntPtr tensorDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnCreateActivationDescriptor(
+            out IntPtr activationDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDestroyActivationDescriptor(
+            IntPtr activationDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnCreatePoolingDescriptor(
+            out IntPtr poolingDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetPooling2dDescriptor(
+            IntPtr poolingDesc,
+            cudnnPoolingMode_t mode,
+            cudnnNanPropagation_t maxPoolingNanOpt,
+            int windowHeight,
+            int windowWidth,
+            int verticalPadding,
+            int horizontalPadding,
+            int verticalStride,
+            int horizontalStride);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDestroyPoolingDescriptor(
+            IntPtr poolingDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnCreateConvolutionDescriptor(out IntPtr convDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetConvolutionGroupCount(IntPtr convDesc, int groupCount);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetConvolution2dDescriptor(
+            IntPtr convDesc,
+            int pad_h,
+            int pad_w,
+            int u,
+            int v,
+            int dilation_h,
+            int dilation_w,
+            cudnnConvolutionMode_t mode,
+            cudnnDataType_t computeType);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDestroyConvolutionDescriptor(
+            IntPtr convDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnCreateFilterDescriptor(
+            out IntPtr filterDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetFilter4dDescriptor(
+            IntPtr filterDesc,
+            cudnnDataType_t dataType,
+            cudnnTensorFormat_t format,
+            int k,
+            int c,
+            int h,
+            int w);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDestroyFilterDescriptor(
+            IntPtr filterDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnCreateDropoutDescriptor(
+            out IntPtr dropoutDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetDropoutDescriptor(
+            IntPtr dropoutDesc,
+            IntPtr cudnnHandle,
+            float dropout,
+            IntPtr states,
+            size_t stateSizeInBytes,
+            ulong seed);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDestroyDropoutDescriptor(
+            IntPtr dropoutDesc);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnCreate(
+            out IntPtr cudnnHandle);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnDestroy(
+            IntPtr cudnnHandle);
+
+        [DllImport(DLL_NAME)]
         public static extern size_t cudnnGetVersion();
     }
 }

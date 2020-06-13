@@ -12,6 +12,7 @@ using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
+using SharpNetTests.GPU;
 
 namespace SharpNetTests.NonReg
 {
@@ -24,8 +25,8 @@ namespace SharpNetTests.NonReg
             //check RAM => GPU Copy perf
             var tmp_2GB = new float[500 * 1000000];
 
-            var gpuContext = GPUWrapper.FromDeviceId(0);
-            Console.WriteLine(gpuContext.ToString());
+            var gpu = TestGPUTensor.GpuWrapper;
+            Console.WriteLine(gpu.ToString());
             double maxSpeed = 0;
             for (int i = 1; i <= 3; ++i)
             {
@@ -34,9 +35,9 @@ namespace SharpNetTests.NonReg
                 var tensors = new GPUTensor<float>[1];
                 for(int t=0;t<tensors.Length;++t)
                 {
-                    tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, tmp_2GB, gpuContext);
+                    tensors[t] = new GPUTensor<float>(new[] { tmp_2GB.Length}, tmp_2GB, gpu);
                 }
-                Console.WriteLine(gpuContext.ToString());
+                Console.WriteLine(gpu.ToString());
                 foreach (var t in tensors)
                 {
                     t.Dispose();
@@ -49,7 +50,7 @@ namespace SharpNetTests.NonReg
             System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Memory.csv"),
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
                 + "2GB Copy CPU=>GPU;"
-                + gpuContext.DeviceName()+";"
+                + gpu.DeviceName()+";"
 #if DEBUG
                 +"DEBUG;"
 #else
@@ -105,9 +106,9 @@ namespace SharpNetTests.NonReg
                 default:
                     //case "gpu":
                     //case "gpu0":
-                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(0));
+                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(0, TestGPUTensor.cuDNNVersion));
                 case "gpu1":
-                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(1));
+                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(1, TestGPUTensor.cuDNNVersion));
                 case "cpu":
                     return new CpuTensor<byte>(new[] { chunkSize }, null);
             }

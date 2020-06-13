@@ -13,6 +13,7 @@ using SharpNet.Networks;
 using SharpNetTests.CPU;
 using SharpNetTests.Data;
 using SharpNetTests.Datasets;
+using SharpNetTests.GPU;
 using SharpNetTests.NonReg;
 
 namespace SharpNetTests
@@ -29,7 +30,7 @@ namespace SharpNetTests
 	    private readonly Random _rand = new Random(0);
         private const GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
         // ReSharper disable once MemberCanBeMadeStatic.Local
-        private GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
+        private GPUWrapper GpuWrapper => TestGPUTensor.GpuWrapper;
 
         [Test]
         public void TestConvolution()

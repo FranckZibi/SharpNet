@@ -8,7 +8,7 @@ using System.Linq;
 namespace SharpNet.GPU
 {
     public enum CUDA_Versions { CUDA_10_0, CUDA_10_1, CUDA_10_2, CUDA_11_0 };
-    public enum CUDNN_Versions { CUDNN_7};
+    public enum cuDNN_Versions { cuDNN_7, cuDNN_8};
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public unsafe class GPUWrapper : IDisposable
@@ -18,7 +18,7 @@ namespace SharpNet.GPU
         private readonly IntPtr _deviceHandle;
         private readonly string _deviceName;
         private readonly Version _cublasVersion;
-        private readonly Version _cudnnVersion;
+        private readonly Version _cuDNNVersion;
         private readonly KernelManager _kernelManager;
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
@@ -64,7 +64,7 @@ namespace SharpNet.GPU
         public CudartWrapper CudartWrapper { get; }
 
         #region constructor
-        private GPUWrapper(int deviceId)
+        private GPUWrapper(int deviceId, cuDNN_Versions cuDNNVersion)
         {
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CUDA_PATH")))
             {
@@ -81,7 +81,7 @@ namespace SharpNet.GPU
             DeviceId = deviceId;
             AssociateCurrentThreadWithDevice();
             CublasWrapper = new CublasWrapper(CudaVersion);
-            CudnnWrapper = new CudnnWrapper(CUDNN_Versions.CUDNN_7);
+            CudnnWrapper = new CudnnWrapper(cuDNNVersion);
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
 
@@ -92,7 +92,7 @@ namespace SharpNet.GPU
             _cublasVersion = Utils.NewVersion(cublasVersion);
 
             //We retrieve the cudnn version
-            _cudnnVersion = Utils.NewVersion((int)(ulong)CudnnWrapper.cudnnGetVersion());
+            _cuDNNVersion = Utils.NewVersion((int)(ulong)CudnnWrapper.cudnnGetVersion());
 
             _deviceHandle = GetDeviceHandle(deviceId);
 
@@ -124,13 +124,13 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        public static GPUWrapper FromDeviceId(int deviceId)
+        public static GPUWrapper FromDeviceId(int deviceId, cuDNN_Versions cuDNNVersion)
         {
             lock (Cache)
             {
                 if (!Cache.ContainsKey(deviceId))
                 {
-                    Cache[deviceId] = new GPUWrapper(deviceId);
+                    Cache[deviceId] = new GPUWrapper(deviceId, cuDNNVersion);
                 }
                 return Cache[deviceId];
             }
@@ -529,7 +529,7 @@ namespace SharpNet.GPU
         {
             var result = _deviceName;
             result += " - cuda " + CudaVersion;
-            result += " - cublas " + _cublasVersion + " - cudnn " + _cudnnVersion + " - deviceId:" + DeviceId;
+            result += " - cublas " + _cublasVersion + " - cudnn " + _cuDNNVersion + " - deviceId:" + DeviceId;
             return result;
         }
         public override string ToString()

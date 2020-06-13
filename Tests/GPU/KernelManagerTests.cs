@@ -12,7 +12,7 @@ namespace SharpNetTests.GPU
     [TestFixture]
     public class KernelManagerTests
     {
-        private static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
+        private static GPUWrapper GpuWrapper => TestGPUTensor.GpuWrapper;
         private readonly Random _rand = new Random(0);
 
         [Test]
