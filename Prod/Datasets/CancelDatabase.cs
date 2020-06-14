@@ -190,7 +190,7 @@ namespace SharpNet.Datasets
             //FlushDatabase();return;
 
 
-            using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", networkFileName), "", new []{0});
+            using var network =Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", networkFileName));
             
 
             var xShape = network.Layers[0].OutputShape(1);
@@ -204,8 +204,7 @@ namespace SharpNet.Datasets
 
             using var dataSet = ExtractDataSet(e =>
                                 e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05)
-                                &&IsValidNonEmptyCancel(e.Cancel) 
-                                //&&e.SuggestedCancel == ""
+                                &&e.SuggestedCancel == ""
                                 );
             var p = network.Predict(dataSet);
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
@@ -213,7 +212,12 @@ namespace SharpNet.Datasets
                 var rowWithPrediction = p.RowSlice(elementId, 1);
                 var sha1 = dataSet.ElementIdToDescription(elementId);
                 var predictedCancelName = Hierarchy.ExtractPrediction(rowWithPrediction.AsReadonlyFloatCpuContent);
-                _database[sha1].SuggestedCancel = predictedCancelName;
+                var e = _database[sha1];
+                e.SuggestedCancel = predictedCancelName;
+                if (IsValidNonEmptyCancel(e.Cancel) && IsValidNonEmptyCancel(e.SuggestedCancel))
+                {
+                    e.CancelComment = IsOkPrediction(e.Cancel, e.SuggestedCancel) ? "OK" : "KO";
+                }
             }
             FlushDatabase();
         }
@@ -373,9 +377,8 @@ namespace SharpNet.Datasets
             var elementIdToPaths = new List<List<string>>();
             var elementIdToDescription = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
-            var entries = _database.Values.Where(e => !e.IsRemoved && accept(e))
-                .OrderBy(e => e.SHA1).ToArray();
-            //&& _root.CategoryPathToCategoryName(_root.ToPath(e.Cancel)).Contains("used/star/")
+            var entries = _database.Values.Where(e => !e.IsRemoved && accept(e)).OrderBy(e => e.SHA1).ToArray();
+                //&& _root.CategoryPathToCategoryName(_root.ToPath(e.Cancel)).Contains("used/star/")
 
             while (elementIdToPaths.Count < entries.Length)
             {

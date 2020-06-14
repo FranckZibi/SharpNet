@@ -88,9 +88,9 @@ namespace SharpNetTests.Datasets
         {
             var root = CancelDatabase.Hierarchy;
             //trained on 235x200
-            //var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"), "", new[] { 0 });
+            //var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"));
             //trained on 235x200
-            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_20200603_1803_150.txt"), "", new[] { 0 });
+            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_20200603_1803_150.txt"));
 
             ((InputLayer)network.Layers[0]).SetInputHeightAndWidth(235, 200);
             using var dataSet = FromDirectory(@"C:\Download\ToWork", root);

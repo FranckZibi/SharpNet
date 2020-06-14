@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using SharpNet.Data;
+using SharpNet.GPU;
 using SharpNet.Layers;
 
 namespace SharpNet.Networks
@@ -15,8 +17,35 @@ namespace SharpNet.Networks
             SaveParameters(parametersFilePath);
         }
 
-        public static Network ValueOf(string modelFilePath, string parametersFilePath = "", int[] overrideResourceIds = null)
+
+        /// <summary>
+        /// ensure that the resource ids required for a network are available, and fix them if it is not
+        /// </summary>
+        /// <param name="resourceIds">the requested resource ids for the network</param>
+        /// <param name="gpuCount">number of GPUs available in the current computer</param>
+        /// <returns>the fixed list of resource ids for the network</returns>
+        public static int[] AdaptResourceIdsToCurrentComputer(int[] resourceIds, int gpuCount)
         {
+            var fixedResult = new List<int>();
+            foreach (var id in resourceIds)
+            {
+                if (id < gpuCount)
+                {
+                    fixedResult.Add(id);
+                }
+            }
+            if (fixedResult.Count == 0)
+            {
+                fixedResult.Add(-1);
+            }
+            return fixedResult.ToArray();
+        }
+
+
+
+        public static Network ValueOf(string modelFilePath)
+        {
+
             //we load the model (network description)
             var allLines = File.ReadAllLines(modelFilePath);
             var dicoFirstLine = Serializer.Deserialize(allLines[0]);
@@ -25,8 +54,15 @@ namespace SharpNet.Networks
             {
                 config.LogDirectory = new FileInfo(modelFilePath).Directory.FullName;
             }
-            var resourceIds = overrideResourceIds??(int[])dicoFirstLine[nameof(_resourceIds)];
-            var network = new Network(config, resourceIds.ToList());
+
+            var originalResourceIds = (int[]) dicoFirstLine[nameof(_resourceIds)];
+            var fixedResourceIds = AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
+            var network = new Network(config, fixedResourceIds.ToList());
+            if (!originalResourceIds.SequenceEqual(fixedResourceIds))
+            {
+                Network.Log.Warn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
+            }
+
             var epochsData = (EpochData[])dicoFirstLine[nameof(EpochData)];
             network.EpochData.AddRange(epochsData);
             network.Description = dicoFirstLine.TryGet<string>(nameof(Description)) ?? "";
@@ -36,15 +72,11 @@ namespace SharpNet.Networks
             }
 
             //we load the parameters into the network
-            if (string.IsNullOrEmpty(parametersFilePath))
-            {
-                parametersFilePath = ModelFilePath2ParameterFilePath(modelFilePath);
-            }
+            var parametersFilePath = ModelFilePath2ParameterFilePath(modelFilePath);
             if (File.Exists(parametersFilePath))
             {
                 network.LoadParametersFromH5File(parametersFilePath, network.Config.CompatibilityMode);
             }
-
             return network;
         }
 

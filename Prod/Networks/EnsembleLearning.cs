@@ -21,8 +21,7 @@ namespace SharpNet.Networks
             foreach (var modelFilePath in _modelFilesPath)
             {
                 Console.WriteLine("Loading " + modelFilePath + " ...");
-                var parametersFilePath = Network.ModelFilePath2ParameterFilePath(modelFilePath);
-                using var network = Network.ValueOf(modelFilePath, parametersFilePath, new [] {0});
+                using var network = Network.ValueOf(modelFilePath);
                 Console.WriteLine("File loaded");
                 Console.WriteLine("Computing accuracy for single network...");
                     

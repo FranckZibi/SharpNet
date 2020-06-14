@@ -43,19 +43,15 @@ namespace SharpNetTests
 
             //470*200 : 10.99% errors (150 epochs)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_400_470_20200605_1924_150.txt");
-            //235*200 : 12.61% errors (150 epochs)
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_20200603_1803_150.txt");
             //235*200 : 34.28% errors (30 epochs)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_0716_30.txt");
-            //235*200 : 13.22% errors (70 epochs , lr=0.05)
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_1811_70.txt");
             //235*200 : 12.13% errors (70 epochs, lr=0.02)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_1346_70.txt");
             //235*200 :  3.51% errors (150 epochs, lr=0.02)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_2220_150.txt");
+            //235*200 :  2.26% errors (310 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200612_0803_310.txt");
             //new CancelDatabase().CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction.csv");return;
-
-
 
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
@@ -66,7 +62,7 @@ namespace SharpNetTests
             //network.Predict(dataSet, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Prediction.csv"));
             //return;
 
-            EfficientNetTests_Cancel();
+            EfficientNetTests_Cancel(true);
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
@@ -120,15 +116,14 @@ namespace SharpNetTests
 
         #region EfficientNet Cancel DataSet Training
 
-        private static void EfficientNetTests_Cancel()
+        private static void EfficientNetTests_Cancel(bool useMultiGpu)
         {
-            const bool useMultiGpu = true;
-
             //var targetHeight = 470; var targetWidth = 400;var batchSize = 13;var defaultInitialLearningRate = 0.01;
-            var targetHeight = 235;var targetWidth = 200;var batchSize = 50;var defaultInitialLearningRate = 0.05; //check 0.05
+            var targetHeight = 235;var targetWidth = 200;var batchSize = 50;var defaultInitialLearningRate = 0.02;
             //var targetHeight = 118;var targetWidth = 100;var batchSize = 200;var defaultInitialLearningRate = 0.05;
             //var targetHeight = 59;var targetWidth = 50;var batchSize = 800;var defaultInitialLearningRate = ?;
-           
+            if (useMultiGpu) { batchSize *= GPUWrapper.GetDeviceCount(); }
+
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {
                 () =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.BatchSize = batchSize;p.NumEpochs = 150;p.ExtraDescription = "_Imagenet_"+targetWidth+"_"+targetHeight;return p;},
@@ -140,7 +135,6 @@ namespace SharpNetTests
             };
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            if (useMultiGpu) { batchSize *= GPUWrapper.GetDeviceCount(); }
             var networkGeometries = new List<Action<EfficientNetBuilder, int>>
             {
                 (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_Cancel_EfficientNet(p, targetHeight, targetWidth);},

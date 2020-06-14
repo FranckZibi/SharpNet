@@ -56,7 +56,7 @@ namespace SharpNetTests.NonReg
             network.Dispose();
 
             //we ensure that the saved version of the network behave the same as the original one
-            var networkFromSavedFile = Network.ValueOf(savedModelFile, saveParametersFile);
+            var networkFromSavedFile = Network.ValueOf(savedModelFile);
             var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
 

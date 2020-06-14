@@ -16,6 +16,25 @@ namespace SharpNetTests
     {
 
         [Test]
+        public void TestAdaptResourceIdsToCurrentComputer()
+        {
+            // no gpu available
+            Assert.AreEqual(new[] {-2, -1 }, Network.AdaptResourceIdsToCurrentComputer(new[] { -2, -1 }, 0));
+            Assert.AreEqual(new []{-1}, Network.AdaptResourceIdsToCurrentComputer(new []{0,1}, 0));
+            Assert.AreEqual(new []{-1}, Network.AdaptResourceIdsToCurrentComputer(new []{0}, 0));
+
+            // 1 gpu available
+            Assert.AreEqual(new[] { -2, -1 }, Network.AdaptResourceIdsToCurrentComputer(new[] { -2, -1 }, 1));
+            Assert.AreEqual(new[] { 0 }, Network.AdaptResourceIdsToCurrentComputer(new[] { 0, 1 }, 1));
+            Assert.AreEqual(new[] { 0 }, Network.AdaptResourceIdsToCurrentComputer(new[] { 0 }, 1));
+
+            // 2 gpus available
+            Assert.AreEqual(new[] { -2, -1 }, Network.AdaptResourceIdsToCurrentComputer(new[] { -2, -1 }, 2));
+            Assert.AreEqual(new[] { 0, 1 }, Network.AdaptResourceIdsToCurrentComputer(new[] { 0, 1 }, 2));
+            Assert.AreEqual(new[] { 0 }, Network.AdaptResourceIdsToCurrentComputer(new[] { 0 }, 2));
+        }
+
+        [Test]
         public void TestSaveParametersToH5File()
         {
             //we build an efficientNet-B0 network loading the weights from in Keras
