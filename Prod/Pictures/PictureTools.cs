@@ -102,6 +102,15 @@ namespace SharpNet.Pictures
             }
             return destImage;
         }
+
+        public static Bitmap CropImage(Bitmap src, Rectangle croppedRectangle)
+        {
+            var croppedBitmap = new Bitmap(croppedRectangle.Width, croppedRectangle.Height);
+            using var g = Graphics.FromImage(croppedBitmap);
+            g.DrawImage(src, new Rectangle(0, 0, croppedBitmap.Width, croppedBitmap.Height), croppedRectangle,GraphicsUnit.Pixel);
+            return croppedBitmap;
+        }
+
         private static Bitmap AsBitmap<T>(CpuTensor<T> xTrain, Func<T, byte> toByte, int pictureIndex) where T: struct
         {
             if (xTrain == null)

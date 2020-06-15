@@ -31,7 +31,8 @@ namespace SharpNet.Datasets
             Y = y;
             _elementIdToCategoryIndex = elementIdToCategoryIndex;
         }
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
+            CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             Debug.Assert(indexInBuffer >= 0 &&  indexInBuffer < xBuffer.Shape[0]);
             Debug.Assert(_x.Shape[1] == xBuffer.Shape[1]); //same number of channels

@@ -5,8 +5,7 @@ namespace SharpNet.DataAugmentation
 {
     public class DataAugmentationConfig
     {
-        public ImageDataGenerator.DataAugmentationEnum DataAugmentationType { get; set; } 
-            = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
+        public ImageDataGenerator.DataAugmentationEnum DataAugmentationType { get; set; } = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
         /// <summary>
         ///randomly shift images horizontally
         /// </summary>

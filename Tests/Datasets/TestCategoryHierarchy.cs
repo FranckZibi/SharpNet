@@ -42,18 +42,15 @@ namespace SharpNetTests.Datasets
 
         private static string[] ToPathForStars(string cancelName)
         {
-            if (cancelName.StartsWith("etoile_pleine")) return new[] {"full" };
-            if (cancelName.Equals("etoile*")) return new[] {"1digit" };
-            if (cancelName.Equals("etoile**")) return new[] {"2digits" };
-            if (cancelName.Length == 7)
+            if (cancelName.StartsWith("etoile_pleine")) {return new[] {"full" };}
+            if (cancelName.Equals("etoile*")) {return new[] {"1digit" };}
+            if (cancelName.Equals("etoile**")) {return new[] {"2digits" };}
+            switch (cancelName.Length)
             {
-                return new[] {"1digit", cancelName[6].ToString()}; 
+                case 7: return new[] {"1digit", cancelName[6].ToString()};
+                case 8: return new[] {"2digits", cancelName[6].ToString(), cancelName[7].ToString() };
+                default: return null;
             }
-            if (cancelName.Length == 8)
-            {
-                return new[] {"2digits", cancelName[6].ToString(), cancelName[7].ToString() };
-            }
-            return null;
         }
 
         [Test]
@@ -129,7 +126,7 @@ namespace SharpNetTests.Datasets
                 3,
                 categoryDescriptions,
                 CancelDatabase.CancelMeanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.ResizeToTargetSize,
+                ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion,
                 hierarchy);
 
         }

@@ -19,9 +19,10 @@ namespace SharpNet.Datasets
             //We compute Y 
             Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, _shuffledElementIdToOriginalElementId.Count, CategoryCount);
         }
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
+            CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
-            _original.LoadAt(_shuffledElementIdToOriginalElementId[elementId], indexInBuffer, xBuffer, yBuffer);
+            _original.LoadAt(_shuffledElementIdToOriginalElementId[elementId], indexInBuffer, xBuffer, yBuffer, withDataAugmentation);
         }
         public override int Count => _shuffledElementIdToOriginalElementId.Count;
         public override int ElementIdToCategoryIndex(int elementId)

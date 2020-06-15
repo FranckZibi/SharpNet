@@ -34,7 +34,9 @@ namespace SharpNet.Datasets
         /// <param name="indexInBuffer">where to store the element in the buffer</param>
         /// <param name="xBuffer">buffer where to store elementId (with a capacity of 'xBuffer.Shape[0]' elements) </param>
         /// <param name="yBuffer">buffer where to store the associate category (with a capacity of 'yBuffer.Shape[0]' elements) </param>
-        void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer);
+        /// <param name="withDataAugmentation"></param>
+        void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer,
+            bool withDataAugmentation);
 
         /// <summary>
         /// number of elements in DataSet

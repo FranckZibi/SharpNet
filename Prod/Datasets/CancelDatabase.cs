@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -189,22 +190,18 @@ namespace SharpNet.Datasets
             //}
             //FlushDatabase();return;
 
-
             using var network =Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", networkFileName));
-            
 
-            var xShape = network.Layers[0].OutputShape(1);
-            int targetHeight = xShape[2];
-            int targetWidth = xShape[3];
+            foreach (var e in _database.Values.Where(e => !e.IsRemoved))
+            {
+                e.SuggestedCancel = "";
+            }
 
-            //foreach (var e in _database.Values.Where(e => !e.IsRemoved))
-            //{
-            //    e.SuggestedCancel = "";
-            //}
-
-            using var dataSet = ExtractDataSet(e =>
-                                e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05)
-                                &&e.SuggestedCancel == ""
+            using var dataSet = ExtractDataSet(e => true
+                                //e.SuggestedCancel == ""
+                                //IsValidNonEmptyCancel(e.Cancel) && IsValidNonEmptyCancel(e.SuggestedCancel) && (e.CancelComment == "KO")
+                                ,
+                                ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion
                                 );
             var p = network.Predict(dataSet);
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
@@ -234,6 +231,7 @@ namespace SharpNet.Datasets
             return path != null && path.Length >= 1;
         }
 
+        [SuppressMessage("ReSharper", "EnforceIfStatementBraces")]
         public static string[] ToPath(string cancelName)
         {
             cancelName = cancelName.Replace("_bleue", "").Replace("_bleu", "").Replace("_rouge", "");
@@ -371,14 +369,13 @@ namespace SharpNet.Datasets
             File.WriteAllText(outputFile, sb.ToString());
         }
 
-        public AbstractDataSet ExtractDataSet(Func<CancelDatabaseEntry, bool> accept)
+        public AbstractDataSet ExtractDataSet(Func<CancelDatabaseEntry, bool> accept, ResizeStrategyEnum resizeStrategy)
         {
             var categoryNameToCount = new ConcurrentDictionary<string,int>();
             var elementIdToPaths = new List<List<string>>();
             var elementIdToDescription = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
             var entries = _database.Values.Where(e => !e.IsRemoved && accept(e)).OrderBy(e => e.SHA1).ToArray();
-                //&& _root.CategoryPathToCategoryName(_root.ToPath(e.Cancel)).Contains("used/star/")
 
             while (elementIdToPaths.Count < entries.Length)
             {
@@ -427,7 +424,7 @@ namespace SharpNet.Datasets
                 3, 
                 categoryDescription,
                 CancelMeanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.ResizeToTargetSize,
+                resizeStrategy,
                 Hierarchy);
         }
         

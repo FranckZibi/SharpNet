@@ -32,9 +32,10 @@ namespace SharpNet.Datasets
                 }
             }
         }
-        public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
+        public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer,
+            CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
-            _original.LoadAt(subElementIdToOriginalElementId[subElementId], indexInBuffer, xBuffer, yBuffer);
+            _original.LoadAt(subElementIdToOriginalElementId[subElementId], indexInBuffer, xBuffer, yBuffer, withDataAugmentation);
         }
         public override int Count => subElementIdToOriginalElementId.Count;
         public override int ElementIdToCategoryIndex(int elementId)

@@ -50,8 +50,9 @@ namespace SharpNetTests
             //235*200 :  3.51% errors (150 epochs, lr=0.02)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_2220_150.txt");
             //235*200 :  2.26% errors (310 epochs, lr=0.02)
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200612_0803_310.txt");
-            //new CancelDatabase().CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction.csv");return;
+            //var cancelDatabase = new CancelDatabase();
+            //cancelDatabase.UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200612_0803_310.txt");
+            //cancelDatabase.CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction_def.csv");return;
 
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
@@ -146,7 +147,9 @@ namespace SharpNetTests
         {
             var database = new CancelDatabase();
             var rootPrediction = CancelDatabase.Hierarchy.RootPrediction();
-            using var dataset = database.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && CancelDatabase.IsValidNonEmptyCancel(e.Cancel));
+            //TODO Test with selection of only matching size input in the training set
+            //using var dataset = database.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.ResizeToHeightAndWidthSizeKeepingSameProportionWith5PercentTolerance);
+            using var dataset = database.ExtractDataSet(e=>CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
             using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.9); //90% for training,  10% for validation
             using var network = p.EfficientNetB0(true, "", new[] { trainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
             network.SetSoftmaxWithHierarchy(rootPrediction);

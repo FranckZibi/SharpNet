@@ -86,7 +86,8 @@ namespace SharpNet.Datasets
             return new PascalVOCDataSet("VOCdevkit2012", "VOC2012", meanAndVolatilityOfEachChannel, ResizeStrategyEnum.None);
         }
     
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
+            CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             Debug.Assert(xBuffer.Shape[0] == yBuffer?.Shape[0]);
             Debug.Assert(xBuffer.Shape[1] == Channels);

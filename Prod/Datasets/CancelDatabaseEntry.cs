@@ -20,7 +20,7 @@ namespace SharpNet.Datasets
         public string IdComment { private get; set; }
         public string SuggestedCancel { get; set; }
         public string Cancel { get; set; }
-        public string CancelComment { private get; set; }
+        public string CancelComment { get; set; }
         public DateTime InsertionDate { private get; set; }
         public DateTime? RemovedDate { get; set; }
         public DateTime? ValidationDate { private get; set; }
@@ -68,7 +68,7 @@ namespace SharpNet.Datasets
         /// <param name="expectedRatio"></param>
         /// <param name="toleranceInPercentage">0.10 mean 10% tolerance </param>
         /// <returns></returns>
-        public bool HasExpectedWidthHeightRatio(double expectedRatio, double toleranceInPercentage)
+        private bool HasExpectedWidthHeightRatio(double expectedRatio, double toleranceInPercentage)
         {
             if (Height <= 0)
             {

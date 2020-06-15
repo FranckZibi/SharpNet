@@ -23,7 +23,7 @@ namespace SharpNet.Datasets
 
 
         /// <summary>
-        /// we'll resize the image from disk to the target size for training/inference
+        /// we'll simply resize the image from disk to the target size for training/inference
         /// without keeping the same proportion.
         /// It means that the picture can be distorted to fit the target size
         /// </summary>
@@ -41,7 +41,14 @@ namespace SharpNet.Datasets
         /// We'll keep the same proportion as in the original image (no distortion)
         /// </summary>
         // ReSharper disable once UnusedMember.Global
-        ResizeToHeightSizeKeepingSameProportion
+        ResizeToHeightSizeKeepingSameProportion,
+
+        /// <summary>
+        /// We'll take the biggest crop in the original image and resize this crop to match exactly the size fo the training/inference tensor
+        /// We'll keep the same proportion as in the original image (no distortion)
+        /// </summary>
+        // ReSharper disable once UnusedMember.Global
+        BiggestCropInOriginalImageToKeepSameProportion
     }
 
 
@@ -100,7 +107,8 @@ namespace SharpNet.Datasets
         public string[] CategoryDescriptions { get; }
         public CategoryHierarchy HierarchyIfAny { get;}
 
-        public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer, [CanBeNull] CpuTensor<float> yBuffer);
+        public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,
+            [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
         public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
         {
             Debug.Assert(xMiniBatch != null);
@@ -197,11 +205,12 @@ namespace SharpNet.Datasets
         /// <param name="elementId">the index of element to retrieve (between 0 and Count-1) </param>
         /// <param name="targetHeight"></param>
         /// <param name="targetWidth"></param>
+        /// <param name="withDataAugmentation"></param>
         /// <returns>a byte tensor containing the element at index 'elementId' </returns>
-        public virtual BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth)
+        public virtual BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth, bool withDataAugmentation)
         {
             var xBuffer = new CpuTensor<float>(new[] { 1, Channels, targetHeight, targetWidth });
-            LoadAt(elementId, 0, xBuffer, null);
+            LoadAt(elementId, 0, xBuffer, null, withDataAugmentation);
 
             var inputShape_CHW = new[]{Channels, targetHeight, targetWidth};
 
@@ -247,7 +256,7 @@ namespace SharpNet.Datasets
         /// <returns></returns>
         private ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
         {
-            return ImageStatistic.ValueOf(OriginalElementContent(elementId, targetHeight, targetWidth));
+            return ImageStatistic.ValueOf(OriginalElementContent(elementId, targetHeight, targetWidth, false));
         }
 
 
@@ -409,14 +418,10 @@ namespace SharpNet.Datasets
             yDataAugmentedMiniBatch.ZeroMemory();
 
             int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstIndexInShuffledElementId + miniBatchIdx];
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch));
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation));
 
             Debug.Assert(AreCompatible_X_Y(xDataAugmentedMiniBatch, yDataAugmentedMiniBatch));
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
-            int targetHeight = xMiniBatchShape[2];
-            int targetWidth = xMiniBatchShape[3];
-            Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(()=>ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
-
             if (!dataAugmentationConfig.UseDataAugmentation || !withDataAugmentation)
             {
                 //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
@@ -424,6 +429,9 @@ namespace SharpNet.Datasets
             }
             else
             {
+                int targetHeight = xMiniBatchShape[2];
+                int targetWidth = xMiniBatchShape[3];
+                Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
                 Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
             }

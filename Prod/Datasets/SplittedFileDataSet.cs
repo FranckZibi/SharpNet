@@ -49,7 +49,8 @@ namespace SharpNet.Datasets
 
             Y = new CpuTensor<float>(Y_Shape, null);
         }
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
+            CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
             Debug.Assert(Channels == xBuffer.Shape[1]); //same number of channels
