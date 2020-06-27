@@ -43,7 +43,7 @@ namespace SharpNet.Networks
 
 
 
-        public static Network ValueOf(string modelFilePath)
+        public static Network ValueOf(string modelFilePath, int[] overridenResourceIdsIfAny = null)
         {
 
             //we load the model (network description)
@@ -55,12 +55,22 @@ namespace SharpNet.Networks
                 config.LogDirectory = new FileInfo(modelFilePath).Directory.FullName;
             }
 
+
             var originalResourceIds = (int[]) dicoFirstLine[nameof(_resourceIds)];
-            var fixedResourceIds = AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
+            int[] fixedResourceIds = overridenResourceIdsIfAny ?? AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
+
+
             var network = new Network(config, fixedResourceIds.ToList());
             if (!originalResourceIds.SequenceEqual(fixedResourceIds))
             {
                 Network.Log.Warn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
+            }
+            //on CPU we must use 'GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM'
+            if (fixedResourceIds.Max() < 0 && config.ConvolutionAlgoPreference != GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            {
+                Log.Warn("only " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + config.ConvolutionAlgoPreference + " is not supported on CPU)");
+                config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
+                Log.Warn("force using " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM);
             }
 
             var epochsData = (EpochData[])dicoFirstLine[nameof(EpochData)];

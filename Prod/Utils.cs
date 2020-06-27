@@ -12,7 +12,6 @@ using System.Xml;
 using log4net;
 using log4net.Config;
 using log4net.Util;
-using SharpNet.Networks;
 using SharpNet.Pictures;
 
 namespace SharpNet
@@ -418,16 +417,17 @@ namespace SharpNet
             return bool.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
         }
 
-        public static void ConfigureGlobalLog4netProperties()
+        public static void ConfigureGlobalLog4netProperties(string logDirectory, string logFile)
         {
-            ConfigureLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet", GlobalContext.Properties);
+            ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties);
+            XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
         }
 
 
         public static void ConfigureThreadLog4netProperties(string logDirectory, string logFile)
         {
             ConfigureLog4netProperties(logDirectory, logFile, ThreadContext.Properties);
-            XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo("log4net.config"));
+            XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
         }
 
         private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)

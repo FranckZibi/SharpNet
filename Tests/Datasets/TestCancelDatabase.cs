@@ -51,7 +51,7 @@ namespace SharpNetTests.Datasets
         {
             var path = CancelDatabase.ToPath(expectedCancelName);
             var prediction = CancelDatabase.Hierarchy.ExpectedPrediction(path);
-            var observedCancelName = CancelDatabase.Hierarchy.ExtractPrediction(prediction);
+            var observedCancelName = CancelDatabase.Hierarchy.ExtractPredictionWithProba(prediction).Item1;
             Assert.AreEqual(expectedCancelName, observedCancelName);
         }
 

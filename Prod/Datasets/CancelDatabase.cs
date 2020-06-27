@@ -192,14 +192,23 @@ namespace SharpNet.Datasets
 
             using var network =Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", networkFileName));
 
-            foreach (var e in _database.Values.Where(e => !e.IsRemoved))
-            {
-                e.SuggestedCancel = "";
-            }
+            //foreach (var e in _database.Values.Where(e => !e.IsRemoved))
+            //{
+            //    e.SuggestedCancel = "";
+            //}
+
+            //var xShape = network.Layers[0].OutputShape(1);
+            //int targetHeight = xShape[2];
+            //int targetWidth = xShape[3];
 
             using var dataSet = ExtractDataSet(e => true
                                 //e.SuggestedCancel == ""
+                                &&IsValidNonEmptyCancel(e.Cancel)
                                 //IsValidNonEmptyCancel(e.Cancel) && IsValidNonEmptyCancel(e.SuggestedCancel) && (e.CancelComment == "KO")
+
+                                //&&e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05)
+
+
                                 ,
                                 ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion
                                 );
@@ -208,9 +217,10 @@ namespace SharpNet.Datasets
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1);
                 var sha1 = dataSet.ElementIdToDescription(elementId);
-                var predictedCancelName = Hierarchy.ExtractPrediction(rowWithPrediction.AsReadonlyFloatCpuContent);
+                var predictedCancelName = Hierarchy.ExtractPredictionWithProba(rowWithPrediction.AsReadonlyFloatCpuContent).Item1;
                 var e = _database[sha1];
                 e.SuggestedCancel = predictedCancelName;
+                e.CancelComment = "";
                 if (IsValidNonEmptyCancel(e.Cancel) && IsValidNonEmptyCancel(e.SuggestedCancel))
                 {
                     e.CancelComment = IsOkPrediction(e.Cancel, e.SuggestedCancel) ? "OK" : "KO";
@@ -219,6 +229,25 @@ namespace SharpNet.Datasets
             FlushDatabase();
         }
 
+
+        public static Network GetDefaultNetwork(int[] overridenResourceIdsIfAny = null)
+        {
+            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_200_235_20200615_0848_310.txt"), overridenResourceIdsIfAny);
+            return network;
+        }
+
+        public static List<Tuple<string, double>> PredictCancelsWithProba(Network network, List<string> picturePaths)
+        {
+            var result = new List<Tuple<string, double>>();
+            using var dataSet = DirectoryDataSet.FromFiles(picturePaths, Hierarchy.RootPrediction().Length, CancelMeanAndVolatilityForEachChannel, ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
+            var p = network.Predict(dataSet);
+            for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
+            {
+                var rowWithPrediction = p.RowSlice(elementId, 1).AsReadonlyFloatCpuContent;
+                result.Add(Hierarchy.ExtractPredictionWithProba(rowWithPrediction));
+            }
+            return result;
+        }
 
         public static bool IsValidNonEmptyCancel(string cancelName)
         {
@@ -375,7 +404,8 @@ namespace SharpNet.Datasets
             var elementIdToPaths = new List<List<string>>();
             var elementIdToDescription = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
-            var entries = _database.Values.Where(e => !e.IsRemoved && accept(e)).OrderBy(e => e.SHA1).ToArray();
+            var entries = _database.Values.Where(e => !e.IsRemoved && accept(e))
+                .OrderBy(e => e.SHA1).ToArray();
 
             while (elementIdToPaths.Count < entries.Length)
             {
@@ -424,8 +454,7 @@ namespace SharpNet.Datasets
                 3, 
                 categoryDescription,
                 CancelMeanAndVolatilityForEachChannel,
-                resizeStrategy,
-                Hierarchy);
+                resizeStrategy);
         }
         
         public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };

@@ -36,23 +36,22 @@ namespace SharpNetTests
 
         private static void Main()
         {
-            SharpNet.Utils.ConfigureGlobalLog4netProperties();
+            SharpNet.Utils.ConfigureGlobalLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
             SharpNet.Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
 
-
-
-            //470*200 : 10.99% errors (150 epochs)
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_400_470_20200605_1924_150.txt");
             //235*200 : 34.28% errors (30 epochs)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_0716_30.txt");
-            //235*200 : 12.13% errors (70 epochs, lr=0.02)
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_1346_70.txt");
-            //235*200 :  3.51% errors (150 epochs, lr=0.02)
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_2220_150.txt");
-            //235*200 :  2.26% errors (310 epochs, lr=0.02)
-            //var cancelDatabase = new CancelDatabase();
-            //cancelDatabase.UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200612_0803_310.txt");
-            //cancelDatabase.CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction_def.csv");return;
+            //235*200 :  11.46% errors (70 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200615_0848_70.txt");
+            //235*200 :  1.58% errors (150 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200615_0848_150.txt");
+            //235*200 :  0.67% errors (294 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200615_0848_294.txt");
+            //235*200 :  0.65% errors (310 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200615_0848_310.txt");
+            //470*400 :  1.11% errors (150 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_400_470_20200620_1427_150.txt");
+            //new CancelDatabase().CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction_def.csv");return;
 
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
@@ -63,7 +62,7 @@ namespace SharpNetTests
             //network.Predict(dataSet, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Prediction.csv"));
             //return;
 
-            EfficientNetTests_Cancel(true);
+            //EfficientNetTests_Cancel(true);
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;

@@ -82,14 +82,13 @@ namespace SharpNet.Datasets
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, string[ ] categoryDescriptions, List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy, CategoryHierarchy hierarchyIfAny)
+        protected AbstractDataSet(string name, int channels, string[ ] categoryDescriptions, List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy)
         {
             Name = name;
             Channels = channels;
             CategoryDescriptions = categoryDescriptions;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
-            HierarchyIfAny = hierarchyIfAny;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -105,10 +104,9 @@ namespace SharpNet.Datasets
         #endregion
 
         public string[] CategoryDescriptions { get; }
-        public CategoryHierarchy HierarchyIfAny { get;}
 
-        public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,
-            [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
+        public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,[CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
+
         public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
         {
             Debug.Assert(xMiniBatch != null);
@@ -152,7 +150,7 @@ namespace SharpNet.Datasets
             yDataAugmentedMiniBatch.CopyTo(yMiniBatch.AsCpu<float>());
 
             //uncomment to store data augmented pictures
-            //if (isTraining && (firstIndexInShuffledElementId == 0))
+            //if (withDataAugmentation && (firstIndexInShuffledElementId == 0))
             //{
             //    //CIFAR10
             //    var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
@@ -163,7 +161,7 @@ namespace SharpNet.Datasets
             //    {
             //        int elementId = shuffledElementId[i];
             //        var categoryIndex = ElementIdToCategoryIndex(elementId);
-            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, Path.Combine(NetworkConfig.DefaultLogDirectory, "Train"), elementId.ToString("D5") + "_cat" + categoryIndex + "_epoch_" + epoch.ToString("D3"), "");
+            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Train"), elementId.ToString("D5") + "_cat" + categoryIndex, "");
             //    }
             //}
 

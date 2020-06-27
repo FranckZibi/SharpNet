@@ -72,7 +72,5 @@ namespace SharpNet.Datasets
         string Name { get; }
 
         ResizeStrategyEnum ResizeStrategy { get; }
-
-        CategoryHierarchy HierarchyIfAny { get; }
     }
 }

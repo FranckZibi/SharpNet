@@ -134,7 +134,7 @@ namespace SharpNet.Networks
         }
         static NetworkConfig()
         {
-            Utils.ConfigureGlobalLog4netProperties();
+            Utils.ConfigureGlobalLog4netProperties(DefaultLogDirectory, "SharpNet");
         }
         #endregion
 

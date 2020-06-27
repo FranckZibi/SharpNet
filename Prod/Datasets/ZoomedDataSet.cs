@@ -14,7 +14,7 @@ namespace SharpNet.Datasets
         #endregion
 
         public ZoomedDataSet(IDataSet original, int[] originalShape_CHW, int rowFactor, int colFactor)
-            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy, original.HierarchyIfAny)
+            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy)
         {
             _original = original;
             _originalShape_CHW = originalShape_CHW;

@@ -120,19 +120,19 @@ namespace SharpNet.Datasets
             return _lazyRootTemplate;
         }
 
-        public string ExtractPrediction(ReadOnlySpan<float> prediction)
+        public Tuple<string,double> ExtractPredictionWithProba(ReadOnlySpan<float> prediction, double parentProba = 1.0)
         {
             string result = (HasAssociatedProba||IsRoot)?_displayName:"";
             if (_children.Count == 0)
             {
-                return result;
+                return Tuple.Create(result, parentProba);
             }
 
             if (IndexWithElementCount != -1 && prediction[IndexWithElementCount] < -0.1)
             {
                 if (!string.IsNullOrEmpty(result))
                 {
-                    return result;
+                    return Tuple.Create(result, parentProba);
                 }
                 if (_onlyOneChildrenValidAtATime)
                 {
@@ -142,7 +142,7 @@ namespace SharpNet.Datasets
                 {
                     result += new string(Enumerable.Repeat('*', _children.Count).ToArray());
                 }
-                return result;
+                return Tuple.Create(result, parentProba);
             }
 
             if (_onlyOneChildrenValidAtATime)
@@ -153,18 +153,17 @@ namespace SharpNet.Datasets
                     childrenOrderByProba.Add(Tuple.Create(c, prediction[c.IndexWithProba]));
                 }
                 childrenOrderByProba = childrenOrderByProba.OrderByDescending(t => t.Item2).ToList();
-                result += childrenOrderByProba[0].Item1.ExtractPrediction(prediction);
+                parentProba *= childrenOrderByProba[0].Item2;
+                var mostProbableChildren = childrenOrderByProba[0].Item1.ExtractPredictionWithProba(prediction, parentProba);
+                return Tuple.Create(result + mostProbableChildren.Item1, mostProbableChildren.Item2);
             }
-            else
+            foreach (var c in _children)
             {
-                var childrenPrediction = new List<string>();
-                foreach (var c in _children)
-                {
-                    childrenPrediction.Add(c.ExtractPrediction(prediction));
-                }
-                result += string.Join("", childrenPrediction);
+                var childrenProba = c.ExtractPredictionWithProba(prediction);
+                result += childrenProba.Item1;
+                parentProba *= childrenProba.Item2;
             }
-            return result;
+            return Tuple.Create(result, parentProba);
         }
 
         public string CategoryPathToCategoryName(string[] path)

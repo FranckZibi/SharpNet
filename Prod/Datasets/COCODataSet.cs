@@ -13,7 +13,7 @@ namespace SharpNet.Datasets
         #endregion
 
         #region constructor
-        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy, null)
+        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy)
         {
             Y = null;
             _cocoDirectory = cocoDirectory;

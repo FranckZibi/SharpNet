@@ -22,7 +22,7 @@ namespace SharpNetTests.Datasets
             {
                 var path = ToPathForStars(expectedCancelName);
                 var prediction = stars.ExpectedPrediction(path);
-                var observedCancelName = stars.ExtractPrediction(prediction);
+                var observedCancelName = stars.ExtractPredictionWithProba(prediction).Item1;
                 Assert.AreEqual(expectedCancelName, observedCancelName);
             }
         }
@@ -84,19 +84,16 @@ namespace SharpNetTests.Datasets
         public void TestPredictions()
         {
             var root = CancelDatabase.Hierarchy;
-            //trained on 235x200
-            //var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel","efficientnet-b0_0_05_200_235_20200602_2054_70.txt"));
-            //trained on 235x200
-            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_20200603_1803_150.txt"));
+            var network = CancelDatabase.GetDefaultNetwork();
 
             ((InputLayer)network.Layers[0]).SetInputHeightAndWidth(235, 200);
             using var dataSet = FromDirectory(@"C:\Download\ToWork", root);
             var p = network.Predict(dataSet);
             for (int row = 0; row < p.Shape[0]; ++row)
             {
-                var rowPrediction = p.RowSlice(row, 1);
-                var mostProba = root.ExtractPrediction(rowPrediction.AsReadonlyFloatCpuContent);
-                Network.Log.Error(mostProba);
+                var rowPrediction = p.RowSlice(row, 1).AsReadonlyFloatCpuContent;
+                var predictionWithProba = root.ExtractPredictionWithProba(rowPrediction);
+                Network.Log.Error(predictionWithProba);
             }
 
         }
@@ -126,8 +123,7 @@ namespace SharpNetTests.Datasets
                 3,
                 categoryDescriptions,
                 CancelDatabase.CancelMeanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion,
-                hierarchy);
+                ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
 
         }
 

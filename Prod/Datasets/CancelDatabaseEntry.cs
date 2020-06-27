@@ -68,7 +68,7 @@ namespace SharpNet.Datasets
         /// <param name="expectedRatio"></param>
         /// <param name="toleranceInPercentage">0.10 mean 10% tolerance </param>
         /// <returns></returns>
-        private bool HasExpectedWidthHeightRatio(double expectedRatio, double toleranceInPercentage)
+        public bool HasExpectedWidthHeightRatio(double expectedRatio, double toleranceInPercentage)
         {
             if (Height <= 0)
             {
