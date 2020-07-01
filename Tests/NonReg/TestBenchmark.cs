@@ -1,24 +1,39 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
+using log4net;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
 using SharpNetTests.GPU;
+// ReSharper disable AccessToDisposedClosure
+// ReSharper disable AccessToModifiedClosure
 
 namespace SharpNetTests.NonReg
 {
     [TestFixture]
     public class TestBenchmark
     {
+        private static readonly ILog Log = LogManager.GetLogger(typeof(Network));
+
+
+        static TestBenchmark()
+        {
+            Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet_Benchmark");
+        }
+
+
         [Test, Explicit]
         public void TestGPUBenchmark_Memory()
         {
@@ -62,7 +77,100 @@ namespace SharpNetTests.NonReg
         }
 
 
-     
+        [Test, Explicit]
+        [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalse")]
+        public void BenchmarkDataAugmentation()
+        {
+            bool useMultiThreading = true;
+            bool useMultiGpu = true;
+            var targetHeight = 118;
+            var targetWidth = 100;
+            var miniBatchSize = 300;
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            if (useMultiGpu) { miniBatchSize *= GPUWrapper.GetDeviceCount(); }
+            var p = EfficientNetBuilder.Cancel();
+            p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;
+            p.BatchSize = miniBatchSize;
+            var database = new CancelDatabase();
+            //TODO Test with selection of only matching size input in the training set
+            using var dataset = database.ExtractDataSet(e => CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
+            
+            //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
+            var xMiniBatchShape = new []{miniBatchSize, 3, targetHeight, targetWidth};
+            var yMiniBatchShape = dataset.YMiniBatch_Shape(miniBatchSize);
+            var rand = new Random(0);
+            var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();
+            Utils.Shuffle(shuffledElementId, rand);
+
+            var xOriginalNotAugmentedMiniBatchCpu = new CpuTensor<float>(xMiniBatchShape);
+            var xBufferMiniBatchCpu = new CpuTensor<float>(xMiniBatchShape);
+            var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(xMiniBatchShape);
+            var yBufferMiniBatchCpu = new CpuTensor<float>(yMiniBatchShape);
+            var imageDataGenerator = new ImageDataGenerator(p.DA);
+            
+            yBufferMiniBatchCpu.ZeroMemory();
+            var swLoad = new Stopwatch();
+            var swDA = new Stopwatch();
+
+            int count = 0;
+            for (int firstElementId = 0; firstElementId <= (dataset.Count - miniBatchSize); firstElementId += miniBatchSize)
+            {
+                count += miniBatchSize;
+                int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstElementId + miniBatchIdx];
+                swLoad.Start();
+
+                if (useMultiThreading)
+                {
+                    Parallel.For(0, miniBatchSize, indexInBuffer => dataset.LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu,false));
+                }
+                else
+                {
+                    for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
+                    {
+                        dataset.LoadAt(MiniBatchIdxToElementId(indexInMiniBatch), indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu, false);
+                    }
+                }
+                swLoad.Stop();
+                swDA.Start();
+                int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => dataset.ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
+                Lazy<ImageStatistic> MiniBatchIdxToImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => dataset.ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
+                if (useMultiThreading)
+                {
+                    Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(
+                                                       indexInMiniBatch,
+                                                       xOriginalNotAugmentedMiniBatchCpu,
+                                                       xBufferMiniBatchCpu,
+                                                       yBufferMiniBatchCpu,
+                                                       MiniBatchIdxToCategoryIndex,
+                                                       MiniBatchIdxToImageStatistic,
+                                                       dataset.MeanAndVolatilityForEachChannel,
+                                                       dataset.GetRandomForIndexInMiniBatch(indexInMiniBatch),
+                                                       xBufferForDataAugmentedMiniBatch));
+                }
+                else
+                {
+                    for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
+                    {
+                        imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, dataset.MeanAndVolatilityForEachChannel, dataset.GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch);
+                    }
+                }
+
+                //var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };
+                //var xCpuChunkBytes = xOriginalNotAugmentedMiniBatchCpu /*xBufferMiniBatchCpu*/.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
+                //for (int i = 0; i < 10; ++i)
+                //{
+                //    SharpNet.Pictures.PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Train"), shuffledElementId[i].ToString("D5"), "");
+                //}
+
+                swDA.Stop();
+            }
+            var comment = "count=" + count.ToString("D4") + ",miniBatchSize=" + miniBatchSize.ToString("D4") + ", useMultiThreading=" + (useMultiThreading ? 1 : 0);
+            comment += " ; load into memory took " + swLoad.ElapsedMilliseconds.ToString("D4") + " ms";
+            comment += " ; data augmentation took " + swDA.ElapsedMilliseconds.ToString("D4") + " ms";
+            Log.Info(comment);
+        }
+
+
 
         //gpu=>gpu (same device)
         [TestCase("gpu0", "gpu0"), Explicit]

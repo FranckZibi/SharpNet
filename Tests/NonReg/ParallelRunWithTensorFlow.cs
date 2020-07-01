@@ -85,15 +85,16 @@ namespace SharpNetTests.NonReg
             {
                 Log.Info("processing "+imagePath);
 
+                var imageSize = PictureTools.ImageSize(imagePath);
                 using var originalBmp = new Bitmap(imagePath);
-                PreferredResizedSizeForYoloV3(originalBmp.Height, originalBmp.Width, out var resizedHeight,out var resizedWidth);
+                PreferredResizedSizeForYoloV3(imageSize.Height, imageSize.Width, out var resizedHeight,out var resizedWidth);
                 var resizedOriginalBitmap = PictureTools.ResizeImage(originalBmp, resizedWidth, resizedHeight, InterpolationMode.Bicubic);
                 var content = BitmapContent.ValueFomSingleRgbBitmap(resizedOriginalBitmap);
                 var X = content.Select((x, y, b) => b / 255f);
                 X.Reshape(new []{1, content.Shape[0], content.Shape[1], content.Shape[2]});
                 var yPredicted = network.Predict(X, false);
                 var predictions = NonMaxSuppressionLayer.ExtractSelectedAfterNonMaxSuppression(yPredicted.ToCpuFloat(), 0, int.MaxValue, int.MaxValue, 0.5, 0.5);
-                predictions.ForEach(p=>p.Box.UpSampling(originalBmp.Height/ (double)resizedHeight, originalBmp.Width/ (double)resizedWidth).Draw(originalBmp, p.CaptionFor(COCODataSet.CategoryIndexToDescription)));
+                predictions.ForEach(p=>p.Box.UpSampling(imageSize.Height/ (double)resizedHeight, imageSize.Width/ (double)resizedWidth).Draw(originalBmp, p.CaptionFor(COCODataSet.CategoryIndexToDescription)));
                 originalBmp.Save(imagePath+"_"+DateTime.Now.Ticks+"_output.jpg");
                 
                 Log.Info("finished processing of " + imagePath);

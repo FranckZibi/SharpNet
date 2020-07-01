@@ -1,15 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using PhotoSauce.MagicScaler;
 using SharpNet.CPU;
+using System;
+using System.Runtime.InteropServices;
 
 namespace SharpNet.Pictures
 {
+
+
     public class BitmapContent : CpuTensor<byte>
     {
         /// <summary>
@@ -148,19 +152,102 @@ namespace SharpNet.Pictures
                 }
             }
         }
+
+
+        public static BitmapContent Resize(string path, int targetWidth, int targetHeight)
+        {
+            return CropAndResize(path, null, targetWidth, targetHeight);
+        }
+
+        public static BitmapContent CropAndResize(string path, Rectangle? croppedRectangle, int targetWidth, int targetHeight)
+        {
+            var settings = new ProcessImageSettings {Width = targetWidth, Height = targetHeight, SaveFormat =FileFormat.Bmp};
+            if (croppedRectangle.HasValue)
+            {
+                settings.Crop = croppedRectangle.Value;
+                settings.ResizeMode = CropScaleMode.Crop;
+            }
+            else
+            {
+                settings.ResizeMode = CropScaleMode.Stretch;
+            }
+            using var stream = new MemoryStream();
+            MagicImageProcessor.ProcessImage(path, stream, settings);
+            return ValueFromBmpContent(stream.ToArray(), targetWidth, targetHeight);
+        }
+
+        //public static BitmapContent CropAndResize(Bitmap bmp, Rectangle croppedRectangle, int targetWidth, int targetHeight, InterpolationMode interpolationMode = InterpolationMode.NearestNeighbor)
+        //{
+        //    if (interpolationMode != InterpolationMode.NearestNeighbor)
+        //    {
+        //        using var croppedBitmap = PictureTools.CropImage(bmp, croppedRectangle);
+        //        using var resizedBitmap = PictureTools.ResizeImage(croppedBitmap, targetWidth, targetHeight, interpolationMode);
+        //        return ValueFomSingleRgbBitmap(resizedBitmap);
+        //    }
+
+        //    var src = ValueFomSingleRgbBitmap(bmp);
+
+        //    int destCountByChannel = targetHeight * targetWidth;
+        //    var dest = new BitmapContent(new[] { src.Shape[0], targetHeight, targetWidth }, new byte[src.Shape[0] * destCountByChannel]);
+        //    double zoomedWidth = ((double)targetWidth) / croppedRectangle.Width;
+        //    double zoomedHeight = ((double)targetHeight) / croppedRectangle.Height;
+
+        //    var srcPointer = src.SpanContent;
+        //    var destPointer = dest.SpanContent;
+        //    int destNexIdx = 0;
+        //    for (int c = 0; c < dest.Shape[0]; ++c)
+        //    {
+        //        for (int rowDest = 0; rowDest < dest.Shape[1]; ++rowDest)
+        //        {
+
+        //            int rowSrc = croppedRectangle.Top + (int)(rowDest / zoomedHeight + 0.5);
+        //            rowSrc = Math.Min(rowSrc, src.Shape[1] - 1);
+        //            var srcShift = src.Idx(c, rowSrc, 0);
+
+        //            for (int colDest = 0; colDest < dest.Shape[2]; ++colDest)
+        //            {
+        //                int colSrc = croppedRectangle.Left + (int)(colDest / zoomedWidth + 0.5);
+        //                colSrc = Math.Min(colSrc, src.Shape[2] - 1);
+        //                destPointer[destNexIdx++] = srcPointer[srcShift + colSrc];
+        //            }
+        //        }
+        //    }
+        //    //src.Dispose();
+        //    return dest;
+        //}
+
+
+        private static BitmapContent ValueFromBmpContent(byte[] bmpContent, int width, int height)
+        {
+            var shape = new[] { 3, height, width };
+            var result = new BitmapContent(shape, null);
+            var resultContent = result.SpanContent;
+            int rowSizeInBytes = ((3*width + 3) / 4) * 4; //each row must have a size that is a multiple of 4
+            var delta = bmpContent.Length - rowSizeInBytes * height;
+            int i = 0;
+            for (int row = height-1; row >=0; --row)
+            {
+                for (int col = 0; col < width; col++)
+                {
+                    int j = delta+3 *col+row* rowSizeInBytes;
+                    resultContent[i] = bmpContent[j+2]; //R
+                    resultContent[i + result.MultDim0] = bmpContent[j + 1]; //G
+                    resultContent[i + 2 * result.MultDim0] = bmpContent[j+0]; //B
+                    ++i;
+                }
+            }
+            return result;
+        }
         public static BitmapContent ValueFomSingleRgbBitmap(Bitmap bmp)
         {
             var width = bmp.Width;
             var height = bmp.Height;
             var rect = new Rectangle(0, 0, width, height);
             var bmpData = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-
             var shape = new []{3, height, width};
             var result = new BitmapContent(shape, null);
             var stride = bmpData.Stride;
-
             var resultContent = result.SpanContent;
-
             unsafe
             {
                 var imgPtr = (byte*)(bmpData.Scan0);

@@ -442,8 +442,8 @@ namespace SharpNet.Datasets
             }
             Parallel.For(0, entries.Length, Process);
 
-            Log.Info("found "+ elementIdToDescription.Count+" elements");
-            Log.Info(string.Join(Environment.NewLine, categoryNameToCount.OrderBy(e=>e.Key).Select(e=>e.Key +" : "+e.Value)));
+            Log.Debug("found "+ elementIdToDescription.Count+" elements");
+            //Log.Info(string.Join(Environment.NewLine, categoryNameToCount.OrderBy(e=>e.Key).Select(e=>e.Key +" : "+e.Value)));
             var categoryDescription = Enumerable.Range(0, yExpected.Shape[1]).Select(i=>i.ToString()).ToArray();
             return new DirectoryDataSet(
                 elementIdToPaths, 

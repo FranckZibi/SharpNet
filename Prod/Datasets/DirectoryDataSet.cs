@@ -3,11 +3,10 @@ using SharpNet.Pictures;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+
 // ReSharper disable UnusedMember.Local
 
 namespace SharpNet.Datasets
@@ -168,52 +167,47 @@ namespace SharpNet.Datasets
                 if (elementPaths.Count == 1 && Channels == 3)
                 {
                     //single file containing all channels of the element
-                    if (!System.IO.File.Exists(elementPaths[0]))
+                    var path = elementPaths[0];
+                    if (!System.IO.File.Exists(path))
                     {
                         return null;
                     }
-                    using var bmp = new Bitmap(elementPaths[0]);
-                    if (targetHeight != -1 && targetWidth != -1 && (bmp.Width != targetWidth || bmp.Height != targetHeight))
-                    {
-                        var interpolationMode = (bmp.Width * bmp.Height > targetWidth * targetHeight)
-                            ? InterpolationMode.NearestNeighbor //we are reducing the image size
-                            : InterpolationMode.Bicubic; //we are increasing the image
 
+                    var bmpSize = PictureTools.ImageSize(path);
+                    if (targetHeight != -1 && targetWidth != -1 && (bmpSize.Width != targetWidth || bmpSize.Height != targetHeight))
+                    {
                         //we need to resize the bitmap 
                         if (ResizeStrategy == ResizeStrategyEnum.ResizeToTargetSize)
                         {
-                            using var resizedBitmap = PictureTools.ResizeImage(bmp, targetWidth, targetHeight, interpolationMode);
-                            return BitmapContent.ValueFomSingleRgbBitmap(resizedBitmap);
+                            return BitmapContent.Resize(path, targetWidth, targetHeight);
                         }
                         else if (ResizeStrategy == ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion)
                         {
                             //const double toleranceInPercentage = 0.05;
                             const double toleranceInPercentage = 0.00;
                             var targetRatio = targetWidth / (double)targetHeight;
-                            var originalRatio = bmp.Width / (double)bmp.Height;
-                            Rectangle croppedRectangle;
+                            var originalRatio = bmpSize.Width / (double)bmpSize.Height;
+                            System.Drawing.Rectangle croppedRectangle;
                             if (targetRatio >= originalRatio)
                             {
-                                int cropWidth = bmp.Width;
-                                int cropHeight = Math.Min((int)((1 + toleranceInPercentage) * (cropWidth / targetRatio)), bmp.Height);
-                                int firstTopRow = (withDataAugmentation)?_rand.Next(0, bmp.Height - cropHeight+1):(bmp.Height - cropHeight) / 2;
-                                croppedRectangle =  new Rectangle(0, firstTopRow, cropWidth, cropHeight);
+                                int cropWidth = bmpSize.Width;
+                                int cropHeight = Math.Min((int)((1 + toleranceInPercentage) * (cropWidth / targetRatio)), bmpSize.Height);
+                                int firstTopRow = (withDataAugmentation)?_rand.Next(0, bmpSize.Height - cropHeight+1):(bmpSize.Height - cropHeight) / 2;
+                                croppedRectangle =  new System.Drawing.Rectangle(0, firstTopRow, cropWidth, cropHeight);
                             }
                             else
                             {
-                                int cropHeight = bmp.Height;
-                                int cropWidth = Math.Min((int)((1 + toleranceInPercentage) * (cropHeight * targetRatio)), bmp.Width);
-                                int firstLeftColumn = (withDataAugmentation) ? _rand.Next(0, bmp.Width - cropWidth+ 1) : (bmp.Width - cropWidth) / 2;
-                                croppedRectangle = new Rectangle(firstLeftColumn, 0, cropWidth, cropHeight);
+                                int cropHeight = bmpSize.Height;
+                                int cropWidth = Math.Min((int)((1 + toleranceInPercentage) * (cropHeight * targetRatio)), bmpSize.Width);
+                                int firstLeftColumn = (withDataAugmentation) ? _rand.Next(0, bmpSize.Width - cropWidth+ 1) : (bmpSize.Width - cropWidth) / 2;
+                                croppedRectangle = new System.Drawing.Rectangle(firstLeftColumn, 0, cropWidth, cropHeight);
                             }
-                            using var croppedBitmap = PictureTools.CropImage(bmp, croppedRectangle);
-                            using var resizedBitmap = PictureTools.ResizeImage(croppedBitmap, targetWidth, targetHeight, interpolationMode);
-                            return BitmapContent.ValueFomSingleRgbBitmap(resizedBitmap);
+                            return BitmapContent.CropAndResize(path, croppedRectangle, targetWidth, targetHeight);
                         }
 
                         throw new NotImplementedException("ResizeStrategy " + ResizeStrategy + " is not supported");
                     }
-                    return BitmapContent.ValueFomSingleRgbBitmap(bmp);
+                    return BitmapContent.ValueFomSingleRgbBitmap(path);
                 }
 
                 Debug.Assert(Channels == elementPaths.Count);

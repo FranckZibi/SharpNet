@@ -252,7 +252,7 @@ namespace SharpNet.Datasets
         /// <param name="targetHeight"></param>
         /// <param name="targetWidth"></param>
         /// <returns></returns>
-        private ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
+        public ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
         {
             return ImageStatistic.ValueOf(OriginalElementContent(elementId, targetHeight, targetWidth, false));
         }
@@ -436,75 +436,12 @@ namespace SharpNet.Datasets
             alreadyComputedMiniBatchId = miniBatchId;
         }
 
-        //public void BenchmarkDataAugmentation(int miniBatchSize, bool useMultiThreading)
-        //{
-        //    var conf = Networks.WideResNetBuilder.WRN_CIFAR10();
-        //    var dataAugmentationConfig = conf.DA;
-        //    //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
-        //    var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
-        //    var xMiniBatchShape = XMiniBatch_Shape(miniBatchSize);
-        //    var yMiniBatchShape = YMiniBatch_Shape(miniBatchSize);
-        //    var rand = new Random(0);
-        //    var shuffledElementId = Enumerable.Range(0, Count).ToArray();
-        //    Utils.Shuffle(shuffledElementId, rand);
-
-        //    xOriginalNotAugmentedMiniBatchCpu.Reshape(xMiniBatchShape);
-        //    xBufferMiniBatchCpu.Reshape(xMiniBatchShape);
-        //    yBufferMiniBatchCpu.Reshape(yMiniBatchShape);
-        //    yBufferMiniBatchCpu.ZeroMemory();
-        //    var swLoad = new Stopwatch();
-        //    var swDA = new Stopwatch();
-
-
-        //    int count = 0;
-        //    for (int firstELementId = 0; firstELementId <= (Count - miniBatchSize); firstELementId += miniBatchSize)
-        //    {
-        //        count += miniBatchSize;
-        //        int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstELementId + miniBatchIdx];
-        //        int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
-        //        ImageStatistic MiniBatchIdxToImageStatistic(int miniBatchIdx) => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx));
-
-        //        swLoad.Start();
-
-        //        if (useMultiThreading)
-        //        {
-        //            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu));
-        //        }
-        //        else
-        //        {
-        //            for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
-        //            {
-        //                LoadAt(MiniBatchIdxToElementId(indexInMiniBatch), indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu);
-        //            }
-        //        }
-        //        swLoad.Stop();
-        //        swDA.Start();
-        //        if (useMultiThreading)
-        //        {
-        //            Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
-        //        }
-        //        else
-        //        {
-        //            for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
-        //            {
-        //                imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch));
-        //            }
-
-        //        }
-        //        swDA.Stop();
-        //    }
-        //    var comment = "count=" + count.ToString("D4") + ",miniBatchSize=" + miniBatchSize.ToString("D4") + ", useMultiThreading=" + (useMultiThreading ? 1 : 0);
-        //    comment += " ; load into memory took " + swLoad.ElapsedMilliseconds.ToString("D4") + " ms";
-        //    comment += " ; data augmentation took " + swDA.ElapsedMilliseconds.ToString("D4") + " ms";
-        //    Console.WriteLine(comment);
-        //}
-
         private static bool IsValidY(double x)
         {
             return Math.Abs(x) <= 1e-9 || Math.Abs(x - 1.0) <= 1e-9;
         }
 
-        private Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
+        public Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
         {
             var rand = _rands[indexInMiniBatch % _rands.Length];
             return rand;

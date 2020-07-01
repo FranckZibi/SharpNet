@@ -7,6 +7,9 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using SharpNet.CPU;
+using Image = System.Drawing.Image;
+using Rectangle = System.Drawing.Rectangle;
+using Size = System.Drawing.Size;
 
 namespace SharpNet.Pictures
 {
@@ -62,6 +65,8 @@ namespace SharpNet.Pictures
         {
             Save(AsBitmap(xTrain, toByte, pictureIndex), Path.Combine(directory, filePrefix + "_" + pictureIndex.ToString("D3") + "_" + fileSuffix));
         }
+
+
         /// <summary>
         /// Resize the image to the specified width and height.
         /// from: https://stackoverflow.com/questions/1922040/how-to-resize-an-image-c-sharp/24199315
@@ -83,33 +88,34 @@ namespace SharpNet.Pictures
 
             destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
 
-            using (var graphics = Graphics.FromImage(destImage))
-            {
-                graphics.CompositingMode = CompositingMode.SourceCopy;
-                graphics.CompositingQuality = CompositingQuality.HighQuality;
-                //InterpolationMode.NearestNeighbor:    5.5s
-                //InterpolationMode.Bilinear:           8.8s
-                //InterpolationMode.Bicubic:            11s
-                //InterpolationMode.HighQualityBicubic: 19s
-                graphics.InterpolationMode = interpolationMode;
-                graphics.SmoothingMode = SmoothingMode.HighQuality; //no change
-                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality; //no change
-                using (var wrapMode = new ImageAttributes())
-                {
-                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
-                }
-            }
+            using var graphics = Graphics.FromImage(destImage);
+            graphics.CompositingMode = CompositingMode.SourceCopy;
+            graphics.CompositingQuality = CompositingQuality.HighQuality;
+            //InterpolationMode.NearestNeighbor:    5.5s
+            //InterpolationMode.Bilinear:           8.8s
+            //InterpolationMode.Bicubic:            11s
+            //InterpolationMode.HighQualityBicubic: 19s
+            graphics.InterpolationMode = interpolationMode;
+            graphics.SmoothingMode = SmoothingMode.HighQuality; //no change
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality; //no change
+            using var wrapMode = new ImageAttributes();
+            wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+            graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
             return destImage;
         }
 
-        public static Bitmap CropImage(Bitmap src, Rectangle croppedRectangle)
-        {
-            var croppedBitmap = new Bitmap(croppedRectangle.Width, croppedRectangle.Height);
-            using var g = Graphics.FromImage(croppedBitmap);
-            g.DrawImage(src, new Rectangle(0, 0, croppedBitmap.Width, croppedBitmap.Height), croppedRectangle,GraphicsUnit.Pixel);
-            return croppedBitmap;
-        }
+        //public static Bitmap CropImage(Bitmap src, Rectangle croppedRectangle)
+        //{
+        //    var croppedBitmap = new Bitmap(croppedRectangle.Width, croppedRectangle.Height);
+        //    using var graphics = Graphics.FromImage(croppedBitmap);
+        //    graphics.CompositingMode = CompositingMode.SourceCopy;
+        //    graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+        //    graphics.DrawImage(src, new Rectangle(0, 0, croppedBitmap.Width, croppedBitmap.Height), croppedRectangle, GraphicsUnit.Pixel);
+        //    return croppedBitmap;
+        //    //discarded : slower then above
+        //    //var bmpImage = new Bitmap(src);
+        //    //return bmpImage.Clone(croppedRectangle, bmpImage.PixelFormat);
+        //}
 
         private static Bitmap AsBitmap<T>(CpuTensor<T> xTrain, Func<T, byte> toByte, int pictureIndex) where T: struct
         {

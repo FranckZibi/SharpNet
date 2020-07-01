@@ -878,7 +878,7 @@ namespace SharpNet.Networks
         }
 
 
-        private int[] XMiniBatch_Shape(int miniBatchSize)
+        public int[] XMiniBatch_Shape(int miniBatchSize)
         {
             Debug.Assert(Layers.Count>=1);
             Debug.Assert(Layers[0] is InputLayer);
