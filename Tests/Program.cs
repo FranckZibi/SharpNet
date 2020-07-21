@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
-using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -34,6 +34,10 @@ namespace SharpNetTests
             return true;
         }
 
+
+        private static string ImageDatabaseManagementPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"AppData\Roaming\ImageDatabaseManagement");
+
+
         private static void Main()
         {
             SharpNet.Utils.ConfigureGlobalLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
@@ -50,19 +54,28 @@ namespace SharpNetTests
             //235*200 :  0.65% errors (310 epochs, lr=0.02)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200615_0848_310.txt");
             //470*400 :  1.11% errors (150 epochs, lr=0.02)
-            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_400_470_20200620_1427_150.txt");
-            //new CancelDatabase().CreatePredictionFile(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement\Prediction_def.csv");return;
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_400_470_20200620_1427_310.txt");
+            //470*400 :  0.48% errors (310 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_400_470_20200620_1427_310.txt");
+            //470*400 :  0.18% errors (630 epochs, lr=0.02)
+            //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Cancel_400_470_20200715_2244_630.txt");
+            //new CancelDatabase().CreatePredictionFile(Path.Combine(ImageDatabaseManagementPath, "Prediction_def.csv"));return;
+
 
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
-            //builder.CreateIDM(System.IO.Path.Combine(@"C:\Users\fzibi\AppData\Roaming\ImageDatabaseManagement", "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));
+            //builder.CreateIDM(Path.Combine(ImageDatabaseManagementPath, "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));
             //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures");
             //using var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
-            //network.Predict(dataSet, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Prediction.csv"));
+            //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
+
+
+
             //return;
 
-            //EfficientNetTests_Cancel(true);
+            EfficientNetTests_Cancel(true);
+
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
@@ -76,6 +89,7 @@ namespace SharpNetTests
             //new TestGradienEfficientNetTestst().TestGradientForDenseLayer(true, true);
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
+            //new NonReg.TestBenchmark().BenchmarkDataAugmentation();
         }
 
         #region DenseNet Training
@@ -118,21 +132,48 @@ namespace SharpNetTests
 
         private static void EfficientNetTests_Cancel(bool useMultiGpu)
         {
-            //var targetHeight = 470; var targetWidth = 400;var batchSize = 13;var defaultInitialLearningRate = 0.01;
-            var targetHeight = 235;var targetWidth = 200;var batchSize = 50;var defaultInitialLearningRate = 0.02;
-            //var targetHeight = 118;var targetWidth = 100;var batchSize = 200;var defaultInitialLearningRate = 0.05;
-            //var targetHeight = 59;var targetWidth = 50;var batchSize = 800;var defaultInitialLearningRate = ?;
+            var targetHeight = 470; var targetWidth = 400;var batchSize = 20;var defaultInitialLearningRate = 0.01;
+            //var targetHeight = 235;var targetWidth = 200;var batchSize = 80;var defaultInitialLearningRate = 0.02;
+            //var targetHeight = 118;var targetWidth = 100;var batchSize = 300;var defaultInitialLearningRate = 0.05;
+            //var targetHeight = 59;var targetWidth = 50;var batchSize = 1200;var defaultInitialLearningRate = ?;
+            
             if (useMultiGpu) { batchSize *= GPUWrapper.GetDeviceCount(); }
+
+
+            int numEpochs = 150;
 
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {
-                () =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.BatchSize = batchSize;p.NumEpochs = 150;p.ExtraDescription = "_Imagenet_"+targetWidth+"_"+targetHeight;return p;},
+                () =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_Augment_SVHN"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.CutoutPatchPercentage=0 ;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_NoCutout"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.Config.WithSGD(0.9, true);p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_nesterov_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.DEFAULT;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_Augment_DEFAULT"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.025;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_lr_0_25_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.015;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_lr_0_15_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.CutoutPatchPercentage=0.05 ;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_Cutout_0_05_"+targetWidth+"_"+targetHeight;return p;},
+
+
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.01;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_lr_0_01_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.04;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_lr_0_04_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.CutoutPatchPercentage=0 ;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_NoCutout"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.CutoutPatchPercentage=0.05 ;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_0_05_Cutout"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_Cancel_AutoAugment_ImageNet"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.015;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_lr_0_15_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.025;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_lr_0_25_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.Config.WithSGD(0.9, true);p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_nesterov_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.BatchNormEpsilon=0.0001;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_BatchNormEpsilon_0_0001_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+
+
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.InitialLearningRate = 0.01;p.BatchSize = batchSize;p.NumEpochs = 5;p.ExtraDescription = "_0_01";return p;},
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.BatchSize = batchSize;p.NumEpochs = 150;p.ExtraDescription = "";return p;},
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.InitialLearningRate = 0.01;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_01";return p;},
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.InitialLearningRate = 0.30;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_30";return p;},
                 //() =>{var p = EfficientNetBuilder.EfficientNet_Cancel();p.InitialLearningRate = 0.10;p.BatchSize = batchSize;p.NumEpochs = 30;p.ExtraDescription = "_0_10";return p;},
             };
+
+
+            //networkMetaParameters.Clear();for (int i = 0; i < 4; ++i){int j = i;networkMetaParameters.Add(() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.BatchSize = batchSize;p.NumEpochs = numEpochs;p.ExtraDescription = "_V"+j+(useMultiGpu?"_MultiThreaded":"");return p;});}
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             var networkGeometries = new List<Action<EfficientNetBuilder, int>>
@@ -145,18 +186,21 @@ namespace SharpNetTests
         private static void Train_Cancel_EfficientNet(EfficientNetBuilder p, int targetHeight, int targetWidth)
         {
             var database = new CancelDatabase();
-            var rootPrediction = CancelDatabase.Hierarchy.RootPrediction();
             //TODO Test with selection of only matching size input in the training set
             //using var dataset = database.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.ResizeToHeightAndWidthSizeKeepingSameProportionWith5PercentTolerance);
             using var dataset = database.ExtractDataSet(e=>CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
             using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.9); //90% for training,  10% for validation
+
+            var rootPrediction = CancelDatabase.Hierarchy.RootPrediction();
             using var network = p.EfficientNetB0(true, "", new[] { trainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
             network.SetSoftmaxWithHierarchy(rootPrediction);
-            Network.Log.Debug(database.Summary());
-            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1522_30.txt"));
-            //network.LoadParametersFromH5File(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_0_05_200_235_20200603_0747_150.h5"), NetworkConfig.CompatibilityModeEnum.TensorFlow1);
+            //network.LoadParametersFromH5File(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_400_470_20200620_1427_310.h5"), NetworkConfig.CompatibilityModeEnum.TensorFlow1);
+
+            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Cancel_400_470_20200713_1809_580.txt"));
+
             //network.FindBestLearningRate(cancelDataset, 1e-5, 10, p.BatchSize);return;
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            Network.Log.Debug(database.Summary());
             network.Fit(trainingAndValidation.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingAndValidation.Test);
         }
         #endregion

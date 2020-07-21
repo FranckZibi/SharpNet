@@ -97,7 +97,7 @@ namespace SharpNet.Networks
         /// If == 0
         ///     => the network will be saved after each iteration
         /// </summary>
-        public int AutoSaveIntervalInMinutes { get; set; } = 5*60;
+        public int AutoSaveIntervalInMinutes { get; set; } = 3*60;
 
         /// <summary>
         /// name of the the first layer for which we want ot freeze the weights

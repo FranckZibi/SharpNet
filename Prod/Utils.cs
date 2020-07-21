@@ -419,16 +419,24 @@ namespace SharpNet
 
         public static void ConfigureGlobalLog4netProperties(string logDirectory, string logFile)
         {
-            ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties);
-            XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
+            lock (lockConfigureLog4netProperties)
+            {
+                ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties);
+                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
+            }
         }
 
 
         public static void ConfigureThreadLog4netProperties(string logDirectory, string logFile)
         {
-            ConfigureLog4netProperties(logDirectory, logFile, ThreadContext.Properties);
-            XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
+            lock (lockConfigureLog4netProperties)
+            {
+                ConfigureLog4netProperties(logDirectory, logFile, ThreadContext.Properties);
+                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
+            }
         }
+
+        private static readonly object lockConfigureLog4netProperties = new object();
 
         private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)
         {

@@ -76,9 +76,13 @@ namespace SharpNet.Networks
         /// </param>
         public Network(NetworkConfig config, List<int> resourceIds, Network masterNetworkIfAny = null)
         {
+            //Utils.ConfigureGlobalLog4netProperties(config.LogDirectory, config.LogFile);
+            Utils.ConfigureThreadLog4netProperties(config.LogDirectory, config.LogFile);
+
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
             Debug.Assert(masterNetworkIfAny == null || resourceIds.Count == 1);
             Config = config;
+
             _masterNetworkIfAny = masterNetworkIfAny;
             _resourceIds = resourceIds.ToList();
             GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0], config.cuDNNVersion) : null;
@@ -101,7 +105,6 @@ namespace SharpNet.Networks
                 }
             }
 
-            Utils.ConfigureThreadLog4netProperties(Config.LogDirectory, Config.LogFile);
         }
 
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
@@ -1053,7 +1056,7 @@ namespace SharpNet.Networks
 
         /// <summary>
         /// Change the last activation layer from SoftMax to SoftMaxWithHierarchy
-        /// (the input has categories with sub categories)
+        /// (the output has categories with sub categories)
         /// </summary>
         /// <param name="activationParameters"></param>
         public void SetSoftmaxWithHierarchy(float[] activationParameters)

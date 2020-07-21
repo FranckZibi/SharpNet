@@ -83,7 +83,7 @@ namespace SharpNet.Networks
 
             //Data augmentation
             var da = builder.Config.DataAugmentation;
-            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
+            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;
             //da.WidthShiftRangeInPercentage = 0.1;
             //da.HeightShiftRangeInPercentage = 0.1;
             da.HorizontalFlip = false;

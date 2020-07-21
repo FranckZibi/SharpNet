@@ -197,30 +197,19 @@ namespace SharpNet.Datasets
             //    e.SuggestedCancel = "";
             //}
 
-            //var xShape = network.Layers[0].OutputShape(1);
-            //int targetHeight = xShape[2];
-            //int targetWidth = xShape[3];
-
-            using var dataSet = ExtractDataSet(e => true
-                                //e.SuggestedCancel == ""
-                                &&IsValidNonEmptyCancel(e.Cancel)
-                                //IsValidNonEmptyCancel(e.Cancel) && IsValidNonEmptyCancel(e.SuggestedCancel) && (e.CancelComment == "KO")
-
-                                //&&e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05)
-
-
-                                ,
-                                ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion
-                                );
+            using var dataSet = ExtractDataSet(e => IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
             var p = network.Predict(dataSet);
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1);
                 var sha1 = dataSet.ElementIdToDescription(elementId);
-                var predictedCancelName = Hierarchy.ExtractPredictionWithProba(rowWithPrediction.AsReadonlyFloatCpuContent).Item1;
+                var predictionWithProba = Hierarchy.ExtractPredictionWithProba(rowWithPrediction.AsReadonlyFloatCpuContent);
+                var predictedCancelName = predictionWithProba.Item1;
+                var predictedCancelProba = predictionWithProba.Item2;
                 var e = _database[sha1];
                 e.SuggestedCancel = predictedCancelName;
                 e.CancelComment = "";
+                e.IdComment = predictedCancelProba.ToString(CultureInfo.InvariantCulture);
                 if (IsValidNonEmptyCancel(e.Cancel) && IsValidNonEmptyCancel(e.SuggestedCancel))
                 {
                     e.CancelComment = IsOkPrediction(e.Cancel, e.SuggestedCancel) ? "OK" : "KO";
@@ -232,7 +221,7 @@ namespace SharpNet.Datasets
 
         public static Network GetDefaultNetwork(int[] overridenResourceIdsIfAny = null)
         {
-            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_200_235_20200615_0848_310.txt"), overridenResourceIdsIfAny);
+            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Cancel_400_470_20200715_2244_630.txt"), overridenResourceIdsIfAny);
             return network;
         }
 
@@ -354,7 +343,7 @@ namespace SharpNet.Datasets
                     e.Cancel,
                     e.SuggestedCancel,
                     isOkPrediction? "OK" : "KO",
-                    "",
+                    e.IdComment,
                     "",
                     "",
                     "",
