@@ -72,6 +72,79 @@ namespace SharpNet.CPU
         /// </summary>
         private bool HasPinnedMemory => !IsOwnerOfMemory || _hostPinnedMemory != null;
 
+        //this (= 'y') shape :      (batchSize, maxWordCountBySentence, embeddingDim)
+        //'x' shape:                (batchSize, maxWordCountBySentence)
+        //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
+        public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding)
+        {
+            var y = this as CpuTensor<float>;
+            Debug.Assert(x.Shape.Length == 2);
+            Debug.Assert(wordEmbedding.Shape.Length == 2);
+            Debug.Assert(y.Shape.Length == 3);
+            Debug.Assert(y.Shape[0] == x.Shape[0]); //same batch size
+            Debug.Assert(y.Shape[1] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(y.Shape[2] == wordEmbedding.Shape[1]); //same embedding dimension
+            var maxWordCountBySentence = x.Shape[1];
+            var embeddingDim = wordEmbedding.Shape[1];
+
+            var xCpu = (CpuTensor<float>)x;
+            var wordEmbeddingCpu = (CpuTensor<float>)wordEmbedding;
+
+            void ProcessBatch(int batchIndex)
+            {
+                for (int wordInSentence = 0; wordInSentence < maxWordCountBySentence; ++wordInSentence)
+                {
+                    int wordIndex = (int)(xCpu.Get(batchIndex, wordInSentence) + 0.1);
+                    int indexInWordEmbedding = wordEmbeddingCpu.Idx(wordIndex, 0);
+                    int indexInY = y.Idx(batchIndex, wordInSentence, 0);
+                    wordEmbeddingCpu.CopyTo(indexInWordEmbedding, y, indexInY, embeddingDim);
+                }
+            }
+            Parallel.For(0, x.Shape[0], ProcessBatch);
+        }
+
+        //this (= dW) shape:        (VocabularySize, EmbeddingDim)
+        // x shape :                (batchSize,  maxWordCountBySentence)
+        // dy shape :               (batchSize,  maxWordCountBySentence, EmbeddingDim)
+        public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy)
+        {
+            var dW = this as CpuTensor<float>;
+            var xCpu = (CpuTensor<float>)x;
+            var dyCpu = (CpuTensor<float>)dy;
+
+            Debug.Assert(dW.Shape.Length == 2);
+            Debug.Assert(x.Shape.Length == 2);
+            Debug.Assert(dy.Shape.Length == 3);
+            Debug.Assert(dy.Shape[0] == x.Shape[0]); //same batch size
+            Debug.Assert(dy.Shape[1] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(dy.Shape[2] == dW.Shape[1]); //same embedding dimension
+
+            dW.ZeroMemory();
+            var batchSize = dy.Shape[0];
+            var maxWordCountBySentence = dy.Shape[1];
+            var embeddingDim = dW.Shape[1];
+
+            var xSpan = x.AsFloatCpuSpan;
+            var dWSpan = dW.AsFloatCpuSpan;
+            var dySpan = dy.AsFloatCpuSpan;
+
+            for (int batchIndex = 0; batchIndex < batchSize; ++batchIndex)
+            {
+                for (int wordInSentence = 0; wordInSentence < maxWordCountBySentence; ++wordInSentence)
+                {
+                    int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, wordInSentence)] + 0.1);
+                    int indexInDw = dW.Idx(wordIndex, 0);
+                    int indexIndY = dyCpu.Idx(batchIndex, wordInSentence, 0);
+                    for (int wordEmbeddingIndex = 0; wordEmbeddingIndex < embeddingDim; ++wordEmbeddingIndex)
+                    {
+                        dWSpan[indexInDw] += dySpan[indexIndY];
+                        ++indexInDw;
+                        ++indexIndY;
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// resize the current Cpu tensor to a different shape (both bigger or smaller)
         /// </summary>

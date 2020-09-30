@@ -545,6 +545,7 @@ namespace SharpNet.GPU
             return cloned;
         }
 
+
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
@@ -846,6 +847,46 @@ namespace SharpNet.GPU
         {
             return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);
         }
+
+        //this (= 'y') shape :      (batchSize, maxWordCountBySentence, embeddingDim)
+        //'x' shape:                (batchSize, maxWordCountBySentence)
+        //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
+        public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding)
+        {
+            var y = this;
+            Debug.Assert(x.Shape.Length == 2);
+            Debug.Assert(wordEmbedding.Shape.Length == 2);
+            Debug.Assert(y.Shape.Length == 3);
+            Debug.Assert(y.Shape[0] == x.Shape[0]); //same batch size
+            Debug.Assert(y.Shape[1] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(y.Shape[2] == wordEmbedding.Shape[1]); //same embedding dimension
+            int batchSize = y.Shape[0];
+            int maxWordCountBySentence = y.Shape[1];
+            int embeddingDim = y.Shape[2];
+            int vocabularySize = wordEmbedding.Shape[0];
+            _wrapper.RunKernel("WordEmbeddingForwardPropagation", x.Count, new object[] { batchSize, maxWordCountBySentence, embeddingDim, vocabularySize, y, x, wordEmbedding});
+        }
+
+        public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy)
+        {
+            var dW = this;
+
+            Debug.Assert(dW.Shape.Length == 2);
+            Debug.Assert(x.Shape.Length == 2);
+            Debug.Assert(dy.Shape.Length == 3);
+            Debug.Assert(dy.Shape[0] == x.Shape[0]); //same batch size
+            Debug.Assert(dy.Shape[1] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(dy.Shape[2] == dW.Shape[1]); //same embedding dimension
+
+
+            dW.ZeroMemory();
+            int batchSize = dy.Shape[0];
+            int maxWordCountBySentence = dy.Shape[1];
+            int embeddingDim = dy.Shape[2];
+            int vocabularySize = dW.Shape[0];
+            _wrapper.RunKernel("WordEmbeddingBackwardPropagation", x.Count, new object[] { batchSize, maxWordCountBySentence, embeddingDim, vocabularySize, dW, x, dy});
+        }
+
         protected override int DeviceId => _wrapper.DeviceId;
         public override void ZeroMemory()
         {

@@ -53,7 +53,7 @@ namespace SharpNet.Networks
             FreeAllMemory();
             Debug.Assert(_all_allocated_Y.Count == 0);
             var stopwatchDico = isTraining ? _forwardPropagationTrainingTime : _forwardPropagationInferenceTime;
-            ((InputLayer)_layers[0]).SetInputHeightAndWidth(X.Shape[2], X.Shape[3]);
+            ((InputLayer)_layers[0]).SetInputHeightAndWidth(X.Shape.Length>=3?X.Shape[2]:-1, X.Shape.Length >= 4 ? X.Shape[3]:-1);
             //referenceCountToLayer[layerIndex] : number of layers using the output of layer 'layerIndex'
             var referenceCountToLayer = new List<int>();
             int batchSize = X.Shape[0];

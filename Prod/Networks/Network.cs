@@ -168,12 +168,19 @@ namespace SharpNet.Networks
         #region network construction: adding layers
         public Network Input(int[] shape_CHW, string layerName = "")
         {
-            Layers.Add(new InputLayer(shape_CHW[0], shape_CHW[1], shape_CHW[2], this, layerName));
-            return this;
+            return Input(shape_CHW[0], shape_CHW[1], shape_CHW[2], layerName);
         }
         public Network Input(int channelCount, int h, int w, string layerName = "")
         {
+            Debug.Assert(Layers.Count == 0);
             Layers.Add(new InputLayer(channelCount, h, w, this, layerName));
+            return this;
+        }
+        public Network InputAndEmbedding(int maxWordsBySentence, int vocabularySize, int embeddingDim, double lambdaL2Regularization, string layerName = "")
+        {
+            Debug.Assert(Layers.Count == 0);
+            Input(maxWordsBySentence, -1, -1);
+            Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, lambdaL2Regularization, true, this, layerName));
             return this;
         }
         public Network SimpleRnnLayer(int xLength, int aLength, int yLength, bool returnSequences, string layerName = "")
@@ -190,6 +197,7 @@ namespace SharpNet.Networks
             Layers.Add(fullyConnectedLayer);
             return this;
         }
+
         public Network Convolution_BatchNorm(int filtersCount, int f, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
         {
             return Convolution(filtersCount, f, stride, paddingType, lambdaL2Regularization, false)
@@ -908,7 +916,7 @@ namespace SharpNet.Networks
             {
                 return _bytesByBatchSize.Value;
             }
-            Debug.Assert(xShape.Length == 4);   // tensor of shape (n, c, h, w)
+            Debug.Assert(xShape.Length == 2 || xShape.Length == 4);   // tensor of shape (n, c) or of shape (n, c, h, w)
             Debug.Assert(xShape[0] == 1);       //batch size must be  1
             using var mockMemoryPooling = new TensorMemoryPool(null, true);
             using var propagationManager = new PropagationManager(Layers, mockMemoryPooling, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);

@@ -207,6 +207,43 @@ namespace SharpNetTests.NonReg
 
 
         [Test, TestCaseSource(nameof(GetTestCases))]
+        public void TestEmbedding(List<int> resourceIds)
+        {
+            const int numEpochs = 10;
+            const double learningRate = 0.1;
+            var momentum = 0.9;
+            int vocabularySize = 3;
+            int embeddingDim = 5;
+            int maxWordsBySentence = 4;
+
+            var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1, 2, 1, 1], [2, 2, 1, 1]], numpy.float)");
+            var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1], [0]], numpy.float)");
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
+            network.Config.WithSGD(momentum, false);
+            network
+                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
+                .Flatten()
+                .Dense(1, 0.0)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+
+            FromNumpyArray("[[-0.020802486687898636, -0.02934335544705391, 0.0035390742123126984, 0.006125748157501221, -0.008332550525665283], [0.0307827927172184, -0.0006774887442588806, 0.0498129241168499, 0.019673515111207962, -0.037462640553712845],[0.020981673151254654, 0.016241561621427536, 0.007225655019283295, -0.013524651527404785, -0.007948171347379684]]")
+                .CopyTo(((EmbeddingLayer)network.Layers[1]).Weights);
+            FromNumpyArray("[[0.05924016237258911], [-0.2979503273963928], [0.39012110233306885], [0.2964285612106323], [0.15513628721237183], [0.032458603382110596], [-0.5190843939781189], [0.3992980718612671], [-0.03236877918243408], [-0.12109190225601196], [0.4128159284591675], [0.14623379707336426], [-0.5325161814689636], [0.38246530294418335], [-0.4191945493221283], [0.4918263554573059], [-0.30854684114456177], [0.1737397313117981], [-0.40517792105674744], [-0.3750319480895996]]")
+                .CopyTo(((DenseLayer)network.Layers[3]).Weights);
+
+            //predictions before training
+            TestPredict(network, X, "[[0.5143477916717529], [0.5074766874313354]]");
+            TestLossAccuracy(network, X, Y, 0.6865343451499939, 0.5);
+
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
+
+            //predictions after training
+            TestPredict(network, X, "[[0.5880932211875916], [0.3227476179599762]]");
+            TestLossAccuracy(network, X, Y, 0.4602903425693512, 1.0);
+        }
+
+
+        [Test, TestCaseSource(nameof(GetTestCases))]
         public void TestLeakyReluActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
             var learningRate = 0.1;

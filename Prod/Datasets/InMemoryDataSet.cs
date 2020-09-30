@@ -35,19 +35,28 @@ namespace SharpNet.Datasets
             CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             Debug.Assert(indexInBuffer >= 0 &&  indexInBuffer < xBuffer.Shape[0]);
-            Debug.Assert(_x.Shape[1] == xBuffer.Shape[1]); //same number of channels
-            Debug.Assert(_x.Shape[2] == xBuffer.Shape[2]); //same height
-            Debug.Assert(_x.Shape[3] == xBuffer.Shape[3]); //same width
+            //same number of channels / same height  / same width
+            //only the first dimension (batch size) can be different
+            Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer)); 
             var pictureInputIdx = _x.Idx(elementId);
             var pictureOutputIdx = xBuffer.Idx(indexInBuffer);
             _x.CopyTo(pictureInputIdx, xBuffer, pictureOutputIdx, xBuffer.MultDim0);
 
-            //we update yBuffer
-            var categoryIndex = ElementIdToCategoryIndex(elementId);
-            for (int cat = 0; cat < CategoryCount; ++cat)
+
+            if (CategoryCount == 1)
             {
-                yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
+                yBuffer?.Set(indexInBuffer, 0, Y.Get(indexInBuffer,0));
             }
+            else
+            {
+                //we update yBuffer
+                var categoryIndex = ElementIdToCategoryIndex(elementId);
+                for (int cat = 0; cat < CategoryCount; ++cat)
+                {
+                    yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
+                }
+            }
+
         }
 
         public override int Count => _x.Shape[0];

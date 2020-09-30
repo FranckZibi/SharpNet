@@ -217,22 +217,22 @@ namespace SharpNet.Pictures
         //}
 
 
-        private static BitmapContent ValueFromBmpContent(byte[] bmpContent, int width, int height)
+        private static BitmapContent ValueFromBmpContent(byte[] bmpData, int width, int height)
         {
             var shape = new[] { 3, height, width };
             var result = new BitmapContent(shape, null);
             var resultContent = result.SpanContent;
             int rowSizeInBytes = ((3*width + 3) / 4) * 4; //each row must have a size that is a multiple of 4
-            var delta = bmpContent.Length - rowSizeInBytes * height;
+            var delta = bmpData.Length - rowSizeInBytes * height;
             int i = 0;
             for (int row = height-1; row >=0; --row)
             {
                 for (int col = 0; col < width; col++)
                 {
                     int j = delta+3 *col+row* rowSizeInBytes;
-                    resultContent[i] = bmpContent[j+2]; //R
-                    resultContent[i + result.MultDim0] = bmpContent[j + 1]; //G
-                    resultContent[i + 2 * result.MultDim0] = bmpContent[j+0]; //B
+                    resultContent[i] = bmpData[j+2]; //R
+                    resultContent[i + result.MultDim0] = bmpData[j + 1]; //G
+                    resultContent[i + 2 * result.MultDim0] = bmpData[j+0]; //B
                     ++i;
                 }
             }

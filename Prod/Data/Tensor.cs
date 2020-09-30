@@ -38,6 +38,7 @@ namespace SharpNet.Data
 
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
+        public bool SameShapeExceptFirstDimension(Tensor b) { return SameShapeExceptFirstDimension(b.Shape); }
         public override string ToString()
         {
             return ToString(false);
@@ -56,6 +57,36 @@ namespace SharpNet.Data
 
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
+
+        /// <summary>
+        /// this (=y) shape is (batchSize, maxWordCountBySentence, embeddingDim)
+        /// </summary>
+        /// <param name="x">tensor of shape (batchSize, maxWordCountBySentence)
+        /// row is the sentence Id
+        /// col is the word position in this sentence
+        /// x[row, col] contains the wordIndex (in the word embedding tensor) of the word at position 'row' in sentence 'col'
+        /// each wordIndex is in [1, VocabularySize-1]
+        /// </param>
+        /// <param name="wordEmbedding">tensor of shape (vocabularySize, associateWordEmbedding)
+        /// the element at row 'wordIndex' is the embedding associate with the word at index 'wordIndex'
+        /// vocabularySize = 1+number of distinct words in the embedding
+        /// </param>
+        public abstract void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding);
+
+        /// <summary>
+        /// Initialize the 'this' tensor with the gradient of the word embedding weights (= dW)
+        /// 'this' shape is (VocabularySize, EmbeddingDim) (same as word embeddings)
+        /// </summary>
+        /// <param name="x">tensor of shape (batchSize, maxWordCountBySentence)
+        /// row is the sentence Id
+        /// col is the word position in this sentence
+        /// x[row, col] contains the wordIndex (in the word embedding tensor) of the word at position 'row' in sentence 'col'
+        /// each wordIndex is in [1, VocabularySize-1]
+        /// </param>
+        /// <param name="dy">tensor of shape (batchSize, maxWordCountBySentence, EmbeddingDim)
+        /// </param>
+        public abstract void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy);
+
         public int Count => Shape[0] * MultDim0;
         public int Dimension => Shape.Length;
         protected ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
@@ -625,6 +656,7 @@ namespace SharpNet.Data
             }
         }
         protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
+        protected bool SameShapeExceptFirstDimension(int[] shape) { return Shape.Skip(1).SequenceEqual(shape.Skip(1)); }
         protected void RecomputeMultDim()
         {
             _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;

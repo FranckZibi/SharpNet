@@ -30,8 +30,6 @@ namespace SharpNet.Layers
         public InputLayer(int c, int h, int w, Network network, string layerName) : base(network, new int[]{}, layerName)
         {
             Debug.Assert(c>=1);
-            Debug.Assert(h>=1);
-            Debug.Assert(w>=1);
             _c = c;
             _h = h;
             _w = w;
@@ -67,7 +65,18 @@ namespace SharpNet.Layers
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
-        public override int[] OutputShape(int batchSize) { return new[] { batchSize, _c, _h, _w }; }
+        public override int[] OutputShape(int batchSize)
+        {
+            if (_h < 0)
+            {
+                return new[] { batchSize, _c};
+            }
+            if (_w < 0)
+            {
+                return new[] { batchSize, _c, _h};
+            }
+            return new[] { batchSize, _c, _h, _w };
+        }
         public override string ToString()
         {
             return LayerName + ": " + Utils.ShapeToStringWithBatchSize(OutputShape(1));

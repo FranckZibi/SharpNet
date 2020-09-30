@@ -100,7 +100,8 @@ namespace SharpNet.Data
         public override void SetValue(float sameValue){throw new NotImplementedException();}
         public override float[] ContentAsFloatArray(){throw new NotImplementedException();}
         public override Tensor Clone() {throw new NotImplementedException();}
-
+        public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding) { throw new NotImplementedException(); }
+        public override void WordEmbeddingBackwardPropagation(Tensor tensor, Tensor dy) {throw new NotImplementedException();}
         #endregion
     }
 }

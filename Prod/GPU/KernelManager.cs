@@ -55,7 +55,9 @@ namespace SharpNet.GPU
                     "UpSampling2D",
                     "YOLOV3Forward",
                     "ComputeSoftmaxWithHierarchy",
-                    "ComputeSoftmaxGradientWitHierarchy"
+                    "ComputeSoftmaxGradientWitHierarchy",
+                    "WordEmbeddingForwardPropagation",
+                    "WordEmbeddingBackwardPropagation"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

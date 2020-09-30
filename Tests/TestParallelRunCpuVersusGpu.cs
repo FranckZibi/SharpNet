@@ -160,7 +160,7 @@ namespace SharpNetTests
             var tensorIdsToIgnore = new List<int> { 6, 7 };
             var mode = cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
             var xShape = new[] { 1, 32, 112, 112};
-            var x = new CpuTensor<float>(xShape, null);
+            var x = new CpuTensor<float>(xShape);
             x.ZeroMemory();
             var scale = TestNetworkPropagation.FromNumpyArray("[[[[2.82185745]],[[4.20555544]],[[4.44391775]],[[2.95071363]],[[0.901465356]],[[3.83799005]],[[2.20374274]],[[3.30325413]],[[3.38044739]],[[0.202515125]],[[2.14543128]],[[0.645111859]],[[3.29296565]],[[11.9912415]],[[0.810986161]],[[3.39099979]],[[2.6564517]],[[8.52717972]],[[2.52371788]],[[3.94317198]],[[2.74237108]],[[11.1155062]],[[4.08373785]],[[5.75315952]],[[0.335611582]],[[1.24477983]],[[3.90086651]],[[1.98501635]],[[0.818592787]],[[0.626930952]],[[6.75085163]],[[3.4190371]]]]");
             var bias = TestNetworkPropagation.FromNumpyArray("[[[[-3.74896479]],[[2.43146777]],[[2.31554103]],[[7.13698292]],[[-1.38208234]],[[8.66540337]],[[-2.95346022]],[[1.81856453]],[[0.995381236]],[[0.00296683772]],[[-2.85715914]],[[1.74939632]],[[0.599703848]],[[0.165816754]],[[1.90356266]],[[8.97630692]],[[2.26754451]],[[3.72180033]],[[2.572788]],[[1.96836185]],[[-3.36665225]],[[2.64624929]],[[10.5395947]],[[-10.4322577]],[[-1.63009882]],[[1.37903798]],[[9.95489788]],[[1.99438405]],[[0.159816369]],[[2.50823808]],[[-10.8555698]],[[2.08439994]]]]");
@@ -275,6 +275,45 @@ namespace SharpNetTests
             var result = new CpuTensor<float>(new[] { a.Shape[0], b.Shape[1] });
             TestAll(new[] { a, b, result }, tensors => tensors[2].Dot(tensors[0], false, tensors[1], false, 1, 0));
         }
+
+        [Test]
+        public void TestWordEmbeddingForwardPropagation()
+        {
+            const int maxWordCountBySentence = 100;
+            const int embeddingDim = 16;
+            const int vocabularySize = 50;
+            var y = RandomTensor(new[] { BatchSize, maxWordCountBySentence, embeddingDim });
+            var x = RandomWordIndexes(BatchSize, maxWordCountBySentence, vocabularySize);
+            var wordEmbedding = RandomTensor(new[] { vocabularySize, embeddingDim });
+            TestAll(new[] { y, x, wordEmbedding }, tensors => tensors[0].WordEmbeddingForwardPropagation(tensors[1], tensors[2]));
+        }
+
+        [Test]
+        public void TestWordEmbeddingBackwardPropagation()
+        {
+            const int maxWordCountBySentence = 100;
+            const int embeddingDim = 16;
+            const int vocabularySize = 50;
+            var dW = RandomTensor(new[] { vocabularySize, embeddingDim });
+            var x = RandomWordIndexes(BatchSize, maxWordCountBySentence, vocabularySize);
+            var dy = RandomTensor(new[] { BatchSize, maxWordCountBySentence, embeddingDim });
+            TestAll(new[] { dW, x, dy}, tensors => tensors[0].WordEmbeddingBackwardPropagation(tensors[1], tensors[2]));
+        }
+
+        private CpuTensor<float> RandomWordIndexes(int batchSize, int maxWordCountBySentence, int vocabularySize)
+        {
+            var x = RandomTensor(new[] { batchSize, maxWordCountBySentence });
+            var xSpan = x.AsFloatCpuSpan;
+            var r = new Random(0);
+            for (int i = 0; i < x.Count; ++i)
+            {
+                xSpan[i] = 1f + r.Next(vocabularySize - 1);
+            }
+            //we set to 0 the first row (for wordIndex = 0 which is not used)
+            x.ElementSlice(0).ZeroMemory();
+            return x;
+        }
+
 
         [Test]
         public void TestMultiplyTensorSameShape()

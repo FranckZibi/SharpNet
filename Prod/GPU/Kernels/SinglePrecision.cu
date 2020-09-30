@@ -249,6 +249,40 @@
 		}
 	}
 
+	//'y' shape :               (batchSize, maxWordCountBySentence, embeddingDim)
+	//'x' shape:                (batchSize, maxWordCountBySentence)
+	//'wordEmbedding' shape:    (vocabularySize, embeddingDim)
+	__global__ void WordEmbeddingForwardPropagation(int N, int batchSize, int maxWordCountBySentence, int embeddingDim, int vocabularySize, float* y, float* x, float* wordEmbedding)
+	{
+		int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+		if (xIndex >= N) return;
+		int xRow = xIndex / maxWordCountBySentence; //sentenceId, in [0, batchSize-1]
+		int xCol = xIndex % maxWordCountBySentence; //word position in sentence, in [0, maxWordCountBySentence-1]
+		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
+		memcpy(y + xRow * (maxWordCountBySentence * embeddingDim) + xCol * embeddingDim, wordEmbedding + wordIndex * embeddingDim, sizeof(float) * embeddingDim);
+	}
+
+	//'dw' shape:				(VocabularySize, EmbeddingDim)
+	// x shape :                (batchSize,  maxWordCountBySentence)
+	// dy shape :               (batchSize,  maxWordCountBySentence, EmbeddingDim)
+	__global__ void WordEmbeddingBackwardPropagation(int N, int batchSize, int maxWordCountBySentence, int embeddingDim, int vocabularySize, float* dw, float* x, float* dy)
+	{
+		int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
+		if (xIndex >= N) return;
+		int xRow = xIndex / maxWordCountBySentence; //sentenceId, in [0, batchSize-1]
+		int xCol = xIndex % maxWordCountBySentence; //word position in sentence, in [0, maxWordCountBySentence-1]
+		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
+		int dwIndex = embeddingDim * wordIndex;
+		int dyIndex = xRow * (maxWordCountBySentence * embeddingDim) + xCol * embeddingDim;
+		for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
+		{
+			float valueToAdd = dy[dyIndex];
+			atomicAdd(dw+dwIndex, valueToAdd);
+			++dwIndex;
+			++dyIndex;
+		}
+	}
+
 	__global__ void YOLOV3Forward(int N, float* y, float* x, int x_c, int x_h, int x_w, int inputImageHeight, int inputImageWidth, int anchor0Width, int anchor0Height, int anchor1Width, int anchor1Height, int anchor2Width, int anchor2Height) 
 	{
 		int xpredictionIndex = blockIdx.x * blockDim.x + threadIdx.x;
