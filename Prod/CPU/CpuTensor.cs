@@ -72,32 +72,37 @@ namespace SharpNet.CPU
         /// </summary>
         private bool HasPinnedMemory => !IsOwnerOfMemory || _hostPinnedMemory != null;
 
-        //this (= 'y') shape :      (batchSize, maxWordCountBySentence, embeddingDim)
+        //this (= 'y') shape :      (batchSize, embeddingDim, maxWordCountBySentence)
         //'x' shape:                (batchSize, maxWordCountBySentence)
         //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
         public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding)
         {
             var y = this as CpuTensor<float>;
+            Debug.Assert(y != null);
             Debug.Assert(x.Shape.Length == 2);
             Debug.Assert(wordEmbedding.Shape.Length == 2);
             Debug.Assert(y.Shape.Length == 3);
             Debug.Assert(y.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(y.Shape[1] == x.Shape[1]); //same max word count by sentence
-            Debug.Assert(y.Shape[2] == wordEmbedding.Shape[1]); //same embedding dimension
+            Debug.Assert(y.Shape[1] == wordEmbedding.Shape[1]); //same embedding dimension
+            Debug.Assert(y.Shape[2] == x.Shape[1]); //same max word count by sentence
             var maxWordCountBySentence = x.Shape[1];
             var embeddingDim = wordEmbedding.Shape[1];
-
             var xCpu = (CpuTensor<float>)x;
-            var wordEmbeddingCpu = (CpuTensor<float>)wordEmbedding;
-
             void ProcessBatch(int batchIndex)
             {
+                var ySpan = y.AsFloatCpuSpan;
+                var wordEmbeddingSpan = wordEmbedding.AsReadonlyFloatCpuContent;
                 for (int wordInSentence = 0; wordInSentence < maxWordCountBySentence; ++wordInSentence)
                 {
                     int wordIndex = (int)(xCpu.Get(batchIndex, wordInSentence) + 0.1);
-                    int indexInWordEmbedding = wordEmbeddingCpu.Idx(wordIndex, 0);
-                    int indexInY = y.Idx(batchIndex, wordInSentence, 0);
-                    wordEmbeddingCpu.CopyTo(indexInWordEmbedding, y, indexInY, embeddingDim);
+                    int indexInWordEmbedding = wordEmbedding.Idx(wordIndex, 0);
+                    int indexInY = y.Idx(batchIndex, 0, wordInSentence);
+                    for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
+                    {
+                        ySpan[indexInY] = wordEmbeddingSpan[indexInWordEmbedding];
+                        indexInY += maxWordCountBySentence;
+                        ++indexInWordEmbedding;
+                    }
                 }
             }
             Parallel.For(0, x.Shape[0], ProcessBatch);
@@ -105,10 +110,12 @@ namespace SharpNet.CPU
 
         //this (= dW) shape:        (VocabularySize, EmbeddingDim)
         // x shape :                (batchSize,  maxWordCountBySentence)
-        // dy shape :               (batchSize,  maxWordCountBySentence, EmbeddingDim)
+        // dy shape :               (batchSize, EmbeddingDim,  maxWordCountBySentence)
         public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy)
         {
             var dW = this as CpuTensor<float>;
+            Debug.Assert(dW != null);
+
             var xCpu = (CpuTensor<float>)x;
             var dyCpu = (CpuTensor<float>)dy;
 
@@ -116,13 +123,13 @@ namespace SharpNet.CPU
             Debug.Assert(x.Shape.Length == 2);
             Debug.Assert(dy.Shape.Length == 3);
             Debug.Assert(dy.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(dy.Shape[1] == x.Shape[1]); //same max word count by sentence
-            Debug.Assert(dy.Shape[2] == dW.Shape[1]); //same embedding dimension
+            Debug.Assert(dy.Shape[1] == dW.Shape[1]); //same embedding dimension
+            Debug.Assert(dy.Shape[2] == x.Shape[1]); //same max word count by sentence
 
             dW.ZeroMemory();
             var batchSize = dy.Shape[0];
-            var maxWordCountBySentence = dy.Shape[1];
-            var embeddingDim = dW.Shape[1];
+            var embeddingDim = dy.Shape[1];
+            var maxWordCountBySentence = dy.Shape[2];
 
             var xSpan = x.AsFloatCpuSpan;
             var dWSpan = dW.AsFloatCpuSpan;
@@ -134,12 +141,12 @@ namespace SharpNet.CPU
                 {
                     int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, wordInSentence)] + 0.1);
                     int indexInDw = dW.Idx(wordIndex, 0);
-                    int indexIndY = dyCpu.Idx(batchIndex, wordInSentence, 0);
-                    for (int wordEmbeddingIndex = 0; wordEmbeddingIndex < embeddingDim; ++wordEmbeddingIndex)
+                    int indexIndY = dyCpu.Idx(batchIndex, 0, wordInSentence);
+                    for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
                     {
                         dWSpan[indexInDw] += dySpan[indexIndY];
                         ++indexInDw;
-                        ++indexIndY;
+                        indexIndY += maxWordCountBySentence;
                     }
                 }
             }
@@ -298,6 +305,7 @@ namespace SharpNet.CPU
             }
         }
 
+
         /// <summary>
         /// Transform the 'this' tensor into another tensor by transforming:
         ///   each element 'val' of the  'this' tensor at position (m,c,h,w)
@@ -325,7 +333,20 @@ namespace SharpNet.CPU
             }
             return result;
         }
-      
+
+        public CpuTensor<TY> Select<TY>(Func<T, TY> func) where TY : struct
+        {
+            var result = new CpuTensor<TY>(Shape);
+            Debug.Assert(SameShape(result));
+            var content = ReadonlyContent;
+            var resultSpan = result.SpanContent;
+            for (int i = 0; i < Count; ++i)
+            {
+                resultSpan[i] = func(content[i]);
+            }
+            return result;
+        }
+
         #region Tensor implementation
         public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
         {
@@ -473,7 +494,7 @@ namespace SharpNet.CPU
             Debug.Assert(!dropoutReservedSpaceForTraining.UseGPU);
             Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
             var dropProbabilityFloat = (float)dropProbability;
-            Utils.Randomize(dropoutReservedSpaceForTraining.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
+            Utils.RandomizeUniformDistribution(dropoutReservedSpaceForTraining.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
             y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutReservedSpaceForTraining, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
         }
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
@@ -807,35 +828,56 @@ namespace SharpNet.CPU
             var x = this;
 #if DEBUG
             Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
-            int hOutput = y.Shape[2];
-            int wOutput = y.Shape[3];
-            int hInput = x.Shape[2];
-            int wInput = x.Shape[3];
-            Debug.Assert(x.Dimension == 4);
-            Debug.Assert(y.Dimension == 4);
             Debug.Assert(x.Shape[0] == y.Shape[0]); //same batch size
             Debug.Assert(x.Shape[1] == y.Shape[1]); //same number of channels
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 3 || x.Dimension == 4);
+            int hOutput = y.Shape[2];
+            int hInput = x.Shape[2];
             int hExpected = (hInput - poolingHeight) / poolingStride + 1;
             Debug.Assert(hOutput == hExpected);
-            int wExpected = (wInput - poolingWidth) / poolingStride + 1;
-            Debug.Assert(wOutput == wExpected);
+            if (x.Dimension == 4)
+            {
+                int wOutput = y.Shape[3];
+                int wInput = x.Shape[3];
+                int wExpected = (wInput - poolingWidth) / poolingStride + 1;
+                Debug.Assert(wOutput == wExpected);
+            }
 #endif
             int batchSize = x.Shape[0];
-            if (PoolingLayer.IsMaxPooling(poolingMode))
+            if (x.Dimension == 4)
             {
-                Parallel.For(0, batchSize, elementIndex => MaxPoolingForSingleElement(y, poolingHeight, poolingWidth, poolingStride, elementIndex ));
+                if (PoolingLayer.IsMaxPooling(poolingMode))
+                {
+                    Parallel.For(0, batchSize, elementIndex => MaxPoolingForSingleElement4D(y, poolingHeight, poolingWidth, poolingStride, elementIndex ));
+                }
+                else
+                {
+                    Parallel.For(0, batchSize, elementIndex => AvgPoolingForSingleElement4D(y, poolingHeight, poolingWidth, poolingStride, elementIndex));
+                }
             }
             else
             {
-                Parallel.For(0, batchSize, elementIndex => AvgPoolingForSingleElement(y, poolingHeight, poolingWidth, poolingStride, elementIndex));
+                Debug.Assert(x.Dimension == 3);
+                Debug.Assert(poolingWidth == 1);
+                if (PoolingLayer.IsMaxPooling(poolingMode))
+                {
+                    Parallel.For(0, batchSize, elementIndex => MaxPoolingForSingleElement3D(y, poolingHeight, poolingStride, elementIndex));
+                }
+                else
+                {
+                    Parallel.For(0, batchSize, elementIndex => AvgPoolingForSingleElement3D(y, poolingHeight, poolingStride, elementIndex));
+                }
             }
         }
-        private void AvgPoolingForSingleElement(Tensor y, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
+        private void AvgPoolingForSingleElement4D(Tensor y, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 4);
             int hOutput = y.Shape[2];
-            int wOutput = y.Shape[3];
+            int wOutput = y.Shape.Length>=4?y.Shape[3]:1;
             //the first (top left) point in 'y' is computed from a filter starting at (0,0)
             for (int c = 0; c < x.Shape[1]; ++c)
             {
@@ -864,9 +906,12 @@ namespace SharpNet.CPU
                 }
             }
         }
-        private void MaxPoolingForSingleElement(Tensor y, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
+        private void MaxPoolingForSingleElement4D(Tensor y, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 4);
             int hOutput = y.Shape[2];
             int wOutput = y.Shape[3];
             //the first (top left) point in 'y' is computed from a filter starting at (0,0)
@@ -895,32 +940,105 @@ namespace SharpNet.CPU
                 }
             }
         }
+        private void AvgPoolingForSingleElement3D(Tensor y, int poolingHeight, int poolingStride, int elementIndex)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 3);
+            int hOutput = y.Shape[2];
+            //the first (top) point in 'y' is computed from a filter starting at (0)
+            for (int c = 0; c < x.Shape[1]; ++c)
+            {
+                int row_filter_start = 0;
+                for (int rowAfterPooling = 0; rowAfterPooling < hOutput; ++rowAfterPooling)
+                {
+                    //we want to compute the point in y[n, channelId, row_output]
+                    //it is computed by applying an avg filter located (for its top) in (row_filter_start) in the x 
+                    float outputPointSum = 0f;
+                    int count = 0;
+                    for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
+                    {
+                            outputPointSum += x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling);
+                            ++count;
+                    }
+                    y.AsFloatCpu.Set(elementIndex, c, rowAfterPooling, outputPointSum / count);
+                    row_filter_start += poolingStride;
+                }
+            }
+        }
+        private void MaxPoolingForSingleElement3D(Tensor y, int poolingHeight, int poolingStride, int elementIndex)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 3);
+            int hOutput = y.Shape[2];
+            //the first (top) point in 'y' is computed from a filter starting at (0)
+            for (int c = 0; c < x.Shape[1]; ++c)
+            {
+                int row_filter_start = 0;
+                for (int rowAfterPooling = 0; rowAfterPooling < hOutput; ++rowAfterPooling)
+                {
+                    //we want to compute the point in y[n, channelId, row_output]
+                    //it is computed by applying a max filter located (for its top) in (row_filter_start) in the x 
+                    float outputPointResult = float.MinValue;
+                    for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
+                    {
+                        outputPointResult = Math.Max(outputPointResult, x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling));
+                    }
+                    y.AsFloatCpu.Set(elementIndex, c, rowAfterPooling, outputPointResult);
+                    row_filter_start += poolingStride;
+                }
+            }
+        }
         public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             int batchSize = x.Shape[0];
 #if DEBUG
             var dy = this;
             Debug.Assert(AreCompatible(new List<Tensor> { dy, y, x, dx }));
-            Debug.Assert(x.Dimension == 4);
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 4 || x.Dimension == 3);
             Debug.Assert(x.Shape[0] == dy.Shape[0]); //same batchSize
             Debug.Assert(x.Shape[1] == dy.Shape[1]); //same number of channels
             Debug.Assert(dx.SameShape(x));
             int hOutput = dy.Shape[2];
-            int wOutput = dy.Shape[3];
-            Debug.Assert(hOutput == ((x.Shape[2] - poolingHeight) / poolingStride + 1));
-            Debug.Assert(wOutput == ((x.Shape[3] - poolingWidth) / poolingStride + 1));
+
+            if (x.Dimension == 4)
+            {
+                int wOutput = dy.Shape[3];
+                Debug.Assert(hOutput == ((x.Shape[2] - poolingHeight) / poolingStride + 1));
+                Debug.Assert(wOutput == ((x.Shape[3] - poolingWidth) / poolingStride + 1));
+            }
 #endif
             dx.ZeroMemory();
-            if (PoolingLayer.IsMaxPooling(poolingMode))
-            {
-                Parallel.For(0, batchSize, elementIndex => MaxPoolingGradientForSingleElement(x, dx, poolingHeight, poolingWidth, poolingStride, elementIndex));
+            if( x.Dimension == 4)
+            { 
+                if (PoolingLayer.IsMaxPooling(poolingMode))
+                {
+                    Parallel.For(0, batchSize, elementIndex => MaxPoolingGradientForSingleElement4D(x, dx, poolingHeight, poolingWidth, poolingStride, elementIndex));
+                }
+                else
+                {
+                    Parallel.For(0, batchSize, elementIndex => AvgPoolingGradientForSingleElement4D(x, dx, poolingHeight, poolingWidth, poolingStride, elementIndex));
+                }
             }
             else
             {
-                Parallel.For(0, batchSize, elementIndex => AvgPoolingGradientForSingleElement(x, dx, poolingHeight, poolingWidth, poolingStride, elementIndex));
+                Debug.Assert(x.Dimension == 3);
+                Debug.Assert(poolingWidth == 1);
+                if (PoolingLayer.IsMaxPooling(poolingMode))
+                {
+                    Parallel.For(0, batchSize, elementIndex => MaxPoolingGradientForSingleElement3D(x, dx, poolingHeight, poolingStride, elementIndex));
+                }
+                else
+                {
+                    Parallel.For(0, batchSize, elementIndex => AvgPoolingGradientForSingleElement3D(x, dx, poolingHeight, poolingStride, elementIndex));
+                }
             }
         }
-        private void AvgPoolingGradientForSingleElement(Tensor x, Tensor dx, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
+        private void AvgPoolingGradientForSingleElement4D(Tensor x, Tensor dx, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var dy = this;
             int hOutput = dy.Shape[2];
@@ -951,7 +1069,7 @@ namespace SharpNet.CPU
             }
         }
         //compute 'dx' from ('dy' and 'x')
-        private void MaxPoolingGradientForSingleElement(Tensor x, Tensor dx, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
+        private void MaxPoolingGradientForSingleElement4D(Tensor x, Tensor dx, int poolingHeight, int poolingWidth, int poolingStride, int elementIndex)
         {
             var dy = this;
             int hOutput = dy.Shape[2];
@@ -990,7 +1108,58 @@ namespace SharpNet.CPU
                 }
             }
         }
-#endregion
+        private void AvgPoolingGradientForSingleElement3D(Tensor x, Tensor dx, int poolingHeight, int poolingStride, int elementIndex)
+        {
+            Debug.Assert(x.Dimension == 3);
+            var dy = this;
+            int hOutput = dy.Shape[2];
+            double doubleMultiplier = 1.0 / (poolingHeight);
+            float floatMultiplier = (float)doubleMultiplier;
+            for (int c = 0; c < x.Shape[1]; ++c)
+            {
+                int row_filter_start = 0;
+                for (int rowAfterPooling = 0; rowAfterPooling < hOutput; ++rowAfterPooling)
+                {
+                    for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
+                    {
+                        var pointGradient = dy.AsFloatCpu.Get(elementIndex, c, rowAfterPooling);
+                        dx.AsFloatCpu.Set(elementIndex, c, rowBeforePooling, floatMultiplier * pointGradient);
+                    }
+                    row_filter_start += poolingStride;
+                }
+            }
+        }
+        //compute 'dx' from ('dy' and 'x')
+        private void MaxPoolingGradientForSingleElement3D(Tensor x, Tensor dx, int poolingHeight, int poolingStride, int elementIndex)
+        {
+            Debug.Assert(x.Dimension == 3);
+            var dy = this;
+            int hOutput = dy.Shape[2];
+            for (int c = 0; c < x.Shape[1]; ++c)
+            {
+                int row_filter_start = 0;
+                for (int rowAfterPooling = 0; rowAfterPooling < hOutput; ++rowAfterPooling)
+                {
+                    //we retrieve the coordinate of the max value in 'x'
+                    double outputPointResult = double.MinValue;
+                    int maxRowBeforePooling = 0;
+                    for (int rowBeforePooling = row_filter_start; rowBeforePooling < (row_filter_start + poolingHeight); ++rowBeforePooling)
+                    {
+                        var currentPointValue = x.AsFloatCpu.Get(elementIndex, c, rowBeforePooling);
+                        if (currentPointValue > outputPointResult)
+                        {
+                            outputPointResult = currentPointValue;
+                            maxRowBeforePooling = rowBeforePooling;
+                        }
+                    }
+                    var pointGradient = dy.AsFloatCpu.Get(elementIndex, c, rowAfterPooling);
+                    dx.AsFloatCpu.Set(elementIndex, c, maxRowBeforePooling, pointGradient);
+                    row_filter_start += poolingStride;
+                }
+            }
+        }
+
+        #endregion
         public override void BroadcastAddVectorToOutput(Tensor y)
         {
             var bias = this;
@@ -1263,16 +1432,30 @@ namespace SharpNet.CPU
         {
             ComputeSumByColumn(biasGradient);
         }
-        //this = Weights or Bias
+        /// <summary>
+        /// Use Adam optimizer (see https://arxiv.org/pdf/1412.6980.pdf)
+        /// this = Weights or Bias
+        /// </summary>
+        /// <param name="learningRate"></param>
+        /// <param name="beta1"></param>
+        /// <param name="beta2"></param>
+        /// <param name="epsilon"></param>
+        /// <param name="dW"></param>
+        /// <param name="adam_vW">biased first moment estimate</param>
+        /// <param name="adam_sW">biased second raw moment estimate</param>
+        /// <param name="timestep"></param>
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep)
         {
             var beta1_power = Math.Pow(beta1, timestep);
             var beta2_power = Math.Pow(beta2, timestep);
-            var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
 
             var W = this;
+            //Update biased first moment estimate
             adam_vW.AsFloatCpu.Update(dW, (adam_vw, dw) => (float) (beta1 * adam_vw + (1 - beta1) * dw));
+            //Update biased second raw moment estimate
             adam_sW.AsFloatCpu.Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
+            var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
+            //Update parameters
             W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
         }
         //this = yExpected
@@ -1360,6 +1543,11 @@ namespace SharpNet.CPU
         {
             Utils.RandomizeNormalDistribution(AsFloatCpuSpan, rand, mean, stdDev);
         }
+        public override void RandomizeUniformDistribution(Random rand, double minValue, double maxValue)
+        {
+            Utils.RandomizeUniformDistribution(AsFloatCpuSpan, rand, minValue, maxValue);
+        }
+        
         public override void SetValue(float sameValue)
         {
             var array = AsFloatCpuSpan;
@@ -1742,58 +1930,64 @@ namespace SharpNet.CPU
             Debug.Assert(Dimension == b.Dimension);
             Debug.Assert(Count == b.Count);
             var content = new T[Count];
+            var bSpan = b.ReadonlyContent;
+            var thisSpan = ReadonlyContent;
             for (int i = 0; i < Count; ++i)
             {
-                content[i] = func(this[i], b[i]);
+                content[i] = func(thisSpan[i], bSpan[i]);
             }
             return new CpuTensor<T>(Shape, content);
         }
         private double NaNSum()
         {
-            return AsFloatCpu.ReadonlyContent.Select(x => float.IsNaN(x) ? 0 : x).Sum();
+            return AsReadonlyFloatCpuContent.Select(x => float.IsNaN(x) ? 0 : x).Sum();
         }
         private void Update(Tensor a, Tensor b, Func<T, T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> {this, a, b}));
             Debug.Assert(SameShape(a, b));
-            var aCpu = a.AsCpu<T>();
-            var bCpu = b.AsCpu<T>();
+            var aSpan = a.AsCpu<T>().ReadonlyContent;
+            var bSpan = b.AsCpu<T>().ReadonlyContent;
+            var thisSpan = SpanContent;
             for (int i = 0; i < Count; ++i)
             {
-                this[i] = funcInput(this[i], aCpu[i], bCpu[i]);
+                thisSpan[i] = funcInput(thisSpan[i], aSpan[i], bSpan[i]);
             }
         }
         private void Update(Tensor b, Func<T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> {this, b}));
             Debug.Assert(SameShape(b));
-            var bCpu = b.AsCpu<T>();
+            var bSpan = b.AsCpu<T>().ReadonlyContent;
+            var thisSpan = SpanContent;
             for (int i = 0; i < Count; ++i)
             {
-                this[i] = funcInput(this[i], bCpu[i]);
+                thisSpan[i] = funcInput(thisSpan[i], bSpan[i]);
             }
         }
         public void BuildEntirelyFromInput(Tensor a, Tensor b, Func<T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> {this, a, b}));
             Debug.Assert(SameShape(a, b));
-            var aCpu = a.AsCpu<T>().ReadonlyContent;
-            var bCpu = b.AsCpu<T>().ReadonlyContent;
+            var aSpan = a.AsCpu<T>().ReadonlyContent;
+            var bSpan = b.AsCpu<T>().ReadonlyContent;
+            var thisSpan = SpanContent;
             for (int i = 0; i < a.Count; ++i)
             {
-                this[i] = funcInput(aCpu[i], bCpu[i]);
+                thisSpan[i] = funcInput(aSpan[i], bSpan[i]);
             }
         }
         public void BuildEntirelyFromInput(Tensor a, Tensor b, Tensor c, Func<T, T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, a, b, c }));
             Debug.Assert(SameShape(a, b));
-            var aCpu = a.AsCpu<T>().ReadonlyContent;
-            var bCpu = b.AsCpu<T>().ReadonlyContent;
-            var cCpu = c.AsCpu<T>().ReadonlyContent;
+            var aSpan = a.AsCpu<T>().ReadonlyContent;
+            var bSpan = b.AsCpu<T>().ReadonlyContent;
+            var cSpan = c.AsCpu<T>().ReadonlyContent;
+            var thisSpan = SpanContent;
             for (int i = 0; i < a.Count; ++i)
             {
-                this[i] = funcInput(aCpu[i], bCpu[i], cCpu[i]);
+                thisSpan[i] = funcInput(aSpan[i], bSpan[i], cSpan[i]);
             }
         }
         private void ComputeSumByColumn(Tensor sumByColumn)

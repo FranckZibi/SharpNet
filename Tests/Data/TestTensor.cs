@@ -83,7 +83,7 @@ namespace SharpNetTests.Data
             }
         }
         [Test]
-        public void TestPoolingOutputShape()
+        public void TestPoolingOutputShape4D()
         {
             var batchSize = 666;
             var channelDepth = 1313;
@@ -98,10 +98,31 @@ namespace SharpNetTests.Data
                         {
                             var inputShape = new[] { batchSize, channelDepth, h, w };
                             //stride == 1
-                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(inputShape, poolingHeight, poolingWidth, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingHeight + 1, w - poolingWidth+ 1 }));
+                            Assert.IsTrue(PoolingLayer.PoolingOutputShape4D(inputShape, poolingHeight, poolingWidth, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingHeight + 1, w - poolingWidth+ 1 }));
                             // stride == 2
-                            Assert.IsTrue(PoolingLayer.PoolingOutputShape(inputShape, poolingHeight, poolingWidth, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingHeight) / 2 + 1, (w - poolingWidth) / 2 + 1 }));
+                            Assert.IsTrue(PoolingLayer.PoolingOutputShape4D(inputShape, poolingHeight, poolingWidth, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingHeight) / 2 + 1, (w - poolingWidth) / 2 + 1 }));
                         }
+                    }
+                }
+            }
+        }
+        [Test]
+        public void TestPoolingOutputShape3D()
+        {
+            var batchSize = 666;
+            var channelDepth = 1313;
+
+            foreach (var h in new[] { 3, 33, 50, 100, 200, 201 })
+            {
+                foreach (var w in new[] { 3, 33, 50, 100, 200, 201 })
+                {
+                    foreach (var poolingHeight in new[] { 2, 3, 5, 7, 8 })
+                    {
+                        var inputShape = new[] { batchSize, channelDepth, h, w };
+                        //stride == 1
+                        Assert.IsTrue(PoolingLayer.PoolingOutputShape3D(inputShape, poolingHeight, 1).SequenceEqual(new[] { batchSize, channelDepth, h - poolingHeight + 1}));
+                        // stride == 2
+                        Assert.IsTrue(PoolingLayer.PoolingOutputShape3D(inputShape, poolingHeight, 2).SequenceEqual(new[] { batchSize, channelDepth, (h - poolingHeight) / 2 + 1}));
                     }
                 }
             }

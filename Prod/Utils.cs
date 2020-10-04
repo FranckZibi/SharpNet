@@ -126,14 +126,14 @@ namespace SharpNet
             double deltaLearningRate = (y2 - y1);
             return y1 + dEpoch * deltaLearningRate;
         }
-        public static void Randomize(Span<float> toRandomize, Random rand, double minValue, double maxValue)
+        public static void RandomizeUniformDistribution(Span<float> toRandomize, Random rand, double minValue, double maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
             }
         }
-        public static void Randomize(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
+        public static void RandomizeUniformDistribution(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
@@ -147,6 +147,7 @@ namespace SharpNet
                 toRandomize[j] = (float)NextDoubleNormalDistribution(rand, mean, stdDev);
             }
         }
+
         public static void Shuffle<T>(IList<T> list, Random rand)
         {
             int n = list.Count;

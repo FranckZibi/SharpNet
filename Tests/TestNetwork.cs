@@ -67,7 +67,13 @@ namespace SharpNetTests
         {
             network.Config.DisableReduceLROnPlateau = true;
             var categories = Enumerable.Range(0, Y.Shape[1]).Select(i => i.ToString()).ToArray();
-            using var trainingDataSet = new InMemoryDataSet(X, Y, Y_to_Categories(Y), categories, "", null);
+            using InMemoryDataSet trainingDataSet = new InMemoryDataSet(X, Y, Y_to_Categories(Y), categories, "", null);
+            Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, testDataSet);
+        }
+
+        public static void Fit(Network network, InMemoryDataSet trainingDataSet, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
+        {
+            network.Config.DisableReduceLROnPlateau = true;
             var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
             network.Fit(trainingDataSet, learningRateComputer, numEpochs, batchSize, testDataSet);
         }

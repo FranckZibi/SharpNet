@@ -517,6 +517,12 @@ namespace SharpNet.GPU
             memoryPool.FreeFloatTensor(ref dataStorageBuffer);
         }
         #endregion
+        public override void RandomizeUniformDistribution(Random rand, double minValue, double maxValue)
+        {
+            var array = new float[Count];
+            Utils.RandomizeUniformDistribution(array, rand, minValue, maxValue);
+            InitializeFromHostMemory(array as T[]);
+        }
         public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
         {
             var array = new float[Count];
@@ -848,7 +854,7 @@ namespace SharpNet.GPU
             return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);
         }
 
-        //this (= 'y') shape :      (batchSize, maxWordCountBySentence, embeddingDim)
+        //this (= 'y') shape :      (batchSize, embeddingDim, maxWordCountBySentence)
         //'x' shape:                (batchSize, maxWordCountBySentence)
         //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
         public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding)
@@ -858,11 +864,11 @@ namespace SharpNet.GPU
             Debug.Assert(wordEmbedding.Shape.Length == 2);
             Debug.Assert(y.Shape.Length == 3);
             Debug.Assert(y.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(y.Shape[1] == x.Shape[1]); //same max word count by sentence
-            Debug.Assert(y.Shape[2] == wordEmbedding.Shape[1]); //same embedding dimension
+            Debug.Assert(y.Shape[1] == wordEmbedding.Shape[1]); //same embedding dimension
+            Debug.Assert(y.Shape[2] == x.Shape[1]); //same max word count by sentence
             int batchSize = y.Shape[0];
-            int maxWordCountBySentence = y.Shape[1];
-            int embeddingDim = y.Shape[2];
+            int embeddingDim = y.Shape[1];
+            int maxWordCountBySentence = y.Shape[2];
             int vocabularySize = wordEmbedding.Shape[0];
             _wrapper.RunKernel("WordEmbeddingForwardPropagation", x.Count, new object[] { batchSize, maxWordCountBySentence, embeddingDim, vocabularySize, y, x, wordEmbedding});
         }
@@ -875,14 +881,12 @@ namespace SharpNet.GPU
             Debug.Assert(x.Shape.Length == 2);
             Debug.Assert(dy.Shape.Length == 3);
             Debug.Assert(dy.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(dy.Shape[1] == x.Shape[1]); //same max word count by sentence
-            Debug.Assert(dy.Shape[2] == dW.Shape[1]); //same embedding dimension
-
-
+            Debug.Assert(dy.Shape[1] == dW.Shape[1]); //same embedding dimension
+            Debug.Assert(dy.Shape[2] == x.Shape[1]); //same max word count by sentence
             dW.ZeroMemory();
             int batchSize = dy.Shape[0];
-            int maxWordCountBySentence = dy.Shape[1];
-            int embeddingDim = dy.Shape[2];
+            int embeddingDim = dy.Shape[1];
+            int maxWordCountBySentence = dy.Shape[2];
             int vocabularySize = dW.Shape[0];
             _wrapper.RunKernel("WordEmbeddingBackwardPropagation", x.Count, new object[] { batchSize, maxWordCountBySentence, embeddingDim, vocabularySize, dW, x, dy});
         }

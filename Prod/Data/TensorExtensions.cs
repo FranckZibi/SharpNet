@@ -72,10 +72,10 @@ namespace SharpNet.Data
 
         private static void NumpyArrayHelper(Tensor t, ReadOnlySpan<float> tContent, int currentDepth, ref int idx, StringBuilder sb)
         {
-            if (currentDepth == 0)
-            {
-                sb.Append("numpy.array(");
-            }
+            //if (currentDepth == 0)
+            //{
+            //    sb.Append("numpy.array(");
+            //}
             sb.Append("[");
             for (int indexInCurrentDepth = 0; indexInCurrentDepth < t.Shape[currentDepth]; ++indexInCurrentDepth)
             {
@@ -93,10 +93,10 @@ namespace SharpNet.Data
                 }
             }
             sb.Append("]");
-            if (currentDepth == 0)
-            {
-                sb.Append(", numpy.float)");
-            }
+            //if (currentDepth == 0)
+            //{
+            //    sb.Append(", numpy.float)");
+            //}
         }
         public static bool Equals(this Tensor a, Tensor b, double epsilon, string id, ref string errors)
         {

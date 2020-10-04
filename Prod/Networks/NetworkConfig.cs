@@ -140,7 +140,7 @@ namespace SharpNet.Networks
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4;
-        public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999)
+        public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999, double _epsilon = 1e-8)
         {
             Debug.Assert(_beta1 >= 0);
             Debug.Assert(_beta1 <= 1.0);
@@ -148,7 +148,7 @@ namespace SharpNet.Networks
             Debug.Assert(_beta2 <= 1.0);
             Adam_beta1 = _beta1;
             Adam_beta2 = _beta2;
-            Adam_epsilon = 1e-8;
+            Adam_epsilon = _epsilon;
             OptimizerType = Optimizer.OptimizationEnum.Adam;
             return this;
         }

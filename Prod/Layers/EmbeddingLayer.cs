@@ -14,7 +14,7 @@ namespace SharpNet.Layers
     /// input shape :
     ///     (batchSize,  PrevLayer.n_x)
     /// output shape :
-    ///     (batchSize,  PrevLayer.n_x, EmbeddingDim)
+    ///     (batchSize, EmbeddingDim (=Channels),  PrevLayer.n_x)
     /// </summary>
     public sealed class EmbeddingLayer : Layer
     {
@@ -71,7 +71,7 @@ namespace SharpNet.Layers
             _optimizer = GetOptimizer(_weights.Shape, null);
             ResetParameters(false);
             //we set to 0 the first row of word embedding (for wordIndex = 0 which is not used)
-            _weights.ElementSlice(0).ZeroMemory();
+            //_weights.ElementSlice(0).ZeroMemory();
         }
         #endregion
 
@@ -81,9 +81,9 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             var x = allX[0]; 
             Debug.Assert(x.Shape.Length == 2); // input 'x' tensor must be of shape (batchSize, maxWordsBySentence)
-            Debug.Assert(y.Shape.Length == 3); // output 'y' tensor must be of shape (batchSize, maxWordsBySentence, EmbeddingDim)
+            Debug.Assert(y.Shape.Length == 3); // output 'y' tensor must be of shape (batchSize, EmbeddingDim, maxWordsBySentence)
             Debug.Assert(x.Shape[0] == y.Shape[0]); //same batch size
-            Debug.Assert(x.Shape[1] == y.Shape[1]); //same word count by sentence
+            Debug.Assert(x.Shape[1] == y.Shape[2]); //same word count by sentence
             //We compute y = x*Weights
             y.WordEmbeddingForwardPropagation(x, _weights);
         }
@@ -129,7 +129,7 @@ namespace SharpNet.Layers
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
-            _weights.RandomMatrixNormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+            _weights.RandomizeUniformDistribution(Rand, -0.05, +0.05);
 
             if (resetAlsoOptimizerWeights)
             {
@@ -182,7 +182,7 @@ namespace SharpNet.Layers
 
         public override int[] OutputShape(int batchSize)
         {
-            return new[] { batchSize, PrevLayer.n_x, EmbeddingDim };
+            return new[] { batchSize, EmbeddingDim, PrevLayer.n_x};
         }
         public override string ToString()
         {

@@ -59,9 +59,13 @@ namespace SharpNet.Layers
         {
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
-            if (IsGlobalPooling(_poolingHeight, _poolingWidth, _poolingStride))
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 3 || x.Dimension == 4);
+            if (IsGlobalPooling(_poolingHeight))
             {
-                x.Pooling(y, _poolingMode, x.Shape[2], x.Shape[3], System.Math.Max(x.Shape[2], x.Shape[3]));
+                var h = x.Shape[2];
+                var w = x.Shape.Length >= 4 ? x.Shape[3] : 1;
+                x.Pooling(y, _poolingMode, h, w, System.Math.Max(h, w));
                 return;
             }
             x.Pooling(y, _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
@@ -71,9 +75,13 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             Debug.Assert(dx.Count == 1);
             var x = allX[0];
-            if (IsGlobalPooling(_poolingHeight, _poolingWidth, _poolingStride))
+            Debug.Assert(x.Dimension == y.Dimension);
+            Debug.Assert(x.Dimension == 3 || x.Dimension == 4);
+            if (IsGlobalPooling(_poolingHeight))
             {
-                dy.PoolingGradient(y, x, dx[0], _poolingMode, x.Shape[2], x.Shape[3], System.Math.Max(x.Shape[2], x.Shape[3]));
+                var h = x.Shape[2];
+                var w = x.Shape.Length >= 4 ? x.Shape[3] : 1;
+                dy.PoolingGradient(y, x, dx[0], _poolingMode, x.Shape[2], w, System.Math.Max(h, w));
                 return;
             }
             dy.PoolingGradient(y, x, dx[0], _poolingMode, _poolingHeight, _poolingWidth, _poolingStride);
@@ -118,7 +126,9 @@ namespace SharpNet.Layers
         public override int[] OutputShape(int batchSize)
         {
             var xShape = PrevLayer.OutputShape(batchSize);
-            var yShape = PoolingOutputShape(xShape, _poolingHeight, _poolingWidth, _poolingStride);
+            var yShape = xShape.Length == 4
+                ?PoolingOutputShape4D(xShape, _poolingHeight, _poolingWidth, _poolingStride)
+                :PoolingOutputShape3D(xShape, _poolingHeight, _poolingStride);
             Debug.Assert(yShape.Min() >= 1);
             return yShape;
         }
@@ -130,39 +140,43 @@ namespace SharpNet.Layers
         /// <param name="poolingWidth">the pooling size is (poolingHeight, poolingWidth)</param>
         /// <param name="poolingStride">pooling stride</param>
         /// <returns>the output shape: (batchSize, x.C, y.H, y.W)</returns>
-        public static int[] PoolingOutputShape(int[] inputShape, int poolingHeight, int poolingWidth, int poolingStride)
+        public static int[] PoolingOutputShape4D(int[] inputShape, int poolingHeight, int poolingWidth, int poolingStride)
         {
             Debug.Assert(inputShape.Length == 4);
-            if (IsGlobalPooling(poolingHeight, poolingWidth, poolingStride))
+            if (IsGlobalPooling(poolingHeight))
             {
                 return new[] { inputShape[0], inputShape[1], 1, 1};
             }
             var heightInput = inputShape[2];
-            var widthInput = inputShape[3];
             var heightOutput = (heightInput - poolingHeight) / poolingStride + 1;
+            var widthInput = inputShape[3];
             var widthOutput = (widthInput - poolingWidth) / poolingStride + 1;
             return new[] { inputShape[0], inputShape[1], heightOutput, widthOutput };
         }
 
+
         /// <summary>
-        /// TODO : add tests
+        /// Compute the pooling layer output shape given an input of shape 'inputShape'
         /// </summary>
-        /// <param name="poolingHeight"></param>
-        /// <param name="poolingWidth"></param>
-        /// <param name="poolingStride"></param>
-        /// <returns></returns>
-        private static bool IsGlobalPooling(int poolingHeight, int poolingWidth, int poolingStride)
+        /// <param name="inputShape">(batchSize, x.C, heightInput)</param>
+        /// <param name="poolingHeight">the pooling size</param>
+        /// <param name="poolingStride">pooling stride</param>
+        /// <returns>the output shape: (batchSize, x.C, y.H)</returns>
+        public static int[] PoolingOutputShape3D(int[] inputShape, int poolingHeight, int poolingStride)
         {
-            if (poolingHeight == -1)
+            Debug.Assert(inputShape.Length == 3);
+            if (IsGlobalPooling(poolingHeight))
             {
-                Debug.Assert(poolingWidth == -1);
-                Debug.Assert(poolingStride == -1);
-                return true;
+                return new[] { inputShape[0], inputShape[1], 1};
             }
-            Debug.Assert(poolingHeight >= 1);
-            Debug.Assert(poolingWidth >= 1);
-            Debug.Assert(poolingStride >= 1);
-            return false;
+            var heightInput = inputShape[2];
+            var heightOutput = (heightInput - poolingHeight) / poolingStride + 1;
+            return new[] { inputShape[0], inputShape[1], heightOutput };
+        }
+
+        private static bool IsGlobalPooling(int poolingHeight)
+        {
+            return (poolingHeight == -1);
         }
 
         protected override string DefaultLayerName()

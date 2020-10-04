@@ -316,13 +316,13 @@ namespace SharpNetTests.CPU
         }   
 
         [Test]
-        public void TestMaxPooling()
+        public void TestMaxPooling4D()
         {
             const int poolingSize = 2;
             const int stride = 2;
 
             var input = new CpuTensor<float>(new[] { 1, 1, 3, 3 }, new float[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
-            var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride));
+            var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape4D(input.Shape, poolingSize, poolingSize, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingSize, stride);
             var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] {5});
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
@@ -333,9 +333,33 @@ namespace SharpNetTests.CPU
                 input[i - 1] = i;
             }
             input[0] = 333;
-            output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride));
+            output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape4D(input.Shape, poolingSize, poolingSize, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingSize, stride);
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2, 2 }, new float[] { 333, 8, 14, 16, 22, 24, 30, 32, 38, 40, 46, 48 });
+            Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
+        }
+
+        [Test]
+        public void TestMaxPooling3D()
+        {
+            const int poolingSize = 2;
+            const int stride = 2;
+
+            var input = new CpuTensor<float>(new[] { 1, 1, 3}, new float[] { 1, 2, 3});
+            var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape3D(input.Shape, poolingSize, stride));
+            input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, 1, stride);
+            var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1 }, new float[] { 2 });
+            Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
+
+            input = new CpuTensor<float>(new[] { 3, 1, 4});
+            for (int i = 1; i <= input.Count; ++i)
+            {
+                input[i - 1] = i;
+            }
+            input[0] = 333;
+            output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape3D(input.Shape, poolingSize, stride));
+            input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, 1, stride);
+            expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2}, new float[] { 333, 4, 6, 8, 10, 12});
             Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
         }
 
@@ -364,13 +388,13 @@ namespace SharpNetTests.CPU
         public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue)
         {
             var content = new float[Utils.Product(shape)];
-            Utils.Randomize(content, rand, minValue, maxValue);
+            Utils.RandomizeUniformDistribution(content, rand, minValue, maxValue);
             return new CpuTensor<float>(shape, content);
         }
         public static CpuTensor<byte> RandomByteTensor(int[] shape, Random rand, byte minValue, byte maxValue)
         {
             var content = new byte[Utils.Product(shape)];
-            Utils.Randomize(content, rand, minValue, maxValue);
+            Utils.RandomizeUniformDistribution(content, rand, minValue, maxValue);
             return new CpuTensor<byte>(shape, content);
         }
         private static void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, CpuTensor<float> expectedOutput)

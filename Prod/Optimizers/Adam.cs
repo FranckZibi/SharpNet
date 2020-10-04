@@ -14,7 +14,7 @@ namespace SharpNet.Optimizers
     public class Adam : Optimizer
     {
         #region private fields
-        private int _timestep = 1;
+        private int _timestep = 0;
         private readonly double _adam_beta1;
         private readonly double _adam_beta2;
         private readonly double _adam_epsilon;
@@ -57,7 +57,7 @@ namespace SharpNet.Optimizers
             Debug.Assert(weights.SameShape(weightGradients));
             Debug.Assert(bias == null || bias.SameShape(biasGradient));
             ++_timestep;
-            var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
+            var ponderedLearningRate = (float) learningRate;
             weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, weightGradients, _adam_VW, _adam_SW, _timestep);
             bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, biasGradient, _adam_VB, _adam_SB, _timestep);
         }

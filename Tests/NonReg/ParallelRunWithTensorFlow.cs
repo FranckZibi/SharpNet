@@ -3,16 +3,20 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Linq;
 using log4net;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNet.Pictures;
+using SharpNet.TextPreprocessing;
 using SharpNetTests.Data;
 // ReSharper disable AccessToDisposedClosure
 
@@ -299,7 +303,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "TestParallelRunWithTensorFlow_Embedding",
+                            LogFile = "Embedding",
                             LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2
@@ -334,6 +338,190 @@ namespace SharpNetTests.NonReg
             Log.Info("-");
 
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+
+            var predict_after = network.Predict(X, false).ToNumpy();
+            var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            Log.Info("C# numEpochs= " + numEpochs);
+            Log.Info("C# learningRate= " + learningRate);
+            Log.Info("C# l2regularizer= " + lambdaL2Regularization);
+            Log.Info("C# momentum= " + momentum);
+            Log.Info("C# prediction_before= " + predict_before);
+            Log.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
+            Log.Info("C# prediction_after= " + predict_after);
+            Log.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
+        }
+
+        [Test, Explicit]
+        public void TestParallelRunWithTensorFlow_Embedding_GlobalPooling()
+        {
+            const int numEpochs = 5;
+            const double learningRate = 0.01;
+            const double lambdaL2Regularization = 0.00;
+            const double momentum = 0.9;
+            int batchSize = 2;
+            var deviceId = -1;
+            //var deviceId = 0;
+            int vocabularySize = 3;
+            int embeddingDim = 5;
+            int maxWordsBySentence = 4;
+
+            var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1, 1, 1, 2], [2, 2, 2, 2], [1, 2, 2, 2],[1, 1, 1, 1]], numpy.float)");
+            var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1], [0], [0], [1]], numpy.float)");
+
+
+            var networkConfig = new NetworkConfig
+            {
+                LogFile = "Embedding_GlobalPooling",
+                LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
+                RandomizeOrder = false,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+            };
+            networkConfig.DataAugmentation = DataAugmentationConfig.NoDataAugmentation;
+
+
+            var network = new Network(
+                        networkConfig
+                       .WithAdam(0.9, 0.999, 1e-7),
+                       //.WithSGD(momentum, false),
+                        new List<int> { deviceId }
+                );
+            network.PropagationManager.LogPropagation = true;
+
+            network
+                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
+                .GlobalAvgPooling()
+                .Dense(4, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense(1, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+
+
+            Log.Info(network.Summary() + Environment.NewLine);
+
+            TestNetworkPropagation.FromNumpyArray("[[-0.020802486687898636, -0.02934335544705391, 0.0035390742123126984, 0.006125748157501221, -0.008332550525665283], [0.0307827927172184, -0.0006774887442588806, 0.0498129241168499, 0.019673515111207962, -0.037462640553712845], [0.020981673151254654, 0.016241561621427536, 0.007225655019283295, -0.013524651527404785, -0.007948171347379684]]")
+                .CopyTo(((EmbeddingLayer)network.Layers[1]).Weights);
+            TestNetworkPropagation.FromNumpyArray("[[0.09049081802368164, -0.45512667298316956, 0.5959198474884033, 0.4528021812438965], [0.2369745969772339, 0.04958134889602661, -0.7929145097732544, 0.6099379062652588], [-0.04944407939910889, -0.18497097492218018, 0.6305867433547974, 0.22337579727172852], [-0.813431978225708, 0.5842254161834717, -0.6403303146362305, 0.7512772083282471], [-0.47131311893463135, 0.26539182662963867, -0.6189195513725281, -0.5728708505630493]]")
+                .CopyTo(((DenseLayer)network.Layers[3]).Weights);
+            TestNetworkPropagation.FromNumpyArray("[[-0.6677531003952026], [0.5261931419372559], [-0.026724934577941895], [0.8222856521606445]]")
+                .CopyTo(((DenseLayer)network.Layers[5]).Weights);
+
+
+            network.PropagationManager.LogPropagation = true;
+            var predict_before = network.Predict(X, false).ToNumpy();
+
+            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "1" }, "", null);
+
+
+            var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            Log.Info("-");
+            Log.Info("- Fit -------------------------------------------------------------------");
+            Log.Info("-");
+
+            TestNetwork.Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, null);
+
+            Log.Info("-");
+            Log.Info("- Using Trained Network -------------------------------------------------------------------");
+            Log.Info("-");
+
+            var predict_after = network.Predict(X, false).ToNumpy();
+            var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            Log.Info("C# numEpochs= " + numEpochs);
+            Log.Info("C# learningRate= " + learningRate);
+            Log.Info("C# l2regularizer= " + lambdaL2Regularization);
+            Log.Info("C# momentum= " + momentum);
+            Log.Info("C# batchSize= " + batchSize);
+            Log.Info("C# prediction_before= " + predict_before);
+            Log.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
+            Log.Info("C# prediction_after= " + predict_after);
+            Log.Info("C# loss_after= " + lossAccuracyAfter.Item1 + " , accuracy_after= " + lossAccuracyAfter.Item2);
+        }
+
+
+        private class SarcasmEntry
+        {
+            [JsonProperty("article_link")]
+            public string ArticleLink { get; set; }
+            [JsonProperty("headline")]
+            public string Headline { get; set; }
+            [JsonProperty("is_sarcastic")]
+            public bool IsSarcastic { get; set; }
+        }
+
+        [Test, Explicit]
+        public void TestParallelRunWithTensorFlow_Sarcasm()
+        {
+            const int numEpochs = 30;
+            const double learningRate = 0.001;
+            const double lambdaL2Regularization = 0.00;
+            const double momentum = 0.9;
+            int batchSize = 128;
+            //var deviceId = -1;
+            var deviceId = 0;
+            int vocab_size = 10000;
+            int embedding_dim = 16;
+            int max_length = 100;
+            string oov_tok = "<OOV>";
+            int training_size = 20000;
+
+            var jsonText = File.ReadAllText(@"C:\Download\sarcasm.json");
+            List<SarcasmEntry> allEntries = JsonConvert.DeserializeObject<List< SarcasmEntry>>(jsonText);
+
+            var trainingEntries = allEntries.Take(training_size).ToList();
+            var trainingHeadlines = trainingEntries.Select(e => e.Headline).ToList();
+            var tokenizer = new Tokenizer(vocab_size, oov_tok);
+            tokenizer.FitOnTexts(trainingHeadlines);
+            //var word_index = tokenizer.WordIndex;
+
+            var training_sequences = tokenizer.TextsToSequences(trainingHeadlines);
+            var X  = PadSequenceTools.PadSequence(training_sequences, max_length, false, false).Select(x=>(float)x);
+            var Y  = new CpuTensor<float>(new[]{X.Shape[0],1}, trainingEntries.Select(e => e.IsSarcastic?1f:0f).ToArray());
+
+            var networkConfig = new NetworkConfig
+            {
+                LogFile = "TestParallelRunWithTensorFlow_Sarcasm",
+                LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
+                RandomizeOrder = true,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+            };
+            networkConfig.DataAugmentation = DataAugmentationConfig.NoDataAugmentation;
+
+            var network = new Network(
+                        networkConfig
+                        .WithAdam(0.9, 0.999, 1e-7)
+                        //.WithSGD()
+                        ,
+                        new List<int> { deviceId }
+                );
+
+            network
+                .InputAndEmbedding(max_length, vocab_size, embedding_dim, 0.0)
+                .GlobalAvgPooling()
+                .Dense(24, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense(1, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+
+        
+            //Log.Info(network.Summary() + Environment.NewLine);
+            //network.PropagationManager.LogPropagation = true;
+            var predict_before = network.Predict(X, false).ToNumpy();
+
+            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "1" }, "", null);
+
+
+            var validationEntries = allEntries.Skip(training_size).ToList();
+            var validationHeadlines = validationEntries.Select(e => e.Headline).ToList();
+            var validation_sequences = tokenizer.TextsToSequences(validationHeadlines);
+            var X_val = PadSequenceTools.PadSequence(validation_sequences, max_length, false, false).Select(x => (float)x);
+            var Y_val = new CpuTensor<float>(new[] { X_val.Shape[0], 1 }, validationEntries.Select(e => e.IsSarcastic ? 1f : 0f).ToArray());
+            using InMemoryDataSet validationDataSet = new InMemoryDataSet(X_val, Y_val, new int[X_val.Shape[0]], new[] { "1" }, "", null);
+
+            var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
+
+            //Log.Info("-");
+            //Log.Info("--------------------------------------------------------------------");
+            //Log.Info("-");
+
+            TestNetwork.Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, validationDataSet);
 
             var predict_after = network.Predict(X, false).ToNumpy();
             var lossAccuracyAfter = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
@@ -386,19 +574,6 @@ namespace SharpNetTests.NonReg
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             network.PropagationManager.LogPropagation = true;
-
-
-            //            conv1 = tf.keras.layers.Conv2D(1, kernel_size = 1, strides = 1, padding = 'same', use_bias = True, data_format = 'channels_first')(inputs)
-            //#flatten = tf.keras.layers.Flatten(data_format='channels_last')(inputs)
-            //            activation1 = tf.keras.layers.UpSampling2D(size = (3, 2), interpolation = 'nearest')(conv1)
-            //            conv2 = tf.keras.layers.Conv2D(1, kernel_size = 3, strides = 2, padding = 'same', use_bias = True, data_format = 'channels_first')(activation1)
-            //            flatten = tf.keras.layers.Flatten(data_format = 'channels_first')(conv2)
-
-            //            dense2 = tf.keras.layers.Dense(numClasses)(flatten)
-            //            activation2 = tf.keras.layers.Activation('softmax')(dense2)
-            //            model = tf.keras.models.Model(inputs = inputs, outputs = activation2)
-
-
 
             Log.Info(network.Summary() + Environment.NewLine);
 

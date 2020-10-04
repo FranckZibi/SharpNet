@@ -59,7 +59,7 @@ namespace SharpNet.Data
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
 
         /// <summary>
-        /// this (=y) shape is (batchSize, maxWordCountBySentence, embeddingDim)
+        /// this (=y) shape is (batchSize, embeddingDim, maxWordCountBySentence)
         /// </summary>
         /// <param name="x">tensor of shape (batchSize, maxWordCountBySentence)
         /// row is the sentence Id
@@ -83,7 +83,7 @@ namespace SharpNet.Data
         /// x[row, col] contains the wordIndex (in the word embedding tensor) of the word at position 'row' in sentence 'col'
         /// each wordIndex is in [1, VocabularySize-1]
         /// </param>
-        /// <param name="dy">tensor of shape (batchSize, maxWordCountBySentence, EmbeddingDim)
+        /// <param name="dy">tensor of shape (batchSize, EmbeddingDim, maxWordCountBySentence)
         /// </param>
         public abstract void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy);
 
@@ -631,7 +631,9 @@ namespace SharpNet.Data
         /// <returns></returns>
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
 
-       public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
+        public abstract void RandomizeUniformDistribution(Random rand, double minValue, double maxValue);
+        public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
+
         /// <summary>
         /// set the same value 'sameValue' in the entire tensor
         /// </summary>

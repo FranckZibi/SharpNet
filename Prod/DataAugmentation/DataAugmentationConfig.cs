@@ -134,7 +134,7 @@ namespace SharpNet.DataAugmentation
             RandAugment_M = M;
         }
 
-        private static readonly DataAugmentationConfig NoDataAugmentation = new DataAugmentationConfig();
+        public static readonly DataAugmentationConfig NoDataAugmentation = new DataAugmentationConfig();
 
         public bool Equals(DataAugmentationConfig other, double epsilon, string id, ref string errors)
         {

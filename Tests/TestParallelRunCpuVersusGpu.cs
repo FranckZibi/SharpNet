@@ -282,7 +282,7 @@ namespace SharpNetTests
             const int maxWordCountBySentence = 100;
             const int embeddingDim = 16;
             const int vocabularySize = 50;
-            var y = RandomTensor(new[] { BatchSize, maxWordCountBySentence, embeddingDim });
+            var y = RandomTensor(new[] { BatchSize, embeddingDim, maxWordCountBySentence });
             var x = RandomWordIndexes(BatchSize, maxWordCountBySentence, vocabularySize);
             var wordEmbedding = RandomTensor(new[] { vocabularySize, embeddingDim });
             TestAll(new[] { y, x, wordEmbedding }, tensors => tensors[0].WordEmbeddingForwardPropagation(tensors[1], tensors[2]));
@@ -296,7 +296,7 @@ namespace SharpNetTests
             const int vocabularySize = 50;
             var dW = RandomTensor(new[] { vocabularySize, embeddingDim });
             var x = RandomWordIndexes(BatchSize, maxWordCountBySentence, vocabularySize);
-            var dy = RandomTensor(new[] { BatchSize, maxWordCountBySentence, embeddingDim });
+            var dy = RandomTensor(new[] { BatchSize, embeddingDim, maxWordCountBySentence });
             TestAll(new[] { dW, x, dy}, tensors => tensors[0].WordEmbeddingBackwardPropagation(tensors[1], tensors[2]));
         }
 
@@ -539,38 +539,63 @@ namespace SharpNetTests
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 2)]
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 1)]
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 2)]
-	    public void TestPooling(cudnnPoolingMode_t poolingMode, int stride)
+	    public void TestPooling4D(cudnnPoolingMode_t poolingMode, int stride)
 	    {
             foreach(int poolingHeight in new[]{ 2,4})
             { 
                 foreach(int poolingWidth in new[]{ 2,4})
                 { 
 	                var aBeforePooling = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
-	                var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape(aBeforePooling.Shape, poolingHeight, poolingWidth, stride));
+	                var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape4D(aBeforePooling.Shape, poolingHeight, poolingWidth, stride));
 	                TestAll(new[] { aBeforePooling, aAfterPooling }, tensors => tensors[0].Pooling(tensors[1], poolingMode, poolingHeight, poolingWidth, stride));
                 }
             }
 	    }
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 1)]
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, 2)]
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 1)]
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 2)]
+        public void TestPooling3D(cudnnPoolingMode_t poolingMode, int stride)
+        {
+            foreach (int poolingHeight in new[] { 2, 4 })
+            {
+                var aBeforePooling = RandomTensor(new[] { BatchSize, ChannelsCount, Height});
+                var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape3D(aBeforePooling.Shape, poolingHeight, stride));
+                TestAll(new[] { aBeforePooling, aAfterPooling }, tensors => tensors[0].Pooling(tensors[1], poolingMode, poolingHeight, 1, stride));
+            }
+        }
+
+
         [Test]
-        public void TestGlobalAveragePooling()
+        public void TestGlobalAveragePooling4D()
         {
             var poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
             int poolingHeight = Height;
             int poolingWidth = Width;
             int poolingStride = Math.Max(Height, Width);
             var aBeforePooling = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
-            var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape(aBeforePooling.Shape, poolingHeight, poolingWidth, poolingStride));
+            var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape4D(aBeforePooling.Shape, poolingHeight, poolingWidth, poolingStride));
             TestAll(new[] { aBeforePooling, aAfterPooling }, tensors => tensors[0].Pooling(tensors[1], poolingMode, poolingHeight, poolingWidth, poolingStride));
+        }
+        [Test]
+        public void TestGlobalAveragePooling3D()
+        {
+            var poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
+            int poolingHeight = Height;
+            int poolingStride = Height;
+            var aBeforePooling = RandomTensor(new[] { BatchSize, ChannelsCount, Height});
+            var aAfterPooling = RandomTensor(PoolingLayer.PoolingOutputShape3D(aBeforePooling.Shape, poolingHeight, poolingStride));
+            TestAll(new[] { aBeforePooling, aAfterPooling }, tensors => tensors[0].Pooling(tensors[1], poolingMode, poolingHeight, 1, poolingStride));
         }
 
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC)]
         [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING)]
-	    public void TestPoolingGradient(cudnnPoolingMode_t poolingMode)
+	    public void TestPoolingGradient4D(cudnnPoolingMode_t poolingMode)
         {
             foreach(var poolingSize in new[] {2,4})
             { 
                 var shapeBeforePooling = new[] { BatchSize, ChannelsCount, Height, Width };
-	            var shapeAfterPooling = PoolingLayer.PoolingOutputShape(shapeBeforePooling, poolingSize, poolingSize, poolingSize);
+	            var shapeAfterPooling = PoolingLayer.PoolingOutputShape4D(shapeBeforePooling, poolingSize, poolingSize, poolingSize);
 	            var dy = RandomTensor(shapeAfterPooling);
 	            var x = RandomTensor(shapeBeforePooling);
 	            var y = RandomTensor(shapeAfterPooling);
@@ -579,22 +604,55 @@ namespace SharpNetTests
 	            TestAll(new[] { dy, y, x, dx }, tensors => tensors[0].PoolingGradient(tensors[1], tensors[2], tensors[3], poolingMode, poolingSize, poolingSize, poolingSize));
 	        }
         }
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC)]
+        [TestCase(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING)]
+        public void TestPoolingGradient3D(cudnnPoolingMode_t poolingMode)
+        {
+            foreach (var poolingHeight in new[] { 2, 4 })
+            {
+                var shapeBeforePooling = new[] { BatchSize, ChannelsCount, Height};
+                var shapeAfterPooling = PoolingLayer.PoolingOutputShape3D(shapeBeforePooling, poolingHeight, poolingHeight);
+                var dy = RandomTensor(shapeAfterPooling);
+                var x = RandomTensor(shapeBeforePooling);
+                var y = RandomTensor(shapeAfterPooling);
+                const int poolingWidth = 1;
+                x.Pooling(y, poolingMode, poolingHeight, poolingWidth, poolingHeight);
+                var dx = RandomTensor(shapeBeforePooling);
+                TestAll(new[] { dy, y, x, dx }, tensors => tensors[0].PoolingGradient(tensors[1], tensors[2], tensors[3], poolingMode, poolingHeight, 1, poolingHeight));
+            }
+        }
 
         [Test]
-        public void TestGlobalAveragePoolingGradient()
+        public void TestGlobalAveragePoolingGradient4D()
         {
             var poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
             int poolingHeight = Height;
             int poolingWidth = Width;
             int poolingStride = Math.Max(Height, Width);
             var shapeBeforePooling = new[] { BatchSize, ChannelsCount, Height, Width };
-            var shapeAfterPooling = PoolingLayer.PoolingOutputShape(shapeBeforePooling, poolingHeight, poolingWidth, poolingStride);
+            var shapeAfterPooling = PoolingLayer.PoolingOutputShape4D(shapeBeforePooling, poolingHeight, poolingWidth, poolingStride);
             var dy = RandomTensor(shapeAfterPooling);
             var x = RandomTensor(shapeBeforePooling);
             var y = RandomTensor(shapeAfterPooling);
             x.Pooling(y, poolingMode, poolingHeight, poolingWidth, poolingStride);
             var dx = RandomTensor(shapeBeforePooling);
             TestAll(new[] { dy, y, x, dx }, tensors => tensors[0].PoolingGradient(tensors[1], tensors[2], tensors[3], poolingMode, poolingHeight, poolingWidth, poolingStride));
+        }
+        [Test]
+        public void TestGlobalAveragePoolingGradient3D()
+        {
+            var poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
+            int poolingHeight = Height;
+            int poolingStride = Height;
+            var shapeBeforePooling = new[] { BatchSize, ChannelsCount, Height};
+            var shapeAfterPooling = PoolingLayer.PoolingOutputShape3D(shapeBeforePooling, poolingHeight, poolingStride);
+            var dy = RandomTensor(shapeAfterPooling);
+            var x = RandomTensor(shapeBeforePooling);
+            var y = RandomTensor(shapeAfterPooling);
+            const int poolingWidth = 1;
+            x.Pooling(y, poolingMode, poolingHeight, poolingWidth, poolingStride);
+            var dx = RandomTensor(shapeBeforePooling);
+            TestAll(new[] { dy, y, x, dx }, tensors => tensors[0].PoolingGradient(tensors[1], tensors[2], tensors[3], poolingMode, poolingHeight, 1, poolingStride));
         }
 
         [Test]

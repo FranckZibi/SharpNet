@@ -86,10 +86,10 @@ namespace SharpNet.Networks
                     if (LogPropagation)
                     {
                         layer.LogDebug("Forward: "+layer);
-                        //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
-                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
-                        //layer.LogDebug("output:" + Environment.NewLine + yBuffer.ToNumpy());
-                        layer.LogDebug("output:" + yBuffer.ContentStats());
+                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
+                        //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
+                        layer.LogDebug("output:" + Environment.NewLine + yBuffer.ToNumpy());
+                        //layer.LogDebug("output:" + yBuffer.ContentStats());
                         layer.LogDebug("");
                     }
                 }
@@ -163,17 +163,30 @@ namespace SharpNet.Networks
             {
                 dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
 
-                if (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
+              
+                if (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)
                 {
-                    dyPredicted.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(yExpected, yPredicted);
+                    //Categorical Cross Entropy
+                    Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
+                    //we compute: _dyPredicted = (yPredicted - yExpected)
+                    yPredicted.CopyTo(dyPredicted);
+                    dyPredicted.AddTensor(-1, yExpected, 1);
+                }
+                else if (lossFunction == NetworkConfig.LossFunctionEnum.BinaryCrossentropy)
+                {
+                    //Binary Cross Entropy
+                    Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
+                    //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
+                    yPredicted.CopyTo(dyPredicted);
+                    var categoryCount = yPredicted.Shape[1];
+                    var multiplier = 1f / (categoryCount);
+                    dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
                 }
                 else
                 {
-                    //we compute: _dyPredicted = (1.0 / categoryCount)*(yPredicted - yExpected)
-                    yPredicted.CopyTo(dyPredicted);
-                    var categoryCount = yPredicted.Shape[1];
-                    var multiplier = _layers.Last().IsSigmoidActivationLayer() ? (1f / categoryCount) : 1f;
-                    dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
+                    //Categorical Cross Entropy with Hierarchy
+                    Debug.Assert(lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy);
+                    dyPredicted.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(yExpected, yPredicted);
                 }
             }
 
@@ -222,13 +235,13 @@ namespace SharpNet.Networks
                         layer.LogDebug("backward: "+layer);
                         if (layer.WeightGradients != null)
                         {
-                            //layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
-                            layer.LogDebug("dW: " + layer.WeightGradients.ContentStats());
+                            layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
+                            //layer.LogDebug("dW: " + layer.WeightGradients.ContentStats());
                         }
                         if (layer.BiasGradients != null)
                         {
-                            //layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
-                            layer.LogDebug("dB: " + layer.BiasGradients.ContentStats());
+                            layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
+                            //layer.LogDebug("dB: " + layer.BiasGradients.ContentStats());
                         }
                         for (var index = 0; index < dxBuffer.Count; index++)
                         {

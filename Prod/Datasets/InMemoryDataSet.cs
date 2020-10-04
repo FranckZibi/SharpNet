@@ -45,7 +45,7 @@ namespace SharpNet.Datasets
 
             if (CategoryCount == 1)
             {
-                yBuffer?.Set(indexInBuffer, 0, Y.Get(indexInBuffer,0));
+                yBuffer?.Set(indexInBuffer, 0, Y.Get(elementId, 0));
             }
             else
             {

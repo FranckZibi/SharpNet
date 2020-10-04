@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using SharpNet.Data;
-using SharpNet.Networks;
 
 namespace SharpNet.Optimizers
 {
@@ -10,7 +9,7 @@ namespace SharpNet.Optimizers
         public enum OptimizationEnum { VanillaSGD, Adam, SGD }
         protected bool _isDisposed;
 
-        public static Optimizer ValueOf(NetworkConfig networkConfig, IDictionary<string, object> serialized)
+        public static Optimizer ValueOf(IDictionary<string, object> serialized)
         {
             var sgd = Sgd.DeserializeSGD(serialized);
             if (sgd != null)

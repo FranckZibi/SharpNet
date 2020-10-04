@@ -8,7 +8,6 @@ namespace SharpNet.Optimizers
     public class Sgd : Optimizer
     {
         #region private fields
-        private int _iterations;
         private readonly TensorMemoryPool _memoryPool;
         private readonly double _SGD_momentum;
         private readonly bool _SGD_usenesterov;
@@ -18,7 +17,6 @@ namespace SharpNet.Optimizers
 
         public Sgd(TensorMemoryPool memoryPool, double SGD_momentum, bool SGD_usenesterov, int[] weightShape, int[] biasShapeIfAny)
         {
-            _iterations = 0;
             _memoryPool = memoryPool;
             _SGD_momentum = SGD_momentum;
             _SGD_usenesterov = SGD_usenesterov;
@@ -44,7 +42,6 @@ namespace SharpNet.Optimizers
         {
             Debug.Assert(weights.SameShape(weightGradients));
             Debug.Assert(bias == null || bias.SameShape(biasGradient));
-            ++_iterations;
             var ponderedLearningRate = PonderedLearning(learningRate, batchSize);
             weights.UpdateSGDOptimizer(ponderedLearningRate, _SGD_momentum, _SGD_usenesterov, weightGradients, _velocityWeight);
             bias?.UpdateSGDOptimizer(ponderedLearningRate, _SGD_momentum, _SGD_usenesterov, biasGradient, _velocityBias);
@@ -65,7 +62,6 @@ namespace SharpNet.Optimizers
         public override string Serialize()
         {
             return new Serializer()
-                .Add(nameof(_iterations), _iterations)
                 .Add(nameof(_SGD_momentum), _SGD_momentum)
                 .Add(nameof(_SGD_usenesterov), _SGD_usenesterov)
                 .Add(nameof(_velocityWeight), _velocityWeight)
@@ -78,7 +74,6 @@ namespace SharpNet.Optimizers
         }
         private Sgd(IDictionary<string, object> serialized)
         {
-            serialized.TryGet(nameof(_iterations), out _iterations);
             serialized.TryGet(nameof(_SGD_momentum), out _SGD_momentum);
             serialized.TryGet(nameof(_SGD_usenesterov), out _SGD_usenesterov);
             serialized.TryGet(nameof(_velocityWeight), out _velocityWeight);

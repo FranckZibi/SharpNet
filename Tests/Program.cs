@@ -72,11 +72,10 @@ namespace SharpNetTests
 
 
 
-            //return;
-
-            EfficientNetTests_Cancel(true);
-
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_YOLOV3(); return;
+            //EfficientNetTests_Cancel(true);
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Embedding(); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Embedding_GlobalPooling(); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Sarcasm(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
             //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
