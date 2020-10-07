@@ -120,24 +120,21 @@ namespace SharpNet.Datasets
 
             if (UseBackgroundThread)
             {
-                //if a load is in progress, we'll wait until it finishes
-                while (_backgroundThreadStatus != BackgroundThreadStatus.IDLE)
-                {
-                    Thread.Sleep(1);
-                }
+                //if the background thread is working, we'll wait until it finishes
+                backgroundThreadIsIdle.WaitOne();
 
+                //the background is in idle state
                 var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, xMiniBatch.Shape[0]);
                 if (miniBatchId != alreadyComputedMiniBatchId)
-                { 
-                    //we initialize 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors
-                    threadParameters = Tuple.Create(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId,
-                    dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
-                    _backgroundThreadStatus = BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT;
-                    while (_backgroundThreadStatus != BackgroundThreadStatus.IDLE)
-                    {
-                        Thread.Sleep(1);
-                    }
+                {
+                    LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
                 }
+                else
+                {
+                    //the background has already computed the current batch to process
+                }
+                //we know that the background thread is in idle state
+                backgroundThreadIsIdle.Set();
             }
             else
             {
@@ -170,11 +167,13 @@ namespace SharpNet.Datasets
             int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, xMiniBatch.Shape[0]);
             if (UseBackgroundThread && nextMiniBatchSize > 0)
             {
+                //we will ask the background thread to compute the next mini batch
+                backgroundThreadIsIdle.WaitOne();
                 var xNextMiniBatchShape = (int[])xMiniBatch.Shape.Clone();
                 var yNextMiniBatchShape = (int[])yMiniBatch.Shape.Clone();
                 xNextMiniBatchShape[0] = yNextMiniBatchShape[0] = nextMiniBatchSize;
                 threadParameters = Tuple.Create(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementIdForNextMiniBatch, dataAugmentationConfig, xNextMiniBatchShape, yNextMiniBatchShape);
-                _backgroundThreadStatus = BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT;
+                backgroundThreadHasSomethingTodo.Set();
             }
         }
 
@@ -319,18 +318,17 @@ namespace SharpNet.Datasets
             xDataAugmentedMiniBatch?.Dispose();
             xBufferForDataAugmentedMiniBatch?.Dispose();
             yDataAugmentedMiniBatch?.Dispose();
-            threadParameters = null;
-            for (int i = 0; i < 1000; ++i)
+            if (UseBackgroundThread)
             {
-                _backgroundThreadStatus = BackgroundThreadStatus.TO_ABORT;
-                if (thread == null || !thread.IsAlive)
+                //we stop the background thread
+                threadParameters = null;
+                shouldStopBackgroundThread = true;
+                backgroundThreadIsIdle.WaitOne(1000);
+                backgroundThreadHasSomethingTodo.Set();
+                Thread.Sleep(10);
+                if (thread.IsAlive)
                 {
-                    break;
-                }
-                Thread.Sleep(1);
-                if (i + 1 == 1000)
-                {
-                    Log.Info("fail to stop BackgroundThread in "+Name);
+                    Log.Info("fail to stop BackgroundThread in " + Name);
                 }
             }
         }
@@ -460,27 +458,27 @@ namespace SharpNet.Datasets
         // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
         private bool UseBackgroundThread { get; } = true;
         private readonly Thread thread;
-        private enum BackgroundThreadStatus { IDLE, ABOUT_TO_PROCESS_INPUT, PROCESSING_INPUT, TO_ABORT };
-        private volatile BackgroundThreadStatus _backgroundThreadStatus = BackgroundThreadStatus.IDLE;
         private Tuple<bool, int[], int, DataAugmentationConfig, int[], int[]> threadParameters;
+        private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new AutoResetEvent(false);
+        private readonly AutoResetEvent backgroundThreadIsIdle = new AutoResetEvent(false);
+        private bool shouldStopBackgroundThread = false;
+
         private void BackgroundThread()
         {
             for (; ; )
             {
-                while (_backgroundThreadStatus != BackgroundThreadStatus.ABOUT_TO_PROCESS_INPUT)
+                //we signal that the thread is in Idle mode
+                backgroundThreadIsIdle.Set();
+                //we wait for the master thread to prepare something to do
+                backgroundThreadHasSomethingTodo.WaitOne();
+                if (shouldStopBackgroundThread)
                 {
-                    if (_backgroundThreadStatus == BackgroundThreadStatus.TO_ABORT)
-                    {
-                        return;
-                    }
-                    Thread.Sleep(1);
+                    return;
                 }
-                _backgroundThreadStatus = BackgroundThreadStatus.PROCESSING_INPUT;
                 Debug.Assert(threadParameters != null);
                 // ReSharper disable once PossibleNullReferenceException
                 LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6);
                 threadParameters = null;
-                _backgroundThreadStatus = BackgroundThreadStatus.IDLE;
             }
         }
         #endregion
