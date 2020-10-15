@@ -702,7 +702,7 @@ namespace SharpNetTests
         }
 
         [Test]
-        public void TestComputeLossForCategoricalCrossentropyWithHierarchy()
+        public void TestComputeCategoricalCrossentropyWithHierarchyLoss()
         {
             var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
@@ -711,23 +711,23 @@ namespace SharpNetTests
         }
 
         [Test]
-        public void TestComputeBackPropagationLossCategoricalCrossentropyWithHierarchy()
+        public void TestCategoricalCrossentropyWithHierarchyGradient()
         {
             var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
             var loss = RandomTensor(expected.Shape);
-            TestAll(new[] { loss, expected, predicted}, tensors => tensors[0].ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(tensors[1], tensors[2]));
+            TestAll(new[] { loss, expected, predicted}, tensors => tensors[0].CategoricalCrossentropyWithHierarchyGradient(tensors[1], tensors[2]));
         }
 
         [TestCase(10)]
         [TestCase(1)]
-        public void TestComputeBackwardPropagationLossHuber(int categoryCount)
+        public void TestHuberGradient(int categoryCount)
         {
             var nbRows = 10000;
             var predicted = RandomTensor(new[] { nbRows, categoryCount });
             var expected = RandomTensor(new[] { nbRows, categoryCount });
             var loss = RandomTensor(expected.Shape);
-            TestAll(new[] { expected, predicted, loss }, tensors => tensors[0].ComputeBackwardPropagationLossHuber(tensors[1], tensors[2], 1.0f));
+            TestAll(new[] { expected, predicted, loss }, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
         }
 
         [TestCase(10)]

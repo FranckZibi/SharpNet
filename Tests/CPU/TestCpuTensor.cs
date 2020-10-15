@@ -175,13 +175,13 @@ namespace SharpNetTests.CPU
                 0,-0.8f,0,0,0,0,0,0,0,0,0.4f,0,0,0,-0.4f,0,0,0,0.5f,0.3f,0,0,0,0,0,0,0,0,0,0
             };
             var predictedLoss = new CpuTensor<float>(expected.Shape);
-            predictedLoss.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(expected, predicted);
+            predictedLoss.CategoricalCrossentropyWithHierarchyGradient(expected, predicted);
             var expectedLoss= new CpuTensor<float>(predictedLoss.Shape, expectedLossContent);
             Assert.IsTrue(TestTensor.SameContent(expectedLoss, predictedLoss, 1e-6));
         }
 
         [Test]
-        public void TestComputeLossForCategoricalCrossentropyWithHierarchy()
+        public void TestComputeCategoricalCrossentropyWithHierarchyLoss()
         {
             var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();

@@ -180,11 +180,11 @@ namespace SharpNet.Networks
                         dyPredicted.AddTensor(-1, yExpected, 1);
                         break;
                     case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
-                        dyPredicted.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(yExpected, yPredicted);
+                        dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
                         break;
                     case NetworkConfig.LossFunctionEnum.Huber:
                         const float huberDelta = 1.0f;
-                        dyPredicted.ComputeBackwardPropagationLossHuber(yExpected, yPredicted, huberDelta);
+                        dyPredicted.HuberGradient(yExpected, yPredicted, huberDelta);
                         break;
                     default:
                         throw new Exception("Invalid loss function " + lossFunction);

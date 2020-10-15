@@ -578,21 +578,21 @@ namespace SharpNet.GPU
             return buffer.ContentAsFloatArray().Average();
         }
 
-        public override void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted)
+        public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted)
         {
             var loss = this;
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
             loss.ZeroMemory();
-            _wrapper.RunKernel("ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
+            _wrapper.RunKernel("CategoricalCrossentropyWithHierarchyGradient", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
         }
 
-        public override void ComputeBackwardPropagationLossHuber(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var loss = this;
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
-            _wrapper.RunKernel("ComputeBackwardPropagationLossHuber", nbRows, new object[] { nbCols, huberDelta, loss, yExpected, yPredicted });
+            _wrapper.RunKernel("HuberGradient", nbRows, new object[] { nbCols, huberDelta, loss, yExpected, yPredicted });
         }
 
         /// <summary>
@@ -610,7 +610,7 @@ namespace SharpNet.GPU
             Debug.Assert(buffer != null);
             Debug.Assert(yPredicted.SameShape(yExpectedOneHot));
             Debug.Assert(yExpectedOneHot.Dimension == 2);
-            var kernelName = GetComputeLossMethod(lossFunction);
+            var kernelName = lossFunction + "Loss";
             int nbRows = yExpectedOneHot.Shape[0];
             var categoryCount = yExpectedOneHot.Shape[1];
             if (lossFunction == NetworkConfig.LossFunctionEnum.Huber)
@@ -625,26 +625,6 @@ namespace SharpNet.GPU
 
             return buffer.ContentAsFloatArray().Average();
         }
-
-        private static string GetComputeLossMethod(NetworkConfig.LossFunctionEnum lossFunction)
-        {
-            switch (lossFunction)
-            {
-                case NetworkConfig.LossFunctionEnum.BinaryCrossentropy: 
-                    return "ComputeBinaryCrossentropyLoss";
-                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy: 
-                    return "ComputeLossForCategoricalCrossentropyWithHierarchy";
-                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
-                    return "ComputeCategoricalCrossentropyLoss";
-                case NetworkConfig.LossFunctionEnum.Huber:
-                    return "ComputeHuberLoss";
-                default:
-                    throw new Exception("Invalid loss function " + lossFunction);
-            }
-        }
-
-
-
         public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU) 
         {
             var x = this;

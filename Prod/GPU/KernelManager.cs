@@ -39,11 +39,13 @@ namespace SharpNet.GPU
                 {
                     "ApplyZeroPaddingForRowId",
                     "ComputeAccuracy",
-                    "ComputeCategoricalCrossentropyLoss",
-                    "ComputeBinaryCrossentropyLoss",
-                    "ComputeLossForCategoricalCrossentropyWithHierarchy",
+                    "BinaryCrossentropyLoss",
+                    "CategoricalCrossentropyLoss",
+                    "CategoricalCrossentropyWithHierarchyLoss",
+                    "HuberLoss",
                     "ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy",
-                    "ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy",
+                    "CategoricalCrossentropyWithHierarchyGradient",
+                    "HuberGradient",
                     "Concatenate",
                     "Concatenate3",
                     "MultiplyEachRowIntoSingleValue",
@@ -57,9 +59,7 @@ namespace SharpNet.GPU
                     "ComputeSoftmaxWithHierarchy",
                     "ComputeSoftmaxGradientWitHierarchy",
                     "WordEmbeddingForwardPropagation",
-                    "WordEmbeddingBackwardPropagation",
-                    "ComputeHuberLoss",
-                    "ComputeBackwardPropagationLossHuber"
+                    "WordEmbeddingBackwardPropagation"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

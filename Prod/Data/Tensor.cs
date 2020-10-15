@@ -608,21 +608,21 @@ namespace SharpNet.Data
 
 
         /// <summary>
-        /// Compute the loss when we are a categorical hierarchy for categories
+        /// Compute the output gradient when we are using categorical hierarchy for categories
         /// and stores it in the 'this' tensor
         /// </summary>
         /// <param name="yExpected">the expected values for the prediction</param>
         /// <param name="yPredicted">the observed values for the prediction</param>
-        public abstract void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted);
+        public abstract void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted);
 
         /// <summary>
-        /// Compute Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
+        /// Compute the output gradient when are using Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
         /// and stores it in the 'this' tensor
         /// </summary>
         /// <param name="yExpected">the expected values for the prediction</param>
         /// <param name="yPredicted">the observed values for the prediction</param>
         /// <param name="huberDelta"></param>
-        public abstract void ComputeBackwardPropagationLossHuber(Tensor yExpected, Tensor yPredicted, float huberDelta);
+        public abstract void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta);
 
         /// <summary>
         /// pointer to (device or host) pinned memory

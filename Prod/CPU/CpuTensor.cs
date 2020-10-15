@@ -1696,17 +1696,17 @@ namespace SharpNet.CPU
         // ReSharper disable once InconsistentNaming
         private static float fabsf(float f) {return Math.Abs(f);}
 
-        public override void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted)
+        public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted)
         {
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
             Debug.Assert(loss.Dimension == 2);
             loss.ZeroMemory();
-            Parallel.For(0, loss.Shape[0], m =>{ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent);});
+            Parallel.For(0, loss.Shape[0], m =>{ CategoricalCrossentropyWithHierarchyGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent);});
         }
 
-        private static void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        private static void CategoricalCrossentropyWithHierarchyGradient(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
             Debug.Assert(loss.Length == expected.Length);
             Debug.Assert(loss.Length == predicted.Length);
@@ -1735,16 +1735,16 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void ComputeBackwardPropagationLossHuber(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
             Debug.Assert(loss.Dimension == 2);
-            Parallel.For(0, loss.Shape[0], m => { ComputeBackwardPropagationLossHuber(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
+            Parallel.For(0, loss.Shape[0], m => { HuberGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
         }
 
-        private static void ComputeBackwardPropagationLossHuber(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
+        private static void HuberGradient(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
         {
             Debug.Assert(loss.Length == expected.Length);
             Debug.Assert(loss.Length == predicted.Length);
