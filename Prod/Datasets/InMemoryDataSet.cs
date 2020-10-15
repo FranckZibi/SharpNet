@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
@@ -17,24 +18,35 @@ namespace SharpNet.Datasets
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
-        /// <param name="elementIdToCategoryIndex"></param>
-        /// <param name="categoryDescriptions"></param>
         /// <param name="name"></param>
         /// <param name="meanAndVolatilityForEachChannel"></param>
-        public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryIndex, string[] categoryDescriptions,
-            string name, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
-            : base(name, x.Shape[1], categoryDescriptions, meanAndVolatilityForEachChannel, ResizeStrategyEnum.None)
+        /// <param name="categoryDescriptions"></param>
+        public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y,
+            string name = "", List<Tuple<float, float>> meanAndVolatilityForEachChannel = null, string[] categoryDescriptions = null)
+            : base(name, 
+                x.Shape[1], 
+                categoryDescriptions ?? Enumerable.Range(0, y.Shape[1]).Select(i => i.ToString()).ToArray(), 
+                meanAndVolatilityForEachChannel, 
+                ResizeStrategyEnum.None)
         {
             Debug.Assert(AreCompatible_X_Y(x, y));
-            Debug.Assert(categoryDescriptions.Length == y.Shape[1]);
-            if (elementIdToCategoryIndex == null)
-            {
-                throw new ArgumentException("elementIdToCategoryIndex must be provided");
-            }
 
             _x = x;
             Y = y;
-            _elementIdToCategoryIndex = elementIdToCategoryIndex;
+
+            _elementIdToCategoryIndex = new int[y.Shape[0]];
+            var ySpan = y.AsReadonlyFloatCpuContent;
+            for (int elementId = 0; elementId < y.Shape[0]; ++elementId)
+            {
+                int startIndex = elementId * y.Shape[1];
+                for (int categoryIdx = 0; categoryIdx < y.Shape[1]; ++categoryIdx)
+                {
+                    if (ySpan[startIndex + categoryIdx] > 0.9f)
+                    {
+                        _elementIdToCategoryIndex[elementId] = categoryIdx;
+                    }
+                }
+            }
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation)

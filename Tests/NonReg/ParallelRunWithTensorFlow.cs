@@ -179,7 +179,7 @@ namespace SharpNetTests.NonReg
 
             //network.LogContent();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[batchSize], ImageNetDataSet._CategoryIndexToDescription, "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y, "", null, ImageNetDataSet._CategoryIndexToDescription);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
@@ -260,7 +260,7 @@ namespace SharpNetTests.NonReg
             network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new []{"0","1"}, "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
@@ -329,7 +329,7 @@ namespace SharpNetTests.NonReg
             network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "1" }, "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
 
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
@@ -408,7 +408,7 @@ namespace SharpNetTests.NonReg
             network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "1" }, "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
 
 
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
@@ -505,7 +505,7 @@ namespace SharpNetTests.NonReg
             //network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "1" }, "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
 
 
             var validationEntries = allEntries.Skip(training_size).ToList();
@@ -513,7 +513,7 @@ namespace SharpNetTests.NonReg
             var validation_sequences = tokenizer.TextsToSequences(validationHeadlines);
             var X_val = PadSequenceTools.PadSequence(validation_sequences, max_length, false, false).Select(x => (float)x);
             var Y_val = new CpuTensor<float>(new[] { X_val.Shape[0], 1 }, validationEntries.Select(e => e.IsSarcastic ? 1f : 0f).ToArray());
-            using InMemoryDataSet validationDataSet = new InMemoryDataSet(X_val, Y_val, new int[X_val.Shape[0]], new[] { "1" }, "", null);
+            using InMemoryDataSet validationDataSet = new InMemoryDataSet(X_val, Y_val);
 
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
@@ -585,7 +585,7 @@ namespace SharpNetTests.NonReg
 
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "0", "1", "2" },"", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
@@ -651,7 +651,7 @@ namespace SharpNetTests.NonReg
             network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "1" }, "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
 
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 
@@ -719,7 +719,7 @@ namespace SharpNetTests.NonReg
             network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, new int[X.Shape[0]], new[] { "1" }, "", null);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
 
             var lossAccuracyBefore = network.ComputeLossAndAccuracyForTestDataSet(batchSize, trainingDataSet);
 

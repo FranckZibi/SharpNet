@@ -36,21 +36,10 @@ namespace SharpNetTests.Datasets
         {
             var tensorY = TestCpuTensor.RandomByteTensor(new[] { tensorX.Shape[0], 1 }, rand, 0, 1);
 
-            var categoryIndexToDescription = new string[categoryCount];
-            for (int i = 0; i < categoryCount; ++i)
-            {
-                categoryIndexToDescription[i] = rand.Next(categoryCount).ToString();
-            }
-            var elementIdToCategoryIndex = new int[tensorX.Shape[0]];
-            for (int i = 0; i < elementIdToCategoryIndex.Length; ++i)
-            {
-                elementIdToCategoryIndex[i] = i % categoryCount;
-            }
-            string name = "TestAbstractDataSet";
             var meanAndVolatilityForEachChannel = tensorX.ComputeMeanAndVolatilityOfEachChannel(t => t);
             var x = AbstractDataSet.ToXWorkingSet(tensorX, meanAndVolatilityForEachChannel);
             var y = AbstractDataSet.ToYWorkingSet(tensorY, categoryCount, categoryByte=>categoryByte);
-            return new InMemoryDataSet(x, y, elementIdToCategoryIndex, categoryIndexToDescription, name, meanAndVolatilityForEachChannel);
+            return new InMemoryDataSet(x, y, "TestAbstractDataSet", meanAndVolatilityForEachChannel);
         }
     }
 }

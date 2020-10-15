@@ -206,9 +206,11 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
+                Debug.Assert(activationParameter != null);
+                Debug.Assert(activationParameter.UseGPU);
                 var activationDes = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDes, one, xDesc, x, zero, yDesc, y);
-                var alphaActivation = activationParameter.AsReadonlyFloatCpuContent[0];
+                var alphaActivation = activationParameter.ContentAsFloatArray()[0];
                 y.AddTensor(alphaActivation, x, 1- alphaActivation);
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
@@ -254,9 +256,11 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
+                Debug.Assert(activationParameter != null);
+                Debug.Assert(activationParameter.UseGPU);
                 var activationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
-                var alphaActivation = activationParameter.AsReadonlyFloatCpuContent[0];
+                var alphaActivation = activationParameter.ContentAsFloatArray()[0];
                 dx.AddTensor(alphaActivation, dy, 1 - alphaActivation);
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)

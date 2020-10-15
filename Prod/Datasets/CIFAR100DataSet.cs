@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Networks;
 /*
@@ -96,8 +95,6 @@ namespace SharpNet.Datasets
             var yTrain = AbstractDataSet.ToYWorkingSet(yTrainingSet, CategoryCount, CategoryByteToCategoryIndex);
 
             AbstractDataSet.AreCompatible_X_Y(xTrain, yTrain);
-            int[] trainElementIdToCategoryIndex = yTrainingSet.ReadonlyContent.Select(x => (int)x).ToArray();
-            Debug.Assert(trainElementIdToCategoryIndex.Length == xTrainingSet.Shape[0]);
 
             //We load the test set
             var xTestSet = new CpuTensor<byte>(new[] { 10000, Shape_CHW[0], Shape_CHW[1], Shape_CHW[2]});
@@ -108,14 +105,11 @@ namespace SharpNet.Datasets
             var yTest = AbstractDataSet.ToYWorkingSet(yTestSet, CategoryCount, CategoryByteToCategoryIndex);
 
             AbstractDataSet.AreCompatible_X_Y(xTest, yTest);
-            int[] testElementIdToCategoryIndex = yTestSet.ReadonlyContent.Select(x => (int)x).ToArray();
-            Debug.Assert(testElementIdToCategoryIndex.Length == xTestSet.Shape[0]);
-
             //Uncomment the following line to take only the first elements
             //xTrain = (CpuTensor<float>)xTrain.Slice(0, 1000);yTrain = (CpuTensor<float>)yTrain.Slice(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.Slice(0, 1000); ; yTest = (CpuTensor<float>)yTest.Slice(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, CategoryIndexToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
-            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, CategoryIndexToDescription, Name, meanAndVolatilityOfEachChannelInTrainingSet);
+            Training = new InMemoryDataSet(xTrain, yTrain, Name, meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
+            Test = new InMemoryDataSet(xTest, yTest, Name, meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
         }
 
         private static void Load(string path, CpuTensor<byte> x, CpuTensor<byte> y)

@@ -286,9 +286,6 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.5976990461349487, 1.0);
         }
 
-
-
-
         [Test, TestCaseSource(nameof(GetTestCases))]
         public void TestLeakyReluActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
@@ -977,8 +974,7 @@ namespace SharpNetTests.NonReg
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy, double epsilon = 1e-5)
         {
             var batchSize = X.Shape[0];
-            var categories = Enumerable.Range(0, Y_expected.Shape[1]).Select(i => i.ToString()).ToArray();
-            using var dataSet = new InMemoryDataSet(X, Y_expected, new int[batchSize], categories, "", null);
+            using var dataSet = new InMemoryDataSet(X, Y_expected, "", null, null);
             var observedLossAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 

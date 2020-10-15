@@ -86,6 +86,7 @@ namespace SharpNet.Datasets
         {
             Name = name;
             Channels = channels;
+            Debug.Assert(categoryDescriptions != null);
             CategoryDescriptions = categoryDescriptions;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
@@ -365,11 +366,6 @@ namespace SharpNet.Datasets
         }
         public abstract CpuTensor<float> Y { get; }
         
-        protected static bool IsValidYSet(Tensor data)
-        {
-            Debug.Assert(!data.UseGPU);
-            return data.AsReadonlyFloatCpuContent.All(x => IsValidY(x));
-        }
         protected void UpdateStatus(ref int nbPerformed)
         {
             int delta = Math.Max(Count / 100, 1);
@@ -434,16 +430,12 @@ namespace SharpNet.Datasets
             alreadyComputedMiniBatchId = miniBatchId;
         }
 
-        private static bool IsValidY(double x)
-        {
-            return Math.Abs(x) <= 1e-9 || Math.Abs(x - 1.0) <= 1e-9;
-        }
-
         public Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
         {
             var rand = _rands[indexInMiniBatch % _rands.Length];
             return rand;
         }
+
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {
             long result = 1;

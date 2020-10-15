@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Networks;
 using SharpNet.Pictures;
@@ -26,15 +25,13 @@ namespace SharpNet.Datasets
             var xTrain = trainWorkingSet.Item1;
             var yTrain = trainWorkingSet.Item2;
 
-            var trainElementIdToCategoryIndex = trainingSet.Select(x=>x.Value).ToArray();
-            Training = new InMemoryDataSet(xTrain, yTrain, trainElementIdToCategoryIndex, CategoryIndexToDescription, Name, null);
+            Training = new InMemoryDataSet(xTrain, yTrain, Name, null, CategoryIndexToDescription);
 
             var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
             var testWorkingSet = ToWorkingSet(testSet);
             var xTest = testWorkingSet.Item1;
             var yTest = testWorkingSet.Item2;
-            var testElementIdToCategoryIndex = testSet.Select(x => x.Value).ToArray();
-            Test = new InMemoryDataSet(xTest, yTest, testElementIdToCategoryIndex, CategoryIndexToDescription, Name, null);
+            Test = new InMemoryDataSet(xTest, yTest, Name, null, CategoryIndexToDescription);
         }
 
 
