@@ -57,7 +57,9 @@ namespace SharpNet.GPU
                     "ComputeSoftmaxWithHierarchy",
                     "ComputeSoftmaxGradientWitHierarchy",
                     "WordEmbeddingForwardPropagation",
-                    "WordEmbeddingBackwardPropagation"
+                    "WordEmbeddingBackwardPropagation",
+                    "ComputeHuberLoss",
+                    "ComputeBackwardPropagationLossHuber"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

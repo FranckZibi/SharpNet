@@ -44,7 +44,6 @@ namespace SharpNet.CPU
             _ptrToOwnerPinnedMemory = memoryOwner.Pointer + TypeSize * startIndex;
         }
 
-
         /// <summary>
         /// pointer to (pinned) host memory (in CPU)
         /// </summary>
@@ -1480,6 +1479,10 @@ namespace SharpNet.CPU
                     Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = ComputeLossCategoricalCrossentropyWithHierarchy(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
                     cost = buffer.AsReadonlyFloatCpuContent.Average();
                     break;
+                case NetworkConfig.LossFunctionEnum.Huber:
+                    const double huberDelta = 1.0;
+                    cost = (1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float) ( (Math.Abs(expected-prediction)<= huberDelta) ?(0.5*Math.Pow(expected - prediction,2)):(huberDelta* Math.Abs(expected - prediction)-0.5*huberDelta*huberDelta)  )).NaNSum();
+                    break;
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
             }
@@ -1732,12 +1735,25 @@ namespace SharpNet.CPU
             }
         }
 
+        public override void ComputeBackwardPropagationLossHuber(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        {
+            var loss = this;
+            Debug.Assert(loss.SameShape(yExpected));
+            Debug.Assert(loss.SameShape(yPredicted));
+            Debug.Assert(loss.Dimension == 2);
+            Parallel.For(0, loss.Shape[0], m => { ComputeBackwardPropagationLossHuber(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
+        }
 
-
-
-
-
-
+        private static void ComputeBackwardPropagationLossHuber(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
+        {
+            Debug.Assert(loss.Length == expected.Length);
+            Debug.Assert(loss.Length == predicted.Length);
+            for (int i = 0; i < loss.Length; ++i)
+            {
+                var error = predicted[i] - expected[i];
+                loss[i] = Math.Max(Math.Min(error, huberDelta), -huberDelta);
+            }
+        }
 
 
         /// <summary>

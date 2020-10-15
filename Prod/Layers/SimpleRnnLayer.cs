@@ -25,7 +25,10 @@ namespace SharpNet.Layers
         private Tensor a_init;         //(batchSize, aLength)
 #pragma warning restore 649
         // ReSharper disable once CollectionNeverUpdated.Local
-        private readonly List<Tensor> a_t = new List<Tensor>();   //vector of length 'timeSteps_x' / each element: (batchSize, aLength)
+        /// <summary>
+        /// vector of length 'timeSteps_x' / each element: (batchSize, aLength)
+        /// </summary>
+        private readonly List<Tensor> a_t = new List<Tensor>();
         //a_t(t) hidden state at time step 't' (batchSize, aLength)
         //a_t(t): tanh( x_t(t)*Weights_ax + a_t(t-1)*Weights_aa + Bias_a)
         //x_t(t): (batchSize, _xLength)

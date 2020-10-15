@@ -413,15 +413,14 @@ namespace SharpNet.Layers
         }
         public static void Padding(int inputLength, int f, int stride, PADDING_TYPE paddingType, NetworkConfig.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
         {
-            int outputLength = OutputLength(inputLength, f, stride, paddingType);
-            int totalPadding = Math.Max((outputLength - 1) * stride + f - inputLength, 0);
             switch (paddingType)
             {
                 case PADDING_TYPE.VALID:
                     paddingStart = paddingEnd = 0;
                     return;
                 case PADDING_TYPE.SAME:
-
+                    int outputLength = OutputLength(inputLength, f, stride, paddingType);
+                    int totalPadding = Math.Max((outputLength - 1) * stride + f - inputLength, 0);
                     if (compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
                     {
                         //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python

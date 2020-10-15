@@ -163,30 +163,31 @@ namespace SharpNet.Networks
             {
                 dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
 
-              
-                if (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)
+                switch (lossFunction)
                 {
-                    //Categorical Cross Entropy
-                    Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
-                    //we compute: _dyPredicted = (yPredicted - yExpected)
-                    yPredicted.CopyTo(dyPredicted);
-                    dyPredicted.AddTensor(-1, yExpected, 1);
-                }
-                else if (lossFunction == NetworkConfig.LossFunctionEnum.BinaryCrossentropy)
-                {
-                    //Binary Cross Entropy
-                    Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
-                    //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
-                    yPredicted.CopyTo(dyPredicted);
-                    var categoryCount = yPredicted.Shape[1];
-                    var multiplier = 1f / (categoryCount);
-                    dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
-                }
-                else
-                {
-                    //Categorical Cross Entropy with Hierarchy
-                    Debug.Assert(lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy);
-                    dyPredicted.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(yExpected, yPredicted);
+                    case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
+                        Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
+                        //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
+                        yPredicted.CopyTo(dyPredicted);
+                        var categoryCount = yPredicted.Shape[1];
+                        var multiplier = 1f / (categoryCount);
+                        dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
+                        break;
+                    case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
+                        Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
+                        //we compute: _dyPredicted = (yPredicted - yExpected)
+                        yPredicted.CopyTo(dyPredicted);
+                        dyPredicted.AddTensor(-1, yExpected, 1);
+                        break;
+                    case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
+                        dyPredicted.ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(yExpected, yPredicted);
+                        break;
+                    case NetworkConfig.LossFunctionEnum.Huber:
+                        const float huberDelta = 1.0f;
+                        dyPredicted.ComputeBackwardPropagationLossHuber(yExpected, yPredicted, huberDelta);
+                        break;
+                    default:
+                        throw new Exception("Invalid loss function " + lossFunction);
                 }
             }
 

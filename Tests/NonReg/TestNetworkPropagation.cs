@@ -929,6 +929,40 @@ namespace SharpNetTests.NonReg
             TestLossAccuracy(network, X, Y, 0.160045325756073, 1.0);
         }
 
+
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void Test_HuberLoss(List<int> resourceIds)
+        {
+            const int numEpochs = 10;
+            const double learningRate = 0.1;
+            const double momentum = 0.9;
+            var X = FromNumpyArray(@"numpy.array([[0,1,2],[3,4,5]], numpy.float)");
+            var Y = FromNumpyArray(@"numpy.array([[0],[5]], numpy.float)");
+
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, resourceIds);
+            network.Config.WithSGD(momentum, false);
+            network
+                .Input(X.Shape[1], 1, -1)
+                .Dense(3, 0.0)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense(1, 0.0);
+
+            FromNumpyArray("[[0.17207741737365723, -0.19425582885742188, 0.6897902488708496], [0.5924994945526123, -0.11895132064819336, -0.8060355186462402], [0.44127702713012695, -0.15072321891784668, -0.8697922229766846]]")
+                .CopyTo(((DenseLayer)network.Layers[1]).Weights);
+            FromNumpyArray("[[0.6883463859558105], [0.9837051630020142], [0.17996716499328613]]")
+                .CopyTo(((DenseLayer)network.Layers[3]).Weights);
+
+            //predictions before training
+            TestPredict(network, X, "[[1.0153478384017944], [3.5054831504821777]]", 1e-3);
+            TestLossAccuracy(network, X, Y, 0.7549323439598083, null, 1e-3);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
+
+            //predictions after training
+            TestPredict(network, X, "[[-0.5761867165565491], [7.070157527923584]]", 1e-3);
+            TestLossAccuracy(network, X, Y, 0.8678827881813049, null, 1e-3);
+        }
+
+
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction, List<int> resourceIds)
         {
             return new Network(new NetworkConfig{ LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, LogDirectory = ""}, resourceIds);
@@ -940,13 +974,12 @@ namespace SharpNetTests.NonReg
             Assert.IsTrue(TestTensor.SameContent(observedPrediction, expectedPrediction, epsilon), "expecting: " + Environment.NewLine + expectedPrediction.ToNumpy()+Environment.NewLine+ " but was:" + Environment.NewLine + observedPrediction.ToNumpy());
         }
 
-        private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy)
+        private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy, double epsilon = 1e-5)
         {
             var batchSize = X.Shape[0];
             var categories = Enumerable.Range(0, Y_expected.Shape[1]).Select(i => i.ToString()).ToArray();
             using var dataSet = new InMemoryDataSet(X, Y_expected, new int[batchSize], categories, "", null);
             var observedLossAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, dataSet);
-            var epsilon = 1e-5;
             if (expectedLoss.HasValue)
             { 
                 Assert.AreEqual(expectedLoss.Value, observedLossAccuracy.Item1, epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedLossAccuracy.Item1);

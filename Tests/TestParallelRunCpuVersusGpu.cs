@@ -684,13 +684,14 @@ namespace SharpNetTests
             TestAll(new[] { W, dW, velocity }, tensors => tensors[0].UpdateSGDOptimizer(learningRate, momentum, usenesterov, tensors[1], tensors[2]));
         }
 
-        
         [TestCase(1, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(1, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
+        [TestCase(1, NetworkConfig.LossFunctionEnum.Huber)]
         [TestCase(2, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(2, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
+        [TestCase(2, NetworkConfig.LossFunctionEnum.Huber)]
         [TestCase(10, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
-        [TestCase(10, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
+        [TestCase(10, NetworkConfig.LossFunctionEnum.Huber)]
         public void TestComputeLoss(int categoryCount, NetworkConfig.LossFunctionEnum lossFunction)
         {
             var nbRows = 1000;
@@ -716,6 +717,17 @@ namespace SharpNetTests
             var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
             var loss = RandomTensor(expected.Shape);
             TestAll(new[] { loss, expected, predicted}, tensors => tensors[0].ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(tensors[1], tensors[2]));
+        }
+
+        [TestCase(10)]
+        [TestCase(1)]
+        public void TestComputeBackwardPropagationLossHuber(int categoryCount)
+        {
+            var nbRows = 10000;
+            var predicted = RandomTensor(new[] { nbRows, categoryCount });
+            var expected = RandomTensor(new[] { nbRows, categoryCount });
+            var loss = RandomTensor(expected.Shape);
+            TestAll(new[] { expected, predicted, loss }, tensors => tensors[0].ComputeBackwardPropagationLossHuber(tensors[1], tensors[2], 1.0f));
         }
 
         [TestCase(10)]

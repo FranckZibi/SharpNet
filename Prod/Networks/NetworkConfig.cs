@@ -408,8 +408,12 @@ namespace SharpNet.Networks
             /// Each category (parent node) can be divided into several sub categories (children nodes)
             /// For any parent node: all children will have a proba in [0,1] range, and the sum of all children proba will be equal to 1.0 (= 100%)
             /// </summary>
-            CategoricalCrossentropyWithHierarchy
+            CategoricalCrossentropyWithHierarchy,
 
+            /*
+             * Huber loss, see  https://en.wikipedia.org/wiki/Huber_loss
+             * */
+            Huber
         }
     }
 }

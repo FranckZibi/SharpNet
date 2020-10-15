@@ -398,6 +398,28 @@
 		}
 	}
 
+	__global__ void ComputeHuberLoss(int N, int categoryCount, float huberDelta, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			float loss = 0.0f;
+			int startIndex = i * categoryCount;
+			int endIndexExcluded = startIndex + categoryCount;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float predicted = yPredicted[j];
+				float expected = yExpected[j];
+				float diff = expected - predicted;
+				if (fabsf(diff) <= huberDelta)
+					loss += 0.5f * diff * diff;
+				else
+					loss += huberDelta*fabs(diff)-0.5f* huberDelta * huberDelta;
+			}
+			losses[i] = loss;
+		}
+	}
+
+
 	__global__ void ComputeLossForCategoricalCrossentropyWithHierarchy(int N, int nbCols, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -459,6 +481,21 @@
 			}
 		}
 	}
+
+	__global__ void ComputeBackwardPropagationLossHuber(int N, int nbCols, float huberDelta,  float* loss, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int startIndex = i * nbCols;
+			int endIndexExcluded = startIndex + nbCols;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = yPredicted[j] - yExpected[j];
+				loss[j] = fmaxf(fminf(diff, huberDelta), -huberDelta);
+			}
+		}
+	}
+
 	__global__ void ComputeBinaryCrossentropyLoss(int N, int categoryCount, float *losses, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;

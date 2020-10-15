@@ -614,8 +614,15 @@ namespace SharpNet.Data
         /// <param name="yExpected">the expected values for the prediction</param>
         /// <param name="yPredicted">the observed values for the prediction</param>
         public abstract void ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted);
-        
 
+        /// <summary>
+        /// Compute Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="huberDelta"></param>
+        public abstract void ComputeBackwardPropagationLossHuber(Tensor yExpected, Tensor yPredicted, float huberDelta);
 
         /// <summary>
         /// pointer to (device or host) pinned memory

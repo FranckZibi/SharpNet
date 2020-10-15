@@ -587,6 +587,14 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("ComputeBackwardPropagationLossCategoricalCrossentropyWithHierarchy", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
         }
 
+        public override void ComputeBackwardPropagationLossHuber(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        {
+            var loss = this;
+            int nbRows = yExpected.Shape[0];
+            var nbCols = yExpected.Shape[1];
+            _wrapper.RunKernel("ComputeBackwardPropagationLossHuber", nbRows, new object[] { nbCols, huberDelta, loss, yExpected, yPredicted });
+        }
+
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
@@ -602,16 +610,40 @@ namespace SharpNet.GPU
             Debug.Assert(buffer != null);
             Debug.Assert(yPredicted.SameShape(yExpectedOneHot));
             Debug.Assert(yExpectedOneHot.Dimension == 2);
-            var kernelName = (lossFunction == NetworkConfig.LossFunctionEnum.BinaryCrossentropy)
-                ? "ComputeBinaryCrossentropyLoss"
-                :(lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy
-                ? "ComputeLossForCategoricalCrossentropyWithHierarchy"
-                : "ComputeCategoricalCrossentropyLoss");
+            var kernelName = GetComputeLossMethod(lossFunction);
             int nbRows = yExpectedOneHot.Shape[0];
             var categoryCount = yExpectedOneHot.Shape[1];
-            _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpectedOneHot, yPredicted });
+            if (lossFunction == NetworkConfig.LossFunctionEnum.Huber)
+            {
+                var huberDelta = 1.0f;
+                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpectedOneHot, yPredicted });
+            }
+            else
+            {
+                _wrapper.RunKernel(kernelName, nbRows, new object[] {categoryCount, buffer, yExpectedOneHot, yPredicted});
+            }
+
             return buffer.ContentAsFloatArray().Average();
         }
+
+        private static string GetComputeLossMethod(NetworkConfig.LossFunctionEnum lossFunction)
+        {
+            switch (lossFunction)
+            {
+                case NetworkConfig.LossFunctionEnum.BinaryCrossentropy: 
+                    return "ComputeBinaryCrossentropyLoss";
+                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy: 
+                    return "ComputeLossForCategoricalCrossentropyWithHierarchy";
+                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
+                    return "ComputeCategoricalCrossentropyLoss";
+                case NetworkConfig.LossFunctionEnum.Huber:
+                    return "ComputeHuberLoss";
+                default:
+                    throw new Exception("Invalid loss function " + lossFunction);
+            }
+        }
+
+
 
         public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU) 
         {

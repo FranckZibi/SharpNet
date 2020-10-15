@@ -12,6 +12,15 @@ namespace SharpNet.Datasets
         private readonly int[] _elementIdToCategoryIndex;
         #endregion
 
+        /// <summary>
+        /// TODO : remove 'elementIdToCategoryIndex' from input
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="elementIdToCategoryIndex"></param>
+        /// <param name="categoryDescriptions"></param>
+        /// <param name="name"></param>
+        /// <param name="meanAndVolatilityForEachChannel"></param>
         public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y, int[] elementIdToCategoryIndex, string[] categoryDescriptions,
             string name, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
             : base(name, x.Shape[1], categoryDescriptions, meanAndVolatilityForEachChannel, ResizeStrategyEnum.None)
@@ -21,10 +30,6 @@ namespace SharpNet.Datasets
             if (elementIdToCategoryIndex == null)
             {
                 throw new ArgumentException("elementIdToCategoryIndex must be provided");
-            }
-            if (!IsValidYSet(y))
-            {
-                throw new Exception("Invalid Training Set 'y' : must contain only 0 and 1");
             }
 
             _x = x;
