@@ -210,7 +210,6 @@ namespace SharpNet.Layers
         public override Tensor Bias => _convolutionBias;
         public override Tensor BiasGradients => _convolutionBiasGradients;
         protected override Optimizer Optimizer => _optimizer;
-        protected override bool HasParameters => true;
 
         public override List<Tuple<Tensor, string>> Parameters
         {

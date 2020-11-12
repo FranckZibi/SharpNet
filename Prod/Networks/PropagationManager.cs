@@ -85,6 +85,7 @@ namespace SharpNet.Networks
 
                     if (LogPropagation)
                     {
+                        layer.LogDebug("--------------------------------------------------------------------");
                         layer.LogDebug("Forward: "+layer);
                         layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
                         //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));

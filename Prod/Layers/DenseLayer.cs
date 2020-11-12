@@ -130,7 +130,6 @@ namespace SharpNet.Layers
         public override Tensor WeightGradients => _weightGradients;
         public override Tensor BiasGradients => _biasGradients;
         protected override Optimizer Optimizer => _optimizer;
-        protected override bool HasParameters => true;
         public override List<Tuple<Tensor, string>> Parameters
         {
             get
@@ -155,6 +154,8 @@ namespace SharpNet.Layers
                 _optimizer.ZeroMemory();
             }
         }
+
+        #region Multi GPU Support
         public override void ReplaceParameters(List<Tensor> newParameters)
         {
             FreeFloatTensor(ref _weights);
@@ -170,6 +171,23 @@ namespace SharpNet.Layers
                 Debug.Assert(newParameters.Count == 1);
             }
         }
+        public override void ReplaceGradients(List<Tensor> newGradients)
+        {
+            FreeFloatTensor(ref _weightGradients);
+            _weightGradients = newGradients[0];
+            if (_biasGradients != null)
+            {
+                Debug.Assert(newGradients.Count == 2);
+                FreeFloatTensor(ref _biasGradients);
+                _biasGradients = newGradients[1];
+            }
+            else
+            {
+                Debug.Assert(newGradients.Count == 1);
+            }
+        }
+        #endregion
+
         public override int DisableBias()
         {
             int nbDisabledWeights = (_bias?.Count ?? 0);
@@ -195,21 +213,6 @@ namespace SharpNet.Layers
                 }
             }
             return result;
-        }
-        public override void ReplaceGradients(List<Tensor> newGradients)
-        {
-            FreeFloatTensor(ref _weightGradients);
-            _weightGradients = newGradients[0];
-            if (_biasGradients != null)
-            {
-                Debug.Assert(newGradients.Count == 2);
-                FreeFloatTensor(ref _biasGradients);
-                _biasGradients = newGradients[1];
-            }
-            else
-            {
-                Debug.Assert(newGradients.Count == 1);
-            }
         }
 
         private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");

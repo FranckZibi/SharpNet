@@ -70,14 +70,8 @@ namespace SharpNetTests
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
-
-
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_SimpleRNN(); return;
             //EfficientNetTests_Cancel(true);
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Embedding(); return;
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Embedding_GlobalPooling(); return;
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Sarcasm(); return;
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Convolution(); return;
-            //new SharpNetTests.NonReg.TestEnsembleLearning().TestSVHN();return;
             //WideResNetTests();
             //SVHNTests();
             //CIFAR100Tests();
@@ -85,7 +79,6 @@ namespace SharpNetTests
             //DenseNetTests();
             //EfficientNetTests();
             //TestSpeed();return;
-            //new TestGradienEfficientNetTestst().TestGradientForDenseLayer(true, true);
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().BenchmarkDataAugmentation();

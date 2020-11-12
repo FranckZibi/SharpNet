@@ -307,10 +307,6 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnPoolingBackward(CudnnHandle, poolingDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
             CheckStatus(res);
         }
-        public override void From_NCH_to_NH(Tensor tensor_NH, int channel)
-        {
-            throw new NotImplementedException(); //TODO
-        }
         //TODO
         public override Tensor Transpose()
         {

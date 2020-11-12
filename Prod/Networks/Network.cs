@@ -183,10 +183,10 @@ namespace SharpNet.Networks
             Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, lambdaL2Regularization, true, this, layerName));
             return this;
         }
-        public Network SimpleRnnLayer(int xLength, int aLength, int yLength, bool returnSequences, string layerName = "")
+        public Network SimpleRnnLayer(int features, int units, bool returnSequences, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var simpleRnnLayer = new SimpleRnnLayer(xLength, aLength, yLength, returnSequences, this, layerName);
+            var simpleRnnLayer = new SimpleRnnLayer(features, units, returnSequences, true, this, layerName);
             Layers.Add(simpleRnnLayer);
             return this;
         }
@@ -916,7 +916,7 @@ namespace SharpNet.Networks
             {
                 return _bytesByBatchSize.Value;
             }
-            Debug.Assert(xShape.Length == 2 || xShape.Length == 4);   // tensor of shape (n, c) or of shape (n, c, h, w)
+            Debug.Assert(xShape.Length >= 2);
             Debug.Assert(xShape[0] == 1);       //batch size must be  1
             using var mockMemoryPooling = new TensorMemoryPool(null, true);
             using var propagationManager = new PropagationManager(Layers, mockMemoryPooling, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);

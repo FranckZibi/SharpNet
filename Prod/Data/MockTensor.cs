@@ -43,7 +43,6 @@ namespace SharpNet.Data
         public override void ZeroUnpadding(Tensor paddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight) {throw new NotImplementedException();}
         public override void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b){throw new NotImplementedException();}
         public override void BroadcastAddVectorToOutput(Tensor y){throw new NotImplementedException();}
-        public override void From_NCH_to_NH(Tensor tensor_NH, int channel){throw new NotImplementedException();}
         public override void Update_Adding_Alpha_X(float alpha, Tensor x){throw new NotImplementedException();}
         public override void AddTensor(float alpha, Tensor x, float beta){throw new NotImplementedException();}
         public override void Concatenate(IList<Tensor> tensors){throw new NotImplementedException();}

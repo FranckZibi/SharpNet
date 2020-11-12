@@ -125,7 +125,6 @@ namespace SharpNet.Layers
         public override Tensor WeightGradients => _scaleGradients;
         public override Tensor BiasGradients => _biasGradients;
         protected override Optimizer Optimizer => _optimizer;
-        protected override bool HasParameters => true;
         public override List<Tuple<Tensor, string>> Parameters
         {
             get

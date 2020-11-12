@@ -82,7 +82,7 @@ namespace SharpNet.Layers
         /// </summary>
         /// <param name="batchSize"></param>
         /// <param name="learningRate"></param>
-        public void UpdateWeights(int batchSize, double learningRate)
+        public virtual void UpdateWeights(int batchSize, double learningRate)
         {
             Debug.Assert(Network.IsMaster);
             if (Weights == null)
@@ -120,7 +120,6 @@ namespace SharpNet.Layers
         public int TotalParams => Parameters.Select(t => t.Item1.Count).Sum();
         public virtual int NonTrainableParams => 0;
         public virtual List<Tuple<Tensor, string>> Parameters => new List<Tuple<Tensor, string>>();
-        protected virtual bool HasParameters => false;
 
         public virtual void ReplaceParameters(List<Tensor> newParameters)
         {
@@ -134,7 +133,7 @@ namespace SharpNet.Layers
         {
             Debug.Assert(!HasParameters);
         }
-        public List<Tensor> ParameterGradients
+        public virtual List<Tensor> ParameterGradients
         {
             get
             {
@@ -480,6 +479,7 @@ namespace SharpNet.Layers
         /// true if the layer has associated weights (or bias) to train
         /// </summary>
         private List<Layer> NextLayers => NextLayerIndexes.Select(idx => Layers[idx]).ToList();
+        private bool HasParameters => Parameters.Count != 0;
         private void FreeFloatTensor(Tensor t)
         {
             MemoryPool.FreeFloatTensor(t);

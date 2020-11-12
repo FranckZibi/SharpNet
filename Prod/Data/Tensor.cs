@@ -341,7 +341,18 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="tensor_NH"></param>
         /// <param name="channel"></param>
-        public abstract void From_NCH_to_NH(Tensor tensor_NH, int channel);
+        public void From_NCH_to_NH(Tensor tensor_NH, int channel)
+        {
+            int batchSize = Shape[0];
+            int h = Shape[2];
+            Debug.Assert(batchSize == tensor_NH.Shape[0]);
+            Debug.Assert(h == tensor_NH.Shape[1]);
+            Debug.Assert(channel < Shape[1]);
+            for (int n = 0; n < batchSize; ++n)
+            {
+                CopyTo(Idx(n, channel, 0), tensor_NH, n * h, h);
+            }
+        }
 
         /// <summary>
         /// compute: this += alpha * x
@@ -381,8 +392,7 @@ namespace SharpNet.Data
         /// <param name="activationType">the king of activation</param>
         /// <param name="activationParameter">use for Leaky Activation and for SoftmaxWithHierarchy, null otherwise</param>
         /// <param name="y">[out] output after activation</param>
-        public abstract void ActivationForward(cudnnActivationMode_t activationType, Tensor activationParameter,
-            Tensor y);
+        public abstract void ActivationForward(cudnnActivationMode_t activationType, Tensor activationParameter, Tensor y);
 
         /// <summary>
         /// this  = dx = [out] gradient of the output

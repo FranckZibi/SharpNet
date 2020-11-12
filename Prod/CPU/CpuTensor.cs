@@ -248,23 +248,6 @@ namespace SharpNet.CPU
         public override bool IsOwnerOfMemory => _ptrToOwnerPinnedMemory == IntPtr.Zero;
         public ReadOnlySpan<T> ReadonlyContent => Content.Slice(0, Count).Span;
         public Span<T> SpanContent => Content.Slice(0, Count).Span;
-
-        public override void From_NCH_to_NH(Tensor tensor_NH, int channel)
-        {
-            Debug.Assert(Shape[0] == tensor_NH.Shape[0]);  //N
-            Debug.Assert(Shape[2] == tensor_NH.Shape[1]);  //H
-            Debug.Assert(channel < Shape[1]);
-            var cpuTensor_NH = tensor_NH as CpuTensor<T>;
-            Debug.Assert(cpuTensor_NH != null);
-            for (int n = 0; n < tensor_NH.Shape[0]; ++n)
-            {
-                for (int h = 0; h < tensor_NH.Shape[1]; ++h)
-                {
-                    // ReSharper disable once PossibleNullReferenceException
-                    cpuTensor_NH.Set(n, h, Get(n, channel, h));
-                }
-            }
-        }
         public T Get(int n, int c)
         {
             return this[Idx(n, c)];
@@ -297,7 +280,7 @@ namespace SharpNet.CPU
         }
         public void Map(Func<T, T> func, CpuTensor<T> result)
         {
-            Debug.Assert(SameShape(result));
+            Debug.Assert(Count == result.Count);
             for (int i = 0; i < Count; ++i)
             {
                 result[i] = func(this[i]);
@@ -1760,17 +1743,17 @@ namespace SharpNet.CPU
         /// compute the prediction embedded in the tensor (in each line the index with max value)
         /// </summary>
         /// <returns>array with prediction (=category) of each element</returns>
-        public int[] ComputePrediction()
-        {
-            int batchSize = Shape[0];
-            int[] categoryCount = new int[batchSize];
-            var yPredictedCpu = AsFloatCpu;
-            for (int m = 0; m < batchSize; ++m)
-            {
-                ComputeSingleAccuracy(yPredictedCpu, yPredictedCpu, m, out categoryCount[m]);
-            }
-            return categoryCount;
-        }
+        //public int[] ComputePrediction()
+        //{
+        //    int batchSize = Shape[0];
+        //    int[] categoryCount = new int[batchSize];
+        //    var yPredictedCpu = AsFloatCpu;
+        //    for (int m = 0; m < batchSize; ++m)
+        //    {
+        //        ComputeSingleAccuracy(yPredictedCpu, yPredictedCpu, m, out categoryCount[m]);
+        //    }
+        //    return categoryCount;
+        //}
 
         public override void CopyTo(Tensor b)
         {
@@ -1875,6 +1858,7 @@ namespace SharpNet.CPU
             Debug.Assert(a.Dimension >= 2);
             Debug.Assert(b.Dimension >= 2);
             Debug.Assert(Dimension >= 2);
+
             BlasServices.DotMkl(a.AsFloatPointer, a.Shape[0], a.MultDim0, transposeA, b.AsFloatPointer, b.Shape[0], b.MultDim0, transposeB, AsFloatPointer, alpha, beta);
             //MathServices.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
             //var tmpTranspose = new double[b.Count];

@@ -40,15 +40,15 @@ namespace SharpNet.Layers
         /// <summary>
         ///  Size of the vocabulary, i.e. maximum integer index + 1
         /// </summary>
-        public int VocabularySize { get; }
+        private int VocabularySize { get; }
         /// <summary>
         ///  Dimension of the dense embedding.
         /// </summary>
-        public int EmbeddingDim { get; }
+        private int EmbeddingDim { get; }
         /// <summary>
         /// regularization hyper parameter. 0 if no L2 regularization
         /// </summary>
-        public double LambdaL2Regularization { get; }
+        private double LambdaL2Regularization { get; }
         #endregion
 
         #region constructor
@@ -113,7 +113,6 @@ namespace SharpNet.Layers
         public override Tensor Weights => _weights;
         public override Tensor WeightGradients => _weightGradients;
         protected override Optimizer Optimizer => _optimizer;
-        protected override bool HasParameters => true;
         public override List<Tuple<Tensor, string>> Parameters
         {
             get
@@ -167,7 +166,8 @@ namespace SharpNet.Layers
                 .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
                 .ToString();
         }
-        public static EmbeddingLayer Deserialize(IDictionary<string, object> serialized, Network network)
+
+        private static EmbeddingLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new EmbeddingLayer(
                 (int) serialized[nameof(VocabularySize)],
