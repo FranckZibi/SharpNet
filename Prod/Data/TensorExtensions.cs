@@ -9,6 +9,11 @@ namespace SharpNet.Data
 {
     public static class TensorExtensions
     {
+        public static string ToShapeAndNumpy(this Tensor t, int maxLength = 2000)
+        {
+            return Tensor.ShapeToString(t.Shape) + Environment.NewLine + t.ToNumpy(maxLength);
+        }
+
         public static string ToNumpy(this Tensor t, int maxLength = 2000)
         {
             var sb = new StringBuilder();

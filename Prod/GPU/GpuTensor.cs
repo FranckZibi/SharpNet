@@ -373,15 +373,26 @@ namespace SharpNet.GPU
             }
             else
             {
-                throw new ArgumentException("CapacityInBytes: " + CapacityInBytes + " but need memory  " + ReallyNeededMemoryInBytesForShape(newShape) + " for " + this);
                 //bigger shape : we do not have enough space to store it
-                //Shape = newShape;
-                //RecomputeMultDim();
-                //CapacityInBytes = ReallyNeededMemoryInBytes;
-                //deviceMemory?.Dispose();
-                //deviceMemory = new DeviceMemory(CapacityInBytes);
+                throw new ArgumentException("CapacityInBytes: " + CapacityInBytes + " but need memory  " + ReallyNeededMemoryInBytesForShape(newShape) + " for " + this);
             }
         }
+
+        public override Tensor WithNewShape(int[] newShape)
+        {
+            AssertIsNotDisposed();
+            if (SameShape(newShape))
+            {
+                return this;
+            }
+            if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
+            {
+                return new GPUTensor<T>(newShape, Pointer, _wrapper);
+            }
+            //bigger shape : we do not have enough space to store it
+            throw new ArgumentException("CapacityInBytes: " + CapacityInBytes + " but need memory  " + ReallyNeededMemoryInBytesForShape(newShape) + " for " + this);
+        }
+
         /// <summary>
         /// compute: this = alpha * this 
         /// </summary>
@@ -568,7 +579,7 @@ namespace SharpNet.GPU
             Debug.Assert(buffer.Shape.Length == 1);
             Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
             Debug.Assert(yExpected.SameShape(yPredicted));
-            Debug.Assert(yExpected.Dimension == 2);
+            Debug.Assert(yExpected.Dimension >= 2);
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
             var kernelName = (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
@@ -589,10 +600,16 @@ namespace SharpNet.GPU
 
         public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
-            var loss = this;
-            int nbRows = yExpected.Shape[0];
-            var nbCols = yExpected.Shape[1];
-            _wrapper.RunKernel("HuberGradient", nbRows, new object[] { nbCols, huberDelta, loss, yExpected, yPredicted });
+            var huberGradient = this;
+            int batchSize = yExpected.Shape[0];
+            _wrapper.RunKernel("HuberGradient", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberGradient, yExpected, yPredicted });
+        }
+
+        public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        {
+            var huberLoss = this;
+            int batchSize = yExpected.Shape[0];
+            _wrapper.RunKernel("HuberLoss", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
         }
 
         /// <summary>
@@ -604,23 +621,23 @@ namespace SharpNet.GPU
         /// <returns></returns>
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
-            var yExpectedOneHot = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { yExpectedOneHot, yPredicted }));
+            var yExpected = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
             Debug.Assert(yPredicted != null);
             Debug.Assert(buffer != null);
-            Debug.Assert(yPredicted.SameShape(yExpectedOneHot));
-            Debug.Assert(yExpectedOneHot.Dimension == 2);
+            Debug.Assert(yPredicted.SameShape(yExpected));
+            Debug.Assert(yExpected.Dimension >= 2);
             var kernelName = lossFunction + "Loss";
-            int nbRows = yExpectedOneHot.Shape[0];
-            var categoryCount = yExpectedOneHot.Shape[1];
+            int nbRows = yExpected.Shape[0];
+            var categoryCount = yExpected.Shape[1];
             if (lossFunction == NetworkConfig.LossFunctionEnum.Huber)
             {
                 var huberDelta = 1.0f;
-                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpectedOneHot, yPredicted });
+                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });
             }
             else
             {
-                _wrapper.RunKernel(kernelName, nbRows, new object[] {categoryCount, buffer, yExpectedOneHot, yPredicted});
+                _wrapper.RunKernel(kernelName, nbRows, new object[] {categoryCount, buffer, yExpected, yPredicted});
             }
 
             return buffer.ContentAsFloatArray().Average();

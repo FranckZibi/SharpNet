@@ -181,6 +181,21 @@ namespace SharpNet.CPU
             }
             RecomputeMultDim();
         }
+        public override Tensor WithNewShape(int[] newShape)
+        {
+            AssertIsNotDisposed();
+            if (SameShape(newShape))
+            {
+                return this;
+            }
+            if (ReallyNeededMemoryInBytesForShape(newShape) <= CapacityInBytes)
+            {
+                return new CpuTensor<T>(newShape, this, 0);
+            }
+            //bigger shape : we do not have enough space to store it
+            throw new ArgumentException("CapacityInBytes: " + CapacityInBytes + " but need memory  " + ReallyNeededMemoryInBytesForShape(newShape) + " for " + this);
+        }
+
 
         public T this[int i]
         {
@@ -1723,18 +1738,47 @@ namespace SharpNet.CPU
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
-            Debug.Assert(loss.Dimension == 2);
             Parallel.For(0, loss.Shape[0], m => { HuberGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
         }
 
-        private static void HuberGradient(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
+        private static void HuberGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
+        {
+            Debug.Assert(gradient.Length == expected.Length);
+            Debug.Assert(gradient.Length == predicted.Length);
+            for (int i = 0; i < gradient.Length; ++i)
+            {
+                var error = predicted[i] - expected[i];
+                gradient[i] = Math.Max(Math.Min(error, huberDelta), -huberDelta);
+                gradient[i] /= gradient.Length;
+            }
+        }
+
+
+
+        public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        {
+            var loss = this;
+            Debug.Assert(loss.SameShape(yExpected));
+            Debug.Assert(loss.SameShape(yPredicted));
+            Parallel.For(0, loss.Shape[0], m => { HuberLoss(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
+        }
+
+        private static void HuberLoss(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
         {
             Debug.Assert(loss.Length == expected.Length);
             Debug.Assert(loss.Length == predicted.Length);
             for (int i = 0; i < loss.Length; ++i)
             {
                 var error = predicted[i] - expected[i];
-                loss[i] = Math.Max(Math.Min(error, huberDelta), -huberDelta);
+                if (Math.Abs(error) <= huberDelta)
+                {
+                    loss[i] = 0.5f * error * error;
+                }
+                else
+                {
+                    loss[i] = huberDelta * Math.Abs(error) - 0.5f * huberDelta * huberDelta;
+                }
+                loss[i] /= loss.Length;
             }
         }
 

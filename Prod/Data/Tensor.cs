@@ -185,6 +185,14 @@ namespace SharpNet.Data
             return new CpuTensor<float>(Shape, ContentAsFloatArray());
         }
         public abstract void Reshape(int[] newShape);
+
+        /// <summary>
+        /// return a reference of the this Tensor changing only its shape
+        /// </summary>
+        /// <param name="newShape"></param>
+        /// <returns></returns>
+        public abstract Tensor WithNewShape(int[] newShape);
+
         public static string ShapeToString(int[] shape)
         {
             return "(" + string.Join(", ", shape) + ")";
@@ -216,6 +224,9 @@ namespace SharpNet.Data
                 }
             }
         }
+
+
+
 
         /// <summary>
         /// Ensure that all tensors are stored in the same device (Cpu or GPU)
@@ -343,15 +354,41 @@ namespace SharpNet.Data
         /// <param name="channel"></param>
         public void From_NCH_to_NH(Tensor tensor_NH, int channel)
         {
-            int batchSize = Shape[0];
-            int h = Shape[2];
+            var tensor_NCH = this;
+            Debug.Assert(tensor_NCH.Shape.Length == 3);
+            Debug.Assert(tensor_NH.Shape.Length == 2);
+            int batchSize = tensor_NCH.Shape[0];
+            int h = tensor_NCH.Shape[2];
             Debug.Assert(batchSize == tensor_NH.Shape[0]);
             Debug.Assert(h == tensor_NH.Shape[1]);
-            Debug.Assert(channel < Shape[1]);
+            Debug.Assert(channel < tensor_NCH.Shape[1]);
             for (int n = 0; n < batchSize; ++n)
             {
-                CopyTo(Idx(n, channel, 0), tensor_NH, n * h, h);
+                tensor_NCH.CopyTo(tensor_NCH.Idx(n, channel, 0), tensor_NH, n * h, h);
             }
+        }
+
+        /// <summary>
+        /// copy entire content of 'this' tensor into channel 'channel' of 'tensor_NCH'
+        /// </summary>
+        /// <param name="tensor_NCH"></param>
+        /// <param name="channel"></param>
+        public void From_NH_to_NCH(Tensor tensor_NCH, int channel)
+        {
+            var tensor_NH = this;
+            Debug.Assert(tensor_NH.Shape.Length == 2);
+            Debug.Assert(tensor_NCH.Shape.Length == 3);
+            int batchSize = tensor_NCH.Shape[0];
+            int h = tensor_NCH.Shape[2];
+            Debug.Assert(batchSize == tensor_NH.Shape[0]);
+            Debug.Assert(h == tensor_NH.Shape[1]);
+            Debug.Assert(channel < tensor_NCH.Shape[1]);
+            tensor_NCH.ZeroMemory();
+            for (int n = 0; n < batchSize; ++n)
+            {
+                tensor_NH.CopyTo(n*h, tensor_NCH, tensor_NCH.Idx(n, channel, 0), h);
+            }
+
         }
 
         /// <summary>
@@ -635,6 +672,15 @@ namespace SharpNet.Data
         public abstract void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta);
 
         /// <summary>
+        /// Compute the Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="huberDelta"></param>
+        public abstract void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta);
+
+        /// <summary>
         /// pointer to (device or host) pinned memory
         /// </summary>
         public abstract IntPtr Pointer { get; }
@@ -702,7 +748,7 @@ namespace SharpNet.Data
         private string ToString(bool displayStartOfTensor)
         {
             var result = ShapeToString(Shape);
-            result += UseGPU ? "" : "CPU";
+            result += UseGPU ? "" : (this is MockTensor<float>?"Mock":"CPU");
             if (displayStartOfTensor && !UseGPU && (this is CpuTensor<float>))
             {
                 //TODO re enable line below

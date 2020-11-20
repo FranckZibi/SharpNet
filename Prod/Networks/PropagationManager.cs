@@ -85,13 +85,17 @@ namespace SharpNet.Networks
 
                     if (LogPropagation)
                     {
-                        layer.LogDebug("--------------------------------------------------------------------");
-                        layer.LogDebug("Forward: "+layer);
-                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + Environment.NewLine + v.Item1.ToNumpy()));
+                        layer.LogDebug(Environment.NewLine+ "--------------------------------------------------------------------"
+                                       + Environment.NewLine + "Forward: "
+                                       + layer);
+                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + " " + v.Item1.ToShapeAndNumpy()));
                         //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
-                        layer.LogDebug("output:" + Environment.NewLine + yBuffer.ToNumpy());
+                        layer.LogDebug("output: " + yBuffer.ToShapeAndNumpy());
                         //layer.LogDebug("output:" + yBuffer.ContentStats());
-                        layer.LogDebug("");
+                        if (layerIndex == lastLayerIndex)
+                        {
+                            layer.LogDebug(Environment.NewLine + "--------------------------------------------------------------------");
+                        }
                     }
                 }
 
@@ -237,17 +241,17 @@ namespace SharpNet.Networks
                         layer.LogDebug("backward: "+layer);
                         if (layer.WeightGradients != null)
                         {
-                            layer.LogDebug("dW: " + Environment.NewLine + layer.WeightGradients.ToNumpy());
+                            layer.LogDebug("dW: " + layer.WeightGradients.ToShapeAndNumpy());
                             //layer.LogDebug("dW: " + layer.WeightGradients.ContentStats());
                         }
                         if (layer.BiasGradients != null)
                         {
-                            layer.LogDebug("dB: " + Environment.NewLine + layer.BiasGradients.ToNumpy());
+                            layer.LogDebug("dB: " + layer.BiasGradients.ToShapeAndNumpy());
                             //layer.LogDebug("dB: " + layer.BiasGradients.ContentStats());
                         }
                         for (var index = 0; index < dxBuffer.Count; index++)
                         {
-                            //layer.LogDebug("dx["+index+ "]: " + Environment.NewLine + dxBuffer[index]?.ToNumpy());
+                            //layer.LogDebug("dx["+index+ "]: " + dxBuffer[index]?.ToShapeAndNumpy());
                             layer.LogDebug("dx["+index+ "]: " + dxBuffer[index]?.ContentStats());
                         }
                         layer.LogDebug("");

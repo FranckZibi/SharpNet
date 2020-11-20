@@ -719,15 +719,32 @@ namespace SharpNetTests
             TestAll(new[] { loss, expected, predicted}, tensors => tensors[0].CategoricalCrossentropyWithHierarchyGradient(tensors[1], tensors[2]));
         }
 
-        [TestCase(10)]
-        [TestCase(1)]
-        public void TestHuberGradient(int categoryCount)
+        [TestCase(new[] { 10000, 10 })]
+        [TestCase(new[] { 10000, 1 })]
+        [TestCase(new[] { 5000, 3, 10 })]
+        [TestCase(new[] { 5000, 3, 1 })]
+        [TestCase(new[] { 3000, 3, 2, 10 })]
+        [TestCase(new[] { 3000, 3, 2, 1 })]
+        public void TestHuberLoss(int[] shape)
         {
-            var nbRows = 10000;
-            var predicted = RandomTensor(new[] { nbRows, categoryCount });
-            var expected = RandomTensor(new[] { nbRows, categoryCount });
-            var loss = RandomTensor(expected.Shape);
-            TestAll(new[] { expected, predicted, loss }, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
+            var predicted = RandomTensor(shape);
+            var expected = RandomTensor(predicted.Shape);
+            var huberLoss = RandomTensor(expected.Shape);
+            TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].HuberLoss(tensors[1], tensors[2], 1.0f));
+        }
+
+        [TestCase(new[]{10000,10})]
+        [TestCase(new[]{10000,1})]
+        [TestCase(new[] { 5000, 3, 10 })]
+        [TestCase(new[] { 5000, 3, 1 })]
+        [TestCase(new[]{3000,3,2,10})]
+        [TestCase(new[]{3000,3,2,1})]
+        public void TestHuberGradient(int[] shape)
+        {
+            var predicted = RandomTensor(shape);
+            var expected = RandomTensor(predicted.Shape);
+            var huberGradient = RandomTensor(expected.Shape);
+            TestAll(new[] { huberGradient, expected, predicted}, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
         }
 
         [TestCase(10)]

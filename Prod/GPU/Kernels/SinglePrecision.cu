@@ -451,22 +451,22 @@
 		}
 	}
 
-	__global__ void HuberLoss(int N, int categoryCount, float huberDelta, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void HuberLoss(int batchSize, int lineSize, float huberDelta, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			float loss = 0.0f;
-			int startIndex = i * categoryCount;
-			int endIndexExcluded = startIndex + categoryCount;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yExpected[j] - yPredicted[j];
+				float loss;
 				if (fabsf(diff) <= huberDelta)
-					loss += 0.5f * diff * diff;
+					loss = 0.5f * diff * diff;
 				else
-					loss += huberDelta * fabs(diff) - 0.5f * huberDelta * huberDelta;
+					loss = huberDelta * fabs(diff) - 0.5f * huberDelta * huberDelta;
+				losses[j] = loss / lineSize;
 			}
-			losses[i] = loss;
 		}
 	}
 
@@ -498,16 +498,16 @@
 		}
 	}
 
-	__global__ void HuberGradient(int N, int nbCols, float huberDelta,  float* loss, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void HuberGradient(int batchSize, int lineSize, float huberDelta, float* huberGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			int startIndex = i * nbCols;
-			int endIndexExcluded = startIndex + nbCols;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yPredicted[j] - yExpected[j];
-				loss[j] = fmaxf(fminf(diff, huberDelta), -huberDelta);
+				huberGradient[j] = fmaxf(fminf(diff, huberDelta), -huberDelta) / lineSize;
 			}
 		}
 	}

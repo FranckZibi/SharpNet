@@ -9,6 +9,7 @@ using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.Data;
 using SharpNetTests.Datasets;
+using SharpNetTests.NonReg;
 
 namespace SharpNetTests.CPU
 {
@@ -385,6 +386,17 @@ namespace SharpNetTests.CPU
             Assert.AreEqual(owner.ContentAsFloatArray(), new float[] { 10, 11, 12, 13, 24, 25, 26, 27, 28, 29 });
         }
 
+        [Test]
+        public void TestHuberGradient()
+        {
+            var yExpected = TestNetworkPropagation.FromNumpyArray("[[[0, 1], [0, 0]]]");
+            var yPredicted = TestNetworkPropagation.FromNumpyArray("[[[0.6, 0.4], [0.4, 0.6]]]");
+            var expectedGradient = TestNetworkPropagation.FromNumpyArray("[[[0.15, -0.15], [0.1, 0.15]]]");
+            var observedGradient = new CpuTensor<float>(expectedGradient.Shape);
+            observedGradient.HuberGradient(yExpected, yPredicted, 1f);
+            TestTensor.SameContent(expectedGradient, observedGradient, 1e-6);
+        }
+
         public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue)
         {
             var content = new float[Utils.Product(shape)];
@@ -412,6 +424,9 @@ namespace SharpNetTests.CPU
             }
             return result;
         }
+
+
+
 
 
         //random tensor

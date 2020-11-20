@@ -23,6 +23,11 @@ namespace SharpNet.Data
             Shape = newShape;
             RecomputeMultDim();
         }
+        public override Tensor WithNewShape(int[] newShape)
+        {
+            throw new NotImplementedException();
+        }
+
         public override void Dispose()
         {
             Shape = null;
@@ -94,6 +99,7 @@ namespace SharpNet.Data
         public override double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted) {throw new NotImplementedException();}
         public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta) {throw new NotImplementedException();}
+        public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta) { throw new NotImplementedException(); }
         public override IntPtr Pointer => throw new NotImplementedException();
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
         public override void RandomizeUniformDistribution(Random rand, double minValue, double maxValue) {throw new NotImplementedException();}
