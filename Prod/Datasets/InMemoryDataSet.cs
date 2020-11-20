@@ -29,6 +29,7 @@ namespace SharpNet.Datasets
                 meanAndVolatilityForEachChannel, 
                 ResizeStrategyEnum.None)
         {
+            Debug.Assert(y != null);
             Debug.Assert(AreCompatible_X_Y(x, y));
 
             _x = x;
@@ -48,32 +49,18 @@ namespace SharpNet.Datasets
                 }
             }
         }
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             Debug.Assert(indexInBuffer >= 0 &&  indexInBuffer < xBuffer.Shape[0]);
             //same number of channels / same height  / same width
             //only the first dimension (batch size) can be different
-            Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer)); 
-            var pictureInputIdx = _x.Idx(elementId);
-            var pictureOutputIdx = xBuffer.Idx(indexInBuffer);
-            _x.CopyTo(pictureInputIdx, xBuffer, pictureOutputIdx, xBuffer.MultDim0);
-
-
-            if (CategoryCount == 1)
+            Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
+            _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
+            if (yBuffer != null)
             {
-                yBuffer?.Set(indexInBuffer, 0, Y.Get(elementId, 0));
+                Debug.Assert(Y.SameShapeExceptFirstDimension(yBuffer));
+                Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
             }
-            else
-            {
-                //we update yBuffer
-                var categoryIndex = ElementIdToCategoryIndex(elementId);
-                for (int cat = 0; cat < CategoryCount; ++cat)
-                {
-                    yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
-                }
-            }
-
         }
 
         public override int Count => _x.Shape[0];
@@ -85,6 +72,8 @@ namespace SharpNet.Datasets
         {
             return "";
         }
+
+        public override int[] Y_Shape => Y.Shape;
 
         public override CpuTensor<float> Y { get; }
         public override string ToString()

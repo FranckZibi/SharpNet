@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
@@ -10,19 +11,21 @@ using SharpNet.Optimizers;
 namespace SharpNet.Layers
 {
     /// <summary>
+    /// input shape :
+    ///     (batchSize, ..., n_x)
     /// output shape :
-    ///     (batchSize, n_x)
+    ///     (batchSize, ..., units)
     /// </summary>
     public sealed class DenseLayer : Layer
     {
         #region Private fields
         #region trainable parameters
         /// <summary>
-        /// shape: (prevLayer.n_x, n_x)
+        /// shape: ( prevLayerOutputShape[last], Units)
         /// </summary>
         [NotNull] private Tensor _weights;
         /// <summary>
-        /// shape: (1, n_x)
+        /// shape: (1, Units)
         /// Can be null if bias has been disabled
         /// </summary>
         [CanBeNull] private Tensor _bias;
@@ -51,19 +54,19 @@ namespace SharpNet.Layers
         /// <summary>
         /// dimensionality of the output space
         /// </summary>
-        public int CategoryCount { get; }
+        public int Units { get; }
         #endregion
 
         #region constructor
-        public DenseLayer(int categoryCount, double lambdaL2Regularization, bool trainable, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int units, double lambdaL2Regularization, bool trainable, Network network, string layerName) : base(network, layerName)
         {
-            CategoryCount = categoryCount;
+            Units = units;
             LambdaL2Regularization = lambdaL2Regularization;
             Trainable = trainable;
 
             //trainable params
-            _weights = GetFloatTensor(new[] { PrevLayer.n_x, CategoryCount });
-            _bias = GetFloatTensor(new[] {1, CategoryCount });
+            _weights = GetFloatTensor(new[] { PrevLayer.OutputShape(1).Last(), Units });
+            _bias = GetFloatTensor(new[] {1, Units });
             Debug.Assert(_bias != null);
 
             _weightGradients = GetFloatTensor(_weights.Shape);
@@ -78,18 +81,23 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            var x = allX[0];
+            var xAs2DMatrix = As2DMatrixForDotProduct(allX[0]);
+            var yAs2DMatrix = As2DMatrixForDotProduct(y);
             //We compute y = x*Weights+B
-            y.Dot(x, _weights);
-            _bias?.BroadcastAddVectorToOutput(y);
+            yAs2DMatrix.Dot(xAs2DMatrix, _weights);
+            _bias?.BroadcastAddVectorToOutput(yAs2DMatrix);
         }
+
+       
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
-            var x = allX[0];
             int batchSize = dy.Shape[0];
+
+            var xAs2DMatrix = As2DMatrixForDotProduct(allX[0]);
+            var dyAs2DMatrix = As2DMatrixForDotProduct(dy);
 
             //we compute dW
             var multiplier = 1f / batchSize;
@@ -97,7 +105,7 @@ namespace SharpNet.Layers
             {
                 multiplier = 1f; //used only for tests and parallel run
             }
-            _weightGradients.Dot(x, true, dy, false, multiplier, 0);
+            _weightGradients.Dot(xAs2DMatrix, true, dyAs2DMatrix, false, multiplier, 0);
 
             //L2 regularization on dW
             if (UseL2Regularization)
@@ -109,7 +117,7 @@ namespace SharpNet.Layers
             if (UseBias)
             {
                 Debug.Assert(_bias != null);
-                dy.Compute_BiasGradient_from_dy(_biasGradients);
+                dyAs2DMatrix.Compute_BiasGradient_from_dy(_biasGradients);
             }
 
             //no need to compute dx (= PrevLayer.dy) if previous Layer it is the input layer
@@ -119,8 +127,30 @@ namespace SharpNet.Layers
             }
 
             // we compute dx = dy * Weights.T
-            dx[0].Dot(dy, false, _weights, true, 1, 0);
+            dx[0].Dot(dyAs2DMatrix, false, _weights, true, 1, 0);
         }
+
+        /// <summary>
+        /// When x is tensor with >=3 dimension         (ex:  (a, b, c, d))
+        /// we'll change its shape to a 2D Matrix       (ex:  (a*b*c, d) )
+        /// so that the last dimension of the matrix    (ex: d) is preserved
+        /// </summary>
+        /// <param name="x"></param>
+        /// <returns>A 2D Matrix</returns>
+        private static Tensor As2DMatrixForDotProduct(Tensor x)
+        {
+            if (x.Shape.Length <= 2)
+            {
+                return x;
+            }
+            var xTargetShape = new int[2];
+            xTargetShape[1] = x.Shape.Last();
+            xTargetShape[0] = x.Count / xTargetShape[1];
+            return x.WithNewShape(xTargetShape);
+        }
+
+
+
         public override bool OutputNeededForBackwardPropagation => false;
         #endregion
 
@@ -222,12 +252,12 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(CategoryCount), CategoryCount).Add(nameof(LambdaL2Regularization), LambdaL2Regularization).ToString();
+            return RootSerializer().Add(nameof(Units), Units).Add(nameof(LambdaL2Regularization), LambdaL2Regularization).ToString();
         }
         public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new DenseLayer(
-                (int)serialized[nameof(CategoryCount)],
+                (int)serialized[nameof(Units)],
                 (double)serialized[nameof(LambdaL2Regularization)],
                 (bool)serialized[nameof(Trainable)],
                 network,
@@ -238,7 +268,9 @@ namespace SharpNet.Layers
 
         public override int[] OutputShape(int batchSize)
         {
-            return new[] { batchSize, CategoryCount };
+            var inputShape = (int[])PrevLayer.OutputShape(batchSize).Clone();
+            inputShape[^1] = Units;
+            return inputShape;
         }
         public override string ToString()
         {

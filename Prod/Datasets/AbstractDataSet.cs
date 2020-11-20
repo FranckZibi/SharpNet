@@ -312,7 +312,7 @@ namespace SharpNet.Datasets
         public abstract int ElementIdToCategoryIndex(int elementId);
         public abstract string ElementIdToPathIfAny(int elementId);
 
-        public int[] Y_Shape => new[] { Count, CategoryCount };
+        public virtual int[] Y_Shape => new[] { Count, CategoryCount };
         public virtual void Dispose()
         {
             xOriginalNotAugmentedMiniBatch?.Dispose();
@@ -335,7 +335,9 @@ namespace SharpNet.Datasets
         }
         public int[] YMiniBatch_Shape(int miniBatchSize)
         {
-            return new[] { miniBatchSize, CategoryCount };
+            var yMinibatchShape = (int[])Y_Shape.Clone();
+            yMinibatchShape[0] = miniBatchSize;
+            return yMinibatchShape;
         }
 
         public int TypeSize => 4; //float size
@@ -359,10 +361,10 @@ namespace SharpNet.Datasets
             {
                 return true;
             }
+
             return (X != null) && (Y != null)
                                && (X.UseGPU == Y.UseGPU)
-                               && (X.Shape[0] == Y.Shape[0]) //same number of tests
-                               && (Y.Shape.Length == 2);
+                               && (X.Shape[0] == Y.Shape[0]); //same number of tests
         }
         public abstract CpuTensor<float> Y { get; }
         
