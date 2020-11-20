@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
-using SharpNet.GPU;
 using SharpNet.Optimizers;
 using static SharpNet.GPU.GPUWrapper;
 // ReSharper disable UnusedMember.Global
@@ -46,11 +45,6 @@ namespace SharpNet.Networks
         /// The convolution algo to be used
         /// </summary>
         public ConvolutionAlgoPreference ConvolutionAlgoPreference { get; set;} = ConvolutionAlgoPreference.FASTEST_DETERMINIST;
-
-        private const cuDNN_Versions DefaultCuDNNVersion = cuDNN_Versions.cuDNN_7;
-
-        public cuDNN_Versions cuDNNVersion { get; set; } = DefaultCuDNNVersion;
-
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
         public double Adam_epsilon { get; private set; }
@@ -173,7 +167,6 @@ namespace SharpNet.Networks
             equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + nameof(SGD_momentum), ref errors);
             equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + nameof(SGD_usenesterov), ref errors);
             equals &= Utils.Equals((int)LearningRateSchedulerType, (int)other.LearningRateSchedulerType, id + nameof(LearningRateSchedulerType), ref errors);
-            equals &= Utils.Equals((int)cuDNNVersion, (int)other.cuDNNVersion, id + nameof(cuDNNVersion), ref errors);
             equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochsInFirstRun, other.CyclicCosineAnnealing_nbEpochsInFirstRun, id + nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), ref errors);
             equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochInNextRunMultiplier, other.CyclicCosineAnnealing_nbEpochInNextRunMultiplier, id + nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), ref errors);
             equals &= Utils.Equals(CyclicCosineAnnealing_MinLearningRate, other.CyclicCosineAnnealing_MinLearningRate, epsilon, id + nameof(CyclicCosineAnnealing_MinLearningRate), ref errors);
@@ -279,7 +272,6 @@ namespace SharpNet.Networks
                 .Add(nameof(LossFunction), (int)LossFunction).Add(nameof(OptimizerType), (int)OptimizerType)
                 .Add(nameof(Adam_beta1), Adam_beta1).Add(nameof(Adam_beta2), Adam_beta2).Add(nameof(Adam_epsilon), Adam_epsilon)
                 .Add(nameof(SGD_momentum), SGD_momentum).Add(nameof(SGD_usenesterov), SGD_usenesterov)
-                .Add(nameof(cuDNNVersion), (int)cuDNNVersion)
                 //learning rate scheduler fields
                 .Add(nameof(LearningRateSchedulerType), (int)LearningRateSchedulerType)
                 .Add(nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), CyclicCosineAnnealing_nbEpochsInFirstRun).Add(nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), CyclicCosineAnnealing_nbEpochInNextRunMultiplier).Add(nameof(CyclicCosineAnnealing_MinLearningRate), CyclicCosineAnnealing_MinLearningRate)
@@ -322,7 +314,6 @@ namespace SharpNet.Networks
             SGD_momentum= (double)serialized[nameof(SGD_momentum)];
             SGD_usenesterov = (bool)serialized[nameof(SGD_usenesterov)];
             lambdaL2Regularization = (double)serialized[nameof(lambdaL2Regularization)];
-            cuDNNVersion = serialized.ContainsKey(nameof(cuDNNVersion))?(cuDNN_Versions)serialized[nameof(cuDNNVersion)] : DefaultCuDNNVersion;
             //TODO replace above line with: CudnnVersion = (CUDNN_Versions)serialized[nameof(CudnnVersion)];
             //learning rate scheduler fields
             LearningRateSchedulerType = (LearningRateSchedulerEnum)serialized[nameof(LearningRateSchedulerType)];

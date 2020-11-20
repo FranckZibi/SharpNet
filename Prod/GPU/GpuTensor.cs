@@ -967,22 +967,26 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        private IntPtr TensorDesc(Tensor a) { return _wrapper.TensorDesc(CudaType, a.Shape); }
-        private IntPtr FilterDesc(Tensor a, bool isDepthwiseConvolution) { return _wrapper.FilterDesc(CudaType, a.Shape, isDepthwiseConvolution); }
-        private IntPtr ActivationDesc(cudnnActivationMode_t activationFunctionType)
+        private cudnnTensorDescriptor_t TensorDesc(Tensor a) { return _wrapper.TensorDesc(CudaType, a.Shape); }
+
+        private cudnnRNNDataDescriptor_t RNNDataDesc(Tensor a) { return _wrapper.RNNDataDesc(CudaType, a.Shape); }
+        
+
+        private cudnnFilterDescriptor_t FilterDesc(Tensor a, bool isDepthwiseConvolution) { return _wrapper.FilterDesc(CudaType, a.Shape, isDepthwiseConvolution); }
+        private cudnnActivationDescriptor_t ActivationDesc(cudnnActivationMode_t activationFunctionType)
         {
             return _wrapper.ActivationDesc(activationFunctionType);
         }
-        private IntPtr PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
+        private cudnnPoolingDescriptor_t PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             return _wrapper.PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
         }
-        private IntPtr ConvDesc(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount) { return _wrapper.ConvDesc(CudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount); }
+        private cudnnConvolutionDescriptor_t ConvDesc(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount) { return _wrapper.ConvDesc(CudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount); }
         private cudnnDataType_t CudaType { get; } = cudnnDataType_t.CUDNN_DATA_FLOAT;
-        private IntPtr CudnnHandle => _wrapper.CudnnHandle;
+        private cudnnHandle_t CudnnHandle => _wrapper.CudnnHandle;
         private IntPtr CublasHandle => _wrapper.CudaBlasHandle;
         private CudartWrapper CudartWrapper => _wrapper.CudartWrapper;
-        private CudnnWrapper CudnnWrapper => _wrapper.CudnnWrapper;
+        //private CudnnWrapper CudnnWrapper => _wrapper.CudnnWrapper;
         private CublasWrapper CublasWrapper => _wrapper.CublasWrapper;
         private T[] DeviceContent()
         {

@@ -85,7 +85,7 @@ namespace SharpNet.Networks
 
             _masterNetworkIfAny = masterNetworkIfAny;
             _resourceIds = resourceIds.ToList();
-            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0], config.cuDNNVersion) : null;
+            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0]) : null;
             _swComputeLoss = new Stopwatch();
             _swComputeAccuracy = new Stopwatch();
             CreateLogDirectoryIfNeeded();
@@ -158,7 +158,7 @@ namespace SharpNet.Networks
             }
             if (_randomNumberGeneratorStatesBufferForGPU == null)
             {
-                var res = GpuWrapper.CudnnWrapper.cudnnDropoutGetStatesSize(GpuWrapper.CudnnHandle, out var dropoutStateSize);
+                var res = CudnnWrapper.cudnnDropoutGetStatesSize(GpuWrapper.CudnnHandle, out var dropoutStateSize);
                 GPUWrapper.CheckStatus(res);
                 _randomNumberGeneratorStatesBufferForGPU = MemoryPool.GetBuffer(dropoutStateSize);
             }
@@ -186,7 +186,9 @@ namespace SharpNet.Networks
         public Network SimpleRnnLayer(int features, int units, bool returnSequences, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var simpleRnnLayer = new SimpleRnnLayer(features, units, returnSequences, true, this, layerName);
+            var simpleRnnLayer = UseGPU
+                ?(Layer)new SimpleRnnLayerGPU(features, units, returnSequences, true, this, layerName)
+                :new SimpleRnnLayerCPU(features, units, returnSequences, true, this, layerName);
             Layers.Add(simpleRnnLayer);
             return this;
         }
@@ -622,7 +624,7 @@ namespace SharpNet.Networks
             }
             catch (Exception e)
             {
-                Log.Info(e.ToString());
+                Log.Error(e.ToString());
                 throw;
             }
         }
@@ -889,7 +891,7 @@ namespace SharpNet.Networks
         }
 
 
-        public int[] XMiniBatch_Shape(int miniBatchSize)
+        private int[] XMiniBatch_Shape(int miniBatchSize)
         {
             Debug.Assert(Layers.Count>=1);
             Debug.Assert(Layers[0] is InputLayer);

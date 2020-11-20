@@ -214,9 +214,9 @@ namespace SharpNetTests.NonReg
                 default:
                     //case "gpu":
                     //case "gpu0":
-                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(0, TestGPUTensor.cuDNNVersion));
+                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(0));
                 case "gpu1":
-                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(1, TestGPUTensor.cuDNNVersion));
+                    return new GPUTensor<byte>(new[] { chunkSize }, null, GPUWrapper.FromDeviceId(1));
                 case "cpu":
                     return new CpuTensor<byte>(new[] { chunkSize }, null);
             }

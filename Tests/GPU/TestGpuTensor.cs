@@ -10,9 +10,7 @@ namespace SharpNetTests.GPU
     [TestFixture]
     public class TestGPUTensor
     {
-        public static cuDNN_Versions cuDNNVersion = cuDNN_Versions.cuDNN_7;
-
-        public static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0, cuDNNVersion);
+        public static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
 
         [Test]
@@ -115,7 +113,7 @@ namespace SharpNetTests.GPU
 
 
             var shape = new[] { 3 };
-            var fistDeviceWrapper = GPUWrapper.FromDeviceId(firstDeviceId, cuDNNVersion);
+            var fistDeviceWrapper = GPUWrapper.FromDeviceId(firstDeviceId);
             var resultInFirstGpuDevice = new GPUTensor<float>(shape, null, fistDeviceWrapper);
 
             //we wait for the second GPU device to initialize temporary tensors
@@ -152,7 +150,7 @@ namespace SharpNetTests.GPU
         private GPUTensor<float> Data2InSecondDevice;
         private void RunInSecondDevice(int secondDeviceId, GPUTensor<float> resultInFirstGpuDevice)
         {
-            var deviceWrapper = GPUWrapper.FromDeviceId(secondDeviceId, cuDNNVersion);
+            var deviceWrapper = GPUWrapper.FromDeviceId(secondDeviceId);
             Data1InSecondDevice = new GPUTensor<float>(resultInFirstGpuDevice.Shape, null, deviceWrapper);
             Data2InSecondDevice = new GPUTensor<float>(resultInFirstGpuDevice.Shape, null, deviceWrapper);
 

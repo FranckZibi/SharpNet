@@ -46,8 +46,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CublasWrapper_cublas64_100.cublasCreate_v2(ref cublasHandle);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasCreate_v2(ref cublasHandle);
@@ -63,8 +61,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CublasWrapper_cublas64_100.cublasDestroy_v2(cublasHandle);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasDestroy_v2(cublasHandle);
@@ -80,8 +76,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CublasWrapper_cublas64_100.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
@@ -97,8 +91,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CublasWrapper_cublas64_100.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
@@ -114,8 +106,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CublasWrapper_cublas64_100.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
@@ -131,8 +121,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CublasWrapper_cublas64_100.cublasGetVersion_v2(cublasHandle, out cublasVersion);
                 case CUDA_Versions.CUDA_10_1:
                 case CUDA_Versions.CUDA_10_2:
                     return CublasWrapper_cublas64_10.cublasGetVersion_v2(cublasHandle, out cublasVersion);
@@ -144,23 +132,6 @@ namespace SharpNet.GPU
         }
     }
 
-
-    public static class CublasWrapper_cublas64_100
-    {
-        private const string DLL_NAME = "cublas64_100";
-        [DllImport(DLL_NAME)]
-        public static extern cublasStatus_t cublasCreate_v2(ref IntPtr cublasHandle);
-        [DllImport(DLL_NAME)]
-        public static extern cublasStatus_t cublasDestroy_v2(IntPtr cublasHandle);
-        [DllImport(DLL_NAME)]
-        public static extern cublasStatus_t cublasScopy_v2(IntPtr cublasHandle,int n,IntPtr x,int incx,IntPtr y,int incy);
-        [DllImport(DLL_NAME)]
-        public static extern cublasStatus_t cublasSgemm_v2(IntPtr cublasHandle,cublasOperation_t transa,cublasOperation_t transb,int m,int n,int k,ref float alpha,IntPtr A,int lda,IntPtr B,int ldb,ref float beta,IntPtr C,int ldc);
-        [DllImport(DLL_NAME)]
-        public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
-        [DllImport(DLL_NAME)]
-        public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
-    }
     public static class CublasWrapper_cublas64_10
     {
         private const string DLL_NAME = "cublas64_10";

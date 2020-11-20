@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
 // ReSharper disable UnusedMember.Global
@@ -339,793 +338,318 @@ namespace SharpNet.GPU
     }
 
 
-    public unsafe class CudnnWrapper
+    /// <summary>
+    /// Type of network used in the cudnnRNNForwardInference(), cudnnRNNForwardTraining(), cudnnRNNBackwardData() and cudnnRNNBackwardWeights() routines
+    /// see https://docs.nvidia.com/deeplearning/cudnn/archives/cudnn_701/cudnn-user-guide/index.html#cudnnRNNMode_t
+    /// </summary>
+    public enum cudnnRNNMode_t
     {
-        private readonly cuDNN_Versions _cuDNNVersion;
+        //A single-gate recurrent neural network with a ReLU activation function.
+        CUDNN_RNN_RELU,
 
-        public CudnnWrapper(cuDNN_Versions cuDNNVersion)
+        //A single-gate recurrent neural network with a tanh activation function.
+        CUDNN_RNN_TANH,
+
+        //A four-gate Long Short-Term Memory network with no peephole connections.
+        CUDNN_LSTM,
+
+        //A three-gate network consisting of Gated Recurrent Units.
+        CUDNN_GRU
+    }
+
+    /// <summary>
+    /// specify the recurrence pattern in the cudnnRNNForwardInference(), cudnnRNNForwardTraining(), cudnnRNNBackwardData() and cudnnRNNBackwardWeights() routines
+    /// see: https://docs.nvidia.com/deeplearning/cudnn/archives/cudnn_701/cudnn-user-guide/index.html#cudnnDirectionMode_t
+    /// </summary>
+    public enum cudnnDirectionMode_t
+    {
+        //The network iterates recurrently from the first input to the last.    
+        CUDNN_UNIDIRECTIONAL,
+
+        //Each layer of the the network iterates recurrently from the first input to the last and separately from the last input to the first.
+        //The outputs of the two are concatenated at each iteration giving the output of the layer.
+        CUDNN_BIDIRECTIONAL
+    }
+
+    /// <summary>
+    /// specify the behavior of the first layer in the cudnnRNNForwardInference(), cudnnRNNForwardTraining(), cudnnRNNBackwardData() and cudnnRNNBackwardWeights() routines
+    /// see: https://docs.nvidia.com/deeplearning/cudnn/archives/cudnn_701/cudnn-user-guide/index.html#cudnnRNNInputMode_t
+    /// </summary>
+    public enum cudnnRNNInputMode_t
+    {
+        //A biased matrix multiplication is performed at the input of the first recurrent layer.
+        CUDNN_LINEAR_INPUT, 
+
+        //No operation is performed at the input of the first recurrent layer.
+        //If CUDNN_SKIP_INPUT is used the leading dimension of the input tensor must be equal to the hidden state size of the network.
+        CUDNN_SKIP_INPUT
+    }
+
+    /// <summary>
+    /// specify the algorithm used in the cudnnRNNForwardInference(), cudnnRNNForwardTraining(), cudnnRNNBackwardData() and cudnnRNNBackwardWeights() routines.
+    /// see: https://docs.nvidia.com/deeplearning/cudnn/archives/cudnn_701/cudnn-user-guide/index.html#cudnnRNNAlgo_t
+    /// </summary>
+    public enum cudnnRNNAlgo_t
+    {
+        //Each RNN layer is executed as a sequence of operations.
+        //This algorithm is expected to have robust performance across a wide range of network parameters.
+        CUDNN_RNN_ALGO_STANDARD,
+
+        //The recurrent parts of the network are executed using a persistent kernel approach.
+        //This method is expected to be fast when the first dimension of the input tensor is small(ie.a small minibatch).
+        CUDNN_RNN_ALGO_PERSIST_STATIC,
+
+        //The recurrent parts of the network are executed using a persistent kernel approach.
+        //This method is expected to be fast when the first dimension of the input tensor is small (ie. a small minibatch)
+        CUDNN_RNN_ALGO_PERSIST_DYNAMIC
+    }
+
+
+    /// <summary>
+    /// specify inference or training mode in RNN API.
+    /// This parameter allows the cuDNN library to tune more precisely the size of the workspace buffer
+    /// that could be different in inference and training regimens
+    /// see: https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnForwardMode_t
+    /// </summary>
+    public enum cudnnForwardMode_t
+    {
+        //Selects the inference mode.
+        CUDNN_FWD_MODE_INFERENCE,
+
+        //Selects the training mode.
+        CUDNN_FWD_MODE_TRAINING
+    }
+
+    /// <summary>
+    /// number of bias vectors for RNN functions.See the description of the cudnnRNNMode_t enumerated type for
+    /// the equations for each cell type based on the bias mode.
+    /// see: https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNBiasMode_t
+    /// </summary>
+    public enum cudnnRNNBiasMode_t
+    {
+        //Applies RNN cell formulas that do not use biases.    
+        CUDNN_RNN_NO_BIAS,
+
+        //Applies RNN cell formulas that use one input bias vector in the input GEMM.
+        CUDNN_RNN_SINGLE_INP_BIAS,
+
+        //Applies RNN cell formulas that use two bias vectors.
+        CUDNN_RNN_DOUBLE_BIAS,
+
+        //Applies RNN cell formulas that use one recurrent bias vector in the recurrent GEMM.
+        CUDNN_RNN_SINGLE_REC_BIAS
+    }
+
+    /// <summary>
+    /// selects how buffers holding gradients of the loss function, computed with respect to trainable parameters,
+    /// are updated.Currently, this type is used by the cudnnGetMultiHeadAttnWeights() function only.
+    /// see: https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnWgradMode_t
+    /// </summary>
+    public enum cudnnWgradMode_t
+    {
+        //A weight gradient component corresponding to a new batch of inputs is added to previously evaluated weight gradients.
+        //Before using this mode, the buffer holding weight gradients should be initialized to zero.
+        //Alternatively, the first API call outputting to an uninitialized buffer should use the CUDNN_WGRAD_MODE_SET option.
+        CUDNN_WGRAD_MODE_ADD,
+
+        //A weight gradient component, corresponding to a new batch of inputs,
+        //overwrites previously stored weight gradients in the output buffer.
+        CUDNN_WGRAD_MODE_SET
+    }
+
+    /// <summary>
+    /// select the RNN data layout. It is used in the API calls cudnnGetRNNDataDescriptor() and cudnnSetRNNDataDescriptor().
+    /// see: https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnRNNDataLayout_t
+    /// </summary>
+    public enum cudnnRNNDataLayout_t
+    {
+        //Data layout is padded, with outer stride from one time-step to the next.
+        CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED,
+
+        //The sequence length is sorted and packed as in the basic RNN API.
+        CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_PACKED,
+
+        //Data layout is padded, with outer stride from one batch to the next.
+        CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnHandle_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnRNNDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnDropoutDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnTensorDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnRNNDataDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnFilterDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnConvolutionDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnActivationDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    public struct cudnnPoolingDescriptor_t
+    {
+        private readonly IntPtr _pointer;
+    }
+
+    
+    public struct RNNDescriptor
+    {
+        #region fields
+        public cudnnRNNAlgo_t algo { get; }
+        public cudnnRNNMode_t cellMode { get; }
+        public cudnnRNNBiasMode_t biasMode { get; }
+        public cudnnDirectionMode_t dirMode { get; }
+        public cudnnRNNInputMode_t inputMode { get; }
+        public cudnnDataType_t dataType { get; }
+        public cudnnDataType_t mathPrec { get; }
+        public cudnnMathType_t mathType { get; }
+        public int inputSize { get; }
+        public int hiddenSize { get; }
+        public int projSize { get; }
+        public int numLayers { get; }
+        public double dropoutRate { get; }
+        public uint auxFlags { get; }
+        #endregion
+
+        public RNNDescriptor(cudnnRNNAlgo_t algo, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, cudnnDirectionMode_t dirMode, cudnnRNNInputMode_t inputMode, cudnnDataType_t dataType, cudnnDataType_t mathPrec, cudnnMathType_t mathType, int inputSize, int hiddenSize, int projSize, int numLayers, double dropoutRate, uint auxFlags)
         {
-            _cuDNNVersion = cuDNNVersion;
+            this.algo = algo;
+            this.cellMode = cellMode;
+            this.biasMode = biasMode;
+            this.dirMode = dirMode;
+            this.inputMode = inputMode;
+            this.dataType = dataType;
+            this.mathPrec = mathPrec;
+            this.mathType = mathType;
+            this.inputSize = inputSize;
+            this.hiddenSize = hiddenSize;
+            this.projSize = projSize;
+            this.numLayers = numLayers;
+            this.dropoutRate = dropoutRate;
+            this.auxFlags = auxFlags;
         }
 
-        private bool UseCuDNN8 => _cuDNNVersion == cuDNN_Versions.cuDNN_8;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnGetConvolutionForwardWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
-            cudnnConvolutionFwdAlgo_t algo,
-            out size_t sizeInBytes)
+        public override bool Equals(object obj)
         {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnGetConvolutionForwardWorkspaceSize(cudnnHandle, xDesc, wDesc, convDesc, yDesc, algo, out sizeInBytes)
-                    : CuDNNWrapper64_7.cudnnGetConvolutionForwardWorkspaceSize(cudnnHandle, xDesc, wDesc, convDesc, yDesc, algo, out sizeInBytes);
+            if (!(obj is RNNDescriptor))
+            {
+                return false;
+            }
+            var other = (RNNDescriptor)obj;
+            return algo == other.algo && cellMode == other.cellMode && biasMode == other.biasMode && dirMode == other.dirMode && inputMode == other.inputMode && dataType == other.dataType && mathPrec == other.mathPrec && mathType == other.mathType && inputSize == other.inputSize && hiddenSize == other.hiddenSize && projSize == other.projSize && numLayers == other.numLayers && dropoutRate.Equals(other.dropoutRate) && auxFlags == other.auxFlags;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnGetConvolutionForwardAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
-            cudnnConvolutionFwdPreference_t preference,
-            uint memoryLimitInBytes,
-            out cudnnConvolutionFwdAlgo_t algo)
+        public override int GetHashCode()
         {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnGetConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, preference, memoryLimitInBytes, out algo)
-                    : CuDNNWrapper64_7.cudnnGetConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, preference, memoryLimitInBytes, out algo);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnConvolutionForward(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr wDesc,
-            IntPtr w,
-            IntPtr convDesc,
-            cudnnConvolutionFwdAlgo_t algo,
-            IntPtr workSpace,
-            size_t workSpaceSizeInBytes,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnConvolutionForward(cudnnHandle, alpha, xDesc, x, wDesc, w, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, yDesc, y)
-                    : CuDNNWrapper64_7.cudnnConvolutionForward(cudnnHandle, alpha, xDesc, x, wDesc, w, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, yDesc, y);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnConvolutionBackwardBias(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr dyDesc,
-            IntPtr dy,
-            void* beta,
-            IntPtr dbDesc,
-            IntPtr db)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnConvolutionBackwardBias(cudnnHandle, alpha, dyDesc, dy, beta, dbDesc, db)
-                    : CuDNNWrapper64_7.cudnnConvolutionBackwardBias(cudnnHandle, alpha, dyDesc, dy, beta, dbDesc, db);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dwDesc,
-            cudnnConvolutionBwdFilterPreference_t preference,
-            size_t memoryLimitInBytes,
-            out cudnnConvolutionBwdFilterAlgo_t algo)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, preference, memoryLimitInBytes, out algo)
-                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, preference, memoryLimitInBytes, out algo);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnFindConvolutionForwardAlgorithm(
-            //[in] Handle to a previously created cuDNN context
-            IntPtr cudnnHandle,
-            //[in] input tensor descriptor
-            IntPtr xDesc,
-            //[in] filter descriptor
-            IntPtr wDesc,
-            //[in] convolution descriptor
-            IntPtr convDesc,
-            //[in] output tensor descriptor
-            IntPtr yDesc,
-            //[in] The maximum number of elements to be stored in perfResults
-            int requestedAlgoCount,
-            //[out] The number of output elements stored in perfResults
-            out int returnedAlgoCount,
-            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
-            cudnnConvolutionFwdAlgoPerf_t* perfResults
-        )
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnFindConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, requestedAlgoCount, out returnedAlgoCount, perfResults)
-                    : CuDNNWrapper64_7.cudnnFindConvolutionForwardAlgorithm(cudnnHandle, xDesc, wDesc, convDesc, yDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnFindConvolutionBackwardFilterAlgorithm(
-            //[in] Handle to a previously created cuDNN context
-            IntPtr cudnnHandle,
-            //[in] input tensor descriptor
-            IntPtr xDesc,
-            //[in] output gradient tensor descriptor
-            IntPtr dyDesc,
-            //[in] convolution descriptor
-            IntPtr convDesc,
-            //[in] filter descriptor
-            IntPtr wDesc,
-            //[in] The maximum number of elements to be stored in perfResults
-            int requestedAlgoCount,
-            //[out] The number of output elements stored in perfResults
-            out int returnedAlgoCount,
-            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
-            cudnnConvolutionBwdFilterAlgoPerf_t* perfResults
-        )
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnFindConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, wDesc, requestedAlgoCount, out returnedAlgoCount, perfResults)
-                    : CuDNNWrapper64_7.cudnnFindConvolutionBackwardFilterAlgorithm(cudnnHandle, xDesc, dyDesc, convDesc, wDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnFindConvolutionBackwardDataAlgorithm(
-            //[in] Handle to a previously created cuDNN context
-            IntPtr cudnnHandle,
-            //[in] filter descriptor
-            IntPtr wDesc,
-            //[in] output tensor descriptor
-            IntPtr dyDesc,
-            //[in] convolution descriptor
-            IntPtr convDesc,
-            //[in] input tensor descriptor
-            IntPtr xDesc,
-            //[in] The maximum number of elements to be stored in perfResults
-            int requestedAlgoCount,
-            //[out] The number of output elements stored in perfResults
-            out int returnedAlgoCount,
-            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
-            cudnnConvolutionBwdDataAlgoPerf_t* perfResults
-        )
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnFindConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, xDesc, requestedAlgoCount, out returnedAlgoCount, perfResults)
-                    : CuDNNWrapper64_7.cudnnFindConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, xDesc, requestedAlgoCount, out returnedAlgoCount, perfResults);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnConvolutionBackwardFilter(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr convDesc,
-            cudnnConvolutionBwdFilterAlgo_t algo,
-            IntPtr workSpace,
-            size_t workSpaceSizeInBytes,
-            void* beta,
-            IntPtr dwDesc,
-            IntPtr dw)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnConvolutionBackwardFilter(cudnnHandle, alpha, xDesc, x, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dwDesc, dw)
-                    : CuDNNWrapper64_7.cudnnConvolutionBackwardFilter(cudnnHandle, alpha, xDesc, x, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dwDesc, dw);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnGetConvolutionBackwardFilterWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dwDesc,
-            cudnnConvolutionBwdFilterAlgo_t algo,
-            out size_t sizeInBytes)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, algo, out sizeInBytes)
-                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnnHandle, xDesc, dyDesc, convDesc, dwDesc, algo, out sizeInBytes);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnGetConvolutionBackwardDataAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr wDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dxDesc,
-            cudnnConvolutionBwdDataPreference_t preference,
-            size_t memoryLimitInBytes,
-            out cudnnConvolutionBwdDataAlgo_t algo)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, preference, memoryLimitInBytes, out algo)
-                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardDataAlgorithm(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, preference, memoryLimitInBytes, out algo);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnGetConvolutionBackwardDataWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr wDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dxDesc,
-            cudnnConvolutionBwdDataAlgo_t algo,
-            out size_t sizeInBytes)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnGetConvolutionBackwardDataWorkspaceSize(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, algo, out sizeInBytes)
-                    : CuDNNWrapper64_7.cudnnGetConvolutionBackwardDataWorkspaceSize(cudnnHandle, wDesc, dyDesc, convDesc, dxDesc, algo, out sizeInBytes);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnConvolutionBackwardData(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr wDesc,
-            IntPtr w,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr convDesc,
-            cudnnConvolutionBwdDataAlgo_t algo,
-            IntPtr workSpace,
-            size_t workSpaceSizeInBytes,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnConvolutionBackwardData(cudnnHandle, alpha, wDesc, w, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dxDesc, dx)
-                    : CuDNNWrapper64_7.cudnnConvolutionBackwardData(cudnnHandle, alpha, wDesc, w, dyDesc, dy, convDesc, algo, workSpace, workSpaceSizeInBytes, beta, dxDesc, dx);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDropoutForward(
-            IntPtr cudnnHandle,
-            IntPtr dropoutDesc,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr reserveSpace,
-            size_t reserveSpaceSizeInBytes)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDropoutForward(cudnnHandle, dropoutDesc, xDesc, x, yDesc, y, reserveSpace, reserveSpaceSizeInBytes)
-                    : CuDNNWrapper64_7.cudnnDropoutForward(cudnnHandle, dropoutDesc, xDesc, x, yDesc, y, reserveSpace, reserveSpaceSizeInBytes);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDropoutGetReserveSpaceSize(IntPtr xDesc, out size_t sizeInBytes)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDropoutGetReserveSpaceSize(xDesc, out sizeInBytes)
-                    : CuDNNWrapper64_7.cudnnDropoutGetReserveSpaceSize(xDesc, out sizeInBytes);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDropoutBackward(
-            IntPtr cudnnHandle,
-            IntPtr dropoutDesc,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr dxDesc,
-            IntPtr dx,
-            IntPtr reserveSpace,
-            size_t reserveSpaceSizeInBytes)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDropoutBackward(cudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, reserveSpace, reserveSpaceSizeInBytes)
-                    : CuDNNWrapper64_7.cudnnDropoutBackward(cudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, reserveSpace, reserveSpaceSizeInBytes);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDropoutGetStatesSize(IntPtr cudnnHandle, out size_t sizeInBytes)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDropoutGetStatesSize(cudnnHandle, out sizeInBytes)
-                    : CuDNNWrapper64_7.cudnnDropoutGetStatesSize(cudnnHandle, out sizeInBytes);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnPoolingBackward(
-            IntPtr cudnnHandle,
-            IntPtr poolingDesc,
-            void* alpha,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnPoolingBackward(cudnnHandle, poolingDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx)
-                    : CuDNNWrapper64_7.cudnnPoolingBackward(cudnnHandle, poolingDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnPoolingForward(
-            IntPtr cudnnHandle,
-            IntPtr poolingDesc,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnPoolingForward(cudnnHandle, poolingDesc, alpha, xDesc, x, beta, yDesc, y)
-                    : CuDNNWrapper64_7.cudnnPoolingForward(cudnnHandle, poolingDesc, alpha, xDesc, x, beta, yDesc, y);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSetActivationDescriptor(
-            IntPtr activationDesc,
-            cudnnActivationMode_t mode,
-            cudnnNanPropagation_t reluNanOpt,
-            double coef)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSetActivationDescriptor(activationDesc, mode, reluNanOpt, coef)
-                    : CuDNNWrapper64_7.cudnnSetActivationDescriptor(activationDesc, mode, reluNanOpt, coef);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnActivationForward(
-            IntPtr cudnnHandle,
-            IntPtr activationDesc,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnActivationForward(cudnnHandle, activationDesc, alpha, xDesc, x, beta, yDesc, y)
-                    : CuDNNWrapper64_7.cudnnActivationForward(cudnnHandle, activationDesc, alpha, xDesc, x, beta, yDesc, y);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnActivationBackward(
-            IntPtr cudnnHandle,
-            IntPtr activationDesc,
-            void* alpha,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnActivationBackward(cudnnHandle, activationDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx)
-                    : CuDNNWrapper64_7.cudnnActivationBackward(cudnnHandle, activationDesc, alpha, yDesc, y, dyDesc, dy, xDesc, x, beta, dxDesc, dx);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSoftmaxForward(
-            IntPtr cudnnHandle,
-            cudnnSoftmaxAlgorithm_t algorithm,
-            cudnnSoftmaxMode_t mode,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSoftmaxForward(cudnnHandle, algorithm, mode, alpha, xDesc, x, beta, yDesc, y)
-                    : CuDNNWrapper64_7.cudnnSoftmaxForward(cudnnHandle, algorithm, mode, alpha, xDesc, x, beta, yDesc, y);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSoftmaxBackward(
-            IntPtr cudnnHandle,
-            cudnnSoftmaxAlgorithm_t algorithm,
-            cudnnSoftmaxMode_t mode,
-            void* alpha,
-            IntPtr yDesc,
-            IntPtr yData,
-            IntPtr dyDesc,
-            IntPtr dy,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSoftmaxBackward(cudnnHandle, algorithm, mode, alpha, yDesc, yData, dyDesc, dy, beta, dxDesc, dx)
-                    : CuDNNWrapper64_7.cudnnSoftmaxBackward(cudnnHandle, algorithm, mode, alpha, yDesc, yData, dyDesc, dy, beta, dxDesc, dx);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnBatchNormalizationBackward(
-            IntPtr cudnnHandle,
-            cudnnBatchNormMode_t mode,
-            void* alphaDataDiff,
-            void* betaDataDiff,
-            void* alphaParamDiff,
-            void* betaParamDiff,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr dxDesc,
-            IntPtr dx,
-            IntPtr bnScaleBiasDiffDesc,
-            IntPtr bnScale,
-            IntPtr resultBnScaleDiff,
-            IntPtr resultBnBiasDiff,
-            double epsilon,
-            IntPtr savedMean,
-            IntPtr savedInvVariance)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnBatchNormalizationBackward(cudnnHandle, mode, alphaDataDiff, betaDataDiff, alphaParamDiff, betaParamDiff, xDesc, x, dyDesc, dy, dxDesc, dx, bnScaleBiasDiffDesc, bnScale, resultBnScaleDiff, resultBnBiasDiff, epsilon, savedMean, savedInvVariance)
-                    : CuDNNWrapper64_7.cudnnBatchNormalizationBackward(cudnnHandle, mode, alphaDataDiff, betaDataDiff, alphaParamDiff, betaParamDiff, xDesc, x, dyDesc, dy, dxDesc, dx, bnScaleBiasDiffDesc, bnScale, resultBnScaleDiff, resultBnBiasDiff, epsilon, savedMean, savedInvVariance);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnBatchNormalizationForwardTraining(
-            IntPtr cudnnHandle,
-            cudnnBatchNormMode_t mode,
-            void* alpha,
-            void* beta,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr bnScaleBiasMeanVarDesc,
-            IntPtr bnScale,
-            IntPtr bnBias,
-            double exponentialAverageFactor,
-            IntPtr resultRunningMean,
-            IntPtr resultRunningVariance,
-            double epsilon,
-            IntPtr resultSaveMean,
-            IntPtr resultSaveInvVariance)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnBatchNormalizationForwardTraining(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, exponentialAverageFactor, resultRunningMean, resultRunningVariance, epsilon, resultSaveMean, resultSaveInvVariance)
-                    : CuDNNWrapper64_7.cudnnBatchNormalizationForwardTraining(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, exponentialAverageFactor, resultRunningMean, resultRunningVariance, epsilon, resultSaveMean, resultSaveInvVariance);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnBatchNormalizationForwardInference(
-            IntPtr cudnnHandle,
-            cudnnBatchNormMode_t mode,
-            void* alpha,
-            void* beta,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr bnScaleBiasMeanVarDesc,
-            IntPtr bnScale,
-            IntPtr bnBias,
-            IntPtr estimatedMean,
-            IntPtr estimatedVariance,
-            double epsilon)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnBatchNormalizationForwardInference(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, estimatedMean, estimatedVariance, epsilon)
-                    : CuDNNWrapper64_7.cudnnBatchNormalizationForwardInference(cudnnHandle, mode, alpha, beta, xDesc, x, yDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, estimatedMean, estimatedVariance, epsilon);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnScaleTensor(
-            IntPtr cudnnHandle,
-            IntPtr yDesc,
-            IntPtr y,
-            void* alpha)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnScaleTensor(cudnnHandle, yDesc, y, alpha)
-                    : CuDNNWrapper64_7.cudnnScaleTensor(cudnnHandle, yDesc, y, alpha);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnAddTensor(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr aDesc,
-            IntPtr A,
-            void* beta,
-            IntPtr cDesc,
-            IntPtr C)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnAddTensor(cudnnHandle, alpha, aDesc, A, beta, cDesc, C)
-                    : CuDNNWrapper64_7.cudnnAddTensor(cudnnHandle, alpha, aDesc, A, beta, cDesc, C);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnCreateTensorDescriptor(out IntPtr tensorDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnCreateTensorDescriptor(out tensorDesc)
-                    : CuDNNWrapper64_7.cudnnCreateTensorDescriptor(out tensorDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSetTensor4dDescriptor(
-            IntPtr tensorDesc,
-            cudnnTensorFormat_t format,
-            cudnnDataType_t dataType,
-            int n,
-            int c,
-            int h,
-            int w)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSetTensor4dDescriptor(tensorDesc, format, dataType, n, c, h, w)
-                    : CuDNNWrapper64_7.cudnnSetTensor4dDescriptor(tensorDesc, format, dataType, n, c, h, w);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDestroyTensorDescriptor(IntPtr tensorDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDestroyTensorDescriptor(tensorDesc)
-                    : CuDNNWrapper64_7.cudnnDestroyTensorDescriptor(tensorDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnCreateActivationDescriptor(out IntPtr activationDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnCreateActivationDescriptor(out activationDesc)
-                    : CuDNNWrapper64_7.cudnnCreateActivationDescriptor(out activationDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDestroyActivationDescriptor(IntPtr activationDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDestroyActivationDescriptor(activationDesc)
-                    : CuDNNWrapper64_7.cudnnDestroyActivationDescriptor(activationDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnCreatePoolingDescriptor(out IntPtr poolingDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnCreatePoolingDescriptor(out poolingDesc)
-                    : CuDNNWrapper64_7.cudnnCreatePoolingDescriptor(out poolingDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSetPooling2dDescriptor(
-            IntPtr poolingDesc,
-            cudnnPoolingMode_t mode,
-            cudnnNanPropagation_t maxPoolingNanOpt,
-            int windowHeight,
-            int windowWidth,
-            int verticalPadding,
-            int horizontalPadding,
-            int verticalStride,
-            int horizontalStride)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSetPooling2dDescriptor(poolingDesc, mode, maxPoolingNanOpt, windowHeight, windowWidth, verticalPadding, horizontalPadding, verticalStride, horizontalStride)
-                    : CuDNNWrapper64_7.cudnnSetPooling2dDescriptor(poolingDesc, mode, maxPoolingNanOpt, windowHeight, windowWidth, verticalPadding, horizontalPadding, verticalStride, horizontalStride);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDestroyPoolingDescriptor(IntPtr poolingDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDestroyPoolingDescriptor(poolingDesc)
-                    : CuDNNWrapper64_7.cudnnDestroyPoolingDescriptor(poolingDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnCreateConvolutionDescriptor(out IntPtr convDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnCreateConvolutionDescriptor(out convDesc)
-                    : CuDNNWrapper64_7.cudnnCreateConvolutionDescriptor(out convDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSetConvolutionGroupCount(IntPtr convDesc, int groupCount)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSetConvolutionGroupCount(convDesc, groupCount)
-                    : CuDNNWrapper64_7.cudnnSetConvolutionGroupCount(convDesc, groupCount);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSetConvolution2dDescriptor(
-            IntPtr convDesc,
-            int pad_h,
-            int pad_w,
-            int u,
-            int v,
-            int dilation_h,
-            int dilation_w,
-            cudnnConvolutionMode_t mode,
-            cudnnDataType_t computeType)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, u, v, dilation_h, dilation_w, mode, computeType)
-                    : CuDNNWrapper64_7.cudnnSetConvolution2dDescriptor(convDesc, pad_h, pad_w, u, v, dilation_h, dilation_w, mode, computeType);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDestroyConvolutionDescriptor(IntPtr convDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDestroyConvolutionDescriptor(convDesc)
-                    : CuDNNWrapper64_7.cudnnDestroyConvolutionDescriptor(convDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnCreateFilterDescriptor(out IntPtr filterDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnCreateFilterDescriptor(out filterDesc)
-                    : CuDNNWrapper64_7.cudnnCreateFilterDescriptor(out filterDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSetFilter4dDescriptor(
-            IntPtr filterDesc,
-            cudnnDataType_t dataType,
-            cudnnTensorFormat_t format,
-            int k,
-            int c,
-            int h,
-            int w)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSetFilter4dDescriptor(filterDesc, dataType, format, k, c, h, w)
-                    : CuDNNWrapper64_7.cudnnSetFilter4dDescriptor(filterDesc, dataType, format, k, c, h, w);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDestroyFilterDescriptor(IntPtr filterDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDestroyFilterDescriptor(filterDesc)
-                    : CuDNNWrapper64_7.cudnnDestroyFilterDescriptor(filterDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnCreateDropoutDescriptor(out IntPtr dropoutDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnCreateDropoutDescriptor(out dropoutDesc)
-                    : CuDNNWrapper64_7.cudnnCreateDropoutDescriptor(out dropoutDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnSetDropoutDescriptor(IntPtr dropoutDesc, IntPtr cudnnHandle, float dropout, IntPtr states, size_t stateSizeInBytes, ulong seed)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnSetDropoutDescriptor(dropoutDesc, cudnnHandle, dropout, states, stateSizeInBytes, seed)
-                    : CuDNNWrapper64_7.cudnnSetDropoutDescriptor(dropoutDesc, cudnnHandle, dropout, states, stateSizeInBytes, seed);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDestroyDropoutDescriptor(IntPtr dropoutDesc)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDestroyDropoutDescriptor(dropoutDesc)
-                    : CuDNNWrapper64_7.cudnnDestroyDropoutDescriptor(dropoutDesc);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnCreate(out IntPtr cudnnHandle)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnCreate(out cudnnHandle)
-                    : CuDNNWrapper64_7.cudnnCreate(out cudnnHandle);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public cudnnStatus_t cudnnDestroy(IntPtr cudnnHandle)
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnDestroy(cudnnHandle)
-                    : CuDNNWrapper64_7.cudnnDestroy(cudnnHandle);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public size_t cudnnGetVersion()
-        {
-            return UseCuDNN8
-                    ? CuDNNWrapper64_8.cudnnGetVersion()
-                    : CuDNNWrapper64_7.cudnnGetVersion();
+            unchecked
+            {
+                var hashCode = (int)algo;
+                hashCode = (hashCode * 397) ^ (int)cellMode;
+                hashCode = (hashCode * 397) ^ (int)biasMode;
+                hashCode = (hashCode * 397) ^ (int)dirMode;
+                hashCode = (hashCode * 397) ^ (int)inputMode;
+                hashCode = (hashCode * 397) ^ (int)dataType;
+                hashCode = (hashCode * 397) ^ (int)mathPrec;
+                hashCode = (hashCode * 397) ^ (int)mathType;
+                hashCode = (hashCode * 397) ^ inputSize;
+                hashCode = (hashCode * 397) ^ hiddenSize;
+                hashCode = (hashCode * 397) ^ projSize;
+                hashCode = (hashCode * 397) ^ numLayers;
+                hashCode = (hashCode * 397) ^ dropoutRate.GetHashCode();
+                hashCode = (hashCode * 397) ^ (int)auxFlags;
+                return hashCode;
+            }
         }
     }
 
 
 
-    public static unsafe class CuDNNWrapper64_8
+
+    public static unsafe class CudnnWrapper
     {
         private const string DLL_NAME = "cudnn64_8.dll";
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionForwardWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnTensorDescriptor_t xDesc,
+            cudnnFilterDescriptor_t wDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnTensorDescriptor_t yDesc,
             cudnnConvolutionFwdAlgo_t algo,
             out size_t sizeInBytes);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionForwardAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnTensorDescriptor_t xDesc,
+            cudnnFilterDescriptor_t wDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnTensorDescriptor_t yDesc,
             cudnnConvolutionFwdPreference_t preference,
             uint memoryLimitInBytes,
             out cudnnConvolutionFwdAlgo_t algo);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionForward(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             void* alpha,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
-            IntPtr wDesc,
+            cudnnFilterDescriptor_t wDesc,
             IntPtr w,
-            IntPtr convDesc,
+            cudnnConvolutionDescriptor_t convDesc,
             cudnnConvolutionFwdAlgo_t algo,
             IntPtr workSpace,
             size_t workSpaceSizeInBytes,
             void* beta,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionBackwardBias(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             void* alpha,
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
             void* beta,
-            IntPtr dbDesc,
+            cudnnTensorDescriptor_t dbDesc,
             IntPtr db);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dwDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnTensorDescriptor_t xDesc,
+            cudnnTensorDescriptor_t dyDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnFilterDescriptor_t dwDesc,
             cudnnConvolutionBwdFilterPreference_t preference,
             size_t memoryLimitInBytes,
             out cudnnConvolutionBwdFilterAlgo_t algo);
@@ -1133,11 +657,11 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnFindConvolutionForwardAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnTensorDescriptor_t xDesc,
+            cudnnFilterDescriptor_t wDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnTensorDescriptor_t yDesc,
             int requestedAlgoCount,
             out int returnedAlgoCount,
             cudnnConvolutionFwdAlgoPerf_t* perfResults
@@ -1145,11 +669,11 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnFindConvolutionBackwardFilterAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr wDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnTensorDescriptor_t xDesc,
+            cudnnTensorDescriptor_t dyDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnFilterDescriptor_t wDesc,
             int requestedAlgoCount,
             out int returnedAlgoCount,
             cudnnConvolutionBwdFilterAlgoPerf_t* perfResults
@@ -1158,15 +682,15 @@ namespace SharpNet.GPU
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnFindConvolutionBackwardDataAlgorithm(
             //[in] Handle to a previously created cuDNN context
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             //[in] filter descriptor
-            IntPtr wDesc,
+            cudnnFilterDescriptor_t wDesc,
             //[in] output tensor descriptor
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             //[in] convolution descriptor
-            IntPtr convDesc,
+            cudnnConvolutionDescriptor_t convDesc,
             //[in] input tensor descriptor
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             //[in] The maximum number of elements to be stored in perfResults
             int requestedAlgoCount,
             //[out] The number of output elements stored in perfResults
@@ -1177,199 +701,199 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionBackwardFilter(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             void* alpha,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
-            IntPtr convDesc,
+            cudnnConvolutionDescriptor_t convDesc,
             cudnnConvolutionBwdFilterAlgo_t algo,
             IntPtr workSpace,
             size_t workSpaceSizeInBytes,
             void* beta,
-            IntPtr dwDesc,
+            cudnnFilterDescriptor_t dwDesc,
             IntPtr dw);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dwDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnTensorDescriptor_t xDesc,
+            cudnnTensorDescriptor_t dyDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnFilterDescriptor_t dwDesc,
             cudnnConvolutionBwdFilterAlgo_t algo,
             out size_t sizeInBytes);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr wDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dxDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnFilterDescriptor_t wDesc,
+            cudnnTensorDescriptor_t dyDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnTensorDescriptor_t dxDesc,
             cudnnConvolutionBwdDataPreference_t preference,
             size_t memoryLimitInBytes,
             out cudnnConvolutionBwdDataAlgo_t algo);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr wDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dxDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnFilterDescriptor_t wDesc,
+            cudnnTensorDescriptor_t dyDesc,
+            cudnnConvolutionDescriptor_t convDesc,
+            cudnnTensorDescriptor_t dxDesc,
             cudnnConvolutionBwdDataAlgo_t algo,
             out size_t sizeInBytes);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionBackwardData(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             void* alpha,
-            IntPtr wDesc,
+            cudnnFilterDescriptor_t wDesc,
             IntPtr w,
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
-            IntPtr convDesc,
+            cudnnConvolutionDescriptor_t convDesc,
             cudnnConvolutionBwdDataAlgo_t algo,
             IntPtr workSpace,
             size_t workSpaceSizeInBytes,
             void* beta,
-            IntPtr dxDesc,
+            cudnnTensorDescriptor_t dxDesc,
             IntPtr dx);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutForward(
-            IntPtr cudnnHandle,
-            IntPtr dropoutDesc,
-            IntPtr xDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnDropoutDescriptor_t dropoutDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y,
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutGetReserveSpaceSize(
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             out size_t sizeInBytes);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutBackward(
-            IntPtr cudnnHandle,
-            IntPtr dropoutDesc,
-            IntPtr dyDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnDropoutDescriptor_t dropoutDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
-            IntPtr dxDesc,
+            cudnnTensorDescriptor_t dxDesc,
             IntPtr dx,
             IntPtr reserveSpace,
             size_t reserveSpaceSizeInBytes);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDropoutGetStatesSize(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             out size_t sizeInBytes);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnPoolingBackward(
-            IntPtr cudnnHandle,
-            IntPtr poolingDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnPoolingDescriptor_t poolingDesc,
             void* alpha,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y,
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
             void* beta,
-            IntPtr dxDesc,
+            cudnnTensorDescriptor_t dxDesc,
             IntPtr dx);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnPoolingForward(
-            IntPtr cudnnHandle,
-            IntPtr poolingDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnPoolingDescriptor_t poolingDesc,
             void* alpha,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
             void* beta,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetActivationDescriptor(
-            IntPtr activationDesc,
+            cudnnActivationDescriptor_t activationDesc,
             cudnnActivationMode_t mode,
             cudnnNanPropagation_t reluNanOpt,
             double coef);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnActivationForward(
-            IntPtr cudnnHandle,
-            IntPtr activationDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnActivationDescriptor_t activationDesc,
             void* alpha,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
             void* beta,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnActivationBackward(
-            IntPtr cudnnHandle,
-            IntPtr activationDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnActivationDescriptor_t activationDesc,
             void* alpha,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y,
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
             void* beta,
-            IntPtr dxDesc,
+            cudnnTensorDescriptor_t dxDesc,
             IntPtr dx);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSoftmaxForward(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             cudnnSoftmaxAlgorithm_t algorithm,
             cudnnSoftmaxMode_t mode,
             void* alpha,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
             void* beta,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSoftmaxBackward(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             cudnnSoftmaxAlgorithm_t algorithm,
             cudnnSoftmaxMode_t mode,
             void* alpha,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr yData,
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
             void* beta,
-            IntPtr dxDesc,
+            cudnnTensorDescriptor_t dxDesc,
             IntPtr dx);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnBatchNormalizationBackward(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             cudnnBatchNormMode_t mode,
             void* alphaDataDiff,
             void* betaDataDiff,
             void* alphaParamDiff,
             void* betaParamDiff,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
-            IntPtr dyDesc,
+            cudnnTensorDescriptor_t dyDesc,
             IntPtr dy,
-            IntPtr dxDesc,
+            cudnnTensorDescriptor_t dxDesc,
             IntPtr dx,
-            IntPtr bnScaleBiasDiffDesc,
+            cudnnTensorDescriptor_t bnScaleBiasDiffDesc,
             IntPtr bnScale,
             IntPtr resultBnScaleDiff,
             IntPtr resultBnBiasDiff,
@@ -1379,15 +903,15 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnBatchNormalizationForwardTraining(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             cudnnBatchNormMode_t mode,
             void* alpha,
             void* beta,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y,
-            IntPtr bnScaleBiasMeanVarDesc,
+            cudnnTensorDescriptor_t bnScaleBiasMeanVarDesc,
             IntPtr bnScale,
             IntPtr bnBias,
             double exponentialAverageFactor,
@@ -1399,15 +923,15 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnBatchNormalizationForwardInference(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             cudnnBatchNormMode_t mode,
             void* alpha,
             void* beta,
-            IntPtr xDesc,
+            cudnnTensorDescriptor_t xDesc,
             IntPtr x,
-            IntPtr yDesc,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y,
-            IntPtr bnScaleBiasMeanVarDesc,
+            cudnnTensorDescriptor_t bnScaleBiasMeanVarDesc,
             IntPtr bnScale,
             IntPtr bnBias,
             IntPtr estimatedMean,
@@ -1416,28 +940,28 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnScaleTensor(
-            IntPtr cudnnHandle,
-            IntPtr yDesc,
+            cudnnHandle_t cudnnHandle,
+            cudnnTensorDescriptor_t yDesc,
             IntPtr y,
             void* alpha);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnAddTensor(
-            IntPtr cudnnHandle,
+            cudnnHandle_t cudnnHandle,
             void* alpha,
-            IntPtr aDesc,
+            cudnnTensorDescriptor_t aDesc,
             IntPtr A,
             void* beta,
-            IntPtr cDesc,
+            cudnnTensorDescriptor_t cDesc,
             IntPtr C);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateTensorDescriptor(
-            out IntPtr tensorDesc);
+            out cudnnTensorDescriptor_t tensorDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetTensor4dDescriptor(
-            IntPtr tensorDesc,
+            cudnnTensorDescriptor_t tensorDesc,
             cudnnTensorFormat_t format,
             cudnnDataType_t dataType,
             int n,
@@ -1447,23 +971,23 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyTensorDescriptor(
-            IntPtr tensorDesc);
+            cudnnTensorDescriptor_t tensorDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateActivationDescriptor(
-            out IntPtr activationDesc);
+            out cudnnActivationDescriptor_t activationDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyActivationDescriptor(
-            IntPtr activationDesc);
+            cudnnActivationDescriptor_t activationDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreatePoolingDescriptor(
-            out IntPtr poolingDesc);
+            out cudnnPoolingDescriptor_t poolingDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetPooling2dDescriptor(
-            IntPtr poolingDesc,
+            cudnnPoolingDescriptor_t poolingDesc,
             cudnnPoolingMode_t mode,
             cudnnNanPropagation_t maxPoolingNanOpt,
             int windowHeight,
@@ -1475,17 +999,17 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyPoolingDescriptor(
-            IntPtr poolingDesc);
+            cudnnPoolingDescriptor_t poolingDesc);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreateConvolutionDescriptor(out IntPtr convDesc);
+        public static extern cudnnStatus_t cudnnCreateConvolutionDescriptor(out cudnnConvolutionDescriptor_t convDesc);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetConvolutionGroupCount(IntPtr convDesc, int groupCount);
+        public static extern cudnnStatus_t cudnnSetConvolutionGroupCount(cudnnConvolutionDescriptor_t convDesc, int groupCount);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetConvolution2dDescriptor(
-            IntPtr convDesc,
+            cudnnConvolutionDescriptor_t convDesc,
             int pad_h,
             int pad_w,
             int u,
@@ -1497,15 +1021,15 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyConvolutionDescriptor(
-            IntPtr convDesc);
+            cudnnConvolutionDescriptor_t convDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateFilterDescriptor(
-            out IntPtr filterDesc);
+            out cudnnFilterDescriptor_t filterDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetFilter4dDescriptor(
-            IntPtr filterDesc,
+            cudnnFilterDescriptor_t filterDesc,
             cudnnDataType_t dataType,
             cudnnTensorFormat_t format,
             int k,
@@ -1515,16 +1039,16 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyFilterDescriptor(
-            IntPtr filterDesc);
+            cudnnFilterDescriptor_t filterDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreateDropoutDescriptor(
-            out IntPtr dropoutDesc);
+            out cudnnDropoutDescriptor_t dropoutDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnSetDropoutDescriptor(
-            IntPtr dropoutDesc,
-            IntPtr cudnnHandle,
+            cudnnDropoutDescriptor_t dropoutDesc,
+            cudnnHandle_t cudnnHandle,
             float dropout,
             IntPtr states,
             size_t stateSizeInBytes,
@@ -1532,494 +1056,157 @@ namespace SharpNet.GPU
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyDropoutDescriptor(
-            IntPtr dropoutDesc);
+            cudnnDropoutDescriptor_t dropoutDesc);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnCreate(
-            out IntPtr cudnnHandle);
+            out cudnnHandle_t cudnnHandle);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroy(
-            IntPtr cudnnHandle);
+            cudnnHandle_t cudnnHandle);
 
         [DllImport(DLL_NAME)]
         public static extern size_t cudnnGetVersion();
-    }
-    public static unsafe class CuDNNWrapper64_7
-    {
-        private const string DLL_NAME = "cudnn64_7.dll";
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionForwardWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
-            cudnnConvolutionFwdAlgo_t algo,
-            out size_t sizeInBytes);
+        public static extern cudnnStatus_t cudnnCreateRNNDescriptor(
+            out cudnnRNNDescriptor_t rnnDesc);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionForwardAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
-            cudnnConvolutionFwdPreference_t preference,
-            uint memoryLimitInBytes,
-            out cudnnConvolutionFwdAlgo_t algo);
+        public static extern cudnnStatus_t cudnnDestroyRNNDescriptor(
+            cudnnRNNDescriptor_t rnnDesc);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnConvolutionForward(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr wDesc,
-            IntPtr w,
-            IntPtr convDesc,
-            cudnnConvolutionFwdAlgo_t algo,
-            IntPtr workSpace,
-            size_t workSpaceSizeInBytes,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnConvolutionBackwardBias(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr dyDesc,
-            IntPtr dy,
-            void* beta,
-            IntPtr dbDesc,
-            IntPtr db);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dwDesc,
-            cudnnConvolutionBwdFilterPreference_t preference,
-            size_t memoryLimitInBytes,
-            out cudnnConvolutionBwdFilterAlgo_t algo);
-
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnFindConvolutionForwardAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr wDesc,
-            IntPtr convDesc,
-            IntPtr yDesc,
-            int requestedAlgoCount,
-            out int returnedAlgoCount,
-            cudnnConvolutionFwdAlgoPerf_t* perfResults
-            );
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnFindConvolutionBackwardFilterAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr wDesc,
-            int requestedAlgoCount,
-            out int returnedAlgoCount,
-            cudnnConvolutionBwdFilterAlgoPerf_t* perfResults
-        );
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnFindConvolutionBackwardDataAlgorithm(
-            //[in] Handle to a previously created cuDNN context
-            IntPtr cudnnHandle,
-            //[in] filter descriptor
-            IntPtr wDesc,
-            //[in] output tensor descriptor
-            IntPtr dyDesc,
-            //[in] convolution descriptor
-            IntPtr convDesc,
-            //[in] input tensor descriptor
-            IntPtr xDesc,
-            //[in] The maximum number of elements to be stored in perfResults
-            int requestedAlgoCount,
-            //[out] The number of output elements stored in perfResults
-            out int returnedAlgoCount,
-            //[out] A user-allocated array to store performance metrics sorted ascending by compute time
-            cudnnConvolutionBwdDataAlgoPerf_t* perfResults
-        );
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnConvolutionBackwardFilter(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr convDesc,
-            cudnnConvolutionBwdFilterAlgo_t algo,
-            IntPtr workSpace,
-            size_t workSpaceSizeInBytes,
-            void* beta,
-            IntPtr dwDesc,
-            IntPtr dw);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr xDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dwDesc,
-            cudnnConvolutionBwdFilterAlgo_t algo,
-            out size_t sizeInBytes);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataAlgorithm(
-            IntPtr cudnnHandle,
-            IntPtr wDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dxDesc,
-            cudnnConvolutionBwdDataPreference_t preference,
-            size_t memoryLimitInBytes,
-            out cudnnConvolutionBwdDataAlgo_t algo);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataWorkspaceSize(
-            IntPtr cudnnHandle,
-            IntPtr wDesc,
-            IntPtr dyDesc,
-            IntPtr convDesc,
-            IntPtr dxDesc,
-            cudnnConvolutionBwdDataAlgo_t algo,
-            out size_t sizeInBytes);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnConvolutionBackwardData(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr wDesc,
-            IntPtr w,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr convDesc,
-            cudnnConvolutionBwdDataAlgo_t algo,
-            IntPtr workSpace,
-            size_t workSpaceSizeInBytes,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDropoutForward(
-            IntPtr cudnnHandle,
-            IntPtr dropoutDesc,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr reserveSpace,
-            size_t reserveSpaceSizeInBytes);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDropoutGetReserveSpaceSize(
-            IntPtr xDesc,
-            out size_t sizeInBytes);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDropoutBackward(
-            IntPtr cudnnHandle,
-            IntPtr dropoutDesc,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr dxDesc,
-            IntPtr dx,
-            IntPtr reserveSpace,
-            size_t reserveSpaceSizeInBytes);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDropoutGetStatesSize(
-            IntPtr cudnnHandle,
-            out size_t sizeInBytes);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnPoolingBackward(
-            IntPtr cudnnHandle,
-            IntPtr poolingDesc,
-            void* alpha,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnPoolingForward(
-            IntPtr cudnnHandle,
-            IntPtr poolingDesc,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetActivationDescriptor(
-            IntPtr activationDesc,
-            cudnnActivationMode_t mode,
-            cudnnNanPropagation_t reluNanOpt,
-            double coef);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnActivationForward(
-            IntPtr cudnnHandle,
-            IntPtr activationDesc,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnActivationBackward(
-            IntPtr cudnnHandle,
-            IntPtr activationDesc,
-            void* alpha,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSoftmaxForward(
-            IntPtr cudnnHandle,
-            cudnnSoftmaxAlgorithm_t algorithm,
-            cudnnSoftmaxMode_t mode,
-            void* alpha,
-            IntPtr xDesc,
-            IntPtr x,
-            void* beta,
-            IntPtr yDesc,
-            IntPtr y);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSoftmaxBackward(
-            IntPtr cudnnHandle,
-            cudnnSoftmaxAlgorithm_t algorithm,
-            cudnnSoftmaxMode_t mode,
-            void* alpha,
-            IntPtr yDesc,
-            IntPtr yData,
-            IntPtr dyDesc,
-            IntPtr dy,
-            void* beta,
-            IntPtr dxDesc,
-            IntPtr dx);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnBatchNormalizationBackward(
-            IntPtr cudnnHandle,
-            cudnnBatchNormMode_t mode,
-            void* alphaDataDiff,
-            void* betaDataDiff,
-            void* alphaParamDiff,
-            void* betaParamDiff,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr dyDesc,
-            IntPtr dy,
-            IntPtr dxDesc,
-            IntPtr dx,
-            IntPtr bnScaleBiasDiffDesc,
-            IntPtr bnScale,
-            IntPtr resultBnScaleDiff,
-            IntPtr resultBnBiasDiff,
-            double epsilon,
-            IntPtr savedMean,
-            IntPtr savedInvVariance);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnBatchNormalizationForwardTraining(
-            IntPtr cudnnHandle,
-            cudnnBatchNormMode_t mode,
-            void* alpha,
-            void* beta,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr bnScaleBiasMeanVarDesc,
-            IntPtr bnScale,
-            IntPtr bnBias,
-            double exponentialAverageFactor,
-            IntPtr resultRunningMean,
-            IntPtr resultRunningVariance,
-            double epsilon,
-            IntPtr resultSaveMean,
-            IntPtr resultSaveInvVariance);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnBatchNormalizationForwardInference(
-            IntPtr cudnnHandle,
-            cudnnBatchNormMode_t mode,
-            void* alpha,
-            void* beta,
-            IntPtr xDesc,
-            IntPtr x,
-            IntPtr yDesc,
-            IntPtr y,
-            IntPtr bnScaleBiasMeanVarDesc,
-            IntPtr bnScale,
-            IntPtr bnBias,
-            IntPtr estimatedMean,
-            IntPtr estimatedVariance,
-            double epsilon);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnScaleTensor(
-            IntPtr cudnnHandle,
-            IntPtr yDesc,
-            IntPtr y,
-            void* alpha);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnAddTensor(
-            IntPtr cudnnHandle,
-            void* alpha,
-            IntPtr aDesc,
-            IntPtr A,
-            void* beta,
-            IntPtr cDesc,
-            IntPtr C);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreateTensorDescriptor(
-            out IntPtr tensorDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetTensor4dDescriptor(
-            IntPtr tensorDesc,
-            cudnnTensorFormat_t format,
+        public static extern cudnnStatus_t cudnnSetRNNDescriptor_v8(
+            cudnnRNNDescriptor_t rnnDesc,
+            cudnnRNNAlgo_t algo,
+            cudnnRNNMode_t cellMode,
+            cudnnRNNBiasMode_t biasMode,
+            cudnnDirectionMode_t dirMode,
+            cudnnRNNInputMode_t inputMode,
             cudnnDataType_t dataType,
-            int n,
-            int c,
-            int h,
-            int w);
+            cudnnDataType_t mathPrec,
+            cudnnMathType_t mathType,
+            int inputSize,
+            int hiddenSize,
+            int projSize,
+            int numLayers,
+            cudnnDropoutDescriptor_t dropoutDesc,
+            uint auxFlags);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDestroyTensorDescriptor(
-            IntPtr tensorDesc);
+        public static extern cudnnStatus_t cudnnCreateRNNDataDescriptor(
+            out cudnnRNNDataDescriptor_t RNNDataDesc);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreateActivationDescriptor(
-            out IntPtr activationDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDestroyActivationDescriptor(
-            IntPtr activationDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreatePoolingDescriptor(
-            out IntPtr poolingDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetPooling2dDescriptor(
-            IntPtr poolingDesc,
-            cudnnPoolingMode_t mode,
-            cudnnNanPropagation_t maxPoolingNanOpt,
-            int windowHeight,
-            int windowWidth,
-            int verticalPadding,
-            int horizontalPadding,
-            int verticalStride,
-            int horizontalStride);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDestroyPoolingDescriptor(
-            IntPtr poolingDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreateConvolutionDescriptor(out IntPtr convDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetConvolutionGroupCount(IntPtr convDesc, int groupCount);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetConvolution2dDescriptor(
-            IntPtr convDesc,
-            int pad_h,
-            int pad_w,
-            int u,
-            int v,
-            int dilation_h,
-            int dilation_w,
-            cudnnConvolutionMode_t mode,
-            cudnnDataType_t computeType);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDestroyConvolutionDescriptor(
-            IntPtr convDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreateFilterDescriptor(
-            out IntPtr filterDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetFilter4dDescriptor(
-            IntPtr filterDesc,
+        public static extern cudnnStatus_t cudnnSetRNNDataDescriptor(
+            cudnnRNNDataDescriptor_t RNNDataDesc,
             cudnnDataType_t dataType,
-            cudnnTensorFormat_t format,
-            int k,
-            int c,
-            int h,
-            int w);
+            cudnnRNNDataLayout_t layout,
+            int maxSeqLength,
+            int batchSize,
+            int vectorSize,
+            int* seqLengthArray,
+            IntPtr paddingFill);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="handle"></param>
+        /// <param name="rnnDesc"></param>
+        /// <param name="fMode"></param>
+        /// <param name="xDesc"></param>
+        /// <param name="workSpaceSize">Output.
+        /// Minimum amount of GPU memory in bytes needed as a workspace buffer.
+        /// The workspace buffer is not used to pass intermediate results between APIs but as a temporary read/write buffer.</param>
+        /// <param name="reserveSpaceSize">Output.
+        /// Minimum amount of GPU memory in bytes needed as the reserve-space buffer.
+        /// The reserve space buffer is used to pass intermediate results from cudnnRNNForward()
+        /// to RNN BackwardData and BackwardWeights routines that compute first order derivatives with respect to RNN inputs
+        /// or trainable weight and biases.</param>
+        /// <returns></returns>
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetRNNTempSpaceSizes(
+            cudnnHandle_t handle,
+            cudnnRNNDescriptor_t rnnDesc,
+            cudnnForwardMode_t fMode,
+            cudnnRNNDataDescriptor_t xDesc,
+            out size_t workSpaceSize,       //needed both for training and inference
+            out size_t reserveSpaceSize);   //needed only for training
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDestroyFilterDescriptor(
-            IntPtr filterDesc);
+        public static extern cudnnStatus_t cudnnGetRNNWeightSpaceSize(
+            cudnnHandle_t handle,
+            cudnnRNNDescriptor_t rnnDesc,
+            out size_t weightSpaceSize);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreateDropoutDescriptor(
-            out IntPtr dropoutDesc);
+        public static extern cudnnStatus_t cudnnRNNForward(
+            cudnnHandle_t cudnnHandle,
+            cudnnRNNDescriptor_t rnnDesc,
+            cudnnForwardMode_t fwdMode,
+            int* devSeqLengths,
+            cudnnRNNDataDescriptor_t xDesc,
+            IntPtr x,
+            cudnnRNNDataDescriptor_t yDesc,
+            IntPtr y,
+            cudnnTensorDescriptor_t hDesc,
+            IntPtr hx,
+            IntPtr hy,
+            cudnnTensorDescriptor_t cDesc,
+            IntPtr cx,
+            IntPtr cy,
+            size_t weightSpaceSize,
+            IntPtr weightSpace,
+            size_t workSpaceSize,           //needed both for training and inference
+            IntPtr workSpace,               //needed both for training and inference
+            size_t reserveSpaceSize,        //needed only for training
+            IntPtr reserveSpace);           //needed only for training
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnSetDropoutDescriptor(
-            IntPtr dropoutDesc,
-            IntPtr cudnnHandle,
-            float dropout,
-            IntPtr states,
-            size_t stateSizeInBytes,
-            ulong seed);
+        public static extern cudnnStatus_t cudnnRNNBackwardData_v8(
+            cudnnHandle_t cudnnHandle,
+            cudnnRNNDescriptor_t rnnDesc,
+            int* devSeqLengths,
+            cudnnRNNDataDescriptor_t yDesc,
+            IntPtr y,
+            IntPtr dy,
+            cudnnRNNDataDescriptor_t xDesc,
+            IntPtr dx,
+            cudnnTensorDescriptor_t hDesc,
+            IntPtr hx,
+            IntPtr dhy,
+            IntPtr dhx,
+            cudnnTensorDescriptor_t cDesc,
+            IntPtr cx,
+            IntPtr dcy,
+            IntPtr dcx,
+            size_t weightSpaceSize,
+            IntPtr weightSpace,
+            size_t workSpaceSize,
+            IntPtr workSpace,
+            size_t reserveSpaceSize,
+            IntPtr reserveSpace);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDestroyDropoutDescriptor(
-            IntPtr dropoutDesc);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnCreate(
-            out IntPtr cudnnHandle);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnDestroy(
-            IntPtr cudnnHandle);
-
-        [DllImport(DLL_NAME)]
-        public static extern size_t cudnnGetVersion();
+        public static extern cudnnStatus_t cudnnRNNBackwardWeights_v8(
+            cudnnHandle_t cudnnHandle,
+            cudnnRNNDescriptor_t rnnDesc,
+            cudnnWgradMode_t addGrad,
+            int* devSeqLengths,
+            cudnnRNNDataDescriptor_t xDesc,
+            IntPtr x,
+            cudnnTensorDescriptor_t hDesc,
+            IntPtr hx,
+            cudnnRNNDataDescriptor_t yDesc,
+            IntPtr y,
+            size_t weightSpaceSize,
+            IntPtr dweightSpace,
+            size_t workSpaceSize,
+            IntPtr workSpace,
+            size_t reserveSpaceSize,
+            IntPtr reserveSpace);
     }
+    
 }

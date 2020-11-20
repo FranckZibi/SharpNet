@@ -35,8 +35,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return NVRTCWrapper_nvrtc64_100_0.nvrtcCreateProgram(out programHandle, src, name, numHeaders, headers, includeNames);
                 case CUDA_Versions.CUDA_10_1:
                     return NVRTCWrapper_nvrtc64_101_0.nvrtcCreateProgram(out programHandle, src, name, numHeaders, headers, includeNames);
                 case CUDA_Versions.CUDA_10_2:
@@ -51,8 +49,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return NVRTCWrapper_nvrtc64_100_0.nvrtcCompileProgram(programHandle, numOptions, options);
                 case CUDA_Versions.CUDA_10_1:
                     return NVRTCWrapper_nvrtc64_101_0.nvrtcCompileProgram(programHandle, numOptions, options);
                 case CUDA_Versions.CUDA_10_2:
@@ -67,8 +63,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetPTXSize(programHandle, out ptxSizeRet);
                 case CUDA_Versions.CUDA_10_1:
                     return NVRTCWrapper_nvrtc64_101_0.nvrtcGetPTXSize(programHandle, out ptxSizeRet);
                 case CUDA_Versions.CUDA_10_2:
@@ -83,8 +77,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return NVRTCWrapper_nvrtc64_100_0.nvrtcDestroyProgram(ref programHandle);
                 case CUDA_Versions.CUDA_10_1:
                     return NVRTCWrapper_nvrtc64_101_0.nvrtcDestroyProgram(ref programHandle);
                 case CUDA_Versions.CUDA_10_2:
@@ -99,8 +91,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetPTX(programHandle, ptx);
                 case CUDA_Versions.CUDA_10_1:
                     return NVRTCWrapper_nvrtc64_101_0.nvrtcGetPTX(programHandle, ptx);
                 case CUDA_Versions.CUDA_10_2:
@@ -115,8 +105,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetProgramLogSize(prog, out logSizeRet);
                 case CUDA_Versions.CUDA_10_1:
                     return NVRTCWrapper_nvrtc64_101_0.nvrtcGetProgramLogSize(prog, out logSizeRet);
                 case CUDA_Versions.CUDA_10_2:
@@ -131,8 +119,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return NVRTCWrapper_nvrtc64_100_0.nvrtcGetProgramLog(programHandle, log);
                 case CUDA_Versions.CUDA_10_1:
                     return NVRTCWrapper_nvrtc64_101_0.nvrtcGetProgramLog(programHandle, log);
                 case CUDA_Versions.CUDA_10_2:

@@ -63,8 +63,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CudartWrapper_cudart64_100.cudaGetDevice(out device);
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaGetDevice(out device);
                 case CUDA_Versions.CUDA_10_2:
@@ -79,8 +77,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CudartWrapper_cudart64_100.cudaSetDevice(device);
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaSetDevice(device);
                 case CUDA_Versions.CUDA_10_2:
@@ -95,8 +91,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CudartWrapper_cudart64_100.cudaDeviceReset();
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaDeviceReset();
                 case CUDA_Versions.CUDA_10_2:
@@ -111,8 +105,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CudartWrapper_cudart64_100.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
                 case CUDA_Versions.CUDA_10_2:
@@ -127,8 +119,6 @@ namespace SharpNet.GPU
         {
             switch (_cudaVersion)
             {
-                case CUDA_Versions.CUDA_10_0:
-                    return CudartWrapper_cudart64_100.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
                 case CUDA_Versions.CUDA_10_1:
                     return CudartWrapper_cudart64_101.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
                 case CUDA_Versions.CUDA_10_2:

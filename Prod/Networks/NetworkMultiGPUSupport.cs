@@ -58,7 +58,7 @@ namespace SharpNet.Networks
         }
 
 
-        #region compaction of parameters and gradients tensors (to speed up communication between master and slaves
+        #region compaction of parameters and gradients tensors (to speed up communication between master and slaves)
         private void CompactParameters()
         {
             if (_compactedParametersIfAny == null)
@@ -176,7 +176,7 @@ namespace SharpNet.Networks
             if (slaveDeviceId >= 0)
             {
                 //we associate the current running (slave) thread with GPU 'slaveDeviceId'
-                GPUWrapper.FromDeviceId(slaveDeviceId, master.Config.cuDNNVersion).AssociateCurrentThreadWithDevice();
+                GPUWrapper.FromDeviceId(slaveDeviceId).AssociateCurrentThreadWithDevice();
             }
 
             var slaveNetworkConfig = master.Config.Clone();
