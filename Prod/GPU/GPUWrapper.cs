@@ -7,8 +7,7 @@ using System.Linq;
 
 namespace SharpNet.GPU
 {
-    public enum CUDA_Versions { CUDA_10_0, CUDA_10_1, CUDA_10_2, CUDA_11_0 };
-    public enum cuDNN_Versions { cuDNN_7, cuDNN_8};
+    public enum CUDA_Versions { CUDA_10_1, CUDA_10_2, CUDA_11_0 };
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public unsafe class GPUWrapper : IDisposable
@@ -20,19 +19,21 @@ namespace SharpNet.GPU
         private readonly Version _cublasVersion;
         private readonly Version _cuDNNVersion;
         private readonly KernelManager _kernelManager;
-        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
-        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, IntPtr>();
-        private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, IntPtr>();
-        private readonly IDictionary<double, IntPtr> cacheDropoutDesc = new Dictionary<double, IntPtr>();
-        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, IntPtr>();
-        private readonly IDictionary<cudnnActivationMode_t, IntPtr> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, IntPtr>();
-        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t> cacheConvolutionBackwardFilterAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t>();
-        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t> cacheFindConvolutionBackwardDataAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t>();
-        private readonly IDictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheConvolutionForwardAlgorithm = new Dictionary<Tuple<IntPtr, IntPtr, IntPtr, IntPtr, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
+        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnTensorDescriptor_t> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnTensorDescriptor_t>();
+        private readonly IDictionary<Tuple<cudnnDataType_t, cudnnRNNDataLayout_t, int, int, int>, cudnnRNNDataDescriptor_t> cacheRNNDataDesc = new Dictionary<Tuple<cudnnDataType_t, cudnnRNNDataLayout_t, int, int, int>, cudnnRNNDataDescriptor_t>();
+        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnFilterDescriptor_t> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnFilterDescriptor_t>();
+        private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, cudnnPoolingDescriptor_t> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, cudnnPoolingDescriptor_t>();
+        private readonly IDictionary<RNNDescriptor, cudnnRNNDescriptor_t> cacheRNNDesc = new Dictionary<RNNDescriptor, cudnnRNNDescriptor_t>();
+        private readonly IDictionary<double, cudnnDropoutDescriptor_t> cacheDropoutDesc = new Dictionary<double, cudnnDropoutDescriptor_t>();
+        private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, cudnnConvolutionDescriptor_t> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, cudnnConvolutionDescriptor_t>();
+        private readonly IDictionary<cudnnActivationMode_t, cudnnActivationDescriptor_t> cacheActivationDesc = new Dictionary<cudnnActivationMode_t, cudnnActivationDescriptor_t>();
+        private readonly IDictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t> cacheConvolutionBackwardFilterAlgorithm = new Dictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionBwdFilterAlgo_t>();
+        private readonly IDictionary<Tuple<cudnnFilterDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnTensorDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t> cacheFindConvolutionBackwardDataAlgorithm = new Dictionary<Tuple<cudnnFilterDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnTensorDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t>();
+        private readonly IDictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheConvolutionForwardAlgorithm = new Dictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
-        private IntPtr _cudnnHandle;
+        private cudnnHandle_t _cudnnHandle;
         private int _copyHostToDeviceCalls;
         private ulong _bytesCopiedHostToDevice;
         private int _copyDeviceToSameDeviceCalls;
@@ -58,13 +59,11 @@ namespace SharpNet.GPU
         public Stopwatch SwCopyDeviceToHost { get; } = new Stopwatch();
         #endregion
 
-
         public CublasWrapper CublasWrapper { get; }
-        public CudnnWrapper CudnnWrapper { get; }
         public CudartWrapper CudartWrapper { get; }
 
         #region constructor
-        private GPUWrapper(int deviceId, cuDNN_Versions cuDNNVersion)
+        private GPUWrapper(int deviceId)
         {
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CUDA_PATH")))
             {
@@ -81,7 +80,6 @@ namespace SharpNet.GPU
             DeviceId = deviceId;
             AssociateCurrentThreadWithDevice();
             CublasWrapper = new CublasWrapper(CudaVersion);
-            CudnnWrapper = new CudnnWrapper(cuDNNVersion);
             var cublasRes = CublasWrapper.cublasCreate_v2(ref _cudaBlasHandle);
             CheckStatus(cublasRes);
 
@@ -124,18 +122,18 @@ namespace SharpNet.GPU
         }
         #endregion
 
-        public static GPUWrapper FromDeviceId(int deviceId, cuDNN_Versions cuDNNVersion)
+        public static GPUWrapper FromDeviceId(int deviceId)
         {
             lock (Cache)
             {
                 if (!Cache.ContainsKey(deviceId))
                 {
-                    Cache[deviceId] = new GPUWrapper(deviceId, cuDNNVersion);
+                    Cache[deviceId] = new GPUWrapper(deviceId);
                 }
                 return Cache[deviceId];
             }
         }
-        public IntPtr CudnnHandle => _cudnnHandle;
+        public cudnnHandle_t CudnnHandle => _cudnnHandle;
 
 
         public void RunKernel(string kernelName, int count, object[] parameterLists)
@@ -143,7 +141,7 @@ namespace SharpNet.GPU
             CheckThreadId();
             _kernelManager.RunKernel(kernelName, count, parameterLists);
         }
-        public IntPtr ActivationDesc(cudnnActivationMode_t activationFunctionType)
+        public cudnnActivationDescriptor_t ActivationDesc(cudnnActivationMode_t activationFunctionType)
         {
             CheckThreadId();
             if (!cacheActivationDesc.TryGetValue(activationFunctionType, out var desc))
@@ -156,7 +154,7 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
+        public cudnnPoolingDescriptor_t PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
         {
             var key = Tuple.Create(poolingMode, poolingHeight, poolingWidth, poolingStride);
             if (!cachePoolingDesc.TryGetValue(key, out var desc))
@@ -169,6 +167,21 @@ namespace SharpNet.GPU
             }
             return desc;
         }
+
+        public cudnnRNNDescriptor_t RNNDesc(RNNDescriptor key, Tensor randomNumberGeneratorStatesBuffer)
+        {
+            if (!cacheRNNDesc.TryGetValue(key, out var rnnDesc))
+            {
+                var dropoutDesc = DropoutDesc(key.dropoutRate, randomNumberGeneratorStatesBuffer);
+                var res = CudnnWrapper.cudnnCreateRNNDescriptor(out rnnDesc);
+                CheckStatus(res);
+                res = CudnnWrapper.cudnnSetRNNDescriptor_v8(rnnDesc, key.algo, key.cellMode, key.biasMode, key.dirMode, key.inputMode, key.dataType, key.mathPrec, key.mathType, key.inputSize, key.hiddenSize, key.projSize, key.numLayers, dropoutDesc, key.auxFlags);
+                CheckStatus(res);
+                cacheRNNDesc[key] = rnnDesc;
+            }
+            return rnnDesc;
+        }
+
         private static List<T1> ExtractFromStackalloc<T1>(T1* stackAllocated, int length) where T1 : unmanaged
         {
             var result = new List<T1>();
@@ -178,6 +191,14 @@ namespace SharpNet.GPU
             }
             return result;
         }
+        public static void FillWithSameValue<T1>(T1* stackAllocated, int length, T1 newValue) where T1 : unmanaged
+        {
+            for (int i = 0; i < length; ++i)
+            {
+                stackAllocated[i] = newValue;
+            }
+        }
+
 
         #region Convolution
         /// <summary>
@@ -228,7 +249,7 @@ namespace SharpNet.GPU
         /// <param name="yDesc">output tensor descriptor</param>
         /// <param name="forwardAlgoPreference"></param>
         /// <returns></returns>
-        public cudnnConvolutionFwdAlgo_t ConvolutionForwardAlgorithm(IntPtr xDesc, IntPtr filterDesc, IntPtr convDesc, IntPtr yDesc, ConvolutionAlgoPreference forwardAlgoPreference)
+        public cudnnConvolutionFwdAlgo_t ConvolutionForwardAlgorithm(cudnnTensorDescriptor_t xDesc, cudnnFilterDescriptor_t filterDesc, cudnnConvolutionDescriptor_t convDesc, cudnnTensorDescriptor_t yDesc, ConvolutionAlgoPreference forwardAlgoPreference)
         {
             var key = Tuple.Create(xDesc, yDesc, convDesc, filterDesc, forwardAlgoPreference);
             cudnnStatus_t cudnnStatus;
@@ -277,7 +298,7 @@ namespace SharpNet.GPU
         /// <param name="filterDesc">filter descriptor</param>
         /// <param name="backwardAlgoPreference"></param>
         /// <returns></returns>
-        public cudnnConvolutionBwdFilterAlgo_t ConvolutionBackwardFilterAlgorithm(IntPtr xDesc, IntPtr dyDesc, IntPtr convDesc, IntPtr filterDesc, ConvolutionAlgoPreference backwardAlgoPreference)
+        public cudnnConvolutionBwdFilterAlgo_t ConvolutionBackwardFilterAlgorithm(cudnnTensorDescriptor_t xDesc, cudnnTensorDescriptor_t dyDesc, cudnnConvolutionDescriptor_t convDesc, cudnnFilterDescriptor_t filterDesc, ConvolutionAlgoPreference backwardAlgoPreference)
         {
             var key = Tuple.Create(xDesc, dyDesc, convDesc, filterDesc, backwardAlgoPreference);
             cudnnStatus_t cudnnStatus;
@@ -326,7 +347,7 @@ namespace SharpNet.GPU
         /// <param name="xDesc">input tensor descriptor</param>
         /// <param name="backwardAlgoPreference"></param>
         /// <returns></returns>
-        public cudnnConvolutionBwdDataAlgo_t ConvolutionBackwardDataAlgorithm(IntPtr filterDesc, IntPtr dyDesc, IntPtr convDesc, IntPtr xDesc, ConvolutionAlgoPreference backwardAlgoPreference)
+        public cudnnConvolutionBwdDataAlgo_t ConvolutionBackwardDataAlgorithm(cudnnFilterDescriptor_t filterDesc, cudnnTensorDescriptor_t dyDesc, cudnnConvolutionDescriptor_t convDesc, cudnnTensorDescriptor_t xDesc, ConvolutionAlgoPreference backwardAlgoPreference)
         {
             var key = Tuple.Create(filterDesc, dyDesc, convDesc, xDesc, backwardAlgoPreference);
             cudnnStatus_t cudnnStatus;
@@ -370,7 +391,7 @@ namespace SharpNet.GPU
             return algoPreference == ConvolutionAlgoPreference.FASTEST_DETERMINIST || algoPreference == ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
         }
 
-        public IntPtr FilterDesc(cudnnDataType_t cudaType, int[] shape, bool isDepthwiseConvolution)
+        public cudnnFilterDescriptor_t FilterDesc(cudnnDataType_t cudaType, int[] shape, bool isDepthwiseConvolution)
         {
             CheckThreadId();
 
@@ -402,7 +423,7 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr ConvDesc(cudnnDataType_t cudaType, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount)
+        public cudnnConvolutionDescriptor_t ConvDesc(cudnnDataType_t cudaType, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount)
         {
             CheckThreadId();
 
@@ -430,10 +451,10 @@ namespace SharpNet.GPU
 
 
         #endregion
-        public IntPtr DropoutDesc(double dropoutRate, Tensor randomNumberGeneratorStatesBuffer)
+        public cudnnDropoutDescriptor_t DropoutDesc(double dropoutRate, Tensor randomNumberGeneratorStatesBuffer)
         {
             CheckThreadId();
-            if (!cacheDropoutDesc.TryGetValue(dropoutRate, out IntPtr desc))
+            if (!cacheDropoutDesc.TryGetValue(dropoutRate, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateDropoutDescriptor(out desc);
                 CheckStatus(res);
@@ -443,7 +464,7 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public IntPtr TensorDesc(cudnnDataType_t cudaType, int[] shape)
+        public cudnnTensorDescriptor_t TensorDesc(cudnnDataType_t dataType, int[] shape)
         {
             CheckThreadId();
             var n = shape[0];
@@ -455,17 +476,41 @@ namespace SharpNet.GPU
                 c = w;
                 w = 1;
             }
-            var key = Tuple.Create(cudaType, n, c, h, w);
+            var key = Tuple.Create(dataType, n, c, h, w);
             if (!cacheTensorDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateTensorDescriptor(out desc);
                 CheckStatus(res);
-                res = CudnnWrapper.cudnnSetTensor4dDescriptor(desc, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, cudaType, n, c, h, w);
+                res = CudnnWrapper.cudnnSetTensor4dDescriptor(desc, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, dataType, n, c, h, w);
                 CheckStatus(res);
                 cacheTensorDesc[key] = desc;
             }
             return desc;
         }
+
+        public cudnnRNNDataDescriptor_t RNNDataDesc(cudnnDataType_t dataType, int[] xShape)
+        {
+            //xShape  :     (batchSize, timeSteps, features (= number of distinct words) )
+            Debug.Assert(xShape.Length == 3);
+            CheckThreadId();
+            var layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_PACKED;
+            int maxSeqLength = xShape[1];
+            int batchSize = xShape[0];
+            int vectorSize = xShape[2];
+            var key = Tuple.Create(dataType, layout, maxSeqLength, batchSize, vectorSize);
+            if (!cacheRNNDataDesc.TryGetValue(key, out var desc))
+            {
+                var res = CudnnWrapper.cudnnCreateRNNDataDescriptor(out desc);
+                CheckStatus(res);
+                int* seqLengthArray = stackalloc int[batchSize];
+                FillWithSameValue(seqLengthArray, batchSize, maxSeqLength);
+                res = CudnnWrapper.cudnnSetRNNDataDescriptor(desc, dataType, layout, maxSeqLength, batchSize, vectorSize,seqLengthArray,  IntPtr.Zero);
+                CheckStatus(res);
+                cacheRNNDataDesc[key] = desc;
+            }
+            return desc;
+        }
+        
 
         public void Reset()
         {
@@ -487,8 +532,6 @@ namespace SharpNet.GPU
             cacheTensorDesc.Clear();
             cacheFilterDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyFilterDescriptor(x)));
             cacheFilterDesc.Clear();
-            //cacheDropoutDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyDropoutDescriptor(x)));
-            //cacheDropoutDesc.Clear();
             cachePoolingDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyPoolingDescriptor(x)));
             cachePoolingDesc.Clear();
             cacheConvolutionDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyConvolutionDescriptor(x)));
@@ -500,6 +543,8 @@ namespace SharpNet.GPU
             cacheFindConvolutionBackwardDataAlgorithm.Clear();
             cacheDropoutDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyDropoutDescriptor(x)));
             cacheDropoutDesc.Clear();
+            cacheRNNDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyRNNDescriptor(x)));
+            cacheRNNDesc.Clear();
         }
         public void LogCopyDeviceToSameDeviceCall(ulong byteCopied)
         {
@@ -606,7 +651,6 @@ namespace SharpNet.GPU
         {
             if (cudaVersion.Major == 10)
             {
-                if (cudaVersion.Minor == 0) {return CUDA_Versions.CUDA_10_0;}
                 if (cudaVersion.Minor == 1) {return CUDA_Versions.CUDA_10_1;}
                 if (cudaVersion.Minor == 2) {return CUDA_Versions.CUDA_10_2;}
             }
@@ -662,7 +706,7 @@ namespace SharpNet.GPU
             _cudaBlasHandle = IntPtr.Zero;
             var cudnnRes = CudnnWrapper.cudnnDestroy(_cudnnHandle);
             //CheckStatus(cudnnRes);
-            _cudnnHandle = IntPtr.Zero;
+            _cudnnHandle = new cudnnHandle_t();
             //var cuRes = NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
             var cuRes = NVCudaWrapper.cuDevicePrimaryCtxRelease(_contextHandle);
             //CheckStatus(cuRes);

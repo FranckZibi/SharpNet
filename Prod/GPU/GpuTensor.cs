@@ -257,7 +257,7 @@ namespace SharpNet.GPU
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
                 Debug.Assert(activationParameter != null);
-                Debug.Assert(activationParameter.UseGPU);
+                //Debug.Assert(activationParameter.UseGPU);
                 var activationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
                 var alphaActivation = activationParameter.ContentAsFloatArray()[0];

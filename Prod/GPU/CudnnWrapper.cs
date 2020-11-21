@@ -557,6 +557,30 @@ namespace SharpNet.GPU
             this.auxFlags = auxFlags;
         }
 
+        /// <summary>
+        /// number of elements in the Weight_ax Tensor
+        /// </summary>
+        public int Weight_ax_count => hiddenSize* inputSize;
+        /// <summary>
+        /// number of elements in the Weight_aa Tensor
+        /// </summary>
+        public int Weight_aa_count => hiddenSize * hiddenSize;
+        /// <summary>
+        /// number of elements in the Bias Tensor
+        /// </summary>
+        public int Bias_count
+        {
+            get
+            {
+                switch (biasMode)
+                {
+                    case cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS: return 2 * hiddenSize;
+                    case cudnnRNNBiasMode_t.CUDNN_RNN_NO_BIAS: return 0;
+                    default: return hiddenSize;
+                }
+            }
+        } 
+
         public override bool Equals(object obj)
         {
             if (!(obj is RNNDescriptor))

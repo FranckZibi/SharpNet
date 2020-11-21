@@ -226,7 +226,10 @@ namespace SharpNet.Layers
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
-                case nameof(SimpleRnnLayer): return SimpleRnnLayer.Deserialize(serialized, network);
+                case nameof(SimpleRnnLayerCPU): 
+                case nameof(SimpleRnnLayerGPU): return network.UseGPU
+                        ? (Layer)SimpleRnnLayerGPU.Deserialize(serialized, network)
+                        : SimpleRnnLayerCPU.Deserialize(serialized, network);
                 case nameof(UpSampling2DLayer): return UpSampling2DLayer.Deserialize(serialized, network);
                 case nameof(YOLOV3Layer): return YOLOV3Layer.Deserialize(serialized, network);
                 case nameof(ZeroPadding2DLayer): return ZeroPadding2DLayer.Deserialize(serialized, network);
@@ -405,6 +408,14 @@ namespace SharpNet.Layers
         {
             MemoryPool.FreeFloatTensor(ref t);
         }
+        protected void GetBuffer(ref Tensor buffer, size_t minimalSizeInBytes)
+        {
+            MemoryPool.GetBuffer(ref buffer, minimalSizeInBytes);
+        }
+        protected Tensor GetBuffer(size_t minimalSizeInBytes)
+        {
+            return MemoryPool.GetBuffer(minimalSizeInBytes);
+        }
         #endregion
 
         protected void StartForwardTimer(string key, bool isTraining)
@@ -479,7 +490,7 @@ namespace SharpNet.Layers
         /// true if the layer has associated weights (or bias) to train
         /// </summary>
         private List<Layer> NextLayers => NextLayerIndexes.Select(idx => Layers[idx]).ToList();
-        private bool HasParameters => Parameters.Count != 0;
+        protected bool HasParameters => Parameters.Count != 0;
         private void FreeFloatTensor(Tensor t)
         {
             MemoryPool.FreeFloatTensor(t);

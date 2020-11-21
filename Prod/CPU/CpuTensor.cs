@@ -1608,7 +1608,6 @@ namespace SharpNet.CPU
         private static float ComputeSingleAccuracy(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)
         {
             Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
-            Debug.Assert(yExpectedOneHot.Dimension == 2);
             maxIndexPredicted = 0;
             var categoryCount = yExpectedOneHot.Shape[1];
             if (categoryCount == 1)

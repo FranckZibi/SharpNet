@@ -12,22 +12,13 @@ using SharpNet.Optimizers;
 
 namespace SharpNet.Layers
 {
-    // 'batchSize'   : number of sentences to process in current batch
-    // Foreach each timeStep in (1, timeSteps_x)
-    //      We'll process all words at position 'timeStep' in all sentences & update the network
-    //              input (for each sentence): the hidden state of previous time step + the word at time step 't'
-    //              output (for each sentence): the hidden state of time step 't' + the output 'y' at time step 't'
-    // input x shape  :     (batchSize, timeSteps, features (= number of distinct words) )
-    // output y shape  :    (batchSize, _units )
-    public sealed class SimpleRnnLayer : Layer
+    public sealed class SimpleRnnLayerCPU : Layer
     {
         #region Fields
-        private readonly int _features;   //number of distinct words in the dictionary 
-        private readonly int _units;      //dimensionality of the output space
+        private readonly int _features;                 //number of distinct words in the dictionary 
+        private readonly int _units;                    //dimensionality of the output space
         private readonly bool _returnSequences;
-#pragma warning disable 649
-        private Tensor a_init;              //(batchSize, _units)
-#pragma warning restore 649
+
         // ReSharper disable once CollectionNeverUpdated.Local
         /// <summary>
         /// vector of length 'timeSteps_x'
@@ -51,47 +42,46 @@ namespace SharpNet.Layers
         /// Bias
         /// shape:      (1, _units) 
         /// </summary>
-        public Tensor _bias;
+        private Tensor _bias;
         #endregion
         #region gradients
         /// <summary>
         /// same shape as 'Weights_ax'
         /// </summary>
-        [NotNull] private Tensor _weights_ax_gradient;
+        private Tensor _weights_ax_gradient;
         /// <summary>
         /// same shape as 'Weights_aa'
         /// </summary>
-        [NotNull] private Tensor _weights_aa_gradient;
+        private Tensor _weights_aa_gradient;
         /// <summary>
         /// same shape as 'Bias'
         /// Can be null if bias has been disabled
         /// </summary>
         [CanBeNull] private Tensor _biasGradients;
+        #endregion
+
+        private Tensor x_at_t_buffer;                   //(_timeSteps_x, _features)
+        private Tensor a_buffer1;                       //(batchSize, _units)          
+        private Tensor a_buffer2;                       //(batchSize, _units)
+        private Tensor a_init;                          //(batchSize, _units)
         /// <summary>
         /// Adam or SGD optimizer or Vanilla SGD for Weights_ax matrix and Bias_a
         /// </summary>
-        [NotNull] private readonly Optimizer _optimizer_AX_Bias;
+        private readonly Optimizer _optimizer_AX_Bias;
         /// <summary>
         /// Adam or SGD optimizer or Vanilla SGD for Weights_aa matrix
         /// </summary>
-        [NotNull] private readonly Optimizer _optimizer_AA;
-        #endregion
-        private Tensor x_at_t_buffer;                   // (_timeSteps_x, _features)
-        private Tensor a_buffer1;                       //(batchSize, _units)          
-        private Tensor a_buffer2;                       //(batchSize, _units)
+        private readonly Optimizer _optimizer_AA;
         #endregion
 
         #region constructor
-        public SimpleRnnLayer(int features, int units, bool returnSequences, bool trainable, Network network, string layerName) : base(network, layerName)
+        public SimpleRnnLayerCPU(int features, int units, bool returnSequences, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             _features = features;
             _units = units;
             _returnSequences = returnSequences;
-            if (returnSequences)
-            {
-                throw new NotImplementedException("returnSequences is not supported");
-            }
             Trainable = trainable;
+
 
             //trainable params
             Weights_ax = GetFloatTensor(new[] { features, _units });
@@ -110,12 +100,17 @@ namespace SharpNet.Layers
         #endregion
 
         #region forward and backward propagation
+
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
+            if (_returnSequences)
+            {
+                throw new NotImplementedException("returnSequences is not supported");
+            }
             var batchSize = x.Shape[0];                 //x.Shape[0] : batch size : number of sentences 
-            int timeSteps = x.Shape[1];                //x.Shape[1] : number of words in each sentence
+            int timeSteps = x.Shape[1];                 //x.Shape[1] : number of words in each sentence
             Debug.Assert(x.Shape[2] == _features);      //x.Shape[2] : number of distinct words (_features)
             var aShape = new[] { batchSize, _units };
             var xShape = new[] { batchSize, _features };
@@ -238,7 +233,7 @@ namespace SharpNet.Layers
 
         #region parameters and gradients
         public override Tensor Weights => throw new Exception("should never be called");
-        public override Tensor WeightGradients => throw new Exception("should never be called");
+        public override Tensor WeightGradients => Weights_ax;
         public override Tensor Bias => _bias;
         public override Tensor BiasGradients => _biasGradients;
         protected override Optimizer Optimizer => throw new Exception("should never be called");
@@ -251,7 +246,7 @@ namespace SharpNet.Layers
                  {
                      Tuple.Create(Weights_ax, "Weights_ax"),
                      Tuple.Create(Weights_aa, "Weights_aa"),
-                     Tuple.Create(_bias, "Bias_a")
+                     Tuple.Create(_bias, "Bias_a"),
                  };
                 result.RemoveAll(t => t.Item1 == null);
                 return result;
@@ -265,7 +260,7 @@ namespace SharpNet.Layers
                 {
                     _weights_ax_gradient,
                     _weights_aa_gradient,
-                    _biasGradients
+                    _biasGradients,
                 };
                 result.RemoveAll(t => t == null);
                 return result;
@@ -339,9 +334,9 @@ namespace SharpNet.Layers
                 .Add(nameof(_returnSequences), _returnSequences)
                 .ToString();
         }
-        public static SimpleRnnLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public static SimpleRnnLayerCPU Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            return new SimpleRnnLayer(
+            return new SimpleRnnLayerCPU(
                 (int)serialized[nameof(_features)],
                 (int)serialized[nameof(_units)],
                 (bool)serialized[nameof(_returnSequences)],
@@ -363,4 +358,8 @@ namespace SharpNet.Layers
             return new[] { batchSize, _units };
         }
     }
+
+
+    // input x shape  :     (batchSize, timeSteps, features (= number of distinct words) )
+    // output y shape  :    (batchSize, _units )
 }
