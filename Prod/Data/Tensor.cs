@@ -339,6 +339,14 @@ namespace SharpNet.Data
 
         public abstract void BroadcastAddVectorToOutput(Tensor y);
 
+
+        /// <summary>
+        /// transform the content of the 'this' tensor from shape (a,b,...) to shape (b,a,...)
+        /// </summary>
+        /// <param name="target"></param>
+        public abstract void Switch_First_2_axis(Tensor target);
+
+
         /// <summary>
         /// create a copy of the 'this' tensor with the axis updated
         /// </summary>

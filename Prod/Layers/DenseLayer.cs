@@ -268,9 +268,9 @@ namespace SharpNet.Layers
 
         public override int[] OutputShape(int batchSize)
         {
-            var inputShape = (int[])PrevLayer.OutputShape(batchSize).Clone();
-            inputShape[^1] = Units;
-            return inputShape;
+            var outputShape = (int[])PrevLayer.OutputShape(batchSize).Clone();
+            outputShape[^1] = Units;
+            return outputShape;
         }
         public override string ToString()
         {

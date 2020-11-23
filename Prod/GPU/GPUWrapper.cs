@@ -182,16 +182,16 @@ namespace SharpNet.GPU
             return rnnDesc;
         }
 
-        private static List<T1> ExtractFromStackalloc<T1>(T1* stackAllocated, int length) where T1 : unmanaged
+        private static List<T> ExtractFromStackalloc<T>(T* stackAllocated, int length) where T : unmanaged
         {
-            var result = new List<T1>();
+            var result = new List<T>();
             for (int i = 0; i < length; ++i)
             {
                 result.Add(stackAllocated[i]);
             }
             return result;
         }
-        public static void FillWithSameValue<T1>(T1* stackAllocated, int length, T1 newValue) where T1 : unmanaged
+        public static void FillWithSameValue<T>(T* stackAllocated, int length, T newValue) where T : unmanaged
         {
             for (int i = 0; i < length; ++i)
             {
@@ -488,15 +488,12 @@ namespace SharpNet.GPU
             return desc;
         }
 
-        public cudnnRNNDataDescriptor_t RNNDataDesc(cudnnDataType_t dataType, int[] xShape)
+        public cudnnRNNDataDescriptor_t RNNDataDesc(cudnnDataType_t dataType, int maxSeqLength, int batchSize, int vectorSize)
         {
-            //xShape  :     (batchSize, timeSteps, features (= number of distinct words) )
-            Debug.Assert(xShape.Length == 3);
             CheckThreadId();
-            var layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_PACKED;
-            int maxSeqLength = xShape[1];
-            int batchSize = xShape[0];
-            int vectorSize = xShape[2];
+            var layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED;
+            //TODO : layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED;
+
             var key = Tuple.Create(dataType, layout, maxSeqLength, batchSize, vectorSize);
             if (!cacheRNNDataDesc.TryGetValue(key, out var desc))
             {
@@ -504,7 +501,9 @@ namespace SharpNet.GPU
                 CheckStatus(res);
                 int* seqLengthArray = stackalloc int[batchSize];
                 FillWithSameValue(seqLengthArray, batchSize, maxSeqLength);
-                res = CudnnWrapper.cudnnSetRNNDataDescriptor(desc, dataType, layout, maxSeqLength, batchSize, vectorSize,seqLengthArray,  IntPtr.Zero);
+
+                float paddingFill = 0.0f;
+                res = CudnnWrapper.cudnnSetRNNDataDescriptor(desc, dataType, layout, maxSeqLength, batchSize, vectorSize, seqLengthArray, &paddingFill);
                 CheckStatus(res);
                 cacheRNNDataDesc[key] = desc;
             }

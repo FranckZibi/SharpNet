@@ -15,8 +15,8 @@ namespace SharpNet.Layers
     public sealed class SimpleRnnLayerCPU : Layer
     {
         #region Fields
-        private readonly int _features;                 //number of distinct words in the dictionary 
-        private readonly int _units;                    //dimensionality of the output space
+        private readonly int _inputSize;                 // =  Features
+        private readonly int _hiddenSize;                // = Units
         private readonly bool _returnSequences;
 
         // ReSharper disable once CollectionNeverUpdated.Local
@@ -75,18 +75,18 @@ namespace SharpNet.Layers
         #endregion
 
         #region constructor
-        public SimpleRnnLayerCPU(int features, int units, bool returnSequences, bool trainable, Network network, string layerName) : base(network, layerName)
+        public SimpleRnnLayerCPU(int hiddenSize, bool returnSequences, bool trainable, Network network, string layerName) : base(network, layerName)
         {
-            _features = features;
-            _units = units;
+            _inputSize = PrevLayer.OutputShape(1)[2];
+            _hiddenSize = hiddenSize;
             _returnSequences = returnSequences;
             Trainable = trainable;
 
 
             //trainable params
-            Weights_ax = GetFloatTensor(new[] { features, _units });
-            Weights_aa = GetFloatTensor(new[] { _units, _units });
-            _bias = GetFloatTensor(new[] { 1, _units });
+            Weights_ax = GetFloatTensor(new[] { _inputSize, _hiddenSize });
+            Weights_aa = GetFloatTensor(new[] { _hiddenSize, _hiddenSize });
+            _bias = GetFloatTensor(new[] { 1, _hiddenSize });
 
             //gradients
             _weights_ax_gradient = GetFloatTensor(Weights_ax.Shape);
@@ -111,9 +111,9 @@ namespace SharpNet.Layers
             }
             var batchSize = x.Shape[0];                 //x.Shape[0] : batch size : number of sentences 
             int timeSteps = x.Shape[1];                 //x.Shape[1] : number of words in each sentence
-            Debug.Assert(x.Shape[2] == _features);      //x.Shape[2] : number of distinct words (_features)
-            var aShape = new[] { batchSize, _units };
-            var xShape = new[] { batchSize, _features };
+            Debug.Assert(x.Shape[2] == _inputSize);      //x.Shape[2] : number of distinct words (_features)
+            var aShape = new[] { batchSize, _hiddenSize };
+            var xShape = new[] { batchSize, _inputSize };
             GetFloatTensor(ref x_at_t_buffer, xShape);
             GetFloatTensor(ref a_buffer1, aShape);
             GetFloatTensor(ref a_buffer2, aShape);
@@ -148,7 +148,7 @@ namespace SharpNet.Layers
             var x = allX[0];                // x shape  :     (batchSize, timeSteps, features)
             var batchSize = x.Shape[0];
             var timeSteps = x.Shape[1];
-            Debug.Assert(_features == x.Shape[2]);
+            Debug.Assert(_inputSize == x.Shape[2]);
             var aShape = dy.Shape;          // a shape  :     (batchSize, _units )
             Debug.Assert(a_t.Count == timeSteps);
 
@@ -158,7 +158,7 @@ namespace SharpNet.Layers
 
             GetFloatTensor(ref a_buffer1, aShape);
             GetFloatTensor(ref a_buffer2, aShape);
-            var da_t = GetFloatTensor(new []{1, _units});
+            var da_t = GetFloatTensor(new []{1, _hiddenSize});
             var _1_minus_aSquare = GetFloatTensor(da_t.Shape);
             var _1_vector = GetFloatTensor(da_t.Shape);
             _1_vector.SetValue(1f);
@@ -329,16 +329,13 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(_features), _features)
-                .Add(nameof(_units), _units)
+                .Add(nameof(_hiddenSize), _hiddenSize)
                 .Add(nameof(_returnSequences), _returnSequences)
                 .ToString();
         }
         public static SimpleRnnLayerCPU Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            return new SimpleRnnLayerCPU(
-                (int)serialized[nameof(_features)],
-                (int)serialized[nameof(_units)],
+            return new SimpleRnnLayerCPU((int)serialized[nameof(_hiddenSize)],
                 (bool)serialized[nameof(_returnSequences)],
                 (bool)serialized[nameof(Trainable)],
                 network,
@@ -352,10 +349,10 @@ namespace SharpNet.Layers
             if (_returnSequences)
             {
                 int timeSteps = PrevLayer.OutputShape(1)[1];
-                return new [] {batchSize, timeSteps, _units};
+                return new [] {batchSize, timeSteps, _hiddenSize};
             }
             //only the last output
-            return new[] { batchSize, _units };
+            return new[] { batchSize, _hiddenSize };
         }
     }
 

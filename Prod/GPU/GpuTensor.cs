@@ -412,6 +412,20 @@ namespace SharpNet.GPU
             Debug.Assert(y.MultDim0 == Count);
             y.Update_Adding_Alpha_X(1, bias);
         }
+
+        public override void Switch_First_2_axis(Tensor target)
+        {
+            Debug.Assert(Shape.Length >= 2);
+            int aLength = Shape[0];
+            int bLength = Shape[1];
+            int cLength = MultDim1;
+            _wrapper.RunKernel("Switch_First_2_axis", Count, new object[] { aLength, bLength, cLength, this, target});
+            var targetShape = (int[])Shape.Clone();
+            targetShape[0] = bLength;
+            targetShape[1] = aLength;
+            target.Reshape(targetShape);
+        }
+
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient)
         {
             var dy = this;
@@ -985,9 +999,6 @@ namespace SharpNet.GPU
         #endregion
 
         private cudnnTensorDescriptor_t TensorDesc(Tensor a) { return _wrapper.TensorDesc(CudaType, a.Shape); }
-
-        private cudnnRNNDataDescriptor_t RNNDataDesc(Tensor a) { return _wrapper.RNNDataDesc(CudaType, a.Shape); }
-        
 
         private cudnnFilterDescriptor_t FilterDesc(Tensor a, bool isDepthwiseConvolution) { return _wrapper.FilterDesc(CudaType, a.Shape, isDepthwiseConvolution); }
         private cudnnActivationDescriptor_t ActivationDesc(cudnnActivationMode_t activationFunctionType)

@@ -563,5 +563,22 @@
 		else
 			c[row*cMultDim0+colInConcat-aMultDim0-bMultDim0] = concat[i];
 	}
+
+	// transform a 'src' tensor of shape [a,b,c] to a 'target' tensor of shape [b,a,c] 
+	__global__ void Switch_First_2_axis(int N, int aLength, int bLength, int cLength, const float* __restrict src, float *target)
+	{
+		int idx_src = blockIdx.x * blockDim.x + threadIdx.x;
+		if (idx_src < N) {
+			int multDim0 = bLength * cLength;
+			int a_src = idx_src / multDim0;
+			int tmp = idx_src % multDim0;
+			int b_src = tmp / cLength;
+			int c_src = tmp % cLength;
+			int idx_target = b_src * aLength * cLength + a_src * cLength + c_src;
+			target[idx_target] = src[idx_src];
+		}
+	}
+	
+
 }
 

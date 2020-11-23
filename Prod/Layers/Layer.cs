@@ -485,12 +485,11 @@ namespace SharpNet.Layers
             }
         }
 
-
         /// <summary>
         /// true if the layer has associated weights (or bias) to train
         /// </summary>
         private List<Layer> NextLayers => NextLayerIndexes.Select(idx => Layers[idx]).ToList();
-        protected bool HasParameters => Parameters.Count != 0;
+        private bool HasParameters => Parameters.Count != 0;
         private void FreeFloatTensor(Tensor t)
         {
             MemoryPool.FreeFloatTensor(t);

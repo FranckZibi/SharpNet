@@ -747,6 +747,19 @@ namespace SharpNetTests
             TestAll(new[] { huberGradient, expected, predicted}, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
         }
 
+        [TestCase(new[] { 1000, 10 })]
+        [TestCase(new[] { 1000, 1 })]
+        [TestCase(new[] { 500, 3, 10 })]
+        [TestCase(new[] { 500, 3, 1 })]
+        [TestCase(new[] { 300, 3, 2, 10 })]
+        [TestCase(new[] { 300, 3, 2, 1 })]
+        public void TesSwitch_First_2_axis(int[] shape)
+        {
+            var src = RandomTensor(shape);
+            var target = RandomTensor(shape);
+            TestAll(new[] {src, target}, tensors => tensors[0].Switch_First_2_axis(tensors[1]));
+        }
+
         [TestCase(10)]
         [TestCase(1)]
         public void TestComputeAccuracyOneHot(int categoryCount)
@@ -833,7 +846,7 @@ namespace SharpNetTests
 
         private static GPUTensor<T> CloneToGPU<T>(CpuTensor<T> cpuTensor, GPUWrapper gpuWrapper)
         {
-            return new GPUTensor<T>(cpuTensor.Shape, cpuTensor.Content, gpuWrapper);
+            return new GPUTensor<T>((int[])cpuTensor.Shape.Clone(), cpuTensor.Content, gpuWrapper);
         }
     }
 }

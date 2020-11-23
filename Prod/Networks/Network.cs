@@ -183,12 +183,12 @@ namespace SharpNet.Networks
             Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, lambdaL2Regularization, true, this, layerName));
             return this;
         }
-        public Network SimpleRnnLayer(int features, int units, bool returnSequences, string layerName = "")
+        public Network SimpleRnnLayer(int units, bool returnSequences, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             var simpleRnnLayer = UseGPU
-                ?(Layer)new SimpleRnnLayerGPU(features, units, returnSequences, true, this, layerName)
-                :new SimpleRnnLayerCPU(features, units, returnSequences, true, this, layerName);
+                ?(Layer)new SimpleRnnLayerGPU(units, returnSequences, true, this, layerName)
+                :new SimpleRnnLayerCPU(units, returnSequences, true, this, layerName);
             Layers.Add(simpleRnnLayer);
             return this;
         }

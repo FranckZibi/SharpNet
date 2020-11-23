@@ -59,7 +59,8 @@ namespace SharpNet.GPU
                     "ComputeSoftmaxWithHierarchy",
                     "ComputeSoftmaxGradientWitHierarchy",
                     "WordEmbeddingForwardPropagation",
-                    "WordEmbeddingBackwardPropagation"
+                    "WordEmbeddingBackwardPropagation",
+                    "Switch_First_2_axis"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

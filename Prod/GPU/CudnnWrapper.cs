@@ -620,6 +620,11 @@ namespace SharpNet.GPU
     {
         private const string DLL_NAME = "cudnn64_8.dll";
 
+
+        public const uint CUDNN_RNN_PADDED_IO_DISABLED = 0u;
+        public const uint CUDNN_RNN_PADDED_IO_ENABLED = 1u;
+
+
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionForwardWorkspaceSize(
             cudnnHandle_t cudnnHandle,
@@ -1132,7 +1137,7 @@ namespace SharpNet.GPU
             int batchSize,
             int vectorSize,
             int* seqLengthArray,
-            IntPtr paddingFill);
+            void* paddingFill);
 
         /// <summary>
         /// 

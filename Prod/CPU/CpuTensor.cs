@@ -219,6 +219,35 @@ namespace SharpNet.CPU
             return result;
         }
 
+        public override void Switch_First_2_axis(Tensor target)
+        {
+            Debug.Assert(target.Count == Count);
+            Debug.Assert(Shape.Length >= 2);
+            int aLength = Shape[0];
+            int bLength = Shape[1];
+            int cLength = MultDim1;
+            int multDim0 = bLength * cLength;
+            var srcContent = AsReadonlyFloatCpuContent;
+            var targetContent = target.AsFloatCpuSpan;
+
+            for (int idx_src = 0; idx_src < Count; ++idx_src)
+            {
+                int a_src = idx_src / multDim0;
+                int tmp = idx_src % multDim0;
+                int b_src = tmp / cLength;
+                int c_src = tmp % cLength;
+                int idx_target = b_src * aLength * cLength + a_src * cLength + c_src;
+                targetContent[idx_target] = srcContent[idx_src];
+            }
+
+            var targetShape = (int[]) Shape.Clone();
+            targetShape[0] = bLength;
+            targetShape[1] = aLength;
+            target.Reshape(targetShape);
+        }
+
+
+
         public override Tensor ChangeAxis(int[] newToOldAxis)
         {
             Debug.Assert(newToOldAxis.Length == Dimension);
