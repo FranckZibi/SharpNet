@@ -231,6 +231,8 @@ namespace SharpNet.Networks
                 {
                     net.Dropout(dropoutRate, "top_dropout");
                 }
+
+                net.Flatten();
                 net.Dense(categoryCount, config.lambdaL2Regularization, "probs");
                 net.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }

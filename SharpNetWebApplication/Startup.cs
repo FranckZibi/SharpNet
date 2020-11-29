@@ -32,7 +32,8 @@ namespace SharpNetWebApplication
         {
             _network = CancelDatabase.GetDefaultNetwork();
 
-            Log.Debug("ComputationThread is starting");
+            Log.Info("ComputationThread is starting");
+            Log.Info(_network.Summary());
             for (;;)
             {
                 var picturePaths = new List<string>();
