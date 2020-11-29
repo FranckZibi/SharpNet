@@ -159,7 +159,7 @@ namespace SharpNet.Data
         }
         public static implicit operator IntPtr(Tensor t)
         {
-            return t.Pointer;
+            return (t==null)?IntPtr.Zero:t.Pointer;
         }
         public CpuTensor<T> AsCpu<T>()
         {
@@ -375,30 +375,7 @@ namespace SharpNet.Data
                 tensor_NCH.CopyTo(tensor_NCH.Idx(n, channel, 0), tensor_NH, n * h, h);
             }
         }
-
-        /// <summary>
-        /// copy entire content of 'this' tensor into channel 'channel' of 'tensor_NCH'
-        /// </summary>
-        /// <param name="tensor_NCH"></param>
-        /// <param name="channel"></param>
-        public void From_NH_to_NCH(Tensor tensor_NCH, int channel)
-        {
-            var tensor_NH = this;
-            Debug.Assert(tensor_NH.Shape.Length == 2);
-            Debug.Assert(tensor_NCH.Shape.Length == 3);
-            int batchSize = tensor_NCH.Shape[0];
-            int h = tensor_NCH.Shape[2];
-            Debug.Assert(batchSize == tensor_NH.Shape[0]);
-            Debug.Assert(h == tensor_NH.Shape[1]);
-            Debug.Assert(channel < tensor_NCH.Shape[1]);
-            tensor_NCH.ZeroMemory();
-            for (int n = 0; n < batchSize; ++n)
-            {
-                tensor_NH.CopyTo(n*h, tensor_NCH, tensor_NCH.Idx(n, channel, 0), h);
-            }
-
-        }
-
+     
         /// <summary>
         /// compute: this += alpha * x
         /// </summary>
@@ -579,8 +556,6 @@ namespace SharpNet.Data
         public abstract void AssertIsNotDisposed();
         #endregion
 
-        public abstract Tensor Transpose();
-
         /// <summary>
         /// this = x [in] unnormalized input
         /// </summary>
@@ -712,6 +687,7 @@ namespace SharpNet.Data
         public abstract void SetValue(float sameValue);
         public abstract float[] ContentAsFloatArray();
 
+        // ReSharper disable once UnusedMemberInSuper.Global
         public abstract Tensor Clone();
 
         public ulong ReallyNeededMemoryInBytes => (ulong)(Count*TypeSize);
@@ -729,7 +705,7 @@ namespace SharpNet.Data
             }
         }
         protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
-        protected bool SameShapeExceptFirstDimension(int[] shape) { return Shape.Skip(1).SequenceEqual(shape.Skip(1)); }
+        private bool SameShapeExceptFirstDimension(int[] shape) { return Shape.Skip(1).SequenceEqual(shape.Skip(1)); }
         protected void RecomputeMultDim()
         {
             _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;

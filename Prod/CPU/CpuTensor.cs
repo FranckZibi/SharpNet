@@ -76,8 +76,7 @@ namespace SharpNet.CPU
         //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
         public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding)
         {
-            var y = this as CpuTensor<float>;
-            Debug.Assert(y != null);
+            var y = this;
             Debug.Assert(x.Shape.Length == 2);
             Debug.Assert(wordEmbedding.Shape.Length == 2);
             Debug.Assert(y.Shape.Length == 3);
@@ -112,9 +111,7 @@ namespace SharpNet.CPU
         // dy shape :               (batchSize, EmbeddingDim,  maxWordCountBySentence)
         public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy)
         {
-            var dW = this as CpuTensor<float>;
-            Debug.Assert(dW != null);
-
+            var dW = this;
             var xCpu = (CpuTensor<float>)x;
             var dyCpu = (CpuTensor<float>)dy;
 
@@ -201,22 +198,6 @@ namespace SharpNet.CPU
         {
             get => ReadonlyContent[i];
             set => SpanContent[i] = value;
-        }
-        public CpuTensor<T> From_HNC_to_NCH()
-        {
-            var transformedShape = new[] { Shape[1], Shape[2], Shape[0] };
-            var result = new CpuTensor<T>(transformedShape);
-            for (int n = 0; n < transformedShape[0]; ++n)
-            {
-                for (int c = 0; c < transformedShape[1]; ++c)
-                {
-                    for (int h = 0; h < transformedShape[2]; ++h)
-                    {
-                        result.Set(n, c, h, Get(h, n, c));
-                    }
-                }
-            }
-            return result;
         }
 
         public override void Switch_First_2_axis(Tensor target)
@@ -778,25 +759,6 @@ namespace SharpNet.CPU
                 throw new Exception("Tensor is disposed " + this);
             }
         }
-
-        /// <summary>
-        /// Add tests
-        /// </summary>
-        /// <returns></returns>
-        public override Tensor Transpose()
-        {
-            Debug.Assert(Dimension == 2);
-            var output = new CpuTensor<T>(new[] { Shape[1], Shape[0] });
-            for (int row = 0; row < Shape[0]; ++row)
-            {
-                for (int col = 0; col < Shape[1]; ++col)
-                {
-                    output.Set(col, row, Get(row, col));
-                }
-            }
-            return output;
-        }
-
         public override void Concatenate(IList<Tensor> tensors)
         {
             CheckConcatenate(tensors);

@@ -87,7 +87,6 @@ namespace SharpNet.Data
         public override bool IsOwnerOfMemory => true;
 
         public override void AssertIsNotDisposed(){}
-        public override Tensor Transpose(){throw new NotImplementedException();}
         public override void BatchNormalization(Tensor y, Tensor scale, Tensor bias, double exponentialAverageSmoothingFactor,
             Tensor runningInputMean, Tensor runningInputVariance, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer,
             Tensor invertOfUnbiasedVolatilityBuffer, bool isTraining)

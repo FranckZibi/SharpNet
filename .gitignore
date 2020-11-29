@@ -112,3 +112,4 @@ TestNonRegNew_*.csv
 /ImageScanSplitter/Install/ImageScanSplitterInstall.exe
 /StampArbitragist/Install/StampArbitragistInstall.exe
 /ImageScanSplitter/TODO/
+/Tests/SharpNetTests.csproj.fzibi.nvuser

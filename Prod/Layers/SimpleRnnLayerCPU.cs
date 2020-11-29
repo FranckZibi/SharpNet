@@ -15,7 +15,7 @@ namespace SharpNet.Layers
     public sealed class SimpleRnnLayerCPU : Layer
     {
         #region Fields
-        private readonly int _inputSize;                 // =  Features
+        private readonly int _inputSize;                 // = Features
         private readonly int _hiddenSize;                // = Units
         private readonly bool _returnSequences;
 

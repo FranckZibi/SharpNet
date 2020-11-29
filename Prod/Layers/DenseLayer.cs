@@ -54,19 +54,19 @@ namespace SharpNet.Layers
         /// <summary>
         /// dimensionality of the output space
         /// </summary>
-        public int Units { get; }
+        public int CategoryCount { get; }
         #endregion
 
         #region constructor
-        public DenseLayer(int units, double lambdaL2Regularization, bool trainable, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int categoryCount, double lambdaL2Regularization, bool trainable, Network network, string layerName) : base(network, layerName)
         {
-            Units = units;
+            CategoryCount = categoryCount;
             LambdaL2Regularization = lambdaL2Regularization;
             Trainable = trainable;
 
             //trainable params
-            _weights = GetFloatTensor(new[] { PrevLayer.OutputShape(1).Last(), Units });
-            _bias = GetFloatTensor(new[] {1, Units });
+            _weights = GetFloatTensor(new[] { PrevLayer.OutputShape(1).Last(), CategoryCount });
+            _bias = GetFloatTensor(new[] {1, CategoryCount });
             Debug.Assert(_bias != null);
 
             _weightGradients = GetFloatTensor(_weights.Shape);
@@ -252,12 +252,12 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(Units), Units).Add(nameof(LambdaL2Regularization), LambdaL2Regularization).ToString();
+            return RootSerializer().Add(nameof(CategoryCount), CategoryCount).Add(nameof(LambdaL2Regularization), LambdaL2Regularization).ToString();
         }
         public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new DenseLayer(
-                (int)serialized[nameof(Units)],
+                (int)serialized[nameof(CategoryCount)],
                 (double)serialized[nameof(LambdaL2Regularization)],
                 (bool)serialized[nameof(Trainable)],
                 network,
@@ -269,7 +269,7 @@ namespace SharpNet.Layers
         public override int[] OutputShape(int batchSize)
         {
             var outputShape = (int[])PrevLayer.OutputShape(batchSize).Clone();
-            outputShape[^1] = Units;
+            outputShape[^1] = CategoryCount;
             return outputShape;
         }
         public override string ToString()

@@ -408,6 +408,10 @@ namespace SharpNet.Layers
         {
             MemoryPool.FreeFloatTensor(ref t);
         }
+        protected void FreeFloatTensor(Tensor t)
+        {
+            MemoryPool.FreeFloatTensor(t);
+        }
         protected void GetBuffer(ref Tensor buffer, size_t minimalSizeInBytes)
         {
             MemoryPool.GetBuffer(ref buffer, minimalSizeInBytes);
@@ -490,9 +494,5 @@ namespace SharpNet.Layers
         /// </summary>
         private List<Layer> NextLayers => NextLayerIndexes.Select(idx => Layers[idx]).ToList();
         private bool HasParameters => Parameters.Count != 0;
-        private void FreeFloatTensor(Tensor t)
-        {
-            MemoryPool.FreeFloatTensor(t);
-        }
     }
 }

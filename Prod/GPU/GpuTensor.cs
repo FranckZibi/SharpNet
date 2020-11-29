@@ -307,11 +307,7 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnPoolingBackward(CudnnHandle, poolingDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
             CheckStatus(res);
         }
-        //TODO
-        public override Tensor Transpose()
-        {
-            throw new NotImplementedException();
-        }
+
         public override void Concatenate(IList<Tensor> tensors)
         {
 #if DEBUG

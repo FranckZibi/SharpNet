@@ -488,12 +488,12 @@ namespace SharpNet.GPU
             return desc;
         }
 
-        public cudnnRNNDataDescriptor_t RNNDataDesc(cudnnDataType_t dataType, int maxSeqLength, int batchSize, int vectorSize)
+        public cudnnRNNDataDescriptor_t RNNDataDesc(cudnnDataType_t dataType, int maxSeqLength, int batchSize, int vectorSize, bool time_major)
         {
             CheckThreadId();
-            var layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED;
-            //TODO : layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED;
-
+            var layout = time_major
+                    ?cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_SEQ_MAJOR_UNPACKED
+                    :cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED;
             var key = Tuple.Create(dataType, layout, maxSeqLength, batchSize, vectorSize);
             if (!cacheRNNDataDesc.TryGetValue(key, out var desc))
             {
