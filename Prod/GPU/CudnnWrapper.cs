@@ -620,6 +620,15 @@ namespace SharpNet.GPU
     {
         private const string DLL_NAME = "cudnn64_8.dll";
 
+        public static void EnableAPILogging(string fileName)
+        {
+            Environment.SetEnvironmentVariable("CUDNN_LOGINFO_DBG", "1");
+            Environment.SetEnvironmentVariable("CUDNN_LOGDEST_DBG", fileName);
+        }
+        public static void DisableAPILogging()
+        {
+            Environment.SetEnvironmentVariable("CUDNN_LOGINFO_DBG", "0");
+        }
 
         public const uint CUDNN_RNN_PADDED_IO_DISABLED = 0u;
         public const uint CUDNN_RNN_PADDED_IO_ENABLED = 1u;
