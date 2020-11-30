@@ -39,7 +39,7 @@ namespace SharpNet.Networks
 
                 //We add a new DenseLayer (with weight reseted)
                 Log.Info("Resetting weights of layer " + denseLayerName + " to have " + newCategoryCount + " categories");
-                Dense(newCategoryCount, lambdaL2Regularization, denseLayerName);
+                Dense(newCategoryCount, lambdaL2Regularization, false, denseLayerName);
 
                 //we put back the ActivationLayer
                 Activation(activationFunctionType, activationLayerName);

@@ -18,6 +18,7 @@ namespace SharpNet.Layers
     /// </summary>
     public sealed class DenseLayer : Layer
     {
+
         #region Private fields
         #region trainable parameters
         /// <summary>
@@ -55,14 +56,34 @@ namespace SharpNet.Layers
         /// dimensionality of the output space
         /// </summary>
         public int CategoryCount { get; }
+        private readonly bool _flattenInputTensorOnLastDimension;
         #endregion
 
         #region constructor
-        public DenseLayer(int categoryCount, double lambdaL2Regularization, bool trainable, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int categoryCount, double lambdaL2Regularization, bool? flattenInputTensorOnLastDimension,  bool trainable, Network network, string layerName) : base(network, layerName)
         {
+            if (!flattenInputTensorOnLastDimension.HasValue)
+            {
+                if ( PrevLayer is RecurrentLayer || PrevLayer is SimpleRnnLayerCPU)
+                {
+                    //we'll flatten the input tensor x keeping the last dimension intact:
+                    //  (a,b,c,d) => a*b*c*, d)
+                    flattenInputTensorOnLastDimension = true; 
+                }
+                else
+                {
+                    //we'll flatten the input tensor 'x' keeping the fist dimension intact:
+                    //  (a,b,c,d) => (a, b*c**d)
+                    flattenInputTensorOnLastDimension = false;
+                }
+            }
+            _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension.Value;
+
             CategoryCount = categoryCount;
             LambdaL2Regularization = lambdaL2Regularization;
             Trainable = trainable;
+
+
 
             //trainable params
             _weights = GetFloatTensor(new[] { PrevLayer.OutputShape(1).Last(), CategoryCount });
@@ -132,20 +153,33 @@ namespace SharpNet.Layers
 
         /// <summary>
         /// When x is tensor with >=3 dimension         (ex:  (a, b, c, d))
-        /// we'll change its shape to a 2D Matrix       (ex:  (a*b*c, d) )
-        /// so that the last dimension of the matrix    (ex: d) is preserved
+        ///     if _flattenInputTensorOnLastDimension == True
+        ///             we'll change its shape to a 2D Matrix       (ex:  (a*b*c, d) )
+        ///             so that the last dimension of the matrix (ex: d) is preserved
+        ///     else (_flattenInputTensorOnLastDimension == False)
+        ///             we'll change its shape to a 2D Matrix       (ex:  (a, b*c*d) )
+        ///             so that the first dimension of the matrix (ex: a) is preserved
         /// </summary>
         /// <param name="x"></param>
         /// <returns>A 2D Matrix</returns>
-        private static Tensor As2DMatrixForDotProduct(Tensor x)
+        private Tensor As2DMatrixForDotProduct(Tensor x)
         {
             if (x.Shape.Length <= 2)
             {
                 return x;
             }
             var xTargetShape = new int[2];
-            xTargetShape[1] = x.Shape.Last();
-            xTargetShape[0] = x.Count / xTargetShape[1];
+            if (_flattenInputTensorOnLastDimension)
+            {
+                xTargetShape[0] = x.Count / x.Shape.Last();
+                xTargetShape[1] = x.Shape.Last();
+            }
+            else
+            {
+                xTargetShape[0] = x.Shape[0];
+                xTargetShape[1] = x.Count / x.Shape[0];
+            }
+
             return x.WithNewShape(xTargetShape);
         }
 
@@ -252,13 +286,21 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(CategoryCount), CategoryCount).Add(nameof(LambdaL2Regularization), LambdaL2Regularization).ToString();
+            return RootSerializer().Add(nameof(CategoryCount), CategoryCount)
+                .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
+                .Add(nameof(_flattenInputTensorOnLastDimension), _flattenInputTensorOnLastDimension)
+                .ToString();
         }
         public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
+            var flattenInputTensorOnLastDimension =
+                serialized.ContainsKey(nameof(_flattenInputTensorOnLastDimension))
+                ? (bool?)serialized[nameof(_flattenInputTensorOnLastDimension)]
+                :null;
             return new DenseLayer(
                 (int)serialized[nameof(CategoryCount)],
                 (double)serialized[nameof(LambdaL2Regularization)],
+                flattenInputTensorOnLastDimension,
                 (bool)serialized[nameof(Trainable)],
                 network,
                 (string)serialized[nameof(LayerName)]);

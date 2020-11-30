@@ -233,7 +233,7 @@ namespace SharpNet.Networks
                 }
 
                 net.Flatten();
-                net.Dense(categoryCount, config.lambdaL2Regularization, "probs");
+                net.Dense(categoryCount, config.lambdaL2Regularization, false, "probs");
                 net.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             else

@@ -148,7 +148,7 @@ namespace SharpNet.Networks
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
                 //.Dense(categoryCount, 0.0) //!D check if lambdaL2Regularization should be 0
-                .Dense(categoryCount, Config.lambdaL2Regularization)
+                .Dense(categoryCount, Config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }

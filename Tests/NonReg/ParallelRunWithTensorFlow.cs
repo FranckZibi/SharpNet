@@ -315,7 +315,7 @@ namespace SharpNetTests.NonReg
             network
                 .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
                 .Flatten()
-                .Dense(1, 0.0)
+                .Dense(1, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
 
@@ -391,8 +391,8 @@ namespace SharpNetTests.NonReg
             network
                 .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
                 .GlobalAvgPooling()
-                .Dense(4, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dense(1, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Dense(4, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
 
             Log.Info(network.Summary() + Environment.NewLine);
@@ -497,8 +497,8 @@ namespace SharpNetTests.NonReg
             network
                 .InputAndEmbedding(max_length, vocab_size, embedding_dim, 0.0)
                 .GlobalAvgPooling()
-                .Dense(24, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dense(1, 0.0).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Dense(24, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
         
             //Log.Info(network.Summary() + Environment.NewLine);
@@ -636,9 +636,9 @@ namespace SharpNetTests.NonReg
 
             network
                 .Input(X.Shape[1], 1, -1)
-                .Dense(3, 0.0)
+                .Dense(3, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dense(1, 0.0)
+                .Dense(1, 0.0, false)
                 ;
 
 
@@ -745,7 +745,7 @@ namespace SharpNetTests.NonReg
             network
                 .Input(timeSteps, inputSize, -1)
                 .GRU(hiddenSize, returnSequences) 
-                .Dense(1, 0.0)
+                .Dense(1, 0.0, true)
                 ;
 
 

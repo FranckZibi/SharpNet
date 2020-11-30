@@ -109,8 +109,6 @@ namespace SharpNet.Networks
 
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
 
-        public Layer LastLayer => Layers.Count == 0 ? null : Layers.Last();
-
         public void Dispose()
         {
             if (IsMaster)
@@ -213,10 +211,18 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network Dense(int categoryCount, double lambdaL2Regularization, string layerName = "")
+        /// <summary>
+        /// TO REMOVE
+        /// </summary>
+        /// <param name="categoryCount"></param>
+        /// <param name="lambdaL2Regularization"></param>
+        /// <param name="flattenInputTensorOnLastDimension"></param>
+        /// <param name="layerName"></param>
+        /// <returns></returns>
+        public Network Dense(int categoryCount, double lambdaL2Regularization, bool? flattenInputTensorOnLastDimension, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(categoryCount, lambdaL2Regularization, true, this, layerName);
+            var fullyConnectedLayer = new DenseLayer(categoryCount, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
@@ -385,18 +391,18 @@ namespace SharpNet.Networks
         }
         public Network Dense_Activation(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
         {
-            return Dense(n_x, lambdaL2Regularization)
+            return Dense(n_x, lambdaL2Regularization, false)
                 .Activation(activationFunction);
         }
         public Network Dense_DropOut_Activation(int n_x, double lambdaL2Regularization, double dropOut, cudnnActivationMode_t activationFunction)
         {
-            return Dense(n_x, lambdaL2Regularization)
+            return Dense(n_x, lambdaL2Regularization, false)
                 .Dropout(dropOut)
                 .Activation(activationFunction);
         }
         public Network Output(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
         {
-            return Dense(n_x, lambdaL2Regularization)
+            return Dense(n_x, lambdaL2Regularization, false)
                 .Activation(activationFunctionType);
         }
         public Network Flatten()
