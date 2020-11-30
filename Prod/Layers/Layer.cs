@@ -230,6 +230,12 @@ namespace SharpNet.Layers
                 case nameof(SimpleRnnLayerGPU): return network.UseGPU
                         ? (Layer)SimpleRnnLayerGPU.Deserialize(serialized, network)
                         : SimpleRnnLayerCPU.Deserialize(serialized, network);
+                case nameof(LSTMLayer):
+                    Debug.Assert(network.UseGPU); //LSTM layers are currently only available on GPU
+                    return LSTMLayer.Deserialize(serialized, network);
+                case nameof(GRULayer):
+                    Debug.Assert(network.UseGPU); //GRU layers are currently only available on GPU
+                    return GRULayer.Deserialize(serialized, network);
                 case nameof(UpSampling2DLayer): return UpSampling2DLayer.Deserialize(serialized, network);
                 case nameof(YOLOV3Layer): return YOLOV3Layer.Deserialize(serialized, network);
                 case nameof(ZeroPadding2DLayer): return ZeroPadding2DLayer.Deserialize(serialized, network);

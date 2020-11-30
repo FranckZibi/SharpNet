@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using SharpNet.Data;
+
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -557,29 +558,54 @@ namespace SharpNet.GPU
             this.auxFlags = auxFlags;
         }
 
-        /// <summary>
-        /// number of elements in the Weight_ax Tensor
-        /// </summary>
-        public int Weight_ax_count => hiddenSize* inputSize;
-        /// <summary>
-        /// number of elements in the Weight_aa Tensor
-        /// </summary>
-        public int Weight_aa_count => hiddenSize * hiddenSize;
-        /// <summary>
-        /// number of elements in the Bias Tensor
-        /// </summary>
-        public int Bias_count
+        public int[] Weight_ax_Shape => new[] {inputSize, HiddenSizeMultiplier * hiddenSize};
+
+        public int[] Weight_recurrent_Shape => new[] { hiddenSize, HiddenSizeMultiplier * hiddenSize };
+
+        public int[] BiasShape
         {
             get
             {
-                switch (biasMode)
+                int firstDimensionMultiplier = 1;
+                if (biasMode == cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS)
                 {
-                    case cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS: return 2 * hiddenSize;
-                    case cudnnRNNBiasMode_t.CUDNN_RNN_NO_BIAS: return 0;
-                    default: return hiddenSize;
+                    firstDimensionMultiplier *= 2;
+                }
+                return new[] {firstDimensionMultiplier, HiddenSizeMultiplier * hiddenSize};
+            }
+        }
+
+        private int HiddenSizeMultiplier
+        {
+            get
+            {
+                switch (cellMode)
+                {
+                    case cudnnRNNMode_t.CUDNN_RNN_TANH: return 1;
+                    case cudnnRNNMode_t.CUDNN_LSTM: return 4;
+                    case cudnnRNNMode_t.CUDNN_GRU: return 3;
+                    default:
+                        throw new NotImplementedException(nameof(HiddenSizeMultiplier) + " " + cellMode);
                 }
             }
-        } 
+        }
+
+        public int WeightAndBiasCount => Weight_ax_count + Weight_recurrent_count + Bias_count;
+
+        /// <summary>
+        /// number of elements in the Weight_ax Tensor
+        /// </summary>
+        public int Weight_ax_count => Utils.Product(Weight_ax_Shape);
+
+        /// <summary>
+        /// number of elements in the Weight_aa Tensor
+        /// </summary>
+        public int Weight_recurrent_count => Utils.Product(Weight_recurrent_Shape);
+
+        /// <summary>
+        /// number of elements in the Bias Tensor
+        /// </summary>
+        public int Bias_count => Utils.Product(BiasShape);
 
         public override bool Equals(object obj)
         {

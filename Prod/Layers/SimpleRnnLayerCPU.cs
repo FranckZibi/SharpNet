@@ -12,6 +12,10 @@ using SharpNet.Optimizers;
 
 namespace SharpNet.Layers
 {
+    /// <summary>
+    /// input x shape  :     (batchSize, timeSteps, _inputSize )
+    /// output y shape  :    (batchSize, _hiddenSize )
+    /// </summary>
     public sealed class SimpleRnnLayerCPU : Layer
     {
         #region Fields
@@ -22,25 +26,25 @@ namespace SharpNet.Layers
         // ReSharper disable once CollectionNeverUpdated.Local
         /// <summary>
         /// vector of length 'timeSteps_x'
-        /// a_t[t] = hidden state at time step 't'          (batchSize, _units)
+        /// a_t[t] = hidden state at time step 't'          (batchSize, _hiddenSize)
         ///        = tanh( x_t[t]*Weights_ax + a_t[t-1]*Weights_aa)
-        ///x_t[t]:                                          (batchSize, _features)
+        ///x_t[t]:                                          (batchSize, _inputSize)
         /// </summary>
         private readonly List<Tensor> a_t = new List<Tensor>();
         #region trainable parameters
         /// <summary>
         /// Weight matrix multiplying the input
-        /// Shape:      (_features, _units) 
+        /// Shape:      (_inputSize, _hiddenSize) 
         /// </summary>
         public Tensor Weights_ax;
         /// <summary>
         /// Weight matrix multiplying the hidden state
-        /// Shape:      (_units, _units) 
+        /// Shape:      (_hiddenSize, _hiddenSize) 
         /// </summary>
         public Tensor Weights_aa;
         /// <summary>
         /// Bias
-        /// shape:      (1, _units) 
+        /// shape:      (1, _hiddenSize) 
         /// </summary>
         private Tensor _bias;
         #endregion
@@ -60,10 +64,10 @@ namespace SharpNet.Layers
         [CanBeNull] private Tensor _biasGradients;
         #endregion
 
-        private Tensor x_at_t_buffer;                   //(_timeSteps_x, _features)
-        private Tensor a_buffer1;                       //(batchSize, _units)          
-        private Tensor a_buffer2;                       //(batchSize, _units)
-        private Tensor a_init;                          //(batchSize, _units)
+        private Tensor x_at_t_buffer;                   //(_timeSteps_x, _inputSize)
+        private Tensor a_buffer1;                       //(batchSize, _hiddenSize)          
+        private Tensor a_buffer2;                       //(batchSize, _hiddenSize)
+        private Tensor a_init;                          //(batchSize, _hiddenSize)
         /// <summary>
         /// Adam or SGD optimizer or Vanilla SGD for Weights_ax matrix and Bias_a
         /// </summary>
@@ -111,7 +115,7 @@ namespace SharpNet.Layers
             }
             var batchSize = x.Shape[0];                 //x.Shape[0] : batch size : number of sentences 
             int timeSteps = x.Shape[1];                 //x.Shape[1] : number of words in each sentence
-            Debug.Assert(x.Shape[2] == _inputSize);      //x.Shape[2] : number of distinct words (_features)
+            Debug.Assert(x.Shape[2] == _inputSize);      //x.Shape[2] : number of distinct words (_inputSize)
             var aShape = new[] { batchSize, _hiddenSize };
             var xShape = new[] { batchSize, _inputSize };
             GetFloatTensor(ref x_at_t_buffer, xShape);
@@ -145,11 +149,11 @@ namespace SharpNet.Layers
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
-            var x = allX[0];                // x shape  :     (batchSize, timeSteps, features)
+            var x = allX[0];                // x shape  :     (batchSize, timeSteps, _inputSize)
             var batchSize = x.Shape[0];
             var timeSteps = x.Shape[1];
             Debug.Assert(_inputSize == x.Shape[2]);
-            var aShape = dy.Shape;          // a shape  :     (batchSize, _units )
+            var aShape = dy.Shape;          // a shape  :     (batchSize, _hiddenSize )
             Debug.Assert(a_t.Count == timeSteps);
 
             _biasGradients?.ZeroMemory();
@@ -355,8 +359,4 @@ namespace SharpNet.Layers
             return new[] { batchSize, _hiddenSize };
         }
     }
-
-
-    // input x shape  :     (batchSize, timeSteps, features (= number of distinct words) )
-    // output y shape  :    (batchSize, _units )
 }

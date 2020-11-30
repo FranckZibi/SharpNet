@@ -109,6 +109,8 @@ namespace SharpNet.Networks
 
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
 
+        public Layer LastLayer => Layers.Count == 0 ? null : Layers.Last();
+
         public void Dispose()
         {
             if (IsMaster)
@@ -192,6 +194,25 @@ namespace SharpNet.Networks
             Layers.Add(simpleRnnLayer);
             return this;
         }
+
+        public Network LSTM(int units, bool returnSequences, string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Debug.Assert(UseGPU);
+            var lstm = new LSTMLayer(units, returnSequences, true, this, layerName);
+            Layers.Add(lstm);
+            return this;
+        }
+
+        public Network GRU(int units, bool returnSequences, string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Debug.Assert(UseGPU);
+            var lstm = new GRULayer(units, returnSequences, true, this, layerName);
+            Layers.Add(lstm);
+            return this;
+        }
+
         public Network Dense(int categoryCount, double lambdaL2Regularization, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
