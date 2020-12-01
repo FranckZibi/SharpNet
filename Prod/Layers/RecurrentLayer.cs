@@ -60,7 +60,7 @@ namespace SharpNet.Layers
         protected int HiddenSize => _rnnDescriptor.hiddenSize;    //dimensionality of the output space = Units
 
         #region constructor
-        protected RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, bool returnSequences, bool trainable, Network network, string layerName) : base(network, layerName)
+        protected RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             int inputSize = PrevLayer.OutputShape(1)[2]; // InputSize = Features
             uint auxFlags = 0;
@@ -68,7 +68,7 @@ namespace SharpNet.Layers
             _rnnDescriptor = new RNNDescriptor(
                 cudnnRNNAlgo_t.CUDNN_RNN_ALGO_STANDARD,
                 cellMode,
-                cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS,
+                biasMode,
                 cudnnDirectionMode_t.CUDNN_UNIDIRECTIONAL,
                 cudnnRNNInputMode_t.CUDNN_LINEAR_INPUT,
                 cudnnDataType_t.CUDNN_DATA_FLOAT,

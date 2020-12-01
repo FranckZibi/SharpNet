@@ -9,7 +9,7 @@ namespace SharpNet.Layers
     {
         #region constructor
         public LSTMLayer(int units, bool returnSequences, bool trainable, Network network, string layerName) :
-            base(units, cudnnRNNMode_t.CUDNN_LSTM, returnSequences, trainable, network, layerName)
+            base(units, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, trainable, network, layerName)
         {
         }
         #endregion

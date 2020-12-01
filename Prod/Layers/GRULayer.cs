@@ -9,7 +9,7 @@ namespace SharpNet.Layers
     {
         #region constructor
         public GRULayer(int units, bool returnSequences, bool trainable, Network network, string layerName) :
-            base(units, cudnnRNNMode_t.CUDNN_GRU, returnSequences, trainable, network, layerName)
+            base(units, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, trainable, network, layerName)
         {
         }
         #endregion

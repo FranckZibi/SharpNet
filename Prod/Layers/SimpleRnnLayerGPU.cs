@@ -9,7 +9,7 @@ namespace SharpNet.Layers
     {
         #region constructor
         public SimpleRnnLayerGPU(int units, bool returnSequences, bool trainable, Network network, string layerName) : 
-            base(units, cudnnRNNMode_t.CUDNN_RNN_TANH, returnSequences, trainable, network, layerName)
+            base(units, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, trainable, network, layerName)
         {
         }
         #endregion
