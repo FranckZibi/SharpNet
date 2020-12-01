@@ -669,11 +669,11 @@ namespace SharpNet.Data
         public abstract IntPtr Pointer { get; }
 
         /// <summary>
-        /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
+        /// this = expected (true) values
         /// </summary>
-        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
+        /// <param name="yPredicted">what has been predicted by the ML</param>
         /// <param name="lossFunction"></param>
-        /// <param name="buffer"></param>
+        /// <param name="buffer">a temporary buffer</param>
         /// <returns></returns>
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
 

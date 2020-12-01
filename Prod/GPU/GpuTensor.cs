@@ -619,6 +619,8 @@ namespace SharpNet.GPU
         {
             var huberLoss = this;
             int batchSize = yExpected.Shape[0];
+            Debug.Assert(huberLoss.SameShape(new [] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
             _wrapper.RunKernel("HuberLoss", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
         }
 

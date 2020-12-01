@@ -457,16 +457,16 @@
 		if (i < batchSize) {
 			int startIndex = i * lineSize;
 			int endIndexExcluded = startIndex + lineSize;
+			float loss = 0.0f;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yExpected[j] - yPredicted[j];
-				float loss;
 				if (fabsf(diff) <= huberDelta)
-					loss = 0.5f * diff * diff;
+					loss += 0.5f * diff * diff;
 				else
-					loss = huberDelta * fabs(diff) - 0.5f * huberDelta * huberDelta;
-				losses[j] = loss / lineSize;
+					loss += huberDelta * fabs(diff) - 0.5f * huberDelta * huberDelta;
 			}
+			losses[i] = loss;
 		}
 	}
 

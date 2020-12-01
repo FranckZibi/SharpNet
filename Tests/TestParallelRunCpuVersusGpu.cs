@@ -696,9 +696,9 @@ namespace SharpNetTests
         {
             var nbRows = 1000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
-            var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
+            var yExpected = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
-            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
+            TestAllForReturnValue(new[] { yExpected, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
         }
 
         [Test]
@@ -729,7 +729,8 @@ namespace SharpNetTests
         {
             var predicted = RandomTensor(shape);
             var expected = RandomTensor(predicted.Shape);
-            var huberLoss = RandomTensor(expected.Shape);
+            var batchSize = shape[0];
+            var huberLoss = RandomTensor(new []{ batchSize });
             TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].HuberLoss(tensors[1], tensors[2], 1.0f));
         }
 
