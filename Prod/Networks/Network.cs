@@ -212,17 +212,34 @@ namespace SharpNet.Networks
         }
 
         /// <summary>
-        /// TO REMOVE
+        /// TO REMOVE (OBSOLETE)
         /// </summary>
-        /// <param name="categoryCount"></param>
-        /// <param name="lambdaL2Regularization"></param>
-        /// <param name="flattenInputTensorOnLastDimension"></param>
-        /// <param name="layerName"></param>
         /// <returns></returns>
-        public Network Dense(int categoryCount, double lambdaL2Regularization, bool? flattenInputTensorOnLastDimension, string layerName = "")
+        public Network Dense(int units, double lambdaL2Regularization, bool? flattenInputTensorOnLastDimension, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(categoryCount, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
+            if (!flattenInputTensorOnLastDimension.HasValue)
+            {
+                if (Layers.Last() is RecurrentLayer || Layers.Last() is SimpleRnnLayerCPU)
+                {
+                    //we'll flatten the input tensor x keeping the last dimension intact:
+                    //  (a,b,c,d) => a*b*c*, d)
+                    flattenInputTensorOnLastDimension = true;
+                }
+                else
+                {
+                    //we'll flatten the input tensor 'x' keeping the fist dimension intact:
+                    //  (a,b,c,d) => (a, b*c**d)
+                    flattenInputTensorOnLastDimension = false;
+                }
+            }
+            return Dense(units, lambdaL2Regularization, flattenInputTensorOnLastDimension.Value, layerName);
+        }
+
+        public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            var fullyConnectedLayer = new DenseLayer(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }

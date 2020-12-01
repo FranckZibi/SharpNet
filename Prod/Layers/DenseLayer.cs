@@ -14,15 +14,17 @@ namespace SharpNet.Layers
     /// input shape :
     ///     (batchSize, ..., n_x)
     /// output shape :
-    ///     (batchSize, ..., units)
+    ///     (batchSize, ..., units)                 if flattenInputTensorOnLastDimension == True
+    ///     (batchSize, units)                      if flattenInputTensorOnLastDimension == False
     /// </summary>
     public sealed class DenseLayer : Layer
     {
-
         #region Private fields
         #region trainable parameters
         /// <summary>
-        /// shape: ( prevLayerOutputShape[last], Units)
+        /// shape: 
+        ///    (prevLayerOutputShape[last], units)      if _flattenInputTensorOnLastDimension == True
+        ///    (PrevLayer.n_x, units)           if _flattenInputTensorOnLastDimension == False
         /// </summary>
         [NotNull] private Tensor _weights;
         /// <summary>
@@ -55,39 +57,21 @@ namespace SharpNet.Layers
         /// <summary>
         /// dimensionality of the output space
         /// </summary>
-        public int CategoryCount { get; }
+        public int Units { get; }
         private readonly bool _flattenInputTensorOnLastDimension;
         #endregion
 
         #region constructor
-        public DenseLayer(int categoryCount, double lambdaL2Regularization, bool? flattenInputTensorOnLastDimension,  bool trainable, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension,  bool trainable, Network network, string layerName) : base(network, layerName)
         {
-            if (!flattenInputTensorOnLastDimension.HasValue)
-            {
-                if ( PrevLayer is RecurrentLayer || PrevLayer is SimpleRnnLayerCPU)
-                {
-                    //we'll flatten the input tensor x keeping the last dimension intact:
-                    //  (a,b,c,d) => a*b*c*, d)
-                    flattenInputTensorOnLastDimension = true; 
-                }
-                else
-                {
-                    //we'll flatten the input tensor 'x' keeping the fist dimension intact:
-                    //  (a,b,c,d) => (a, b*c**d)
-                    flattenInputTensorOnLastDimension = false;
-                }
-            }
-            _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension.Value;
-
-            CategoryCount = categoryCount;
+            _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension;
+            Units = units;
             LambdaL2Regularization = lambdaL2Regularization;
             Trainable = trainable;
 
-
-
             //trainable params
-            _weights = GetFloatTensor(new[] { PrevLayer.OutputShape(1).Last(), CategoryCount });
-            _bias = GetFloatTensor(new[] {1, CategoryCount });
+            _weights = GetFloatTensor(WeightShape);
+            _bias = GetFloatTensor(new[] {1, Units });
             Debug.Assert(_bias != null);
 
             _weightGradients = GetFloatTensor(_weights.Shape);
@@ -97,6 +81,18 @@ namespace SharpNet.Layers
             ResetParameters(false);
         }
         #endregion
+
+        private int[] WeightShape
+        {
+            get
+            {
+                if (_flattenInputTensorOnLastDimension)
+                {
+                    return new[] { PrevLayer.OutputShape(1).Last(), Units };
+                }
+                return new[] { PrevLayer.n_x, Units };
+            }
+        }
 
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
@@ -108,7 +104,6 @@ namespace SharpNet.Layers
             yAs2DMatrix.Dot(xAs2DMatrix, _weights);
             _bias?.BroadcastAddVectorToOutput(yAs2DMatrix);
         }
-
        
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
@@ -182,8 +177,6 @@ namespace SharpNet.Layers
 
             return x.WithNewShape(xTargetShape);
         }
-
-
 
         public override bool OutputNeededForBackwardPropagation => false;
         #endregion
@@ -286,7 +279,7 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(CategoryCount), CategoryCount)
+            return RootSerializer().Add(nameof(Units), Units)
                 .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
                 .Add(nameof(_flattenInputTensorOnLastDimension), _flattenInputTensorOnLastDimension)
                 .ToString();
@@ -295,10 +288,11 @@ namespace SharpNet.Layers
         {
             var flattenInputTensorOnLastDimension =
                 serialized.ContainsKey(nameof(_flattenInputTensorOnLastDimension))
-                ? (bool?)serialized[nameof(_flattenInputTensorOnLastDimension)]
-                :null;
+                ? (bool)serialized[nameof(_flattenInputTensorOnLastDimension)]
+                :false;
+            var units = serialized.ContainsKey(nameof(Units)) ? (int) serialized[nameof(Units)] : (int) serialized["CategoryCount"];
             return new DenseLayer(
-                (int)serialized[nameof(CategoryCount)],
+                units,
                 (double)serialized[nameof(LambdaL2Regularization)],
                 flattenInputTensorOnLastDimension,
                 (bool)serialized[nameof(Trainable)],
@@ -310,9 +304,13 @@ namespace SharpNet.Layers
 
         public override int[] OutputShape(int batchSize)
         {
-            var outputShape = (int[])PrevLayer.OutputShape(batchSize).Clone();
-            outputShape[^1] = CategoryCount;
-            return outputShape;
+            if (_flattenInputTensorOnLastDimension)
+            {
+                var outputShape = (int[]) PrevLayer.OutputShape(batchSize).Clone();
+                outputShape[^1] = Units;
+                return outputShape;
+            }
+            return new[] { batchSize, Units };
         }
         public override string ToString()
         {
