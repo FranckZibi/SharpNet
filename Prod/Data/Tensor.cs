@@ -356,7 +356,7 @@ namespace SharpNet.Data
         }
 
         /// <summary>
-        /// extract channel 'channel' from this tensor and store it in 'tensor_NH'
+        /// extract channel 'channel' from 'this' tensor and stores it in 'tensor_NH'
         /// </summary>
         /// <param name="tensor_NH"></param>
         /// <param name="channel"></param>
@@ -624,8 +624,7 @@ namespace SharpNet.Data
         /// <param name="dx"></param>
         /// <param name="dropProbability"></param>
         /// <param name="dropoutReserveSpace"></param>
-        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability,
-            Tensor dropoutReserveSpace);
+        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace);
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)

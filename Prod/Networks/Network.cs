@@ -183,30 +183,30 @@ namespace SharpNet.Networks
             Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, lambdaL2Regularization, true, this, layerName));
             return this;
         }
-        public Network SimpleRnnLayer(int units, bool returnSequences, string layerName = "")
+        public Network SimpleRnn(int units, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             var simpleRnnLayer = UseGPU
-                ?(Layer)new SimpleRnnLayerGPU(units, returnSequences, true, this, layerName)
+                ?(Layer)new SimpleRnnLayerGPU(units, returnSequences, isBidirectional, true, this, layerName)
                 :new SimpleRnnLayerCPU(units, returnSequences, true, this, layerName);
             Layers.Add(simpleRnnLayer);
             return this;
         }
 
-        public Network LSTM(int units, bool returnSequences, string layerName = "")
+        public Network LSTM(int units, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
-            var lstm = new LSTMLayer(units, returnSequences, true, this, layerName);
+            var lstm = new LSTMLayer(units, returnSequences, isBidirectional, true, this, layerName);
             Layers.Add(lstm);
             return this;
         }
 
-        public Network GRU(int units, bool returnSequences, string layerName = "")
+        public Network GRU(int units, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
-            var lstm = new GRULayer(units, returnSequences, true, this, layerName);
+            var lstm = new GRULayer(units, returnSequences, isBidirectional, true, this, layerName);
             Layers.Add(lstm);
             return this;
         }

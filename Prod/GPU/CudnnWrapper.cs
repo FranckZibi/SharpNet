@@ -575,15 +575,40 @@ namespace SharpNet.GPU
             }
         }
 
+        public int[] XRnnData_Shape(bool time_major, int timeSteps, int batchSize)
+        {
+            return time_major
+                ? new[] { timeSteps, batchSize, inputSize }
+                : new[] { batchSize, timeSteps, inputSize };
+        }
+
+        public int[] YRnnData_Shape(bool time_major, int timeSteps, int batchSize)
+        {
+            int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
+            return time_major
+                ? new[] {timeSteps, batchSize, K * hiddenSize}
+                : new[] {batchSize, timeSteps, K * hiddenSize };
+        }
+
+        public int[] Y_Shape(bool returnSequences, int timeSteps, int batchSize)
+        {
+            int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
+            return returnSequences
+                        ?new[] { batchSize, timeSteps, K * hiddenSize }
+                        :new[] { batchSize, K * hiddenSize }; //only the last output
+
+        }
+
         private int HiddenSizeMultiplier
         {
             get
             {
+                int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
                 switch (cellMode)
                 {
-                    case cudnnRNNMode_t.CUDNN_RNN_TANH: return 1;
-                    case cudnnRNNMode_t.CUDNN_LSTM: return 4;
-                    case cudnnRNNMode_t.CUDNN_GRU: return 3;
+                    case cudnnRNNMode_t.CUDNN_RNN_TANH: return K*1;
+                    case cudnnRNNMode_t.CUDNN_LSTM: return K*4;
+                    case cudnnRNNMode_t.CUDNN_GRU: return K*3;
                     default:
                         throw new NotImplementedException(nameof(HiddenSizeMultiplier) + " " + cellMode);
                 }

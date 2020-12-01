@@ -947,20 +947,18 @@ namespace SharpNetTests.NonReg
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
-            const double momentum = 0.9;
             var X = FromNumpyArray(X_RNN_4_2_1);
             var Y = FromNumpyArray(Y_RNN_4_2_1);
 
             int batchSize = X.Shape[0];
             int timeSteps = X.Shape[1];
             int inputSize = X.Shape[2];
-            var returnSequences = Y.Shape[1] != 1;
 
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
-            network.Config.WithSGD(momentum, false);
+            network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .SimpleRnnLayer(3, returnSequences)
+                .SimpleRnn(3, true, false)
                 .Dense(1, 0.0, true);
 
             CopyToWeightax("[[0.21075093746185303, -0.2379138469696045, 0.844817042350769]]", network.Layers[1]);
@@ -976,25 +974,55 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[[4.08770275],[4.73478699]],[[4.60435295],[4.74443769]],[[4.71910095],[4.74600172]],[[4.74124956],[4.74628592]]]", 1e-3);
         }
 
+
+        [Test]
+        public void Test_SimpleRNN_returnSequence_true_bidirectional()
+        {
+            const int numEpochs = 10;
+            const double learningRate = 0.1;
+            var X = FromNumpyArray(X_RNN_4_2_1);
+            var Y = FromNumpyArray(Y_RNN_4_2_1);
+
+            int batchSize = X.Shape[0];
+            int timeSteps = X.Shape[1];
+            int inputSize = X.Shape[2];
+
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
+            network.Config.WithSGD(0.9, false);
+            network
+                .Input(timeSteps, inputSize, -1)
+                .SimpleRnn(3, true, true)
+                .Dense(1, 0.0, true);
+
+            network.Layers[1].Weights.ZeroMemory();
+            TestNetworkPropagation.FromNumpyArray("[[0.18850135803222656], [-0.2127966284751892], [0.7556273937225342], [0.6490507125854492]]").CopyTo(((DenseLayer)network.Layers[2]).Weights);
+
+            //predictions before training
+            TestPredict(network, X, "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", 1e-3);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+            //predictions after training
+            TestPredict(network, X, "[[[4.32947731],[4.41691017]],[[4.41573238],[4.42878008]],[[4.42856264],[4.43054056]],[[4.43050671],[4.43080759]]]", 1e-3);
+        }
+
+
+
         [Test, TestCaseSource(nameof(GetTestCases))]
         public void Test_SimpleRNN_returnSequence_false(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
-            const double momentum = 0.9;
             var X = FromNumpyArray(X_RNN_4_2_1);
             var Y = FromNumpyArray(Y_RNN_4_1_1);
 
             int batchSize = X.Shape[0];
             int timeSteps = X.Shape[1];
             int inputSize = X.Shape[2];
-            var returnSequences = Y.Shape[1] != 1;
 
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .SimpleRnnLayer(3, returnSequences)
+                .SimpleRnn(3, false, false)
                 .Dense(1, 0.0, true);
 
             CopyToWeightax("[[0.21075093746185303, -0.2379138469696045, 0.844817042350769]]", network.Layers[1]);
@@ -1015,7 +1043,6 @@ namespace SharpNetTests.NonReg
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
-            const double momentum = 0.9;
             var X = FromNumpyArray(X_RNN_4_2_1);
             var Y = FromNumpyArray(Y_RNN_4_2_1);
 
@@ -1024,10 +1051,10 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
-            network.Config.WithSGD(momentum, false);
+            network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .LSTM(2, true)
+                .LSTM(2, true, false)
                 .Dense(1, 0.0, true);
 
             CopyToWeightax("[[0.14050060510635376, -0.15860921144485474, 0.5632114410400391, 0.4837738275527954, -0.09712332487106323, -0.6581252813339233, 0.36030125617980957, -0.12306499481201172]]", network.Layers[1]);
@@ -1045,11 +1072,41 @@ namespace SharpNetTests.NonReg
         }
 
         [Test]
+        public void Test_LSTM_returnSequence_true_bidirectional()
+        {
+            const int numEpochs = 10;
+            const double learningRate = 0.1;
+            var X = FromNumpyArray(X_RNN_4_2_1);
+            var Y = FromNumpyArray(Y_RNN_4_2_1);
+
+            int batchSize = X.Shape[0];
+            int timeSteps = X.Shape[1];
+            int inputSize = X.Shape[2];
+
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
+            network.Config.WithSGD(0.9, false);
+            network
+                .Input(timeSteps, inputSize, -1)
+                .LSTM(2, true, true)
+                .Dense(1, 0.0, true);
+
+            network.Layers[1].Weights.ZeroMemory();
+            FromNumpyArray("[[0.18850135803222656], [-0.2127966284751892], [0.7556273937225342], [0.6490507125854492]]").CopyTo(network.Layers[2].Weights);
+
+            //predictions before training
+            TestPredict(network, X, "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", 1e-3);
+
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+
+            //predictions after training
+            TestPredict(network, X, "[[[4.9929328],[5.11667824]],[[5.49777794],[5.44859505]],[[5.80846691],[5.65499783]],[[6.00010109],[5.78587103]]]", 1e-3);
+        }
+
+        [Test]
         public void Test_LSTM_returnSequence_false()
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
-            const double momentum = 0.9;
             var X = FromNumpyArray(X_RNN_4_2_1);
             var Y = FromNumpyArray(Y_RNN_4_1_1);
 
@@ -1058,10 +1115,10 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
-            network.Config.WithSGD(momentum, false);
+            network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .LSTM(2, false)
+                .LSTM(2, false, false)
                 .Dense(1, 0.0, true);
 
             CopyToWeightax("[[0.14050060510635376, -0.15860921144485474, 0.5632114410400391, 0.4837738275527954, -0.09712332487106323, -0.6581252813339233, 0.36030125617980957, -0.12306499481201172]]", network.Layers[1]);
@@ -1083,7 +1140,6 @@ namespace SharpNetTests.NonReg
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
-            const double momentum = 0.9;
             var X = FromNumpyArray(X_RNN_4_2_1);
             var Y = FromNumpyArray(Y_RNN_4_2_1);
 
@@ -1092,10 +1148,10 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
-            network.Config.WithSGD(momentum, false);
+            network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .GRU(2, true)
+                .GRU(2, true, false)
                 .Dense(1, 0.0, true);
 
             CopyToWeightax("[[0.6386216878890991, 0.5485479831695557, 0.15931272506713867, -0.179845929145813, -0.1101275086402893, -0.7462438941001892]]", network.Layers[1]);
@@ -1112,11 +1168,39 @@ namespace SharpNetTests.NonReg
         }
 
         [Test]
+        public void Test_GRU_returnSequence_true_bidirectional()
+        {
+            const int numEpochs = 10;
+            const double learningRate = 0.1;
+            var X = FromNumpyArray(X_RNN_4_2_1);
+            var Y = FromNumpyArray(Y_RNN_4_2_1);
+
+            int batchSize = X.Shape[0];
+            int timeSteps = X.Shape[1];
+            int inputSize = X.Shape[2];
+
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
+            network.Config.WithSGD(0.9, false);
+            network
+                .Input(timeSteps, inputSize, -1)
+                .GRU(2, true, true)
+                .Dense(1, 0.0, true);
+
+            network.Layers[1].Weights.ZeroMemory();
+            FromNumpyArray("[[0.18850135803222656], [-0.2127966284751892], [0.7556273937225342], [0.6490507125854492]]").CopyTo(network.Layers[2].Weights);
+
+            //predictions before training
+            TestPredict(network, X, "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", 1e-3);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+            //predictions after training
+            TestPredict(network, X, "[[[5.11490726],[5.21613836]],[[5.28695011],[5.44156599]],[[5.33742332],[5.54083538]],[[5.3631835],[5.5902195]]]", 1e-3);
+        }
+
+        [Test]
         public void Test_GRU_returnSequence_false()
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
-            const double momentum = 0.9;
             var X = FromNumpyArray(X_RNN_4_2_1);
             var Y = FromNumpyArray(Y_RNN_4_1_1);
 
@@ -1125,10 +1209,10 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> { 0 });
-            network.Config.WithSGD(momentum, false);
+            network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .GRU(2, false)
+                .GRU(2, false, false)
                 .Dense(1, 0.0, false);
 
             CopyToWeightax("[[0.6386216878890991, 0.5485479831695557, 0.15931272506713867, -0.179845929145813, -0.1101275086402893, -0.7462438941001892]]", network.Layers[1]);
