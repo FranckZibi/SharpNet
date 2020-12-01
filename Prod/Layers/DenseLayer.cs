@@ -62,7 +62,7 @@ namespace SharpNet.Layers
         #endregion
 
         #region constructor
-        public DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension,  bool trainable, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension;
             Units = units;
@@ -286,11 +286,8 @@ namespace SharpNet.Layers
         }
         public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            var flattenInputTensorOnLastDimension =
-                serialized.ContainsKey(nameof(_flattenInputTensorOnLastDimension))
-                ? (bool)serialized[nameof(_flattenInputTensorOnLastDimension)]
-                :false;
-            var units = serialized.ContainsKey(nameof(Units)) ? (int) serialized[nameof(Units)] : (int) serialized["CategoryCount"];
+            var units = serialized.ContainsKey(nameof(Units)) ? (int)serialized[nameof(Units)] : (int)serialized["CategoryCount"];
+            var flattenInputTensorOnLastDimension = serialized.ContainsKey(nameof(_flattenInputTensorOnLastDimension)) && (bool)serialized[nameof(_flattenInputTensorOnLastDimension)];
             return new DenseLayer(
                 units,
                 (double)serialized[nameof(LambdaL2Regularization)],
