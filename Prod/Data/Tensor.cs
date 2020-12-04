@@ -53,7 +53,7 @@ namespace SharpNet.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Idx(int n, int c, int h, int w) { return MultDim0 * n + MultDim1 * c + _multDim2 * h + w; }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
+        public int Idx(int n, int c, int h) { return MultDim0 * n + MultDim1 * c + h; }
 
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
@@ -526,6 +526,10 @@ namespace SharpNet.Data
         public Tensor ElementSlice(int elementIndex)
         {
             return RowSlice(elementIndex, 1);
+        }
+        public Tensor ElementSlice(int elementIndex, int[] newShape)
+        {
+            return Slice(Idx(elementIndex), newShape);
         }
 
         /// <summary>

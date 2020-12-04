@@ -14,8 +14,8 @@ namespace SharpNet.Layers
     /// input shape :
     ///     (batchSize, ..., n_x)
     /// output shape :
-    ///     (batchSize, ..., units)                 if flattenInputTensorOnLastDimension == True
-    ///     (batchSize, units)                      if flattenInputTensorOnLastDimension == False
+    ///     (batchSize, ..., units)                 if flattenInputTensorOnLastDimension == true
+    ///     (batchSize, units)                      if flattenInputTensorOnLastDimension == false
     /// </summary>
     public sealed class DenseLayer : Layer
     {
@@ -23,8 +23,8 @@ namespace SharpNet.Layers
         #region trainable parameters
         /// <summary>
         /// shape: 
-        ///    (prevLayerOutputShape[last], units)      if _flattenInputTensorOnLastDimension == True
-        ///    (PrevLayer.n_x, units)           if _flattenInputTensorOnLastDimension == False
+        ///    (prevLayerOutputShape[last], units)      if _flattenInputTensorOnLastDimension == true
+        ///    (PrevLayer.n_x, units)           if _flattenInputTensorOnLastDimension == false
         /// </summary>
         [NotNull] private Tensor _weights;
         /// <summary>
@@ -58,6 +58,15 @@ namespace SharpNet.Layers
         /// dimensionality of the output space
         /// </summary>
         public int Units { get; }
+        /// <summary>
+        /// if true
+        ///     we'll flatten the input tensor x keeping the last dimension intact:     (a,b,c,d) => (a*b*c*, d)
+        ///     the weight matrix will be of shape (d, units)
+        /// else
+        ///     we'll assume that a Flatten Layer was just before the current 'this' Layer
+        ///     we'll flatten the input tensor 'x' keeping the fist dimension intact:   (a,b,c,d) => (a, b*c*d)
+        ///     the weight matrix will be of shape (b*c*d, units)
+        /// </summary>
         private readonly bool _flattenInputTensorOnLastDimension;
         #endregion
 
@@ -148,10 +157,10 @@ namespace SharpNet.Layers
 
         /// <summary>
         /// When x is tensor with >=3 dimension         (ex:  (a, b, c, d))
-        ///     if _flattenInputTensorOnLastDimension == True
+        ///     if _flattenInputTensorOnLastDimension == true
         ///             we'll change its shape to a 2D Matrix       (ex:  (a*b*c, d) )
         ///             so that the last dimension of the matrix (ex: d) is preserved
-        ///     else (_flattenInputTensorOnLastDimension == False)
+        ///     else (_flattenInputTensorOnLastDimension == false)
         ///             we'll change its shape to a 2D Matrix       (ex:  (a, b*c*d) )
         ///             so that the first dimension of the matrix (ex: a) is preserved
         /// </summary>

@@ -14,7 +14,18 @@ namespace SharpNet.Layers
     {
         #region fields
         public int LayerIndex { get; }
-        public string LayerName { get; }
+
+        public string LayerName
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_layerName))
+                {
+                    _layerName = DefaultLayerName();
+                }
+                return _layerName;
+            }
+        }
         public List<int> NextLayerIndexes { get; } = new List<int>();
         public List<int> PreviousLayerIndexes { get; } = new List<int>();
         /// <summary>
@@ -25,6 +36,7 @@ namespace SharpNet.Layers
         protected readonly Network Network;
         private bool _isDisposed;
         public int[] LazyOutputShape { private get; set; }
+        private string _layerName;
         #endregion
 
         #region constructors
@@ -33,7 +45,7 @@ namespace SharpNet.Layers
             Network = network;
             LayerIndex = network.Layers.Count;
             // ReSharper disable once VirtualMemberCallInConstructor
-            LayerName = string.IsNullOrEmpty(layerName) ? DefaultLayerName() : layerName;
+            _layerName = layerName;
             foreach (var previousLayerIndex in previousLayerIndexes)
             {
                 Debug.Assert(previousLayerIndex>=0);
@@ -226,16 +238,7 @@ namespace SharpNet.Layers
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
-                case nameof(SimpleRnnLayerCPU): 
-                case nameof(SimpleRnnLayerGPU): return network.UseGPU
-                        ? (Layer)SimpleRnnLayerGPU.Deserialize(serialized, network)
-                        : SimpleRnnLayerCPU.Deserialize(serialized, network);
-                case nameof(LSTMLayer):
-                    Debug.Assert(network.UseGPU); //LSTM layers are currently only available on GPU
-                    return LSTMLayer.Deserialize(serialized, network);
-                case nameof(GRULayer):
-                    Debug.Assert(network.UseGPU); //GRU layers are currently only available on GPU
-                    return GRULayer.Deserialize(serialized, network);
+                case nameof(RecurrentLayer): return RecurrentLayer.Deserialize(serialized, network);
                 case nameof(UpSampling2DLayer): return UpSampling2DLayer.Deserialize(serialized, network);
                 case nameof(YOLOV3Layer): return YOLOV3Layer.Deserialize(serialized, network);
                 case nameof(ZeroPadding2DLayer): return ZeroPadding2DLayer.Deserialize(serialized, network);
@@ -276,7 +279,17 @@ namespace SharpNet.Layers
         {
             return OutputShape(1).SequenceEqual(layer.OutputShape(1));
         }
-        protected virtual string DefaultLayerName() { return Type().ToLowerInvariant()+"_"+(1+NbLayerOfSameTypeBefore()); }
+
+        protected virtual string DefaultLayerName()
+        {
+            var result = Type().ToLowerInvariant();
+            int countBefore = Layers.Count(l => l.LayerIndex < LayerIndex && l.Type() == Type());
+            if (countBefore != 0)
+            {
+                result += "_" + countBefore;
+            }
+            return result;
+        }
         public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
         public virtual int ExtraElementCountForForwardPropagation(int batchSize)
         {
@@ -418,10 +431,6 @@ namespace SharpNet.Layers
         {
             MemoryPool.FreeFloatTensor(t);
         }
-        protected void GetBuffer(ref Tensor buffer, size_t minimalSizeInBytes)
-        {
-            MemoryPool.GetBuffer(ref buffer, minimalSizeInBytes);
-        }
         protected Tensor GetBuffer(size_t minimalSizeInBytes)
         {
             return MemoryPool.GetBuffer(minimalSizeInBytes);
@@ -469,18 +478,7 @@ namespace SharpNet.Layers
             //In this mode bnBias, bnScale tensor dimensions are (1, C, 1, 1)
             return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
         }
-        protected int NbLayerOfSameTypeBefore()
-        {
-            int result = 0;
-            for (var layerIndex = 0; layerIndex < LayerIndex; ++layerIndex)
-            {
-                if (Layers[layerIndex].GetType() == GetType())
-                {
-                    ++result;
-                }
-            }
-            return result;
-        }
+
         protected Random Rand => Config.Rand;
         protected TensorMemoryPool MemoryPool => Network.MemoryPool;
         protected List<Layer> Layers => Network.Layers;

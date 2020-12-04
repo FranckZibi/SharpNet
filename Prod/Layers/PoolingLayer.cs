@@ -114,6 +114,10 @@ namespace SharpNet.Layers
         #endregion
 
         public override string Type() { return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AveragePooling"; }
+        protected override string DefaultLayerName()
+        {
+            return base.DefaultLayerName().Replace("pooling", "_pooling2d_");
+        }
         public static bool IsMaxPooling(cudnnPoolingMode_t poolingMode)
         {
             return poolingMode == cudnnPoolingMode_t.CUDNN_POOLING_MAX ||
@@ -179,9 +183,5 @@ namespace SharpNet.Layers
             return (poolingHeight == -1);
         }
 
-        protected override string DefaultLayerName()
-        {
-            return (IsMaxPooling(_poolingMode) ? "max_pooling2d_" : "average_pooling2d_") + (1 + NbLayerOfSameTypeBefore());
-        }
     }
 }

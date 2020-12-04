@@ -252,7 +252,11 @@ namespace SharpNet.Layers
             result.RemoveAll(t => t == null);
             return result;
         }
-        protected override string DefaultLayerName() { return "batch_normalization_" + (1 + NbLayerOfSameTypeBefore()); }
+
+        protected override string DefaultLayerName()
+        {
+            return base.DefaultLayerName().Replace("batchnormalization", "batch_normalization");
+        }
 
         private int[] ScaleAndBiasShape()
         {

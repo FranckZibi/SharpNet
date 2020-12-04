@@ -87,7 +87,10 @@ namespace SharpNet.Layers
         }
         public override string Type() { return "InputLayer"; }
 
-        protected override string DefaultLayerName() { return "input_" + (1 + NbLayerOfSameTypeBefore()); }
+        protected override string DefaultLayerName()
+        {
+            return base.DefaultLayerName().Replace("inputlayer", "input");
+        }
 
         public void SetInputHeightAndWidth(int height, int width)
         {

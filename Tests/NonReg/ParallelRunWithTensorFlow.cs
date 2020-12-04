@@ -679,10 +679,6 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow_Recurrent()
         {
-            const int numEpochs = 10;
-            const double learningRate = 0.1;
-            const double lambdaL2Regularization = 0.00;
-            const double momentum = 0.9;
 
             //var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[1.7],[2.5],[3.8]] ], numpy.float)");
             //var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [5.2] ], numpy.float)");
@@ -692,6 +688,11 @@ namespace SharpNetTests.NonReg
             //var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[10.0],[20.0]] ], numpy.float)");
             //var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [30.0] ], numpy.float)");
             //var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[20.0],[30.0]] ], numpy.float)");
+
+
+            //var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[1.0],[2.0],[3]] , [[2.0],[3.0],[4]] , [[3.0],[4.0],[5]]  , [[4.0],[5.0],[6]] ], numpy.float)");
+            //var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[4]] , [[5]] , [[6]] , [[7]] ], numpy.float)");
+
 
             var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[1.0],[2.0]] , [[2.0],[3.0]] , [[3.0],[4.0]]  , [[4.0],[5.0]] ], numpy.float)");
             var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[3.0]] , [[4.0]] , [[5.0]] , [[6.0]] ], numpy.float)");
@@ -720,8 +721,10 @@ namespace SharpNetTests.NonReg
             //var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[1]] ], numpy.float)");
             //var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([ [[2]]] ], numpy.float)");
 
-
-
+            const int numEpochs = 10;
+            const double learningRate = 0.1;
+            const double lambdaL2Regularization = 0.00;
+            const double momentum = 0.9;
             int batchSize = X.Shape[0];
             int timeSteps = X.Shape[1];     //number of words in each sentence
             int inputSize = X.Shape[2];     //number of distinct words in the dictionary 
@@ -744,7 +747,7 @@ namespace SharpNetTests.NonReg
 
             network
                 .Input(timeSteps, inputSize, -1)
-                .GRU(hiddenSize, returnSequences) 
+                .SimpleRNN(hiddenSize, returnSequences, true, false)
                 .Dense(1, 0.0, true)
                 ;
 
@@ -752,21 +755,20 @@ namespace SharpNetTests.NonReg
             Log.Info(network.Summary() + Environment.NewLine);
 
             //1 unit
-            //TestNetworkPropagation.CopyToWeightax("[[0.6386216878890991, 0.5485479831695557, 0.15931272506713867, -0.179845929145813, -0.1101275086402893, -0.7462438941001892]]", network.Layers[1]);
-            //TestNetworkPropagation.CopyToWeightaa("[[0.1595684438943863, -0.7116620540618896, -0.18533241748809814, -0.42494750022888184, 0.45803263783454895, 0.20821300148963928], [0.1900171935558319, -0.5459864139556885, 0.45322880148887634, 0.43114137649536133, -0.09709013998508453, -0.5148460268974304]]", network.Layers[1]);
-            ////TestNetworkPropagation.CopyToRecurrentBias("[0.0, 1.0, 0.0, 0.0]", network.Layers[1]);
-            //TestNetworkPropagation.FromNumpyArray("[[-1.243709683418274], [0.6433604955673218]]").CopyTo(((DenseLayer)network.Layers[2]).Weights);
+            //network.Layers[1].Weights.ZeroMemory();
+            //TestNetworkPropagation.FromNumpyArray("[[0.9734686613082886]]").CopyTo(network.Layers[2].Weights);
+
+            //1 unit bidirectional
+            //network.Layers[1].Weights.ZeroMemory();
+            //TestNetworkPropagation.FromNumpyArray("[[-1.243709683418274], [0.6433604955673218]]").CopyTo(network.Layers[2].Weights);
 
             //2 units
-            TestNetworkPropagation.CopyToWeightax("[[0.6386216878890991, 0.5485479831695557, 0.15931272506713867, -0.179845929145813, -0.1101275086402893, -0.7462438941001892]]", network.Layers[1]);
-            TestNetworkPropagation.CopyToWeightaa("[[ 0.1595684438943863, 0.1900171935558319,-0.7116620540618896, -0.5459864139556885, -0.18533241748809814, 0.45322880148887634], [-0.42494750022888184, 0.43114137649536133, 0.45803263783454895,-0.09709013998508453 , 0.20821300148963928, -0.5148460268974304]]", network.Layers[1]);
-            //TestNetworkPropagation.CopyToRecurrentBias("[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]", network.Layers[1]);
-            TestNetworkPropagation.FromNumpyArray("[[-1.243709683418274], [0.6433604955673218]]").CopyTo(((DenseLayer)network.Layers[2]).Weights);
+            //network.Layers[1].Weights.ZeroMemory();
+            //TestNetworkPropagation.FromNumpyArray("[[-1.243709683418274], [0.6433604955673218]]").CopyTo(((DenseLayer)network.Layers[2]).Weights);
 
-            //3 units
-            //TestNetworkPropagation.CopyToWeightax("[[0.21075093746185303, -0.2379138469696045, 0.844817042350769]]", network.Layers[1]);
-            //TestNetworkPropagation.CopyToWeightaa("[[-0.24123644828796387, 0.9670713543891907, -0.08110442012548447], [0.2893434166908264, 0.15144436061382294, 0.9451692700386047], [-0.9263289570808411, -0.20454227924346924, 0.3163496255874634]]", network.Layers[1]);
-            //TestNetworkPropagation.FromNumpyArray("[[-1.0770841836929321], [0.557166576385498], [0.405431866645813]]").CopyTo(((DenseLayer)network.Layers[2]).Weights);
+            //2 units bidirectional
+            //network.Layers[1].Weights.ZeroMemory();
+            //TestNetworkPropagation.FromNumpyArray("[[0.18850135803222656], [-0.2127966284751892], [0.7556273937225342], [0.6490507125854492]]").CopyTo(network.Layers[2].Weights);
 
             network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToShapeAndNumpy();
@@ -790,6 +792,7 @@ namespace SharpNetTests.NonReg
             Log.Info("C# momentum= " + momentum);
             Log.Info("C# batchSize= " + batchSize);
             Log.Info("C# hiddenSize= " + hiddenSize);
+            Log.Info("C# return_sequences= " + returnSequences);
             Log.Info("C# prediction_before= " + predict_before);
             Log.Info("C# loss_before= " + lossAccuracyBefore.Item1 + " , accuracy_before= " + lossAccuracyBefore.Item2);
             Log.Info("C# prediction_after= " + predict_after);

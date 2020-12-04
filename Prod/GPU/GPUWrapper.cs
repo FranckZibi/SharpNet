@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using SharpNet.Layers;
 
 namespace SharpNet.GPU
 {
@@ -31,6 +32,7 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnFilterDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnTensorDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t> cacheFindConvolutionBackwardDataAlgorithm = new Dictionary<Tuple<cudnnFilterDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnTensorDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionBwdDataAlgo_t>();
         private readonly IDictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheConvolutionForwardAlgorithm = new Dictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
+        private readonly IDictionary<Tuple<int, int>, Tensor> _cacheDevSeqLengths = new Dictionary<Tuple<int, int>, Tensor>();
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
         private cudnnHandle_t _cudnnHandle;
@@ -191,7 +193,8 @@ namespace SharpNet.GPU
             }
             return result;
         }
-        public static void FillWithSameValue<T>(T* stackAllocated, int length, T newValue) where T : unmanaged
+
+        private static void FillWithSameValue<T>(T* stackAllocated, int length, T newValue) where T : unmanaged
         {
             for (int i = 0; i < length; ++i)
             {
@@ -488,6 +491,22 @@ namespace SharpNet.GPU
             return desc;
         }
 
+        /// <summary>
+        /// return an int tensor of length 'batchSize' containing only the same int value: timeSteps
+        /// </summary>
+        /// <param name="batchSize">length of the vector</param>
+        /// <param name="timeSteps">element to put on each element of the vector</param>
+        /// <returns></returns>
+        public Tensor GetDevSeqLengths(int batchSize, int timeSteps)
+        {
+            var key = Tuple.Create(batchSize, timeSteps);
+            if (!_cacheDevSeqLengths.ContainsKey(key))
+            {
+                _cacheDevSeqLengths[key] = new GPUTensor<int>(new[] { batchSize }, Enumerable.Repeat(timeSteps, batchSize).ToArray(), this);
+            }
+            return _cacheDevSeqLengths[key];
+        }
+
         public cudnnRNNDataDescriptor_t RNNDataDesc(cudnnDataType_t dataType, int maxSeqLength, int batchSize, int vectorSize, bool time_major)
         {
             CheckThreadId();
@@ -509,7 +528,6 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        
 
         public void Reset()
         {
@@ -537,6 +555,8 @@ namespace SharpNet.GPU
             cacheConvolutionDesc.Clear();
             cacheActivationDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyActivationDescriptor(x)));
             cacheActivationDesc.Clear();
+            _cacheDevSeqLengths.Values.ToList().ForEach(x => x.Dispose());
+            _cacheDevSeqLengths.Clear();
             cacheConvolutionForwardAlgorithm.Clear();
             cacheConvolutionBackwardFilterAlgorithm.Clear();
             cacheFindConvolutionBackwardDataAlgorithm.Clear();
