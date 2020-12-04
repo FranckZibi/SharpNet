@@ -109,7 +109,7 @@ namespace SharpNet.Layers
             {
                 // cuDNN 7.x doesn't support asymmetric padding
                 // we'll pad the input tensor 'x' so that we can use a symmetric padding
-                StartForwardTimer(Type() + ">ConvAsym", isTraining);
+                StartForwardTimer(LayerType() + ">ConvAsym", isTraining);
                 var paddedXShape = PaddedXShape(x.Shape, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 GetFloatTensor(ref _padded_X, paddedXShape);
                 _padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
@@ -118,19 +118,19 @@ namespace SharpNet.Layers
                 {
                     FreeFloatTensor(ref _padded_X);
                 }
-                StopForwardTimer(Type() + ">ConvAsym", isTraining);
+                StopForwardTimer(LayerType() + ">ConvAsym", isTraining);
             }
             else
             {
                 //symmetric padding
-                StartForwardTimer(Type() + ">Conv", isTraining);
+                StartForwardTimer(LayerType() + ">Conv", isTraining);
                 x.Convolution(_convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
-                StopForwardTimer(Type() + ">Conv", isTraining);
+                StopForwardTimer(LayerType() + ">Conv", isTraining);
             }
 
-            StartForwardTimer(Type() + ">Bias", isTraining);
+            StartForwardTimer(LayerType() + ">Bias", isTraining);
             _convolutionBias?.BroadcastConvolutionBiasToOutput(y);
-            StopForwardTimer(Type() + ">Bias", isTraining);
+            StopForwardTimer(LayerType() + ">Bias", isTraining);
         }
         public override int ExtraElementCountForForwardPropagation(int batchSize)
         {
@@ -160,9 +160,9 @@ namespace SharpNet.Layers
             {
                 Debug.Assert(_convolutionBiasGradients != null);
                 //we compute '_convolutionBiasGradients'
-                StartBackwardTimer(Type() + ">Bias");
+                StartBackwardTimer(LayerType() + ">Bias");
                 dy.ConvolutionBackwardBias(_convolutionBiasGradients);
-                StopBackwardTimer(Type() + ">Bias");
+                StopBackwardTimer(LayerType() + ">Bias");
             }
 
             // we compute '_convolutionGradients' (& dx if PrevLayer is not the input layer)
@@ -171,7 +171,7 @@ namespace SharpNet.Layers
             if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
                 // cuDNN 7.x doesn't support asymmetric padding, we'll use the padded version of input tensor 'x'
-                StartBackwardTimer(Type() + ">ConvAsym");
+                StartBackwardTimer(LayerType() + ">ConvAsym");
                 Debug.Assert(_padded_X != null);
                 var _padded_dX = GetFloatTensor(_padded_X.Shape);
                 _padded_X.ConvolutionGradient(_convolution, dy, 0, 0, 0, 0, _stride, _padded_dX, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
@@ -179,15 +179,15 @@ namespace SharpNet.Layers
                 dx[0]?.ZeroUnpadding(_padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 FreeFloatTensor(ref _padded_dX); //no more need of '_padded_dX'
                 Debug.Assert(_padded_X == null);
-                StopBackwardTimer(Type() + ">ConvAsym");
+                StopBackwardTimer(LayerType() + ">ConvAsym");
             }
             else
             {
                 //symmetric padding
-                StartBackwardTimer(Type() + ">Conv");
+                StartBackwardTimer(LayerType() + ">Conv");
                 Debug.Assert(_padded_X == null);
                 x.ConvolutionGradient(_convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
-                StopBackwardTimer(Type() + ">Conv");
+                StopBackwardTimer(LayerType() + ">Conv");
             }
 
             if (UseL2Regularization)
@@ -347,7 +347,7 @@ namespace SharpNet.Layers
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
         private int PreviousLayerIndex => PreviousLayerIndexes[0];
-        public override string Type()
+        public override string LayerType()
         {
             return _isDepthwiseConvolution? "DepthwiseConv2D" : "Conv2D";
         }

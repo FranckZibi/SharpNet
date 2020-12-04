@@ -39,20 +39,20 @@ namespace SharpNet.Layers
             Debug.Assert(dx2.SameShape(diagonalMatrix));
 
 
-            StartBackwardTimer(Type() + ">SameShape");
+            StartBackwardTimer(LayerType() + ">SameShape");
             dx1.MultiplyTensor(dy, diagonalMatrix);
-            StopBackwardTimer(Type() + ">SameShape");
+            StopBackwardTimer(LayerType() + ">SameShape");
             if (dx2.SameShape(dy))
             {
-                StartBackwardTimer(Type() + ">SameShape");
+                StartBackwardTimer(LayerType() + ">SameShape");
                 dx2.MultiplyTensor(dy, a);
-                StopBackwardTimer(Type() + ">SameShape");
+                StopBackwardTimer(LayerType() + ">SameShape");
             }
             else
             {
-                StartBackwardTimer(Type() + ">DistinctShape");
+                StartBackwardTimer(LayerType() + ">DistinctShape");
                 dx2.MultiplyEachRowIntoSingleValue(dy, a);
-                StopBackwardTimer(Type() + ">DistinctShape");
+                StopBackwardTimer(LayerType() + ">DistinctShape");
             }
         }
         public override bool OutputNeededForBackwardPropagation => false;

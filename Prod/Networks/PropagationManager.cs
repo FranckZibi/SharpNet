@@ -66,7 +66,7 @@ namespace SharpNet.Networks
             for (var layerIndex = 1; layerIndex <= lastLayerIndex; layerIndex++)
             {
                 var layer = _layers[layerIndex];
-                Network.StartTimer(layer.Type(), stopwatchDico);
+                Network.StartTimer(layer.LayerType(), stopwatchDico);
                 Tensor yBuffer;
                 if (layerIndex == lastLayerIndex)
                 {
@@ -119,7 +119,7 @@ namespace SharpNet.Networks
                         _all_allocated_Y[previousLayerIndex] = null;
                     }
                 }
-                Network.StopTimer(layer.Type(), stopwatchDico);
+                Network.StopTimer(layer.LayerType(), stopwatchDico);
             }
             Debug.Assert(referenceCountToLayer.Max() == 0);
             Debug.Assert(_all_allocated_Y.Count  == (_layers.Count-1)); //the output of the last layer (yPredicted) should not be put on '_all_allocated_Y'
@@ -214,7 +214,7 @@ namespace SharpNet.Networks
                 //we already know 'dy' for this layer ( = all_dY[layerIndex])
                 //we want to compute dx (& weight gradients if the layer has weights) of current layer by backward propagation
                 var layer = _layers[layerIndex];
-                Network.StartTimer(layer.Type(), _backwardPropagationTime);
+                Network.StartTimer(layer.LayerType(), _backwardPropagationTime);
                 var dy = all_dY[layerIndex];
                 Debug.Assert(dy != null);
                 var y = (layerIndex == lastLayerIndex)? yPredicted : _all_allocated_Y[layerIndex];
@@ -311,7 +311,7 @@ namespace SharpNet.Networks
                 {
                     _all_allocated_Y[layerIndex] = null;
                 }
-                Network.StopTimer(layer.Type(), _backwardPropagationTime);
+                Network.StopTimer(layer.LayerType(), _backwardPropagationTime);
             }
             FreeAllMemory();
         }
@@ -327,9 +327,9 @@ namespace SharpNet.Networks
             for (var index = firstTrainableLayer.LayerIndex; index < _layers.Count; index++)
             {
                 var layer = _layers[index];
-                Network.StartTimer(layer.Type(), _updateWeightsTime);
+                Network.StartTimer(layer.LayerType(), _updateWeightsTime);
                 layer.UpdateWeights(batchSize, learningRate);
-                Network.StopTimer(layer.Type(), _updateWeightsTime);
+                Network.StopTimer(layer.LayerType(), _updateWeightsTime);
             }
         }
 

@@ -253,9 +253,9 @@ namespace SharpNet.Layers
             return result;
         }
 
-        protected override string DefaultLayerName()
+        protected override string ComputeLayerName()
         {
-            return base.DefaultLayerName().Replace("batchnormalization", "batch_normalization");
+            return base.ComputeLayerName().Replace("batchnormalization", "batch_normalization");
         }
 
         private int[] ScaleAndBiasShape()

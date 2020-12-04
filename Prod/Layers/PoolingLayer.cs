@@ -113,10 +113,10 @@ namespace SharpNet.Layers
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
-        public override string Type() { return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AveragePooling"; }
-        protected override string DefaultLayerName()
+        public override string LayerType() { return IsMaxPooling(_poolingMode) ? "MaxPooling" : "AveragePooling"; }
+        protected override string ComputeLayerName()
         {
-            return base.DefaultLayerName().Replace("pooling", "_pooling2d_");
+            return base.ComputeLayerName().Replace("pooling", "_pooling2d_");
         }
         public static bool IsMaxPooling(cudnnPoolingMode_t poolingMode)
         {

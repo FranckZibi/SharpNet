@@ -52,26 +52,22 @@ namespace SharpNet.Layers
                 {
                     return null;
                 }
-                int firstDimensionMultiplier = 1;
-                if (biasMode == cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS)
-                {
-                    firstDimensionMultiplier *= 2;
-                }
+                int firstDimensionMultiplier = (biasMode == cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS) ? 2 : 1;
                 return new[] {firstDimensionMultiplier, HiddenSizeMultiplier * hiddenSize};
             }
         }
 
-        public int[] XRnnData_Shape(bool time_major, int timeSteps, int batchSize)
+        public int[] XRnnData_Shape(bool timeMajor, int timeSteps, int batchSize)
         {
-            return time_major
+            return timeMajor
                 ? new[] { timeSteps, batchSize, inputSize }
                 : new[] { batchSize, timeSteps, inputSize };
         }
 
-        public int[] YRnnData_Shape(bool time_major, int timeSteps, int batchSize)
+        public int[] YRnnData_Shape(bool timeMajor, int timeSteps, int batchSize)
         {
             int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
-            return time_major
+            return timeMajor
                 ? new[] {timeSteps, batchSize, K * hiddenSize}
                 : new[] {batchSize, timeSteps, K * hiddenSize };
         }
@@ -81,7 +77,7 @@ namespace SharpNet.Layers
             int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
             return returnSequences
                 ?new[] { batchSize, timeSteps, K * hiddenSize }
-                :new[] { batchSize, K * hiddenSize }; //only the last output
+                :new[] { batchSize, K * hiddenSize };
 
         }
 

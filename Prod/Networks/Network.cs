@@ -983,7 +983,7 @@ namespace SharpNet.Networks
             foreach (var layer in Layers)
             {
                 var outputShape = Utils.ShapeToStringWithBatchSize(layer.OutputShape(1));
-                var firstColumn = layer.LayerName + " (" + layer.Type() + ")";
+                var firstColumn = layer.LayerName + " (" + layer.LayerType() + ")";
                 if (firstColumn.Length > firstColumnWidth - 1)
                 {
                     firstColumn = firstColumn.Substring(0, firstColumnWidth - 1);
@@ -1020,7 +1020,7 @@ namespace SharpNet.Networks
             foreach (var l in Layers)
             {
                 var outputShape = Utils.ShapeToStringWithBatchSize(l.OutputShape(1));
-                var firstColumn = l.LayerName + " (" + l.Type() + ")";
+                var firstColumn = l.LayerName + " (" + l.LayerType() + ")";
                 if (firstColumn.Length > firstColumnWidth - 1)
                 {
                     firstColumn = firstColumn.Substring(0, firstColumnWidth - 1);

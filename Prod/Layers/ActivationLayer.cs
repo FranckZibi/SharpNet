@@ -31,9 +31,9 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            StartForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
+            StartForwardTimer(LayerType()+">"+ToString(ActivationFunction), isTraining);
             allX[0].ActivationForward(ActivationFunction, _activationParameter, y);
-            StopForwardTimer(Type()+">"+ToString(ActivationFunction), isTraining);
+            StopForwardTimer(LayerType()+">"+ToString(ActivationFunction), isTraining);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dx)
         {
@@ -54,7 +54,7 @@ namespace SharpNet.Layers
                 //no need to compute dy if previous Layer is the input layer
                 return;
             }
-            StartBackwardTimer(Type() + ">" + ToString(ActivationFunction));
+            StartBackwardTimer(LayerType() + ">" + ToString(ActivationFunction));
             //we compute dx
             if (IsOutputLayer && Network.Config.LossFunction != NetworkConfig.LossFunctionEnum.Huber)
             {
@@ -64,7 +64,7 @@ namespace SharpNet.Layers
             {
                 dx[0].ActivationBackward(ActivationFunction, _activationParameter, dy, allX[0], y);
             }
-            StopBackwardTimer(Type() + ">" + ToString(ActivationFunction));
+            StopBackwardTimer(LayerType() + ">" + ToString(ActivationFunction));
         }
         /// <summary>
         /// true if the input feature map 'x' is needed to compute the backward propagation of current layer
@@ -92,7 +92,7 @@ namespace SharpNet.Layers
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
-        public override string Type()
+        public override string LayerType()
         {
             switch (ActivationFunction)
             {
@@ -101,7 +101,7 @@ namespace SharpNet.Layers
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX: return "Softmax";
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY: return "Softmax_Hierarchy";
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH: return "Swish";
-                default: return base.Type();
+                default: return base.LayerType();
             }
         }
 

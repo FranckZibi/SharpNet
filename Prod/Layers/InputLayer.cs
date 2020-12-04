@@ -85,11 +85,11 @@ namespace SharpNet.Layers
         {
             //do not dispose y
         }
-        public override string Type() { return "InputLayer"; }
+        public override string LayerType() { return "InputLayer"; }
 
-        protected override string DefaultLayerName()
+        protected override string ComputeLayerName()
         {
-            return base.DefaultLayerName().Replace("inputlayer", "input");
+            return base.ComputeLayerName().Replace("inputlayer", "input");
         }
 
         public void SetInputHeightAndWidth(int height, int width)

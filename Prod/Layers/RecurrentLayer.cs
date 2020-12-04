@@ -17,8 +17,8 @@ namespace SharpNet.Layers
     ///     (batchSize, timeSteps, K*hiddenSize)  if _returnSequences == true
     ///     (batchSize, K*hiddenSize)             if _returnSequences == false
     /// with
-    ///      K == 2     if isBidirectional == true 
-    ///      K == 1     if isBidirectional == false
+    ///      K == 2     if IsBidirectional == true 
+    ///      K == 1     if IsBidirectional == false
     /// </summary>
     public class RecurrentLayer : Layer
     {
@@ -59,10 +59,10 @@ namespace SharpNet.Layers
         private readonly bool _timeMajor;
         #endregion
 
-        private cudnnRNNMode_t CellMode => _rnnDescriptor.cellMode;      // == features
-        private cudnnRNNBiasMode_t BiasMode => _rnnDescriptor.biasMode;      // == features
+        private cudnnRNNMode_t CellMode => _rnnDescriptor.cellMode;
+        private cudnnRNNBiasMode_t BiasMode => _rnnDescriptor.biasMode;
         private int InputSize => _rnnDescriptor.inputSize;      // == features
-        private int HiddenSize => _rnnDescriptor.hiddenSize;  // == units
+        private int HiddenSize => _rnnDescriptor.hiddenSize;    // == units
         private bool IsBidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
 
         #region constructor
@@ -117,7 +117,7 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        public override string Type()
+        public override string LayerType()
         {
             if (IsBidirectional)
             {
@@ -137,9 +137,9 @@ namespace SharpNet.Layers
             }
         }
 
-        protected override string DefaultLayerName()
+        protected override string ComputeLayerName()
         {
-            var result = Type().ToLowerInvariant().Replace("simplernn", "simple_rnn");
+            var result = LayerType().ToLowerInvariant().Replace("simplernn", "simple_rnn");
             int countBefore = IsBidirectional
                 ? Layers.Count(l => l.LayerIndex < LayerIndex && l is RecurrentLayer layer && layer.IsBidirectional)
                 : Layers.Count(l => l.LayerIndex < LayerIndex && l is RecurrentLayer layer && layer.CellMode == CellMode);
@@ -154,12 +154,15 @@ namespace SharpNet.Layers
         /// <summary>
         /// </summary>
         /// <param name="allX"></param>
-        /// shape:
-        ///     (batchSize, timeSteps, InputSize = Features)
+        /// input 'x' shape:
+        ///     (batchSize, timeSteps, inputSize)
         /// <param name="y">
-        /// shape:
-        ///     (batchSize, timeSteps, hiddenSize = units)      if _returnSequences == true
-        ///     (batchSize, hiddenSize = units)                 if _returnSequences == false
+        /// output 'y' shape:
+        ///     (batchSize, timeSteps, K*hiddenSize)      if _returnSequences == true
+        ///     (batchSize, K*hiddenSize)                 if _returnSequences == false
+        /// with
+        ///      K == 2     if IsBidirectional == true 
+        ///      K == 1     if IsBidirectional == false
         /// </param>
         /// <param name="isTraining"></param>
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
@@ -485,6 +488,12 @@ namespace SharpNet.Layers
             Debug.Assert(_reserveSpace == null);
         }
         #region forward and backward propagation for CPU
+        /// <summary>
+        /// This is a simple implementation on CPU.
+        /// It only supports unidirectional SimpleRNN with _returnSequences == false
+        /// </summary>
+        /// <param name="allX"></param>
+        /// <param name="y"></param>
         private void ForwardPropagationCPU(List<Tensor> allX, Tensor y)
         {
             if (_returnSequences)

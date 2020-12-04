@@ -21,7 +21,7 @@ namespace SharpNet.Layers
             {
                 if (string.IsNullOrEmpty(_layerName))
                 {
-                    _layerName = DefaultLayerName();
+                    _layerName = ComputeLayerName();
                 }
                 return _layerName;
             }
@@ -280,17 +280,17 @@ namespace SharpNet.Layers
             return OutputShape(1).SequenceEqual(layer.OutputShape(1));
         }
 
-        protected virtual string DefaultLayerName()
+        protected virtual string ComputeLayerName()
         {
-            var result = Type().ToLowerInvariant();
-            int countBefore = Layers.Count(l => l.LayerIndex < LayerIndex && l.Type() == Type());
+            var result = LayerType().ToLowerInvariant();
+            int countBefore = Layers.Count(l => l.LayerIndex < LayerIndex && l.LayerType() == LayerType());
             if (countBefore != 0)
             {
                 result += "_" + countBefore;
             }
             return result;
         }
-        public virtual string Type() { return GetType().Name.Replace("Layer", ""); }
+        public virtual string LayerType() { return GetType().Name.Replace("Layer", ""); }
         public virtual int ExtraElementCountForForwardPropagation(int batchSize)
         {
             return 0;
