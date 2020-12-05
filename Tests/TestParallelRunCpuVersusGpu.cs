@@ -43,16 +43,16 @@ namespace SharpNetTests
                 var channelsCount = 3;
                 var height = 17;
                 var width = 32;
-                var f = 3;
+                var kernelSize = 3;
                 int filterCount = 128;
                 var x = RandomTensor(new[] { BatchSize, channelsCount, height, width });
                 var convolutionShape = isDepthwiseConvolution
-                        ? new[] { 1, channelsCount, f, f }
-                        : new[] { filterCount, channelsCount, f, f };
+                        ? new[] { 1, channelsCount, kernelSize, kernelSize }
+                        : new[] { filterCount, channelsCount, kernelSize, kernelSize };
                 var convolution = RandomTensor(convolutionShape);
 	            var y = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution));
-                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
-                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
+                ConvolutionLayer.Padding(x.Shape[2], kernelSize, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
+                ConvolutionLayer.Padding(x.Shape[3], kernelSize, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
                 var memoryPool =  new TensorMemoryPool(GpuWrapper, false);
                 if (ConvolutionLayer.IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
                 {
@@ -79,7 +79,7 @@ namespace SharpNetTests
             foreach (ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
             foreach (NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
             foreach (int stride in new[] { 1, 2 })
-            foreach (int f in new[] { 3, 5 })
+            foreach (int kernelSize in new[] { 3, 5 })
             foreach (var isDepthwiseConvolution in new[] { true, false })
             {
                 var channelsCount = 3;
@@ -88,15 +88,15 @@ namespace SharpNetTests
                 var x = RandomTensor(new[] { BatchSize, channelsCount, height, width });
                 x = new CpuTensor<float>(x.Shape);
                 var convolutionShape = isDepthwiseConvolution
-                    ? new[] { 1, channelsCount, f, f }
-                    : new[] { 9, channelsCount, f, f };
+                    ? new[] { 1, channelsCount, kernelSize, kernelSize }
+                    : new[] { 9, channelsCount, kernelSize, kernelSize };
                 var convolution = RandomTensor(convolutionShape);
                 var dy = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution));
                 //this will compute 'dx' && 'convolutionGradient'
                 var dx = RandomTensor(x.Shape);
                 var convolutionGradient = RandomTensor(convolution.Shape);
-                ConvolutionLayer.Padding(x.Shape[2], f, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
-                ConvolutionLayer.Padding(x.Shape[3], f, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
+                ConvolutionLayer.Padding(x.Shape[2], kernelSize, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
+                ConvolutionLayer.Padding(x.Shape[3], kernelSize, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
 
                 if (ConvolutionLayer.IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
                 {

@@ -13,13 +13,15 @@ namespace SharpNet.Layers
 {
     /// <summary>
     /// Input 'x' shape:
-    ///     (batchSize, x.C, x.H, x.W)
-    /// Output 'y' tensor shape for Depthwise Convolution:
-    ///     (batchSize, depthMultiplier*x.C, y.H, y.W)
-    /// Output 'y' tensor shape for Standard Convolution:
-    ///     (batchSize, filtersCount, y.H, y.W)
-    ///     y.H = (x.H−F+2×pads) /Stride + 1
-    ///     y.W = (x.W−F+2×pads) /Stride + 1
+    ///     (batchSize, x.C, x.H, x.W)                      if _isConv1D == false
+    ///     (batchSize, inputSize, timeSteps)               if _isConv1D == true
+    /// Output 'y' tensor shape:
+    ///     (batchSize, depthMultiplier*x.C, y.H, y.W)      if for Depthwise Convolution
+    ///     (batchSize, filtersCount, y.H, y.W)             if Standard Convolution 2D
+    ///             y.H = (x.H−kernelHeight+2×pads) /Stride + 1
+    ///             y.W = (x.W−kernelWidth+2×pads) /Stride + 1
+    ///     (batchSize, filtersCount, newTimeSteps)         if Standard Convolution 1D
+    ///             newTimeSteps = (timeSteps−kernelWidth+2×pads) /Stride + 1
     /// </summary>
     public sealed class ConvolutionLayer : Layer
     {
@@ -27,9 +29,9 @@ namespace SharpNet.Layers
         #region trainable parameters
         /// <summary>
         /// if Depthwise Convolution:
-        ///     (_depthMultiplier, x.C, F, F)
+        ///     (_depthMultiplier, x.C, kernelHeight, kernelWidth)
         /// else
-        ///     (FiltersCount, x.C, F, F)
+        ///     (FiltersCount, x.C, kernelHeight, kernelWidth)
         /// </summary>
         [NotNull] private Tensor _convolution;
         /// <summary>
@@ -48,9 +50,11 @@ namespace SharpNet.Layers
         [CanBeNull] private Tensor _convolutionBiasGradients;
         #endregion
         private readonly bool _isDepthwiseConvolution;
+        private readonly bool _isConv1D;
         private readonly int _filtersCount;                     //only valid on default convolution   (_isDepthwiseConvolution=false)
         private readonly int _depthMultiplier;                  //only valid on depthwise convolution (_isDepthwiseConvolution=true)
-        private readonly int _f;
+        private readonly int _kernelHeight;
+        private readonly int _kernelWidth;
         private readonly int _stride;
         private readonly PADDING_TYPE _paddingType;
         private readonly double _lambdaL2Regularization;
@@ -66,17 +70,19 @@ namespace SharpNet.Layers
         /// <summary>
         /// No need to configure the number of channels by filter: it is always the same as in previous layer
         /// </summary>
-        public ConvolutionLayer(bool isDepthwiseConvolution, int filtersCount, int depthMultiplier, int f, int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, bool trainable, Network network, string layerName)
+        public ConvolutionLayer(bool isDepthwiseConvolution, bool isConv1D, int filtersCount, int depthMultiplier, int kernelHeight, int kernelWidth,int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, bool trainable, Network network, string layerName)
             : base(network, new[] { previousLayerIndex}, layerName)
         {
             _isDepthwiseConvolution = isDepthwiseConvolution;
+            _isConv1D = isConv1D;
             _filtersCount = filtersCount;
             _depthMultiplier = depthMultiplier;
             if (_isDepthwiseConvolution && depthMultiplier != 1)
             {
                 throw new NotImplementedException("only depthMultiplier=1 is supported in depthwise convolution");
             }
-            _f = f;
+            _kernelHeight = kernelHeight;
+            _kernelWidth = kernelWidth;
             _stride = stride;
             _paddingType = paddingType;
             _lambdaL2Regularization = lambdaL2Regularization;
@@ -104,16 +110,24 @@ namespace SharpNet.Layers
             Debug.Assert(_padded_X == null);
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
-            Padding(x.Shape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
+
+            var x4D = _isConv1D ? Conv1d_to_Conv2D(x) : x;
+            Debug.Assert(x4D.Shape.Length == 4);
+            var y4D = _isConv1D ? Conv1d_to_Conv2D(y) : y;
+            Debug.Assert(y4D.Shape.Length == 4);
+
+            Padding(x4D.Shape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
             if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
+                //Debug.Assert(!_isConv1D);
+
                 // cuDNN 7.x doesn't support asymmetric padding
                 // we'll pad the input tensor 'x' so that we can use a symmetric padding
                 StartForwardTimer(LayerType() + ">ConvAsym", isTraining);
-                var paddedXShape = PaddedXShape(x.Shape, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                var paddedXShape = PaddedXShape(x4D.Shape, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 GetFloatTensor(ref _padded_X, paddedXShape);
-                _padded_X.ZeroPadding(x, paddingTop, paddingBottom, paddingLeft, paddingRight);
-                _padded_X.Convolution(_convolution, 0, 0, 0, 0, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
+                _padded_X.ZeroPadding(x4D, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                _padded_X.Convolution(_convolution, 0, 0, 0, 0, _stride, y4D, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 if (PreviousLayers.All(l=>!l.LayerOutputShouldBeKeptForBackwardPropagation(isTraining)))
                 {
                     FreeFloatTensor(ref _padded_X);
@@ -124,12 +138,12 @@ namespace SharpNet.Layers
             {
                 //symmetric padding
                 StartForwardTimer(LayerType() + ">Conv", isTraining);
-                x.Convolution(_convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
+                x4D.Convolution(_convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, y4D, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 StopForwardTimer(LayerType() + ">Conv", isTraining);
             }
 
             StartForwardTimer(LayerType() + ">Bias", isTraining);
-            _convolutionBias?.BroadcastConvolutionBiasToOutput(y);
+            _convolutionBias?.BroadcastConvolutionBiasToOutput(y4D);
             StopForwardTimer(LayerType() + ">Bias", isTraining);
         }
         public override int ExtraElementCountForForwardPropagation(int batchSize)
@@ -139,6 +153,10 @@ namespace SharpNet.Layers
                 return 0;
             }
             var xShape = PrevLayer.OutputShape(batchSize);
+            if (_isConv1D)
+            {
+                xShape = ReshapeConv1d_to_Conv2D(xShape);
+            }
             Padding(xShape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
             if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
@@ -149,24 +167,32 @@ namespace SharpNet.Layers
         /// <summary>
         /// dy => _convolutionGradients & _convolutionBiasGradients & dx 
         /// </summary>
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> alldX)
         {
             Debug.Assert(allX.Count == 1);
             Debug.Assert(y_NotUsed == null);
-            Debug.Assert(dx.Count == 1);
+            Debug.Assert(alldX.Count == 1);
             var x = allX[0];
+            var dx = alldX[0];
+
+            var x4D = _isConv1D ? Conv1d_to_Conv2D(x) : x;
+            var dx4D = _isConv1D ? Conv1d_to_Conv2D(dx) : dx;
+            var dy4D = _isConv1D ? Conv1d_to_Conv2D(dy) : dy;
+
+            Debug.Assert(x4D.Shape.Length == 4);
+            Debug.Assert(dy4D.Shape.Length == 4);
 
             if (UseBias)
             {
                 Debug.Assert(_convolutionBiasGradients != null);
                 //we compute '_convolutionBiasGradients'
                 StartBackwardTimer(LayerType() + ">Bias");
-                dy.ConvolutionBackwardBias(_convolutionBiasGradients);
+                dy4D.ConvolutionBackwardBias(_convolutionBiasGradients);
                 StopBackwardTimer(LayerType() + ">Bias");
             }
 
             // we compute '_convolutionGradients' (& dx if PrevLayer is not the input layer)
-            Padding(x.Shape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
+            Padding(x4D.Shape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
 
             if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
             {
@@ -174,9 +200,9 @@ namespace SharpNet.Layers
                 StartBackwardTimer(LayerType() + ">ConvAsym");
                 Debug.Assert(_padded_X != null);
                 var _padded_dX = GetFloatTensor(_padded_X.Shape);
-                _padded_X.ConvolutionGradient(_convolution, dy, 0, 0, 0, 0, _stride, _padded_dX, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
+                _padded_X.ConvolutionGradient(_convolution, dy4D, 0, 0, 0, 0, _stride, _padded_dX, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 FreeFloatTensor(ref _padded_X); //no more need of '_padded_X'
-                dx[0]?.ZeroUnpadding(_padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
+                dx4D?.ZeroUnpadding(_padded_dX, paddingTop, paddingBottom, paddingLeft, paddingRight);
                 FreeFloatTensor(ref _padded_dX); //no more need of '_padded_dX'
                 Debug.Assert(_padded_X == null);
                 StopBackwardTimer(LayerType() + ">ConvAsym");
@@ -186,17 +212,35 @@ namespace SharpNet.Layers
                 //symmetric padding
                 StartBackwardTimer(LayerType() + ">Conv");
                 Debug.Assert(_padded_X == null);
-                x.ConvolutionGradient(_convolution, dy, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx[0], _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
+                x4D.ConvolutionGradient(_convolution, dy4D, paddingTop, paddingBottom, paddingLeft, paddingRight, _stride, dx4D, _convolutionGradients, _isDepthwiseConvolution, ConvolutionAlgoPreference, MemoryPool);
                 StopBackwardTimer(LayerType() + ">Conv");
             }
 
             if (UseL2Regularization)
             {
-                var batchSize = dy.Shape[0];
+                var batchSize = dy4D.Shape[0];
                 var alpha = 2 * batchSize * (float)_lambdaL2Regularization;
                 _convolutionGradients.Update_Adding_Alpha_X(alpha, _convolution);
             }
         }
+
+        private static int[] ReshapeConv1d_to_Conv2D(int[] shape)
+        {
+            Debug.Assert(shape.Length == 3);
+            return new[] { shape[0], shape[1], 1, shape[2] };
+        }
+        private static Tensor Conv1d_to_Conv2D(Tensor t)
+        {
+            return t?.WithNewShape(ReshapeConv1d_to_Conv2D(t.Shape));
+        }
+        private static int[] ReshapeConv2d_to_Conv1D(int[] shape)
+        {
+            Debug.Assert(shape.Length == 4);
+            Debug.Assert(shape[2] == 1);
+            return new[] { shape[0], shape[1], shape[3] };
+        }
+
+
         public override bool OutputNeededForBackwardPropagation => false;
         public override int ExtraElementCountForBackwardPropagation(int batchSize)
         {
@@ -317,9 +361,11 @@ namespace SharpNet.Layers
         {
             return RootSerializer()
                 .Add(nameof(_isDepthwiseConvolution), _isDepthwiseConvolution)
+                .Add(nameof(_isConv1D), _isConv1D)
                 .Add(nameof(_filtersCount), _filtersCount)
                 .Add(nameof(_depthMultiplier), _depthMultiplier)
-                .Add(nameof(_f), _f)
+                .Add(nameof(_kernelHeight), _kernelHeight)
+                .Add(nameof(_kernelWidth), _kernelWidth)
                 .Add(nameof(_stride), _stride)
                 .Add(nameof(_paddingType), (int)_paddingType)
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
@@ -329,12 +375,18 @@ namespace SharpNet.Layers
         }
         public static ConvolutionLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
+            int kernelHeight = serialized.ContainsKey(nameof(_kernelHeight)) ? (int)serialized[nameof(_kernelHeight)] : (int)serialized["_f"];
+            int kernelWidth = serialized.ContainsKey(nameof(_kernelWidth)) ? (int)serialized[nameof(_kernelWidth)] : (int)serialized["_f"];
+            bool isConv1D = serialized.ContainsKey(nameof(_isConv1D)) ? (bool)serialized[nameof(_isConv1D)] : false;
+
             var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
             return new ConvolutionLayer(
                 (bool) serialized[nameof(_isDepthwiseConvolution)],
+                isConv1D,
                 (int) serialized[nameof(_filtersCount)],
                 (int) serialized[nameof(_depthMultiplier)],
-                (int) serialized[nameof(_f)],
+                kernelHeight,
+                kernelWidth,
                 (int)serialized[nameof(_stride)],
                 (PADDING_TYPE)serialized[nameof(_paddingType)], 
                 (double)serialized[nameof(_lambdaL2Regularization)],
@@ -349,6 +401,10 @@ namespace SharpNet.Layers
         private int PreviousLayerIndex => PreviousLayerIndexes[0];
         public override string LayerType()
         {
+            if (_isConv1D)
+            {
+                return "Conv1D";
+            }
             return _isDepthwiseConvolution? "DepthwiseConv2D" : "Conv2D";
         }
         public override string ToString()
@@ -374,9 +430,9 @@ namespace SharpNet.Layers
         /// <param name="inputShape">input shape: (batchSize, inputChannels, heightInput, widthInput)</param>
         /// <param name="convolutionShape">
         /// if isDepthwiseConvolution = true
-        ///     convolution shape: (depthMultiplier, inputChannels, f, f)</param>
+        ///     convolution shape: (depthMultiplier, inputChannels, kernelHeight, kernelWidth)</param>
         /// else
-        ///     convolution shape: (filtersCount, inputChannels, f, f)
+        ///     convolution shape: (filtersCount, inputChannels, kernelHeight, kernelWidth)
         /// <param name="paddingType"></param>
         /// <param name="stride"></param>
         /// <param name="isDepthwiseConvolution"></param>
@@ -388,19 +444,30 @@ namespace SharpNet.Layers
         /// </returns>
         public static int[] OutputShape(int[] inputShape, int[] convolutionShape, PADDING_TYPE paddingType, int stride, bool isDepthwiseConvolution)
         {
+            if (inputShape.Length == 3)
+            {
+                //Conv1D
+                Debug.Assert(!isDepthwiseConvolution);
+                var inputShapeConv2D = ReshapeConv1d_to_Conv2D(inputShape);
+                var outputShapeConv2D = OutputShape(inputShapeConv2D, convolutionShape, paddingType, stride, isDepthwiseConvolution);
+                return ReshapeConv2d_to_Conv1D(outputShapeConv2D);
+            }
+
             Debug.Assert(inputShape.Length == 4);
             Debug.Assert(convolutionShape.Length == 4);
             Debug.Assert(stride >= 1);
             Debug.Assert(inputShape[1] == convolutionShape[1]); //same channel depth for 'input shape' and 'convolution shape'
-            Debug.Assert(convolutionShape[2] == convolutionShape[3]); //convolution height == convolution width
+            //Debug.Assert(convolutionShape[2] == convolutionShape[3]); //convolution height == convolution width
             var batchSize = inputShape[0];
             var inputChannels = inputShape[1];
             var inputHeight = inputShape[2];
             var inputWidth = inputShape[3];
-            var f = convolutionShape[2];
-            Debug.Assert(f % 2 == 1); // F must be odd
-            var outputHeight = OutputLength(inputHeight, f, stride, paddingType);
-            var outputWidth = OutputLength(inputWidth, f, stride, paddingType);
+            var kernelHeight = convolutionShape[2];
+            Debug.Assert(kernelHeight % 2 == 1); // kernelHeight must be odd
+            var kernelWidth = convolutionShape[3];
+            Debug.Assert(kernelWidth % 2 == 1); // kernelWidth must be odd
+            var outputHeight = OutputLength(inputHeight, kernelHeight, stride, paddingType);
+            var outputWidth = OutputLength(inputWidth, kernelWidth, stride, paddingType);
             int outputChannels = isDepthwiseConvolution
                 ? inputChannels * convolutionShape[0]
                 : convolutionShape[0];
@@ -410,7 +477,7 @@ namespace SharpNet.Layers
         {
             return (paddingTop != paddingBottom || paddingLeft != paddingRight);
         }
-        public static void Padding(int inputLength, int f, int stride, PADDING_TYPE paddingType, NetworkConfig.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
+        public static void Padding(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType, NetworkConfig.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
         {
             switch (paddingType)
             {
@@ -418,8 +485,8 @@ namespace SharpNet.Layers
                     paddingStart = paddingEnd = 0;
                     return;
                 case PADDING_TYPE.SAME:
-                    int outputLength = OutputLength(inputLength, f, stride, paddingType);
-                    int totalPadding = Math.Max((outputLength - 1) * stride + f - inputLength, 0);
+                    int outputLength = OutputLength(inputLength, kernelSize, stride, paddingType);
+                    int totalPadding = Math.Max((outputLength - 1) * stride + kernelSize - inputLength, 0);
                     if (compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
                     {
                         //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python
@@ -441,12 +508,12 @@ namespace SharpNet.Layers
         /// //TODO add tests
         /// </summary>
         /// <returns></returns>
-        private static int OutputLength(int inputLength, int f, int stride, PADDING_TYPE paddingType)
+        private static int OutputLength(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType)
         {
             switch (paddingType)
             {
                 case PADDING_TYPE.VALID:
-                    return (inputLength - f) / stride + 1;
+                    return (inputLength - kernelSize) / stride + 1;
                 case PADDING_TYPE.SAME:
                     return (inputLength - 1) / stride + 1;
                 default:
@@ -456,8 +523,8 @@ namespace SharpNet.Layers
         private void Padding(int[] xShape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight)
         {
             Debug.Assert(xShape.Length == 4);
-            Padding(xShape[2], _f, _stride, _paddingType, Config.CompatibilityMode, out paddingTop, out paddingBottom);
-            Padding(xShape[3], _f, _stride, _paddingType, Config.CompatibilityMode, out paddingLeft, out paddingRight);
+            Padding(xShape[2], _kernelHeight, _stride, _paddingType, Config.CompatibilityMode, out paddingTop, out paddingBottom);
+            Padding(xShape[3], _kernelWidth, _stride, _paddingType, Config.CompatibilityMode, out paddingLeft, out paddingRight);
         }
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
         private int[] ConvolutionShape
@@ -466,8 +533,8 @@ namespace SharpNet.Layers
             {
                 var channels = PrevLayer.OutputShape(1)[1];
                 return _isDepthwiseConvolution
-                    ?new[] { _depthMultiplier, channels, _f, _f }
-                    :new[] { _filtersCount, channels, _f, _f };
+                    ?new[] { _depthMultiplier, channels, _kernelHeight, _kernelWidth }
+                    :new[] { _filtersCount, channels, _kernelHeight, _kernelWidth };
             }
         }
         private bool UseBias => _convolutionBias != null;

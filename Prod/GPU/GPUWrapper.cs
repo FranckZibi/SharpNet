@@ -402,25 +402,25 @@ namespace SharpNet.GPU
             int outputChannels; //number of output channels
             if (isDepthwiseConvolution)
             {
-                //the depthwise Convolution shape: (depthMultiplier=1, channels, F, F)
+                //the depthwise Convolution shape: (depthMultiplier=1, channels, kernelHeight, kernelWidth)
                 inputChannels = 1;
                 outputChannels = shape[1];
             }
             else
             {
-                //the Convolution shape: (outputChannels, inputChannels, f1,f2)
+                //the Convolution shape: (outputChannels, inputChannels, kernelHeight, kernelWidth)
                 inputChannels = shape[1];
                 outputChannels = shape[0];
             }
-            var h = shape[2]; //Height of each filter
-            var w = shape[3]; //Width of each filter
+            var kernelHeight = shape[2]; //Height of each filter
+            var kernelWidth = shape[3]; //Width of each filter
 
-            var key = Tuple.Create(cudaType, outputChannels, inputChannels, h, w);
+            var key = Tuple.Create(cudaType, outputChannels, inputChannels, kernelHeight, kernelWidth);
             if (!cacheFilterDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateFilterDescriptor(out desc);
                 CheckStatus(res);
-                res = CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, outputChannels, inputChannels, h, w);
+                res = CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, outputChannels, inputChannels, kernelHeight, kernelWidth);
                 CheckStatus(res);
                 cacheFilterDesc[key] = desc;
             }

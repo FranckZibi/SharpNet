@@ -235,6 +235,13 @@ namespace SharpNet.CPU
             Debug.Assert(newToOldAxis.Min() == 0);
             Debug.Assert(newToOldAxis.Max() == Dimension-1);
 
+            if (newToOldAxis.Length == 3)
+            {
+                return ChangeAxis3D(newToOldAxis);
+            }
+
+
+
             int[] oldToNewAxis = new int[newToOldAxis.Length];
             for (int newAxis = 0; newAxis < oldToNewAxis.Length; ++newAxis)
             {
@@ -270,6 +277,44 @@ namespace SharpNet.CPU
 
             return result;
         }
+
+        private Tensor ChangeAxis3D(int[] newToOldAxis)
+        {
+            Debug.Assert(newToOldAxis.Length == 3);
+
+            int[] oldToNewAxis = new int[newToOldAxis.Length];
+            for (int newAxis = 0; newAxis < oldToNewAxis.Length; ++newAxis)
+            {
+                oldToNewAxis[newToOldAxis[newAxis]] = newAxis;
+            }
+
+            var transformedShape = new int[Dimension];
+            for (int newAxis = 0; newAxis < Dimension; ++newAxis)
+            {
+                transformedShape[newAxis] = Shape[newToOldAxis[newAxis]];
+            }
+
+            var result = new CpuTensor<T>(transformedShape);
+
+            var indexesInNewAxis = new int[Dimension];
+            for (int n = 0; n < Shape[0]; ++n)
+            {
+                indexesInNewAxis[oldToNewAxis[0]] = n;
+                for (int c = 0; c < Shape[1]; ++c)
+                {
+                    indexesInNewAxis[oldToNewAxis[1]] = c;
+                    for (int w = 0; w < Shape[2]; ++w)
+                    {
+                        indexesInNewAxis[oldToNewAxis[2]] = w;
+                        result.Set(indexesInNewAxis[0], indexesInNewAxis[1], indexesInNewAxis[2], Get(n, c, w));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+
         public override bool IsOwnerOfMemory => _ptrToOwnerPinnedMemory == IntPtr.Zero;
         public ReadOnlySpan<T> ReadonlyContent => Content.Slice(0, Count).Span;
         public Span<T> SpanContent => Content.Slice(0, Count).Span;
@@ -1200,8 +1245,8 @@ namespace SharpNet.CPU
             int batchSize = x.Shape[0];
             int hInput = x.Shape[2];
             int wInput = x.Shape[3];
-            int F = convolution.Shape[2];
-            Debug.Assert(F == convolution.Shape[3]);
+            int kernelHeight = convolution.Shape[2];
+            int kernelWidth = convolution.Shape[3];
             int hOutput = y.Shape[2];
             int wOutput = y.Shape[3];
             Debug.Assert(batchSize == y.Shape[0]);
@@ -1219,14 +1264,14 @@ namespace SharpNet.CPU
                     {
                         int colFilterStart = -paddingLeft;
                         var rowInputStart = Math.Max(0, rowFilterStart);
-                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + F);
+                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + kernelHeight);
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
                         {
                             //we want to compute the point in y[m, filterId, row_output, col_output]
                             //it is computed by applying a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                             double outputPointResult = 0.0;
                             var colInputStart = Math.Max(0, colFilterStart);
-                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + F);
+                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + kernelWidth);
 
                             int startInputChannelId = isDepthwiseConvolution ? outputChannelId : 0;
                             int endInputChannelId = isDepthwiseConvolution ? (outputChannelId+1) : inputChannels;
@@ -1315,12 +1360,12 @@ namespace SharpNet.CPU
             Debug.Assert(batchSize == dy.Shape[0]);
             int hInput = x.Shape[2];
             int wInput = x.Shape[3];
-            int F = convolution.Shape[2];
-            Debug.Assert(F == convolution.Shape[3]);
+            int kernelHeight = convolution.Shape[2];
+            int kernelWidth = convolution.Shape[3];
             int hOutput = dy.Shape[2];
-            Debug.Assert(hOutput == ((hInput - F + paddingTop+paddingBottom) / stride + 1));
+            Debug.Assert(hOutput == ((hInput - kernelHeight + paddingTop+paddingBottom) / stride + 1));
             int wOutput = dy.Shape[3];
-            Debug.Assert(wOutput == ((wInput - F + paddingLeft+paddingRight) / stride + 1));
+            Debug.Assert(wOutput == ((wInput - kernelWidth + paddingLeft+paddingRight) / stride + 1));
             dx?.ZeroMemory();
             convGradient.ZeroMemory();
 
@@ -1339,7 +1384,7 @@ namespace SharpNet.CPU
                     {
                         int colFilterStart = -paddingLeft;
                         var rowInputStart = Math.Max(0, rowFilterStart);
-                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + F);
+                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + kernelHeight);
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
                         {
                             //we want to compute the point in y[m, filterId, rowOutput, colOutput]
@@ -1347,7 +1392,7 @@ namespace SharpNet.CPU
                             // and centered at this particular location
                             var chainGradientFloat = dy.AsFloatCpu.Get(m, outputChannelId, rowOutput, colOutput);
                             var colInputStart = Math.Max(0, colFilterStart);
-                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + F);
+                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + kernelWidth);
                             int startInputChannelId = isDepthwiseConvolution ? outputChannelId : 0;
                             int endInputChannelId = isDepthwiseConvolution ? (outputChannelId + 1) : inputChannels;
                             for (int inputChannelId = startInputChannelId; inputChannelId < endInputChannelId; ++inputChannelId)
@@ -1790,7 +1835,10 @@ namespace SharpNet.CPU
 
         public override void CopyTo(Tensor b)
         {
-            Debug.Assert(Count == b.Count);
+            if (Count != b.Count)
+            {
+                throw new ArgumentException("can't copy "+this+" to "+b);
+            }
             if (b.UseGPU)
             {
                 //copy from CPU ('this' tensor) to GPU ('b' tensor)

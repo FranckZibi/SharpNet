@@ -845,7 +845,10 @@ namespace SharpNet.GPU
         }
         public override void CopyTo(Tensor b)
         {
-            Debug.Assert(Count == b.Count);
+            if (Count != b.Count)
+            {
+                throw new ArgumentException("can't copy " + this + " to " + b);
+            }
             if (b.UseGPU)
             {
                 //copy GPU => GPU 
