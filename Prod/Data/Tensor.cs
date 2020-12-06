@@ -350,7 +350,7 @@ namespace SharpNet.Data
         /// <summary>
         /// create a copy of the 'this' tensor with the axis updated
         /// </summary>
-        public virtual Tensor ChangeAxis(int[] newToOldAxis)
+        public virtual Tensor ChangeAxis(int[] targetAxisToSrcAxis)
         {
             throw new NotImplementedException();
         }

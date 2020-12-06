@@ -229,91 +229,65 @@ namespace SharpNet.CPU
 
 
 
-        public override Tensor ChangeAxis(int[] newToOldAxis)
+        public override Tensor ChangeAxis(int[] targetAxisToSrcAxis)
         {
-            Debug.Assert(newToOldAxis.Length == Dimension);
-            Debug.Assert(newToOldAxis.Min() == 0);
-            Debug.Assert(newToOldAxis.Max() == Dimension-1);
+            Debug.Assert(targetAxisToSrcAxis.Length == Dimension);
+            Debug.Assert(targetAxisToSrcAxis.Min() == 0);
+            Debug.Assert(targetAxisToSrcAxis.Max() == Dimension-1);
 
-            if (newToOldAxis.Length == 3)
+            var srcAxisToTargetAxis = new int[Dimension];
+            for (int targetAxis = 0; targetAxis < Dimension; ++targetAxis)
             {
-                return ChangeAxis3D(newToOldAxis);
+                srcAxisToTargetAxis[targetAxisToSrcAxis[targetAxis]] = targetAxis;
             }
 
-
-
-            int[] oldToNewAxis = new int[newToOldAxis.Length];
-            for (int newAxis = 0; newAxis < oldToNewAxis.Length; ++newAxis)
+            var targetShape = new int[Dimension];
+            for (int targetAxis = 0; targetAxis < Dimension; ++targetAxis)
             {
-                oldToNewAxis[newToOldAxis[newAxis]] = newAxis;
+                targetShape[targetAxis] = Shape[targetAxisToSrcAxis[targetAxis]];
             }
 
-            var transformedShape = new int[Dimension];
-            for (int newAxis = 0; newAxis < Dimension; ++newAxis)
+            var result = new CpuTensor<T>(targetShape);
+
+            var idxInSrcAxis = new int[Dimension];
+            var srcMultDim = new int[Dimension];
+            var idxInTargetAxis =  new int[Dimension];
+            var targetMultDim = new int[Dimension];
+            srcMultDim[^1] = 1;
+            targetMultDim[^1] = 1;
+            for (int dim = Dimension - 2; dim >= 0; --dim)
             {
-                transformedShape[newAxis] = Shape[newToOldAxis[newAxis]];
+                srcMultDim[dim] = Shape[dim + 1] * srcMultDim[dim + 1];
+                targetMultDim[dim] = targetShape[dim + 1] * targetMultDim[dim + 1];
             }
 
-            var result = new CpuTensor<T>(transformedShape);
-
-            var indexesInNewAxis =  new int[Dimension];
-            for (int n = 0; n < Shape[0]; ++n)
+            void ProcessDimension(int axisSrc)
             {
-                indexesInNewAxis[oldToNewAxis[0]] = n;
-                for (int c = 0; c < Shape[1]; ++c)
+                for (int idxInAxis = 0; idxInAxis < Shape[axisSrc]; ++idxInAxis)
                 {
-                    indexesInNewAxis[oldToNewAxis[1]] = c;
-                    for (int h = 0; h < Shape[2]; ++h)
+                    idxInTargetAxis[srcAxisToTargetAxis[axisSrc]] = idxInAxis;
+                    idxInSrcAxis[axisSrc] = idxInAxis;
+                    if (axisSrc == Dimension - 1)
                     {
-                        indexesInNewAxis[oldToNewAxis[2]] = h;
-                        for (int w = 0; w < Shape[3]; ++w)
+                        int targetIdx = 0;
+                        int srcIdx = 0;
+                        for (int axis = 0; axis < Dimension; ++axis)
                         {
-                            indexesInNewAxis[oldToNewAxis[3]] = w;
-                            result.Set(indexesInNewAxis[0], indexesInNewAxis[1], indexesInNewAxis[2], indexesInNewAxis[3], Get(n, c, h, w));
+                            srcIdx += idxInSrcAxis[axis] * srcMultDim[axis];
+                            targetIdx += idxInTargetAxis[srcAxisToTargetAxis[axis]] * targetMultDim[srcAxisToTargetAxis[axis]];
                         }
+                        result[targetIdx] = this[srcIdx];
                     }
-                }
-            }
-
-            return result;
-        }
-
-        private Tensor ChangeAxis3D(int[] newToOldAxis)
-        {
-            Debug.Assert(newToOldAxis.Length == 3);
-
-            int[] oldToNewAxis = new int[newToOldAxis.Length];
-            for (int newAxis = 0; newAxis < oldToNewAxis.Length; ++newAxis)
-            {
-                oldToNewAxis[newToOldAxis[newAxis]] = newAxis;
-            }
-
-            var transformedShape = new int[Dimension];
-            for (int newAxis = 0; newAxis < Dimension; ++newAxis)
-            {
-                transformedShape[newAxis] = Shape[newToOldAxis[newAxis]];
-            }
-
-            var result = new CpuTensor<T>(transformedShape);
-
-            var indexesInNewAxis = new int[Dimension];
-            for (int n = 0; n < Shape[0]; ++n)
-            {
-                indexesInNewAxis[oldToNewAxis[0]] = n;
-                for (int c = 0; c < Shape[1]; ++c)
-                {
-                    indexesInNewAxis[oldToNewAxis[1]] = c;
-                    for (int w = 0; w < Shape[2]; ++w)
+                    else
                     {
-                        indexesInNewAxis[oldToNewAxis[2]] = w;
-                        result.Set(indexesInNewAxis[0], indexesInNewAxis[1], indexesInNewAxis[2], Get(n, c, w));
+                        ProcessDimension(axisSrc + 1);
                     }
                 }
             }
 
+            ProcessDimension(0);
             return result;
         }
-
 
         public override bool IsOwnerOfMemory => _ptrToOwnerPinnedMemory == IntPtr.Zero;
         public ReadOnlySpan<T> ReadonlyContent => Content.Slice(0, Count).Span;
