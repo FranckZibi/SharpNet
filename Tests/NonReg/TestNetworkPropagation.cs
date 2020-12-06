@@ -794,7 +794,7 @@ namespace SharpNetTests.NonReg
         }
 
         [Test, TestCaseSource(nameof(GetTestCases))]
-        public void Test_Conv1D(List<int> resourceIds)
+        public void Test_Conv1D_Causal(List<int> resourceIds)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
@@ -804,10 +804,9 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_3_3);
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
-
             network.Input(X.Shape[1], X.Shape[2], -1)
                 .Conv1D(2, 3, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
-                .Conv1D(2, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
+                .Conv1D(2, 3, 2, ConvolutionLayer.PADDING_TYPE.CAUSAL, lambdaL2Regularization, true)
                 .Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -817,12 +816,12 @@ namespace SharpNetTests.NonReg
             FromNumpyArray("[[0.38363194465637207, 0.2582963705062866, 0.15701913833618164], [0.5796942710876465, -0.42992860078811646, 0.28377270698547363], [-0.34947991371154785, 0.8033483028411865, -0.22690773010253906], [0.8054455518722534, 0.22870910167694092, -0.36302077770233154]]").CopyTo(network.Layers[5].Weights);
 
             //predictions before training
-            TestPredict(network, X, "[[0.415067583322525, 0.15872688591480255, 0.42620545625686646], [0.30562347173690796, 0.4254791736602783, 0.26889729499816895], [0.28942978382110596, 0.4895530939102173, 0.2210170477628708]]");
-            TestLossAccuracy(network, X, Y, 0.9690006375312805, 1.0/3);
+            TestPredict(network, X, "[[0.2877206802368164, 0.4445759654045105, 0.2677032947540283], [0.3576244115829468, 0.2031501680612564, 0.4392254054546356], [0.273379385471344, 0.4651012122631073, 0.2615194320678711]]");
+            TestLossAccuracy(network, X, Y, 0.9446693062782288, 2.0/3);
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
             //predictions after training
-            TestPredict(network, X, "[[0.6103147864341736, 0.08840832114219666, 0.30127692222595215], [0.3942084312438965, 0.1591470092535019, 0.44664454460144043], [0.13007038831710815, 0.7428251504898071, 0.12710446119308472]]");
-            TestLossAccuracy(network, X, Y, 0.5323557257652283, 1.0);
+            TestPredict(network, X, "[[0.36478546261787415, 0.2846057415008545, 0.35060879588127136], [0.2515701353549957, 0.058832425624132156, 0.6895974278450012], [0.20741572976112366, 0.6975075602531433, 0.09507670253515244]]");
+            TestLossAccuracy(network, X, Y, 0.5801116824150085, 1.0);
         }
 
         [Test, TestCaseSource(nameof(GetTestCases))]

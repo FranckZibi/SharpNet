@@ -310,7 +310,7 @@ namespace SharpNetTests.NonReg
 
             network.Input(X.Shape[1], X.Shape[2], -1)
                 .Conv1D(2, 3, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
-                .Conv1D(2, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
+                .Conv1D(2, 3, 2, ConvolutionLayer.PADDING_TYPE.CAUSAL, lambdaL2Regularization, true)
                 .Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
                 .Flatten()
                 .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);

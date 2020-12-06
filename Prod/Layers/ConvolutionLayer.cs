@@ -65,7 +65,7 @@ namespace SharpNet.Layers
         private Tensor _padded_X;
         #endregion
 
-        public enum PADDING_TYPE { VALID, SAME}
+        public enum PADDING_TYPE { VALID, SAME, CAUSAL}
 
         /// <summary>
         /// No need to configure the number of channels by filter: it is always the same as in previous layer
@@ -499,15 +499,16 @@ namespace SharpNet.Layers
                         paddingEnd = paddingStart;
                     }
                     return;
+                case PADDING_TYPE.CAUSAL:
+                    //see: https://github.com/keras-team/keras/issues/8751
+                    paddingStart = kernelSize - 1;
+                    paddingEnd = 0;
+                    return;
                 default:
                     throw new NotImplementedException("unknown padding type " + paddingType);
             }
         }
 
-        /// <summary>
-        /// //TODO add tests
-        /// </summary>
-        /// <returns></returns>
         private static int OutputLength(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType)
         {
             switch (paddingType)
@@ -515,16 +516,25 @@ namespace SharpNet.Layers
                 case PADDING_TYPE.VALID:
                     return (inputLength - kernelSize) / stride + 1;
                 case PADDING_TYPE.SAME:
+                case PADDING_TYPE.CAUSAL:
                     return (inputLength - 1) / stride + 1;
                 default:
                     throw new NotImplementedException("unknown padding type " + paddingType);
             }
         }
-        private void Padding(int[] xShape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight)
+        private void Padding(int[] xShape4D, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight)
         {
-            Debug.Assert(xShape.Length == 4);
-            Padding(xShape[2], _kernelHeight, _stride, _paddingType, Config.CompatibilityMode, out paddingTop, out paddingBottom);
-            Padding(xShape[3], _kernelWidth, _stride, _paddingType, Config.CompatibilityMode, out paddingLeft, out paddingRight);
+            Debug.Assert(xShape4D.Length == 4);
+
+            var paddingTypeForHeight = _paddingType;
+            var paddingTypeForWidth = _paddingType;
+            if (paddingTypeForHeight == PADDING_TYPE.CAUSAL)
+            {
+                Debug.Assert(_isConv1D);
+                paddingTypeForHeight = PADDING_TYPE.SAME;
+            }
+            Padding(xShape4D[2], _kernelHeight, _stride, paddingTypeForHeight, Config.CompatibilityMode, out paddingTop, out paddingBottom);
+            Padding(xShape4D[3], _kernelWidth, _stride, paddingTypeForWidth, Config.CompatibilityMode, out paddingLeft, out paddingRight);
         }
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
         private int[] ConvolutionShape
