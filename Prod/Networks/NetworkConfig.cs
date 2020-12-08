@@ -40,6 +40,11 @@ namespace SharpNet.Networks
 
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
         public CompatibilityModeEnum CompatibilityMode { get; set;} = CompatibilityModeEnum.SharpNet;
+        public enum Metric {Loss, Accuracy, Mae};
+
+
+        public List<Metric> Metrics { get; set; }= new List<Metric> {Metric.Loss, Metric.Accuracy};
+
 
         /// <summary>
         /// The convolution algo to be used

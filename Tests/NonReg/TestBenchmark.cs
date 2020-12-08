@@ -250,7 +250,7 @@ namespace SharpNetTests.NonReg
             var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
             network.Fit(mnist.Training, learningRateComputer, numEpochs, batchSize, mnist.Test);
             var elapsedMs = sw.Elapsed.TotalSeconds;
-            var lossAndAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, mnist.Test);
+            var lossAndAccuracy = network.ComputeMetricsForTestDataSet(batchSize, mnist.Test);
 
             System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "GPUBenchmark_Speed.csv" ), 
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"
@@ -266,8 +266,8 @@ namespace SharpNetTests.NonReg
                 + "RELEASE;"
 #endif
                 +elapsedMs+";"
-                +lossAndAccuracy.Item1+";"
-                +lossAndAccuracy.Item2
+                +lossAndAccuracy[NetworkConfig.Metric.Loss]+";"
+                +lossAndAccuracy[NetworkConfig.Metric.Accuracy]
                 +Environment.NewLine
                 );
         }

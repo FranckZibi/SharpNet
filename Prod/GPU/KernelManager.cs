@@ -39,6 +39,7 @@ namespace SharpNet.GPU
                 {
                     "ApplyZeroPaddingForRowId",
                     "ComputeAccuracy",
+                    "ComputeMae",
                     "BinaryCrossentropyLoss",
                     "CategoricalCrossentropyLoss",
                     "CategoricalCrossentropyWithHierarchyLoss",

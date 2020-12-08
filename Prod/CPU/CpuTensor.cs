@@ -1615,6 +1615,34 @@ namespace SharpNet.CPU
             return buffer.AsReadonlyFloatCpuContent.Average();
         }
 
+        public override double ComputeMae(Tensor yPredicted, Tensor buffer)
+        {
+            var yExpected = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(!yExpected.UseGPU);
+            Debug.Assert(buffer != null);
+            Debug.Assert(buffer.Shape.Length == 1);
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(buffer.Shape[0] == batchSize);
+
+            var bufferCpu = buffer.AsFloatCpu;
+
+            void ComputeLine(int batchId)
+            {
+                float batchMae = 0;
+                var yExpectedCpu = yExpected.AsReadonlyFloatCpuContent;
+                var yPredictedCpu = yPredicted.AsReadonlyFloatCpuContent;
+                for (int index = batchId * yExpected.MultDim0; index < (batchId + 1) * yExpected.MultDim0; ++index)
+                {
+                    batchMae += Math.Abs(yExpectedCpu[index] - yPredictedCpu[index]);
+                }
+                bufferCpu[batchId] = batchMae / yExpected.MultDim0;
+            }
+            Parallel.For(0, batchSize, ComputeLine);
+            return buffer.ContentAsFloatArray().Average();
+        }
+
         private static float ComputeSingleAccuracy(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)
         {
             Debug.Assert(yExpectedOneHot.SameShape(yPredicted));

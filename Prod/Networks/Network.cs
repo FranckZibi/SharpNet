@@ -23,7 +23,7 @@ namespace SharpNet.Networks
     {
         #region private fields
         public static readonly ILog Log = LogManager.GetLogger(typeof(Network));
-        private readonly List<EpochData> EpochData = new List<EpochData>();
+        public readonly List<EpochData> EpochData = new List<EpochData>();
         /// <summary>
         /// all resources (CPU or GPU) available for the current network
         /// values superior or equal to 0 means GPU resources (device)
@@ -86,8 +86,7 @@ namespace SharpNet.Networks
             _masterNetworkIfAny = masterNetworkIfAny;
             _resourceIds = resourceIds.ToList();
             GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0]) : null;
-            _swComputeLoss = new Stopwatch();
-            _swComputeAccuracy = new Stopwatch();
+            _swComputeMetrics = new Stopwatch();
             CreateLogDirectoryIfNeeded();
             MemoryPool = new TensorMemoryPool(GpuWrapper, false);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
@@ -483,7 +482,10 @@ namespace SharpNet.Networks
             try
             {
                 Debug.Assert(Config.TypeSize == trainingDataSetCpu.TypeSize);
-                Debug.Assert(learningRateComputer != null);
+                if (learningRateComputer == null)
+                {
+                    throw new ArgumentException("learningRateComputer shouldn't be null in Training mode");
+                }
                 _spInternalFit.Start();
                 StartTimer("Fit_Prepare", ForwardPropagationTrainingTime);
 
@@ -525,7 +527,7 @@ namespace SharpNet.Networks
 
 
                 var lastAutoSaveTime = DateTime.Now; //last time we saved the network
-                Tuple<double, double> validationLossAndAccuracy = null;
+                IDictionary<NetworkConfig.Metric, double> validationMetrics = null;
                 for (;;)
                 {
                     int epoch = EpochData.Count + 1;
@@ -554,22 +556,22 @@ namespace SharpNet.Networks
                     }
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
-                    var trainLossAndAccuracyForEpoch = ComputeLossAndAccuracyForEntireBatch(_yExpectedForEpoch, yPredicted);
-                    var lossAndAccuracyMsg = LossAndAccuracyToString(trainLossAndAccuracyForEpoch, "");
+                    var trainingMetricsForEpoch = ComputeMetrics(_yExpectedForEpoch, yPredicted);
+                    var lossAndAccuracyMsg = MetricsToString(trainingMetricsForEpoch, "");
                     if (testDataSetCpuIfAny != null)
                     {
                         //We compute the validation (= test) loss&accuracy
                         if (ShouldUseFullTestDataSetForLossAndAccuracy(learningRateComputer, epoch, numEpochs))
                         {
-                            validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSizeForAllWorkers, testDataSetCpuIfAny);
-                            lossAndAccuracyMsg += " - " + LossAndAccuracyToString(validationLossAndAccuracy, "val_");
+                            validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, testDataSetCpuIfAny);
+                            lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "val_");
                         }
                         else
                         {
                             //we'll compute loss and accuracy using only 10% of the test data set
                             using var subDataSet = new SubDataSet(testDataSetCpuIfAny, i => i%10 == 0);
-                            validationLossAndAccuracy = ComputeLossAndAccuracyForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
-                            lossAndAccuracyMsg += " - " + LossAndAccuracyToString(validationLossAndAccuracy, "estimate_val_");
+                            validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
+                            lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
                         }
 
                     }
@@ -587,7 +589,7 @@ namespace SharpNet.Networks
                     }
 
                     #region we save stats about the just finished epoch
-                    var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, trainLossAndAccuracyForEpoch.Item1, trainLossAndAccuracyForEpoch.Item2, validationLossAndAccuracy?.Item1 ?? double.NaN, validationLossAndAccuracy?.Item2 ?? double.NaN, secondsForEpoch);
+                    var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, secondsForEpoch, trainingMetricsForEpoch, validationMetrics);
                     EpochData.Add(currentEpochData);
                     #endregion
 
@@ -627,8 +629,8 @@ namespace SharpNet.Networks
                         + learningRateComputer.LearningRate(1, 0, 1.0) + ";"
                         + _spInternalFit.Elapsed.TotalSeconds + ";"
                         + (_spInternalFit.Elapsed.TotalSeconds / numEpochs) + ";"
-                        + validationLossAndAccuracy?.Item1 + ";"
-                        + validationLossAndAccuracy?.Item2
+                        + validationMetrics?[NetworkConfig.Metric.Loss] + ";"
+                        + validationMetrics?[NetworkConfig.Metric.Accuracy]
                         + Environment.NewLine;
                     var testsCsv = string.IsNullOrEmpty(trainingDataSetCpu.Name)?"Tests.csv": ("Tests_"+ trainingDataSetCpu.Name + ".csv");
                     if (Config.LogEnabled)
@@ -666,31 +668,49 @@ namespace SharpNet.Networks
         }
 
         #region compute Loss and Accuracy
-        //returns : Tuple<loss, accuracy>
-        public Tuple<double, double> ComputeLossAndAccuracyForTestDataSet(int miniBatchSize, IDataSet testDataSet)
+        public IDictionary<NetworkConfig.Metric, double> ComputeMetricsForTestDataSet(int miniBatchSize, IDataSet testDataSet)
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
-            return ComputeLossAndAccuracyForEntireBatch(testDataSet.Y, yPredicted);
+            return ComputeMetrics(testDataSet.Y, yPredicted);
         }
-        private Tuple<double, double> ComputeLossAndAccuracyForEntireBatch(Tensor yExpected, Tensor yPredicted)
+
+        private IDictionary<NetworkConfig.Metric, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
         {
-            _swComputeAccuracy?.Start();
+            _swComputeMetrics?.Start();
+            var result = new Dictionary<NetworkConfig.Metric, double>();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
             yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
-            MemoryPool.GetFloatTensor(ref buffer, new[] { yExpected.Shape[0] });
-            var accuracy = yExpected.ComputeAccuracy(yPredicted, Config.LossFunction, buffer);
-            _swComputeAccuracy?.Stop();
-            _swComputeLoss?.Start();
-            MemoryPool.GetFloatTensor(ref _bufferComputeLoss, new[] { yExpected.Shape[0] });
-            var totalLoss = yExpected.ComputeLoss(yPredicted, Config.LossFunction, _bufferComputeLoss);
-            _swComputeLoss?.Stop();
-            return Tuple.Create(totalLoss, accuracy);
+            var batchSize = yExpected.Shape[0];
+            foreach (var metric in Config.Metrics)
+            {
+                if (metric == NetworkConfig.Metric.Loss)
+                {
+                    MemoryPool.GetFloatTensor(ref _bufferComputeLoss, new[] {batchSize});
+                    result[metric] = yExpected.ComputeLoss(yPredicted, Config.LossFunction, _bufferComputeLoss);
+                }
+                else if (metric == NetworkConfig.Metric.Accuracy)
+                {
+                    MemoryPool.GetFloatTensor(ref buffer, new[] { batchSize });
+                    result[metric] = yExpected.ComputeAccuracy(yPredicted, Config.LossFunction, buffer);
+                }
+                else if (metric == NetworkConfig.Metric.Mae)
+                {
+                    MemoryPool.GetFloatTensor(ref buffer, new[] { batchSize });
+                    result[metric] = yExpected.ComputeMae(yPredicted, buffer);
+                }
+                else
+                {
+                    throw new ArgumentException("unknown metric "+metric);
+                }
+            }
+            _swComputeMetrics?.Stop();
+            return result;
         }
-        private static string LossAndAccuracyToString(Tuple<double, double> lossAndAccuracy, string prefix)
+        public static string MetricsToString(IDictionary<NetworkConfig.Metric, double> metrics, string prefix)
         {
-            return prefix + "loss: " + Math.Round(lossAndAccuracy.Item1, 4) + " - " + prefix + "acc: " + Math.Round(lossAndAccuracy.Item2, 4);
+            return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + e.Key + ": " + Math.Round(e.Value, 4)));
         }
         #endregion
 

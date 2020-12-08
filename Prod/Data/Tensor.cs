@@ -633,11 +633,19 @@ namespace SharpNet.Data
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         /// </summary>
-        /// <param name="yPredicted">what has been predicted by the ML (in each row the biggest value is the ML favorite)</param>
+        /// <param name="yPredicted">what has been predicted by the NN (in each row the biggest value is the NN favorite)</param>
         /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
         public abstract double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
+
+        /// <summary>
+        /// this = yExpected
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the NN</param>
+        /// <param name="buffer"></param>
+        /// <returns> The Mean Absolute Error (mae) between 'yExpected'( =this) and 'yPredicted'  </returns>
+        public abstract double ComputeMae(Tensor yPredicted, Tensor buffer);
 
 
         /// <summary>

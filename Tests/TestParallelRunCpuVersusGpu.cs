@@ -783,6 +783,19 @@ namespace SharpNetTests
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, tensors[2]), new List<int> { 2 });
         }
 
+        [TestCase(new []{1,1,1})]
+        [TestCase(new[] {1, 10 })]
+        [TestCase(new []{1,7,2})]
+        [TestCase(new []{33,10})]
+        [TestCase(new []{33,5,10})]
+        public void TestComputeMae(int[] shape)
+        {
+            var yPredicted = RandomTensor(shape);
+            var yExpected = RandomTensor(shape);
+            var buffer = RandomTensor(new[] {shape[0] });
+            TestAllForReturnValue(new[] { yExpected, yPredicted, buffer }, tensors => tensors[0].ComputeMae(tensors[1], tensors[2]));
+        }
+
         [Test]
         public void TestComputeAccuracyCategoricalCrossentropyWithHierarchy()
         {

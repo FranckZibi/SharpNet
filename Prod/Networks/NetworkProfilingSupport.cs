@@ -9,8 +9,7 @@ namespace SharpNet.Networks
     {
         #region private fields
         private readonly Stopwatch _spInternalFit = new Stopwatch();
-        private readonly Stopwatch _swComputeLoss;
-        private readonly Stopwatch _swComputeAccuracy;
+        private readonly Stopwatch _swComputeMetrics;
         private readonly IDictionary<string, Stopwatch> _updateWeightsTime = new Dictionary<string, Stopwatch>();
         #endregion
 
@@ -22,7 +21,7 @@ namespace SharpNet.Networks
         {
             var totalSeconds = _spInternalFit.Elapsed.TotalSeconds;
             var result = "Took " + Math.Round(totalSeconds, 1) + "s";
-            result += " (Loss:" + Math.Round(100 * _swComputeLoss.Elapsed.TotalSeconds / totalSeconds, 0) + "%+Accuracy:" + Math.Round(100 * _swComputeAccuracy.Elapsed.TotalSeconds / totalSeconds, 0) + "%])" + Environment.NewLine;
+            result += " (Metrics:" + Math.Round(100 * _swComputeMetrics.Elapsed.TotalSeconds / totalSeconds, 0) + "%)" + Environment.NewLine;
             result += KpiByLayerType(totalSeconds);
             return result;
         }

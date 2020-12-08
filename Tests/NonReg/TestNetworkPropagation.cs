@@ -1147,14 +1147,14 @@ namespace SharpNetTests.NonReg
         {
             var batchSize = X.Shape[0];
             using var dataSet = new InMemoryDataSet(X, Y_expected);
-            var observedLossAccuracy = network.ComputeLossAndAccuracyForTestDataSet(batchSize, dataSet);
+            var observedMetrics = network.ComputeMetricsForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
-                Assert.AreEqual(expectedLoss.Value, observedLossAccuracy.Item1, epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedLossAccuracy.Item1);
+                Assert.AreEqual(expectedLoss.Value, observedMetrics[NetworkConfig.Metric.Loss], epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedMetrics[NetworkConfig.Metric.Loss]);
             }
             if (expectedAccuracy.HasValue)
             {
-                Assert.AreEqual(expectedAccuracy.Value, observedLossAccuracy.Item2, epsilon, "expected accuracy: " + expectedAccuracy.Value + " but was: " + observedLossAccuracy.Item2);
+                Assert.AreEqual(expectedAccuracy.Value, observedMetrics[NetworkConfig.Metric.Accuracy], epsilon, "expected accuracy: " + expectedAccuracy.Value + " but was: " + observedMetrics[NetworkConfig.Metric.Accuracy]);
             }
         }
     }

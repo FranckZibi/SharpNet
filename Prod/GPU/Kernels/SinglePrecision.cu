@@ -46,6 +46,20 @@
 		}
 	}
 
+	__global__ void ComputeMae(int N, int nbCols, float* mae, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int startIndex = i * nbCols;
+			int endIndexExcluded = startIndex + nbCols;
+			mae[i] = 0;
+			for (int j = i * nbCols; j < endIndexExcluded; ++j)
+			{
+				mae[i] += fabsf(yPredicted[j] - yExpected[j]);
+			}
+			mae[i] /= nbCols;
+		}
+	}
 
 	__device__  bool IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(const float* __restrict expected, const float* __restrict predicted, int endIndexExcluded, int *pNexIndexToCheck, int subCategoriesCount)
 	{

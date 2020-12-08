@@ -97,6 +97,7 @@ namespace SharpNet.Data
         public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU) {throw new NotImplementedException();}
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace) {throw new NotImplementedException();}
         public override double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
+        public override double ComputeMae(Tensor yPredicted, Tensor buffer) {throw new NotImplementedException();}
         public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted) {throw new NotImplementedException();}
         public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta) {throw new NotImplementedException();}
         public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta) { throw new NotImplementedException(); }

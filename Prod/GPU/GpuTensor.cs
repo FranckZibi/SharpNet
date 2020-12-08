@@ -599,6 +599,22 @@ namespace SharpNet.GPU
             return buffer.ContentAsFloatArray().Average();
         }
 
+        public override double ComputeMae(Tensor yPredicted, Tensor buffer)
+        {
+            var yExpected = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
+            Debug.Assert(yPredicted != null);
+            Debug.Assert(buffer != null);
+            Debug.Assert(buffer.Shape.Length == 1);
+            Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(yExpected.Dimension >= 2);
+            int nbRows = yExpected.Shape[0];
+            var nbCols = yExpected.MultDim0;
+            _wrapper.RunKernel("ComputeMae", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
+            return buffer.ContentAsFloatArray().Average();
+        }
+
         public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted)
         {
             var loss = this;
