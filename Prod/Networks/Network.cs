@@ -700,6 +700,11 @@ namespace SharpNet.Networks
                     MemoryPool.GetFloatTensor(ref buffer, new[] { batchSize });
                     result[metric] = yExpected.ComputeMae(yPredicted, buffer);
                 }
+                else if (metric == NetworkConfig.Metric.Mse)
+                {
+                    MemoryPool.GetFloatTensor(ref buffer, new[] { batchSize });
+                    result[metric] = yExpected.ComputeMse(yPredicted, buffer);
+                }
                 else
                 {
                     throw new ArgumentException("unknown metric "+metric);

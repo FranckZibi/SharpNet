@@ -647,6 +647,14 @@ namespace SharpNet.Data
         /// <returns> The Mean Absolute Error (mae) between 'yExpected'( =this) and 'yPredicted'  </returns>
         public abstract double ComputeMae(Tensor yPredicted, Tensor buffer);
 
+        /// <summary>
+        /// this = yExpected
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the NN</param>
+        /// <param name="buffer"></param>
+        /// <returns> The Mean Squared Error (mse) between 'yExpected'( =this) and 'yPredicted'  </returns>
+        public abstract double ComputeMse(Tensor yPredicted, Tensor buffer);
+
 
         /// <summary>
         /// Compute the output gradient when we are using categorical hierarchy for categories
@@ -673,6 +681,22 @@ namespace SharpNet.Data
         /// <param name="yPredicted">the observed values for the prediction</param>
         /// <param name="huberDelta"></param>
         public abstract void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta);
+
+        /// <summary>
+        /// Compute the output gradient when are using Men Squared Error loss
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void MseGradient(Tensor yExpected, Tensor yPredicted);
+
+        /// <summary>
+        /// Compute the Mean Squared Error loss (see https://en.wikipedia.org/wiki/Mean_squared_error)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void MseLoss(Tensor yExpected, Tensor yPredicted);
 
         /// <summary>
         /// pointer to (device or host) pinned memory

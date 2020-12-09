@@ -61,6 +61,22 @@
 		}
 	}
 
+	__global__ void ComputeMse(int N, int nbCols, float* mse, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int startIndex = i * nbCols;
+			int endIndexExcluded = startIndex + nbCols;
+			mse[i] = 0;
+			for (int j = i * nbCols; j < endIndexExcluded; ++j)
+			{
+				float diff = yPredicted[j] - yExpected[j];
+				mse[i] += diff*diff;
+			}
+			mse[i] /= nbCols;
+		}
+	}
+
 	__device__  bool IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(const float* __restrict expected, const float* __restrict predicted, int endIndexExcluded, int *pNexIndexToCheck, int subCategoriesCount)
 	{
 		int subCategoriesFound = 0;
@@ -484,6 +500,22 @@
 		}
 	}
 
+	__global__ void MseLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			float loss = 0.0f;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = yExpected[j] - yPredicted[j];
+				loss += diff * diff;
+			}
+			losses[i] = loss / lineSize;
+		}
+	}
+
 	__global__ void CategoricalCrossentropyWithHierarchyGradient(int N, int nbCols, float* loss, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -522,6 +554,20 @@
 			{
 				float diff = yPredicted[j] - yExpected[j];
 				huberGradient[j] = fmaxf(fminf(diff, huberDelta), -huberDelta) / lineSize;
+			}
+		}
+	}
+
+	__global__ void MseGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = yPredicted[j] - yExpected[j];
+				mseGradient[j] = (2*diff)/ lineSize;
 			}
 		}
 	}

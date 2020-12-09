@@ -1491,6 +1491,9 @@ namespace SharpNet.CPU
                     const double huberDelta = 1.0;
                     cost = (1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float) ( (Math.Abs(expected-prediction)<= huberDelta) ?(0.5*Math.Pow(expected - prediction,2)):(huberDelta* Math.Abs(expected - prediction)-0.5*huberDelta*huberDelta)  )).NaNSum();
                     break;
+                case NetworkConfig.LossFunctionEnum.Mse:
+                    cost = (1.0 / (batchSize*yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(expected - prediction, 2))).NaNSum();
+                    break;
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
             }
@@ -1617,6 +1620,15 @@ namespace SharpNet.CPU
 
         public override double ComputeMae(Tensor yPredicted, Tensor buffer)
         {
+            return ComputeMetric(yPredicted, buffer, (a, b) => Math.Abs(a - b));
+        }
+
+        public override double ComputeMse(Tensor yPredicted, Tensor buffer)
+        {
+            return ComputeMetric(yPredicted, buffer, (a, b) => (a - b)*(a-b));
+        }
+        private float ComputeMetric(Tensor yPredicted, Tensor buffer, Func<float , float, float> computeScalarMetric)
+        {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
             Debug.Assert(yExpected.SameShape(yPredicted));
@@ -1630,14 +1642,14 @@ namespace SharpNet.CPU
 
             void ComputeLine(int batchId)
             {
-                float batchMae = 0;
+                float batchMetric = 0;
                 var yExpectedCpu = yExpected.AsReadonlyFloatCpuContent;
                 var yPredictedCpu = yPredicted.AsReadonlyFloatCpuContent;
                 for (int index = batchId * yExpected.MultDim0; index < (batchId + 1) * yExpected.MultDim0; ++index)
                 {
-                    batchMae += Math.Abs(yExpectedCpu[index] - yPredictedCpu[index]);
+                    batchMetric += computeScalarMetric(yExpectedCpu[index], yPredictedCpu[index]);
                 }
-                bufferCpu[batchId] = batchMae / yExpected.MultDim0;
+                bufferCpu[batchId] = batchMetric / yExpected.MultDim0;
             }
             Parallel.For(0, batchSize, ComputeLine);
             return buffer.ContentAsFloatArray().Average();
@@ -1816,6 +1828,47 @@ namespace SharpNet.CPU
                 }
             }
             huberLoss[batchId] = loss;
+        }
+
+
+        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var loss = this;
+            Debug.Assert(loss.SameShape(yExpected));
+            Debug.Assert(loss.SameShape(yPredicted));
+            Parallel.For(0, loss.Shape[0], m => { MseGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+        }
+
+        private static void MseGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        {
+            Debug.Assert(gradient.Length == expected.Length);
+            Debug.Assert(gradient.Length == predicted.Length);
+            for (int i = 0; i < gradient.Length; ++i)
+            {
+                var error = predicted[i] - expected[i];
+                gradient[i] = 2*error/ gradient.Length;
+            }
+        }
+
+        public override void MseLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Parallel.For(0, batchSize, batchId => { MseLoss(batchId, mseLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent); });
+        }
+
+        private static void MseLoss(int batchId, Span<float> mseLoss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        {
+            Debug.Assert(expected.Length == predicted.Length);
+            var loss = 0.0f;
+            for (int i = 0; i < expected.Length; ++i)
+            {
+                var error = predicted[i] - expected[i];
+                loss += error * error;
+            }
+            mseLoss[batchId] = loss / expected.Length;
         }
 
 

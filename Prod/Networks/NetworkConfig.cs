@@ -40,7 +40,7 @@ namespace SharpNet.Networks
 
         public LossFunctionEnum LossFunction { get; set;} = LossFunctionEnum.CategoricalCrossentropy;
         public CompatibilityModeEnum CompatibilityMode { get; set;} = CompatibilityModeEnum.SharpNet;
-        public enum Metric {Loss, Accuracy, Mae};
+        public enum Metric {Loss, Accuracy, Mae, Mse};
 
 
         public List<Metric> Metrics { get; set; }= new List<Metric> {Metric.Loss, Metric.Accuracy};
@@ -409,7 +409,12 @@ namespace SharpNet.Networks
             /*
              * Huber loss, see  https://en.wikipedia.org/wiki/Huber_loss
              * */
-            Huber
+            Huber,
+
+            /*
+            * Mean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
+            * */
+            Mse
         }
     }
 }

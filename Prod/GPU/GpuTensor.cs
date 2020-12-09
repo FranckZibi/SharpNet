@@ -601,6 +601,16 @@ namespace SharpNet.GPU
 
         public override double ComputeMae(Tensor yPredicted, Tensor buffer)
         {
+            return ComputeMetric(yPredicted, buffer, "ComputeMae");
+        }
+
+        public override double ComputeMse(Tensor yPredicted, Tensor buffer)
+        {
+            return ComputeMetric(yPredicted, buffer, "ComputeMse");
+        }
+
+        private double ComputeMetric(Tensor yPredicted, Tensor buffer, string kernelName)
+        {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
             Debug.Assert(yPredicted != null);
@@ -611,7 +621,7 @@ namespace SharpNet.GPU
             Debug.Assert(yExpected.Dimension >= 2);
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.MultDim0;
-            _wrapper.RunKernel("ComputeMae", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
+            _wrapper.RunKernel(kernelName, nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
             return buffer.ContentAsFloatArray().Average();
         }
 
@@ -639,6 +649,23 @@ namespace SharpNet.GPU
             Debug.Assert(yExpected.SameShape(yPredicted));
             _wrapper.RunKernel("HuberLoss", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
         }
+
+        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseGradient = this;
+            int batchSize = yExpected.Shape[0];
+            _wrapper.RunKernel("MseGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
+        }
+
+        public override void MseLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            _wrapper.RunKernel("MseLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted });
+        }
+
 
         /// <summary>
         /// this = yExpectedOneHot

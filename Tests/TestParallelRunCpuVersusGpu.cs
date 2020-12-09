@@ -687,11 +687,14 @@ namespace SharpNetTests
         [TestCase(1, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(1, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
         [TestCase(1, NetworkConfig.LossFunctionEnum.Huber)]
+        [TestCase(1, NetworkConfig.LossFunctionEnum.Mse)]
         [TestCase(2, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(2, NetworkConfig.LossFunctionEnum.BinaryCrossentropy)]
         [TestCase(2, NetworkConfig.LossFunctionEnum.Huber)]
+        [TestCase(2, NetworkConfig.LossFunctionEnum.Mse)]
         [TestCase(10, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy)]
         [TestCase(10, NetworkConfig.LossFunctionEnum.Huber)]
+        [TestCase(10, NetworkConfig.LossFunctionEnum.Mse)]
         public void TestComputeLoss(int categoryCount, NetworkConfig.LossFunctionEnum lossFunction)
         {
             var nbRows = 1000;
@@ -746,6 +749,35 @@ namespace SharpNetTests
             var expected = RandomTensor(predicted.Shape);
             var huberGradient = RandomTensor(expected.Shape);
             TestAll(new[] { huberGradient, expected, predicted}, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
+        }
+
+        [TestCase(new[] { 10000, 10 })]
+        [TestCase(new[] { 10000, 1 })]
+        [TestCase(new[] { 5000, 3, 10 })]
+        [TestCase(new[] { 5000, 3, 1 })]
+        [TestCase(new[] { 3000, 3, 2, 10 })]
+        [TestCase(new[] { 3000, 3, 2, 1 })]
+        public void TestMseLoss(int[] shape)
+        {
+            var predicted = RandomTensor(shape);
+            var expected = RandomTensor(predicted.Shape);
+            var batchSize = shape[0];
+            var huberLoss = RandomTensor(new[] { batchSize });
+            TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].MseLoss(tensors[1], tensors[2]));
+        }
+
+        [TestCase(new[] { 10000, 10 })]
+        [TestCase(new[] { 10000, 1 })]
+        [TestCase(new[] { 5000, 3, 10 })]
+        [TestCase(new[] { 5000, 3, 1 })]
+        [TestCase(new[] { 3000, 3, 2, 10 })]
+        [TestCase(new[] { 3000, 3, 2, 1 })]
+        public void TestMseGradient(int[] shape)
+        {
+            var predicted = RandomTensor(shape);
+            var expected = RandomTensor(predicted.Shape);
+            var huberGradient = RandomTensor(expected.Shape);
+            TestAll(new[] { huberGradient, expected, predicted }, tensors => tensors[0].MseGradient(tensors[1], tensors[2]));
         }
 
         [TestCase(new[] { 1000, 10 })]

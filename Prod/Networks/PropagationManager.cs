@@ -191,6 +191,9 @@ namespace SharpNet.Networks
                         const float huberDelta = 1.0f;
                         dyPredicted.HuberGradient(yExpected, yPredicted, huberDelta);
                         break;
+                    case NetworkConfig.LossFunctionEnum.Mse:
+                        dyPredicted.MseGradient(yExpected, yPredicted);
+                        break;
                     default:
                         throw new Exception("Invalid loss function " + lossFunction);
                 }
