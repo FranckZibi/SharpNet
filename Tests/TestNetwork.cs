@@ -69,7 +69,7 @@ namespace SharpNetTests
             Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, testDataSet);
         }
 
-        public static void Fit(Network network, InMemoryDataSet trainingDataSet, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
+        public static void Fit(Network network, IDataSet trainingDataSet, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
             var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);

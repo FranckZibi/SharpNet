@@ -2,8 +2,8 @@
 {
     public class TrainingAndTestDataLoader : AbstractTrainingAndTestDataSet
     {
-        public TrainingAndTestDataLoader(IDataSet training, IDataSet test, AbstractDataSet parent)
-            : base(parent.Name, parent.CategoryCount)
+        public TrainingAndTestDataLoader(IDataSet training, IDataSet test, IDataSet parent)
+            : base(parent.Name)
         {
             Training = training;
             Test = test;

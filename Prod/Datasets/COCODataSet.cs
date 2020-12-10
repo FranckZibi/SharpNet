@@ -15,7 +15,6 @@ namespace SharpNet.Datasets
         #region constructor
         public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy)
         {
-            Y = null;
             _cocoDirectory = cocoDirectory;
             throw new NotImplementedException();
         }
@@ -44,6 +43,6 @@ namespace SharpNet.Datasets
             return "";
         }
 
-        public override CpuTensor<float> Y { get; }
+        public override CpuTensor<float> Y => throw new NotImplementedException();
     }
 }

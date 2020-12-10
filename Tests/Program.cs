@@ -70,7 +70,9 @@ namespace SharpNetTests
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_SimpleRNN(); return;
+            //new NonReg.TestNetworkPropagation().Test_Conv1D(new List<int>{-1}); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_UnivariateTimeSeries(); return;
+            //new TestParallelRunCpuVersusGpu().TestComputeMae(new []{1,1}); return;
             //EfficientNetTests_Cancel(true);
             //WideResNetTests();
             //SVHNTests();
@@ -272,7 +274,7 @@ namespace SharpNetTests
         private static void Train_CIFAR10_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             using var cifar10 = new CIFAR10DataSet();
-            using var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataSet.Shape_CHW, cifar10.CategoryCount);
+            using var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataSet.Shape_CHW, CIFAR10DataSet.CategoryCount);
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(cifar10.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar10.Test);
         }
@@ -332,7 +334,7 @@ namespace SharpNetTests
         private static void Train_CIFAR100_WRN(WideResNetBuilder p, int WRN_depth, int WRN_k)
         {
             using (var cifar100 = new CIFAR100DataSet())
-            using (var network = p.WRN(WRN_depth, WRN_k, CIFAR100DataSet.Shape_CHW, cifar100.CategoryCount))
+            using (var network = p.WRN(WRN_depth, WRN_k, CIFAR100DataSet.Shape_CHW, CIFAR100DataSet.CategoryCount))
             {
                 var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
                 network.Fit(cifar100.Training, learningRateComputer, p.NumEpochs, p.BatchSize, cifar100.Test);
@@ -366,7 +368,7 @@ namespace SharpNetTests
         private static void Train_SVHN_WRN(WideResNetBuilder p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
             using var svhn = new SVHNDataSet(loadExtraFileForTraining);
-            using var network = p.WRN(WRN_depth, WRN_k, SVHNDataSet.Shape_CHW, svhn.CategoryCount);
+            using var network = p.WRN(WRN_depth, WRN_k, SVHNDataSet.Shape_CHW, SVHNDataSet.CategoryCount);
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\SVHN\WRN-16-10_30Epochs_MultiGPU_20200501_1147_30.txt");
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
             network.Fit(svhn.Training, learningRateComputer, p.NumEpochs, p.BatchSize, svhn.Test);

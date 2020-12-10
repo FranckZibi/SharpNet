@@ -30,12 +30,13 @@ namespace SharpNet.Datasets
     public class CIFAR10DataSet : AbstractTrainingAndTestDataSet
     {
         private static readonly string[] CategoryIndexToDescription = { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
+        public static int CategoryCount => CategoryIndexToDescription.Length;
 
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
 
         public static readonly int[] Shape_CHW = { 3, 32, 32 };
-        public CIFAR10DataSet() : base("CIFAR-10", CategoryIndexToDescription.Length)
+        public CIFAR10DataSet() : base("CIFAR-10")
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 

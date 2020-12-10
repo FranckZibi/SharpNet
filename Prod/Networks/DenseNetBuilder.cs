@@ -67,7 +67,7 @@ namespace SharpNet.Networks
             return Build(
                 nameof(DenseNet_12_40) + "_" + dataSet.Name,
                 new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2]},
-                dataSet.CategoryCount,
+                CIFAR10DataSet.CategoryCount,
                 false,
                 new[] { 12, 12, 12 },
                 false,
@@ -80,7 +80,7 @@ namespace SharpNet.Networks
             return Build(
                 nameof(DenseNetBC_12_100) + "_" + dataSet.Name,
                 new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2] },
-                dataSet.CategoryCount,
+                CIFAR10DataSet.CategoryCount,
                 false,
                 new[] { 32 / 2, 32 / 2, 32 / 2 },
                 true,

@@ -24,7 +24,6 @@ namespace SharpNet.Datasets
 
         private PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base(subDirectory, 3, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy)
         {
-            Y = null;
             var annotationsDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
             var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
             var elementIdToCategoryIndex = new List<int>();
@@ -107,7 +106,7 @@ namespace SharpNet.Datasets
 
         public int ElementIdToHeight(int elementId) { return _annotations[elementId].Height; }
         public int ElementIdToWidth(int elementId) { return _annotations[elementId].Width; }
-        public override CpuTensor<float> Y { get; }
+        public override CpuTensor<float> Y => _directoryDataSet.Y;
     }
 
 }

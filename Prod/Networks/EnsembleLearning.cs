@@ -15,8 +15,8 @@ namespace SharpNet.Networks
 
         public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet)
         {
-            var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y_Shape);
-            var buffer = new CpuTensor<float>(new []{ testDataSet.Y_Shape [0]});
+            var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y.Shape);
+            var buffer = new CpuTensor<float>(new []{ testDataSet.Count});
             var lossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy;
             foreach (var modelFilePath in _modelFilesPath)
             {

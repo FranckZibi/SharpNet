@@ -5,7 +5,7 @@
         private readonly AbstractTrainingAndTestDataSet _original;
 
         public ZoomedTrainingAndTestDataSet(AbstractTrainingAndTestDataSet original, int[] originalShape_CHW, int heightMultiplier, int widthMultiplier) 
-            : base(original.Name, original.CategoryCount)
+            : base(original.Name)
         {
             _original = original;
             Training = new ZoomedDataSet(original.Training, originalShape_CHW, heightMultiplier, widthMultiplier);

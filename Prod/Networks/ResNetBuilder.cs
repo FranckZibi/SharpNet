@@ -160,7 +160,7 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             network.AvgPooling(8, 8, 8);
-            network.Output(dataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Output(CIFAR10DataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
         #endregion
@@ -209,7 +209,7 @@ namespace SharpNet.Networks
             }
             network.BatchNorm(0.99, 1e-5).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.AvgPooling(8, 8, 8);
-            network.Output(dataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Output(CIFAR10DataSet.CategoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
         #endregion

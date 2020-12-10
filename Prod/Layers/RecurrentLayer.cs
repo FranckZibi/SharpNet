@@ -449,12 +449,6 @@ namespace SharpNet.Layers
                 _reserveSpace);
             GPUWrapper.CheckStatus(res);
 
-            Log("_reserveSpace after1: " + _reserveSpace.ToNumpy());
-            Log("------");
-            Log("workSpaceBuffer after1: " + workSpaceBuffer.ToNumpy());
-            Log("------");
-
-
             _weightsAndBiasesGradients.ZeroMemory();
             res = CudnnWrapper.cudnnRNNBackwardWeights_v8(
                 Network.GpuWrapper.CudnnHandle,

@@ -73,7 +73,6 @@ namespace SharpNet.Datasets
             return "";
         }
 
-        public override int[] Y_Shape => Y.Shape;
 
         public override CpuTensor<float> Y { get; }
         public override string ToString()

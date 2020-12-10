@@ -35,7 +35,7 @@ namespace SharpNet.DataAugmentation
         /// <summary>
         ///value used for fill_mode
         /// </summary>
-        public double FillModeConstantVal { get; set; } = 0.0;
+        public double FillModeConstantVal { private get; set; } = 0.0;
 
         /// <summary>
         /// The cutout to use in % of the longest length ( = Max(height, width) )
@@ -119,12 +119,12 @@ namespace SharpNet.DataAugmentation
         /// The number of operations for the RandAugment
         /// Only used when DataAugmentationType = DataAugmentationEnum.RAND_AUGMENT
         /// </summary>
-        public int RandAugment_N { get; set; } = 0;
+        public int RandAugment_N { get; private set; } = 0;
         /// <summary>
         /// The magnitude of operations for the RandAugment
         /// Only used when DataAugmentationType = DataAugmentationEnum.RAND_AUGMENT
         /// </summary>
-        public int RandAugment_M { get; set; } = 0;
+        public int RandAugment_M { get; private set; } = 0;
 
         // ReSharper disable once UnusedMember.Global
         public void WithRandAugment(int N, int M)

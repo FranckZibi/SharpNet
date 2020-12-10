@@ -37,6 +37,6 @@ namespace SharpNet.Datasets
             return "";
         }
 
-        public override CpuTensor<float> Y { get; }
+        public override CpuTensor<float> Y => throw new NotImplementedException();
     }
 }

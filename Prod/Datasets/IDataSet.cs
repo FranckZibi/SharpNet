@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation;
 
@@ -8,12 +9,12 @@ namespace SharpNet.Datasets
     public interface IDataSet : IDisposable
     {
         /// <summary>
-        /// Load 'xMiniBatch.Shape[0]' elements from the 'this' DataSet and copy them into 'xMiniBatch' (and 'yMiniBatch') tensors
-        /// The indexes in the 'this' dataset of those 'xMiniBatch.Shape[0]' elements to copy into 'xMiniBatch' are:
+        /// Load 'miniBatch' (= xMiniBatch.Shape[0](') elements from the 'this' DataSet and copy them into 'xMiniBatch' (and 'yMiniBatch') tensors
+        /// The indexes in the 'this' dataset of those 'miniBatch' elements to copy into 'xMiniBatch' are:
         ///     shuffledElementId[firstIndexInShuffledElementId]
         ///     shuffledElementId[firstIndexInShuffledElementId+1]
         ///     .../...
-        ///     shuffledElementId[firstIndexInShuffledElementId+xMiniBatch.Shape[0]-1 ]
+        ///     shuffledElementId[firstIndexInShuffledElementId+'miniBatch'-1 ]
         /// </summary>
         /// <param name="withDataAugmentation">true if data augmentation should be used
         /// if false will return the original (not augmented) input</param>
@@ -44,11 +45,6 @@ namespace SharpNet.Datasets
         int Count { get; }
         int TypeSize { get; }
 
-        /// <summary>
-        ///  number of distinct categoryCount in the DataSet
-        /// </summary>
-        int CategoryCount { get; }
-
         List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
 
         /// <summary>
@@ -65,9 +61,8 @@ namespace SharpNet.Datasets
         /// number of channels of each elements
         /// </summary>
         int Channels { get; }
-        int[] Y_Shape { get; }
         int[] YMiniBatch_Shape(int miniBatchSize);
-        CpuTensor<float> Y { get; }
+        [NotNull] CpuTensor<float> Y { get; }
 
         string Name { get; }
 

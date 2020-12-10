@@ -11,6 +11,7 @@ namespace SharpNet.Datasets
     public class MNISTDataSet : AbstractTrainingAndTestDataSet
     {
         private static readonly string[] CategoryIndexToDescription = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+        public static int CategoryCount => CategoryIndexToDescription.Length;
 
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
@@ -18,7 +19,7 @@ namespace SharpNet.Datasets
 
         public static readonly int[] Shape_CHW = {3, 32, 32};
 
-        public MNISTDataSet() : base ("MNIST", CategoryIndexToDescription.Length)
+        public MNISTDataSet() : base ("MNIST")
         {
             var trainingSet = PictureTools.ReadInputPictures(FileNameToPath("train-images.idx3-ubyte"), FileNameToPath("train-labels.idx1-ubyte"));
             var trainWorkingSet = ToWorkingSet(trainingSet);

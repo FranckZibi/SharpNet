@@ -21,7 +21,6 @@ namespace SharpNet.Datasets
         /// </summary>
         None,
 
-
         /// <summary>
         /// we'll simply resize the image from disk to the target size for training/inference
         /// without keeping the same proportion.
@@ -262,7 +261,6 @@ namespace SharpNet.Datasets
         public string Name { get; }
         public ResizeStrategyEnum ResizeStrategy { get; }
         public int Channels { get; }
-        public int CategoryCount => CategoryDescriptions.Length;
         /// <summary>
         /// return the mean of channel 'channel' of the original DataSet (before normalization)
         /// </summary>
@@ -293,7 +291,7 @@ namespace SharpNet.Datasets
         // ReSharper disable once UnusedMember.Global
         public string CategoryDescription(int categoryIndex)
         {
-            if (categoryIndex < 0 || categoryIndex >= CategoryCount || CategoryDescriptions == null)
+            if (CategoryDescriptions == null || categoryIndex < 0 || categoryIndex >= CategoryDescriptions.Length)
             {
                 return "";
             }
@@ -312,7 +310,6 @@ namespace SharpNet.Datasets
         public abstract int ElementIdToCategoryIndex(int elementId);
         public abstract string ElementIdToPathIfAny(int elementId);
 
-        public virtual int[] Y_Shape => new[] { Count, CategoryCount };
         public virtual void Dispose()
         {
             xOriginalNotAugmentedMiniBatch?.Dispose();
@@ -335,7 +332,7 @@ namespace SharpNet.Datasets
         }
         public int[] YMiniBatch_Shape(int miniBatchSize)
         {
-            var yMinibatchShape = (int[])Y_Shape.Clone();
+            var yMinibatchShape = (int[])Y.Shape.Clone();
             yMinibatchShape[0] = miniBatchSize;
             return yMinibatchShape;
         }
@@ -345,7 +342,7 @@ namespace SharpNet.Datasets
 
         private IDataSet Slice(int firstElementId, int count)
         {
-            return new SubDataSet(this, id => id >= firstElementId && id <(firstElementId+count) );
+            return MappedDataSet.SubDataSet(this, id => id >= firstElementId && id <(firstElementId+count) );
         }
 
         public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)

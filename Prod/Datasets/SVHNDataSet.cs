@@ -37,6 +37,7 @@ namespace SharpNet.Datasets
     public class SVHNDataSet : AbstractTrainingAndTestDataSet
     {
         private static readonly string[] CategoryIndexToDescription = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+        public static int CategoryCount => CategoryIndexToDescription.Length;
 
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
@@ -59,7 +60,7 @@ namespace SharpNet.Datasets
         /// <param name="loadExtraFileForTraining">
         /// true if we should load both the train file (73.257 entries) and the extra file (531.131 entries) for training
         /// false if we should only load the train file (73.257 entries) for training</param>
-        public SVHNDataSet(bool loadExtraFileForTraining = true) : base("SVHN", CategoryIndexToDescription.Length)
+        public SVHNDataSet(bool loadExtraFileForTraining = true) : base("SVHN")
         {
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
             

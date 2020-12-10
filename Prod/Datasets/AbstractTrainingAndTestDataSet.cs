@@ -6,14 +6,12 @@
         public abstract IDataSet Training { get; }
         public abstract IDataSet Test { get; }
         public string Name { get; }
-        public int CategoryCount { get; }
         #endregion
 
         #region constructor
-        protected AbstractTrainingAndTestDataSet(string name, int categoryCount)
+        protected AbstractTrainingAndTestDataSet(string name)
         {
             Name = name;
-            CategoryCount = categoryCount;
         }
         #endregion
 

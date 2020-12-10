@@ -8,7 +8,7 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class SplittedFileDataSet : AbstractDataSet
+    public sealed class SplittedFileDataSet : AbstractDataSet
     {
         #region private fields
         [NotNull] private readonly int[] _elementIdToCategoryIndex;
@@ -19,7 +19,7 @@ namespace SharpNet.Datasets
         [NotNull] private readonly Func<byte, int> CategoryByteToCategoryIndex;
         #endregion
 
-        public SplittedFileDataSet([NotNull] List<string> files, string name, string[] categoryDescriptions, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
+        public SplittedFileDataSet([NotNull] List<string> files, string name, [NotNull] string[] categoryDescriptions, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
             : base(name, singleElementShape_CHW[0], categoryDescriptions, meanAndVolatilityForEachChannel, ResizeStrategyEnum.None)
         {
             //Currently only pictures (channels x height x width) are supported
@@ -47,7 +47,8 @@ namespace SharpNet.Datasets
                 _elementIdToCategoryIndex[i] = -1;
             }
 
-            Y = new CpuTensor<float>(Y_Shape, null);
+            //TODO : initialize Y tensor
+            Y = new CpuTensor<float>(new[] { Count, categoryDescriptions.Length });
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation)
@@ -81,7 +82,7 @@ namespace SharpNet.Datasets
             //we initialize 'yBuffer'
             var categoryIndex = CategoryByteToCategoryIndex(xByte[0]);
             _elementIdToCategoryIndex[elementId] = categoryIndex;
-            for (int cat = 0; cat < CategoryCount; ++cat)
+            for (int cat = 0; cat < Y.Shape[1]; ++cat)
             {
                 yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
                 Y.Set(elementId, cat, (cat == categoryIndex) ? 1f : 0f);

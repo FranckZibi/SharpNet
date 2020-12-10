@@ -40,7 +40,12 @@ namespace SharpNet.Networks
         ///     null
         /// </summary>
         private readonly Network _masterNetworkIfAny;
-        //Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining
+        /// <summary>
+        /// Tensor x_miniBatch_cpu_slave,
+        /// Tensor yExpected_miniBatch_cpu_slave,
+        /// Tensor yPredicted_miniBatch_master,
+        /// bool isTraining
+        /// </summary>
         private Tuple<Tensor, Tensor, Tensor, bool> _slaveParamForMiniBatchGradientDescent;
         private Tensor _yExpected_miniBatch_slave;
         private Tensor _yPredicted_miniBatch_slave;

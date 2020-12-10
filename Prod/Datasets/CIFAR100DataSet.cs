@@ -52,6 +52,8 @@ namespace SharpNet.Datasets
             "bicycle", "bus", "motorcycle", "pickup truck", "train",
             "lawn-mower", "rocket", "streetcar", "tank", "tractor" };
 
+        public static int CategoryCount => CategoryIndexToDescription.Length;
+
         //private readonly string[] SuperclassIdToDescription = new[]
         //{
         //    "aquatic mammals",
@@ -81,7 +83,7 @@ namespace SharpNet.Datasets
 
         public static readonly int[] Shape_CHW = { 3, 32, 32 };
 
-        public CIFAR100DataSet() : base("CIFAR-100", CategoryIndexToDescription.Length)
+        public CIFAR100DataSet() : base("CIFAR-100")
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 

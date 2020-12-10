@@ -117,6 +117,11 @@ namespace SharpNet.Data
             return _index;
         }
         public double TrainingLoss => GetWithDefaultValue(TrainingMetrics, NetworkConfig.Metric.Loss, double.NaN);
+        public double ValidationLoss => GetWithDefaultValue(ValidationMetrics, NetworkConfig.Metric.Loss, double.NaN);
+        public double TrainingAccuracy => GetWithDefaultValue(TrainingMetrics, NetworkConfig.Metric.Accuracy, double.NaN);
+        public double ValidationAccuracy => GetWithDefaultValue(ValidationMetrics, NetworkConfig.Metric.Accuracy, double.NaN);
+        public double TrainingMae => GetWithDefaultValue(TrainingMetrics, NetworkConfig.Metric.Mae, double.NaN);
+        public double ValidationMae => GetWithDefaultValue(ValidationMetrics, NetworkConfig.Metric.Mae, double.NaN);
 
         private static double GetWithDefaultValue(IDictionary<NetworkConfig.Metric, double> allAvailableMetrics, NetworkConfig.Metric metric, double defaultValue)
         {

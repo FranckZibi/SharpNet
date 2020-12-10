@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace SharpNet.Datasets
 {
-    public class DirectoryDataSet : AbstractDataSet
+    public sealed class DirectoryDataSet : AbstractDataSet
     {
         #region private fields
         /// <summary>
@@ -27,9 +27,8 @@ namespace SharpNet.Datasets
         private readonly List<int> _elementIdToCategoryIndex;
         private readonly Random _rand = new Random(0);
         #endregion
+
         public override CpuTensor<float> Y { get; }
-
-
 
         public static DirectoryDataSet FromFiles(
             List<string> picturePaths,
@@ -64,7 +63,9 @@ namespace SharpNet.Datasets
             List<string> elementIdToDescription, 
             List<int> elementIdToCategoryIndex,
             CpuTensor<float> expectedYIfAny,
-            string name, int channels, string[] categoryDescriptions,
+            string name, 
+            int channels, 
+            string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy)
             : base(name, channels, categoryDescriptions, meanAndVolatilityForEachChannel, resizeStrategy)
@@ -78,8 +79,17 @@ namespace SharpNet.Datasets
                 ComputeMeanAndVolatilityForEachChannel();
                 throw new ArgumentException("please update mean and volatility for dataSet " + name);
             }
-            //We compute Y if necessary
-            Y = expectedYIfAny??CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, elementIdToDescription.Count, CategoryCount);
+
+            //We compute Y field
+            if (expectedYIfAny != null)
+            {
+                Y = expectedYIfAny;
+            }
+            else
+            {
+                Debug.Assert(categoryDescriptions != null);
+                Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, Count, categoryDescriptions.Length);
+            }
         }
         #endregion
 
@@ -109,20 +119,10 @@ namespace SharpNet.Datasets
                     }
                 }
             }
-            var categoryIndex = ElementIdToCategoryIndex(elementId);
-            if (categoryIndex == -1)
+
+            if (yBuffer != null)
             {
-                for (int cat = 0; cat < CategoryCount; ++cat)
-                {
-                    yBuffer?.Set(indexInBuffer, cat, Y.Get(elementId, cat));
-                }
-            }
-            else
-            {
-                for (int cat = 0; cat < CategoryCount; ++cat)
-                {
-                    yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
-                }
+                Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
             }
         }
 

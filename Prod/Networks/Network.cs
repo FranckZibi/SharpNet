@@ -48,31 +48,28 @@ namespace SharpNet.Networks
         #endregion
 
         /// <param name="config"></param>
-        /// <param name="resourceIds">
-        ///     list of resources available for the network
-        ///     if gpuDeviceIds.Count == 1
+        /// <param name="resourceIds">list of resources available for the network
+        /// if gpuDeviceIds.Count == 1
         ///     if masterNetworkIfAny == null:
-        ///     all computation will be done in a single network (no parallel computing between different networks
+        ///         all computation will be done in a single network (using resource gpuDeviceIds[0])
         ///     else:
-        ///     we are using several networks in // for doing the computation
-        ///     and we are in a slave network doing part of this parallel computation for the master network 'masterNetworkIfAny'
-        ///     else: (gpuDeviceIds.Count >= 2)
-        ///     we are using several networks in // for doing the computation
-        ///     and we are in the master network doing part of this parallel computation
-        ///     this master network will use resourceId gpuDeviceIds[1]
+        ///         we are in a slave network (using resource gpuDeviceIds[0]) doing part of the parallel computation
+        ///         the master network is 'masterNetworkIfAny'.
+        /// else: (gpuDeviceIds.Count >= 2)
+        ///     we are the master network (using resource gpuDeviceIds[0]) doing part of the parallel computation
         ///     slaves network will use resourceId gpuDeviceIds[1:]
-        /// 
-        ///     for each resourceId in this list:
+        ///
+        /// for each resourceId in this list:
         ///     if resourceId strictly less then 0:
-        ///     use CPU resource (no GPU usage)
+        ///         use CPU resource (no GPU usage)
         ///     else:
-        ///     run the network on the GPU with device Id = resourceId
+        ///         run the network on the GPU with device Id = resourceId
         /// </param>
         /// <param name="masterNetworkIfAny">
         ///     if the current network is a slave network doing computation for its master network:
-        ///     the reference of the master network
+        ///         the reference of the master network
         ///     else:
-        ///     null
+        ///         null
         /// </param>
         public Network(NetworkConfig config, List<int> resourceIds, Network masterNetworkIfAny = null)
         {
@@ -575,7 +572,7 @@ namespace SharpNet.Networks
                         else
                         {
                             //we'll compute loss and accuracy using only 10% of the test data set
-                            using var subDataSet = new SubDataSet(testDataSetCpuIfAny, i => i%10 == 0);
+                            using var subDataSet = MappedDataSet.SubDataSet(testDataSetCpuIfAny, i => i%10 == 0);
                             validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
                             lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
                         }
@@ -635,8 +632,8 @@ namespace SharpNet.Networks
                         + learningRateComputer.LearningRate(1, 0, 1.0) + ";"
                         + _spInternalFit.Elapsed.TotalSeconds + ";"
                         + (_spInternalFit.Elapsed.TotalSeconds / numEpochs) + ";"
-                        + validationMetrics?[NetworkConfig.Metric.Loss] + ";"
-                        + validationMetrics?[NetworkConfig.Metric.Accuracy]
+                        + EpochData.Last().ValidationLoss + ";"
+                        + EpochData.Last().ValidationAccuracy + ";"
                         + Environment.NewLine;
                     var testsCsv = string.IsNullOrEmpty(trainingDataSetCpu.Name)?"Tests.csv": ("Tests_"+ trainingDataSetCpu.Name + ".csv");
                     if (Config.LogEnabled)
@@ -813,8 +810,8 @@ namespace SharpNet.Networks
             //the first epoch is #1
             int epoch = EpochData.Count + 1;
             var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(EpochData) ?? 1.0;
-            MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, dataSet.Y_Shape);
-            MemoryPool.GetFloatTensor(ref _yExpectedForEpoch, dataSet.Y_Shape);
+            MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, dataSet.Y.Shape);
+            MemoryPool.GetFloatTensor(ref _yExpectedForEpoch, dataSet.Y.Shape);
 
             //we create the shuffled list of inputs 
             var shuffledElementId = Enumerable.Range(0, dataSet.Count).ToArray();
