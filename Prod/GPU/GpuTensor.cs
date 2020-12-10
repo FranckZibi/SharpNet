@@ -308,6 +308,18 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
 
+        public override void LinearFunction(float a, Tensor x, float b)
+        {
+            var y = this;
+            Debug.Assert(y.Count == x.Count);
+            if (Math.Abs(b) < 1e-8)
+            {
+                AddTensor(a, x, 0f);
+                return;
+            }
+            _wrapper.RunKernel("LinearFunction", Count, new object[] { y, a, x, b });
+        }
+
         public override void Concatenate(IList<Tensor> tensors)
         {
 #if DEBUG

@@ -395,6 +395,15 @@ namespace SharpNetTests
         }
 
         [Test]
+        public void TestLinearFunction()
+        {
+            var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
+            var x = RandomTensor(y.Shape);
+            TestAll(new[] { y, x }, tensors => tensors[0].LinearFunction(0.5f, tensors[1], 0.75f));
+        }
+        
+
+        [Test]
         public void TestConcatenate2Tensors()
         {
             var x1 = RandomTensor(new[] { BatchSize, 17, Height, Width });

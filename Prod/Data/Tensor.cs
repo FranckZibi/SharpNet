@@ -392,6 +392,15 @@ namespace SharpNet.Data
         public abstract void AddTensor(float alpha, Tensor x, float beta);
 
         /// <summary>
+        /// compute: this = a * x + b 
+        /// </summary>
+        /// <param name="a">the slope of the linear function</param>
+        /// <param name="x">a tensor with the same shape as the 'this' tensor </param>
+        /// <param name="b">the constant to add in the linear function</param>
+        public abstract void LinearFunction(float a, Tensor x, float b);
+
+
+        /// <summary>
         /// Concatenate all tensors (through the 'Channel' dimension) into the 'this' tensor.
         /// those tensors must have exactly the same geometry apart from the number of channels (at index 1)
         /// 'this' : Tensor of Dimension (N, C_1+C_2+ .... +C_t, H, W)
@@ -406,6 +415,7 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="tensors">'T' Tensor of Dimension (N, C_i, H, W)</param>
         public abstract void Split(IList<Tensor> tensors);
+
         public abstract void Update_Multiplying_By_Alpha(float alpha);
 
         /// <summary>
@@ -740,7 +750,7 @@ namespace SharpNet.Data
             }
         }
         protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
-        private bool SameShapeExceptFirstDimension(int[] shape) { return Shape.Skip(1).SequenceEqual(shape.Skip(1)); }
+        public bool SameShapeExceptFirstDimension(int[] shape) { return Shape.Skip(1).SequenceEqual(shape.Skip(1)); }
         protected void RecomputeMultDim()
         {
             _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;

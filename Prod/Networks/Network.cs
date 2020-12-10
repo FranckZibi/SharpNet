@@ -214,6 +214,12 @@ namespace SharpNet.Networks
             Layers.Add(fullyConnectedLayer);
             return this;
         }
+        public Network Linear(float a, float b, string layerName = "")
+        {
+            var linearFunctionLayer = new LinearFunctionLayer(a, b, this, layerName);
+            Layers.Add(linearFunctionLayer);
+            return this;
+        }
 
         public Network Convolution_BatchNorm(int filtersCount, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
         {

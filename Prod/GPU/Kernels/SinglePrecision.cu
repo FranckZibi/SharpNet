@@ -572,6 +572,16 @@
 		}
 	}
 
+	// Compute:  y = a * x + b
+	__global__ void LinearFunction(int N, float* y, float a, const float* x, float b)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N)
+		{
+			y[i] = a * x[i] + b;
+		}
+	}
+
 	__global__ void Concatenate(int N, int m, float* __restrict concat, int concatMultDim0, const float* __restrict a, int aMultDim0, const float* __restrict b, int bMultDim0)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;

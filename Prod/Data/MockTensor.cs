@@ -51,6 +51,7 @@ namespace SharpNet.Data
         public override void Switch_First_2_axis(Tensor target) {throw new NotImplementedException();}
         public override void Update_Adding_Alpha_X(float alpha, Tensor x){throw new NotImplementedException();}
         public override void AddTensor(float alpha, Tensor x, float beta){throw new NotImplementedException();}
+        public override void LinearFunction(float a, Tensor x, float b) {throw new NotImplementedException();}
         public override void Concatenate(IList<Tensor> tensors){throw new NotImplementedException();}
         public override void Split(IList<Tensor> tensors){throw new NotImplementedException();}
         public override void Update_Multiplying_By_Alpha(float alpha){throw new NotImplementedException();}

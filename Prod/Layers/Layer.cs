@@ -235,6 +235,7 @@ namespace SharpNet.Layers
                 case nameof(DropoutLayer): return DropoutLayer.Deserialize(serialized, network);
                 case nameof(FlattenLayer): return FlattenLayer.Deserialize(serialized, network);
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
+                case nameof(LinearFunctionLayer): return LinearFunctionLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
