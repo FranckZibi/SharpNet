@@ -30,7 +30,7 @@ namespace SharpNet.Layers
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(allDx.Count == 1);
             Debug.Assert(allDx[0].SameShape(dy));
-            allDx[0].LinearFunction(1f/_a , dy, 0);
+            allDx[0].LinearFunction(_a , dy, 0);
         }
         public override bool OutputNeededForBackwardPropagation => false;
         public override bool InputNeededForBackwardPropagation => false;
