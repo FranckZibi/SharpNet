@@ -110,9 +110,8 @@ namespace SharpNet.Layers
         }
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
-            var prevLayerNX = PrevLayer.n_x;
-            Weights_ax.RandomMatrixNormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / prevLayerNX) /*stdDev*/);
-            Weights_aa.RandomMatrixNormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / prevLayerNX) /*stdDev*/);
+            Weights_ax.GlorotUniform(Rand);
+            Weights_aa.Orthogonal(Rand);
             Bias?.ZeroMemory();
         }
         #endregion

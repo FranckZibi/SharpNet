@@ -212,7 +212,7 @@ namespace SharpNet.Layers
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
-            _weights.RandomMatrixNormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+            _weights.NormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
             _bias?.ZeroMemory();
 
             if (resetAlsoOptimizerWeights)

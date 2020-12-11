@@ -5,7 +5,6 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
 using SharpNet.Networks;
-using SharpNet.Optimizers;
 using SharpNetTests.Data;
 
 namespace SharpNetTests
@@ -72,7 +71,10 @@ namespace SharpNetTests
         public static void Fit(Network network, IDataSet trainingDataSet, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
-            var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
+
+            var learningRateComputer = network.Config.GetLearningRateComputer(learningRate, numEpochs);
+            //var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
+
             network.Fit(trainingDataSet, learningRateComputer, numEpochs, batchSize, testDataSet);
         }
     }

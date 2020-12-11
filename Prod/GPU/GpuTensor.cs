@@ -550,18 +550,27 @@ namespace SharpNet.GPU
             memoryPool.FreeFloatTensor(ref dataStorageBuffer);
         }
         #endregion
-        public override void RandomizeUniformDistribution(Random rand, double minValue, double maxValue)
+        public override void UniformDistribution(Random rand, double minValue, double maxValue)
         {
             var array = new float[Count];
-            Utils.RandomizeUniformDistribution(array, rand, minValue, maxValue);
+            Utils.UniformDistribution(array, rand, minValue, maxValue);
             InitializeFromHostMemory(array as T[]);
         }
-        public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
+        public override void NormalDistribution(Random rand, double mean, double stdDev)
         {
             var array = new float[Count];
-            Utils.RandomizeNormalDistribution(array, rand, mean, stdDev);
+            Utils.NormalDistribution(array, rand, mean, stdDev);
             InitializeFromHostMemory(array as T[]);
         }
+
+        public override void Orthogonal(Random rand)
+        {
+            var array = new float[Count];
+            Utils.NormalDistribution(array, rand, 0, 1);
+            Utils.ToOrthogonalMatrix(array, Shape[0], MultDim0);
+            InitializeFromHostMemory(array as T[]);
+        }
+
         public override void SetValue(float sameValue)
         {
             var array = new float[Count];

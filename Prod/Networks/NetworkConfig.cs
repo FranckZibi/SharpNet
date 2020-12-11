@@ -17,9 +17,9 @@ namespace SharpNet.Networks
         #region fields
 
         #region learning rate scheduler fields
-        public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, CyclicCosineAnnealing, Cifar10WideResNet}
+        public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, CyclicCosineAnnealing, Cifar10WideResNet, Constant}
 
-        private LearningRateSchedulerEnum LearningRateSchedulerType { get; set; } = LearningRateSchedulerEnum.Cifar10ResNet;
+        private LearningRateSchedulerEnum LearningRateSchedulerType { get; set; } = LearningRateSchedulerEnum.Constant;
         private int CyclicCosineAnnealing_nbEpochsInFirstRun { get; set; } = 10;
 
         private int CyclicCosineAnnealing_nbEpochInNextRunMultiplier { get; set; } = 2;
@@ -58,7 +58,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// minimum value for the learning rate
         /// </summary>
-        public double MinimumLearningRate { get; } = 1e-7;
+        public double MinimumLearningRate { get; } = 1e-9;
         public bool SGD_usenesterov { get; private set; }
         public Random Rand { get; }
 
@@ -263,6 +263,8 @@ namespace SharpNet.Networks
                         : LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 200, initialLearningRate / 100);
                 case LearningRateSchedulerEnum.Cifar10WideResNet:
                     return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 60, initialLearningRate / 5, 120, initialLearningRate / 25, 160, initialLearningRate / 125);
+                case LearningRateSchedulerEnum.Constant:
+                    return LearningRateScheduler.Constant(initialLearningRate);
                 default:
                     throw new Exception("unknown LearningRateSchedulerType: " + LearningRateSchedulerType);
             }

@@ -108,8 +108,9 @@ namespace SharpNet.Data
         public override void MseLoss(Tensor yExpected, Tensor yPredicted) { throw new NotImplementedException(); }
         public override IntPtr Pointer => throw new NotImplementedException();
         public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer){throw new NotImplementedException();}
-        public override void RandomizeUniformDistribution(Random rand, double minValue, double maxValue) {throw new NotImplementedException();}
-        public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev){throw new NotImplementedException();}
+        public override void UniformDistribution(Random rand, double minValue, double maxValue) {throw new NotImplementedException();}
+        public override void NormalDistribution(Random rand, double mean, double stdDev){throw new NotImplementedException();}
+        public override void Orthogonal(Random rand) {throw new NotImplementedException();}
         public override void SetValue(float sameValue){throw new NotImplementedException();}
         public override float[] ContentAsFloatArray(){throw new NotImplementedException();}
         public override Tensor Clone() {throw new NotImplementedException();}

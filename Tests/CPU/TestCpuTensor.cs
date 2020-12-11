@@ -400,13 +400,13 @@ namespace SharpNetTests.CPU
         public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue)
         {
             var content = new float[Utils.Product(shape)];
-            Utils.RandomizeUniformDistribution(content, rand, minValue, maxValue);
+            Utils.UniformDistribution(content, rand, minValue, maxValue);
             return new CpuTensor<float>(shape, content);
         }
         public static CpuTensor<byte> RandomByteTensor(int[] shape, Random rand, byte minValue, byte maxValue)
         {
             var content = new byte[Utils.Product(shape)];
-            Utils.RandomizeUniformDistribution(content, rand, minValue, maxValue);
+            Utils.UniformDistribution(content, rand, minValue, maxValue);
             return new CpuTensor<byte>(shape, content);
         }
         private static void TestStandardConvolution(CpuTensor<float> input, CpuTensor<float> convolution, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, CpuTensor<float> expectedOutput)

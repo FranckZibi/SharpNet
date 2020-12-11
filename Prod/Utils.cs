@@ -126,26 +126,84 @@ namespace SharpNet
             double deltaLearningRate = (y2 - y1);
             return y1 + dEpoch * deltaLearningRate;
         }
-        public static void RandomizeUniformDistribution(Span<float> toRandomize, Random rand, double minValue, double maxValue)
+        public static void UniformDistribution(Span<float> toRandomize, Random rand, double minValue, double maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
             }
         }
-        public static void RandomizeUniformDistribution(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
+        public static void UniformDistribution(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (byte)(minValue + rand.Next(maxValue - minValue+1));
             }
         }
-        public static void RandomizeNormalDistribution(Span<float> toRandomize, Random rand, double mean, double stdDev)
+        public static void NormalDistribution(Span<float> toRandomize, Random rand, double mean, double stdDev)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (float)NextDoubleNormalDistribution(rand, mean, stdDev);
             }
+        }
+
+
+        /// <summary>
+        /// Make input 'rectangularMatrix' an orthogonal matrix using Gram–Schmidt process
+        /// See: https://en.wikipedia.org/wiki/QR_decomposition
+        /// </summary>
+        /// <param name="rectangularMatrix">A rectangular matrix with shape: (rows, cols)
+        /// that we want to make orthogonal</param>
+        /// <param name="rows">number of rows in matrix 'rectangularMatrix'</param>
+        /// <param name="cols">number of columns in matrix 'rectangularMatrix'</param>
+        public static void ToOrthogonalMatrix(Span<float> rectangularMatrix, int rows, int cols)
+        {
+            Debug.Assert(rectangularMatrix.Length == rows*cols);
+
+            //We compute the U matrix as described in: https://en.wikipedia.org/wiki/QR_decomposition 
+            var U = new Span<float>(new float[rectangularMatrix.Length]);
+            rectangularMatrix.CopyTo(U);
+            for (int row = 1; row < rows; ++row)
+            {
+                //we compute row 'row' of 'U' matrix
+                var aRow = rectangularMatrix.Slice(cols * row, cols);
+                var uRow = U.Slice(cols * row, cols);
+                for (int subRow = 0; subRow < row; ++subRow)
+                {
+                    var uSubRow = U.Slice(cols * subRow, cols);
+                    float multiplier = InnerProduct(uSubRow, aRow) / InnerProduct(uSubRow, uSubRow);
+                    for (int col = 0; col < uSubRow.Length; ++col)
+                    {
+                        uRow[col] -= multiplier * uSubRow[col];
+                    }
+                }
+            }
+
+            //We compute the Q (= rectangularMatrix) matrix:
+            //  it is an orthogonal matrix that we can compute from the U matrix
+            //  (by normalizing each row of the U matrix)
+            U.CopyTo(rectangularMatrix);
+            for (int row = 0; row < rows; ++row)
+            {
+                var aRow = rectangularMatrix.Slice(cols * row, cols);
+                float normalizer = (float)Math.Sqrt(InnerProduct(aRow, aRow));
+                for (int col = 0; col < aRow.Length; ++col)
+                {
+                    aRow[col] /= normalizer;
+                }
+            }
+        }
+
+        private static float InnerProduct(ReadOnlySpan<float> a, ReadOnlySpan<float> b)
+        {
+            Debug.Assert(a.Length == b.Length);
+            float result = 0;
+            for (int i = 0; i < a.Length; ++i)
+            {
+                result += a[i] * b[i];
+            }
+            return result;
         }
 
         public static void Shuffle<T>(IList<T> list, Random rand)
@@ -305,17 +363,6 @@ namespace SharpNet
                 }
             }
             return result;
-        }
-        public static bool All<T>(this ReadOnlySpan<T> s, Func<T, bool> isIncluded)
-        {
-            foreach (var t in s)
-            {
-                if (!isIncluded(t))
-                {
-                    return false;
-                }
-            }
-            return true;
         }
         public static float Max(this ReadOnlySpan<float> s)
         {
@@ -546,6 +593,6 @@ namespace SharpNet
             var minor = (version % 1000) / 10;
             return new Version(major, minor);
         }
-
     }
+
 }

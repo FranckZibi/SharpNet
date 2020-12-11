@@ -754,7 +754,6 @@ namespace SharpNet.Networks
             return yPredicted;
         }
 
-        // ReSharper disable once UnusedMember.Global
         public CpuTensor<float> Predict(IDataSet dataSet, int miniBatchSizeForAllWorkers = -1)
         {
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataSet, miniBatchSizeForAllWorkers);

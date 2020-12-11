@@ -722,8 +722,28 @@ namespace SharpNet.Data
         /// <returns></returns>
         public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
 
-        public abstract void RandomizeUniformDistribution(Random rand, double minValue, double maxValue);
-        public abstract void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev);
+        public abstract void UniformDistribution(Random rand, double minValue, double maxValue);
+        public abstract void NormalDistribution(Random rand, double mean, double stdDev);
+
+
+        /// <summary>
+        /// Orthogonal initializer for Weights
+        /// See: https://www.tensorflow.org/api_docs/python/tf/keras/initializers/Orthogonal
+        /// </summary>
+        /// <param name="rand"></param>
+        public abstract void Orthogonal(Random rand);
+
+        /// <summary>
+        /// Glorot Uniform Initializer for Weights
+        /// See: https://www.tensorflow.org/api_docs/python/tf/compat/v1/keras/initializers/glorot_uniform
+        /// </summary>
+        /// <param name="rand"></param>
+        public void GlorotUniform(Random rand)
+        {
+            int fanIn = Shape[0];  //number of input units in the weight tensor
+            int fanOut = MultDim0; //number of output units in the weight tensor
+            NormalDistribution(rand, 0, Math.Sqrt(6.0 / (fanIn + fanOut)));
+        }
 
         /// <summary>
         /// set the same value 'sameValue' in the entire tensor

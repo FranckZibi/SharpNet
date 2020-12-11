@@ -283,7 +283,7 @@ namespace SharpNet.Layers
             var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));
 
             //trainable params
-            _convolution.RandomMatrixNormalDistribution(Rand, 0.0 /* mean */, stdDev);
+            _convolution.NormalDistribution(Rand, 0.0 /* mean */, stdDev);
             _convolutionBias?.ZeroMemory();
 
             if (resetAlsoOptimizerWeights)

@@ -520,7 +520,7 @@ namespace SharpNet.CPU
             Debug.Assert(!dropoutReservedSpaceForTraining.UseGPU);
             Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
             var dropProbabilityFloat = (float)dropProbability;
-            Utils.RandomizeUniformDistribution(dropoutReservedSpaceForTraining.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
+            Utils.UniformDistribution(dropoutReservedSpaceForTraining.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
             y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutReservedSpaceForTraining, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
         }
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
@@ -1564,13 +1564,20 @@ namespace SharpNet.CPU
             return -(float)loss;
         }
 
-        public override void RandomMatrixNormalDistribution(Random rand, double mean, double stdDev)
+        public override void NormalDistribution(Random rand, double mean, double stdDev)
         {
-            Utils.RandomizeNormalDistribution(AsFloatCpuSpan, rand, mean, stdDev);
+            Utils.NormalDistribution(AsFloatCpuSpan, rand, mean, stdDev);
         }
-        public override void RandomizeUniformDistribution(Random rand, double minValue, double maxValue)
+
+        public override void Orthogonal(Random rand)
         {
-            Utils.RandomizeUniformDistribution(AsFloatCpuSpan, rand, minValue, maxValue);
+            NormalDistribution(rand, 0, 1);
+            Utils.ToOrthogonalMatrix(AsFloatCpuSpan, Shape[0], MultDim0);
+        }
+
+        public override void UniformDistribution(Random rand, double minValue, double maxValue)
+        {
+            Utils.UniformDistribution(AsFloatCpuSpan, rand, minValue, maxValue);
         }
         
         public override void SetValue(float sameValue)

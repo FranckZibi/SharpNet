@@ -128,7 +128,7 @@ namespace SharpNet.Layers
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
-            _weights.RandomizeUniformDistribution(Rand, -0.05, +0.05);
+            _weights.UniformDistribution(Rand, -0.05, +0.05);
 
             if (resetAlsoOptimizerWeights)
             {
