@@ -70,7 +70,6 @@ namespace SharpNetTests
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
             //new TestCpuTensor().TestMaxPooling3D();return;
-            //new NonReg.TestNetworkPropagation().TestEmbedding_Adam_Sigmoid(new List<int>{-1}); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Sarcasm(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_IMDB(); return;
             //EfficientNetTests_Cancel(true);

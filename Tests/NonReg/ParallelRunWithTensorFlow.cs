@@ -884,7 +884,7 @@ namespace SharpNetTests.NonReg
 
             network
                 .Input(timeSteps, inputSize, -1)
-                .SimpleRNN(hiddenSize, returnSequences, true, false)
+                .SimpleRNN(hiddenSize, returnSequences, true)
                 .Dense(1, 0.0, true)
                 ;
 
@@ -1007,14 +1007,12 @@ namespace SharpNetTests.NonReg
                         new List<int> { deviceId }
                 );
 
-
-            const bool time_major = true;
             const bool isBidirectional = true;
             network
                 .Input(timeSteps, inputSize, -1)
                 //.Linear(aNormalization, bNormalization)
-                .LSTM(hiddenSize, true, isBidirectional, time_major)
-                .LSTM(hiddenSize, false, isBidirectional, time_major)
+                .LSTM(hiddenSize, true, isBidirectional)
+                .LSTM(hiddenSize, false, isBidirectional)
                 .Dense(1, 0.0, true)
                 //.Linear(1f/aNormalization, -bNormalization/aNormalization)
                 .Linear(100f, 0)
@@ -1094,14 +1092,12 @@ namespace SharpNetTests.NonReg
                         new List<int> { deviceId }
                 );
 
-
-            const bool time_major = true;
             const bool isBidirectional = false;
             network
                 //.Input(timeSteps, inputSize, -1)
                 .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, lambdaL2Regularization)
                 .Dropout(0.2)
-                .LSTM(32, false, isBidirectional, time_major)
+                .LSTM(32, false, isBidirectional)
                 .Dense_Activation(256, lambdaL2Regularization, true, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
                 .Dense_Activation(1, lambdaL2Regularization, true, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)

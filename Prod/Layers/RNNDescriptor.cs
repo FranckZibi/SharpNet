@@ -57,19 +57,10 @@ namespace SharpNet.Layers
             }
         }
 
-        public int[] XRnnData_Shape(bool timeMajor, int timeSteps, int batchSize)
-        {
-            return timeMajor
-                ? new[] { timeSteps, batchSize, inputSize }
-                : new[] { batchSize, timeSteps, inputSize };
-        }
-
-        public int[] YRnnData_Shape(bool timeMajor, int timeSteps, int batchSize)
+        public int[] YRnnData_Shape(int timeSteps, int batchSize)
         {
             int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
-            return timeMajor
-                ? new[] {timeSteps, batchSize, K * hiddenSize}
-                : new[] {batchSize, timeSteps, K * hiddenSize };
+            return new[] {batchSize, timeSteps, K * hiddenSize };
         }
 
         public int[] Y_Shape(bool returnSequences, int timeSteps, int batchSize)

@@ -179,27 +179,27 @@ namespace SharpNet.Networks
             Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, lambdaL2Regularization, true, this, layerName));
             return this;
         }
-        public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, bool time_major, string layerName = "")
+        public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, time_major, true, this, layerName);
+            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, true, this, layerName);
             Layers.Add(simpleRnn);
             return this;
         }
-        public Network LSTM(int units, bool returnSequences, bool isBidirectional, bool time_major, string layerName = "")
+        public Network LSTM(int units, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
-            var lstm = new RecurrentLayer(units, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, time_major, true, this, layerName);
+            var lstm = new RecurrentLayer(units, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, true, this, layerName);
             Layers.Add(lstm);
             return this;
         }
 
-        public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, bool time_major, string layerName = "")
+        public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
-            var lstm = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, time_major, true, this, layerName);
+            var lstm = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, true, this, layerName);
             Layers.Add(lstm);
             return this;
         }

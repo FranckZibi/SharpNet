@@ -1027,28 +1027,25 @@ namespace SharpNetTests.NonReg
             int timeSteps = X.Shape[1];
             int inputSize = X.Shape[2];
 
-            foreach (var time_major in new[] {true, false})
-            {
-                var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, resourceIds);
-                network.Config.WithSGD(0.9, false);
-                network
-                    .Input(timeSteps, inputSize, -1)
-                    .SimpleRNN(3, false, false, time_major)
-                    .Dense(1, 0.0, true);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, resourceIds);
+            network.Config.WithSGD(0.9, false);
+            network
+                .Input(timeSteps, inputSize, -1)
+                .SimpleRNN(3, false, false)
+                .Dense(1, 0.0, true);
 
-                network.Layers[1].Weights.ZeroMemory();
-                FromNumpyArray("[[-1.0770841836929321], [0.557166576385498], [0.405431866645813]]")
-                    .CopyTo(network.Layers[2].Weights);
+            network.Layers[1].Weights.ZeroMemory();
+            FromNumpyArray("[[-1.0770841836929321], [0.557166576385498], [0.405431866645813]]")
+                .CopyTo(network.Layers[2].Weights);
 
-                //predictions before training
-                TestPredict(network, X, "[[0],[0],[0],[0]]", 1e-4);
+            //predictions before training
+            TestPredict(network, X, "[[0],[0],[0],[0]]", 1e-4);
 
-                TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
-                //predictions after training
-                TestPredict(network, X, "[[5.32697773],[5.32737398],[5.3273859],[5.3273859]]", 1e-4);
-                network.Dispose();
-            }
+            //predictions after training
+            TestPredict(network, X, "[[5.32697773],[5.32737398],[5.3273859],[5.3273859]]", 1e-4);
+            network.Dispose();
         }
 
         [TestCase(true, false, "[[-1.243709683418274], [0.6433604955673218]]", "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", "[[[5.14900208],[5.16034889]],[[5.16030025],[5.16046333]],[[5.16046238],[5.16046524]],[[5.16046524],[5.16046524]]]")]
@@ -1066,29 +1063,25 @@ namespace SharpNetTests.NonReg
             int timeSteps = X.Shape[1];
             int inputSize = X.Shape[2];
 
-            foreach (var time_major in new[] {true, false})
-            {
-                var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> {0});
-                network.Config.WithSGD(0.9, false);
-                network
-                    .Input(timeSteps, inputSize, -1)
-                    .SimpleRNN(2, returnSequences, isBidirectional, time_major)
-                    .Dense(1, 0.0, true);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> {0});
+            network.Config.WithSGD(0.9, false);
+            network
+                .Input(timeSteps, inputSize, -1)
+                .SimpleRNN(2, returnSequences, isBidirectional)
+                .Dense(1, 0.0, true);
 
-                network.Layers[1].Weights.ZeroMemory();
-                FromNumpyArray(denseWeight).CopyTo(network.Layers[2].Weights);
+            network.Layers[1].Weights.ZeroMemory();
+            FromNumpyArray(denseWeight).CopyTo(network.Layers[2].Weights);
 
-                //predictions before training
-                TestPredict(network, X, expectedPredictionBeforeTraining, 1e-4);
+            //predictions before training
+            TestPredict(network, X, expectedPredictionBeforeTraining, 1e-4);
 
-                TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
-                //predictions after training
-                TestPredict(network, X, expectedPredictionAfterTraining, 1e-4);
-                network.Dispose();
-            }
+            //predictions after training
+            TestPredict(network, X, expectedPredictionAfterTraining, 1e-4);
+            network.Dispose();
         }
-
 
         [TestCase(true, false, "[[-1.243709683418274], [0.6433604955673218]]", "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", "[[[4.6592536],[5.60682297]],[[5.1264925],[5.90583038]],[[5.36573982],[6.05742359]],[[5.49268246],[6.14186144]]]")]
         [TestCase(true, true, "[[0.18850135803222656], [-0.2127966284751892], [0.7556273937225342], [0.6490507125854492]]", "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", "[[[4.9929328],[5.11667824]],[[5.49777794],[5.44859505]],[[5.80846691],[5.65499783]],[[6.00010109],[5.78587103]]]")]
@@ -1105,29 +1098,27 @@ namespace SharpNetTests.NonReg
             int timeSteps = X.Shape[1];
             int inputSize = X.Shape[2];
 
-            foreach (var time_major in new[] {true, false})
-            {
-                var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> {0});
-                network.Config.WithSGD(0.9, false);
-                network
-                    .Input(timeSteps, inputSize, -1)
-                    .LSTM(2, returnSequences, isBidirectional, time_major)
-                    .Dense(1, 0.0, true);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> {0});
+            network.Config.WithSGD(0.9, false);
+            network
+                .Input(timeSteps, inputSize, -1)
+                .LSTM(2, returnSequences, isBidirectional)
+                .Dense(1, 0.0, true);
 
-                network.Layers[1].Weights.ZeroMemory();
-                FromNumpyArray(denseWeight).CopyTo(network.Layers[2].Weights);
+            network.Layers[1].Weights.ZeroMemory();
+            FromNumpyArray(denseWeight).CopyTo(network.Layers[2].Weights);
 
-                //predictions before training
-                TestPredict(network, X, expectedPredictionBeforeTraining, 1e-4);
+            //predictions before training
+            TestPredict(network, X, expectedPredictionBeforeTraining, 1e-4);
 
-                TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
-                //predictions after training
-                TestPredict(network, X, expectedPredictionAfterTraining, 1e-4);
+            //predictions after training
+            TestPredict(network, X, expectedPredictionAfterTraining, 1e-4);
 
-                network.Dispose();
-            }
+            network.Dispose();
         }
+
 
         [TestCase(true, false, "[[-1.243709683418274], [0.6433604955673218]]", "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", "[[[4.97974014],[5.57354736]],[[5.3242569],[5.62948704]],[[5.48532438],[5.6469841]],[[5.56586361],[5.65275764]]]")]
         [TestCase(true, true, "[[0.18850135803222656], [-0.2127966284751892], [0.7556273937225342], [0.6490507125854492]]", "[[[0],[0]],[[0],[0]],[[0],[0]],[[0],[0]]]", "[[[5.11490726],[5.21613836]],[[5.28695011],[5.44156599]],[[5.33742332],[5.54083538]],[[5.3631835],[5.5902195]]]")]
@@ -1144,28 +1135,25 @@ namespace SharpNetTests.NonReg
             int timeSteps = X.Shape[1];
             int inputSize = X.Shape[2];
 
-            foreach (var time_major in new[] {true, false})
-            {
-                var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> {0});
-                network.Config.WithSGD(0.9, false);
-                network
-                    .Input(timeSteps, inputSize, -1)
-                    .GRU(2, returnSequences, isBidirectional, time_major)
-                    .Dense(1, 0.0, true);
+            var network = GetNetwork(NetworkConfig.LossFunctionEnum.Huber, new List<int> {0});
+            network.Config.WithSGD(0.9, false);
+            network
+                .Input(timeSteps, inputSize, -1)
+                .GRU(2, returnSequences, isBidirectional)
+                .Dense(1, 0.0, true);
 
-                network.Layers[1].Weights.ZeroMemory();
-                FromNumpyArray(denseWeight).CopyTo(network.Layers[2].Weights);
+            network.Layers[1].Weights.ZeroMemory();
+            FromNumpyArray(denseWeight).CopyTo(network.Layers[2].Weights);
 
-                //predictions before training
-                TestPredict(network, X, expectedPredictionBeforeTraining, 1e-4);
+            //predictions before training
+            TestPredict(network, X, expectedPredictionBeforeTraining, 1e-4);
 
-                TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
-                //predictions after training
-                TestPredict(network, X, expectedPredictionAfterTraining, 1e-4);
+            //predictions after training
+            TestPredict(network, X, expectedPredictionAfterTraining, 1e-4);
 
-                network.Dispose();
-            }
+            network.Dispose();
         }
         #endregion
 
