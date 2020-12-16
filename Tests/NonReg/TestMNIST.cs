@@ -45,14 +45,14 @@ namespace SharpNetTests.NonReg
                 .Input(MNISTDataSet.Shape_CHW[0], MNISTDataSet.Shape_CHW[1], MNISTDataSet.Shape_CHW[2])
 
                 .Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .MaxPooling(2,2,2)
+                .MaxPooling(2, 2, 2, 2)
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)
 
                 //.AddDropout(0.2)
 
                 .Convolution_BatchNorm_Activation(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .MaxPooling(2, 2,  2)
+                .MaxPooling(2, 2, 2, 2)
 
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)
@@ -65,7 +65,7 @@ namespace SharpNetTests.NonReg
                 //.AddConvolution_BatchNorm_Activation_Pooling(16, 5, 1, 2, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 2, 2)
                 //.AddConvolution_BatchNorm_Activation_Pooling(32, 5, 1, 2, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 2, 2)
 
-                .Dense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense_Activation(1000, 0.0, false, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.5)
                 //.AddBatchNorm()
 

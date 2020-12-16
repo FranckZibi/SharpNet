@@ -279,44 +279,35 @@
 		}
 	}
 
-	//'y' shape :               (batchSize, embeddingDim, maxWordCountBySentence)
 	//'x' shape:                (batchSize, maxWordCountBySentence)
+	//'y' shape :               (batchSize, maxWordCountBySentence, embeddingDim)
 	//'wordEmbedding' shape:    (vocabularySize, embeddingDim)
 	__global__ void WordEmbeddingForwardPropagation(int N, int batchSize, int maxWordCountBySentence, int embeddingDim, int vocabularySize, float* y, float* x, float* wordEmbedding)
 	{
 		int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
 		if (xIndex >= N) return;
-		int xRow = xIndex / maxWordCountBySentence; //sentenceId in [0, batchSize-1]
-		int xCol = xIndex % maxWordCountBySentence; //word position in sentence, in [0, maxWordCountBySentence-1]
 		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
-		int indexInWordEmbedding = wordIndex* embeddingDim;
-		int indexInY = xRow*(embeddingDim*maxWordCountBySentence)+ xCol;
-		for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
-		{
-			y[indexInY] = wordEmbedding[indexInWordEmbedding];
-			indexInY += maxWordCountBySentence;
-			++indexInWordEmbedding;
-		}
+		int indexInWordEmbedding = wordIndex*embeddingDim;
+		int indexInY = xIndex*embeddingDim;
+		memcpy(y+indexInY, wordEmbedding +indexInWordEmbedding, sizeof(float) * embeddingDim);
 	}
 
-	//'dw' shape:				(VocabularySize, EmbeddingDim)
-	// x shape :                (batchSize,  maxWordCountBySentence)
-	// dy shape :               (batchSize, EmbeddingDim,  maxWordCountBySentence)
+	//'dw' shape:				(vocabularySize, embeddingDim)
+	// x shape :                (batchSize, maxWordCountBySentence)
+	// dy shape :               (batchSize, maxWordCountBySentence, embeddingDim)
 	__global__ void WordEmbeddingBackwardPropagation(int N, int batchSize, int maxWordCountBySentence, int embeddingDim, int vocabularySize, float* dw, float* x, float* dy)
 	{
 		int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
 		if (xIndex >= N) return;
-		int xRow = xIndex / maxWordCountBySentence; //sentenceId, in [0, batchSize-1]
-		int xCol = xIndex % maxWordCountBySentence; //word position in sentence in [0, maxWordCountBySentence-1]
 		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
 		int dwIndex = embeddingDim * wordIndex;
-		int dyIndex = xRow * (maxWordCountBySentence * embeddingDim) + xCol;
+		int dyIndex = xIndex* embeddingDim;
 		for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
 		{
 			float valueToAdd = dy[dyIndex];
 			atomicAdd(dw+dwIndex, valueToAdd);
 			++dwIndex;
-			dyIndex += maxWordCountBySentence;
+			++dyIndex;
 		}
 	}
 

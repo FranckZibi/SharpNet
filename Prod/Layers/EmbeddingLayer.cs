@@ -12,9 +12,9 @@ namespace SharpNet.Layers
     /// <summary>
     /// This layer can only be used as the second layer in a model (the first layer being the InputLayer).
     /// input shape :
-    ///     (batchSize,  PrevLayer.n_x)
+    ///     (batchSize,  input_length = maxWordsBySentence = timeSteps)
     /// output shape :
-    ///     (batchSize, EmbeddingDim (=Channels),  PrevLayer.n_x)
+    ///     (batchSize,  input_length = maxWordsBySentence = timeSteps, EmbeddingDim (=Channels))
     /// </summary>
     public sealed class EmbeddingLayer : Layer
     {
@@ -27,7 +27,7 @@ namespace SharpNet.Layers
         #endregion
         #region gradients
         /// <summary>
-        /// same shape as 'Weights'
+        /// same shape as '_weights'
         /// </summary>
         [NotNull] private Tensor _weightGradients;
         /// <summary>
@@ -38,7 +38,9 @@ namespace SharpNet.Layers
         #endregion
         #region public fields and properties
         /// <summary>
-        ///  Size of the vocabulary, i.e. maximum integer index + 1
+        /// Size of the vocabulary, i.e. maximum integer index + 1
+        /// In the input 'x' tensor:
+        ///     each element must be in [1, VocabularySize-1]
         /// </summary>
         private int VocabularySize { get; }
         /// <summary>
@@ -81,9 +83,9 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             var x = allX[0]; 
             Debug.Assert(x.Shape.Length == 2); // input 'x' tensor must be of shape (batchSize, maxWordsBySentence)
-            Debug.Assert(y.Shape.Length == 3); // output 'y' tensor must be of shape (batchSize, EmbeddingDim, maxWordsBySentence)
+            Debug.Assert(y.Shape.Length == 3); // output 'y' tensor must be of shape (batchSize, maxWordsBySentence, EmbeddingDim)
             Debug.Assert(x.Shape[0] == y.Shape[0]); //same batch size
-            Debug.Assert(x.Shape[1] == y.Shape[2]); //same word count by sentence
+            Debug.Assert(x.Shape[1] == y.Shape[1]); //same word count by sentence
             //We compute y = x*Weights
             y.WordEmbeddingForwardPropagation(x, _weights);
         }
@@ -182,7 +184,7 @@ namespace SharpNet.Layers
 
         public override int[] OutputShape(int batchSize)
         {
-            return new[] { batchSize, EmbeddingDim, PrevLayer.n_x};
+            return new[] { batchSize, PrevLayer.n_x, EmbeddingDim};
         }
         public override string ToString()
         {

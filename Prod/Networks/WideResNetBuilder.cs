@@ -217,7 +217,7 @@ namespace SharpNet.Networks
             if (reduceInputSize)
             {
                 network.Convolution_BatchNorm_Activation(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                network.MaxPooling(2, 2, 2);
+                network.MaxPooling(2, 2, 2, 2);
             }
 
             network.Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
@@ -250,11 +250,11 @@ namespace SharpNet.Networks
 
             if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_2)
             {
-                network.AvgPooling(2, 2, 2);
+                network.AvgPooling(2, 2, 2, 2);
             }
             else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_8)
             {
-                network.AvgPooling(8, 8, 8);
+                network.AvgPooling(8, 8, 8, 8);
             }
             else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling)
             {

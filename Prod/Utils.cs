@@ -150,6 +150,31 @@ namespace SharpNet
 
 
         /// <summary>
+        /// compute the mean and volatility of 'data'
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static (float mean,float volatility) MeanAndVolatility(ReadOnlySpan<float> data)
+        {
+            if (data.Length == 0)
+            {
+                return (0f, 0f);
+            }
+            double sum = 0f;
+            double sumSquare = 0.0;
+            foreach (var val in data)
+            {
+                sum += val;
+                sumSquare += val * val;
+            }
+            var mean = (sum / data.Length);
+            var variance = (sumSquare / data.Length) - mean * mean;
+            var volatility = Math.Sqrt(Math.Max(0, variance));
+            return ((float)mean, (float)volatility);
+        }
+
+
+        /// <summary>
         /// Make input 'rectangularMatrix' an orthogonal matrix using Gram–Schmidt process
         /// See: https://en.wikipedia.org/wiki/QR_decomposition
         /// </summary>

@@ -18,7 +18,7 @@ namespace SharpNet.TextPreprocessing
         /// (optional, defaults to pre padding):
         /// pad either before or after each sequence.
         /// </param>
-        /// <param name="isPreTruncating">if the sequence is too short, should we use 'pre' truncating or 'post' truncating
+        /// <param name="isPreTruncating">if the sequence is too long, should we use 'pre' truncating or 'post' truncating
         /// (optional, defaults to 'pre')
         /// remove values from sequences larger than maxLen, either at the beginning or at the end of the sequences.
         /// </param>

@@ -348,26 +348,44 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, string layerName = "")
+        public Network MaxPooling(int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride, string layerName = "")
         {
-            return MaxPooling(poolingHeight, poolingWidth, poolingStride, Layers.Count-1, layerName);
+            return MaxPooling(poolingHeight, poolingWidth, verticalStride, horizontalStride, Layers.Count-1, layerName);
         }
-        private Network MaxPooling(int poolingHeight, int poolingWidth, int poolingStride, int previousLayerIndex, string layerName)
+        private Network MaxPooling(int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride, int previousLayerIndex, string layerName)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this, layerName));
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, verticalStride, horizontalStride, previousLayerIndex, this, layerName));
             return this;
         }
-        public Network AvgPooling(int poolingHeight, int poolingWidth, int poolingStride, string layerName = "")
+        public Network AvgPooling(int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             int previousLayerIndex = Layers.Count-1;
-            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingHeight, poolingWidth, poolingStride, previousLayerIndex, this, layerName));
+            Layers.Add(new PoolingLayer(cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, poolingHeight, poolingWidth, verticalStride, horizontalStride, previousLayerIndex, this, layerName));
             return this;
         }
         public Network GlobalAvgPooling(string layerName = "")
         {
-            return AvgPooling(-1, -1, -1, layerName);
+            return AvgPooling(-1, -1, -1, -1, layerName);
+        }
+
+        /// <summary>
+        /// Global Average Pooling on the 2nd from last dimension of a tensor
+        /// It will transform a tensor from shape (n, ..., height, width) to shape (n, ..., 1, width)
+        /// </summary>
+        public Network GlobalAvgPoolingOnHeight(string layerName = "")
+        {
+            return AvgPooling(-1, 1, -1, 1, layerName);
+        }
+        /// <summary>
+        /// Global Average Pooling on the last dimension of a tensor
+        /// It will transform a tensor from shape (n, ..., height, width) to shape (n, ..., height, 1)
+        /// </summary>
+        // ReSharper disable once UnusedMember.Global
+        public Network GlobalAvgPoolingOnWidth(string layerName = "")
+        {
+            return AvgPooling(1, -1, 1, -1, layerName);
         }
         public Network GlobalMaxPooling(string layerName = "")
         {
@@ -391,20 +409,20 @@ namespace SharpNet.Networks
             Layers.Add(new BatchNormalizationLayer(momentum, epsilon, true, this, layerName));
             return this;
         }
-        public Network Dense_Activation(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
+        public Network Dense_Activation(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, cudnnActivationMode_t activationFunction)
         {
-            return Dense(n_x, lambdaL2Regularization, false)
+            return Dense(units, lambdaL2Regularization, flattenInputTensorOnLastDimension)
                 .Activation(activationFunction);
         }
-        public Network Dense_DropOut_Activation(int n_x, double lambdaL2Regularization, double dropOut, cudnnActivationMode_t activationFunction)
+        public Network Dense_DropOut_Activation(int units, double lambdaL2Regularization, double dropOut, cudnnActivationMode_t activationFunction)
         {
-            return Dense(n_x, lambdaL2Regularization, false)
+            return Dense(units, lambdaL2Regularization, false)
                 .Dropout(dropOut)
                 .Activation(activationFunction);
         }
-        public Network Output(int n_x, double lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
+        public Network Output(int units, double lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
         {
-            return Dense(n_x, lambdaL2Regularization, false)
+            return Dense(units, lambdaL2Regularization, false)
                 .Activation(activationFunctionType);
         }
         public Network Flatten()
@@ -572,7 +590,7 @@ namespace SharpNet.Networks
                         else
                         {
                             //we'll compute loss and accuracy using only 10% of the test data set
-                            using var subDataSet = MappedDataSet.SubDataSet(testDataSetCpuIfAny, i => i%10 == 0);
+                            using var subDataSet = testDataSetCpuIfAny.SubDataSet(i => i%10 == 0);
                             validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
                             lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
                         }
@@ -718,7 +736,11 @@ namespace SharpNet.Networks
         }
         public static string MetricsToString(IDictionary<NetworkConfig.Metric, double> metrics, string prefix)
         {
-            return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + e.Key + ": " + Math.Round(e.Value, 4)));
+            return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + e.Key + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
+        }
+        public static string TrainingAndValidationMetricsToString(IDictionary<NetworkConfig.Metric, double> trainingMetrics, IDictionary<NetworkConfig.Metric, double> validationMetrics)
+        {
+            return MetricsToString(trainingMetrics, "") + " - " + MetricsToString(validationMetrics, "val_");
         }
         #endregion
 

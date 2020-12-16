@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
@@ -9,43 +7,8 @@ namespace SharpNet.Datasets
     {
         private readonly IDataSet _original;
         private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
-
-        public static MappedDataSet SubDataSet(IDataSet original, Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet)
-        {
-            var subElementIdToOriginalElementId = new List<int>();
-            for (int originalElementId = 0; originalElementId < original.Count; ++originalElementId)
-            {
-                if (elementIdInOriginalDataSetToIsIncludedInSubDataSet(originalElementId))
-                {
-                    subElementIdToOriginalElementId.Add(originalElementId);
-                }
-            }
-            return new MappedDataSet(original, subElementIdToOriginalElementId);
-        }
-
-        public static MappedDataSet Shuffle(IDataSet original, Random r)
-        {
-            var elementIdToOriginalElementId = Enumerable.Range(0, original.Count).ToList();
-            Utils.Shuffle(elementIdToOriginalElementId, r);
-            return new MappedDataSet(original, elementIdToOriginalElementId);
-        }
-
-        // ReSharper disable once UnusedMember.Global
-        public static MappedDataSet Resize(IDataSet original, int targetSize, bool shuffle)
-        {
-            var elementIdToOriginalElementId = new List<int>(targetSize);
-            for (int elementId = 0; elementId < targetSize; ++elementId)
-            {
-                elementIdToOriginalElementId.Add(elementId%original.Count);
-            }
-            if (shuffle)
-            {
-                Utils.Shuffle(elementIdToOriginalElementId, new Random(0));
-            }
-            return new MappedDataSet(original, elementIdToOriginalElementId);
-        }
-
-        private MappedDataSet(IDataSet original, IReadOnlyList<int> elementIdToOriginalElementId) 
+        
+        public MappedDataSet(IDataSet original, IReadOnlyList<int> elementIdToOriginalElementId) 
             : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy)
         {
             _original = original;

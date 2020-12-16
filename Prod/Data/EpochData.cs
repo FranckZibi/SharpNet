@@ -10,8 +10,8 @@ namespace SharpNet.Data
         #region properties
         public double LearningRateMultiplicativeFactorFromReduceLrOnPlateau { get; }
         public readonly IDictionary<NetworkConfig.Metric, double> TrainingMetrics = new Dictionary<NetworkConfig.Metric, double>();
+        public readonly IDictionary<NetworkConfig.Metric, double> ValidationMetrics = new Dictionary<NetworkConfig.Metric, double>();
         private readonly int _index;
-        private readonly IDictionary<NetworkConfig.Metric, double> ValidationMetrics = new Dictionary<NetworkConfig.Metric, double>();
         private double LearningRateAtEpochStart { get; }
         private double SecondsForEpoch { get; }
         #endregion

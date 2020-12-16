@@ -59,7 +59,7 @@ namespace SharpNet.Data
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
 
         /// <summary>
-        /// this (=y) shape is (batchSize, embeddingDim, maxWordCountBySentence)
+        /// this (=y) shape is (batchSize, maxWordCountBySentence, embeddingDim)
         /// </summary>
         /// <param name="x">tensor of shape (batchSize, maxWordCountBySentence)
         /// row is the sentence Id
@@ -83,7 +83,7 @@ namespace SharpNet.Data
         /// x[row, col] contains the wordIndex (in the word embedding tensor) of the word at position 'row' in sentence 'col'
         /// each wordIndex is in [1, VocabularySize-1]
         /// </param>
-        /// <param name="dy">tensor of shape (batchSize, EmbeddingDim, maxWordCountBySentence)
+        /// <param name="dy">tensor of shape (batchSize, maxWordCountBySentence, EmbeddingDim)
         /// </param>
         public abstract void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy);
 
@@ -246,6 +246,21 @@ namespace SharpNet.Data
             }
             return true;
         }
+
+        public static bool SameDimension(List<Tensor> a)
+        {
+            a.RemoveAll(x => x == null);
+            for (int i = 1; i < a.Count; ++i)
+            {
+                if (a[0].Shape.Length != a[i].Shape.Length)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+
         public ulong CapacityInBytes { get; protected set; }
 
         public bool HasEnoughCapacityForTensor(int[] tensorShape)
@@ -510,11 +525,9 @@ namespace SharpNet.Data
         #endregion
 
         //this = x
-        public abstract void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride);
+        public abstract void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride);
         //this = dy
-        public abstract void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode,
-            int poolingHeight,
-            int poolingWidth, int poolingStride);
+        public abstract void PoolingGradient(Tensor yNotUsed, Tensor x4D, Tensor dx4D, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride);
         public abstract void CopyTo(Tensor b);
         public abstract void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount);
         //this = dy
@@ -807,6 +820,17 @@ namespace SharpNet.Data
             return result;
         }
 
+        public static int[] ToPooling4D(int[] shape3D)
+        {
+            Debug.Assert(shape3D.Length == 3);
+            return new[] { shape3D[0], 1, shape3D[1], shape3D[2] };
+        }
+        public static int[] ToPooling3D(int[] shape4D)
+        {
+            Debug.Assert(shape4D.Length == 4);
+            Debug.Assert(shape4D[1] == 1);
+            return new[] { shape4D[0], shape4D[2], shape4D[3] };
+        }
         public static CpuTensor<float> SingleFloat(float f)
         {
             return new CpuTensor<float>(new []{1}, new[] {f});

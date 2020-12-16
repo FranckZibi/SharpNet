@@ -275,11 +275,12 @@ namespace SharpNet.GPU
             }
             CheckStatus(res);
         }
-        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
+        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride)
         {
             var x = this;
+
             Debug.Assert(AreCompatible(new List<Tensor> { x, y }));
-            var poolingDesc = PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
+            var poolingDesc = PoolingDesc(poolingMode, poolingHeight, poolingWidth, verticalStride, horizontalStride);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
 
@@ -290,15 +291,17 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnPoolingForward(CudnnHandle, poolingDesc, one, xDesc, x, zero, yDesc, y);
             CheckStatus(res);
         }
-        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
+        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride)
         {
             var dy = this;
             Debug.Assert(AreCompatible(new List<Tensor> { dy, y, x, dx }));
-            var poolingDesc = PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
+            Debug.Assert(x.Shape.Length == 4);
+            Debug.Assert(SameDimension(new List<Tensor> { dy, y, x, dx }));
+            var poolingDesc = PoolingDesc(poolingMode, poolingHeight, poolingWidth, verticalStride, horizontalStride);
             var xDesc = TensorDesc(x);
-            var dxDesc = TensorDesc(dx);
+            var dxDesc = xDesc;
             var yDesc = TensorDesc(y);
-            var dyDesc = TensorDesc(dy);
+            var dyDesc = yDesc;
 
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;
@@ -962,7 +965,7 @@ namespace SharpNet.GPU
             return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);
         }
 
-        //this (= 'y') shape :      (batchSize, embeddingDim, maxWordCountBySentence)
+        //this (= 'y') shape :      (batchSize, maxWordCountBySentence, embeddingDim)
         //'x' shape:                (batchSize, maxWordCountBySentence)
         //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
         public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding)
@@ -972,11 +975,11 @@ namespace SharpNet.GPU
             Debug.Assert(wordEmbedding.Shape.Length == 2);
             Debug.Assert(y.Shape.Length == 3);
             Debug.Assert(y.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(y.Shape[1] == wordEmbedding.Shape[1]); //same embedding dimension
-            Debug.Assert(y.Shape[2] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(y.Shape[1] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(y.Shape[2] == wordEmbedding.Shape[1]); //same embedding dimension
             int batchSize = y.Shape[0];
-            int embeddingDim = y.Shape[1];
-            int maxWordCountBySentence = y.Shape[2];
+            int maxWordCountBySentence = y.Shape[1];
+            int embeddingDim = y.Shape[2];
             int vocabularySize = wordEmbedding.Shape[0];
             _wrapper.RunKernel("WordEmbeddingForwardPropagation", x.Count, new object[] { batchSize, maxWordCountBySentence, embeddingDim, vocabularySize, y, x, wordEmbedding});
         }
@@ -989,12 +992,12 @@ namespace SharpNet.GPU
             Debug.Assert(x.Shape.Length == 2);
             Debug.Assert(dy.Shape.Length == 3);
             Debug.Assert(dy.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(dy.Shape[1] == dW.Shape[1]); //same embedding dimension
-            Debug.Assert(dy.Shape[2] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(dy.Shape[1] == x.Shape[1]); //same max word count by sentence
+            Debug.Assert(dy.Shape[2] == dW.Shape[1]); //same embedding dimension
             dW.ZeroMemory();
             int batchSize = dy.Shape[0];
-            int embeddingDim = dy.Shape[1];
-            int maxWordCountBySentence = dy.Shape[2];
+            int maxWordCountBySentence = dy.Shape[1];
+            int embeddingDim = dy.Shape[2];
             int vocabularySize = dW.Shape[0];
             _wrapper.RunKernel("WordEmbeddingBackwardPropagation", x.Count, new object[] { batchSize, maxWordCountBySentence, embeddingDim, vocabularySize, dW, x, dy});
         }
@@ -1070,9 +1073,9 @@ namespace SharpNet.GPU
         {
             return _wrapper.ActivationDesc(activationFunctionType);
         }
-        private cudnnPoolingDescriptor_t PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
+        private cudnnPoolingDescriptor_t PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride)
         {
-            return _wrapper.PoolingDesc(poolingMode, poolingHeight, poolingWidth, poolingStride);
+            return _wrapper.PoolingDesc(poolingMode, poolingHeight, poolingWidth, verticalStride, horizontalStride);
         }
         private cudnnConvolutionDescriptor_t ConvDesc(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight, int stride, int groupCount) { return _wrapper.ConvDesc(CudaType, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, groupCount); }
         private cudnnDataType_t CudaType { get; } = cudnnDataType_t.CUDNN_DATA_FLOAT;

@@ -12,6 +12,7 @@ namespace SharpNetTests
 {
     static class Program
     {
+
         private static readonly log4net.ILog Log = log4net.LogManager.GetLogger(typeof(Program));
 
 
@@ -33,7 +34,6 @@ namespace SharpNetTests
             }
             return true;
         }
-
 
         private static string ImageDatabaseManagementPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"AppData\Roaming\ImageDatabaseManagement");
 
@@ -61,7 +61,6 @@ namespace SharpNetTests
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Cancel_400_470_20200715_2244_630.txt");
             //new CancelDatabase().CreatePredictionFile(Path.Combine(ImageDatabaseManagementPath, "Prediction_def.csv"));return;
 
-
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //builder.CreateIDM(Path.Combine(ImageDatabaseManagementPath, "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));
@@ -70,9 +69,10 @@ namespace SharpNetTests
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
-            //new NonReg.TestNetworkPropagation().Test_Conv1D(new List<int>{-1}); return;
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_UnivariateTimeSeries(); return;
-            //new TestParallelRunCpuVersusGpu().TestComputeMae(new []{1,1}); return;
+            //new TestCpuTensor().TestMaxPooling3D();return;
+            //new NonReg.TestNetworkPropagation().TestEmbedding_Adam_Sigmoid(new List<int>{-1}); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Sarcasm(); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_IMDB(); return;
             //EfficientNetTests_Cancel(true);
             //WideResNetTests();
             //SVHNTests();

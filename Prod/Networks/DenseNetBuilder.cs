@@ -123,7 +123,7 @@ namespace SharpNet.Networks
                 net.Convolution(filtersCount, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, Config.lambdaL2Regularization, false)
                     .BatchNorm(0.99, 1e-5)
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                    .MaxPooling(3, 3, 2);
+                    .MaxPooling(3, 3, 2, 2);
             }
             else
             {
@@ -212,7 +212,7 @@ namespace SharpNet.Networks
         {
             var filtersCount = network.Layers.Last().OutputShape(1)[1];
             network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(filtersCount * compression), 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
-                .AvgPooling(2, 2, 2);
+                .AvgPooling(2, 2, 2, 2);
         }
     }
 }

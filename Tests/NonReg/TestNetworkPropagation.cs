@@ -193,7 +193,7 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Dense_Activation(3, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense_Activation(3, 0.0, false, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray("[[ 0.22065729, -0.11788255, -0.4187895 ],[ 0.32060236, -0.44626778,  0.24227637],[-0.46897227,  0.5059137 ,  0.4339162 ],[-0.02144825, -0.04082066, -0.09005189],[ 0.28492624, -0.28046286, -0.18176123],[-0.1717251 , -0.55430335, -0.28846815],[ 0.29476583, -0.3019745 ,  0.03277987],[ 0.41012663,  0.09135884,  0.2522431 ],[-0.40020466, -0.2832676 ,  0.2568243 ],[ 0.47819465,  0.06466031,  0.45569366],[ 0.4343483 , -0.30980763, -0.01376414],[ 0.09202623, -0.02883267,  0.19485158],[-0.5382978 , -0.5129023 ,  0.47553152],[ 0.15798962,  0.43635488,  0.4626748 ],[-0.47213712,  0.17086667, -0.03163177],[ 0.01544881,  0.26190037,  0.38539213]]");
@@ -241,14 +241,14 @@ namespace SharpNetTests.NonReg
                 .CopyTo(((DenseLayer)network.Layers[3]).Weights);
 
             //predictions before training
-            TestPredict(network, X, "[[0.5169326066970825], [0.5199272036552429]]");
-            TestLossAccuracy(network, X, Y, 0.6968299150466919, 0.5);
+            TestPredict(network, X, "[[0.514347792],[0.507476687]]");
+            TestLossAccuracy(network, X, Y, 0.6865345239639282, 0.5);
 
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
-            TestPredict(network, X, "[[0.6674009561538696], [0.4177592694759369]]");
-            TestLossAccuracy(network, X, Y, 0.47261762619018555, 1.0);
+            TestPredict(network, X, "[[0.58809334],[0.322747618]]");
+            TestLossAccuracy(network, X, Y, 0.46029043197631836, 1.0);
         }
 
         [Test, TestCaseSource(nameof(GetTestCases))]
@@ -272,7 +272,7 @@ namespace SharpNetTests.NonReg
 
             network
                 .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
-                .GlobalAvgPooling()
+                .GlobalAvgPoolingOnHeight()
                 .Dense(4, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 

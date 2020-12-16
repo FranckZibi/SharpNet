@@ -73,8 +73,8 @@ namespace SharpNet.Data
         {
             throw new NotImplementedException();
         }
-        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride){throw new NotImplementedException();}
-        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth,int poolingStride){throw new NotImplementedException();}
+        public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride) {throw new NotImplementedException();}
+        public override void PoolingGradient(Tensor y, Tensor x, Tensor dx, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride) {throw new NotImplementedException();}
         public override void CopyTo(Tensor b){throw new NotImplementedException();}
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount){throw new NotImplementedException();}
         public override void ActivationBackward(cudnnActivationMode_t activationType, Tensor activationParameter,

@@ -66,6 +66,12 @@ namespace SharpNet.Datasets
 
         string Name { get; }
 
+        ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet);
+        IDataSet Resize(int targetSize, bool shuffle);
+        IDataSet Shuffle(Random r);
+        IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet);
+
+
         ResizeStrategyEnum ResizeStrategy { get; }
     }
 }

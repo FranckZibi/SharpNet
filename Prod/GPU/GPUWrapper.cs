@@ -23,7 +23,7 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnTensorDescriptor_t> cacheTensorDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnTensorDescriptor_t>();
         private readonly IDictionary<Tuple<cudnnDataType_t, cudnnRNNDataLayout_t, int, int, int>, cudnnRNNDataDescriptor_t> cacheRNNDataDesc = new Dictionary<Tuple<cudnnDataType_t, cudnnRNNDataLayout_t, int, int, int>, cudnnRNNDataDescriptor_t>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnFilterDescriptor_t> cacheFilterDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int>, cudnnFilterDescriptor_t>();
-        private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int>, cudnnPoolingDescriptor_t> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int>, cudnnPoolingDescriptor_t>();
+        private readonly IDictionary<Tuple<cudnnPoolingMode_t, int, int, int, int>, cudnnPoolingDescriptor_t> cachePoolingDesc = new Dictionary<Tuple<cudnnPoolingMode_t, int, int, int, int>, cudnnPoolingDescriptor_t>();
         private readonly IDictionary<RNNDescriptor, cudnnRNNDescriptor_t> cacheRNNDesc = new Dictionary<RNNDescriptor, cudnnRNNDescriptor_t>();
         private readonly IDictionary<double, cudnnDropoutDescriptor_t> cacheDropoutDesc = new Dictionary<double, cudnnDropoutDescriptor_t>();
         private readonly IDictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, cudnnConvolutionDescriptor_t> cacheConvolutionDesc = new Dictionary<Tuple<cudnnDataType_t, int, int, int, int, int, int>, cudnnConvolutionDescriptor_t>();
@@ -156,14 +156,14 @@ namespace SharpNet.GPU
             }
             return desc;
         }
-        public cudnnPoolingDescriptor_t PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int poolingStride)
+        public cudnnPoolingDescriptor_t PoolingDesc(cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride)
         {
-            var key = Tuple.Create(poolingMode, poolingHeight, poolingWidth, poolingStride);
+            var key = Tuple.Create(poolingMode, poolingHeight, poolingWidth, verticalStride, horizontalStride);
             if (!cachePoolingDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreatePoolingDescriptor(out desc);
                 CheckStatus(res);
-                res = CudnnWrapper.cudnnSetPooling2dDescriptor(desc, poolingMode, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, poolingHeight, poolingWidth, 0, 0, poolingStride, poolingStride);
+                res = CudnnWrapper.cudnnSetPooling2dDescriptor(desc, poolingMode, cudnnNanPropagation_t.CUDNN_NOT_PROPAGATE_NAN, poolingHeight, poolingWidth, 0, 0, verticalStride, horizontalStride);
                 CheckStatus(res);
                 cachePoolingDesc[key] = desc;
             }
@@ -474,11 +474,7 @@ namespace SharpNet.GPU
             var c = shape.Length >= 2 ? shape[1] : 1;
             var h = shape.Length >= 3 ? shape[2] : 1;
             var w = shape.Length >= 4 ? shape[3] : 1;
-            if (c == 1 && h == 1 && w > 1)
-            {
-                c = w;
-                w = 1;
-            }
+
             var key = Tuple.Create(dataType, n, c, h, w);
             if (!cacheTensorDesc.TryGetValue(key, out var desc))
             {

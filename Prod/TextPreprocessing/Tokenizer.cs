@@ -11,16 +11,48 @@ namespace SharpNet.TextPreprocessing
     public class Tokenizer
     {
         #region private fields
-        //he maximum number of words to keep, based on word frequency.
-        //Only the most common '_numWords-1' words will be kept.
+        /// <summary>
+        /// The maximum number of words to keep, based on word frequency.
+        /// Only the most common '_numWords-1' words will be kept.
+        /// </summary>
         private readonly int _numWords;
-        //if given, it will be added to word_index and used to replace out-of-vocabulary words during text_to_sequence calls
+        /// <summary>
+        /// if null or empty (default value):
+        ///     out-of-vocabulary words will simply be discarded (removed) from input
+        ///     Example:
+        ///         "This *!dfztà idea" => "This idea"
+        /// else:
+        ///     out-of-vocabulary words will be replaced by this '_oovToken' string
+        ///     (and this '_oovToken' string will be added to WordIndex dictionary with index == 1 )
+        ///     Example:
+        ///         "This *!dfztà idea" => "This "+_oovToken+" idea"
+        /// </summary>
         private readonly string _oovToken;
-        //whether to convert the texts to lowercase
+
+        /// <summary>
+        /// whether to convert the texts to lowercase
+        /// default: true
+        /// </summary>
         private readonly bool _lowerCase;
-        //characters that will be filtered from the texts
+        /// <summary>
+        /// characters that will be filtered (removed) from input
+        /// </summary>
         private readonly char[] _filters;
         private readonly IDictionary<string, int> _wordToWordCount =  new Dictionary<string, int>();
+        /// <summary>
+        /// index associated with each word, from the most common (index 1 or 2) to the least common (index _numWords-1)
+        /// if no out-of-vocabulary is used (_oovToken == null)
+        ///     index of padding token:                 0
+        ///     index of most common word:              1
+        ///     index of 2nd most common word:          2
+        ///     index of least common word:             _numWords-1
+        /// else
+        ///     index of padding token:                 0
+        ///     index of out-of-vocabulary token:       1
+        ///     index of most common word:              2
+        ///     index of 2nd most common word:          3
+        ///     index of least common word:             _numWords-1
+        /// </summary>
         private IDictionary<string, int> _wordToWordIndex =  new Dictionary<string, int>();
         #endregion
 

@@ -235,12 +235,12 @@ namespace SharpNetTests.NonReg
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
-                .MaxPooling(2, 2, 2)
+                .MaxPooling(2, 2, 2, 2)
 
                 .Convolution(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
 
-                .Dense_Activation(1000, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dense_Activation(1000, 0.0, false, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
 
                 .Output(MNISTDataSet.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);

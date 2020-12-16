@@ -266,7 +266,7 @@ namespace SharpNet.Layers
             {
                 if (_timeMajor)
                 {
-                    //from yRnnData (timeSteps, batchSize, hiddenSize) to y (batchSize, hiddenSize)
+                    //from yRnnData (timeSteps, batchSize, K*hiddenSize) to y (batchSize, K*hiddenSize)
                     _yRnnData.ElementSlice(timeSteps - 1).CopyTo(y);
                     if (IsBidirectional)
                     {

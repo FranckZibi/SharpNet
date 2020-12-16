@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -298,6 +299,43 @@ namespace SharpNet.Datasets
             return CategoryDescriptions[categoryIndex];
         }
 
+        // ReSharper disable once UnusedMember.Global
+        public IDataSet Resize(int targetSize, bool shuffle)
+        {
+            var elementIdToOriginalElementId = new List<int>(targetSize);
+            for (int elementId = 0; elementId < targetSize; ++elementId)
+            {
+                elementIdToOriginalElementId.Add(elementId % Count);
+            }
+            if (shuffle)
+            {
+                Utils.Shuffle(elementIdToOriginalElementId, new Random(0));
+            }
+            return new MappedDataSet(this, elementIdToOriginalElementId);
+        }
+
+        public IDataSet Shuffle(Random r)
+        {
+            var elementIdToOriginalElementId = Enumerable.Range(0, Count).ToList();
+            Utils.Shuffle(elementIdToOriginalElementId, r);
+            return new MappedDataSet(this, elementIdToOriginalElementId);
+        }
+
+        public IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet)
+        {
+            var subElementIdToOriginalElementId = new List<int>();
+            for (int originalElementId = 0; originalElementId < Count; ++originalElementId)
+            {
+                if (elementIdInOriginalDataSetToIsIncludedInSubDataSet(originalElementId))
+                {
+                    subElementIdToOriginalElementId.Add(originalElementId);
+                }
+            }
+            return new MappedDataSet(this, subElementIdToOriginalElementId);
+        }
+
+
+
         public virtual string ElementIdToDescription(int elementId)
         {
             return elementId.ToString();
@@ -342,7 +380,7 @@ namespace SharpNet.Datasets
 
         private IDataSet Slice(int firstElementId, int count)
         {
-            return MappedDataSet.SubDataSet(this, id => id >= firstElementId && id <(firstElementId+count) );
+            return SubDataSet(id => id >= firstElementId && id <(firstElementId+count) );
         }
 
         public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
