@@ -77,6 +77,7 @@ namespace SharpNet.Datasets
             return "";
         }
 
+        // ReSharper disable once UnusedMember.Global
         public float DefaultMae
         {
             get

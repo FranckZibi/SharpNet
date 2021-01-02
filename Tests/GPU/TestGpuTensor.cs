@@ -108,7 +108,7 @@ namespace SharpNetTests.GPU
                 return; //this test needs at least 2 GPU To work
             }
 
-            int firstDeviceId = 0;
+            const int firstDeviceId = 0;
             int secondDeviceId = (GPUWrapper.GetDeviceCount() < 2)?0:1;
 
 

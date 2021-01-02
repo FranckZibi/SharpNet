@@ -127,7 +127,7 @@ namespace SharpNetTests
         {
             AbsWeightsWithMinimum(n, 0);
             ComputeGradientAndReturnLoss(n, X, Y);
-            float epsilon = 1e-2f;
+            const float epsilon = 1e-2f;
             var w = (CpuTensor<float>)(isBias?layer.Bias:layer.Weights);
             var dW = (CpuTensor<float>)(isBias?layer.BiasGradients:layer.WeightGradients);
             var observedDifferences =  new List<double>();

@@ -711,7 +711,7 @@ namespace SharpNet.GPU
             var categoryCount = yExpected.Shape[1];
             if (lossFunction == NetworkConfig.LossFunctionEnum.Huber)
             {
-                var huberDelta = 1.0f;
+                const float huberDelta = 1.0f;
                 _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });
             }
             else
@@ -842,12 +842,12 @@ namespace SharpNet.GPU
             //'a' shape:                (lda, n) with lda = m
             //'c' shape:                (ldc, n) with ldc = m
             //'diagonalMatrix' shape:   (1, n) for mode == CUBLAS_SIDE_RIGHT (and (1, m) for mode == CUBLAS_SIDE_LEFT)
-            var mode = cublasSideMode_t.CUBLAS_SIDE_RIGHT;
+            const cublasSideMode_t mode = cublasSideMode_t.CUBLAS_SIDE_RIGHT;
             Debug.Assert(Count%diagonalMatrix.Count == 0);
             int m = Count/diagonalMatrix.Count; //number of rows of matrix 'a and 'c'
             int n = diagonalMatrix.Count; //number of columns of matrix 'a' and 'c'
             int lda = m; //leading dimension of two-dimensional array used to store the matrix 'a'
-            int incx = 1; //stride of one
+            const int incx = 1; //stride of one
             int ldc = lda; //leading dimension of a two-dimensional array used to store the matrix 'c'
             var res = CublasWrapper.cublasSdgmm(CublasHandle, mode, m, n, a, lda, diagonalMatrix, incx, c, ldc);
             GPUWrapper.CheckStatus(res);

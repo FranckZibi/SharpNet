@@ -2,7 +2,7 @@ using System;
 
 namespace SharpNet.Pictures
 {
-    public class ColorAccumulator : AbstractAccumulator<RGBColor>
+    public sealed class ColorAccumulator
     {
         #region private fields
         private readonly DoubleAccumulator L = new DoubleAccumulator();
@@ -18,25 +18,21 @@ namespace SharpNet.Pictures
         {
             return "E(Color)=" + Average + " ; Volatility="+Math.Round(Volatility,1)+" ; "  + Count + "pixels;";
         }
-        public override int Count { get { return L.Count; } }
-        public override void Add(RGBColor color, int count0)
+
+        private int Count => L.Count;
+
+        public void Add(RGBColor color, int count = 1)
         {
             if (color == null)
             {
                 return;
             }
 
-            L.Add(color.Lab.L, count0);
-            A.Add(color.Lab.A, count0);
-            B.Add(color.Lab.B, count0);
+            L.Add(color.Lab.L, count);
+            A.Add(color.Lab.A, count);
+            B.Add(color.Lab.B, count);
         }
-        public override void Clear()
-        {
-            L.Clear();
-            A.Clear();
-			B.Clear();
-        }
-        public override RGBColor Average
+        public RGBColor Average
         {
             get
             {

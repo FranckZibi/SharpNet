@@ -70,7 +70,7 @@ namespace SharpNetTests
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
             //new TestCpuTensor().TestMaxPooling3D();return;
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_Sarcasm(); return;
+            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_UnivariateTimeSeries(); return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_IMDB(); return;
             //EfficientNetTests_Cancel(true);
             //WideResNetTests();
@@ -125,7 +125,7 @@ namespace SharpNetTests
 
         private static void EfficientNetTests_Cancel(bool useMultiGpu)
         {
-            var targetHeight = 470; var targetWidth = 400;var batchSize = 20;var defaultInitialLearningRate = 0.01;
+            const int targetHeight = 470; const int targetWidth = 400;var batchSize = 20;const double defaultInitialLearningRate = 0.01;
             //var targetHeight = 235;var targetWidth = 200;var batchSize = 80;var defaultInitialLearningRate = 0.02;
             //var targetHeight = 118;var targetWidth = 100;var batchSize = 300;var defaultInitialLearningRate = 0.05;
             //var targetHeight = 59;var targetWidth = 50;var batchSize = 1200;var defaultInitialLearningRate = ?;
@@ -133,7 +133,7 @@ namespace SharpNetTests
             if (useMultiGpu) { batchSize *= GPUWrapper.GetDeviceCount(); }
 
 
-            int numEpochs = 150;
+            const int numEpochs = 150;
 
             var networkMetaParameters = new List<Func<EfficientNetBuilder>>
             {

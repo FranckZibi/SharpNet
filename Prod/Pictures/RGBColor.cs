@@ -13,22 +13,13 @@ namespace SharpNet.Pictures
         private LabColor _lazyLab;
         #endregion
 
-        public static RGBColor ToRGB(double r_255, double g_255, double b_255)
-        {
-            return new RGBColor(ToRGBColor(r_255), ToRGBColor(g_255), ToRGBColor(b_255));
-        }
-
         public static byte ToRGBColor(double color_255)
         {
             return (byte)Utils.NearestInt(255 * color_255);
         }
 
-
-
-
-        public static readonly RGBColor Black = new RGBColor(0, 0, 0);
-		public static readonly RGBColor White = new RGBColor(255, 255, 255);
-
+        private static readonly RGBColor Black = new RGBColor(0, 0, 0);
+        private static readonly RGBColor White = new RGBColor(255, 255, 255);
 
 		public RGBColor(byte red, byte green, byte blue)
 		{
@@ -54,7 +45,6 @@ namespace SharpNet.Pictures
                 {
                     _lazyLab = LabColor.RGB2Lab(red, green, blue);
                 }
-
                 return _lazyLab;
             }
         }
@@ -70,11 +60,10 @@ namespace SharpNet.Pictures
             return result;
         }
 
-        public static double ColorDistance(RGBColor a, RGBColor b)
+        private static double ColorDistance(RGBColor a, RGBColor b)
         {
             return a.Lab.Distance(b.Lab);
         }
-
         public double ColorDistance(RGBColor b)
         {
             return ColorDistance(this,b);
@@ -82,9 +71,9 @@ namespace SharpNet.Pictures
 
 
 
-        public static double HueDistanceInDegrees(double hue1InDegrees, double hue2InDegrres)
+        public static double HueDistanceInDegrees(double hue1InDegrees, double hue2InDegrees)
         {
-            double hueDistanceInDegrees = Math.Abs(hue1InDegrees - hue2InDegrres);
+            double hueDistanceInDegrees = Math.Abs(hue1InDegrees - hue2InDegrees);
             if (hueDistanceInDegrees >= 180)
             {
                 hueDistanceInDegrees = 360 - hueDistanceInDegrees;
@@ -148,7 +137,7 @@ namespace SharpNet.Pictures
         }
         public bool Equals(RGBColor other)
         {
-            return Index24Bits == other.Index24Bits;
+            return other != null && Index24Bits == other.Index24Bits;
         }
     }
 }

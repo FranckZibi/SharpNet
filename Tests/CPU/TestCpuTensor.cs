@@ -73,7 +73,7 @@ namespace SharpNetTests.CPU
         {
             var rand = new Random(0);
             var shape = new[] {32, 1157, 7, 7};
-            var maxValue = 10.0;
+            const double maxValue = 10.0;
             var c = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             var a = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             var x = RandomFloatTensor(shape, rand, -maxValue, maxValue);
@@ -285,7 +285,7 @@ namespace SharpNetTests.CPU
         {
             var rand = new Random(0);
             var shape = new[] { 32, 1157, 7, 7 };
-            var maxValue = 10.0;
+            const double maxValue = 10.0;
             var a = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             var b = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             var result = new CpuTensor<float>(new[] { 32, 1157, 1, 1 }, null);

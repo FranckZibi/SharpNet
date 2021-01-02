@@ -12,7 +12,7 @@ namespace SharpNetTests.DataAugmentation.Operations
         {
             // 1x1 matrix, 3 channels, no normalization
             var input = new[] { 250f, 150f, 50f };
-            var blackMean = 0f;
+            const float blackMean = 0f;
 
             var inputShape = new[] { 1, 3, 1, 1 };
             var expected = new[] { (input[0] + blackMean) / 2, (input[1] + blackMean) / 2, (input[2] + blackMean) / 2 };

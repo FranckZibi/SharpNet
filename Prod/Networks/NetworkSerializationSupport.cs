@@ -52,6 +52,7 @@ namespace SharpNet.Networks
             var config = NetworkConfig.ValueOf(dicoFirstLine);
             if (!string.IsNullOrEmpty(config.LogDirectory) && !Directory.Exists(config.LogDirectory))
             {
+                // ReSharper disable once PossibleNullReferenceException
                 config.LogDirectory = new FileInfo(modelFilePath).Directory.FullName;
             }
 
@@ -63,7 +64,7 @@ namespace SharpNet.Networks
             var network = new Network(config, fixedResourceIds.ToList());
             if (!originalResourceIds.SequenceEqual(fixedResourceIds))
             {
-                Network.Log.Warn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
+                Log.Warn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
             }
             //on CPU we must use 'GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM'
             if (fixedResourceIds.Max() < 0 && config.ConvolutionAlgoPreference != GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
@@ -121,7 +122,7 @@ namespace SharpNet.Networks
         /// <param name="originFramework"></param>
         public void LoadParametersFromH5File(string h5FilePath, NetworkConfig.CompatibilityModeEnum originFramework)
         {
-            Network.Log.Info("loading weights from " + h5FilePath);
+            Log.Info("loading weights from " + h5FilePath);
             using var h5File = new H5File(h5FilePath);
             var h5FileParameters = h5File.Datasets();
             Layers.ForEach(l => l.LoadParameters(h5FileParameters, originFramework));

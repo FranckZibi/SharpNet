@@ -88,7 +88,7 @@ namespace SharpNet.Networks
         {
             var network = BuildEmptyNetwork(networkName);
             var config = network.Config;
-            var activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
+            const cudnnActivationMode_t activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
             network.Input(xShape[1], xShape[2], xShape[3]);
 
             network.Convolution(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true);

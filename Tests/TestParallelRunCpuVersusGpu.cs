@@ -40,11 +40,11 @@ namespace SharpNetTests
             foreach(int stride in new[]{1,2})
             foreach (var isDepthwiseConvolution in new[] { true,false})
             {
-                var channelsCount = 3;
-                var height = 17;
-                var width = 32;
-                var kernelSize = 3;
-                int filterCount = 128;
+                const int channelsCount = 3;
+                const int height = 17;
+                const int width = 32;
+                const int kernelSize = 3;
+                const int filterCount = 128;
                 var x = RandomTensor(new[] { BatchSize, channelsCount, height, width });
                 var convolutionShape = isDepthwiseConvolution
                         ? new[] { 1, channelsCount, kernelSize, kernelSize }
@@ -82,9 +82,9 @@ namespace SharpNetTests
             foreach (int kernelSize in new[] { 3, 5 })
             foreach (var isDepthwiseConvolution in new[] { true, false })
             {
-                var channelsCount = 3;
-                var height = 17;
-                var width = 32;
+                const int channelsCount = 3;
+                const int height = 17;
+                const int width = 32;
                 var x = RandomTensor(new[] { BatchSize, channelsCount, height, width });
                 x = new CpuTensor<float>(x.Shape);
                 var convolutionShape = isDepthwiseConvolution
@@ -158,7 +158,7 @@ namespace SharpNetTests
         public void TestBatchNormalizationV2()
         {
             var tensorIdsToIgnore = new List<int> { 6, 7 };
-            var mode = cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
+            const cudnnBatchNormMode_t mode = cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
             var xShape = new[] { 1, 32, 112, 112};
             var x = new CpuTensor<float>(xShape);
             x.ZeroMemory();
@@ -169,7 +169,7 @@ namespace SharpNetTests
             var y = RandomTensor(xShape);
             var meanBuffer = TestNetworkPropagation.FromNumpyArray("[[[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]],[[0]]]]");
             var varianceBuffer = TestNetworkPropagation.FromNumpyArray("[[[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]],[[31.622776]]]]");
-            double exponentialAverageSmoothingFactor = 1 - 0.99;
+            const double exponentialAverageSmoothingFactor = 1 - 0.99;
             TestAll(new[] { x, y, scale, bias, runningInputMean, runningInputVariance, meanBuffer, varianceBuffer }, tensors => tensors[0].BatchNormalization(tensors[1], tensors[2], tensors[3], exponentialAverageSmoothingFactor, tensors[4], tensors[5], mode, 0.001, tensors[6], tensors[7], false), tensorIdsToIgnore);
         }
         [Test]
@@ -567,11 +567,11 @@ namespace SharpNetTests
         [Test]
         public void TestGlobalAveragePooling()
         {
-            var poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
-            int poolingHeight = Height;
-            int poolingWidth = Width;
-            int verticalStride = Height;
-            int horizontalStride = Width;
+            const cudnnPoolingMode_t poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
+            const int poolingHeight = Height;
+            const int poolingWidth = Width;
+            const int verticalStride = Height;
+            const int horizontalStride = Width;
 
             foreach (var shapeBeforePooling in new[] { new[] { BatchSize, 1, Height, Width }, new[] { BatchSize, ChannelsCount, Height, Width } })
             {
@@ -603,9 +603,9 @@ namespace SharpNetTests
         [Test]
         public void TestGlobalAveragePoolingGradient()
         {
-            var poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
-            int poolingHeight = Height;
-            int poolingWidth = Width;
+            const cudnnPoolingMode_t poolingMode = cudnnPoolingMode_t.CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
+            const int poolingHeight = Height;
+            const int poolingWidth = Width;
             int poolingStride = Math.Max(Height, Width);
             foreach (var shapeBeforePooling in new[] { new[] { BatchSize, 1, Height, Width }, new[] { BatchSize, ChannelsCount, Height, Width } })
             { 
@@ -661,7 +661,7 @@ namespace SharpNetTests
         [TestCase(10, NetworkConfig.LossFunctionEnum.Mse)]
         public void TestComputeLoss(int categoryCount, NetworkConfig.LossFunctionEnum lossFunction)
         {
-            var nbRows = 1000;
+            const int nbRows = 1000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpected = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
@@ -761,7 +761,7 @@ namespace SharpNetTests
         [TestCase(1)]
         public void TestComputeAccuracyOneHot(int categoryCount)
         {
-            var nbRows = 10000;
+            const int nbRows = 10000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows});
@@ -772,7 +772,7 @@ namespace SharpNetTests
         [TestCase(1)]
         public void TestComputeAccuracyTwoHot(int categoryCount)
         {
-            var nbRows = 10000;
+            const int nbRows = 10000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });

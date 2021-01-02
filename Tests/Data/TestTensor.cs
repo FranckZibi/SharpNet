@@ -32,9 +32,9 @@ namespace SharpNetTests.Data
         [Test]
         public void TestStandardConvolutionOutputShape()
         {
-            var batchSize = 666;
-            var inputChannels = 1313;
-            var filtersCount = 317;
+            const int batchSize = 666;
+            const int inputChannels = 1313;
+            const int filtersCount = 317;
 
             foreach (var h in new[] { 3, 33, 50, 100, 200, 201 })
             {
@@ -59,9 +59,9 @@ namespace SharpNetTests.Data
         [Test]
         public void TestDepthwiseConvolutionOutputShape()
         {
-            var batchSize = 666;
-            var inputChannels = 1313;
-            var depthMultiplier = 1;
+            const int batchSize = 666;
+            const int inputChannels = 1313;
+            const int depthMultiplier = 1;
             foreach (var h in new[] { 3, 33, 50, 100, 200, 201 })
             {
                 foreach (var w in new[] { 3, 33, 50, 100, 200, 201 })
@@ -85,8 +85,8 @@ namespace SharpNetTests.Data
         [Test]
         public void TestPoolingOutputShape4D()
         {
-            var batchSize = 666;
-            var channelDepth = 1313;
+            const int batchSize = 666;
+            const int channelDepth = 1313;
 
             foreach (var h in new[] { 3, 33, 50, 100, 200, 201 })
             {

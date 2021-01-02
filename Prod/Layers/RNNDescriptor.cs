@@ -40,9 +40,9 @@ namespace SharpNet.Layers
             this.auxFlags = auxFlags;
         }
 
-        public int[] Weight_ax_Shape => new[] {inputSize, HiddenSizeMultiplier * hiddenSize};
+        public int[] Weight_ax_Shape => new[] {inputSize, WeightWidth };
 
-        public int[] Weight_recurrent_Shape => new[] { hiddenSize, HiddenSizeMultiplier * hiddenSize };
+        public int[] Weight_recurrent_Shape => new[] { hiddenSize, WeightWidth };
 
         public int[] BiasShape
         {
@@ -52,8 +52,7 @@ namespace SharpNet.Layers
                 {
                     return null;
                 }
-                int firstDimensionMultiplier = (biasMode == cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS) ? 2 : 1;
-                return new[] {firstDimensionMultiplier, HiddenSizeMultiplier * hiddenSize};
+                return new[] {biasMode == cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS ? 2 : 1, WeightWidth };
             }
         }
 
@@ -72,18 +71,22 @@ namespace SharpNet.Layers
 
         }
 
-        private int HiddenSizeMultiplier
+        /// <summary>
+        /// the width dimension of the weights & bias associated with the recurrent layer
+        /// all weights & bias are 2D matrix
+        /// </summary>
+        private int WeightWidth
         {
             get
             {
                 int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
                 switch (cellMode)
                 {
-                    case cudnnRNNMode_t.CUDNN_RNN_TANH: return K*1;
-                    case cudnnRNNMode_t.CUDNN_LSTM: return K*4;
-                    case cudnnRNNMode_t.CUDNN_GRU: return K*3;
+                    case cudnnRNNMode_t.CUDNN_RNN_TANH: return K * 1 * hiddenSize;
+                    case cudnnRNNMode_t.CUDNN_LSTM: return K * 4 * hiddenSize;
+                    case cudnnRNNMode_t.CUDNN_GRU: return K * 3 * hiddenSize;
                     default:
-                        throw new NotImplementedException(nameof(HiddenSizeMultiplier) + " " + cellMode);
+                        throw new NotImplementedException(nameof(WeightWidth) + " " + cellMode);
                 }
             }
         }

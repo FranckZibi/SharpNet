@@ -506,7 +506,7 @@ namespace SharpNet.GPU
         public cudnnRNNDataDescriptor_t RNNDataDesc(cudnnDataType_t dataType, int maxSeqLength, int batchSize, int vectorSize)
         {
             CheckThreadId();
-            var layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED;
+            const cudnnRNNDataLayout_t layout = cudnnRNNDataLayout_t.CUDNN_RNN_DATA_LAYOUT_BATCH_MAJOR_UNPACKED;
             var key = Tuple.Create(dataType, layout, maxSeqLength, batchSize, vectorSize);
             if (!cacheRNNDataDesc.TryGetValue(key, out var desc))
             {

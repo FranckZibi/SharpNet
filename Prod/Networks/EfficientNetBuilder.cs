@@ -192,7 +192,7 @@ namespace SharpNet.Networks
 
             //Build stem
             var stemChannels = MobileBlocksDescription.RoundFilters(32, widthCoefficient, depthDivisor);
-            var stemStride = 2;
+            const int stemStride = 2;
 
             //if (Math.Min(height, width) <= 32)
             //{

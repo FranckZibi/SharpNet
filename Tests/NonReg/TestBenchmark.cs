@@ -81,10 +81,10 @@ namespace SharpNetTests.NonReg
         [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalse")]
         public void BenchmarkDataAugmentation()
         {
-            bool useMultiThreading = true;
-            bool useMultiGpu = true;
-            var targetHeight = 118;
-            var targetWidth = 100;
+            const bool useMultiThreading = true;
+            const bool useMultiGpu = true;
+            const int targetHeight = 118;
+            const int targetWidth = 100;
             var miniBatchSize = 300;
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             if (useMultiGpu) { miniBatchSize *= GPUWrapper.GetDeviceCount(); }
@@ -246,7 +246,7 @@ namespace SharpNetTests.NonReg
                 .Output(MNISTDataSet.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
-            var learningRate = 0.01;
+            const double learningRate = 0.01;
             var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
             network.Fit(mnist.Training, learningRateComputer, numEpochs, batchSize, mnist.Test);
             var elapsedMs = sw.Elapsed.TotalSeconds;

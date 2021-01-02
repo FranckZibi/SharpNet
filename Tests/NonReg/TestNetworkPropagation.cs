@@ -48,8 +48,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.635366380214691,0.426373064517975]]");
             TestLossAccuracy(network, X, Y, 0.504664778709412, 1.0);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -91,8 +91,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.41122958, 0.27045158, 0.7466786]]");
             TestLossAccuracy(network, X, Y, 0.8590097427368164, 0.0);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -117,8 +117,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.41122958, 0.27045155, 0.7466786],[0.65826976, 0.14434774, 0.69001585]]");
             TestLossAccuracy(network, X, Y, 0.6962824463844299, 0.5);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -143,8 +143,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.11047623,0.41491902,0.47460473],[0.05679994,0.34877774,0.59442234]]");
             TestLossAccuracy(network, X, Y, 1.3615601062774658, 0.5);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -205,8 +205,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.6299896,  0.65307385, 0.5972025 ],[0.7039944 , 0.56498057, 0.5980379]]");
             TestLossAccuracy(network, X, Y, 0.8323098421096802, 0.0);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -220,10 +220,10 @@ namespace SharpNetTests.NonReg
         {
             const int numEpochs = 10;
             const double learningRate = 0.1;
-            var momentum = 0.9;
-            int vocabularySize = 3;
-            int embeddingDim = 5;
-            int maxWordsBySentence = 4;
+            const double momentum = 0.9;
+            const int vocabularySize = 3;
+            const int embeddingDim = 5;
+            const int maxWordsBySentence = 4;
 
             var X = FromNumpyArray(@"numpy.array([[1, 2, 1, 1], [2, 2, 1, 1]], numpy.float)");
             var Y = FromNumpyArray(@"numpy.array([[1], [0]], numpy.float)");
@@ -258,10 +258,10 @@ namespace SharpNetTests.NonReg
             const int numEpochs = 5;
             const double learningRate = 0.01;
             //var momentum = 0.9;
-            int batchSize = 2;
-            int vocabularySize = 3;
-            int embeddingDim = 5;
-            int maxWordsBySentence = 4;
+            const int batchSize = 2;
+            const int vocabularySize = 3;
+            const int embeddingDim = 5;
+            const int maxWordsBySentence = 4;
 
             var X = FromNumpyArray(@"numpy.array([[1, 1, 1, 2], [2, 2, 2, 2], [1, 2, 2, 2],[1, 1, 1, 1]], numpy.float)");
             var Y = FromNumpyArray(@"numpy.array([[1], [0], [0], [1]], numpy.float)");
@@ -297,9 +297,9 @@ namespace SharpNetTests.NonReg
         [Test, TestCaseSource(nameof(GetTestCases))]
         public void TestLeakyReluActivation_NCHW_2_1_4_4(List<int> resourceIds)
         {
-            var learningRate = 0.1;
-            var numEpochs = 10;
-            var momentum = 0.9;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
+            const double momentum = 0.9;
 
             var X = FromNumpyArray(X_2_1_4_4);
             var Y = FromNumpyArray(Y_2_3);
@@ -347,8 +347,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.3302841,0.7452456,0.4357071],[0.2857407,0.7822333,0.4093774]]");
             TestLossAccuracy(network, X, Y, 0.966899474461873, 0.0);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -381,8 +381,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.5917179,0.3094307,0.6521813],[0.497325,0.2508813,0.5720119]]");
             TestLossAccuracy(network, X, Y, 0.581050515174866, 0.5);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -399,8 +399,8 @@ namespace SharpNetTests.NonReg
                 return; 
             }
 
-            var numEpochs = 10;
-            var learningRate = 0.001;
+            const int numEpochs = 10;
+            const double learningRate = 0.001;
 
             var X = FromNumpyArray(X_2_3_4_5);
             var Y = FromNumpyArray(Y_2_2);
@@ -455,8 +455,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.3337501,0.3300667,0.3361832],[0.3392599,0.3294313,0.3313088]]");
             TestLossAccuracy(network, X, Y, 1.10103356838226, 0.0);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training
@@ -491,8 +491,8 @@ namespace SharpNetTests.NonReg
             TestPredict(network, X, "[[0.4210416,0.2635172,0.3154411],[0.4182904,0.2633894,0.3183202]]");
             TestLossAccuracy(network, X, Y, 1.004860520362856, 0.5);
 
-            var learningRate = 0.1;
-            var numEpochs = 10;
+            const double learningRate = 0.1;
+            const int numEpochs = 10;
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
 
             //predictions after training

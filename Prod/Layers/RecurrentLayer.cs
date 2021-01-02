@@ -48,7 +48,7 @@ namespace SharpNet.Layers
         ///     we'll keep the original 'y' computed by the 'cudnnRNNForward' method to use it during backward propagation
         /// will be null for inference or when returnSequences == true
         /// </summary>
-        private Tensor _yRnnData;
+        private Tensor _yIfReturnSequences;
         [NotNull] private readonly Optimizer _optimizer;
         #endregion
 
@@ -165,14 +165,14 @@ namespace SharpNet.Layers
             }
             Debug.Assert(allX.Count == 1);
             Debug.Assert(_reserveSpace == null);
-            Debug.Assert(_yRnnData == null);
+            Debug.Assert(_yIfReturnSequences == null);
             var x = allX[0];
             var batchSize = x.Shape[0];
             int timeSteps = x.Shape[1];
             Debug.Assert(x.Shape[2] == InputSize);
             Debug.Assert(x.Shape.Length == 3);
 
-            var dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
+            const cudnnDataType_t dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
             var xRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
             var yRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, y.Shape.Last());
 
@@ -196,7 +196,7 @@ namespace SharpNet.Layers
             var devSeqLengths = Network.GpuWrapper.GetDevSeqLengths(batchSize, timeSteps);
 
 
-            _yRnnData = _returnSequences?y:GetFloatTensor(_rnnDescriptor.YRnnData_Shape(timeSteps, batchSize));
+            _yIfReturnSequences = _returnSequences?y:GetFloatTensor(_rnnDescriptor.YRnnData_Shape(timeSteps, batchSize));
 
             //the tensor shape expected by the cuDNN API is : (batchSize, timeSteps, inputSize or hiddenSize) 
             res = CudnnWrapper.cudnnRNNForward(
@@ -207,13 +207,9 @@ namespace SharpNet.Layers
                 xRnnDataDesc,
                 x,
                 yRnnDataDesc,
-                _yRnnData,
-                new cudnnTensorDescriptor_t(),
-                IntPtr.Zero,
-                IntPtr.Zero,
-                new cudnnTensorDescriptor_t(),
-                IntPtr.Zero,
-                IntPtr.Zero,
+                _yIfReturnSequences,
+                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero,
+                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero,
                 _weightsAndBiases.CapacityInBytes,
                 _weightsAndBiases,
                 _workSpaceBufferSizeInBytes,
@@ -223,29 +219,28 @@ namespace SharpNet.Layers
             GPUWrapper.CheckStatus(res);
 
             //We need to convert 'yRnnData' tensor to output 'y' tensor
-            // yRnnData shape:
+            // '_yIfReturnSequences' shape:
             //      (batchSize, timeSteps, hiddenSize)
             // y shape:
             //      (batchSize, timeSteps, hiddenSize)      when _returnSequences == true
             //      (batchSize, hiddenSize)                 when _returnSequences == false
             if (_returnSequences)
             {
-                //_yRnnData.CopyTo(y);
             }
             else
             {
                 //from yRnnData (batchSize, timeSteps, K*hiddenSize) to y (batchSize, K*hiddenSize)
-                int lastDim = _yRnnData.Shape[2];
+                int lastDim = _yIfReturnSequences.Shape[2];
                 for (int batchId = 0; batchId < batchSize; ++batchId)
                 {
                     if (IsBidirectional)
                     {
-                        _yRnnData.CopyTo(_yRnnData.Idx(batchId, timeSteps - 1, 0), y, y.Idx(batchId, 0), lastDim/2);
-                        _yRnnData.CopyTo(_yRnnData.Idx(batchId, 0, lastDim/2), y, y.Idx(batchId, lastDim/2), lastDim/2);
+                        _yIfReturnSequences.CopyTo(_yIfReturnSequences.Idx(batchId, timeSteps - 1, 0), y, y.Idx(batchId, 0), lastDim/2);
+                        _yIfReturnSequences.CopyTo(_yIfReturnSequences.Idx(batchId, 0, lastDim/2), y, y.Idx(batchId, lastDim/2), lastDim/2);
                     }
                     else
                     {
-                        _yRnnData.CopyTo(_yRnnData.Idx(batchId, timeSteps - 1, 0), y, y.Idx(batchId, 0), lastDim);
+                        _yIfReturnSequences.CopyTo(_yIfReturnSequences.Idx(batchId, timeSteps - 1, 0), y, y.Idx(batchId, 0), lastDim);
                     }
                 }
             }
@@ -254,8 +249,8 @@ namespace SharpNet.Layers
 
             if (!_returnSequences && !isTraining)
             {
-                //no need to keep the '_yRnnData' tensor
-                FreeFloatTensor(ref _yRnnData);
+                //no need to keep the '_yIfReturnSequences' tensor
+                FreeFloatTensor(ref _yIfReturnSequences);
             }
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dxList)
@@ -267,51 +262,52 @@ namespace SharpNet.Layers
             }
             Debug.Assert(allX.Count == 1);
             Debug.Assert(_reserveSpace != null);
-            Debug.Assert((_returnSequences && _yRnnData == null) || (!_returnSequences && _yRnnData != null));
+            Debug.Assert((_returnSequences && _yIfReturnSequences == null) || (!_returnSequences && _yIfReturnSequences != null));
             var x = allX[0];                // x shape  :     (batchSize, timeSteps, features)
             var batchSize = x.Shape[0];
             var timeSteps = x.Shape[1];
             Debug.Assert(x.Shape[2] == InputSize);
 
             #region we need to convert 'y' (& 'dy') tensor shape to '_yRnnData' (& 'dyRnnData') shape
-            // y (& dy) shape:
-            //      (batchSize, timeSteps, K*hiddenSize)      when _returnSequences == true
-            //      (batchSize, K*hiddenSize)                 when _returnSequences == false
-            // yRnnData (& dyRnnData) shape:
-            //      (batchSize, timeSteps, K*hiddenSize)
-            Tensor dyRnnData;
+            Tensor dyIfReturnSequences;
             if (_returnSequences)
             {
-                Debug.Assert(_yRnnData == null);
-                _yRnnData = y;
-                dyRnnData = dy;
+                // y & dy & _yIfReturnSequences & dyIfReturnSequences shape:
+                //      (batchSize, timeSteps, K*hiddenSize)
+                Debug.Assert(_yIfReturnSequences == null);
+                _yIfReturnSequences = y;
+                dyIfReturnSequences = dy;
             }
             else
             {
-                Debug.Assert(_yRnnData != null); //_yRnnData must have been kept from forward propagation
-                dyRnnData = GetFloatTensor(_rnnDescriptor.YRnnData_Shape(timeSteps, batchSize));
-                Debug.Assert(_yRnnData.SameShape(dyRnnData));
-                dyRnnData.ZeroMemory();
-                // from dy (batchSize, K*hiddenSize) to dyRnnData (batchSize, timeSteps, K*hiddenSize)
-                int lastDim = _yRnnData.Shape[2];
+                // y & dy shape:
+                //      (batchSize, K*hiddenSize)
+                // _yIfReturnSequences & dyIfReturnSequences shape:
+                //      (batchSize, timeSteps, K*hiddenSize)
+                //we build dyIfReturnSequences from dy
+                Debug.Assert(_yIfReturnSequences != null); //_yIfReturnSequences must have been kept from forward propagation
+                dyIfReturnSequences = GetFloatTensor(_yIfReturnSequences.Shape);
+                dyIfReturnSequences.ZeroMemory();
+                // from dy (batchSize, K*hiddenSize) to dyIfReturnSequences (batchSize, timeSteps, K*hiddenSize)
+                int lastDim = dyIfReturnSequences.Shape[^1];
                 for (int batchId = 0; batchId < batchSize; ++batchId)
                 {
                     if (IsBidirectional)
                     {
-                        dy.CopyTo(dy.Idx(batchId, 0), dyRnnData, dyRnnData.Idx(batchId, timeSteps - 1, 0), lastDim / 2);
-                        dy.CopyTo(dy.Idx(batchId, lastDim / 2), dyRnnData, dyRnnData.Idx(batchId, 0, lastDim / 2), lastDim / 2);
+                        dy.CopyTo(dy.Idx(batchId, 0), dyIfReturnSequences, dyIfReturnSequences.Idx(batchId, timeSteps - 1, 0), lastDim / 2);
+                        dy.CopyTo(dy.Idx(batchId, lastDim / 2), dyIfReturnSequences, dyIfReturnSequences.Idx(batchId, 0, lastDim / 2), lastDim / 2);
                     }
                     else
                     {
-                        dy.CopyTo(dy.Idx(batchId, 0), dyRnnData, dyRnnData.Idx(batchId, timeSteps - 1, 0), lastDim);
+                        dy.CopyTo(dy.Idx(batchId, 0), dyIfReturnSequences, dyIfReturnSequences.Idx(batchId, timeSteps - 1, 0), lastDim);
                     }
                 }
             }
             #endregion
 
-            var dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
+            const cudnnDataType_t dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
             var xDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
-            var yRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, _yRnnData.Shape.Last());
+            var yIfReturnSequencesDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, _yIfReturnSequences.Shape.Last());
             var devSeqLengths = Network.GpuWrapper.GetDevSeqLengths(batchSize, timeSteps);
 
             Debug.Assert(_reserveSpace != null);
@@ -322,19 +318,13 @@ namespace SharpNet.Layers
                 Network.GpuWrapper.CudnnHandle,
                 _cudnnRNNDescriptor_t,
                 devSeqLengths,
-                yRnnDataDesc,
-                _yRnnData,
-                dyRnnData,
+                yIfReturnSequencesDesc,
+                _yIfReturnSequences,
+                dyIfReturnSequences,
                 xDesc,
                 dx,
-                new cudnnTensorDescriptor_t(),
-                IntPtr.Zero,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                new cudnnTensorDescriptor_t(),
-                IntPtr.Zero,
-                IntPtr.Zero,
-                IntPtr.Zero,
+                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
+                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
                 _weightsAndBiases.CapacityInBytes,
                 _weightsAndBiases,
                 _workSpaceBufferSizeInBytes,
@@ -351,10 +341,9 @@ namespace SharpNet.Layers
                 devSeqLengths,
                 xDesc,
                 x,
-                new cudnnTensorDescriptor_t(),
-                IntPtr.Zero,
-                yRnnDataDesc,
-                _yRnnData,
+                new cudnnTensorDescriptor_t(), IntPtr.Zero,
+                yIfReturnSequencesDesc,
+                _yIfReturnSequences,
                 _weightsAndBiasesGradients.CapacityInBytes,
                 _weightsAndBiasesGradients,
                 _workSpaceBufferSizeInBytes,
@@ -371,13 +360,11 @@ namespace SharpNet.Layers
             FreeFloatTensor(ref _reserveSpace);
             if (!_returnSequences)
             {
-                FreeFloatTensor(dyRnnData);
-                FreeFloatTensor(ref _yRnnData);
+                FreeFloatTensor(dyIfReturnSequences);
+                FreeFloatTensor(ref _yIfReturnSequences);
             }
-
-            dyRnnData = null;
-            _yRnnData = null;
-            Debug.Assert(_yRnnData == null);
+            _yIfReturnSequences = null;
+            Debug.Assert(_yIfReturnSequences == null);
             Debug.Assert(_reserveSpace == null);
         }
         #region forward and backward propagation for CPU
@@ -416,26 +403,26 @@ namespace SharpNet.Layers
             var x_at_t_buffer = GetFloatTensor(xShape);
             a_init.ZeroMemory();
 
-            GetFloatTensor(ref _yRnnData, new[] { timeSteps, batchSize, HiddenSize });
+            GetFloatTensor(ref _yIfReturnSequences, new[] { timeSteps, batchSize, HiddenSize });
 
 
             var a_tShape = new[] { batchSize, HiddenSize };
             for (int t = 0; t < timeSteps; ++t)
             {
-                var y_t = _yRnnData.ElementSlice(t, a_tShape);
+                var y_t = _yIfReturnSequences.ElementSlice(t, a_tShape);
                 // y_t = hidden state at time step 't'          (batchSize, hiddenSize)
                 //     = tanh( x_t[t]*Weights_ax + y[t-1]*Weights_aa)
 
                 x.From_NCH_to_NH(x_at_t_buffer, t);
 
                 a_buffer1.Dot(x_at_t_buffer, Weights_ax);
-                var a_prev = (t == 0) ? a_init : _yRnnData.ElementSlice(t - 1, a_tShape);
+                var a_prev = (t == 0) ? a_init : _yIfReturnSequences.ElementSlice(t - 1, a_tShape);
                 a_buffer2.Dot(a_prev, Weights_aa);
                 a_buffer1.AddTensor(1, a_buffer2, 1);
                 Bias.BroadcastAddVectorToOutput(a_buffer1);
                 a_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, null, y_t);
             }
-            _yRnnData.ElementSlice(timeSteps - 1, y.Shape).CopyTo(y);
+            _yIfReturnSequences.ElementSlice(timeSteps - 1, y.Shape).CopyTo(y);
             FreeFloatTensor(a_init);
             FreeFloatTensor(a_buffer1);
             FreeFloatTensor(a_buffer2);
@@ -449,7 +436,7 @@ namespace SharpNet.Layers
             var timeSteps = x.Shape[1];
             Debug.Assert(InputSize == x.Shape[2]);
             var aShape = dy.Shape;          // a shape  :     (batchSize, _hiddenSize )
-            Debug.Assert(_yRnnData.Shape[0] == timeSteps);
+            Debug.Assert(_yIfReturnSequences.Shape[0] == timeSteps);
 
             _weightsAndBiasesGradients.ZeroMemory();
 
@@ -470,7 +457,7 @@ namespace SharpNet.Layers
                 x_batchId.Reshape(x.Shape.Skip(1).ToArray());
                 for (int t = timeSteps - 1; t >= 0; --t)
                 {
-                    var at = _yRnnData.ElementSlice(t, a_tShape).ElementSlice(batchId);
+                    var at = _yIfReturnSequences.ElementSlice(t, a_tShape).ElementSlice(batchId);
                     var xt = x_batchId.ElementSlice(t);
 
                     //we compute _1_minus_aSquare = 1-a[t]^2
@@ -506,7 +493,7 @@ namespace SharpNet.Layers
                     if (t >= 1)
                     {
                         //we update _weights_aa_gradient
-                        var a_t_1 = _yRnnData.ElementSlice(t - 1, a_tShape).ElementSlice(batchId);
+                        var a_t_1 = _yIfReturnSequences.ElementSlice(t - 1, a_tShape).ElementSlice(batchId);
                         tmpWeight_aa.Dot(a_t_1, true, da_t, false, 1f, 0f);
                         //_weights_aa_gradient += a[t-1].T * da[t].T
                         Weights_aaGradients.Update_Adding_Alpha_X(1, tmpWeight_aa);
@@ -588,7 +575,7 @@ namespace SharpNet.Layers
         protected override List<Tensor> EmbeddedTensors(bool includeOptimizeTensors)
         {
             var result = base.EmbeddedTensors(includeOptimizeTensors);
-            result.AddRange(new[] { _reserveSpace, _yRnnData });
+            result.AddRange(new[] { _reserveSpace, _yIfReturnSequences });
             result.RemoveAll(t => t == null);
             return result;
         }

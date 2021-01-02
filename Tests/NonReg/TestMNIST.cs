@@ -16,8 +16,8 @@ namespace SharpNetTests.NonReg
         [SuppressMessage("ReSharper", "ConditionIsAlwaysTrueOrFalse")]
         public void Test()
         {
-            var useGpu = true;
-            int batchSize = 32;
+            const bool useGpu = true;
+            const int batchSize = 32;
             const int numEpochs = 1000;
 
             var network = new Network(
@@ -39,7 +39,7 @@ namespace SharpNetTests.NonReg
 
             var mnist = new MNISTDataSet();
 
-            double lambdaL2Regularization = 0.0;
+            const double lambdaL2Regularization = 0.0;
 
             network
                 .Input(MNISTDataSet.Shape_CHW[0], MNISTDataSet.Shape_CHW[1], MNISTDataSet.Shape_CHW[2])

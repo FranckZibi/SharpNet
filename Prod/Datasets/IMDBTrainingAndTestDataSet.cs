@@ -12,7 +12,8 @@ namespace SharpNet.Datasets
         //private static readonly string[] CategoryIndexToDescription = new[] { "negative", "positive"};
         //public static int CategoryCount => CategoryIndexToDescription.Length;
 
-        private readonly IDictionary<string, int> WordIndex = new Dictionary<string, int>();
+        // ReSharper disable once CollectionNeverQueried.Local
+        private readonly IDictionary<string, int> _wordIndex = new Dictionary<string, int>();
 
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
@@ -29,7 +30,7 @@ namespace SharpNet.Datasets
             foreach (var token in File.ReadAllText(FileNameToPath("dico.txt")).Split(','))
             {
                 var idAndWord = token.Trim().Split(':').Select(x => x.Trim()).ToArray();
-                WordIndex[idAndWord[1]] = int.Parse(idAndWord[0]);
+                _wordIndex[idAndWord[1]] = int.Parse(idAndWord[0]);
             }
         }
 

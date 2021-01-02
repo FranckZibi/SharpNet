@@ -247,7 +247,7 @@ namespace SharpNet.Data
             return true;
         }
 
-        public static bool SameDimension(List<Tensor> a)
+        protected static bool SameDimension(List<Tensor> a)
         {
             a.RemoveAll(x => x == null);
             for (int i = 1; i < a.Count; ++i)
@@ -824,12 +824,6 @@ namespace SharpNet.Data
         {
             Debug.Assert(shape3D.Length == 3);
             return new[] { shape3D[0], 1, shape3D[1], shape3D[2] };
-        }
-        public static int[] ToPooling3D(int[] shape4D)
-        {
-            Debug.Assert(shape4D.Length == 4);
-            Debug.Assert(shape4D[1] == 1);
-            return new[] { shape4D[0], shape4D[2], shape4D[3] };
         }
         public static CpuTensor<float> SingleFloat(float f)
         {

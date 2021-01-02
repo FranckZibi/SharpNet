@@ -19,7 +19,7 @@ namespace SharpNetTests.GPU
         public void KernelManagerTest()
         {
             var km = new KernelManager(GpuWrapper);
-            var size = 1 << 20;
+            const int size = 1 << 20;
             var shape = new[] { 1, size, 1, 1 };
             var aCpu = RandomTensor(shape);
             var bCpu = RandomTensor(shape);
@@ -59,13 +59,13 @@ namespace SharpNetTests.GPU
         {
             var km = new KernelManager(GpuWrapper);
 
-            int size = 1<<20;
+            const int size = 1<<20;
             var shape = new [] {1, size, 1, 1};
             var aCpu = RandomTensor(shape);
             var bCpu = RandomTensor(shape);
             var resultCpu = new CpuTensor<float>(shape);
-            int nbBatchCpu = 10;
-            int nbBatchGPU = 1000;
+            const int nbBatchCpu = 10;
+            const int nbBatchGPU = 1000;
 
             var sw = Stopwatch.StartNew();
             for (int batchId = 0; batchId < nbBatchCpu; ++batchId)

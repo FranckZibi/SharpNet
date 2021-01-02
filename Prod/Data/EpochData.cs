@@ -118,9 +118,12 @@ namespace SharpNet.Data
         }
         public double TrainingLoss => GetWithDefaultValue(TrainingMetrics, NetworkConfig.Metric.Loss, double.NaN);
         public double ValidationLoss => GetWithDefaultValue(ValidationMetrics, NetworkConfig.Metric.Loss, double.NaN);
+        // ReSharper disable once UnusedMember.Global
         public double TrainingAccuracy => GetWithDefaultValue(TrainingMetrics, NetworkConfig.Metric.Accuracy, double.NaN);
         public double ValidationAccuracy => GetWithDefaultValue(ValidationMetrics, NetworkConfig.Metric.Accuracy, double.NaN);
+        // ReSharper disable once UnusedMember.Global
         public double TrainingMae => GetWithDefaultValue(TrainingMetrics, NetworkConfig.Metric.Mae, double.NaN);
+        // ReSharper disable once UnusedMember.Global
         public double ValidationMae => GetWithDefaultValue(ValidationMetrics, NetworkConfig.Metric.Mae, double.NaN);
 
         private static double GetWithDefaultValue(IDictionary<NetworkConfig.Metric, double> allAvailableMetrics, NetworkConfig.Metric metric, double defaultValue)
