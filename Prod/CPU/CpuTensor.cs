@@ -1369,6 +1369,9 @@ namespace SharpNet.CPU
                 case NetworkConfig.LossFunctionEnum.Mse:
                     cost = (1.0 / (batchSize*yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(expected - prediction, 2))).NaNSum();
                     break;
+                case NetworkConfig.LossFunctionEnum.MseOfLog:
+                    cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(Math.Log(expected) - Math.Log(Math.Max(prediction,NetworkConfig.Default_MseOfLog_Loss)), 2)/ Math.Max(prediction, NetworkConfig.Default_MseOfLog_Loss))).NaNSum();
+                    break;
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
             }
@@ -1664,26 +1667,7 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
-        {
-            var loss = this;
-            Debug.Assert(loss.SameShape(yExpected));
-            Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { HuberGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
-        }
-
-        private static void HuberGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
-        {
-            Debug.Assert(gradient.Length == expected.Length);
-            Debug.Assert(gradient.Length == predicted.Length);
-            for (int i = 0; i < gradient.Length; ++i)
-            {
-                var error = predicted[i] - expected[i];
-                gradient[i] = Math.Max(Math.Min(error, huberDelta), -huberDelta);
-                gradient[i] /= gradient.Length;
-            }
-        }
-
+        #region Huber loss
         public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var huberLoss = this;
@@ -1692,7 +1676,6 @@ namespace SharpNet.CPU
             Debug.Assert(yExpected.SameShape(yPredicted));
             Parallel.For(0, batchSize, batchId => { HuberLoss(batchId, huberLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, huberDelta); });
         }
-
         private static void HuberLoss(int batchId, Span<float> huberLoss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
         {
             Debug.Assert(expected.Length == predicted.Length);
@@ -1711,27 +1694,27 @@ namespace SharpNet.CPU
             }
             huberLoss[batchId] = loss;
         }
-
-
-        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
+        public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { MseGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+            Parallel.For(0, loss.Shape[0], m => { HuberGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
         }
-
-        private static void MseGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        private static void HuberGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
         {
             Debug.Assert(gradient.Length == expected.Length);
             Debug.Assert(gradient.Length == predicted.Length);
             for (int i = 0; i < gradient.Length; ++i)
             {
                 var error = predicted[i] - expected[i];
-                gradient[i] = 2*error/ gradient.Length;
+                gradient[i] = Math.Max(Math.Min(error, huberDelta), -huberDelta);
+                gradient[i] /= gradient.Length;
             }
         }
+        #endregion
 
+        #region Mse loss
         public override void MseLoss(Tensor yExpected, Tensor yPredicted)
         {
             var mseLoss = this;
@@ -1752,23 +1735,66 @@ namespace SharpNet.CPU
             }
             mseLoss[batchId] = loss / expected.Length;
         }
+        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var loss = this;
+            Debug.Assert(loss.SameShape(yExpected));
+            Debug.Assert(loss.SameShape(yPredicted));
+            Parallel.For(0, loss.Shape[0], m => { MseGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+        }
 
+        private static void MseGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        {
+            Debug.Assert(gradient.Length == expected.Length);
+            Debug.Assert(gradient.Length == predicted.Length);
+            for (int i = 0; i < gradient.Length; ++i)
+            {
+                var error = predicted[i] - expected[i];
+                gradient[i] = 2*error/ gradient.Length;
+            }
+        }
+        #endregion
 
-        /// <summary>
-        /// compute the prediction embedded in the tensor (in each line the index with max value)
-        /// </summary>
-        /// <returns>array with prediction (=category) of each element</returns>
-        //public int[] ComputePrediction()
-        //{
-        //    int batchSize = Shape[0];
-        //    int[] categoryCount = new int[batchSize];
-        //    var yPredictedCpu = AsFloatCpu;
-        //    for (int m = 0; m < batchSize; ++m)
-        //    {
-        //        ComputeSingleAccuracy(yPredictedCpu, yPredictedCpu, m, out categoryCount[m]);
-        //    }
-        //    return categoryCount;
-        //}
+        #region MseOfLog loss
+        public override void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
+        {
+            var mseLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Parallel.For(0, batchSize, batchId => { MseOfLogLoss(batchId, mseLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, epsilon); });
+        }
+        private static void MseOfLogLoss(int batchId, Span<float> mseLoss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float epsilon)
+        {
+            Debug.Assert(expected.Length == predicted.Length);
+            var loss = 0.0f;
+            for (int i = 0; i < expected.Length; ++i)
+            {
+                var adjustedPredicted = Math.Max(epsilon, predicted[i]);
+                var error = Math.Log(adjustedPredicted) - Math.Log(expected[i]);
+                loss += (float)(error * error);
+            }
+            mseLoss[batchId] = loss / expected.Length;
+        }
+        public override void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon)
+        {
+            var loss = this;
+            Debug.Assert(loss.SameShape(yExpected));
+            Debug.Assert(loss.SameShape(yPredicted));
+            Parallel.For(0, loss.Shape[0], m => { MseOfLogGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, epsilon); });
+        }
+        private static void MseOfLogGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float epsilon)
+        {
+            Debug.Assert(gradient.Length == expected.Length);
+            Debug.Assert(gradient.Length == predicted.Length);
+            for (int i = 0; i < gradient.Length; ++i)
+            {
+                var adjustedPredicted = Math.Max(epsilon, predicted[i]);
+                var error = Math.Log(adjustedPredicted) - Math.Log(expected[i]);
+                gradient[i] = (float)(2 * error / (adjustedPredicted * gradient.Length));
+            }
+        }
+        #endregion
 
         public override void CopyTo(Tensor b)
         {

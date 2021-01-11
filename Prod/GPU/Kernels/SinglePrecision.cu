@@ -472,6 +472,34 @@
 		}
 	}
 
+	__global__ void CategoricalCrossentropyWithHierarchyGradient(int N, int nbCols, float* loss, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			int startIndex = i * nbCols;
+			int endIndexExcluded = startIndex + nbCols;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float expected = yExpected[j];
+				if (fabsf(expected) < 9.5f)
+				{
+					//expected contains a proba between 0 and 1
+					loss[j] = yPredicted[j] - expected;
+				}
+				else
+				{
+					if (expected < 0)
+					{
+						//expected contains a number of element to skip: there is no associated loss
+						int count = (int)(fabsf(expected) + 0.5f) / 10;
+						//we need to skip 'count' indexes
+						j += count - 1; //-1 because the for(;;) loop will also increment 'j'
+					}
+				}
+			}
+		}
+	}
+
 	__global__ void HuberLoss(int batchSize, int lineSize, float huberDelta, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -491,6 +519,20 @@
 		}
 	}
 
+	__global__ void HuberGradient(int batchSize, int lineSize, float huberDelta, float* huberGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = yPredicted[j] - yExpected[j];
+				huberGradient[j] = fmaxf(fminf(diff, huberDelta), -huberDelta) / lineSize;
+			}
+		}
+	}
+
 	__global__ void MseLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -507,48 +549,6 @@
 		}
 	}
 
-	__global__ void CategoricalCrossentropyWithHierarchyGradient(int N, int nbCols, float* loss, const float* __restrict yExpected, const float* __restrict yPredicted)
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			int startIndex = i * nbCols;
-			int endIndexExcluded = startIndex + nbCols;
-			for (int j = startIndex; j < endIndexExcluded; ++j)
-			{
-				float expected = yExpected[j];
-				if (fabsf(expected) < 9.5f)
-				{
-					//expected contains a proba between 0 and 1
-					loss[j] = yPredicted[j]- expected;
-				}
-				else
-				{
-					if (expected < 0)
-					{
-						//expected contains a number of element to skip: there is no associated loss
-						int count = (int)(fabsf(expected) + 0.5f) / 10;
-						//we need to skip 'count' indexes
-						j += count - 1; //-1 because the for(;;) loop will also increment 'j'
-					}
-				}
-			}
-		}
-	}
-
-	__global__ void HuberGradient(int batchSize, int lineSize, float huberDelta, float* huberGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < batchSize) {
-			int startIndex = i * lineSize;
-			int endIndexExcluded = startIndex + lineSize;
-			for (int j = startIndex; j < endIndexExcluded; ++j)
-			{
-				float diff = yPredicted[j] - yExpected[j];
-				huberGradient[j] = fmaxf(fminf(diff, huberDelta), -huberDelta) / lineSize;
-			}
-		}
-	}
-
 	__global__ void MseGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -558,7 +558,40 @@
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yPredicted[j] - yExpected[j];
-				mseGradient[j] = (2*diff)/ lineSize;
+				mseGradient[j] = (2 * diff) / lineSize;
+			}
+		}
+	}
+
+
+	__global__ void MseOfLogLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted, float epsilon)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			float loss = 0.0f;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float adjustedPredicted = fmaxf(epsilon, yPredicted[j]);
+				float diff = logf(adjustedPredicted) - logf(yExpected[j]);
+				loss += diff * diff;
+			}
+			losses[i] = loss / lineSize;
+		}
+	}
+
+	__global__ void MseOfLogGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted, float epsilon)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float adjustedPredicted = fmaxf(epsilon, yPredicted[j]);
+				float diff = logf(adjustedPredicted) - logf(yExpected[j]);
+				mseGradient[j] = (2 * diff) / (adjustedPredicted*lineSize);
 			}
 		}
 	}

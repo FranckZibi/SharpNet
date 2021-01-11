@@ -705,8 +705,19 @@ namespace SharpNet.Data
         /// <param name="huberDelta"></param>
         public abstract void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta);
 
+
         /// <summary>
-        /// Compute the output gradient when are using Men Squared Error loss
+        /// Compute the Mean Squared Error loss (see https://en.wikipedia.org/wiki/Mean_squared_error)
+        /// and stores it in the 'this' tensor
+        /// This loss is defined by:
+        ///     loss  = ( predicted - expected ) ^2
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void MseLoss(Tensor yExpected, Tensor yPredicted);
+
+        /// <summary>
+        /// Compute the output gradient when are using Mean Squared Error loss
         /// and stores it in the 'this' tensor
         /// </summary>
         /// <param name="yExpected">the expected values for the prediction</param>
@@ -714,12 +725,22 @@ namespace SharpNet.Data
         public abstract void MseGradient(Tensor yExpected, Tensor yPredicted);
 
         /// <summary>
-        /// Compute the Mean Squared Error loss (see https://en.wikipedia.org/wiki/Mean_squared_error)
-        /// and stores it in the 'this' tensor
+        /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
+        /// This loss is defined by:
+        ///     loss  = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
         /// </summary>
         /// <param name="yExpected">the expected values for the prediction</param>
         /// <param name="yPredicted">the observed values for the prediction</param>
-        public abstract void MseLoss(Tensor yExpected, Tensor yPredicted);
+        /// <param name="epsilon">minimum allowed value for a prediction</param>
+        public abstract void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon);
+
+        /// <summary>
+        /// Compute the output gradient when we are using MseOfLog loss (see above) and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="epsilon">minimum allowed value for a prediction</param>
+        public abstract void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon);
 
         /// <summary>
         /// pointer to (device or host) pinned memory

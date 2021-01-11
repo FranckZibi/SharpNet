@@ -715,8 +715,8 @@ namespace SharpNetTests
             TestAll(new[] { huberGradient, expected, predicted}, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
         }
 
-        [TestCase(new[] { 10000, 10 })]
         [TestCase(new[] { 10000, 1 })]
+        [TestCase(new[] { 10000, 10 })]
         [TestCase(new[] { 5000, 3, 10 })]
         [TestCase(new[] { 5000, 3, 1 })]
         [TestCase(new[] { 3000, 3, 2, 10 })]
@@ -730,8 +730,8 @@ namespace SharpNetTests
             TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].MseLoss(tensors[1], tensors[2]));
         }
 
-        [TestCase(new[] { 10000, 10 })]
         [TestCase(new[] { 10000, 1 })]
+        [TestCase(new[] { 10000, 10 })]
         [TestCase(new[] { 5000, 3, 10 })]
         [TestCase(new[] { 5000, 3, 1 })]
         [TestCase(new[] { 3000, 3, 2, 10 })]
@@ -742,6 +742,40 @@ namespace SharpNetTests
             var expected = RandomTensor(predicted.Shape);
             var huberGradient = RandomTensor(expected.Shape);
             TestAll(new[] { huberGradient, expected, predicted }, tensors => tensors[0].MseGradient(tensors[1], tensors[2]));
+        }
+
+
+        [TestCase(new[] { 10000, 1 })]
+        [TestCase(new[] { 10000, 10 })]
+        [TestCase(new[] { 5000, 3, 10 })]
+        [TestCase(new[] { 5000, 3, 1 })]
+        [TestCase(new[] { 3000, 3, 2, 10 })]
+        [TestCase(new[] { 3000, 3, 2, 1 })]
+        public void TestMseOfLogLoss(int[] shape)
+        {
+            var predicted = RandomTensor(shape);
+            //all expected values must be strictly > 0
+            var expected = TestCpuTensor.RandomFloatTensor(predicted.Shape, _rand, 0.00001, +1.5);
+            var batchSize = shape[0];
+            var mseOfLogLoss = RandomTensor(new[] { batchSize });
+            const float epsilon = 0.001f;
+            TestAll(new[] { mseOfLogLoss, expected, predicted }, tensors => tensors[0].MseOfLogLoss(tensors[1], tensors[2], epsilon));
+        }
+
+        [TestCase(new[] { 10000, 1 })]
+        [TestCase(new[] { 10000, 10 })]
+        [TestCase(new[] { 5000, 3, 10 })]
+        [TestCase(new[] { 5000, 3, 1 })]
+        [TestCase(new[] { 3000, 3, 2, 10 })]
+        [TestCase(new[] { 3000, 3, 2, 1 })]
+        public void TestMseOfLogGradient(int[] shape)
+        {
+            var predicted = RandomTensor(shape);
+            //all expected values must be strictly > 0
+            var expected = TestCpuTensor.RandomFloatTensor(predicted.Shape, _rand, 0.00001, +1.5);
+            var mseOfLogGradient = RandomTensor(expected.Shape);
+            const float epsilon = 0.001f;
+            TestAll(new[] { mseOfLogGradient, expected, predicted }, tensors => tensors[0].MseOfLogGradient(tensors[1], tensors[2], epsilon));
         }
 
         [TestCase(new[] { 1000, 10 })]

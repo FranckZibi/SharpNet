@@ -415,8 +415,18 @@ namespace SharpNet.Networks
 
             /*
             * Mean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
+            * loss = ( predicted - expected ) ^2
             * */
-            Mse
+            Mse,
+
+            /*
+            * Mean Squared Error of log loss,
+            * loss = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
+            * */
+            MseOfLog
         }
+
+        public const float Default_MseOfLog_Loss = 0.0008f;
+
     }
 }

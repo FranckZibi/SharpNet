@@ -658,27 +658,20 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("CategoricalCrossentropyWithHierarchyGradient", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
         }
 
+        public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        {
+            var huberLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(huberLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            _wrapper.RunKernel("HuberLoss", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
+        }
+
         public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var huberGradient = this;
             int batchSize = yExpected.Shape[0];
             _wrapper.RunKernel("HuberGradient", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberGradient, yExpected, yPredicted });
-        }
-
-        public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
-        {
-            var huberLoss = this;
-            int batchSize = yExpected.Shape[0];
-            Debug.Assert(huberLoss.SameShape(new [] { batchSize }));
-            Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("HuberLoss", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
-        }
-
-        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
-        {
-            var mseGradient = this;
-            int batchSize = yExpected.Shape[0];
-            _wrapper.RunKernel("MseGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
         }
 
         public override void MseLoss(Tensor yExpected, Tensor yPredicted)
@@ -690,6 +683,28 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("MseLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted });
         }
 
+        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseGradient = this;
+            int batchSize = yExpected.Shape[0];
+            _wrapper.RunKernel("MseGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
+        }
+
+        public override void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
+        {
+            var mseLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            _wrapper.RunKernel("MseOfLogLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted, epsilon });
+        }
+
+        public override void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon)
+        {
+            var mseGradient = this;
+            int batchSize = yExpected.Shape[0];
+            _wrapper.RunKernel("MseOfLogGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted, epsilon });
+        }
 
         /// <summary>
         /// this = yExpectedOneHot
