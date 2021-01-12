@@ -24,7 +24,7 @@ namespace SharpNet.Layers
         /// <summary>
         /// shape: 
         ///    (prevLayerOutputShape[last], units)      if _flattenInputTensorOnLastDimension == true
-        ///    (PrevLayer.n_x, units)           if _flattenInputTensorOnLastDimension == false
+        ///    (PrevLayer.n_x, units)                   if _flattenInputTensorOnLastDimension == false
         /// </summary>
         [NotNull] private Tensor _weights;
         /// <summary>

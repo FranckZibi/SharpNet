@@ -42,7 +42,6 @@ namespace SharpNetTests
         {
             SharpNet.Utils.ConfigureGlobalLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
             SharpNet.Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
-
             //235*200 : 34.28% errors (30 epochs)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_0716_30.txt");
             //235*200 :  11.46% errors (70 epochs, lr=0.02)
@@ -198,8 +197,7 @@ namespace SharpNetTests
         }
         #endregion
 
-      #region EfficientNet Training
-
+        #region EfficientNet Training
         private static void EfficientNetTests()
         {
             const bool useMultiGpu = true;
@@ -374,6 +372,41 @@ namespace SharpNetTests
         }
         #endregion
 
+
+        #region CFM60 Training
+        private static void CFM60Tests()
+        {
+            const bool useMultiGpu = false;
+            var networkGeometries = new List<Action<CFM60NetworkBuilder, int>>
+            {
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CFM60(x);},
+            };
+
+            var networkMetaParameters = new List<Func<CFM60NetworkBuilder>>
+            {
+                () =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 70;p.BatchSize=4096;p.InitialLearningRate = 0.000025;p.ExtraDescription = "_Default";return p;},
+            };
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
+        }
+
+        private static void Train_CFM60(CFM60NetworkBuilder p)
+        {
+            using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(true);
+            var cfm60 = (CFM60DataSet) cfm60TrainingAndTestDataSet.Training;
+
+            //const int dayThreshold = 651; //80% in training, 20% in validation
+            //const int dayThreshold = 690; //85% in training, 15% in validation
+            //const int dayThreshold = 728; //90% in training, 10% in validation
+            //const int dayThreshold = 766; //95% in training,  5% in validation
+            //using var training = cfm60.SubDataSet((i) => cfm60.Entries[i].day <= dayThreshold);
+            //using var validation = cfm60.SubDataSet((i) => cfm60.Entries[i].day > dayThreshold);
+            using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(0.9);
+            using var network = p.CFM60(0, 0, cfm60.TimeSteps, cfm60.InputSize);
+            //var res = network.FindBestLearningRate(cfm60, 1e-9, 1, 100);return;
+            var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            network.Fit(trainingValidation.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingValidation.Test);
+        }
+        #endregion
 
 
         /// <summary>

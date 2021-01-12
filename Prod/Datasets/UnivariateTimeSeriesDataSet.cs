@@ -59,6 +59,7 @@ namespace SharpNet.Datasets
 
             var xSrc = _univariateTimeSeries.Span.Slice(elementId*_stride, xBuffer.MultDim0);
             var xDest = xBuffer.AsFloatCpuSpan.Slice(indexInBuffer * xBuffer.MultDim0, xBuffer.MultDim0);
+            Debug.Assert(xSrc.Length == xDest.Length);
             xSrc.CopyTo(xDest);
             if (yBuffer != null)
             {
