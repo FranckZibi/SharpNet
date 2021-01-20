@@ -1,4 +1,5 @@
 using System;
+using SharpNet.MathTools;
 
 namespace SharpNet.Pictures
 {

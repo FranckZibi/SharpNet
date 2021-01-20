@@ -1,0 +1,106 @@
+﻿using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO;
+using ProtoBuf;
+
+namespace SharpNet.Datasets
+{
+    [ProtoContract]
+    public class CFM60Entry
+    {
+        public const int POINTS_BY_DAY = 61;
+
+        /// <summary>
+        /// parameter less constructor needed for ProtoBuf serialization 
+        /// </summary>
+        // ReSharper disable once UnusedMember.Global
+        public CFM60Entry() { }
+
+        private CFM60Entry(string line)
+        {
+            var splitted = line.Split(',');
+            int index = 0;
+            ID = int.Parse(splitted[index++]);
+            pid = int.Parse(splitted[index++]);
+            day = int.Parse(splitted[index++]);
+            abs_ret = new float[POINTS_BY_DAY];
+            for (int i = 0; i < POINTS_BY_DAY; ++i)
+            {
+                if (double.TryParse(splitted[index++], out var tmp))
+                {
+                    abs_ret[i] = (float)tmp;
+                }
+            }
+            ret_vol = new float[POINTS_BY_DAY];
+            for (int i = 0; i < POINTS_BY_DAY; ++i)
+            {
+                if (double.TryParse(splitted[index++], out var tmp))
+                {
+                    ret_vol[i] = (float)tmp;
+                }
+            }
+            LS = (float)double.Parse(splitted[index++]);
+            NLV = (float)double.Parse(splitted[index]);
+        }
+
+        [ProtoMember(1)]
+        public int ID { get;  }
+        [ProtoMember(2)]
+        public int pid { get; }
+        [ProtoMember(3)]
+        public int day { get; }
+        [ProtoMember(4)]
+        public float[] abs_ret { get; }
+        [ProtoMember(5)]
+        public float[] ret_vol{ get; }
+        [ProtoMember(6)]
+        public float LS { get; }
+        [ProtoMember(7)]
+        public float NLV { get; }
+        [ProtoMember(8)] 
+        public float Y { get; private set; } = float.NaN;
+
+        public static CFM60Entry[] Load(string xFile, string yFileIfAny, Action<string> log)
+        {
+            Debug.Assert(xFile != null);
+
+            var protoBufFile = xFile + ".proto";
+            if (File.Exists(protoBufFile))
+            {
+                log("Loading ProtoBuf file " + protoBufFile + "...");
+                using var fsLoad = new FileStream(protoBufFile, FileMode.Open, FileAccess.Read);
+                var result = Serializer.Deserialize<CFM60Entry[]>(fsLoad);
+                log("Binary file " + protoBufFile + " has been loaded");
+                return result;
+            }
+
+            log("Loading content of file " + xFile + "...");
+            var xFileContent = File.ReadAllLines(xFile);
+
+            log("File " + xFile + " has been loaded: " + xFileContent.Length + " lines");
+
+            log("Parsing lines of file " + xFile + "...");
+            var entries = new CFM60Entry[xFileContent.Length - 1];
+            var idToIndex = new ConcurrentDictionary<int, int>();
+            void ProcessLine(int i)
+            {
+                Debug.Assert(i >= 1);
+                entries[i - 1] = new CFM60Entry(xFileContent[i]);
+                idToIndex[entries[i - 1].ID] = i - 1;
+            }
+            System.Threading.Tasks.Parallel.For(1, xFileContent.Length, ProcessLine);
+            log("Lines of file " + xFile + " have been parsed");
+            foreach (var (id, y) in CFM60DataSet.LoadPredictionFile(yFileIfAny))
+            {
+                entries[idToIndex[id]].Y = (float)y;
+            }
+            log("Writing ProtoBuf file " + protoBufFile + "...");
+            using var fs = new FileStream(protoBufFile, FileMode.Create);
+            Serializer.Serialize(fs, entries);
+            fs.Close();
+            log("ProtoBuf file " + protoBufFile + " has been loaded");
+            return entries;
+        }
+    }
+}

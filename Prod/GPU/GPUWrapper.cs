@@ -669,7 +669,7 @@ namespace SharpNet.GPU
             }
             else if (cudaVersion.Major == 11)
             {
-                if (cudaVersion.Minor == 0) { return CUDA_Versions.CUDA_11_0; }
+                return CUDA_Versions.CUDA_11_0;
             }
             throw new Exception("cuda " + cudaVersion + " is not supported");
         }

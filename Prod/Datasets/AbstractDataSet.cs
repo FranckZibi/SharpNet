@@ -108,10 +108,8 @@ namespace SharpNet.Datasets
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,[CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
 
-        public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch)
+        public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, [NotNull] CpuTensor<float> xMiniBatch, [NotNull] CpuTensor<float> yMiniBatch)
         {
-            Debug.Assert(xMiniBatch != null);
-            Debug.Assert(yMiniBatch != null);
             Debug.Assert(xMiniBatch.Shape.Length>=1);
             Debug.Assert(xMiniBatch.TypeSize == TypeSize);
             Debug.Assert(AreCompatible_X_Y(xMiniBatch, yMiniBatch));
@@ -378,17 +376,12 @@ namespace SharpNet.Datasets
         public int TypeSize => 4; //float size
         public override string ToString() {return Name;}
 
-        private IDataSet Slice(int firstElementId, int count)
-        {
-            return SubDataSet(id => id >= firstElementId && id <(firstElementId+count) );
-        }
-
-        public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
+        public virtual ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
             int countInTrainingSet = (int)(percentageInTrainingSet * Count+0.1);
-            var training = Slice(0, countInTrainingSet);
-            var test = Slice(countInTrainingSet, Count- countInTrainingSet);
-            return new TrainingAndTestDataLoader(training, test, this);
+            var training = SubDataSet(id => id < countInTrainingSet);
+            var test = SubDataSet(id => id >= countInTrainingSet);
+            return new TrainingAndTestDataLoader(training, test, Name);
         }
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
         {
@@ -446,7 +439,7 @@ namespace SharpNet.Datasets
             yDataAugmentedMiniBatch.Reshape(yMiniBatchShape);
             yDataAugmentedMiniBatch.ZeroMemory();
 
-            int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstIndexInShuffledElementId + miniBatchIdx];
+            int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[ (firstIndexInShuffledElementId+miniBatchIdx)%shuffledElementId.Length ];
             Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation));
 
             Debug.Assert(AreCompatible_X_Y(xDataAugmentedMiniBatch, yDataAugmentedMiniBatch));
@@ -464,6 +457,9 @@ namespace SharpNet.Datasets
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
                 Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
             }
+
+            //TODO: ensure that there is no NaN or Infinite in xDataAugmentedMiniBatch and yDataAugmentedMiniBatch
+
             alreadyComputedMiniBatchId = miniBatchId;
         }
 
@@ -478,7 +474,7 @@ namespace SharpNet.Datasets
             long result = 1;
             for (int i = firstIndexInShuffledElementId; i < firstIndexInShuffledElementId + miniBatchSize; ++i)
             {
-                result += (i + 1) * shuffledElementId[i];
+                result += (i + 1) * shuffledElementId[i%shuffledElementId.Length];
             }
             return result;
         }

@@ -195,7 +195,6 @@ namespace SharpNet.Layers
             _reserveSpace = isTraining ? GetBuffer(reserveSpaceSize) : null;
             var devSeqLengths = Network.GpuWrapper.GetDevSeqLengths(batchSize, timeSteps);
 
-
             _yIfReturnSequences = _returnSequences?y:GetFloatTensor(_rnnDescriptor.YRnnData_Shape(timeSteps, batchSize));
 
             //the tensor shape expected by the cuDNN API is : (batchSize, timeSteps, inputSize or hiddenSize) 
@@ -251,6 +250,11 @@ namespace SharpNet.Layers
             {
                 //no need to keep the '_yIfReturnSequences' tensor
                 FreeFloatTensor(ref _yIfReturnSequences);
+            }
+
+            if (_returnSequences)
+            {
+                _yIfReturnSequences = null;
             }
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dxList)
@@ -552,7 +556,7 @@ namespace SharpNet.Layers
             {
                 var result = new List<Tuple<Tensor, string>>
                 {
-                    Tuple.Create(_weightsAndBiases, "Weights"),
+                    Tuple.Create(_weightsAndBiases, WeightDatasetPath),
                 };
                 result.RemoveAll(t => t.Item1 == null);
                 return result;
@@ -605,6 +609,8 @@ namespace SharpNet.Layers
             }
         }
         #endregion
+
+        private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");
 
         #region serialization
         public override string Serialize()

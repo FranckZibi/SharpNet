@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -38,6 +39,8 @@ namespace SharpNet.Data
 
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
+        public bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
+
         public bool SameShapeExceptFirstDimension(Tensor b) { return SameShapeExceptFirstDimension(b.Shape); }
         public override string ToString()
         {
@@ -407,12 +410,32 @@ namespace SharpNet.Data
         public abstract void AddTensor(float alpha, Tensor x, float beta);
 
         /// <summary>
-        /// compute: this = a * x + b 
+        /// compute: this = beta * x + alpha
         /// </summary>
-        /// <param name="a">the slope of the linear function</param>
+        /// <param name="beta">the slope of the linear function</param>
         /// <param name="x">a tensor with the same shape as the 'this' tensor </param>
-        /// <param name="b">the constant to add in the linear function</param>
-        public abstract void LinearFunction(float a, Tensor x, float b);
+        /// <param name="alpha">the constant to add in the linear function</param>
+        public abstract void LinearFunction(float beta, Tensor x, float alpha);
+
+
+        /// <summary>
+        /// compute: this = beta * x + alpha
+        ///  tensors 'this', beta, x, alpha must have same shape
+        /// </summary>
+        /// <param name="beta">the slope of the linear function</param>
+        /// <param name="x">a tensor with the same shape as the 'this' tensor </param>
+        /// <param name="alpha">optional parameter. The constant to add in the linear function</param>
+        public void LinearFunction([NotNull] Tensor beta, Tensor x, [CanBeNull] Tensor alpha)
+        {
+            Debug.Assert(SameShape(beta));
+            Debug.Assert(SameShape(x));
+            MultiplyTensor(beta, x);            // y = beta * x
+            if (alpha != null)
+            {
+                Debug.Assert(SameShape(alpha));
+                Update_Adding_Alpha_X(1f, alpha); // y += alpha
+            }
+        }
 
 
         /// <summary>
@@ -803,7 +826,6 @@ namespace SharpNet.Data
                 Debug.Assert(Shape.Skip(2).SequenceEqual(t.Shape.Skip(2)));
             }
         }
-        protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
         public bool SameShapeExceptFirstDimension(int[] shape) { return Shape.Skip(1).SequenceEqual(shape.Skip(1)); }
         protected void RecomputeMultDim()
         {

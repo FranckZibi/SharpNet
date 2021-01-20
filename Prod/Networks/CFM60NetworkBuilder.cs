@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using SharpNet.DataAugmentation;
+using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.Layers;
 
 namespace SharpNet.Networks
 {
@@ -10,22 +13,122 @@ namespace SharpNet.Networks
     /// </summary>
     public class CFM60NetworkBuilder : NetworkBuilder
     {
+        public int TimeSteps { get; set;  } = CFM60Entry.POINTS_BY_DAY;
+        public int InputSize 
+        { 
+            get
+            {
+                int result = 1; //ret_vol
+                if (Use_y_LinearRegressionEstimate_in_InputTensor) { ++result; }
+                if (Use_pid_y_avg_in_InputTensor) {++result;}
+                if (Use_pid_y_vol_in_InputTensor) {++result;}
+                if (Use_abs_ret_in_InputTensor) {++result;}
+                if (Use_LS_in_InputTensor) {++result;}
+                if (Use_NLV_in_InputTensor) {++result;}
+                if (Use_day_in_InputTensor) {++result;}
+                if (Use_EndOfYear_flag_in_InputTensor) {++result;}
+                if (Use_Christmas_flag_in_InputTensor) { ++result; }
+                if (Use_EndOfTrimester_flag_in_InputTensor) {++result;}
+                return result;
+            }
+        }
+
+        public bool Use_y_LinearRegressionEstimate_in_InputTensor { get; set; } = true; //validated on 19-jan-2021: -0.0501 (with other changes)
+        /// <summary>
+        /// should we use the average observed 'y' outcome of the company (computed in the training dataSet) in the input tensor
+        /// </summary>
+        public bool Use_pid_y_avg_in_InputTensor { get; set; } = false; //discarded on 19-jan-2021: +0.0501 (with other changes)
+        //public bool Use_pid_y_avg_in_InputTensor { get; set; } = true; //validated on 17-jan-2021: -0.0385
+
+        public bool Use_pid_y_vol_in_InputTensor { get; set; } = true; //validated on 17-jan-2021: -0.0053
+        public bool Use_abs_ret_in_InputTensor { get; set; } = true;  //validated on 16-jan-2021: -0.0515
+        public bool Use_LS_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0164
+
+
+        public bool Use_day_in_InputTensor { get; set; } = false; //discarded on 19-jan-2021: +0.0501 (with other changes)
+        //public bool Use_day_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0274
+        public bool Use_EndOfYear_flag_in_InputTensor { get; set; } = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
+        public bool Use_Christmas_flag_in_InputTensor { get; set; } = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
+        public bool Use_EndOfTrimester_flag_in_InputTensor { get; set; } = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
+        
+        public bool Use_CustomLinearFunctionLayer  { get; set; } = false;
+        public float Beta_for_CustomLinearFunctionLayer  { get; set; } = 1f;
+
+
+        public bool Use_GRU_instead_of_LSTM { get; set; } = false;
+        public bool Use_Bidirectional_RNN { get; set; } = true;
+
+        public void WithCustomLinearFunctionLayer(float alpha, cudnnActivationMode_t activationFunctionAfterSecondDense)
+        {
+            Use_CustomLinearFunctionLayer = true;
+            Beta_for_CustomLinearFunctionLayer = alpha;
+            LinearLayer_a = 1f;
+            LinearLayer_b = 0f;
+            ActivationFunctionAfterSecondDense = activationFunctionAfterSecondDense;
+        }
+
+        /// <summary>
+        /// normalize LS value between in [0,1] interval
+        /// </summary>
+        public bool NormalizeLS { get; set; } = false;
+        public bool NormalizeLS_V2 { get; set; } = false;
+        public bool Use_NLV_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0364
+        /// <summary>
+        /// normalize NLV value between in [0,1] interval
+        /// </summary>
+        public bool NormalizeNLV { get; set; } = false;
+        public bool NormalizeNLV_V2 { get; set; } = false;
+
+        public float LinearLayer_a { get; set; } = 1.0f;
+        public float LinearLayer_b { get; set; } = 0.0f;
+
+        public int LSTMLayersReturningFullSequence { get; set; } = 1;
+        public double DropProbability { get; set; } = 0.2;       //validated on 15-jan-2021
+        
+        //public double PercentageInTraining { get; set; } = 0.68; //discarded on 16-jan-2021: +0.2759
+        public double PercentageInTraining { get; set; } = 0.9;
+        public bool SplitTrainingAndValidationBasedOnDays { get; set; } = true;
+        public bool UseConv1D { get; set; } = false;
+        public bool UseBatchNormAfterConv1D { get; set; } = false;
+        public bool UseReluAfterConv1D { get; set; } = false;
+        public void WithConv1D(int kernelWidth, ConvolutionLayer.PADDING_TYPE paddingType, bool useBatchNormAfterConv1D, bool useReluAfterConv1D)
+        {
+            UseConv1D = true;
+            Conv1DKernelWidth = kernelWidth;
+            Conv1DPaddingType = paddingType;
+            UseBatchNormAfterConv1D = useBatchNormAfterConv1D;
+            UseReluAfterConv1D = useReluAfterConv1D;
+        }
+
+        public int Conv1DKernelWidth { get; set; } = 3;
+
+        public ConvolutionLayer.PADDING_TYPE Conv1DPaddingType { get; set; } = ConvolutionLayer.PADDING_TYPE.SAME;
+
+
+
+        public bool UseBatchNorm { get; set; } = false;
+        public int HiddenSize { get; set; } = 128;               //validated on 15-jan-2021
+        public int DenseUnits { get; set; } = 100;
+        public bool Shuffle { get; set; } = true;
+
+
+        public cudnnActivationMode_t ActivationFunctionAfterFirstDense { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU;
+        public cudnnActivationMode_t ActivationFunctionAfterSecondDense { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY;
+
+
         /// <summary>
         /// The default Network for CFM60
         /// </summary>
         /// <returns></returns>
         public static CFM60NetworkBuilder Default()
         {
-            const bool shuffle = true;
-            const double momentum = 0.9;
-
             var builder = new CFM60NetworkBuilder
             {
                 Config = new NetworkConfig
                     {
                         LogFile = "TimeSeries",
                         LossFunction = NetworkConfig.LossFunctionEnum.Mse,
-                        RandomizeOrder = shuffle,
+                        RandomizeOrder = true,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
                         Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss},
                         LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
@@ -33,36 +136,96 @@ namespace SharpNet.Networks
                     }
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                     
-                    //.WithSGD(momentum, false)
+                    //.WithSGD(0.9, false)
                     .WithAdam()
 
                 ,
-                NumEpochs = 70,
-                BatchSize = 2,
-                InitialLearningRate = 0.1,
+                NumEpochs = 150,
+                BatchSize = 1024,
+                //InitialLearningRate = 0.0005, //new default 16-jan-2021
+                InitialLearningRate = 0.001, //validated on 17-jan-2021 : -0.0040
             };
 
             return builder;
         }
 
-        public Network CFM60(int depth, int k, int timeSteps, int inputSize)
+        public Network CFM60()
         {
-            var networkName = "CFM60-" + depth + "-" + k;
+            var networkName = "CFM60";
             var network = BuildEmptyNetwork(networkName);
-            var config = network.Config;
-            const int hiddenSize = 64;
+            network.Config.RandomizeOrder = Shuffle;
 
+            network.Input(TimeSteps, InputSize, -1);
 
-            const bool isBidirectional = true;
-            network
-                .Input(timeSteps, inputSize, -1)
-                //.Linear(aNormalization, bNormalization)
-                .LSTM(hiddenSize, true, isBidirectional)
-                .LSTM(hiddenSize, false, isBidirectional)
-                //.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, null)
-                .Dense_Activation(100, 0.0, true, cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU)
-                .Dense(1, 0.0, true)
-                ;
+            if (UseConv1D)
+            {
+                network.Conv1D(TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, 0, true);
+
+                if (UseBatchNormAfterConv1D)
+                {
+                    network.BatchNorm(0.99, 1e-5);
+                }
+                if (UseReluAfterConv1D)
+                {
+                    network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU, null);
+                }
+            }
+
+            for (int i = 0; i < LSTMLayersReturningFullSequence; ++i)
+            {
+                if (Use_GRU_instead_of_LSTM)
+                {
+                    network.GRU(HiddenSize, true, Use_Bidirectional_RNN);
+                }
+                else
+                {
+                    network.LSTM(HiddenSize, true, Use_Bidirectional_RNN);
+                }
+                if (DropProbability >= 1e-6)
+                {
+                    network.Dropout(DropProbability);
+                }
+                if (UseBatchNorm)
+                {
+                    network.BatchNorm(0.99, 1e-5);
+                }
+            }
+
+            //network.Linear(aNormalization, bNormalization);
+            if (Use_GRU_instead_of_LSTM)
+            {
+                network.GRU(HiddenSize, false, Use_Bidirectional_RNN);
+            }
+            else
+            {
+                network.LSTM(HiddenSize, false, Use_Bidirectional_RNN);
+            }
+            if (DropProbability >= 1e-6)
+            {
+                network.Dropout(DropProbability);
+            }
+
+            if (UseBatchNorm)
+            {
+                network.BatchNorm(0.99, 1e-5);
+            }
+            network.Dense_Activation(DenseUnits, 0.0, true, ActivationFunctionAfterFirstDense);
+            network.Dense(1, 0.0, true);
+
+            if (ActivationFunctionAfterSecondDense != cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY)
+            {
+                network.Activation(ActivationFunctionAfterSecondDense);
+            }
+
+            if (Use_CustomLinearFunctionLayer)
+            {
+                network.CustomLinear(Beta_for_CustomLinearFunctionLayer);
+            }
+
+            if (Math.Abs(LinearLayer_a - 1f) > 1e-5 || Math.Abs(LinearLayer_b) > 1e-5)
+            {
+                network.Linear(LinearLayer_a, LinearLayer_b);
+            }
 
             return network;
         }

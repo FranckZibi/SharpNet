@@ -6,23 +6,23 @@ using SharpNet.Networks;
 namespace SharpNet.Layers
 {
     /// <summary>
-    /// Layer that computes: a * PrevLayer + b
+    /// Layer that computes: Beta * PrevLayer + Alpha
     /// </summary>
     public class LinearFunctionLayer : Layer
     {
-        private readonly float _a;
-        private readonly float _b;
+        private readonly float Beta;
+        private readonly float Alpha;
 
-        public LinearFunctionLayer(float a, float b, Network network, string layerName = "") : base(network, layerName)
+        public LinearFunctionLayer(float beta, float alpha, Network network, string layerName = "") : base(network, layerName)
         {
-            _a = a;
-            _b = b;
+            Beta = beta;
+            Alpha = alpha;
         }
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            y.LinearFunction(_a, allX[0], _b);
+            y.LinearFunction(Beta, allX[0], Alpha);
         }
         public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
@@ -30,7 +30,7 @@ namespace SharpNet.Layers
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(allDx.Count == 1);
             Debug.Assert(allDx[0].SameShape(dy));
-            allDx[0].LinearFunction(_a , dy, 0);
+            allDx[0].LinearFunction(Beta , dy, 0);
         }
         public override bool OutputNeededForBackwardPropagation => false;
         public override bool InputNeededForBackwardPropagation => false;
@@ -40,15 +40,15 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(_a), _a)
-                .Add(nameof(_b), _b)
+                .Add(nameof(Beta), Beta)
+                .Add(nameof(Alpha), Alpha)
                 .ToString();
         }
         public static LinearFunctionLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new LinearFunctionLayer(
-                (float)serialized[nameof(_a)], 
-                (float)serialized[nameof(_b)], 
+                (float)serialized[nameof(Beta)], 
+                (float)serialized[nameof(Alpha)], 
                 network, 
                 (string)serialized[nameof(LayerName)]);
         }

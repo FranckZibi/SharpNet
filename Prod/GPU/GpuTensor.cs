@@ -311,18 +311,18 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
 
-        public override void LinearFunction(float a, Tensor x, float b)
+        public override void LinearFunction(float beta, Tensor x, float alpha)
         {
             var y = this;
             Debug.Assert(y.Count == x.Count);
-            if (Math.Abs(b) < 1e-8)
+            if (Math.Abs(alpha) < 1e-8)
             {
-                AddTensor(a, x, 0f);
+                AddTensor(beta, x, 0f);
                 return;
             }
-            _wrapper.RunKernel("LinearFunction", Count, new object[] { y, a, x, b });
+            _wrapper.RunKernel("LinearFunction", Count, new object[] { y, beta, x, alpha });
         }
-
+     
         public override void Concatenate(IList<Tensor> tensors)
         {
 #if DEBUG
@@ -829,7 +829,7 @@ namespace SharpNet.GPU
 
             GPUWrapper.CheckStatus(res);
         }
-        // compute: this += alpha * bias
+        
         public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
             AddTensor(alpha, x, 1);

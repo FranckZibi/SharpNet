@@ -150,6 +150,16 @@ namespace SharpNet.Data
 #if PROFILE_MEMORY_POOL
             _sw.Start();
 #endif
+
+#if DEBUG
+            for (int i = 0; i < _availableTensorOrderedByCount.Count; ++i)
+            {
+                if ( !(t is MockTensor<float>) && t.Pointer == _availableTensorOrderedByCount[i].Pointer)
+                {
+                    throw new Exception("object already available with pointer "+ t.Pointer+" and can't be freed twice ("+t+")");
+                }
+            }
+#endif
             _availableTensorOrderedByCount.Add(t);
             _availableTensorOrderedByCount.Sort((x, y) => (int)(x.CapacityInBytes - y.CapacityInBytes));
 #if PROFILE_MEMORY_POOL

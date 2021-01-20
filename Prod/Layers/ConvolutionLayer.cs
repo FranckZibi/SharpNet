@@ -16,7 +16,7 @@ namespace SharpNet.Layers
     ///     (batchSize, x.C, x.H, x.W)                      if _isConv1D == false
     ///     (batchSize, inputSize, timeSteps)               if _isConv1D == true
     /// Output 'y' tensor shape:
-    ///     (batchSize, depthMultiplier*x.C, y.H, y.W)      if for Depthwise Convolution
+    ///     (batchSize, depthMultiplier*x.C, y.H, y.W)      if Depthwise Convolution 2D
     ///     (batchSize, filtersCount, y.H, y.W)             if Standard Convolution 2D
     ///             y.H = (x.H−kernelHeight+2×pads) /Stride + 1
     ///             y.W = (x.W−kernelWidth+2×pads) /Stride + 1
@@ -430,15 +430,15 @@ namespace SharpNet.Layers
         /// <param name="inputShape">input shape: (batchSize, inputChannels, heightInput, widthInput)</param>
         /// <param name="convolutionShape">
         /// if isDepthwiseConvolution = true
-        ///     convolution shape: (depthMultiplier, inputChannels, kernelHeight, kernelWidth)</param>
+        ///     convolution shape: (depthMultiplier, x.C, kernelHeight, kernelWidth)</param>
         /// else
-        ///     convolution shape: (filtersCount, inputChannels, kernelHeight, kernelWidth)
+        ///     convolution shape: (filtersCount, x.C, kernelHeight, kernelWidth)
         /// <param name="paddingType"></param>
         /// <param name="stride"></param>
         /// <param name="isDepthwiseConvolution"></param>
         /// <returns>output shape:
         /// if isDepthwiseConvolution = true
-        ///     shape is (batchSize, inputChannels * depthMultiplier, heightOutput=H[heightInput], weightOutput=H[weightInput])
+        ///     shape is (batchSize, x.C * depthMultiplier, heightOutput=H[heightInput], weightOutput=H[weightInput])
         ///else
         ///     shape is (batchSize, filtersCount, heightOutput=H[heightInput], weightOutput=H[weightInput])
         /// </returns>

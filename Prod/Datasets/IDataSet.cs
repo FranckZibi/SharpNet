@@ -6,6 +6,11 @@ using SharpNet.DataAugmentation;
 
 namespace SharpNet.Datasets
 {
+    public interface IDataSetWithExpectedAverage
+    {
+        float ElementIdToExpectedAverage(int elementId);
+    }
+
     public interface IDataSet : IDisposable
     {
         /// <summary>

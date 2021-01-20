@@ -24,6 +24,7 @@
 	  <PackageReference Include="HDF.PInvoke" Version="1.10.6.1" />
     <PackageReference Include="PhotoSauce.MagicScaler" Version="0.11.1" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="protobuf-net" Version="3.0.73" />
     <Compile Remove="Properties\AssemblyInfo.cs" />
     <None Remove="packages.config" />
   </ItemGroup>

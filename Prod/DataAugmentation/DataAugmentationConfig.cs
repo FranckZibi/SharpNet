@@ -166,7 +166,7 @@ namespace SharpNet.DataAugmentation
             return equals;
         }
 
-        public bool UseDataAugmentation => !ReferenceEquals(this, NoDataAugmentation);
+        public bool UseDataAugmentation => DataAugmentationType != ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
 
         #region serialization
         public string Serialize()
