@@ -53,7 +53,7 @@ namespace SharpNetTests
 	            var y = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution));
                 ConvolutionLayer.Padding(x.Shape[2], kernelSize, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
                 ConvolutionLayer.Padding(x.Shape[3], kernelSize, stride, paddingType, compatibilityMode, out int paddingLeft, out int paddingRight);
-                var memoryPool =  new TensorMemoryPool(GpuWrapper, false);
+                var memoryPool =  new TensorMemoryPool(GpuWrapper);
                 if (ConvolutionLayer.IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
                 {
                     continue; //asymmetric padding is not supported by cuDNN
@@ -75,7 +75,7 @@ namespace SharpNetTests
         [Test]
         public void TestConvolutionGradient()
         {
-            var memoryPool = new TensorMemoryPool(GpuWrapper, false);
+            var memoryPool = new TensorMemoryPool(GpuWrapper);
             foreach (ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
             foreach (NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
             foreach (int stride in new[] { 1, 2 })

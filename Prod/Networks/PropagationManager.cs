@@ -82,31 +82,28 @@ namespace SharpNet.Networks
                 }
                 referenceCountToLayer.Add(layer.NextLayerIndexes.Count);
                 var allX = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
-                if (!_memoryPool.IsMock)
+
+                if (layer is ILayerNeedingDataSetForForwardPropagation propagation)
                 {
+                    propagation.ForwardPropagationWithDataSet(allX, yBuffer, isTraining, dataSet, batchIndexToElementIdInDataSet);
+                }
+                else
+                {
+                    layer.ForwardPropagation(allX, yBuffer, isTraining);
+                }
 
-                    if (layer is ILayerNeedingDataSetForForwardPropagation)
+                if (LogPropagation)
+                {
+                    layer.LogDebug(Environment.NewLine+ "--------------------------------------------------------------------"
+                                   + Environment.NewLine + "Forward: "
+                                   + layer);
+                    layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + " " + v.Item1.ToShapeAndNumpy()));
+                    //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
+                    layer.LogDebug("output: " + yBuffer.ToShapeAndNumpy());
+                    //layer.LogDebug("output:" + yBuffer.ContentStats());
+                    if (layerIndex == lastLayerIndex)
                     {
-                        ((ILayerNeedingDataSetForForwardPropagation)layer).ForwardPropagationWithDataSet(allX, yBuffer, isTraining, dataSet, batchIndexToElementIdInDataSet);
-                    }
-                    else
-                    {
-                        layer.ForwardPropagation(allX, yBuffer, isTraining);
-                    }
-
-                    if (LogPropagation)
-                    {
-                        layer.LogDebug(Environment.NewLine+ "--------------------------------------------------------------------"
-                                       + Environment.NewLine + "Forward: "
-                                       + layer);
-                        layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + " " + v.Item1.ToShapeAndNumpy()));
-                        //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
-                        layer.LogDebug("output: " + yBuffer.ToShapeAndNumpy());
-                        //layer.LogDebug("output:" + yBuffer.ContentStats());
-                        if (layerIndex == lastLayerIndex)
-                        {
-                            layer.LogDebug(Environment.NewLine + "--------------------------------------------------------------------");
-                        }
+                        layer.LogDebug(Environment.NewLine + "--------------------------------------------------------------------");
                     }
                 }
 
@@ -139,7 +136,7 @@ namespace SharpNet.Networks
         private Tensor Get_yBuffer(Layer layer, int batchSize)
         {
             var outputShape = layer.OutputShape(batchSize);
-            if (!_memoryPool.IsMock || 0 == layer.ExtraElementCountForForwardPropagation(batchSize))
+            if (0 == layer.ExtraElementCountForForwardPropagation(batchSize))
             {
                 return _memoryPool.GetFloatTensor(outputShape);
             }
@@ -149,7 +146,7 @@ namespace SharpNet.Networks
         private Tensor Get_dxBuffer(Layer prev, int batchSize)
         {
             var outputShape = prev.OutputShape(batchSize);
-            if (!_memoryPool.IsMock || 0 == prev.ExtraElementCountForBackwardPropagation(batchSize))
+            if (0 == prev.ExtraElementCountForBackwardPropagation(batchSize))
             {
                 return _memoryPool.GetFloatTensor(outputShape);
             }
@@ -167,47 +164,39 @@ namespace SharpNet.Networks
         {
             Debug.Assert(yExpected != null);
             Debug.Assert(yExpected.SameShape(yPredicted));
-            Tensor dyPredicted;
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
             var lastLayerIndex = _layers.Last().LayerIndex;
 
-            if (_memoryPool.IsMock)
-            {
-                dyPredicted = _memoryPool.GetFloatTensor(_layers.Last().OutputShape(1));
-            }
-            else
-            {
-                dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
+            var dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
 
-                switch (lossFunction)
-                {
-                    case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
-                        Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
-                        //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
-                        yPredicted.CopyTo(dyPredicted);
-                        var categoryCount = yPredicted.Shape[1];
-                        var multiplier = 1f / (categoryCount);
-                        dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
-                        break;
-                    case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
-                        Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
-                        //we compute: _dyPredicted = (yPredicted - yExpected)
-                        yPredicted.CopyTo(dyPredicted);
-                        dyPredicted.AddTensor(-1, yExpected, 1);
-                        break;
-                    case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
-                        dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
-                        break;
-                    case NetworkConfig.LossFunctionEnum.Huber:
-                        const float huberDelta = 1.0f;
-                        dyPredicted.HuberGradient(yExpected, yPredicted, huberDelta);
-                        break;
-                    case NetworkConfig.LossFunctionEnum.Mse:
-                        dyPredicted.MseGradient(yExpected, yPredicted);
-                        break;
-                    default:
-                        throw new Exception("Invalid loss function " + lossFunction);
-                }
+            switch (lossFunction)
+            {
+                case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
+                    Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
+                    //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
+                    yPredicted.CopyTo(dyPredicted);
+                    var categoryCount = yPredicted.Shape[1];
+                    var multiplier = 1f / (categoryCount);
+                    dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
+                    break;
+                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
+                    Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
+                    //we compute: _dyPredicted = (yPredicted - yExpected)
+                    yPredicted.CopyTo(dyPredicted);
+                    dyPredicted.AddTensor(-1, yExpected, 1);
+                    break;
+                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
+                    dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
+                    break;
+                case NetworkConfig.LossFunctionEnum.Huber:
+                    const float huberDelta = 1.0f;
+                    dyPredicted.HuberGradient(yExpected, yPredicted, huberDelta);
+                    break;
+                case NetworkConfig.LossFunctionEnum.Mse:
+                    dyPredicted.MseGradient(yExpected, yPredicted);
+                    break;
+                default:
+                    throw new Exception("Invalid loss function " + lossFunction);
             }
 
             var all_dY = new Tensor[_layers.Count];
@@ -236,49 +225,37 @@ namespace SharpNet.Networks
                 //we allocate the buffers for the 'dx' tensors of current layer
                 var dxBuffer = layer.PreviousLayers.Select(prev => prev.IsInputLayer ? null : Get_dxBuffer(prev, miniBatchSize)).ToList();
                 var allX = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
-                if (!_memoryPool.IsMock)
+                if (!layer.InputNeededForBackwardPropagation)
                 {
-                    if (!layer.InputNeededForBackwardPropagation)
+                    allX.Clear();
+                }
+                if (!layer.OutputNeededForBackwardPropagation)
+                {
+                    y = null;
+                }
+
+                //computes 'dx' and weight gradients of current layer
+                layer.BackwardPropagation(allX, y, dy, dxBuffer);
+
+                if (LogPropagation)
+                {
+                    layer.LogDebug("backward: "+layer);
+                    if (layer.WeightGradients != null)
                     {
-                        allX.Clear();
+                        layer.LogDebug("dW: " + layer.WeightGradients.ToShapeAndNumpy());
+                        //layer.LogDebug("dW: " + layer.WeightGradients.ContentStats());
                     }
-                    if (!layer.OutputNeededForBackwardPropagation)
+                    if (layer.BiasGradients != null)
                     {
-                        y = null;
+                        layer.LogDebug("dB: " + layer.BiasGradients.ToShapeAndNumpy());
+                        //layer.LogDebug("dB: " + layer.BiasGradients.ContentStats());
                     }
-
-                    //computes 'dx' and weight gradients of current layer
-                    layer.BackwardPropagation(allX, y, dy, dxBuffer);
-
-                    if (LogPropagation)
+                    for (var index = 0; index < dxBuffer.Count; index++)
                     {
-                        layer.LogDebug("backward: "+layer);
-                        if (layer.WeightGradients != null)
-                        {
-                            layer.LogDebug("dW: " + layer.WeightGradients.ToShapeAndNumpy());
-                            //layer.LogDebug("dW: " + layer.WeightGradients.ContentStats());
-                        }
-                        if (layer.BiasGradients != null)
-                        {
-                            layer.LogDebug("dB: " + layer.BiasGradients.ToShapeAndNumpy());
-                            //layer.LogDebug("dB: " + layer.BiasGradients.ContentStats());
-                        }
-                        for (var index = 0; index < dxBuffer.Count; index++)
-                        {
-                            //layer.LogDebug("dx["+index+ "]: " + dxBuffer[index]?.ToShapeAndNumpy());
-                            layer.LogDebug("dx["+index+ "]: " + dxBuffer[index]?.ContentStats());
-                        }
-                        layer.LogDebug("");
+                        //layer.LogDebug("dx["+index+ "]: " + dxBuffer[index]?.ToShapeAndNumpy());
+                        layer.LogDebug("dx["+index+ "]: " + dxBuffer[index]?.ContentStats());
                     }
-
-
-
-
-
-
-
-
-
+                    layer.LogDebug("");
                 }
 
                 //we'll update/store the output gradients (dy) of all previous layers connected to the current layer
@@ -302,12 +279,9 @@ namespace SharpNet.Networks
                     }
                     else
                     {
-                        if (!_memoryPool.IsMock)
-                        {
-                            //we'll add the content of 'prevLayerdY' to an existing gradient
-                            //it means that the output of 'prevLayer' is consumed by several layers
-                            all_dY[prevLayerIndex].Update_Adding_Alpha_X(1, prevLayerdY);
-                        }
+                        //we'll add the content of 'prevLayerdY' to an existing gradient
+                        //it means that the output of 'prevLayer' is consumed by several layers
+                        all_dY[prevLayerIndex].Update_Adding_Alpha_X(1, prevLayerdY);
                         //we can free (discard) the content of prevLayer dY : it has already been added to an existing tensor
                         _memoryPool.FreeFloatTensor(ref prevLayerdY);
                     }

@@ -13,7 +13,7 @@ namespace SharpNet.Networks
             _modelFilesPath = modelFilesPath;
         }
 
-        public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet)
+        public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet, int miniBatchSize)
         {
             var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y.Shape);
             var buffer = new CpuTensor<float>(new []{ testDataSet.Count});
@@ -25,7 +25,7 @@ namespace SharpNet.Networks
                 Console.WriteLine("File loaded");
                 Console.WriteLine("Computing accuracy for single network...");
                     
-                var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet);
+                var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
                 var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
                 lossFunction = network.Config.LossFunction;
                 var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, lossFunction, buffer);

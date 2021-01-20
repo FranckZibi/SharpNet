@@ -26,7 +26,8 @@ namespace SharpNet.Data
         #endregion
 
         #region public properties
-        public ulong CapacityInBytes
+
+        private ulong CapacityInBytes
         {
             get
             {
@@ -37,20 +38,18 @@ namespace SharpNet.Data
                 return _allAllocatedTensors.Select(t => t.CapacityInBytes).Sum();
             }
         }
-        public bool IsMock { get; }
         #endregion
 
         #region constructor
-        public TensorMemoryPool(GPUWrapper gpuWrapper, bool isMock)
+        public TensorMemoryPool(GPUWrapper gpuWrapper)
         {
             _gpuWrapper = gpuWrapper;
-            IsMock = isMock;
         }
         #endregion
 
         public override string ToString()
         {
-            var result = (IsMock ? "Mock" : "")+"Used MemoryPool: " + Utils.MemoryBytesToString(CapacityInBytes);
+            var result = "Used MemoryPool: " + Utils.MemoryBytesToString(CapacityInBytes);
 #if PROFILE_MEMORY_POOL
             result += " " + _sw.ElapsedMilliseconds + "ms";
 #endif
@@ -189,11 +188,7 @@ namespace SharpNet.Data
         {
             Debug.Assert(shape != null);
             Tensor result;
-            if (IsMock)
-            {
-                result = new MockTensor<float>(shape);
-            }
-            else if (_gpuWrapper != null)
+            if (_gpuWrapper != null)
             {
                 result = new GPUTensor<float>(shape, null, _gpuWrapper);
             }

@@ -74,7 +74,7 @@ namespace SharpNetTests.NonReg
             //};
 
             var ensembleLearning = new EnsembleLearning(files);
-            ensembleLearning.Predict(cifar10.Test);
+            ensembleLearning.Predict(cifar10.Test, 64);
         }
 
         [Test, Explicit]
@@ -165,7 +165,7 @@ namespace SharpNetTests.NonReg
             //};
 
             var ensembleLearning = new EnsembleLearning(files);
-            ensembleLearning.Predict(svhn.Test);
+            ensembleLearning.Predict(svhn.Test, 128);
         }
 
     }

@@ -308,7 +308,7 @@ namespace SharpNetTests.CPU
             var rand = new Random(0);
             var x = RandomFloatTensor(new []{nbRows, 1}, rand, 10, 20);
             var y = RandomFloatTensor(x.Shape, rand, 10, 20);
-            var memoryPool = new TensorMemoryPool(null, false);
+            var memoryPool = new TensorMemoryPool(null);
             var dropoutReserveSpace = memoryPool.GetFloatTensor(y.Shape);
             x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace, null);
             int nbObservedZeroAfterDropout = y.ReadonlyContent.Count(i => Math.Abs(i) < 1e-8);

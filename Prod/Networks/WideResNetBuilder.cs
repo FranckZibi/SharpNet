@@ -194,6 +194,7 @@ namespace SharpNet.Networks
 
         public Network WRN(int depth, int k, int[] inputShape_CHW, int categoryCount)
         {
+            // ReSharper disable once IntroduceOptionalParameters.Global
             return WRN(depth, k, inputShape_CHW, categoryCount, false);
         }
         public Network WRN_ImageNet(int depth, int k, int[] inputShape_CHW, int categoryCount)

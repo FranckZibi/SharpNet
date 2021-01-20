@@ -162,6 +162,7 @@ namespace SharpNet.Data
         }
         public static implicit operator IntPtr(Tensor t)
         {
+            // ReSharper disable once MergeConditionalExpression
             return (t==null)?IntPtr.Zero:t.Pointer;
         }
         public CpuTensor<T> AsCpu<T>()
@@ -303,7 +304,7 @@ namespace SharpNet.Data
         /// <param name="tensorBeforeUpSampling">[in] the tensor to up sample. must be of shape (n, c, h, w)</param>
         /// <param name="rowFactor">row multiplier</param>
         /// <param name="colFactor">col multiplier</param>
-        /// <param name="interpolation">the type of interpolation (nearest or bilinear)</param>
+        /// <param name="interpolation">the type of interpolation (nearest or bi-linear)</param>
         public abstract void UpSampling2D(Tensor tensorBeforeUpSampling, int rowFactor, int colFactor, UpSampling2DLayer.InterpolationEnum interpolation);
 
         /// <summary>
@@ -853,7 +854,7 @@ namespace SharpNet.Data
         private string ToString(bool displayStartOfTensor)
         {
             var result = ShapeToString(Shape);
-            result += UseGPU ? "" : (this is MockTensor<float>?"Mock":"CPU");
+            result += UseGPU ? "" : "CPU";
             if (displayStartOfTensor && !UseGPU && (this is CpuTensor<float>))
             {
                 //TODO re enable line below

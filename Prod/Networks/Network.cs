@@ -35,7 +35,6 @@ namespace SharpNet.Networks
         private Tensor _randomNumberGeneratorStatesBufferForGPU;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         // bytes/batchSize needed for forward & backward propagation
-        private ulong? _bytesByBatchSize;
         #endregion
 
         #region public fields
@@ -85,7 +84,7 @@ namespace SharpNet.Networks
             GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0]) : null;
             _swComputeMetrics = new Stopwatch();
             CreateLogDirectoryIfNeeded();
-            MemoryPool = new TensorMemoryPool(GpuWrapper, false);
+            MemoryPool = new TensorMemoryPool(GpuWrapper);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
             if (IsMaster && _resourceIds.Count>=2)
             {
@@ -211,12 +210,14 @@ namespace SharpNet.Networks
             Layers.Add(fullyConnectedLayer);
             return this;
         }
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network Linear(float a, float b, string layerName = "")
         {
             var linearFunctionLayer = new LinearFunctionLayer(a, b, this, layerName);
             Layers.Add(linearFunctionLayer);
             return this;
         }
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network CustomLinear(float betaConstant, string layerName = "")
         {
             var linearFunctionLayer = new CustomLinearFunctionLayer(betaConstant, this, layerName);
@@ -234,6 +235,7 @@ namespace SharpNet.Networks
             return Convolution_BatchNorm(filtersCount, kernelSize, stride, paddingType, lambdaL2Regularization)
                 .Activation(activationFunction);
         }
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network BatchNorm_Activation(cudnnActivationMode_t activationFunction)
         {
             return BatchNorm(0.99, 1e-5).Activation(activationFunction);
@@ -265,6 +267,7 @@ namespace SharpNet.Networks
             Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndexDiagonalMatrix, this, layerName));
             return this;
         }
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network NonMaxSuppression(float minScore, float IOU_threshold_for_duplicate, int maxOutputSize, int maxOutputSizePerClass, string layerName)
         {
             Layers.Add(new NonMaxSuppressionLayer(maxOutputSizePerClass, maxOutputSize, IOU_threshold_for_duplicate, minScore, this, layerName));
@@ -275,6 +278,7 @@ namespace SharpNet.Networks
             Layers.Add(new UpSampling2DLayer(rowFactor, colFactor, interpolation, this, layerName));
             return this;
         }
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network YOLOV3Layer(int[] anchors, int previousLayerIndex, string layerName)
         {
             Layers.Add(new YOLOV3Layer(anchors, previousLayerIndex, this, layerName));
@@ -291,6 +295,7 @@ namespace SharpNet.Networks
         }
 
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int filtersCount, int stride, double lambdaL2Regularization)
         {
             int previousResidualLayerIndex = LastLayerIndex;
@@ -393,6 +398,7 @@ namespace SharpNet.Networks
         {
             return AvgPooling(1, -1, 1, -1, layerName);
         }
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network GlobalMaxPooling(string layerName = "")
         {
             return GlobalMaxPooling(Layers.Count - 1, layerName);
@@ -401,6 +407,7 @@ namespace SharpNet.Networks
         {
             return MaxPooling(-1, -1, -1, previousLayerIndex, layerName);
         }
+        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network GlobalAvgPooling_And_GlobalMaxPooling()
         {
             GlobalAvgPooling();
@@ -442,27 +449,22 @@ namespace SharpNet.Networks
 
         public override string ToString()
         {
-            var result = Summary() + Environment.NewLine;
-            var xShape = (Layers.Count > 0)?Layers[0].OutputShape(1): new[] { 1, 1, 1, 1 };
-            result += Utils.MemoryBytesToString(BytesByBatchSizeForwardAndBackward(xShape, true)) + "/batchSize";
-            return result;
+            return Summary();
         }
       
         public int TotalParams => Layers.SelectMany(l => l.Parameters).Select(t=> t.Item1.Count).Sum();
         private int NonTrainableParams => Layers.Select(l => l.NonTrainableParams).Sum();
-        public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers = -1)
+        // ReSharper disable once UnusedMethodReturnValue.Global
+        public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers)
         {
             Debug.Assert(minLearningRate >= 0);
             Debug.Assert(maxLearningRate >= 0);
             Debug.Assert(maxLearningRate > minLearningRate);
+            Debug.Assert(miniBatchSizeForAllWorkers >= 1);
 
             Log.Info(ToString());
             Log.Info("Looking for best learning rate...");
             ResetWeights(); //restore weights to their original values
-            if (miniBatchSizeForAllWorkers <= 0)
-            {
-                miniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(XMiniBatch_Shape(1), true);
-            }
             Log.Debug("BatchSize: "+ miniBatchSizeForAllWorkers);
             var learningRateFinder = new LearningRateFinder(miniBatchSizeForAllWorkers, trainingDataSet.Count, minLearningRate, maxLearningRate);
 
@@ -472,7 +474,7 @@ namespace SharpNet.Networks
                 var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, _bufferComputeLoss);
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
-            MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, (yExpectedMiniBatch, yPredictedMiniBatch) => CallBackAfterEachMiniBatch(yExpectedMiniBatch, yPredictedMiniBatch));
+            MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
             var fileName = Path.Combine(Config.LogDirectory, UniqueId + "_LearningRateFinder.csv");
             File.WriteAllText(fileName, learningRateFinder.AsCsv());
             Log.Info("Stats stored in: " + fileName);
@@ -502,13 +504,14 @@ namespace SharpNet.Networks
         /// <param name="trainingDataSetCpu"></param>
         /// <param name="learningRateComputer"></param>
         /// <param name="numEpochs"></param>
-        /// <param name="preferredMiniBatchSizeForAllWorkers"></param>
+        /// <param name="miniBatchSizeForAllWorkers"></param>
         /// <param name="testDataSetCpuIfAny"></param>
-        public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int preferredMiniBatchSizeForAllWorkers, IDataSet testDataSetCpuIfAny)
+        public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSizeForAllWorkers, IDataSet testDataSetCpuIfAny)
         {
             try
             {
                 Debug.Assert(Config.TypeSize == trainingDataSetCpu.TypeSize);
+                Debug.Assert(miniBatchSizeForAllWorkers >= 1);
                 if (learningRateComputer == null)
                 {
                     throw new ArgumentException("learningRateComputer shouldn't be null in Training mode");
@@ -521,17 +524,6 @@ namespace SharpNet.Networks
                 Log.Debug("Fit( " + Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSetCpu.Count))+" => " + Tensor.ShapeToString(trainingDataSetCpu.YMiniBatch_Shape(trainingDataSetCpu.Count))+" )");
                 Log.Info(ToString());
 
-                var maxMiniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(XMiniBatch_Shape(1), true);
-                var miniBatchSizeForAllWorkers = preferredMiniBatchSizeForAllWorkers;
-                if (miniBatchSizeForAllWorkers < 1)
-                {
-                    miniBatchSizeForAllWorkers = maxMiniBatchSizeForAllWorkers;
-                    Log.Info("Using (auto) MiniBatchSize of " + miniBatchSizeForAllWorkers);
-                }
-                else if (miniBatchSizeForAllWorkers > maxMiniBatchSizeForAllWorkers)
-                {
-                    Log.Warn("MiniBatchSize "+ miniBatchSizeForAllWorkers+" is above advised maximum "+ maxMiniBatchSizeForAllWorkers);
-                }
 
                 if (UseGPU)
                 {
@@ -623,7 +615,7 @@ namespace SharpNet.Networks
                     #region we save the network in a file if necessary
                     if (   //if we have finished training
                            ((epoch == numEpochs) && (numEpochs > 10))
-                            //or if we should save the network every 'Config.AutoSaveIntervalInMinuts' minuts
+                            //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
                         || ( (Config.AutoSaveIntervalInMinutes>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinutes)
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
                         )
@@ -762,8 +754,6 @@ namespace SharpNet.Networks
             {
                 throw new InvalidOperationException("_compactedGradientsIfAny is not null");
             }
-
-            _bytesByBatchSize = null; //we need tor recompute the batch size in bytes
         }
 
         /// <summary>
@@ -810,9 +800,10 @@ namespace SharpNet.Networks
         /// parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         /// If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
-        public Tensor MiniBatchGradientDescentForSingleEpoch(IDataSet dataSet, int miniBatchSizeForAllWorkers = -1, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null)
+        public Tensor MiniBatchGradientDescentForSingleEpoch(IDataSet dataSet, int miniBatchSizeForAllWorkers, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null)
         {
             Debug.Assert(IsMaster);
+            Debug.Assert(miniBatchSizeForAllWorkers >= 1);
 
             if (_slaveNetworks.Any())
             {
@@ -824,10 +815,6 @@ namespace SharpNet.Networks
             var miniBatchGradientDescentStart = DateTime.Now;
             var lastStatsUpdate = miniBatchGradientDescentStart;
             bool isTraining = learningRateComputerIfTraining != null;
-            if (miniBatchSizeForAllWorkers <= 0)
-            {
-                miniBatchSizeForAllWorkers = MaxMiniBatchSizeForAllWorkers(XMiniBatch_Shape(1), isTraining);
-            }
 
             //the mini batch size must be a multiple of the number of workers
             Debug.Assert(miniBatchSizeForAllWorkers< DegreeOfParallelism || miniBatchSizeForAllWorkers % DegreeOfParallelism == 0);
@@ -1000,31 +987,6 @@ namespace SharpNet.Networks
                 Directory.CreateDirectory(Config.LogDirectory);
             }
         }
-        /// <summary>
-        /// bytes / batchSize needed for forward & backward propagation
-        /// </summary>
-        /// <param name="xShape"></param>
-        /// <param name="isTraining"></param>
-        private ulong BytesByBatchSizeForwardAndBackward(int[] xShape, bool isTraining)
-        {
-            if (_bytesByBatchSize.HasValue)
-            {
-                return _bytesByBatchSize.Value;
-            }
-            Debug.Assert(xShape.Length >= 2);
-            Debug.Assert(xShape[0] == 1);       //batch size must be  1
-            using var mockMemoryPooling = new TensorMemoryPool(null, true);
-            using var propagationManager = new PropagationManager(Layers, mockMemoryPooling, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-            var x = mockMemoryPooling.GetFloatTensor(xShape);
-            var yPredicted = mockMemoryPooling.GetFloatTensor(Layers.Last().OutputShape(x.Shape[0]));
-            propagationManager.Forward(x, yPredicted, isTraining, null, null);
-            if (isTraining)
-            {
-                var yExpected = yPredicted;
-                propagationManager.Backward(yExpected, yPredicted, Config.LossFunction);
-            }
-            return mockMemoryPooling.CapacityInBytes;
-        }
         private Tensor ReformatToCorrectDevice_GPU_or_CPU(Tensor X)
         {
             if (X == null || UseGPU == X.UseGPU)
@@ -1120,26 +1082,6 @@ namespace SharpNet.Networks
                     l.ResetParameters();
                 }
             }
-        }
-        private int MaxMiniBatchSizeForAllWorkers(int[] xShape, bool isTraining)
-        {
-            var bytesByBatchSizeForwardAndBackward = BytesByBatchSizeForwardAndBackward(xShape, isTraining);
-            var freeMemoryInBytes = UseGPU ? (ulong)GpuWrapper.AvailableGpuMemoryInBytes() : Utils.AvailableRamMemoryInBytes();
-            var maxMiniBatchSizeForEachWorker = MaxMiniBatchSizeForEachWorker(bytesByBatchSizeForwardAndBackward, freeMemoryInBytes);
-            var maxMiniBatchSizeForAllWorkers = DegreeOfParallelism * maxMiniBatchSizeForEachWorker;
-            Log.Debug("Max MiniBatchSize=" + maxMiniBatchSizeForAllWorkers + " (free memory=" + Utils.MemoryBytesToString(freeMemoryInBytes) + ")");
-            return maxMiniBatchSizeForAllWorkers;
-        }
-        //TODO add tests
-        private static int MaxMiniBatchSizeForEachWorker(ulong bytesByBatchSize, ulong freeMemoryInBytes)
-        {
-            freeMemoryInBytes -= 2_000_000_000;
-            var miniBatchSize = (int)(freeMemoryInBytes / (1.2*bytesByBatchSize));
-            if (miniBatchSize > 4)
-            {
-                miniBatchSize -= (miniBatchSize % 4);
-            }
-            return miniBatchSize;
         }
         private string ContentStats()
         {

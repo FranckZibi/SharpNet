@@ -368,9 +368,9 @@ namespace SharpNet.Datasets
         }
         public int[] YMiniBatch_Shape(int miniBatchSize)
         {
-            var yMinibatchShape = (int[])Y.Shape.Clone();
-            yMinibatchShape[0] = miniBatchSize;
-            return yMinibatchShape;
+            var yMiniBatchShape = (int[])Y.Shape.Clone();
+            yMiniBatchShape[0] = miniBatchSize;
+            return yMiniBatchShape;
         }
 
         public int TypeSize => 4; //float size
