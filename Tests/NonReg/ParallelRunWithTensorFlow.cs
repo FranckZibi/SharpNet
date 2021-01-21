@@ -382,7 +382,7 @@ namespace SharpNetTests.NonReg
                 );
 
             network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
+                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
                 .Flatten()
                 .Dense(1, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -458,7 +458,7 @@ namespace SharpNetTests.NonReg
             network.PropagationManager.LogPropagation = true;
 
             network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
+                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
                 .GlobalAvgPooling()
                 .Dense(4, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -562,7 +562,7 @@ namespace SharpNetTests.NonReg
                 );
 
             network
-                .InputAndEmbedding(max_length, vocab_size, embedding_dim, 0.0)
+                .InputAndEmbedding(max_length, vocab_size, embedding_dim, -1, 0.0)
                 .GlobalAvgPoolingOnHeight()
                 .Dense(24, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -1095,7 +1095,7 @@ namespace SharpNetTests.NonReg
             const bool isBidirectional = false;
             network
                 //.Input(timeSteps, inputSize, -1)
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, lambdaL2Regularization)
+                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, lambdaL2Regularization)
                 .Dropout(0.2)
                 .LSTM(32, false, isBidirectional)
                 .Dense_Activation(256, lambdaL2Regularization, true, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)

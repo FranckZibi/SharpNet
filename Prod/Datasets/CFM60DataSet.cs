@@ -300,6 +300,12 @@ namespace SharpNet.Datasets
             for (int timeStep = 0; timeStep < TimeSteps; ++timeStep)
             {
                 var entry = Entries[elementId];
+
+                if (Cfm60NetworkBuilder.Pid_EmbeddingDim >= 1)
+                {
+                    xDest[idx++] = entry.pid;
+                }
+
                 xDest[idx++] = entry.ret_vol[timeStep];
 
                 if (Cfm60NetworkBuilder.Use_abs_ret_in_InputTensor)

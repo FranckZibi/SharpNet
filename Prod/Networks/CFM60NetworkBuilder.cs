@@ -19,6 +19,7 @@ namespace SharpNet.Networks
             get
             {
                 int result = 1; //ret_vol
+                if (Pid_EmbeddingDim>=1) { ++result; }
                 if (Use_y_LinearRegressionEstimate_in_InputTensor) { ++result; }
                 if (Use_pid_y_avg_in_InputTensor) {++result;}
                 if (Use_pid_y_vol_in_InputTensor) {++result;}
@@ -44,6 +45,8 @@ namespace SharpNet.Networks
         public bool Use_abs_ret_in_InputTensor { get; set; } = true;  //validated on 16-jan-2021: -0.0515
         public bool Use_LS_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0164
 
+        //embedding dim associated with the 'pid'
+        public int Pid_EmbeddingDim { get; set; } = 4;  //validated on 16-jan-2021: -0.0236
 
         public bool Use_day_in_InputTensor { get; set; } = false; //discarded on 19-jan-2021: +0.0501 (with other changes)
         //public bool Use_day_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0274
@@ -108,7 +111,8 @@ namespace SharpNet.Networks
 
         public bool UseBatchNorm { get; set; } = false;
         public int HiddenSize { get; set; } = 128;               //validated on 15-jan-2021
-        public int DenseUnits { get; set; } = 100;
+        public int DenseUnits { get; set; } = 200;              //validated on 21-jan-2021: -0.0038
+        //public int DenseUnits { get; set; } = 100;
         public bool Shuffle { get; set; } = true;
 
 
@@ -156,6 +160,12 @@ namespace SharpNet.Networks
             network.Config.RandomizeOrder = Shuffle;
 
             network.Input(TimeSteps, InputSize, -1);
+
+            if (Pid_EmbeddingDim >= 1)
+            {
+                network.Embedding(CFM60Entry.DISTINCT_PID_COUNT, Pid_EmbeddingDim, 0, 0);
+            }
+
 
             if (UseConv1D)
             {

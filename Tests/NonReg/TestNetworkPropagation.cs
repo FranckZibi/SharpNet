@@ -230,7 +230,7 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
             network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
+                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
                 .Flatten()
                 .Dense(1, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -271,7 +271,7 @@ namespace SharpNetTests.NonReg
             network.Config.DataAugmentation = DataAugmentationConfig.NoDataAugmentation;
 
             network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, 0.0)
+                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
                 .GlobalAvgPoolingOnHeight()
                 .Dense(4, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);

@@ -171,11 +171,17 @@ namespace SharpNet.Networks
             Layers.Add(new InputLayer(channelCount, h, w, this, layerName));
             return this;
         }
-        public Network InputAndEmbedding(int maxWordsBySentence, int vocabularySize, int embeddingDim, double lambdaL2Regularization, string layerName = "")
+        public Network InputAndEmbedding(int maxWordsBySentence, int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, double lambdaL2Regularization, string layerName = "")
         {
             Debug.Assert(Layers.Count == 0);
             Input(maxWordsBySentence, -1, -1);
-            Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, lambdaL2Regularization, true, this, layerName));
+            Embedding(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, layerName);
+            return this;
+        }
+        public Network Embedding(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, double lambdaL2Regularization, string layerName = "")
+        {
+            Debug.Assert(Layers.Count == 1);
+            Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, true, this, layerName));
             return this;
         }
         public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")

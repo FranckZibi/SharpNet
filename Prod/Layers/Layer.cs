@@ -233,6 +233,7 @@ namespace SharpNet.Layers
                 case nameof(ConvolutionLayer): return ConvolutionLayer.Deserialize(serialized, network);
                 case nameof(DenseLayer): return DenseLayer.Deserialize(serialized, network);
                 case nameof(DropoutLayer): return DropoutLayer.Deserialize(serialized, network);
+                case nameof(EmbeddingLayer): return EmbeddingLayer.Deserialize(serialized, network);
                 case nameof(FlattenLayer): return FlattenLayer.Deserialize(serialized, network);
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(CustomLinearFunctionLayer): return CustomLinearFunctionLayer.Deserialize(serialized, network);

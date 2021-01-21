@@ -279,35 +279,57 @@
 		}
 	}
 
-	//'x' shape:                (batchSize, maxWordCountBySentence)
-	//'y' shape :               (batchSize, maxWordCountBySentence, embeddingDim)
+	//'x' shape:                (batchSize, timeSteps, inputSize)
+	//'y' shape :               (batchSize, timeSteps, inputSize+embeddingDim-1)
 	//'wordEmbedding' shape:    (vocabularySize, embeddingDim)
-	__global__ void WordEmbeddingForwardPropagation(int N, int batchSize, int maxWordCountBySentence, int embeddingDim, int vocabularySize, float* y, float* x, float* wordEmbedding)
+	__global__ void WordEmbeddingForwardPropagation(int N, int inputSize, int indexInLastDimensionToUse, int embeddingDim, float* x, float* y, float* wordEmbedding)
 	{
-		int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-		if (xIndex >= N) return;
-		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
+		int i = blockIdx.x * blockDim.x + threadIdx.x;	// in [0, batchSize*timeSteps-1]
+		if (i >= N) return;
+
+		//we retrieve the wordIndex 
+		int xTimeStepIndex = i * inputSize;
+		int wordIndex = (int)(x[xTimeStepIndex+ indexInLastDimensionToUse] + 0.1f);	//in [0, vocabularySize-1]
 		int indexInWordEmbedding = wordIndex*embeddingDim;
-		int indexInY = xIndex*embeddingDim;
-		memcpy(y+indexInY, wordEmbedding +indexInWordEmbedding, sizeof(float) * embeddingDim);
+		int yTimeStepIndex = i * (inputSize + embeddingDim - 1);
+
+		int xElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
+		if (xElementsBeforeEmbeddingIndex > 0)
+		{
+			memcpy(y + yTimeStepIndex, x + xTimeStepIndex, sizeof(float) * xElementsBeforeEmbeddingIndex);
+		}
+
+		memcpy(y+ yTimeStepIndex +indexInLastDimensionToUse, wordEmbedding+indexInWordEmbedding, sizeof(float) * embeddingDim);
+
+		//for the current timeStep, we copy the elements from 'x' to 'y' after 'indexInLastDimensionToUse'
+		int xElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
+		if (xElementsAfterEmbeddingIndex > 0)
+		{
+			memcpy(y + yTimeStepIndex+ indexInLastDimensionToUse+ embeddingDim, x + xTimeStepIndex+ indexInLastDimensionToUse+1, sizeof(float) * xElementsAfterEmbeddingIndex);
+		}
 	}
 
+	// N :						batchSize * timeSteps
+	// x shape :                (batchSize, timeSteps, inputSize)
+	// dy shape :               (batchSize, timeSteps, inputSize+embeddingDim-1)
 	//'dw' shape:				(vocabularySize, embeddingDim)
-	// x shape :                (batchSize, maxWordCountBySentence)
-	// dy shape :               (batchSize, maxWordCountBySentence, embeddingDim)
-	__global__ void WordEmbeddingBackwardPropagation(int N, int batchSize, int maxWordCountBySentence, int embeddingDim, int vocabularySize, float* dw, float* x, float* dy)
+	__global__ void WordEmbeddingBackwardPropagation(int N, int inputSize, int indexInLastDimensionToUse, int embeddingDim, float* x, float* dy, float* dw)
 	{
-		int xIndex = blockIdx.x * blockDim.x + threadIdx.x;
-		if (xIndex >= N) return;
-		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
-		int dwIndex = embeddingDim * wordIndex;
-		int dyIndex = xIndex* embeddingDim;
+		int i = blockIdx.x * blockDim.x + threadIdx.x;	// in [0, batchSize*timeSteps-1]
+		if (i >= N) return;
+
+		//we retrieve the wordIndex 
+		int xTimeStepIndex = i * inputSize + indexInLastDimensionToUse;
+		int wordIndex = (int)(x[xTimeStepIndex] + 0.1f);	//in [0, vocabularySize-1]
+		int indexInDw = embeddingDim * wordIndex;
+
+		int indexIndY = i * (inputSize+embeddingDim-1) + indexInLastDimensionToUse;
 		for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
 		{
-			float valueToAdd = dy[dyIndex];
-			atomicAdd(dw+dwIndex, valueToAdd);
-			++dwIndex;
-			++dyIndex;
+			float valueToAdd = dy[indexIndY];
+			atomicAdd(dw+ indexInDw, valueToAdd);
+			++indexInDw;
+			++indexIndY;
 		}
 	}
 

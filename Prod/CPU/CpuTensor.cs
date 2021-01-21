@@ -71,36 +71,67 @@ namespace SharpNet.CPU
         /// </summary>
         private bool HasPinnedMemory => !IsOwnerOfMemory || _hostPinnedMemory != null;
 
-        //this (= 'y') shape :      (batchSize, maxWordCountBySentence, embeddingDim)
-        //'x' shape:                (batchSize, maxWordCountBySentence)
-        //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
-        public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding)
+
+        /// <summary>
+        /// this (= 'y') shape :
+        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
+        /// </summary>
+        /// <param name="x">
+        /// 'x' shape:
+        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
+        /// </param>
+        /// <param name="wordEmbedding">
+        ///'wordEmbedding' shape:    (vocabularySize, embeddingDim)
+        /// </param>
+        /// <param name="indexInLastDimensionToUse"></param>
+        public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding, int indexInLastDimensionToUse)
         {
             var y = this;
-            Debug.Assert(x.Shape.Length == 2);
             Debug.Assert(wordEmbedding.Shape.Length == 2);
+            Debug.Assert(x.Shape[0] == y.Shape[0]); //same batchSize
+            Debug.Assert(x.Shape[1] == y.Shape[1]); //same timeSteps
             Debug.Assert(y.Shape.Length == 3);
-            Debug.Assert(y.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(y.Shape[1] == x.Shape[1]); //same max word count by sentence
-            Debug.Assert(y.Shape[2] == wordEmbedding.Shape[1]); //same embedding dimension
-            var maxWordCountBySentence = x.Shape[1];
+            Debug.Assert( (indexInLastDimensionToUse==-1 && x.Shape.Length==2) || (indexInLastDimensionToUse >= 0 && x.Shape.Length == 3));
+
+            int inputSize = indexInLastDimensionToUse == -1 ? 1 : x.Shape[2];
+            indexInLastDimensionToUse = indexInLastDimensionToUse == -1 ? 0 : indexInLastDimensionToUse;
+
+            var timeSteps = x.Shape[1];
             var embeddingDim = wordEmbedding.Shape[1];
-            var xCpu = (CpuTensor<float>)x;
+            Debug.Assert(y.Shape[2] == embeddingDim + inputSize - 1);
+
             void ProcessBatch(int batchIndex)
             {
+                var xSpan = x.AsReadonlyFloatCpuContent;
                 var ySpan = y.AsFloatCpuSpan;
                 var wordEmbeddingSpan = wordEmbedding.AsReadonlyFloatCpuContent;
-                for (int wordInSentence = 0; wordInSentence < maxWordCountBySentence; ++wordInSentence)
+                int xTimeStepIndex = batchIndex * x.MultDim0;
+                int yTimeStepIndex = batchIndex * y.MultDim0;
+                for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
-                    int wordIndex = (int)(xCpu.Get(batchIndex, wordInSentence) + 0.1);
-                    int indexInWordEmbedding = wordEmbedding.Idx(wordIndex, 0);
-                    int indexInY = y.Idx(batchIndex, wordInSentence, 0);
-                    for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
+                    //for the current timeStep, we copy the elements from 'x' to 'y' before 'indexInLastDimensionToUse'
+                    int xElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
+                    if (xElementsBeforeEmbeddingIndex > 0)
                     {
-                        ySpan[indexInY] = wordEmbeddingSpan[indexInWordEmbedding];
-                        ++indexInY;
-                        ++indexInWordEmbedding;
+                        //we copy 'xElementsBeforeEmbeddingIndex' elements before index 'indexInLastDimensionToUse'
+                        xSpan.Slice(xTimeStepIndex, xElementsBeforeEmbeddingIndex).CopyTo(ySpan.Slice(yTimeStepIndex, xElementsBeforeEmbeddingIndex));
                     }
+
+                    int wordIndex = (int)(xSpan[xTimeStepIndex+indexInLastDimensionToUse] + 0.1);
+                    wordEmbeddingSpan.Slice(wordIndex*embeddingDim, embeddingDim).CopyTo(ySpan.Slice(yTimeStepIndex+ indexInLastDimensionToUse, embeddingDim));
+
+                    //for the current timeStep, we copy the elements from 'x' to 'y' after 'indexInLastDimensionToUse'
+                    int xElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
+                    if (xElementsAfterEmbeddingIndex > 0)
+                    {
+                        //we copy the 'xElementsAfterEmbeddingIndex' elements after index 'indexInLastDimensionToUse'
+                        xSpan.Slice(xTimeStepIndex+indexInLastDimensionToUse+1, xElementsAfterEmbeddingIndex).CopyTo(ySpan.Slice(yTimeStepIndex+indexInLastDimensionToUse+embeddingDim, xElementsAfterEmbeddingIndex));
+                    }
+
+                    xTimeStepIndex += inputSize;
+                    yTimeStepIndex += inputSize + embeddingDim-1;
                 }
             }
             Parallel.For(0, x.Shape[0], ProcessBatch);
@@ -110,28 +141,35 @@ namespace SharpNet.CPU
         /// this (= dW) shape:        (VocabularySize, EmbeddingDim)
         /// </summary>
         /// <param name="x">
-        /// x shape :                (batchSize,  maxWordCountBySentence)
+        /// 'x' shape:
+        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
         /// </param>
         /// <param name="dy">
-        /// dy shape :               (batchSize, maxWordCountBySentence, EmbeddingDim)
+        /// 'dy' shape:
+        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
         /// </param>
-        public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy)
+        /// <param name="indexInLastDimensionToUse"></param>
+        public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy, int indexInLastDimensionToUse)
         {
             var dW = this;
+
+            Debug.Assert(dW.Shape.Length == 2);
+            Debug.Assert(x.Shape[0] == dy.Shape[0]); //same batchSize
+            Debug.Assert(x.Shape[1] == dy.Shape[1]); //same timeSteps
+            Debug.Assert(dy.Shape.Length == 3);
+            Debug.Assert((indexInLastDimensionToUse == -1 && x.Shape.Length == 2) || (indexInLastDimensionToUse >= 0 && x.Shape.Length == 3));
+
+            indexInLastDimensionToUse = indexInLastDimensionToUse == -1 ? 0 : indexInLastDimensionToUse;
+
             var xCpu = (CpuTensor<float>)x;
             var dyCpu = (CpuTensor<float>)dy;
 
-            Debug.Assert(dW.Shape.Length == 2);
-            Debug.Assert(x.Shape.Length == 2);
-            Debug.Assert(dy.Shape.Length == 3);
-            Debug.Assert(dy.Shape[0] == x.Shape[0]); //same batch size
-            Debug.Assert(dy.Shape[1] == x.Shape[1]); //same max word count by sentence
-            Debug.Assert(dy.Shape[2] == dW.Shape[1]); //same embedding dimension
-
             dW.ZeroMemory();
             var batchSize = dy.Shape[0];
-            var maxWordCountBySentence = dy.Shape[1];
-            var embeddingDim = dy.Shape[2];
+            var timeSteps = x.Shape[1];
+            var embeddingDim = dW.Shape[1];
 
             var xSpan = x.AsFloatCpuSpan;
             var dWSpan = dW.AsFloatCpuSpan;
@@ -139,16 +177,16 @@ namespace SharpNet.CPU
 
             for (int batchIndex = 0; batchIndex < batchSize; ++batchIndex)
             {
-                for (int wordInSentence = 0; wordInSentence < maxWordCountBySentence; ++wordInSentence)
+                for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
-                    int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, wordInSentence)] + 0.1);
+                    int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, timeStep, indexInLastDimensionToUse)] + 0.1);
                     int indexInDw = dW.Idx(wordIndex, 0);
-                    int indexIndY = dyCpu.Idx(batchIndex, wordInSentence, 0);
+                    int indexIndY = dyCpu.Idx(batchIndex, timeStep, indexInLastDimensionToUse);
                     for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
                     {
                         dWSpan[indexInDw] += dySpan[indexIndY];
                         ++indexInDw;
-                        indexIndY += 1;
+                        ++indexIndY;
                     }
                 }
             }

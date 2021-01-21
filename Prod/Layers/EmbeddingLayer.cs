@@ -12,19 +12,23 @@ namespace SharpNet.Layers
     /// <summary>
     /// This layer can only be used as the second layer in a model (the first layer being the InputLayer).
     /// input shape :
-    ///     (batchSize,  input_length = maxWordsBySentence = timeSteps)
+    ///     (batchSize, timeSteps)                              if IndexInLastDimensionToUse = -1
+    ///     (batchSize, timeSteps, input_length)                if IndexInLastDimensionToUse >= 0
     /// output shape :
-    ///     (batchSize,  input_length = maxWordsBySentence = timeSteps, EmbeddingDim (=Channels))
+    ///     (batchSize, timeSteps, EmbeddingDim)                if IndexInLastDimensionToUse = -1
+    ///     (batchSize, timeSteps, input_length+EmbeddingDim-1) if IndexInLastDimensionToUse >= 0
     /// </summary>
     public sealed class EmbeddingLayer : Layer
     {
         #region Private fields
+        
         #region trainable parameters
         /// <summary>
         /// Word Embedding, of shape: (VocabularySize, EmbeddingDim)
         /// </summary>
         [NotNull] private Tensor _weights;
         #endregion
+        
         #region gradients
         /// <summary>
         /// same shape as '_weights'
@@ -34,9 +38,9 @@ namespace SharpNet.Layers
         /// Adam or SGD optimizer or Vanilla SGD
         /// </summary>
         #endregion
+
         [NotNull] private readonly Optimizer _optimizer;
-        #endregion
-        #region public fields and properties
+        private readonly int IndexInLastDimensionToUse;
         /// <summary>
         /// Size of the vocabulary, i.e. maximum integer index + 1
         /// In the input 'x' tensor:
@@ -57,9 +61,11 @@ namespace SharpNet.Layers
         public EmbeddingLayer(
             int vocabularySize,
             int embeddingDim,
+            int indexInLastDimensionToUse,
             double lambdaL2Regularization,
             bool trainable, Network network, string layerName) : base(network, layerName)
         {
+            IndexInLastDimensionToUse = indexInLastDimensionToUse;
             VocabularySize = vocabularySize;
             EmbeddingDim = embeddingDim;
             LambdaL2Regularization = lambdaL2Regularization;
@@ -81,28 +87,23 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            var x = allX[0]; 
-            Debug.Assert(x.Shape.Length == 2); // input 'x' tensor must be of shape (batchSize, maxWordsBySentence)
-            Debug.Assert(y.Shape.Length == 3); // output 'y' tensor must be of shape (batchSize, maxWordsBySentence, EmbeddingDim)
-            Debug.Assert(x.Shape[0] == y.Shape[0]); //same batch size
-            Debug.Assert(x.Shape[1] == y.Shape[1]); //same word count by sentence
+            var x = allX[0];
+            Debug.Assert(x.Shape[0] == y.Shape[0]); //same batchSize
+            Debug.Assert(x.Shape[1] == y.Shape[1]); //same timeSteps
             //We compute y = x*Weights
-            y.WordEmbeddingForwardPropagation(x, _weights);
+            y.WordEmbeddingForwardPropagation(x, _weights, IndexInLastDimensionToUse);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
             Debug.Assert(allX.Count == 1);
             Debug.Assert(y_NotUsed == null);
-
             var x = allX[0];
-            int batchSize = dy.Shape[0];
-
             //we compute dW
-            _weightGradients.WordEmbeddingBackwardPropagation(x, dy);
-
+            _weightGradients.WordEmbeddingBackwardPropagation(x, dy, IndexInLastDimensionToUse);
             //L2 regularization on dW
             if (UseL2Regularization)
             {
+                int batchSize = dy.Shape[0];
                 var alpha = 2 * batchSize * (float)LambdaL2Regularization;
                 _weightGradients.Update_Adding_Alpha_X(alpha, _weights);
             }
@@ -165,15 +166,17 @@ namespace SharpNet.Layers
             return RootSerializer()
                 .Add(nameof(VocabularySize), VocabularySize)
                 .Add(nameof(EmbeddingDim), EmbeddingDim)
+                .Add(nameof(IndexInLastDimensionToUse), IndexInLastDimensionToUse)
                 .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
                 .ToString();
         }
 
-        private static EmbeddingLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public static EmbeddingLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new EmbeddingLayer(
                 (int) serialized[nameof(VocabularySize)],
                 (int) serialized[nameof(EmbeddingDim)],
+                (int) serialized[nameof(IndexInLastDimensionToUse)],
                 (double)serialized[nameof(LambdaL2Regularization)],
                 (bool)serialized[nameof(Trainable)],
                 network,
@@ -184,7 +187,18 @@ namespace SharpNet.Layers
 
         public override int[] OutputShape(int batchSize)
         {
-            return new[] { batchSize, PrevLayer.n_x, EmbeddingDim};
+            var prevLayerOutputShape = PrevLayer.OutputShape(batchSize);
+            var timeSteps = prevLayerOutputShape[1];
+            if (IndexInLastDimensionToUse == -1)
+            {
+                Debug.Assert(prevLayerOutputShape.Length == 2);
+                return new[] {batchSize, timeSteps, EmbeddingDim};
+            }
+            else
+            {
+                Debug.Assert(prevLayerOutputShape.Length == 3);
+                return new[] { batchSize, timeSteps, prevLayerOutputShape[2]+EmbeddingDim-1};
+            }
         }
         public override string ToString()
         {

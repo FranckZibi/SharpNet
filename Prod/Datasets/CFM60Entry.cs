@@ -10,6 +10,7 @@ namespace SharpNet.Datasets
     public class CFM60Entry
     {
         public const int POINTS_BY_DAY = 61;
+        public const int DISTINCT_PID_COUNT = 900;  //total number of distinct companies (pid)
 
         /// <summary>
         /// parameter less constructor needed for ProtoBuf serialization 
