@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using ProtoBuf;
+using SharpNet.MathTools;
 
 namespace SharpNet.Datasets
 {
@@ -11,6 +12,10 @@ namespace SharpNet.Datasets
     {
         public const int POINTS_BY_DAY = 61;
         public const int DISTINCT_PID_COUNT = 900;  //total number of distinct companies (pid)
+
+
+        private float? _ret_vol_Volatility = null;
+        private float? _ret_vol_CoefficientOfVariation = null;
 
         /// <summary>
         /// parameter less constructor needed for ProtoBuf serialization 
@@ -103,5 +108,28 @@ namespace SharpNet.Datasets
             log("ProtoBuf file " + protoBufFile + " has been loaded");
             return entries;
         }
+
+        public float Get_ret_vol_Volatility()
+        {
+            if (!_ret_vol_Volatility.HasValue)
+            {
+                var acc = new DoubleAccumulator();
+                acc.Add(ret_vol);
+                _ret_vol_Volatility = (float)acc.Volatility;
+            }
+            return _ret_vol_Volatility.Value;
+        }
+
+        public float Get_ret_vol_CoefficientOfVariation()
+        {
+            if (!_ret_vol_CoefficientOfVariation.HasValue)
+            {
+                var acc = new DoubleAccumulator();
+                acc.Add(ret_vol);
+                _ret_vol_CoefficientOfVariation = (float)acc.CoefficientOfVariation;
+            }
+            return _ret_vol_CoefficientOfVariation.Value;
+        }
+
     }
 }

@@ -216,15 +216,8 @@ namespace SharpNet.Datasets
                 pid_accumulator.Add(e.pid, 1);
                 NLV_accumulator.Add(e.NLV, 1);
                 LS_accumulator.Add(e.LS, 1);
-                foreach (var v in e.abs_ret)
-                {
-                    abs_ret_accumulator.Add(v, 1);
-                }
-
-                foreach (var v in e.ret_vol)
-                {
-                    ret_vol_accumulator.Add(v, 1);
-                }
+                abs_ret_accumulator.Add(e.abs_ret);
+                ret_vol_accumulator.Add(e.ret_vol);
             }
 
             var Y_accumulator = new DoubleAccumulator();
@@ -271,6 +264,46 @@ namespace SharpNet.Datasets
 
             CreatePredictionFile(predictions, filePath);
         }
+
+        /// <summary>
+        /// Use Ensemble Learning to create the average predictions from different networks
+        /// </summary>
+        /// <param name="directory">the directory where the predictions files are located</param>
+        /// <param name="fileNameWithPrediction">the fileNames of the prediction files in directory 'directory'</param>
+        /// <returns>a path to a prediction file with the average predictions</returns>
+        public static string EnsembleLearning(string directory, params string[] fileNameWithPrediction)
+        {
+            int? predictionsByFile = null;
+            var ensembleLearningPredictions = new Dictionary<int, double>();
+            foreach (var singleFilePredictions in fileNameWithPrediction.Select(f=> LoadPredictionFile(Path.Combine(directory, f))))
+            {
+                if (!predictionsByFile.HasValue)
+                {
+                    predictionsByFile = singleFilePredictions.Count;
+                }
+                if (predictionsByFile.Value != singleFilePredictions.Count)
+                {
+                    throw new ArgumentException("all predictions files do not have the same number of predictions");
+                }
+                foreach (var (id, prediction) in singleFilePredictions)
+                {
+                    if (!ensembleLearningPredictions.ContainsKey(id))
+                    {
+                        ensembleLearningPredictions[id] = 0;
+                    }
+                    ensembleLearningPredictions[id] += prediction/ fileNameWithPrediction.Length;
+                }
+            }
+            if (predictionsByFile.HasValue && predictionsByFile.Value != ensembleLearningPredictions.Count)
+            {
+                throw new ArgumentException("all predictions files do not have the same ID for predictions");
+            }
+
+            var ensembleLearningPredictionFile = Path.Combine(directory, "EnsembleLearning_" + DateTime.Now.Ticks + ".csv");
+            CreatePredictionFile(ensembleLearningPredictions, ensembleLearningPredictionFile);
+            return ensembleLearningPredictionFile;
+        }
+
 
         public static void CreatePredictionFile(IDictionary<int, double> IDToPredictions, string filePath)
         {
@@ -324,6 +357,18 @@ namespace SharpNet.Datasets
                 if (Cfm60NetworkBuilder.Use_pid_y_vol_in_InputTensor)
                 {
                     xDest[idx++] = CFM60TrainingAndTestDataSet.Y_Volatility_BasedOnFullTrainingSet(entry.pid);
+                }
+                if (Cfm60NetworkBuilder.Use_pid_y_variance_in_InputTensor)
+                {
+                    xDest[idx++] = CFM60TrainingAndTestDataSet.Y_Variance_BasedOnFullTrainingSet(entry.pid);
+                }
+                if (Cfm60NetworkBuilder.Use_ret_vol_CoefficientOfVariation_in_InputTensor)
+                {
+                    xDest[idx++] = entry.Get_ret_vol_CoefficientOfVariation();
+                }
+                if (Cfm60NetworkBuilder.Use_ret_vol_Volatility_in_InputTensor)
+                {
+                    xDest[idx++] = entry.Get_ret_vol_Volatility();
                 }
                 if (Cfm60NetworkBuilder.Use_LS_in_InputTensor)
                 {
@@ -558,6 +603,10 @@ namespace SharpNet.Datasets
         public static float Y_Volatility_BasedOnFullTrainingSet(int pid)
         {
             return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Volatility;
+        }
+        public static float Y_Variance_BasedOnFullTrainingSet(int pid)
+        {
+            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Variance;
         }
 
         private static readonly object lockObject = new object();

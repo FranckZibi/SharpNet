@@ -23,7 +23,10 @@ namespace SharpNet.Networks
                 if (Use_y_LinearRegressionEstimate_in_InputTensor) { ++result; }
                 if (Use_pid_y_avg_in_InputTensor) {++result;}
                 if (Use_pid_y_vol_in_InputTensor) {++result;}
+                if (Use_pid_y_variance_in_InputTensor) {++result;}
                 if (Use_abs_ret_in_InputTensor) {++result;}
+                if (Use_ret_vol_CoefficientOfVariation_in_InputTensor) {++result;}
+                if (Use_ret_vol_Volatility_in_InputTensor) {++result;}
                 if (Use_LS_in_InputTensor) {++result;}
                 if (Use_NLV_in_InputTensor) {++result;}
                 if (Use_day_in_InputTensor) {++result;}
@@ -42,8 +45,13 @@ namespace SharpNet.Networks
         //public bool Use_pid_y_avg_in_InputTensor { get; set; } = true; //validated on 17-jan-2021: -0.0385
 
         public bool Use_pid_y_vol_in_InputTensor { get; set; } = true; //validated on 17-jan-2021: -0.0053
+        public bool Use_pid_y_variance_in_InputTensor { get; set; } = false;
         public bool Use_abs_ret_in_InputTensor { get; set; } = true;  //validated on 16-jan-2021: -0.0515
         public bool Use_LS_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0164
+        
+        public bool Use_ret_vol_CoefficientOfVariation_in_InputTensor { get; set; } = false; //'true' discarded on 22-jan-2020: +0.0043
+        public bool Use_ret_vol_Volatility_in_InputTensor { get; set; } = false; //'true' discarded on 22-jan-2020: +0.0065
+
 
         //embedding dim associated with the 'pid'
         public int Pid_EmbeddingDim { get; set; } = 4;  //validated on 16-jan-2021: -0.0236

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace SharpNet.MathTools
 {
     public sealed class DoubleAccumulator
@@ -19,7 +22,20 @@ namespace SharpNet.MathTools
             sum += t * count;
             sumSquare += (t * t) * count;
             Count += count;
-
+        }
+        public void Add(IEnumerable<float> list)
+        {
+            foreach (var e in list)
+            {
+                Add(e, 1);
+            }
+        }
+        public void Add(IEnumerable<double> list)
+        {
+            foreach (var e in list)
+            {
+                Add(e, 1);
+            }
         }
         private void Add(DoubleAccumulator b)
         {
@@ -40,6 +56,14 @@ namespace SharpNet.MathTools
             return res;
         }
 		public double Volatility => System.Math.Sqrt(Variance);
+
+
+        /// <summary>
+        /// Coefficient O fVariation, see https://en.wikipedia.org/wiki/Coefficient_of_variation
+        /// Volatility / Average 
+        /// </summary>
+        public double CoefficientOfVariation => (Math.Abs(Average) < 1e-6) ? 0 : (Volatility / Average);
+
         private double Variance
 		{
 			get
