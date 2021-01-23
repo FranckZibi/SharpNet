@@ -146,24 +146,6 @@ namespace SharpNet.Layers
             _convolutionBias?.BroadcastConvolutionBiasToOutput(y4D);
             StopForwardTimer(LayerType() + ">Bias", isTraining);
         }
-        public override int ExtraElementCountForForwardPropagation(int batchSize)
-        {
-            if (LayerIndex == 0)
-            {
-                return 0;
-            }
-            var xShape = PrevLayer.OutputShape(batchSize);
-            if (_isConv1D)
-            {
-                xShape = ReshapeConv1d_to_Conv2D(xShape);
-            }
-            Padding(xShape, out int paddingTop, out int paddingBottom, out int paddingLeft, out int paddingRight);
-            if (IsAsymmetricPadding(paddingTop, paddingBottom, paddingLeft, paddingRight))
-            {
-                return Utils.Product(PaddedXShape(xShape, paddingTop, paddingBottom, paddingLeft, paddingRight));
-            }
-            return 0;
-        }
         /// <summary>
         /// dy => _convolutionGradients & _convolutionBiasGradients & dx 
         /// </summary>
@@ -242,10 +224,6 @@ namespace SharpNet.Layers
 
 
         public override bool OutputNeededForBackwardPropagation => false;
-        public override int ExtraElementCountForBackwardPropagation(int batchSize)
-        {
-            return ExtraElementCountForForwardPropagation(batchSize);
-        }
         #endregion
 
         #region parameters and gradients
@@ -277,7 +255,6 @@ namespace SharpNet.Layers
         }
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
-            Debug.Assert(_optimizer != null);
             var fanIn = _convolution.MultDim0;
             var fanOut = _convolution.Shape[0];
             var stdDev = Math.Sqrt(2.0 / (fanIn + fanOut));

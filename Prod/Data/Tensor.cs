@@ -559,7 +559,7 @@ namespace SharpNet.Data
         //this = dy
         public abstract void Compute_BiasGradient_from_dy(Tensor biasGradient);
         //this = Weights or B
-        public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep);
+        public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep);
         //this = Weights or B
         public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
         public Tensor RowSlice(int startRowIndex, int nbRows)

@@ -560,7 +560,6 @@ namespace SharpNet.CPU
                 x.CopyTo(y);
                 return;
             }
-            Debug.Assert(dropoutReservedSpaceForTraining != null);
             Debug.Assert(!dropoutReservedSpaceForTraining.UseGPU);
             Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
             var dropProbabilityFloat = (float)dropProbability;
@@ -569,7 +568,6 @@ namespace SharpNet.CPU
         }
         public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
         {
-            Debug.Assert(dropoutReserveSpace != null);
             Debug.Assert(!dropoutReserveSpace.UseGPU);
             var dropProbabilityFloat = (float)dropProbability;
             dx.AsFloatCpu.BuildEntirelyFromInput(dy, dropoutReserveSpace, (dOutput, prob) => prob < dropProbabilityFloat ? 0f : dOutput / (1 - dropProbabilityFloat));
@@ -586,7 +584,6 @@ namespace SharpNet.CPU
                     CpuTensorActivationFunctions.Relu(x, y);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
-                    Debug.Assert(activationParameter != null);
                     Debug.Assert(activationParameter.Dimension == 1);
                     Debug.Assert(activationParameter.Count == 1);
                     CpuTensorActivationFunctions.LeakyRelu(x, y, activationParameter.AsReadonlyFloatCpuContent[0]);
@@ -604,7 +601,6 @@ namespace SharpNet.CPU
                     CpuTensorActivationFunctions.Softmax(x, y);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY:
-                    Debug.Assert(activationParameter != null);
                     Debug.Assert(activationParameter.Dimension == 1);
                     CpuTensorActivationFunctions.SoftmaxWithHierarchy(x, y, activationParameter);
                     return;
@@ -626,7 +622,6 @@ namespace SharpNet.CPU
                     CpuTensorActivationFunctions.ReluGradient(y, dy, dx);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
-                    Debug.Assert(activationParameter != null);
                     Debug.Assert(activationParameter.Dimension == 1);
                     Debug.Assert(activationParameter.Count == 1);
                     CpuTensorActivationFunctions.LeakyReluGradient(y, dy, dx, activationParameter.AsReadonlyFloatCpuContent[0]);
@@ -644,7 +639,6 @@ namespace SharpNet.CPU
                     CpuTensorActivationFunctions.SoftmaxGradient(y, dy, dx);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY:
-                    Debug.Assert(activationParameter != null);
                     Debug.Assert(activationParameter.Dimension == 1);
                     CpuTensorActivationFunctions.SoftmaxGradientWitHierarchy(y, dy, dx, activationParameter);
                     return;
@@ -743,7 +737,6 @@ namespace SharpNet.CPU
         {
             var beforeDownSampling = (CpuTensor<float>)tensorBeforeDownSampling;
             var afterDownSampling = AsFloatCpu;
-            Debug.Assert(afterDownSampling != null);
             afterDownSampling.ZeroMemory();
             Debug.Assert(rowFactor >= 1);
             Debug.Assert(colFactor >= 1);
@@ -1363,11 +1356,11 @@ namespace SharpNet.CPU
         /// <param name="dW"></param>
         /// <param name="adam_vW">biased first moment estimate</param>
         /// <param name="adam_sW">biased second raw moment estimate</param>
-        /// <param name="timestep"></param>
-        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep)
+        /// <param name="timeStep"></param>
+        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
         {
-            var beta1_power = Math.Pow(beta1, timestep);
-            var beta2_power = Math.Pow(beta2, timestep);
+            var beta1_power = Math.Pow(beta1, timeStep);
+            var beta2_power = Math.Pow(beta2, timeStep);
 
             var W = this;
             //Update biased first moment estimate
@@ -1379,10 +1372,9 @@ namespace SharpNet.CPU
             W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
         }
         //this = yExpected
-        public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
+        public override double ComputeLoss([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
         {
             var yExpected = this;
-            Debug.Assert(yPredicted != null);
             Debug.Assert(!yPredicted.UseGPU);
             Debug.Assert(yPredicted.SameShape(yExpected));
             var batchSize = yExpected.Shape[0];
@@ -1550,13 +1542,12 @@ namespace SharpNet.CPU
         {
             return ComputeMetric(yPredicted, buffer, (a, b) => (a - b)*(a-b));
         }
-        private float ComputeMetric(Tensor yPredicted, Tensor buffer, Func<float , float, float> computeScalarMetric)
+        private float ComputeMetric(Tensor yPredicted, [NotNull] Tensor buffer, Func<float , float, float> computeScalarMetric)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
             Debug.Assert(yExpected.SameShape(yPredicted));
             Debug.Assert(!yExpected.UseGPU);
-            Debug.Assert(buffer != null);
             Debug.Assert(buffer.Shape.Length == 1);
             int batchSize = yExpected.Shape[0];
             Debug.Assert(buffer.Shape[0] == batchSize);

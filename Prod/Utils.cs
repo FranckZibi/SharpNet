@@ -38,6 +38,7 @@ namespace SharpNet
             }
             return result;
         }
+        // ReSharper disable once UnusedMember.Global
         public static ulong AvailableRamMemoryInBytes()
         {
             var ramCounter = new PerformanceCounter("Memory", "Available Bytes");

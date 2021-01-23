@@ -256,7 +256,9 @@ namespace SharpNet.Layers
             otherNetwork.Layers.Add(deserialize(Serializer.Deserialize(Serialize()), otherNetwork));
         }
 
+        // ReSharper disable once MemberCanBeMadeStatic.Global
         protected void Log(string msg) {Network.Log.Info(msg);}
+        // ReSharper disable once MemberCanBeMadeStatic.Global
         public void LogDebug(string msg) {Network.Log.Debug(msg);}
 
         public int n_x
@@ -294,15 +296,6 @@ namespace SharpNet.Layers
             return result;
         }
         public virtual string LayerType() { return GetType().Name.Replace("Layer", ""); }
-        public virtual int ExtraElementCountForForwardPropagation(int batchSize)
-        {
-            return 0;
-        }
-        public virtual int ExtraElementCountForBackwardPropagation(int batchSize)
-        {
-            return 0;
-        }
-
         /// <summary>
         /// by default (if not overriden) output shape is the same as the previous layer
         /// </summary>

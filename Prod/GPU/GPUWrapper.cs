@@ -232,15 +232,7 @@ namespace SharpNet.GPU
             //this is the only supported mode on CPU
             //it is mainly used for Non Regression Tests between CPU & GPU (when testing Convolution forward/backward) 
             //around 2x slower then FASTEST on WRN-16-10 & WRN-28-10
-            FASTEST_DETERMINIST_NO_TRANSFORM,
-
-            //Use the algorithm returned by methods:
-            //      cudnnGetConvolutionForwardAlgorithm
-            //      cudnnGetConvolutionBackwardFilterAlgorithm
-            //      cudnnGetConvolutionBackwardDataAlgorithm
-            //it is mainly used for backward compatibility
-            //around 1.5x slower then FASTEST on WRN-16-10 & WRN-28-10
-            USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS
+            FASTEST_DETERMINIST_NO_TRANSFORM
         }
 
         /// <summary>
@@ -261,14 +253,6 @@ namespace SharpNet.GPU
                 return forwardAlgo;
             }
 
-            if (forwardAlgoPreference == ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS)
-            {
-                cudnnStatus = CudnnWrapper.cudnnGetConvolutionForwardAlgorithm(CudnnHandle, xDesc, filterDesc, convDesc, yDesc, cudnnConvolutionFwdPreference_t.CUDNN_CONVOLUTION_FWD_PREFER_FASTEST, 0, out forwardAlgo);
-                CheckStatus(cudnnStatus);
-                cacheConvolutionForwardAlgorithm[key] = forwardAlgo;
-                return forwardAlgo;
-            }
-
             //we benchmark all available forward algorithms
             int requestedAlgoCount = Enum.GetNames(typeof(cudnnConvolutionFwdAlgo_t)).Length;
             var perfResultsStackalloc = stackalloc cudnnConvolutionFwdAlgoPerf_t[requestedAlgoCount];
@@ -276,6 +260,8 @@ namespace SharpNet.GPU
             CheckStatus(cudnnStatus);
             //'perfResults' contains KPI for all available algos, starting from the fastest
             var perfResults = ExtractFromStackalloc(perfResultsStackalloc, returnedAlgoCount).Where(p => p.status == cudnnStatus_t.CUDNN_STATUS_SUCCESS).ToList();
+
+            Debug.Assert(perfResults.Count != 0);
 
             //we apply our algorithms constraints (deterministic, no transform, etc.)
             if (IsDeterminist(forwardAlgoPreference))
@@ -307,13 +293,6 @@ namespace SharpNet.GPU
             cudnnStatus_t cudnnStatus;
             if (cacheConvolutionBackwardFilterAlgorithm.TryGetValue(key, out var backwardFilterAlgo))
             {
-                return backwardFilterAlgo;
-            }
-            if (backwardAlgoPreference == ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS)
-            {
-                cudnnStatus = CudnnWrapper.cudnnGetConvolutionBackwardFilterAlgorithm(CudnnHandle, xDesc, dyDesc, convDesc, filterDesc, cudnnConvolutionBwdFilterPreference_t.CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST, 0, out backwardFilterAlgo);
-                CheckStatus(cudnnStatus);
-                cacheConvolutionBackwardFilterAlgorithm[key] = backwardFilterAlgo;
                 return backwardFilterAlgo;
             }
 
@@ -356,12 +335,6 @@ namespace SharpNet.GPU
             cudnnStatus_t cudnnStatus;
             if (cacheFindConvolutionBackwardDataAlgorithm.TryGetValue(key, out var backwardDataAlgo))
             {
-                return backwardDataAlgo;
-            }
-            if (backwardAlgoPreference == ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS)
-            {
-                cudnnStatus = CudnnWrapper.cudnnGetConvolutionBackwardDataAlgorithm(CudnnHandle, filterDesc, dyDesc, convDesc, xDesc, cudnnConvolutionBwdDataPreference_t.CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST, 0, out backwardDataAlgo);
-                CheckStatus(cudnnStatus);
                 return backwardDataAlgo;
             }
 
@@ -617,6 +590,7 @@ namespace SharpNet.GPU
             return result;
         }
 
+        // ReSharper disable once UnusedMember.Global
         public size_t AvailableGpuMemoryInBytes()
         {
             CheckThreadId();

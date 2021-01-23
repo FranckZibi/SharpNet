@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Optimizers;
@@ -43,7 +44,7 @@ namespace SharpNet.Networks
         public enum Metric {Loss, Accuracy, Mae, Mse};
 
 
-        public List<Metric> Metrics { get; set; }= new List<Metric> {Metric.Loss, Metric.Accuracy};
+        public List<Metric> Metrics { get; set; } = new List<Metric> {Metric.Loss, Metric.Accuracy};
 
 
         /// <summary>
@@ -162,35 +163,6 @@ namespace SharpNet.Networks
             return this;
         }
         public Optimizer.OptimizationEnum OptimizerType { get; private set; } = Optimizer.OptimizationEnum.VanillaSGD;
-        public bool Equals(NetworkConfig other, double epsilon, string id, ref string errors)
-        {
-            var equals = true;
-            equals &= Utils.Equals(LossFunction, other.LossFunction, id + nameof(LossFunction), ref errors);
-            equals &= Utils.Equals(Adam_beta1, other.Adam_beta1, epsilon, id + nameof(Adam_beta1), ref errors);
-            equals &= Utils.Equals(Adam_beta2, other.Adam_beta2, epsilon, id + nameof(Adam_beta2), ref errors);
-            equals &= Utils.Equals(Adam_epsilon, other.Adam_epsilon, epsilon, id + nameof(Adam_epsilon), ref errors);
-            equals &= Utils.Equals(SGD_momentum, other.SGD_momentum, epsilon, id + nameof(SGD_momentum), ref errors);
-            equals &= Utils.Equals(SGD_usenesterov, other.SGD_usenesterov, id + nameof(SGD_usenesterov), ref errors);
-            equals &= Utils.Equals((int)LearningRateSchedulerType, (int)other.LearningRateSchedulerType, id + nameof(LearningRateSchedulerType), ref errors);
-            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochsInFirstRun, other.CyclicCosineAnnealing_nbEpochsInFirstRun, id + nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), ref errors);
-            equals &= Utils.Equals(CyclicCosineAnnealing_nbEpochInNextRunMultiplier, other.CyclicCosineAnnealing_nbEpochInNextRunMultiplier, id + nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), ref errors);
-            equals &= Utils.Equals(CyclicCosineAnnealing_MinLearningRate, other.CyclicCosineAnnealing_MinLearningRate, epsilon, id + nameof(CyclicCosineAnnealing_MinLearningRate), ref errors);
-            equals &= Utils.Equals(OneCycle_DividerForMinLearningRate, other.OneCycle_DividerForMinLearningRate, id + nameof(OneCycle_DividerForMinLearningRate), ref errors);
-            equals &= Utils.Equals(OneCycle_PercentInAnnealing, other.OneCycle_PercentInAnnealing, epsilon, id + nameof(OneCycle_PercentInAnnealing), ref errors);
-            equals &= Utils.Equals(DisableReduceLROnPlateau, other.DisableReduceLROnPlateau, id + nameof(DisableReduceLROnPlateau), ref errors);
-            equals &= Utils.Equals(DivideBy10OnPlateau, other.DivideBy10OnPlateau, id + nameof(DivideBy10OnPlateau), ref errors);
-            equals &= Utils.Equals(LinearLearningRate, other.LinearLearningRate, id + nameof(LinearLearningRate), ref errors);
-            equals &= Utils.Equals(lambdaL2Regularization, other.lambdaL2Regularization, epsilon, id + nameof(lambdaL2Regularization), ref errors);
-            equals &= Utils.Equals(MinimumLearningRate, other.MinimumLearningRate, epsilon, id + nameof(MinimumLearningRate), ref errors);
-            equals &= Utils.Equals(CompatibilityMode, other.CompatibilityMode, id + nameof(CompatibilityMode), ref errors);
-            equals &= Utils.Equals(ConvolutionAlgoPreference, other.ConvolutionAlgoPreference, id + nameof(ConvolutionAlgoPreference), ref errors);
-            equals &= Utils.Equals(DisplayTensorContentStats, other.DisplayTensorContentStats, id + nameof(DisplayTensorContentStats), ref errors);
-            equals &= Utils.Equals(AutoSaveIntervalInMinutes, other.AutoSaveIntervalInMinutes, id + nameof(AutoSaveIntervalInMinutes), ref errors);
-            equals &= Utils.Equals(SaveNetworkStatsAfterEachEpoch, other.SaveNetworkStatsAfterEachEpoch, id + nameof(SaveNetworkStatsAfterEachEpoch), ref errors);
-            equals &= DataAugmentation.Equals(other.DataAugmentation, epsilon, id + nameof(DataAugmentation), ref errors);
-            return equals;
-        }
-
         #region Learning Rate Scheduler
         public NetworkConfig WithCyclicCosineAnnealingLearningRateScheduler(int nbEpochsInFirstRun, int nbEpochInNextRunMultiplier, double minLearningRate = 0.0)
         {
@@ -279,11 +251,20 @@ namespace SharpNet.Networks
                 .Add(nameof(LossFunction), (int)LossFunction).Add(nameof(OptimizerType), (int)OptimizerType)
                 .Add(nameof(Adam_beta1), Adam_beta1).Add(nameof(Adam_beta2), Adam_beta2).Add(nameof(Adam_epsilon), Adam_epsilon)
                 .Add(nameof(SGD_momentum), SGD_momentum).Add(nameof(SGD_usenesterov), SGD_usenesterov)
-                //learning rate scheduler fields
+
+                #region learning rate scheduler fields
                 .Add(nameof(LearningRateSchedulerType), (int)LearningRateSchedulerType)
-                .Add(nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), CyclicCosineAnnealing_nbEpochsInFirstRun).Add(nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), CyclicCosineAnnealing_nbEpochInNextRunMultiplier).Add(nameof(CyclicCosineAnnealing_MinLearningRate), CyclicCosineAnnealing_MinLearningRate)
-                .Add(nameof(OneCycle_DividerForMinLearningRate), OneCycle_DividerForMinLearningRate).Add(nameof(OneCycle_PercentInAnnealing), OneCycle_PercentInAnnealing)
-                .Add(nameof(DisableReduceLROnPlateau), DisableReduceLROnPlateau).Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau).Add(nameof(LinearLearningRate), LinearLearningRate)
+                .Add(nameof(CyclicCosineAnnealing_nbEpochsInFirstRun), CyclicCosineAnnealing_nbEpochsInFirstRun)
+                .Add(nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier), CyclicCosineAnnealing_nbEpochInNextRunMultiplier)
+                .Add(nameof(CyclicCosineAnnealing_MinLearningRate), CyclicCosineAnnealing_MinLearningRate)
+                .Add(nameof(OneCycle_DividerForMinLearningRate), OneCycle_DividerForMinLearningRate)
+                .Add(nameof(OneCycle_PercentInAnnealing), OneCycle_PercentInAnnealing)
+                .Add(nameof(DisableReduceLROnPlateau), DisableReduceLROnPlateau)
+                .Add(nameof(DivideBy10OnPlateau), DivideBy10OnPlateau)
+                .Add(nameof(LinearLearningRate), LinearLearningRate)
+                #endregion
+
+                .Add(nameof(Metrics), Metrics.Select(e=>(int)e).ToArray())
                 .Add(nameof(lambdaL2Regularization), lambdaL2Regularization)
                 .Add(nameof(RandomizeOrder), RandomizeOrder)
                 .Add(nameof(AlwaysUseFullTestDataSetForLossAndAccuracy), AlwaysUseFullTestDataSetForLossAndAccuracy)
@@ -299,16 +280,7 @@ namespace SharpNet.Networks
                 .Add(DataAugmentation.Serialize())
                 .ToString();
         }
-        public static NetworkConfig ValueOf(IDictionary<string, object> serialized)
-        {
-            return new NetworkConfig(serialized);
-        }
-
-        public NetworkConfig Clone()
-        {
-            return new NetworkConfig(Serializer.Deserialize(Serialize()));
-        }
-
+     
         private NetworkConfig(IDictionary<string, object> serialized)
         {
             LossFunction = (LossFunctionEnum)serialized[nameof(LossFunction)];
@@ -321,8 +293,8 @@ namespace SharpNet.Networks
             SGD_momentum= (double)serialized[nameof(SGD_momentum)];
             SGD_usenesterov = (bool)serialized[nameof(SGD_usenesterov)];
             lambdaL2Regularization = (double)serialized[nameof(lambdaL2Regularization)];
-            //TODO replace above line with: CudnnVersion = (CUDNN_Versions)serialized[nameof(CudnnVersion)];
-            //learning rate scheduler fields
+
+            #region learning rate scheduler fields
             LearningRateSchedulerType = (LearningRateSchedulerEnum)serialized[nameof(LearningRateSchedulerType)];
             CyclicCosineAnnealing_nbEpochsInFirstRun = (int)serialized[nameof(CyclicCosineAnnealing_nbEpochsInFirstRun)];
             CyclicCosineAnnealing_nbEpochInNextRunMultiplier = (int)serialized[nameof(CyclicCosineAnnealing_nbEpochInNextRunMultiplier)];
@@ -332,11 +304,14 @@ namespace SharpNet.Networks
             DisableReduceLROnPlateau = (bool)serialized[nameof(DisableReduceLROnPlateau)];
             DivideBy10OnPlateau = (bool)serialized[nameof(DivideBy10OnPlateau)];
             LinearLearningRate = (bool)serialized[nameof(LinearLearningRate)];
-            RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
+            #endregion
 
+            RandomizeOrder = (bool)serialized[nameof(RandomizeOrder)];
+            Metrics = serialized.ContainsKey(nameof(Metrics))
+                ? ((int[])serialized[nameof(Metrics)]).Select(i => (Metric) i).ToList()
+                : new List<Metric> { Metric.Loss, Metric.Accuracy };
             AlwaysUseFullTestDataSetForLossAndAccuracy = serialized.TryGet<bool>(nameof(AlwaysUseFullTestDataSetForLossAndAccuracy));
             //AlwaysUseFullTestDataSetForLossAndAccuracy = (bool)serialized[nameof(AlwaysUseFullTestDataSetForLossAndAccuracy)];
-
             CompatibilityMode = (CompatibilityModeEnum)serialized[nameof(CompatibilityMode)];
             ConvolutionAlgoPreference = (ConvolutionAlgoPreference)serialized[nameof(ConvolutionAlgoPreference)];
             DisplayTensorContentStats = (bool)serialized[nameof(DisplayTensorContentStats)];
@@ -351,6 +326,14 @@ namespace SharpNet.Networks
             LogFile = (string)serialized[nameof(LogFile)];
             DataAugmentation = DataAugmentationConfig.ValueOf(serialized);
             Rand = new Random(0);
+        }
+        public static NetworkConfig ValueOf(IDictionary<string, object> serialized)
+        {
+            return new NetworkConfig(serialized);
+        }
+        public NetworkConfig Clone()
+        {
+            return new NetworkConfig(Serializer.Deserialize(Serialize()));
         }
         #endregion
 

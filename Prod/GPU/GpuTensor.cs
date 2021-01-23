@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Layers;
@@ -198,7 +199,6 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY)
             {
-                Debug.Assert(activationParameter != null);
                 Debug.Assert(activationParameter.UseGPU);
                 x.CopyTo(y);
                 _wrapper.RunKernel("ComputeSoftmaxWithHierarchy", y.Shape[0], new object[] { y.MultDim0, activationParameter, y});
@@ -206,7 +206,6 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
-                Debug.Assert(activationParameter != null);
                 Debug.Assert(activationParameter.UseGPU);
                 var activationDes = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDes, one, xDesc, x, zero, yDesc, y);
@@ -248,7 +247,6 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY)
             {
-                Debug.Assert(activationParameter != null);
                 Debug.Assert(activationParameter.UseGPU);
                 Debug.Assert(dx.MultDim0 == activationParameter.Count);
                 _wrapper.RunKernel("ComputeSoftmaxGradientWitHierarchy", dx.Count, new object[] { dx.MultDim0, activationParameter, y, dy, dx});
@@ -256,8 +254,6 @@ namespace SharpNet.GPU
             }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
-                Debug.Assert(activationParameter != null);
-                //Debug.Assert(activationParameter.UseGPU);
                 var activationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
                 res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
                 var alphaActivation = activationParameter.ContentAsFloatArray()[0];
@@ -604,12 +600,10 @@ namespace SharpNet.GPU
         /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public override double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
+        public override double ComputeAccuracy([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> {yExpected, yPredicted}));
-            Debug.Assert(yPredicted != null);
-            Debug.Assert(buffer != null);
             Debug.Assert(buffer.Shape.Length == 1);
             Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
             Debug.Assert(yExpected.SameShape(yPredicted));
@@ -633,12 +627,10 @@ namespace SharpNet.GPU
             return ComputeMetric(yPredicted, buffer, "ComputeMse");
         }
 
-        private double ComputeMetric(Tensor yPredicted, Tensor buffer, string kernelName)
+        private double ComputeMetric([NotNull] Tensor yPredicted, [NotNull] Tensor buffer, string kernelName)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
-            Debug.Assert(yPredicted != null);
-            Debug.Assert(buffer != null);
             Debug.Assert(buffer.Shape.Length == 1);
             Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
             Debug.Assert(yExpected.SameShape(yPredicted));
@@ -713,12 +705,10 @@ namespace SharpNet.GPU
         /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public override double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
+        public override double ComputeLoss([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
-            Debug.Assert(yPredicted != null);
-            Debug.Assert(buffer != null);
             Debug.Assert(yPredicted.SameShape(yExpected));
             Debug.Assert(yExpected.Dimension >= 2);
             var kernelName = lossFunction + "Loss";
@@ -736,7 +726,7 @@ namespace SharpNet.GPU
 
             return buffer.ContentAsFloatArray().Average();
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU) 
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, [NotNull] Tensor dropoutReservedSpaceForTraining, [NotNull] Tensor randomNumberGeneratorStatesBufferForGPU) 
         {
             var x = this;
             if (!isTraining)
@@ -744,9 +734,7 @@ namespace SharpNet.GPU
                 x.CopyTo(y);
                 return;
             }
-            Debug.Assert(dropoutReservedSpaceForTraining != null);
-            Debug.Assert(dropoutReservedSpaceForTraining.UseGPU);
-            Debug.Assert(randomNumberGeneratorStatesBufferForGPU != null);
+            Debug.Assert(dropoutReservedSpaceForTraining.UseGPU); 
             Debug.Assert(randomNumberGeneratorStatesBufferForGPU.UseGPU);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
@@ -761,9 +749,8 @@ namespace SharpNet.GPU
         /// <param name="dx"></param>
         /// <param name="dropProbability"></param>
         /// <param name="dropoutReserveSpace"></param>
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, [NotNull] Tensor dropoutReserveSpace)
         {
-            Debug.Assert(dropoutReserveSpace != null);
             Debug.Assert(dropoutReserveSpace.UseGPU);
             var dxDesc = TensorDesc(dx);
             var dyDesc = TensorDesc(dy);
@@ -772,11 +759,11 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnDropoutBackward(CudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, dropoutReserveSpace, dropoutReserveSpace.CapacityInBytes);
             CheckStatus(res);
         }
-        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timestep)
+        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
         {
             var W = this;
-            var beta1_power = Math.Pow(beta1, timestep);
-            var beta2_power = Math.Pow(beta2, timestep);
+            var beta1_power = Math.Pow(beta1, timeStep);
+            var beta2_power = Math.Pow(beta2, timeStep);
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
             _wrapper.RunKernel("UpdateAdamOptimizer", Count, new object[] { beta1, beta2, epsilon, multiplicative_factor, dW, W, adam_vW, adam_sW });
         }

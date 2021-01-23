@@ -5,6 +5,7 @@ using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Networks
 {
@@ -69,6 +70,13 @@ namespace SharpNet.Networks
         public bool Use_GRU_instead_of_LSTM { get; set; } = false;
         public bool Use_Bidirectional_RNN { get; set; } = true;
 
+
+        /// <summary>
+        /// the optional serialized network to load for training
+        /// </summary>
+        public string SerializedNetwork { get; set; } = "";
+
+        // ReSharper disable once UnusedMember.Global
         public void WithCustomLinearFunctionLayer(float alpha, cudnnActivationMode_t activationFunctionAfterSecondDense)
         {
             Use_CustomLinearFunctionLayer = true;
@@ -102,6 +110,7 @@ namespace SharpNet.Networks
         public bool UseConv1D { get; set; } = false;
         public bool UseBatchNormAfterConv1D { get; set; } = false;
         public bool UseReluAfterConv1D { get; set; } = false;
+        // ReSharper disable once UnusedMember.Global
         public void WithConv1D(int kernelWidth, ConvolutionLayer.PADDING_TYPE paddingType, bool useBatchNormAfterConv1D, bool useReluAfterConv1D)
         {
             UseConv1D = true;
@@ -163,6 +172,10 @@ namespace SharpNet.Networks
 
         public Network CFM60()
         {
+            if (!string.IsNullOrEmpty(SerializedNetwork))
+            {
+                return Network.ValueOf(SerializedNetwork);
+            }
             var networkName = "CFM60";
             var network = BuildEmptyNetwork(networkName);
             network.Config.RandomizeOrder = Shuffle;

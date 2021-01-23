@@ -103,12 +103,6 @@ namespace SharpNet.GPU
         CUDNN_DETERMINISTIC
     }
     #region convoluton forward
-    public enum cudnnConvolutionFwdPreference_t
-    {
-        CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
-        CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-        CUDNN_CONVOLUTION_FWD_SPECIFY_​WORKSPACE_LIMIT
-    }
     public enum cudnnConvolutionFwdAlgo_t
     {
         //This algorithm expresses the convolution as a matrix product without actually explicitly
@@ -173,21 +167,6 @@ namespace SharpNet.GPU
     #endregion
 
     #region convoluton backward
-    public enum cudnnConvolutionBwdFilterPreference_t
-    {
-        //In this configuration, the routine cudnnGetConvolutionBackwardFilterAlgorithm() is guaranteed to return an algorithm
-        //that does not require any extra workspace to be provided by the user.
-        CUDNN_CONVOLUTION_BWD_FILTER_​NO_WORKSPACE,
-
-        //In this configuration, the routine cudnnGetConvolutionBackwardFilterAlgorithm() will return the fastest algorithm
-        //regardless how much workspace is needed to execute it.
-        CUDNN_CONVOLUTION_BWD_FILTER_​PREFER_FASTEST,
-
-        //In this configuration, the routine cudnnGetConvolutionBackwardFilterAlgorithm() will return the fastest algorithm
-        //that fits within the memory limit that the user provided.
-        CUDNN_CONVOLUTION_BWD_FILTER_​SPECIFY_WORKSPACE_LIMIT
-    }
-
     public enum cudnnConvolutionBwdFilterAlgo_t
     {
         //This algorithm expresses the convolution as a sum of matrix product without actually explicitly
@@ -245,20 +224,6 @@ namespace SharpNet.GPU
         public readonly int reserved3;
     }
 
-    public enum cudnnConvolutionBwdDataPreference_t
-    {
-        //In this configuration, the routine cudnnGetConvolutionBackwardDataAlgorithm() is guaranteed to return an algorithm
-        //that does not require any extra workspace to be provided by the user.
-        CUDNN_CONVOLUTION_BWD_DATA_NO_WORKSPACE,
-
-        //In this configuration, the routine cudnnGetConvolutionBackwardDataAlgorithm() will return the fastest algorithm
-        //regardless how much workspace is needed to execute it.
-        CUDNN_CONVOLUTION_BWD_DATA_​PREFER_FASTEST,
-
-        //In this configuration, the routine cudnnGetConvolutionBackwardDataAlgorithm() will return the fastest algorithm
-        //that fits within the memory limit that the user provided.
-        CUDNN_CONVOLUTION_BWD_DATA_​SPECIFY_WORKSPACE_LIMIT
-    }
     public enum cudnnConvolutionBwdDataAlgo_t
     {
         CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
@@ -550,17 +515,6 @@ namespace SharpNet.GPU
             out size_t sizeInBytes);
 
         [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionForwardAlgorithm(
-            cudnnHandle_t cudnnHandle,
-            cudnnTensorDescriptor_t xDesc,
-            cudnnFilterDescriptor_t wDesc,
-            cudnnConvolutionDescriptor_t convDesc,
-            cudnnTensorDescriptor_t yDesc,
-            cudnnConvolutionFwdPreference_t preference,
-            uint memoryLimitInBytes,
-            out cudnnConvolutionFwdAlgo_t algo);
-
-        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnConvolutionForward(
             cudnnHandle_t cudnnHandle,
             void* alpha,
@@ -585,18 +539,6 @@ namespace SharpNet.GPU
             void* beta,
             cudnnTensorDescriptor_t dbDesc,
             IntPtr db);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm(
-            cudnnHandle_t cudnnHandle,
-            cudnnTensorDescriptor_t xDesc,
-            cudnnTensorDescriptor_t dyDesc,
-            cudnnConvolutionDescriptor_t convDesc,
-            cudnnFilterDescriptor_t dwDesc,
-            cudnnConvolutionBwdFilterPreference_t preference,
-            size_t memoryLimitInBytes,
-            out cudnnConvolutionBwdFilterAlgo_t algo);
-
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnFindConvolutionForwardAlgorithm(
@@ -667,17 +609,6 @@ namespace SharpNet.GPU
             cudnnFilterDescriptor_t dwDesc,
             cudnnConvolutionBwdFilterAlgo_t algo,
             out size_t sizeInBytes);
-
-        [DllImport(DLL_NAME)]
-        public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataAlgorithm(
-            cudnnHandle_t cudnnHandle,
-            cudnnFilterDescriptor_t wDesc,
-            cudnnTensorDescriptor_t dyDesc,
-            cudnnConvolutionDescriptor_t convDesc,
-            cudnnTensorDescriptor_t dxDesc,
-            cudnnConvolutionBwdDataPreference_t preference,
-            size_t memoryLimitInBytes,
-            out cudnnConvolutionBwdDataAlgo_t algo);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnGetConvolutionBackwardDataWorkspaceSize(

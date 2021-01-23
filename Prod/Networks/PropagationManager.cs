@@ -136,33 +136,17 @@ namespace SharpNet.Networks
         private Tensor Get_yBuffer(Layer layer, int batchSize)
         {
             var outputShape = layer.OutputShape(batchSize);
-            if (0 == layer.ExtraElementCountForForwardPropagation(batchSize))
-            {
-                return _memoryPool.GetFloatTensor(outputShape);
-            }
-            return _memoryPool.GetFloatTensor(ReshapeWithExtraElementCount(outputShape, layer.ExtraElementCountForForwardPropagation(batchSize)));
+            return _memoryPool.GetFloatTensor(outputShape);
         }
 
         private Tensor Get_dxBuffer(Layer prev, int batchSize)
         {
             var outputShape = prev.OutputShape(batchSize);
-            if (0 == prev.ExtraElementCountForBackwardPropagation(batchSize))
-            {
-                return _memoryPool.GetFloatTensor(outputShape);
-            }
-            return _memoryPool.GetFloatTensor(ReshapeWithExtraElementCount(outputShape, prev.ExtraElementCountForBackwardPropagation(batchSize)));
+            return _memoryPool.GetFloatTensor(outputShape);
         }
-
-        private static int[] ReshapeWithExtraElementCount(int[] initialShape, int extraElementCount)
-        {
-            var batchSize = initialShape[0];
-            var currentElementCount = Utils.Product(initialShape);
-            return new[] { batchSize, (currentElementCount + extraElementCount) / batchSize, 1, 1 };
-        }
-
+       
         public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
         {
-            Debug.Assert(yExpected != null);
             Debug.Assert(yExpected.SameShape(yPredicted));
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
             var lastLayerIndex = _layers.Last().LayerIndex;

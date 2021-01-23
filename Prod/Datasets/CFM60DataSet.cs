@@ -269,14 +269,17 @@ namespace SharpNet.Datasets
         /// Use Ensemble Learning to create the average predictions from different networks
         /// </summary>
         /// <param name="directory">the directory where the predictions files are located</param>
-        /// <param name="fileNameWithPrediction">the fileNames of the prediction files in directory 'directory'</param>
-        /// <returns>a path to a prediction file with the average predictions</returns>
-        public static string EnsembleLearning(string directory, params string[] fileNameWithPrediction)
+        /// <param name="fileNameWithPredictionToWeight">the fileNames of the prediction files in directory 'directory' and associated weight</param>
+        /// <returns>a path to a prediction file with the weighted average of predictions</returns>
+        // ReSharper disable once UnusedMember.Global
+        public static string EnsembleLearning(string directory, IDictionary<string,double> fileNameWithPredictionToWeight)
         {
             int? predictionsByFile = null;
             var ensembleLearningPredictions = new Dictionary<int, double>();
-            foreach (var singleFilePredictions in fileNameWithPrediction.Select(f=> LoadPredictionFile(Path.Combine(directory, f))))
+            var totalWeights = fileNameWithPredictionToWeight.Values.Sum();
+            foreach (var (fileNameWithPrediction, weight) in fileNameWithPredictionToWeight)
             {
+                var singleFilePredictions = LoadPredictionFile(Path.Combine(directory, fileNameWithPrediction));
                 if (!predictionsByFile.HasValue)
                 {
                     predictionsByFile = singleFilePredictions.Count;
@@ -291,7 +294,7 @@ namespace SharpNet.Datasets
                     {
                         ensembleLearningPredictions[id] = 0;
                     }
-                    ensembleLearningPredictions[id] += prediction/ fileNameWithPrediction.Length;
+                    ensembleLearningPredictions[id] += (weight/totalWeights) * prediction;
                 }
             }
             if (predictionsByFile.HasValue && predictionsByFile.Value != ensembleLearningPredictions.Count)
@@ -528,6 +531,7 @@ namespace SharpNet.Datasets
             }
             return predictions;
         }
+        // ReSharper disable once UnusedMember.Global
         public void ComputePredictions(Func<CFM60Entry, double> entryToPrediction, string comment)
         {
             var IDToPredictions = new ConcurrentDictionary<int, double>();
@@ -537,7 +541,7 @@ namespace SharpNet.Datasets
                 IDToPredictions[Entries[i].ID] = prediction;
             }
             System.Threading.Tasks.Parallel.For(0, Entries.Length, ComputePrediction);
-            CFM60DataSet.CreatePredictionFile(IDToPredictions, Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", comment + "_" + DateTime.Now.Ticks + ".csv"));
+            CreatePredictionFile(IDToPredictions, Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", comment + "_" + DateTime.Now.Ticks + ".csv"));
             //we update the file with all predictions
             var mse = ComputeMeanSquareError(IDToPredictions, false);
             var testsCsv = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", "Tests_CFM60_PerformPrediction.csv");
@@ -587,6 +591,7 @@ namespace SharpNet.Datasets
             {
                 if (PidToLinearRegressionBetweenDayAndY == null)
                 {
+                    // ReSharper disable once VirtualMemberCallInConstructor
                     PidToLinearRegressionBetweenDayAndY = ((CFM60DataSet) Training).ComputePidToLinearRegressionBetweenDayAndY();
                 }
             }

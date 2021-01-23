@@ -82,20 +82,20 @@ namespace SharpNet.Datasets
             }
 
             log("Loading content of file " + xFile + "...");
-            var xFileContent = File.ReadAllLines(xFile);
+            var xFileLines = File.ReadAllLines(xFile);
 
-            log("File " + xFile + " has been loaded: " + xFileContent.Length + " lines");
+            log("File " + xFile + " has been loaded: " + xFileLines.Length + " lines");
 
             log("Parsing lines of file " + xFile + "...");
-            var entries = new CFM60Entry[xFileContent.Length - 1];
+            var entries = new CFM60Entry[xFileLines.Length - 1];
             var idToIndex = new ConcurrentDictionary<int, int>();
             void ProcessLine(int i)
             {
                 Debug.Assert(i >= 1);
-                entries[i - 1] = new CFM60Entry(xFileContent[i]);
+                entries[i - 1] = new CFM60Entry(xFileLines[i]);
                 idToIndex[entries[i - 1].ID] = i - 1;
             }
-            System.Threading.Tasks.Parallel.For(1, xFileContent.Length, ProcessLine);
+            System.Threading.Tasks.Parallel.For(1, xFileLines.Length, ProcessLine);
             log("Lines of file " + xFile + " have been parsed");
             foreach (var (id, y) in CFM60DataSet.LoadPredictionFile(yFileIfAny))
             {
