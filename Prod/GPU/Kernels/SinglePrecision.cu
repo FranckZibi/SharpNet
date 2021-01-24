@@ -293,6 +293,7 @@
 		int indexInWordEmbedding = wordIndex*embeddingDim;
 		int yTimeStepIndex = i * (inputSize + embeddingDim - 1);
 
+		//for the current timeStep, we copy the elements from 'x' to 'y' before 'indexInLastDimensionToUse'
 		int xElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
 		if (xElementsBeforeEmbeddingIndex > 0)
 		{
@@ -310,17 +311,18 @@
 	}
 
 	// N :						batchSize * timeSteps
-	// x shape :                (batchSize, timeSteps, inputSize)
-	// dy shape :               (batchSize, timeSteps, inputSize+embeddingDim-1)
+	// 'x' & 'dx' shape :       (batchSize, timeSteps, inputSize)
+	// 'dy' shape :             (batchSize, timeSteps, inputSize+embeddingDim-1)
 	//'dw' shape:				(vocabularySize, embeddingDim)
-	__global__ void WordEmbeddingBackwardPropagation(int N, int inputSize, int indexInLastDimensionToUse, int embeddingDim, float* x, float* dy, float* dw)
+	__global__ void WordEmbeddingBackwardPropagation(int N, int inputSize, int indexInLastDimensionToUse, int embeddingDim, float* x, float* dx, float* dy, float* dw)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;	// in [0, batchSize*timeSteps-1]
 		if (i >= N) return;
 
 		//we retrieve the wordIndex 
-		int xTimeStepIndex = i * inputSize + indexInLastDimensionToUse;
-		int wordIndex = (int)(x[xTimeStepIndex] + 0.1f);	//in [0, vocabularySize-1]
+		int dxTimeStepIndex = i * inputSize;
+		int dyTimeStepIndex = i * (inputSize + embeddingDim - 1);
+		int wordIndex = (int)(x[dxTimeStepIndex+indexInLastDimensionToUse] + 0.1f);	//in [0, vocabularySize-1]
 		int indexInDw = embeddingDim * wordIndex;
 
 		int indexIndY = i * (inputSize+embeddingDim-1) + indexInLastDimensionToUse;
@@ -330,6 +332,21 @@
 			atomicAdd(dw+ indexInDw, valueToAdd);
 			++indexInDw;
 			++indexIndY;
+		}
+
+		//we initialize 'dx' for the current batchIndex & timeStep
+		//for the current timeStep, we copy the elements from 'dy' to 'dx' before 'indexInLastDimensionToUse'
+		int dxElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
+		if (dxElementsBeforeEmbeddingIndex > 0)
+		{
+			memcpy(dx + dxTimeStepIndex, dy + dyTimeStepIndex, sizeof(float) * dxElementsBeforeEmbeddingIndex);
+		}
+		dx[dxTimeStepIndex + indexInLastDimensionToUse] = 0.0f;
+		//for the current timeStep, we copy the elements from 'dy' to 'dx' after 'indexInLastDimensionToUse'
+		int dxElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
+		if (dxElementsAfterEmbeddingIndex > 0)
+		{
+			memcpy(dx + dxTimeStepIndex + indexInLastDimensionToUse + 1, dy + dyTimeStepIndex + indexInLastDimensionToUse + embeddingDim, sizeof(float) * dxElementsAfterEmbeddingIndex);
 		}
 	}
 

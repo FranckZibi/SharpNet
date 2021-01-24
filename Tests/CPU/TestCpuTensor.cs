@@ -16,6 +16,8 @@ namespace SharpNetTests.CPU
     [TestFixture]
     public class TestCpuTensor
     {
+        private readonly Random _rand = new Random(0);
+
         [Test]
         public void TestEquals()
         {
@@ -398,6 +400,69 @@ namespace SharpNetTests.CPU
             TestTensor.SameContent(expectedGradient, observedGradient, 1e-6);
         }
 
+
+        [Test]
+        public void TestWordEmbeddingForwardPropagation2D()
+        {
+            //x:                (batchSize, timeSteps)
+            //y:                (batchSize, timeSteps, embeddingDim)
+            //wordEmbedding:    (vocabularySize, embeddingDim)
+            var x = TestNetworkPropagation.FromNumpyArray("[[3,1], [2,1], [2,3], [1,2]]");
+            var wordEmbedding = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [101,102,103], [201,202,203], [301,302,303]]");
+            var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[301,302,303],[101,102,103]], [ [201,202,203],[101,102,103]], [ [201,202,203],[301,302,303]], [[101,102,103],[201,202,203]] ]");
+            var yPredicted = RandomTensor(yExpected.Shape); ;
+            yPredicted.WordEmbeddingForwardPropagation(x, wordEmbedding, -1);
+            TestTensor.SameContent(yExpected, yPredicted, 1e-6);
+        }
+
+        [Test]
+        public void TestWordEmbeddingForwardPropagation3D()
+        {
+            //x:                (batchSize, timeSteps, inputSize)
+            //y:                (batchSize, timeSteps, inputSize+embeddingDim-1)
+            //wordEmbedding:    (vocabularySize, embeddingDim)
+            var x = TestNetworkPropagation.FromNumpyArray("[ [[3000,3,3001],[1000,1,1001]], [[2000,2,2001],[1002,1,1003]], [[2002,2,2003],[3002,3,3003]], [[1003,1,1004],[2004,2,2005]] ]");
+            var wordEmbedding = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [101,102,103], [201,202,203], [301,302,303]]");
+            var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[3000,301,302,303,3001],[1000,101,102,103,1001]], [[2000,201,202,203,2001],[1002,101,102,103,1003]], [[2002,201,202,203,2003],[3002,301,302,303,3003]], [[1003,101,102,103,1004], [2004,201,202,203,2005]] ]");
+            var yPredicted = RandomTensor(yExpected.Shape);
+            yPredicted.WordEmbeddingForwardPropagation(x, wordEmbedding, 1);
+            TestTensor.SameContent(yExpected, yPredicted, 1e-6);
+        }
+
+        [Test]
+        public void WordEmbeddingBackwardPropagation2D()
+        {
+            //x:                (batchSize, timeSteps)
+            //dy:               (batchSize, timeSteps, embeddingDim)
+            //wordEmbedding:    (vocabularySize, embeddingDim)
+            var x = TestNetworkPropagation.FromNumpyArray("[[3,1], [2,1], [2,3], [1,2]]");
+            var dxPredicted = RandomTensor(x.Shape);
+            var dxExpected = TestNetworkPropagation.FromNumpyArray("[[0,0], [0,0], [0,0], [0,0]]");
+            var dy = TestNetworkPropagation.FromNumpyArray("[ [[3.1,3.2,3.3],[1.1,1.2,1.3]], [ [2.1,2.2,2.3],[1.4,1.5,1.6]], [ [2.4,2.5,2.6],[3.4,3.5,3.6]], [[1.4,1.5,1.6],[2.7,2.8,2.9]] ]");
+            var dwExpected = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [3.9,4.2,4.5], [7.2,7.5,7.8], [6.5,6.7,6.9]]");
+            var dwPredicted = RandomTensor(dwExpected.Shape);
+            dwPredicted.WordEmbeddingBackwardPropagation(x, dxPredicted, dy, -1);
+            TestTensor.SameContent(dwExpected, dwPredicted, 1e-6);
+            TestTensor.SameContent(dxExpected, dxPredicted, 1e-6);
+        }
+
+        [Test]
+        public void WordEmbeddingBackwardPropagation3D()
+        {
+            //x:                (batchSize, timeSteps, inputSize)
+            //dy:               (batchSize, timeSteps, inputSize+embeddingDim-1)
+            //wordEmbedding:    (vocabularySize, embeddingDim)
+            var x = TestNetworkPropagation.FromNumpyArray("[ [[3000,3,3001],[1000,1,1001]], [[2000,2,2001],[1002,1,1003]], [[2002,2,2003],[3002,3,3003]], [[1003,1,1004],[2004,2,2005]] ]");
+            var dxPredicted = RandomTensor(x.Shape);
+            var dxExpected = TestNetworkPropagation.FromNumpyArray("[ [[3.000,0,3.001],[1.000,0,1.001]], [[2.000,0,2.001],[1.002,0,1.003]], [[2002,0,2.003],[3.002,0,3.003]], [[1.003,0,1.004],[2.004,0,2.005]] ]");
+            var dy = TestNetworkPropagation.FromNumpyArray("[ [[3.000,3.1,3.2,3.3,3.001],[1.000,1.1,1.2,1.3,1.001]], [[2.000,2.1,2.2,2.3,2.001],[1.002,1.4,1.5,1.6,1.003]], [[2.002,2.4,2.5,2.6,2.003],[3.002,3.4,3.5,3.6,3.003]], [[1.003,1.7,1.8,1.9,1.004], [2.004,2.7,2.8,2.9,2.005]] ]");
+            var dwExpected = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [3.9,4.2,4.5], [7.2,7.5,7.8], [6.5,6.7,6.9]]");
+            var dwPredicted = RandomTensor(dwExpected.Shape);
+            dwPredicted.WordEmbeddingBackwardPropagation(x, dxPredicted, dy, 1);
+            TestTensor.SameContent(dwExpected, dwPredicted, 1e-6);
+            TestTensor.SameContent(dxExpected, dxPredicted, 1e-6);
+        }
+
         public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue)
         {
             var content = new float[Utils.Product(shape)];
@@ -447,5 +512,12 @@ namespace SharpNetTests.CPU
             }
             return result;
         }
+
+
+        private CpuTensor<float> RandomTensor(int[] shape)
+        {
+            return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
+        }
+
     }
 }

@@ -71,21 +71,6 @@ namespace SharpNet.CPU
         /// </summary>
         private bool HasPinnedMemory => !IsOwnerOfMemory || _hostPinnedMemory != null;
 
-
-        /// <summary>
-        /// this (= 'y') shape :
-        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
-        /// </summary>
-        /// <param name="x">
-        /// 'x' shape:
-        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
-        /// </param>
-        /// <param name="wordEmbedding">
-        ///'wordEmbedding' shape:    (vocabularySize, embeddingDim)
-        /// </param>
-        /// <param name="indexInLastDimensionToUse"></param>
         public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding, int indexInLastDimensionToUse)
         {
             var y = this;
@@ -137,21 +122,7 @@ namespace SharpNet.CPU
             Parallel.For(0, x.Shape[0], ProcessBatch);
         }
 
-        /// <summary>
-        /// this (= dW) shape:        (VocabularySize, EmbeddingDim)
-        /// </summary>
-        /// <param name="x">
-        /// 'x' shape:
-        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
-        /// </param>
-        /// <param name="dy">
-        /// 'dy' shape:
-        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
-        /// </param>
-        /// <param name="indexInLastDimensionToUse"></param>
-        public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy, int indexInLastDimensionToUse)
+        public override void WordEmbeddingBackwardPropagation(/*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int indexInLastDimensionToUse)
         {
             var dW = this;
 
@@ -161,6 +132,7 @@ namespace SharpNet.CPU
             Debug.Assert(dy.Shape.Length == 3);
             Debug.Assert((indexInLastDimensionToUse == -1 && x.Shape.Length == 2) || (indexInLastDimensionToUse >= 0 && x.Shape.Length == 3));
 
+            int inputSize = indexInLastDimensionToUse == -1 ? 1 : x.Shape[2];
             indexInLastDimensionToUse = indexInLastDimensionToUse == -1 ? 0 : indexInLastDimensionToUse;
 
             var xCpu = (CpuTensor<float>)x;
@@ -171,14 +143,19 @@ namespace SharpNet.CPU
             var timeSteps = x.Shape[1];
             var embeddingDim = dW.Shape[1];
 
-            var xSpan = x.AsFloatCpuSpan;
+            var xSpan = x.AsReadonlyFloatCpuContent;
+            var dxSpan = dx.AsFloatCpuSpan;
             var dWSpan = dW.AsFloatCpuSpan;
-            var dySpan = dy.AsFloatCpuSpan;
+            var dySpan = dy.AsReadonlyFloatCpuContent;
 
             for (int batchIndex = 0; batchIndex < batchSize; ++batchIndex)
             {
                 for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
+                    int dyTimeStepIndex = dy.Idx(batchIndex, timeStep, 0);
+                    int dxTimeStepIndex = dx.Idx(batchIndex, timeStep, 0);
+
+                    //we initialize 'dw' for the current batchIndex & timeStep
                     int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, timeStep, indexInLastDimensionToUse)] + 0.1);
                     int indexInDw = dW.Idx(wordIndex, 0);
                     int indexIndY = dyCpu.Idx(batchIndex, timeStep, indexInLastDimensionToUse);
@@ -187,6 +164,23 @@ namespace SharpNet.CPU
                         dWSpan[indexInDw] += dySpan[indexIndY];
                         ++indexInDw;
                         ++indexIndY;
+                    }
+
+                    //we initialize 'dx' for the current batchIndex & timeStep
+                    //for the current timeStep, we copy the elements from 'dy' to 'dx' before 'indexInLastDimensionToUse'
+                    int dyElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
+                    if (dyElementsBeforeEmbeddingIndex > 0)
+                    {
+                        //we copy 'xElementsBeforeEmbeddingIndex' elements before index 'indexInLastDimensionToUse'
+                        dySpan.Slice(dyTimeStepIndex, dyElementsBeforeEmbeddingIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex, dyElementsBeforeEmbeddingIndex));
+                    }
+                    dxSpan[dxTimeStepIndex + indexInLastDimensionToUse] = 0;
+                    //for the current timeStep, we copy the elements from 'dy' to 'dx' after 'indexInLastDimensionToUse'
+                    int dyElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
+                    if (dyElementsAfterEmbeddingIndex > 0)
+                    {
+                        //we copy the 'xElementsAfterEmbeddingIndex' elements after index 'indexInLastDimensionToUse'
+                        dySpan.Slice(dyTimeStepIndex + indexInLastDimensionToUse + embeddingDim, dyElementsAfterEmbeddingIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex + indexInLastDimensionToUse + 1, dyElementsAfterEmbeddingIndex));
                     }
                 }
             }

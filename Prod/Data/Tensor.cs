@@ -62,35 +62,44 @@ namespace SharpNet.Data
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
 
         /// <summary>
-        /// this (=y) shape is (batchSize, maxWordCountBySentence, embeddingDim)
+        /// this (= 'y') shape :
+        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
         /// </summary>
-        /// <param name="x">tensor of shape (batchSize, maxWordCountBySentence)
-        ///     row is the sentence Id
-        ///     col is the word position in this sentence
-        ///     x[row, col] contains the wordIndex (in the word embedding tensor) of the word at position 'row' in sentence 'col'
-        ///     each wordIndex is in [1, VocabularySize-1]
+        /// <param name="x">
+        /// 'x' shape:
+        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
         /// </param>
-        /// <param name="wordEmbedding">tensor of shape (vocabularySize, associateWordEmbedding)
-        ///     the element at row 'wordIndex' is the embedding associate with the word at index 'wordIndex'
+        /// <param name="wordEmbedding">
+        ///  'wordEmbedding' shape:
+        ///     (vocabularySize, embeddingDim)
         ///     vocabularySize = 1+number of distinct words in the embedding
         /// </param>
         /// <param name="indexInLastDimensionToUse"></param>
-        public abstract void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding, int indexInLastDimensionToUse);
+        public abstract void WordEmbeddingForwardPropagation(/*in*/ Tensor x, /*in*/ Tensor wordEmbedding, int indexInLastDimensionToUse);
 
         /// <summary>
-        /// Initialize the 'this' tensor with the gradient of the word embedding weights (= dW)
+        /// Initialize :
+        ///     'this' tensor (= dWordEmbedding) with the gradient of the word embedding weights
+        ///     'dx' tensor with the gradient of input 'x'
         /// 'this' shape is (VocabularySize, EmbeddingDim) (same as word embeddings)
         /// </summary>
-        /// <param name="x">tensor of shape (batchSize, maxWordCountBySentence)
-        ///     row is the sentence Id
-        ///     col is the word position in this sentence
-        ///     x[row, col] contains the wordIndex (in the word embedding tensor) of the word at position 'row' in sentence 'col'
-        ///     each wordIndex is in [1, VocabularySize-1]
+        /// <param name="x">
+        /// 'x' shape:
+        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
         /// </param>
-        /// <param name="dy">tensor of shape (batchSize, maxWordCountBySentence, EmbeddingDim)
+        /// <param name="dx">gradient of input 'x'
+        ///  same shape as 'x'
+        /// </param>
+        /// <param name="dy">
+        /// 'dy' shape:
+        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
+        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
         /// </param>
         /// <param name="indexInLastDimensionToUse"></param>
-        public abstract void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy, int indexInLastDimensionToUse);
+        public abstract void WordEmbeddingBackwardPropagation(/*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int indexInLastDimensionToUse);
 
         public int Count => Shape[0] * MultDim0;
         public int Dimension => Shape.Length;

@@ -95,11 +95,13 @@ namespace SharpNet.Layers
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
-            Debug.Assert(allX.Count == 1);
             Debug.Assert(y_NotUsed == null);
+            Debug.Assert(allX.Count == 1);
             var x = allX[0];
+            Debug.Assert(allDx.Count == 1);
+            var dx = allDx[0];
             //we compute dW
-            _weightGradients.WordEmbeddingBackwardPropagation(x, dy, IndexInLastDimensionToUse);
+            _weightGradients.WordEmbeddingBackwardPropagation(x, dx, dy, IndexInLastDimensionToUse);
             //L2 regularization on dW
             if (UseL2Regularization)
             {

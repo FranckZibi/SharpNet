@@ -310,10 +310,11 @@ namespace SharpNetTests
             const int timeSteps = 100;
             const int embeddingDim = 16;
             const int vocabularySize = 50;
-            var dy = RandomTensor(new[] { BatchSize, timeSteps, embeddingDim });
             var dW = RandomTensor(new[] { vocabularySize, embeddingDim });
             var x = XWithRandomWordIndexes2D(BatchSize, timeSteps, vocabularySize);
-            TestAll(new[] { dW, x, dy}, tensors => tensors[0].WordEmbeddingBackwardPropagation(tensors[1], tensors[2], -1));
+            var dx = RandomTensor(x.Shape);
+            var dy = RandomTensor(new[] { BatchSize, timeSteps, embeddingDim });
+            TestAll(new[] { dW, x, dx, dy}, tensors => tensors[0].WordEmbeddingBackwardPropagation(tensors[1], tensors[2], tensors[3], -1));
         }
 
 
@@ -326,10 +327,12 @@ namespace SharpNetTests
             const int inputSize = 7;
             for (int indexInLastDimensionToUse = 0; indexInLastDimensionToUse < inputSize; ++indexInLastDimensionToUse)
             {
-                var dy = RandomTensor(new[] {BatchSize, timeSteps, inputSize + embeddingDim - 1});
                 var dW = RandomTensor(new[] {vocabularySize, embeddingDim});
                 var x = XWithRandomWordIndexes3D(BatchSize, timeSteps, vocabularySize, inputSize, indexInLastDimensionToUse);
-                TestAll(new[] { dW, x, dy }, tensors => tensors[0].WordEmbeddingBackwardPropagation(tensors[1], tensors[2], indexInLastDimensionToUse));
+                var dx = RandomTensor(x.Shape);
+                var dy = RandomTensor(new[] { BatchSize, timeSteps, inputSize + embeddingDim - 1 });
+                var indexInLastDimensionToUseCopy = indexInLastDimensionToUse;
+                TestAll(new[] { dW, x, dx, dy }, tensors => tensors[0].WordEmbeddingBackwardPropagation(tensors[1], tensors[2], tensors[3], indexInLastDimensionToUseCopy));
             }
         }
         private CpuTensor<float> XWithRandomWordIndexes2D(int batchSize, int timeSteps, int vocabularySize)

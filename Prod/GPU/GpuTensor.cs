@@ -987,7 +987,7 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("WordEmbeddingForwardPropagation", batchSize* timeSteps, new object[] { inputSize, indexInLastDimensionToUse, embeddingDim, x, y, wordEmbedding});
         }
 
-        public override void WordEmbeddingBackwardPropagation(Tensor x, Tensor dy, int indexInLastDimensionToUse)
+        public override void WordEmbeddingBackwardPropagation(/*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int indexInLastDimensionToUse)
         {
             var dW = this;
 
@@ -1006,7 +1006,7 @@ namespace SharpNet.GPU
             int batchSize = dy.Shape[0];
             int timeSteps = dy.Shape[1];
             int embeddingDim = dW.Shape[1];
-            _wrapper.RunKernel("WordEmbeddingBackwardPropagation", batchSize* timeSteps, new object[] { inputSize, indexInLastDimensionToUse, embeddingDim, x, dy, dW });
+            _wrapper.RunKernel("WordEmbeddingBackwardPropagation", batchSize* timeSteps, new object[] { inputSize, indexInLastDimensionToUse, embeddingDim, x, dx, dy, dW });
         }
 
         protected override int DeviceId => _wrapper.DeviceId;
