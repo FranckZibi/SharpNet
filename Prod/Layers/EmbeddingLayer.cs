@@ -99,7 +99,8 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
             Debug.Assert(allDx.Count == 1);
-            var dx = allDx[0];
+            var dx = allDx[0]??GetFloatTensor(x.Shape);
+
             //we compute dW
             _weightGradients.WordEmbeddingBackwardPropagation(x, dx, dy, IndexInLastDimensionToUse);
             //L2 regularization on dW
@@ -109,6 +110,12 @@ namespace SharpNet.Layers
                 var alpha = 2 * batchSize * (float)LambdaL2Regularization;
                 _weightGradients.Update_Adding_Alpha_X(alpha, _weights);
             }
+
+            if (allDx[0] == null)
+            {
+                FreeFloatTensor(dx);
+            }
+
         }
         public override bool OutputNeededForBackwardPropagation => false;
         public override bool InputNeededForBackwardPropagation => true;

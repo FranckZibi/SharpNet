@@ -207,7 +207,7 @@ namespace SharpNet.Networks
                 var y = (layerIndex == lastLayerIndex)? yPredicted : _all_allocated_Y[layerIndex];
 
                 //we allocate the buffers for the 'dx' tensors of current layer
-                var dxBuffer = layer.PreviousLayers.Select(prev => Get_dxBuffer(prev, miniBatchSize)).ToList();
+                var dxBuffer = layer.PreviousLayers.Select(prev => prev.IsInputLayer ? null : Get_dxBuffer(prev, miniBatchSize)).ToList();
                 var allX = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
                 if (!layer.InputNeededForBackwardPropagation)
                 {
