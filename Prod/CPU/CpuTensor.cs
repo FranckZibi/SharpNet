@@ -661,14 +661,14 @@ namespace SharpNet.CPU
             Update_Adding_Alpha_X(alpha, x);
         }
 
-        public override void LinearFunction(float beta, Tensor x, float alpha)
+        public override void LinearFunction(float slope, Tensor x, float intercept)
         {
             Debug.Assert(this.SameShape(x));
             var yAsSpan = AsFloatCpuSpan;
             var xAsSpan = x.AsReadonlyFloatCpuContent;
             for (int i = 0; i < xAsSpan.Length; ++i)
             {
-                yAsSpan[i] = beta * xAsSpan[i] + alpha;
+                yAsSpan[i] = slope * xAsSpan[i] + intercept;
             }
         }
 

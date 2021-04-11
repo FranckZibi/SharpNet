@@ -635,13 +635,13 @@
 		}
 	}
 
-	// Compute:  y = a * x + b
-	__global__ void LinearFunction(int N, float* y, float a, const float* x, float b)
+	// Compute:  y = slope * x + intercept
+	__global__ void LinearFunction(int N, float* y, float slope, const float* x, float intercept)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N)
 		{
-			y[i] = a * x[i] + b;
+			y[i] = slope * x[i] + intercept;
 		}
 	}
 

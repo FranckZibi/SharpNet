@@ -424,28 +424,28 @@ namespace SharpNet.Data
         /// <summary>
         /// compute: this = beta * x + alpha
         /// </summary>
-        /// <param name="beta">the slope of the linear function</param>
+        /// <param name="slope">the slope of the linear function</param>
         /// <param name="x">a tensor with the same shape as the 'this' tensor </param>
-        /// <param name="alpha">the constant to add in the linear function</param>
-        public abstract void LinearFunction(float beta, Tensor x, float alpha);
+        /// <param name="intercept">the constant to add in the linear function</param>
+        public abstract void LinearFunction(float slope, Tensor x, float intercept);
 
 
         /// <summary>
-        /// compute: this = beta * x + alpha
-        ///  tensors 'this', beta, x, alpha must have same shape
+        /// compute: this = slope * x + intercept
+        ///  tensors 'this', slope, x, intercept must have same shape
         /// </summary>
-        /// <param name="beta">the slope of the linear function</param>
+        /// <param name="slope">the slope of the linear function</param>
         /// <param name="x">a tensor with the same shape as the 'this' tensor </param>
-        /// <param name="alpha">optional parameter. The constant to add in the linear function</param>
-        public void LinearFunction([NotNull] Tensor beta, Tensor x, [CanBeNull] Tensor alpha)
+        /// <param name="intercept">optional parameter. The constant to add in the linear function</param>
+        public void LinearFunction([NotNull] Tensor slope, Tensor x, [CanBeNull] Tensor intercept)
         {
-            Debug.Assert(SameShape(beta));
+            Debug.Assert(SameShape(slope));
             Debug.Assert(SameShape(x));
-            MultiplyTensor(beta, x);            // y = beta * x
-            if (alpha != null)
+            MultiplyTensor(slope, x);            // y = slope * x
+            if (intercept != null)
             {
-                Debug.Assert(SameShape(alpha));
-                Update_Adding_Alpha_X(1f, alpha); // y += alpha
+                Debug.Assert(SameShape(intercept));
+                Update_Adding_Alpha_X(1f, intercept); // y += intercept
             }
         }
 

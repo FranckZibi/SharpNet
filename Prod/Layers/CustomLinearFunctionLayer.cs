@@ -17,7 +17,7 @@ namespace SharpNet.Layers
 
     /// <summary>
     /// Layer that computes:
-    ///     y[batchIndex] = Beta[batchIndex] * x[batchIndex] + Alpha[batchIndex]
+    ///     y[batchIndex] = Slope[batchIndex] * x[batchIndex] + Intercept[batchIndex]
     /// </summary>
     public class CustomLinearFunctionLayer : Layer, ILayerNeedingDataSetForForwardPropagation
     {
@@ -25,20 +25,20 @@ namespace SharpNet.Layers
 
         /// <summary>
         /// tensor of shape (batchSize) where:
-        ///     Beta[batchIndex] : the slope of the linear function to use for element at index 'batchId'
+        ///     Slope[batchIndex] : the slope of the linear function to use for element at index 'batchId'
         /// </summary>
-        [NotNull] private Tensor Beta;
+        [NotNull] private Tensor Slope;
         /// <summary>
         /// tensor of shape (batchSize) where:
-        ///     Alpha[batchIndex] : the constant to add in the linear function for element at index 'batchId'
+        ///     Intercept[batchIndex] : the constant to add in the linear function for element at index 'batchId'
         /// </summary>
-        [NotNull] private Tensor Alpha;
+        [NotNull] private Tensor Intercept;
 
         public CustomLinearFunctionLayer(float betaConstant, Network network, string layerName = "") : base(network, layerName)
         {
             BetaConstant = betaConstant;
-            Beta = GetFloatTensor(new []{1,1});
-            Alpha = GetFloatTensor(Beta.Shape);
+            Slope = GetFloatTensor(new []{1,1});
+            Intercept = GetFloatTensor(Slope.Shape);
         }
         #region forward and backward propagation
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
@@ -74,13 +74,13 @@ namespace SharpNet.Layers
                 ++idx;
             }
 
-            GetFloatTensor(ref Beta, x.Shape);
-            new CpuTensor<float>(Beta.Shape, betaInCpu).CopyTo(Beta);
+            GetFloatTensor(ref Slope, x.Shape);
+            new CpuTensor<float>(Slope.Shape, betaInCpu).CopyTo(Slope);
 
-            GetFloatTensor(ref Alpha, x.Shape);
-            new CpuTensor<float>(Alpha.Shape, alphaInCpu).CopyTo(Alpha);
+            GetFloatTensor(ref Intercept, x.Shape);
+            new CpuTensor<float>(Intercept.Shape, alphaInCpu).CopyTo(Intercept);
 
-            y.LinearFunction(Beta, x, Alpha);
+            y.LinearFunction(Slope, x, Intercept);
         }
         public override void BackwardPropagation(List<Tensor> allX_NotUsed, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
@@ -88,7 +88,7 @@ namespace SharpNet.Layers
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(allDx.Count == 1);
             Debug.Assert(allDx[0].SameShape(dy));
-            allDx[0].LinearFunction(Beta, dy, null);
+            allDx[0].LinearFunction(Slope, dy, null);
         }
         public override bool OutputNeededForBackwardPropagation => false;
         public override bool InputNeededForBackwardPropagation => false;
@@ -96,7 +96,7 @@ namespace SharpNet.Layers
 
         protected override List<Tensor> EmbeddedTensors(bool includeOptimizeTensors)
         {
-            var result = new List<Tensor> { Beta, Alpha };
+            var result = new List<Tensor> { Slope, Intercept };
             result.RemoveAll(t => t == null);
             return result;
         }

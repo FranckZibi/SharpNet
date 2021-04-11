@@ -10,8 +10,8 @@ namespace SharpNetTests.MathTools
         public void Test_0_element()
         {
             var lr = new LinearRegression();
-            Assert.AreEqual(0, lr.Beta, 1e-6);
-            Assert.AreEqual(0, lr.Alpha, 1e-6);
+            Assert.AreEqual(0, lr.Slope, 1e-6);
+            Assert.AreEqual(0, lr.Intercept, 1e-6);
             Assert.AreEqual(0, lr.Estimation(0.0), 1e-6);
             Assert.AreEqual(0, lr.Estimation(1.62), 1e-6);
         }
@@ -20,8 +20,8 @@ namespace SharpNetTests.MathTools
         public void Test_1_element()
         {
             var lr = new LinearRegression();
-            Assert.AreEqual(0, lr.Beta, 1e-6);
-            Assert.AreEqual(0, lr.Alpha, 1e-6);
+            Assert.AreEqual(0, lr.Slope, 1e-6);
+            Assert.AreEqual(0, lr.Intercept, 1e-6);
             Assert.AreEqual(0, lr.Estimation(0.0), 1e-6);
             Assert.AreEqual(0, lr.Estimation(1.62), 1e-6);
         }
@@ -48,8 +48,8 @@ namespace SharpNetTests.MathTools
             lr.Add(1.78, 69.92);
             lr.Add(1.80, 72.19);
             lr.Add(1.83, 74.46);
-            Assert.AreEqual(61.272186542107434, lr.Beta, 1e-6);
-            Assert.AreEqual(-39.061955918838656, lr.Alpha, 1e-6);
+            Assert.AreEqual(61.272186542107434, lr.Slope, 1e-6);
+            Assert.AreEqual(-39.061955918838656, lr.Intercept, 1e-6);
             const double expectedPearsonCorrelationCoefficient = 0.99458379357687576;
             Assert.AreEqual(expectedPearsonCorrelationCoefficient, lr.PearsonCorrelationCoefficient, 1e-3);
             Assert.AreEqual(expectedPearsonCorrelationCoefficient* expectedPearsonCorrelationCoefficient, lr.RSquared, 1e-3);

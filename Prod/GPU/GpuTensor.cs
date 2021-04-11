@@ -307,16 +307,16 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
 
-        public override void LinearFunction(float beta, Tensor x, float alpha)
+        public override void LinearFunction(float slope, Tensor x, float intercept)
         {
             var y = this;
             Debug.Assert(y.Count == x.Count);
-            if (Math.Abs(alpha) < 1e-8)
+            if (Math.Abs(intercept) < 1e-8)
             {
-                AddTensor(beta, x, 0f);
+                AddTensor(slope, x, 0f);
                 return;
             }
-            _wrapper.RunKernel("LinearFunction", Count, new object[] { y, beta, x, alpha });
+            _wrapper.RunKernel("LinearFunction", Count, new object[] { y, slope, x, intercept });
         }
      
         public override void Concatenate(IList<Tensor> tensors)

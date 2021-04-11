@@ -14,18 +14,19 @@ namespace SharpNet.Networks
     /// </summary>
     public class CFM60NetworkBuilder : NetworkBuilder
     {
-        public int TimeSteps { get; set;  } = CFM60Entry.POINTS_BY_DAY;
+        public int TimeSteps { get; set;  } = 20;
         public int InputSize 
         { 
             get
             {
-                int result = 1; //ret_vol
+                int result = 0;
                 if (Pid_EmbeddingDim>=1) { ++result; }
+                if (Use_ret_vol_in_InputTensor) { result += CFM60Entry.POINTS_BY_DAY; }
+                if (Use_abs_ret_in_InputTensor) { result += CFM60Entry.POINTS_BY_DAY; }
                 if (Use_y_LinearRegressionEstimate_in_InputTensor) { ++result; }
                 if (Use_pid_y_avg_in_InputTensor) {++result;}
                 if (Use_pid_y_vol_in_InputTensor) {++result;}
                 if (Use_pid_y_variance_in_InputTensor) {++result;}
-                if (Use_abs_ret_in_InputTensor) {++result;}
                 if (Use_ret_vol_CoefficientOfVariation_in_InputTensor) {++result;}
                 if (Use_ret_vol_Volatility_in_InputTensor) {++result;}
                 if (Use_LS_in_InputTensor) {++result;}
@@ -47,6 +48,7 @@ namespace SharpNet.Networks
 
         public bool Use_pid_y_vol_in_InputTensor { get; set; } = true; //validated on 17-jan-2021: -0.0053
         public bool Use_pid_y_variance_in_InputTensor { get; set; } = false;
+        public bool Use_ret_vol_in_InputTensor { get; set; } = true;
         public bool Use_abs_ret_in_InputTensor { get; set; } = true;  //validated on 16-jan-2021: -0.0515
         public bool Use_LS_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0164
         
@@ -81,8 +83,8 @@ namespace SharpNet.Networks
         {
             Use_CustomLinearFunctionLayer = true;
             Beta_for_CustomLinearFunctionLayer = alpha;
-            LinearLayer_a = 1f;
-            LinearLayer_b = 0f;
+            LinearLayer_slope = 1f;
+            LinearLayer_intercept = 0f;
             ActivationFunctionAfterSecondDense = activationFunctionAfterSecondDense;
         }
 
@@ -98,8 +100,8 @@ namespace SharpNet.Networks
         public bool NormalizeNLV { get; set; } = false;
         public bool NormalizeNLV_V2 { get; set; } = false;
 
-        public float LinearLayer_a { get; set; } = 1.0f;
-        public float LinearLayer_b { get; set; } = 0.0f;
+        public float LinearLayer_slope { get; set; } = 1.0f;
+        public float LinearLayer_intercept { get; set; } = 0.0f;
 
         public int LSTMLayersReturningFullSequence { get; set; } = 1;
         public double DropProbability { get; set; } = 0.2;       //validated on 15-jan-2021
@@ -176,7 +178,7 @@ namespace SharpNet.Networks
             {
                 return Network.ValueOf(SerializedNetwork);
             }
-            var networkName = "CFM60";
+            const string networkName = "CFM60";
             var network = BuildEmptyNetwork(networkName);
             network.Config.RandomizeOrder = Shuffle;
 
@@ -253,9 +255,9 @@ namespace SharpNet.Networks
                 network.CustomLinear(Beta_for_CustomLinearFunctionLayer);
             }
 
-            if (Math.Abs(LinearLayer_a - 1f) > 1e-5 || Math.Abs(LinearLayer_b) > 1e-5)
+            if (Math.Abs(LinearLayer_slope - 1f) > 1e-5 || Math.Abs(LinearLayer_intercept) > 1e-5)
             {
-                network.Linear(LinearLayer_a, LinearLayer_b);
+                network.Linear(LinearLayer_slope, LinearLayer_intercept);
             }
 
             return network;

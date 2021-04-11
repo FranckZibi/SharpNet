@@ -217,9 +217,9 @@ namespace SharpNet.Networks
             return this;
         }
         // ReSharper disable once UnusedMethodReturnValue.Global
-        public Network Linear(float a, float b, string layerName = "")
+        public Network Linear(float slope, float intercept, string layerName = "")
         {
-            var linearFunctionLayer = new LinearFunctionLayer(a, b, this, layerName);
+            var linearFunctionLayer = new LinearFunctionLayer(slope, intercept, this, layerName);
             Layers.Add(linearFunctionLayer);
             return this;
         }

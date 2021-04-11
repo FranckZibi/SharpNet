@@ -4,7 +4,7 @@ namespace SharpNet.MathTools
 {
     /// <summary>
     /// Compute a linear regression 
-    ///     y = Beta * x + Alpha
+    ///     y = Slope * x + Intercept
     /// with:
     ///     x: the independent variable
     ///     y: the dependent variable
@@ -44,7 +44,7 @@ namespace SharpNet.MathTools
         /// <summary>
         /// the slope
         /// </summary>
-        public double Beta
+        public double Slope
         {
             get
             {
@@ -60,7 +60,7 @@ namespace SharpNet.MathTools
         /// <summary>
         /// the y-intercept
         /// </summary>
-        public double Alpha
+        public double Intercept
         {
             get
             {
@@ -68,7 +68,7 @@ namespace SharpNet.MathTools
                 {
                     return 0;
                 }
-                return (y_sum - Beta * x_sum) / count;
+                return (y_sum - Slope * x_sum) / count;
             }
         }
 
@@ -95,7 +95,7 @@ namespace SharpNet.MathTools
         /// <param name="x">independent variable</param>
         public double Estimation(double x)
         {
-            return Beta * x + Alpha;
+            return Slope * x + Intercept;
         }
 
         /// <summary>
@@ -128,7 +128,7 @@ namespace SharpNet.MathTools
         }
         private string ToString(int roundDigits)
         {
-            string result = "Y = "+Math.Round(Beta, roundDigits) + " *X  +  " + Math.Round(Alpha, roundDigits) + " ; R^2 = " + Math.Round(RSquared, roundDigits)+ "; Count=" + count;
+            string result = "Y = "+Math.Round(Slope, roundDigits) + " *X  +  " + Math.Round(Intercept, roundDigits) + " ; R^2 = " + Math.Round(RSquared, roundDigits)+ "; Count=" + count;
             return result;
         }
     }
