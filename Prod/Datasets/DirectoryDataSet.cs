@@ -68,7 +68,7 @@ namespace SharpNet.Datasets
             string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy)
-            : base(name, channels, categoryDescriptions, meanAndVolatilityForEachChannel, resizeStrategy)
+            : base(name, channels, categoryDescriptions, meanAndVolatilityForEachChannel, resizeStrategy, true)
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
             _elementIdToDescription.AddRange(elementIdToDescription);

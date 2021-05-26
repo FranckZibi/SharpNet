@@ -22,7 +22,7 @@ namespace SharpNet.Datasets
             "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"
         };
 
-        private PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base(subDirectory, 3, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy)
+        private PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base(subDirectory, 3, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy, true)
         {
             var annotationsDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
             var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
@@ -85,8 +85,7 @@ namespace SharpNet.Datasets
             return new PascalVOCDataSet("VOCdevkit2012", "VOC2012", meanAndVolatilityOfEachChannel, ResizeStrategyEnum.None);
         }
     
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             Debug.Assert(xBuffer.Shape[0] == yBuffer?.Shape[0]);
             Debug.Assert(xBuffer.Shape[1] == Channels);

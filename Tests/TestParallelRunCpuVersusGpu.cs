@@ -548,7 +548,8 @@ namespace SharpNetTests
 	    {
 	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
 	        var y = RandomTensor(x.Shape);
-	        TestAll(new[] { x, y }, tensors => tensors[0].ActivationForward(activationMode, Tensor.SingleFloat((float)alphaActivation), tensors[1]));
+            var alphaActivationAsTensor = Tensor.SingleFloat((float) alphaActivation);
+            TestAll(new[] { x, alphaActivationAsTensor, y }, tensors => tensors[0].ActivationForward(activationMode, tensors[1], tensors[2]));
 	    }
 
 

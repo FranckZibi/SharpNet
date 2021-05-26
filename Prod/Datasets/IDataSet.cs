@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.DataAugmentation;
 
 namespace SharpNet.Datasets
@@ -10,6 +11,12 @@ namespace SharpNet.Datasets
     {
         float ElementIdToExpectedAverage(int elementId);
     }
+
+    public interface ITimeSeriesDataSet
+    {
+        void SetBatchPredictionsForInference(int[] batchElementIds, Tensor batchPredictions);
+    }
+
 
     public interface IDataSet : IDisposable
     {
@@ -28,8 +35,10 @@ namespace SharpNet.Datasets
         /// <param name="dataAugmentationConfig"></param>
         /// <param name="xMiniBatch">buffer where all elements (associated with the mini batch) will be stored</param>
         /// <param name="yMiniBatch">buffer where all categoryCount (associated with the mini batch) will be stored</param>
-        /// <returns></returns>
-        void LoadMiniBatch(bool withDataAugmentation, 
+        /// <returns>number of actual items loaded,
+        /// in range [1, miniBatchSize ]
+        ///     with xMiniBatch.Shape[0] = xMiniBatch.Shape[0] </returns>
+        int LoadMiniBatch(bool withDataAugmentation, 
             int[] shuffledElementId, int firstIndexInShuffledElementId,
             DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch);
 

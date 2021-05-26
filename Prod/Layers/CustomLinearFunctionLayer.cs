@@ -21,7 +21,7 @@ namespace SharpNet.Layers
     /// </summary>
     public class CustomLinearFunctionLayer : Layer, ILayerNeedingDataSetForForwardPropagation
     {
-        private readonly float BetaConstant;
+        private readonly float SlopeConstant;
 
         /// <summary>
         /// tensor of shape (batchSize) where:
@@ -34,9 +34,9 @@ namespace SharpNet.Layers
         /// </summary>
         [NotNull] private Tensor Intercept;
 
-        public CustomLinearFunctionLayer(float betaConstant, Network network, string layerName = "") : base(network, layerName)
+        public CustomLinearFunctionLayer(float slopeConstant, Network network, string layerName = "") : base(network, layerName)
         {
-            BetaConstant = betaConstant;
+            SlopeConstant = slopeConstant;
             Slope = GetFloatTensor(new []{1,1});
             Intercept = GetFloatTensor(Slope.Shape);
         }
@@ -64,21 +64,21 @@ namespace SharpNet.Layers
                 throw new ArgumentException("IDataSet must implement " + nameof(IDataSetWithExpectedAverage) + " but received " + dataSet);
             }
 
-            var betaInCpu= new float[batchSize];
-            var alphaInCpu= new float[batchSize];
+            var slopeInCpu= new float[batchSize];
+            var interceptInCpu= new float[batchSize];
             int idx = 0;
             foreach (var elementId in batchIndexToElementIdInDataSet.Span)
             {
-                betaInCpu[idx] = BetaConstant; //todo: use custom value for alpha
-                alphaInCpu[idx] = dataSetWithExpectedAverage.ElementIdToExpectedAverage(elementId);
+                slopeInCpu[idx] = SlopeConstant; //todo: use custom value for the slope
+                interceptInCpu[idx] = dataSetWithExpectedAverage.ElementIdToExpectedAverage(elementId);
                 ++idx;
             }
 
             GetFloatTensor(ref Slope, x.Shape);
-            new CpuTensor<float>(Slope.Shape, betaInCpu).CopyTo(Slope);
+            new CpuTensor<float>(Slope.Shape, slopeInCpu).CopyTo(Slope);
 
             GetFloatTensor(ref Intercept, x.Shape);
-            new CpuTensor<float>(Intercept.Shape, alphaInCpu).CopyTo(Intercept);
+            new CpuTensor<float>(Intercept.Shape, interceptInCpu).CopyTo(Intercept);
 
             y.LinearFunction(Slope, x, Intercept);
         }
@@ -105,13 +105,13 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(BetaConstant), BetaConstant)
+                .Add(nameof(SlopeConstant), SlopeConstant)
                 .ToString();
         }
         public static CustomLinearFunctionLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new CustomLinearFunctionLayer(
-                (float)serialized[nameof(BetaConstant)],
+                (float)serialized[nameof(SlopeConstant)],
                 network,
                 (string)serialized[nameof(LayerName)]);
         }

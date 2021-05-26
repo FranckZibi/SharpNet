@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
 using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.MathTools;
 using SharpNet.Networks;
 
@@ -98,10 +99,14 @@ Y:
 
 namespace SharpNet.Datasets
 {
-    public class CFM60DataSet : AbstractDataSet, IDataSetWithExpectedAverage
+    public class CFM60DataSet : AbstractDataSet, IDataSetWithExpectedAverage, ITimeSeriesDataSet
     {
         private readonly CFM60NetworkBuilder Cfm60NetworkBuilder;
-
+        private readonly CFM60DataSet TrainingDataSetIfAny;
+        private readonly IDictionary<int, List<CFM60Entry>> _pidToSortedEntries = new Dictionary<int, List<CFM60Entry>>();
+        private readonly IDictionary<int, CFM60Entry> _elementIdToEntryToPredict = new Dictionary<int, CFM60Entry>();
+        private readonly IDictionary<int, int> _entryIdToElementId= new Dictionary<int, int>();
+        private readonly IDictionary<int, float> _elementIdToPrediction = new Dictionary<int, float>();
 
         /// <summary>
         /// day is the end of year
@@ -139,21 +144,101 @@ namespace SharpNet.Datasets
 
         #endregion
 
-        public CFM60DataSet(string xFile, string yFileIfAny, CFM60NetworkBuilder cfm60NetworkBuilder,
-            Action<string> log) : this(CFM60Entry.Load(xFile, yFileIfAny, log), cfm60NetworkBuilder)
+        public CFM60DataSet(string xFile, string yFileIfAny, Action<string> log, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null) 
+            : this(CFM60Entry.Load(xFile, yFileIfAny, log), cfm60NetworkBuilder, trainingDataSetIfAny)
         {
         }
 
-        public CFM60DataSet(CFM60Entry[] entries, CFM60NetworkBuilder cfm60NetworkBuilder)
+        public CFM60DataSet(CFM60Entry[] entries, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null)
             : base("CFM60",
                 cfm60NetworkBuilder.TimeSteps,
                 new[] {"NONE"},
                 null,
-                ResizeStrategyEnum.None)
+                ResizeStrategyEnum.None,
+                UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetIfAny))
         {
             Cfm60NetworkBuilder = cfm60NetworkBuilder;
+            TrainingDataSetIfAny = trainingDataSetIfAny;
             Entries = entries;
-            Y = new CpuTensor<float>(new[] {Entries.Length, 1}, Entries.Select(e => e.Y).ToArray());
+            int elementId = 0;
+           
+
+            //we initialize: _pidToSortedEntries
+            foreach (var entry in Entries.OrderBy(e => e.pid).ThenBy(e => e.day))
+            {
+                if (!_pidToSortedEntries.ContainsKey(entry.pid))
+                {
+                    _pidToSortedEntries[entry.pid] = new List<CFM60Entry>();
+                }
+                _pidToSortedEntries[entry.pid].Add(entry);
+            }
+
+            //we initialize: _elementIdToEntryToPredict and _entryIdToElementId
+            int longestEntry = _pidToSortedEntries.Values.Select(x => x.Count).Max();
+            int[] pids = _pidToSortedEntries.Keys.OrderBy(x => x).ToArray();
+            for (int i = 0; i < longestEntry; ++i)
+            {
+                foreach (var pid in pids)
+                {
+                    var pidEntries = _pidToSortedEntries[pid];
+                    if (i < pidEntries.Count)
+                    {
+                        if (  !IsTrainingDataSet  //in the Validation/Test DataSets: each element is a prediction to make
+                            || (i >= TimeSteps)) //in the Training DataSet: only entries in the range [TimeSteps, +infinite[ can be trained
+                        {
+                            _elementIdToEntryToPredict[elementId] = pidEntries[i];
+                            _entryIdToElementId[pidEntries[i].ID] = elementId;
+                            ++elementId;
+                        }
+                    }
+                }
+            }
+
+            //total number of items in the dataSet
+            int count = IsTrainingDataSet
+                ? _pidToSortedEntries.Values.Select(e => Math.Max(e.Count - TimeSteps, 0)).Sum()
+                : _pidToSortedEntries.Values.Select(e => e.Count).Sum();
+
+            var yData = new float[count];
+            for (int i = 0; i < yData.Length; ++i)
+            {
+                yData[i] = _elementIdToEntryToPredict[i].Y;
+            }
+            Y = new CpuTensor<float>(new[] { yData.Length, 1}, yData);
+
+            if (IsTrainingDataSet)
+            {
+                //We ensure that the Training DataSet is valid
+                foreach (var e in _pidToSortedEntries)
+                {
+                    if (e.Value.Count <= TimeSteps)
+                    {
+                        throw new Exception("invalid Training DataSet: not enough entries (" + e.Value.Count + ") for pid " + e.Key);
+                    }
+                    if (e.Value.Any(x => double.IsNaN(x.Y)))
+                    {
+                        throw new Exception("invalid Training DataSet: no known Y value for pid " + e.Key);
+                    }
+                }
+            }
+            else //Validation DataSet
+            {
+                //We ensure that the associate Training DataSet is valid.
+                // ReSharper disable once PossibleNullReferenceException
+                if (!_pidToSortedEntries.Keys.OrderBy(x => x).SequenceEqual(trainingDataSetIfAny._pidToSortedEntries.Keys.OrderBy(x => x)))
+                {
+                    throw new Exception("pid are incoherent between Training and Validation DataSet");
+                }
+
+                foreach (var pid in _pidToSortedEntries.Keys)
+                {
+                    var trainingEntries = trainingDataSetIfAny._pidToSortedEntries[pid];
+                    if (trainingEntries.Count < TimeSteps)
+                    {
+                        throw new Exception("not enough entries (" + trainingEntries.Count + ") in Training DataSet for pid " + pid);
+                    }
+                }
+            }
         }
 
         public int TimeSteps => Cfm60NetworkBuilder.TimeSteps;
@@ -234,6 +319,16 @@ namespace SharpNet.Datasets
             stats["ret_vol"] = ret_vol_accumulator;
             stats["Y"] = Y_accumulator;
             return stats;
+        }
+
+        public void SetBatchPredictionsForInference(int[] batchElementIds, Tensor batchPredictions)
+        {
+            Debug.Assert(batchPredictions.Count == batchElementIds.Length);
+            var predictions = batchPredictions.ContentAsFloatArray();
+            for (int i = 0; i < batchElementIds.Length; ++i)
+            {
+                _elementIdToPrediction[batchElementIds[i]] = predictions[i];
+            }
         }
 
 
@@ -320,8 +415,45 @@ namespace SharpNet.Datasets
             File.WriteAllText(filePath, sb.ToString());
         }
 
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation)
+
+        /// <summary>
+        /// return the entry associated with the pid 'pid' for index 'indexInPidEntryArray'
+        /// </summary>
+        /// <param name="pid">the pid to retrieve</param>
+        /// <param name="indexInPidEntryArray">
+        /// index of the entry to retrieve.
+        /// if strictly less then 0:
+        ///     it means that we are in a validation DataSet and we want to load data from
+        ///     the associated Training DataSet
+        /// </param>
+        /// <returns></returns>
+        private CFM60Entry GetEntry(int pid, int indexInPidEntryArray)
+        {
+            if (indexInPidEntryArray >= 0)
+            {
+                return _pidToSortedEntries[pid][indexInPidEntryArray];
+            }
+            if (IsTrainingDataSet)
+            {
+                throw new Exception("no Entry for pid " + pid + " at index=" + indexInPidEntryArray);
+            }
+            var trainingEntries = TrainingDataSetIfAny._pidToSortedEntries[pid];
+            return trainingEntries[trainingEntries.Count + indexInPidEntryArray];
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="elementId">gives the entry to predict</param>
+        /// <param name="indexInBuffer"></param>
+        /// <param name="xBuffer">
+        /// input shape: (batchSize, TimeSteps, InputSize)</param>
+        /// <param name="yBuffer">
+        /// output shape: (batchSize, 1)
+        /// </param>
+        /// <param name="withDataAugmentation"></param>
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             Debug.Assert(xBuffer.Shape.Length == 3);
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
@@ -333,20 +465,70 @@ namespace SharpNet.Datasets
             var xDest = xBuffer.AsFloatCpuSpan.Slice(indexInBuffer * xBuffer.MultDim0, xBuffer.MultDim0);
 
             int idx = 0;
+            var entryToPredict = _elementIdToEntryToPredict[elementId];
+            var pid = entryToPredict.pid;
+            var pidEntries = _pidToSortedEntries[pid];
+            int indexInPidEntries = entryToPredict.day - pidEntries[0].day;
+
+            for (int i = 0; i < pidEntries.Count; ++i)
+            {
+                if (pidEntries[i].ID == entryToPredict.ID)
+                {
+                    indexInPidEntries = i;
+                    break;
+                }
+            }
+
+            Debug.Assert(pidEntries[indexInPidEntries].ID == entryToPredict.ID);
+
             for (int timeStep = 0; timeStep < TimeSteps; ++timeStep)
             {
-                var entry = Entries[elementId];
+                var indexInPidEntryArray = indexInPidEntries - TimeSteps + timeStep + 1;
+                var entry = GetEntry(pid, indexInPidEntryArray);
 
                 if (Cfm60NetworkBuilder.Pid_EmbeddingDim >= 1)
                 {
                     xDest[idx++] = entry.pid;
                 }
 
-                xDest[idx++] = entry.ret_vol[timeStep];
+                if (Cfm60NetworkBuilder.Use_prev_Y_InputTensor)
+                {
+                    var previousEntry = GetEntry(pid, indexInPidEntryArray - 1);
+                    if (IsTrainingDataSet || (indexInPidEntryArray - 1) < 0)
+                    {
+                        //we will use the true value for Y
+                        var previousY = previousEntry.Y;
+                        if (double.IsNaN(previousY))
+                        {
+                            throw new Exception("no Y value associated with entry " + (indexInPidEntryArray - 1) + " of pid " + pid);
+                        }
+                        xDest[idx++] = previousY;
+                    }
+                    else
+                    {
+                        //we need to use the estimated value for Y (even if the true value of Y is available)
+                        var previousElementId = _entryIdToElementId[previousEntry.ID];
+                        if (!_elementIdToPrediction.ContainsKey(previousElementId))
+                        {
+                            throw new Exception("missing prediction for ID " + previousEntry.ID + " with pid " + pid + " : it is required to make the prediction for next ID " + entry.ID);
+                        }
+                        xDest[idx++] = _elementIdToPrediction[previousElementId];
+                    }
+                }
 
+                if (Cfm60NetworkBuilder.Use_ret_vol_in_InputTensor)
+                {
+                    foreach (var ret_vol in entry.ret_vol)
+                    {
+                        xDest[idx++] = ret_vol;
+                    }
+                }
                 if (Cfm60NetworkBuilder.Use_abs_ret_in_InputTensor)
                 {
-                    xDest[idx++] = entry.abs_ret[timeStep];
+                    foreach (var abs_ret in entry.abs_ret)
+                    {
+                        xDest[idx++] = abs_ret;
+                    }
                 }
 
                 if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate_in_InputTensor)
@@ -445,8 +627,7 @@ namespace SharpNet.Datasets
                 //dayThreshold = 766 => 95% in training,  5% in validation
                 var dayThreshold = sortedDays[countInTraining];
                 var training = new CFM60DataSet(list.Where(e => e.day <= dayThreshold).ToArray(), Cfm60NetworkBuilder);
-                var validation = new CFM60DataSet(list.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder);
-                Debug.Assert(Count == training.Count + validation.Count);
+                var validation = new CFM60DataSet(list.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder, training);
                 return new TrainingAndTestDataLoader(training, validation, Name);
             }
             else
@@ -459,7 +640,7 @@ namespace SharpNet.Datasets
 
         }
 
-        public override int Count => Entries.Length;
+        public override int Count => Y.Shape[0];
 
         public override int ElementIdToCategoryIndex(int elementId)
         {
@@ -558,85 +739,46 @@ namespace SharpNet.Datasets
 
             return (initialValue - knownMinValue) / (knownMaxValue - knownMinValue);
         }
-    }
-
-
-    public class CFM60TrainingAndTestDataSet : AbstractTrainingAndTestDataSet
-    {
-        private static IDictionary<int, LinearRegression> PidToLinearRegressionBetweenDayAndY;
-
-        public override IDataSet Training { get; }
-        public override IDataSet Test { get; }
-
-        public override int CategoryByteToCategoryIndex(byte categoryByte)
+        private static bool UseBackgroundThreadToLoadNextMiniBatch(CFM60DataSet trainingDataSetIfAny)
         {
-            return -1;
-        }
-
-        public override byte CategoryIndexToCategoryByte(int categoryIndex)
-        {
-            return 0;
-        }
-
-        public CFM60TrainingAndTestDataSet(CFM60NetworkBuilder cfm60NetworkBuilder, Action<string> log) : base("CFM60")
-        {
-            Training = new CFM60DataSet(
-                Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_training.csv"),
-                Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "output_training_IxKGwDV.csv"),
-                cfm60NetworkBuilder, log);
-            Test = new CFM60DataSet(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_test.csv"),
-                null, cfm60NetworkBuilder, log);
-
-            lock (lockObject)
+            if (trainingDataSetIfAny != null)
             {
-                if (PidToLinearRegressionBetweenDayAndY == null)
+                //for Validation/Test DataSet, we should not use a background thread for loading next mini batch data
+                return false;
+            }
+            //for Training DataSet, we should use background thread for loading next mini batch
+            return true;
+        }
+
+        public bool IsTrainingDataSet => TrainingDataSetIfAny == null;
+
+        protected override int GetMaxElementsToLoad(int[] shuffledElementId, int firstIndexInShuffledElementId, int batchSize)
+        {
+            var defaultResult = base.GetMaxElementsToLoad(shuffledElementId, firstIndexInShuffledElementId, batchSize);
+            if (IsTrainingDataSet)
+            {
+                return defaultResult;
+            }
+
+            //in Validation & Test DataSet, we can only make at most 1 prediction / pid in each mini batch
+            var observedPid = new HashSet<int>();
+            for (int indexInShuffledElementId = firstIndexInShuffledElementId; indexInShuffledElementId < shuffledElementId.Length; ++indexInShuffledElementId)
+            {
+                int currentLength = indexInShuffledElementId - firstIndexInShuffledElementId;
+                if (currentLength >= batchSize)
                 {
-                    // ReSharper disable once VirtualMemberCallInConstructor
-                    PidToLinearRegressionBetweenDayAndY = ((CFM60DataSet) Training).ComputePidToLinearRegressionBetweenDayAndY();
+                    return batchSize;
+                }
+                var elementId = shuffledElementId[indexInShuffledElementId];
+                var pid = _elementIdToEntryToPredict[elementId].pid;
+                if (!observedPid.Add(pid))
+                {
+                    //we have already see this pid before.
+                    //We can only make one prediction / pid in each batch
+                    return currentLength;
                 }
             }
-        }
-
-        public static float LinearRegressionEstimateBasedOnFullTrainingSet(int pid, int day)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Estimation(day);
-        }
-        public static float Y_Average_BasedOnFullTrainingSet(int pid)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Average;
-        }
-        public static float Y_Volatility_BasedOnFullTrainingSet(int pid)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Volatility;
-        }
-        public static float Y_Variance_BasedOnFullTrainingSet(int pid)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Variance;
-        }
-
-        private static readonly object lockObject = new object();
-    
-        // ReSharper disable once UnusedMember.Global
-        public string ComputeStats(double percentageInTrainingSet)
-        {
-            using var splitted = Training.SplitIntoTrainingAndValidation(percentageInTrainingSet);
-            var allTrainingStats = ((CFM60DataSet)Training).ComputeStats();
-            var trainingStats = ((CFM60DataSet)splitted.Training).ComputeStats();
-            var validationStats = ((CFM60DataSet)splitted.Test).ComputeStats();
-            var testStats = ((CFM60DataSet)Test).ComputeStats();
-
-            string result = Environment.NewLine+"percentageInTrainingSet=" + percentageInTrainingSet.ToString(CultureInfo.InvariantCulture)+Environment.NewLine;
-            foreach (var name in trainingStats.Keys.OrderBy(x => x).ToArray())
-            {
-                result += name + ":" + Environment.NewLine;
-                result += "\t\tALL Training: " + allTrainingStats[name] + Environment.NewLine;
-                result += "\t\t\t\tSplitted:Training: " + trainingStats[name] + Environment.NewLine;
-                result += "\t\t\t\tSplitted:Validation: " + validationStats[name] + Environment.NewLine;
-                result += "\t\tTest " + testStats[name] + Environment.NewLine;
-                result += "\t\tAll: " + DoubleAccumulator.Sum(allTrainingStats[name], testStats[name]) + Environment.NewLine;
-                
-            }
-            return result;
+            return defaultResult;
         }
     }
 }

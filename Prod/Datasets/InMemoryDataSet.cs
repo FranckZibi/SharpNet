@@ -27,7 +27,7 @@ namespace SharpNet.Datasets
                 x.Shape[1], 
                 categoryDescriptions ?? Enumerable.Range(0, y.Shape[1]).Select(i => i.ToString()).ToArray(), 
                 meanAndVolatilityForEachChannel, 
-                ResizeStrategyEnum.None)
+                ResizeStrategyEnum.None, true)
         {
             Debug.Assert(y != null);
             Debug.Assert(AreCompatible_X_Y(x, y));

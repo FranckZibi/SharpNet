@@ -82,7 +82,9 @@ namespace SharpNet.Datasets
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, string[ ] categoryDescriptions, List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy)
+        protected AbstractDataSet(string name, int channels, string[] categoryDescriptions,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy,
+            bool useBackgroundThreadToLoadNextMiniBatch)
         {
             Name = name;
             Channels = channels;
@@ -90,13 +92,14 @@ namespace SharpNet.Datasets
             CategoryDescriptions = categoryDescriptions;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
+            _useBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
                 _rands[i] = new Random(i);
             }
 
-            if (UseBackgroundThread)
+            if (_useBackgroundThreadToLoadNextMiniBatch)
             {
                 thread = new Thread(BackgroundThread);
                 thread.Start();
@@ -108,16 +111,18 @@ namespace SharpNet.Datasets
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,[CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
 
-        public void LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, [NotNull] CpuTensor<float> xMiniBatch, [NotNull] CpuTensor<float> yMiniBatch)
+        public int LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, [NotNull] CpuTensor<float> xMiniBatch, [NotNull] CpuTensor<float> yMiniBatch)
         {
             Debug.Assert(xMiniBatch.Shape.Length>=1);
             Debug.Assert(xMiniBatch.TypeSize == TypeSize);
             Debug.Assert(AreCompatible_X_Y(xMiniBatch, yMiniBatch));
 
+
             xMiniBatch.AssertIsNotDisposed();
             yMiniBatch.AssertIsNotDisposed();
 
-            if (UseBackgroundThread)
+            int elementsActuallyLoaded;
+            if (_useBackgroundThreadToLoadNextMiniBatch)
             {
                 //if the background thread is working, we'll wait until it finishes
                 backgroundThreadIsIdle.WaitOne();
@@ -126,18 +131,19 @@ namespace SharpNet.Datasets
                 var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, xMiniBatch.Shape[0]);
                 if (miniBatchId != alreadyComputedMiniBatchId)
                 {
-                    LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
+                    elementsActuallyLoaded = LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
                 }
                 else
                 {
-                    //the background has already computed the current batch to process
+                    //the background thread has already computed the current batch to process
+                    elementsActuallyLoaded = elementsActuallyLoadedByBackgroundThread;
                 }
                 //we know that the background thread is in idle state
                 backgroundThreadIsIdle.Set();
             }
             else
             {
-                LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
+                elementsActuallyLoaded = LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
             }
 
             Debug.Assert(xMiniBatch.Shape.Length >= 1);
@@ -164,7 +170,7 @@ namespace SharpNet.Datasets
             //we check if we can start compute the next mini batch content in advance
             int firstIndexInShuffledElementIdForNextMiniBatch = firstIndexInShuffledElementId + xMiniBatch.Shape[0];
             int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, xMiniBatch.Shape[0]);
-            if (UseBackgroundThread && nextMiniBatchSize > 0)
+            if (_useBackgroundThreadToLoadNextMiniBatch && nextMiniBatchSize > 0)
             {
                 //we will ask the background thread to compute the next mini batch
                 backgroundThreadIsIdle.WaitOne();
@@ -174,12 +180,12 @@ namespace SharpNet.Datasets
                 threadParameters = Tuple.Create(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementIdForNextMiniBatch, dataAugmentationConfig, xNextMiniBatchShape, yNextMiniBatchShape);
                 backgroundThreadHasSomethingTodo.Set();
             }
+            return elementsActuallyLoaded;
         }
 
         public static CpuTensor<float> ToXWorkingSet(CpuTensor<byte> x, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
         {
             var xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
-            //xWorkingSet = x.Select((n, c, val) => (float)val/255f);
             return xWorkingSet;
         }
         public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int categoryCount , Func<byte, int> categoryByteToCategoryIndex)
@@ -352,7 +358,7 @@ namespace SharpNet.Datasets
             xDataAugmentedMiniBatch?.Dispose();
             xBufferForDataAugmentedMiniBatch?.Dispose();
             yDataAugmentedMiniBatch?.Dispose();
-            if (UseBackgroundThread)
+            if (_useBackgroundThreadToLoadNextMiniBatch)
             {
                 //we stop the background thread
                 threadParameters = null;
@@ -415,7 +421,8 @@ namespace SharpNet.Datasets
         /// <param name="dataAugmentationConfig"></param>
         /// <param name="xMiniBatchShape"></param>
         /// <param name="yMiniBatchShape"></param>
-        private void LoadMiniBatchInCpu(bool withDataAugmentation,
+        /// <returns>the number of actually loaded elements,in the range [1, xMiniBatchShape[0] ]  </returns>
+        private int LoadMiniBatchInCpu(bool withDataAugmentation,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
             DataAugmentationConfig dataAugmentationConfig,
             int[] xMiniBatchShape, int[] yMiniBatchShape)
@@ -423,11 +430,13 @@ namespace SharpNet.Datasets
             Debug.Assert(Channels == xMiniBatchShape[1]);
             var miniBatchSize = xMiniBatchShape[0];
 
+            int maxElementsToLoad = GetMaxElementsToLoad(shuffledElementId, firstIndexInShuffledElementId, miniBatchSize);
+
             var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, miniBatchSize);
             if (miniBatchId == alreadyComputedMiniBatchId)
             {
                 //nothing to do, the mini batch data is already stored in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors
-                return;
+                return maxElementsToLoad;
             }
 
             //we initialize 'xOriginalNotAugmentedMiniBatchCpu' with all the original (not augmented elements)
@@ -440,13 +449,13 @@ namespace SharpNet.Datasets
             yDataAugmentedMiniBatch.ZeroMemory();
 
             int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[ (firstIndexInShuffledElementId+miniBatchIdx)%shuffledElementId.Length ];
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation));
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer%maxElementsToLoad), indexInBuffer, xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation));
 
             Debug.Assert(AreCompatible_X_Y(xDataAugmentedMiniBatch, yDataAugmentedMiniBatch));
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
             if (!dataAugmentationConfig.UseDataAugmentation || !withDataAugmentation)
             {
-                //we'll just copy the input picture from index 'inputPictureIndex' in 'inputEnlargedPictures' to index 'outputPictureIndex' of 'outputBufferPictures'
+                //we'll just copy the input element
                 xOriginalNotAugmentedMiniBatch.CopyTo(xDataAugmentedMiniBatch);
             }
             else
@@ -455,12 +464,18 @@ namespace SharpNet.Datasets
                 int targetWidth = xMiniBatchShape[3];
                 Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
             }
 
             //TODO: ensure that there is no NaN or Infinite in xDataAugmentedMiniBatch and yDataAugmentedMiniBatch
 
             alreadyComputedMiniBatchId = miniBatchId;
+            return maxElementsToLoad;
+        }
+
+        protected virtual int GetMaxElementsToLoad(int[] shuffledElementId, int firstIndexInShuffledElementId, int batchSize)
+        {
+            return Math.Min(batchSize, shuffledElementId.Length - firstIndexInShuffledElementId);
         }
 
         public Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
@@ -480,14 +495,20 @@ namespace SharpNet.Datasets
         }
 
         #region Processing Thread management
-        // same speed on CIFAR10 with UseBackgroundThread set to either true of false (tested on 5-jan-2020)
-        private bool UseBackgroundThread { get; } = true;
+        /// <summary>
+        /// true if we should use a separate thread to load the content of the next mini batch
+        /// while working on the current mini batch
+        /// </summary>
+        private readonly bool _useBackgroundThreadToLoadNextMiniBatch;
         private readonly Thread thread;
         private Tuple<bool, int[], int, DataAugmentationConfig, int[], int[]> threadParameters;
         private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new AutoResetEvent(false);
         private readonly AutoResetEvent backgroundThreadIsIdle = new AutoResetEvent(false);
         private bool shouldStopBackgroundThread = false;
-
+        /// <summary>
+        /// number of elements actually loaded by the background thread
+        /// </summary>
+        private int elementsActuallyLoadedByBackgroundThread = 0;
         private void BackgroundThread()
         {
             for (; ; )
@@ -502,7 +523,7 @@ namespace SharpNet.Datasets
                 }
                 Debug.Assert(threadParameters != null);
                 // ReSharper disable once PossibleNullReferenceException
-                LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6);
+                elementsActuallyLoadedByBackgroundThread = LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6);
                 threadParameters = null;
             }
         }

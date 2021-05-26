@@ -21,6 +21,7 @@ namespace SharpNet.Networks
             {
                 int result = 0;
                 if (Pid_EmbeddingDim>=1) { ++result; }
+                if (Use_prev_Y_InputTensor) { ++result; }
                 if (Use_ret_vol_in_InputTensor) { result += CFM60Entry.POINTS_BY_DAY; }
                 if (Use_abs_ret_in_InputTensor) { result += CFM60Entry.POINTS_BY_DAY; }
                 if (Use_y_LinearRegressionEstimate_in_InputTensor) { ++result; }
@@ -49,6 +50,7 @@ namespace SharpNet.Networks
         public bool Use_pid_y_vol_in_InputTensor { get; set; } = true; //validated on 17-jan-2021: -0.0053
         public bool Use_pid_y_variance_in_InputTensor { get; set; } = false;
         public bool Use_ret_vol_in_InputTensor { get; set; } = true;
+        public bool Use_prev_Y_InputTensor { get; set; } = true;
         public bool Use_abs_ret_in_InputTensor { get; set; } = true;  //validated on 16-jan-2021: -0.0515
         public bool Use_LS_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0164
         
@@ -66,7 +68,7 @@ namespace SharpNet.Networks
         public bool Use_EndOfTrimester_flag_in_InputTensor { get; set; } = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
         
         public bool Use_CustomLinearFunctionLayer  { get; set; } = false;
-        public float Beta_for_CustomLinearFunctionLayer  { get; set; } = 1f;
+        public float Slope_for_CustomLinearFunctionLayer  { get; set; } = 1f;
 
 
         public bool Use_GRU_instead_of_LSTM { get; set; } = false;
@@ -82,7 +84,7 @@ namespace SharpNet.Networks
         public void WithCustomLinearFunctionLayer(float alpha, cudnnActivationMode_t activationFunctionAfterSecondDense)
         {
             Use_CustomLinearFunctionLayer = true;
-            Beta_for_CustomLinearFunctionLayer = alpha;
+            Slope_for_CustomLinearFunctionLayer = alpha;
             LinearLayer_slope = 1f;
             LinearLayer_intercept = 0f;
             ActivationFunctionAfterSecondDense = activationFunctionAfterSecondDense;
@@ -252,7 +254,7 @@ namespace SharpNet.Networks
 
             if (Use_CustomLinearFunctionLayer)
             {
-                network.CustomLinear(Beta_for_CustomLinearFunctionLayer);
+                network.CustomLinear(Slope_for_CustomLinearFunctionLayer);
             }
 
             if (Math.Abs(LinearLayer_slope - 1f) > 1e-5 || Math.Abs(LinearLayer_intercept) > 1e-5)

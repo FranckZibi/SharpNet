@@ -9,7 +9,7 @@ namespace SharpNet.Datasets
         private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
         
         public MappedDataSet(IDataSet original, IReadOnlyList<int> elementIdToOriginalElementId) 
-            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy)
+            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy, true)
         {
             _original = original;
             this._elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);

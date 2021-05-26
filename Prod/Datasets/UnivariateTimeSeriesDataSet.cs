@@ -19,7 +19,7 @@ namespace SharpNet.Datasets
                 timeSteps,
                 new []{"NA"},
                 meanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.None)
+                ResizeStrategyEnum.None, true)
         {
             _univariateTimeSeries = univariateTimeSeries;
             _timeSteps = timeSteps;
