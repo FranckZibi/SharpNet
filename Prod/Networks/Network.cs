@@ -780,7 +780,7 @@ namespace SharpNet.Networks
             return yPredicted;
         }
 
-        public CpuTensor<float> Predict(IDataSet dataSet, int miniBatchSizeForAllWorkers = -1)
+        public CpuTensor<float> Predict(IDataSet dataSet, int miniBatchSizeForAllWorkers)
         {
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataSet, miniBatchSizeForAllWorkers);
             var yPredictedCpu = yPredicted.ToCpuFloat();
