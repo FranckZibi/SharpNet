@@ -88,7 +88,7 @@ namespace SharpNetTests.Datasets
 
             ((InputLayer)network.Layers[0]).SetInputHeightAndWidth(235, 200);
             using var dataSet = FromDirectory(@"C:\Download\ToWork", root);
-            var p = network.Predict(dataSet, 16);
+            var p = network.Predict(dataSet, System.Math.Min(32, dataSet.Count));
             for (int row = 0; row < p.Shape[0]; ++row)
             {
                 var rowPrediction = p.RowSlice(row, 1).AsReadonlyFloatCpuContent;

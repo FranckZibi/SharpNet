@@ -198,7 +198,7 @@ namespace SharpNet.Datasets
             //}
 
             using var dataSet = ExtractDataSet(e => IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
-            var p = network.Predict(dataSet, 16);
+            var p = network.Predict(dataSet, Math.Min(32, dataSet.Count));
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1);
@@ -229,7 +229,7 @@ namespace SharpNet.Datasets
         {
             var result = new List<Tuple<string, double>>();
             using var dataSet = DirectoryDataSet.FromFiles(picturePaths, Hierarchy.RootPrediction().Length, CancelMeanAndVolatilityForEachChannel, ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
-            var p = network.Predict(dataSet, 16);
+            var p = network.Predict(dataSet, Math.Min(32, dataSet.Count));
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1).AsReadonlyFloatCpuContent;
