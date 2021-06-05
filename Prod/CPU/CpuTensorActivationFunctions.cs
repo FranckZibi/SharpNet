@@ -144,6 +144,7 @@ namespace SharpNet.CPU
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> { X, Y }));
             X.AsFloatCpu.Map(x => (float)(x / (1 + Math.Exp(-x))), Y.AsFloatCpu);
         }
+        
         public static void SwishGradient(Tensor Y, Tensor dY, Tensor X, Tensor dX)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> { Y, dY, dX }));
@@ -153,6 +154,19 @@ namespace SharpNet.CPU
                 float sigmoid_x = (Math.Abs(x) < 0.0001f) ? 0.5f : y / x;
                 return dy * (sigmoid_x + x * sigmoid_x * (1 - sigmoid_x));
             });
+        }
+        #endregion
+
+        #region Ln
+        public static void Ln<T>(CpuTensor<T> X, Tensor Y)
+        {
+            Debug.Assert(Tensor.AreCompatible(new List<Tensor> { X, Y }));
+            X.AsFloatCpu.Map(x => x <= 0 ? -100.0f : (float)Math.Log(x), Y.AsFloatCpu);
+        }
+        public static void LnGradient(Tensor dY, Tensor X, Tensor dX)
+        {
+            Debug.Assert(Tensor.AreCompatible(new List<Tensor> {dY, X, dX}));
+            dX.AsFloatCpu.BuildEntirelyFromInput(X, dY, (x, dy) => dy / x);
         }
         #endregion
 

@@ -67,7 +67,9 @@ namespace SharpNet.GPU
                     "WordEmbeddingForwardPropagation",
                     "WordEmbeddingBackwardPropagation",
                     "Switch_First_2_axis",
-                    "LinearFunction"
+                    "LinearFunction",
+                    "ComputeLn",
+                    "LnGradient"
         },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

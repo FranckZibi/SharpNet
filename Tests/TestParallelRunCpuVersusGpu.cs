@@ -544,9 +544,10 @@ namespace SharpNetTests
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LN, 0)]
 	    public void TestActivationForward(cudnnActivationMode_t activationMode, double alphaActivation)
 	    {
-	        var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
+            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
 	        var y = RandomTensor(x.Shape);
             var alphaActivationAsTensor = Tensor.SingleFloat((float) alphaActivation);
             TestAll(new[] { x, alphaActivationAsTensor, y }, tensors => tensors[0].ActivationForward(activationMode, tensors[1], tensors[2]));
@@ -580,6 +581,7 @@ namespace SharpNetTests
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LN, 0)]
 	    public void TestActivationBackward(cudnnActivationMode_t activationMode, double alphaActivation)
 	    {
             var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });

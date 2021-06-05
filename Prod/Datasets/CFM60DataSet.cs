@@ -111,7 +111,8 @@ namespace SharpNet.Datasets
         /// <summary>
         /// day is the end of year
         /// </summary>
-        public static readonly HashSet<int> EndOfYear = new HashSet<int>(new[] { 19, 269, 519, 770, 1021 });
+        private static readonly int[] SortedEndOfYear = { 19, 269, 519, 770, 1021 };
+        public static readonly HashSet<int> EndOfYear = new HashSet<int>(SortedEndOfYear);
         /// <summary>
         /// day is the end of teh trimester
         /// </summary>
@@ -122,6 +123,28 @@ namespace SharpNet.Datasets
                                                                                    201, 451, 702, 953, //sept
                                                                                19, 269, 519, 770,1021 // dec //TODO: check without line
                                                                            });
+
+        /// <summary>
+        /// return the day as a fraction of the day in year in ]0,1] range
+        /// 1-jan   => 1/250f
+        /// 31-dec  => 1
+        /// </summary>
+        /// <param name="day"></param>
+        /// <returns></returns>
+        public static float DayToFractionOfYear(int day)
+        {
+            for (int i = SortedEndOfYear.Length - 1; i >= 0; --i)
+            {
+                if (day > SortedEndOfYear[i])
+                {
+                    float daysInYear = (i== SortedEndOfYear.Length - 1)?250f:(SortedEndOfYear[i+1]- SortedEndOfYear[i]);
+                    return ((day - SortedEndOfYear[i]) / daysInYear);
+                }
+            }
+            return (day + (250f - SortedEndOfYear[0])) / 250f;
+        }
+
+
         /// <summary>
         /// day is just before the end of year (Christmas ?)
         /// </summary>
@@ -589,9 +612,14 @@ namespace SharpNet.Datasets
 
                 if (Cfm60NetworkBuilder.Use_day_in_InputTensor)
                 {
-                    var day = entry.day;
-                    xDest[idx++] = day / 1151f;
+                    xDest[idx++] = entry.day / Cfm60NetworkBuilder.Use_day_in_InputTensor_Divider;
                 }
+
+                if (Cfm60NetworkBuilder.Use_fraction_of_year_in_InputTensor)
+                {
+                    xDest[idx++] = DayToFractionOfYear(entry.day);
+                }
+                
 
                 if (Cfm60NetworkBuilder.Use_EndOfYear_flag_in_InputTensor)
                 {

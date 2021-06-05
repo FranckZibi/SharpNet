@@ -32,7 +32,8 @@ namespace SharpNet.Networks
                 if (Use_ret_vol_Volatility_in_InputTensor) {++result;}
                 if (Use_LS_in_InputTensor) {++result;}
                 if (Use_NLV_in_InputTensor) {++result;}
-                if (Use_day_in_InputTensor) {++result;}
+                if (Use_day_in_InputTensor) { ++result; }
+                if (Use_fraction_of_year_in_InputTensor) { ++result; }
                 if (Use_EndOfYear_flag_in_InputTensor) {++result;}
                 if (Use_Christmas_flag_in_InputTensor) { ++result; }
                 if (Use_EndOfTrimester_flag_in_InputTensor) {++result;}
@@ -61,6 +62,16 @@ namespace SharpNet.Networks
         //embedding dim associated with the 'pid'
         public int Pid_EmbeddingDim { get; set; } = 4;  //validated on 16-jan-2021: -0.0236
 
+        /// <summary>
+        /// add the fraction of the year of the current day as an input
+        /// it is a value between 1/250f (1-jan) to 1f (31-dec)
+        /// </summary>
+        public bool Use_fraction_of_year_in_InputTensor { get; set; } = false;
+
+        /// <summary>
+        /// When 'Use_day_in_InputTensor' is true, by how much we should divide the day before inputing it for training 
+        /// </summary>
+        public float Use_day_in_InputTensor_Divider { get; set; } = 1151f;
         public bool Use_day_in_InputTensor { get; set; } = false; //discarded on 19-jan-2021: +0.0501 (with other changes)
         //public bool Use_day_in_InputTensor { get; set; } = true; //validated on 16-jan-2021: -0.0274
         public bool Use_EndOfYear_flag_in_InputTensor { get; set; } = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
@@ -141,38 +152,109 @@ namespace SharpNet.Networks
         public cudnnActivationMode_t ActivationFunctionAfterSecondDense { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY;
 
 
+        public bool WithSpecialEndV1 { get; set; } = false;
+
+
+        //public static CFM60NetworkBuilder Default()
+        //{
+        //    var builder = new CFM60NetworkBuilder
+        //                  {
+        //                      Config = new NetworkConfig
+        //                               {
+        //                                   LogFile = "TimeSeries",
+        //                                   LossFunction = NetworkConfig.LossFunctionEnum.Mse,
+        //                                   RandomizeOrder = true,
+        //                                   CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+        //                                   Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss },
+        //                                   LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
+        //                                   DataAugmentation = DataAugmentationConfig.NoDataAugmentation
+        //                               }
+        //                          .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+
+        //                          //.WithSGD(0.9, false)
+        //                          .WithAdam()
+
+        //                      ,
+        //                      NumEpochs = 150,
+        //                      BatchSize = 1024,
+        //                      //InitialLearningRate = 0.0005, //new default 16-jan-2021
+        //                      InitialLearningRate = 0.001, //validated on 17-jan-2021 : -0.0040
+        //                  };
+
+        //    return builder;
+        //}
+
+        //public static CFM60NetworkBuilder Default()
+        //{
+        //    var builder = new CFM60NetworkBuilder
+        //                  {
+        //                      Config = new NetworkConfig
+        //                               {
+        //                                   LogFile = "TimeSeries",
+        //                                   LossFunction = NetworkConfig.LossFunctionEnum.Mse,
+        //                                   RandomizeOrder = true,
+        //                                   CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+        //                                   Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss },
+        //                                   LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
+        //                                   DataAugmentation = DataAugmentationConfig.NoDataAugmentation
+        //                               }
+        //                          .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+
+        //                          //.WithSGD(0.9, false)
+        //                          .WithAdam()
+
+        //                      ,
+        //                      NumEpochs = 150,
+        //                      BatchSize = 1024,
+        //                      //InitialLearningRate = 0.0005, //new default 16-jan-2021
+        //                      InitialLearningRate = 0.001, //validated on 17-jan-2021 : -0.0040
+        //                  };
+        //    builder.Use_day_in_InputTensor = true;
+        //    builder.Use_y_LinearRegressionEstimate_in_InputTensor = false;
+        //    builder.Use_pid_y_vol_in_InputTensor = false;
+        //    builder.NumEpochs = 70;
+        //    builder.TimeSteps = 20;
+        //    builder.DenseUnits = 100; //validated on 27-may-2021: -0.0253
+        //    return builder;
+        //}
+
         /// <summary>
-        /// The default Network for CFM60
+        /// 2-june-2021
         /// </summary>
         /// <returns></returns>
         public static CFM60NetworkBuilder Default()
         {
             var builder = new CFM60NetworkBuilder
-            {
-                Config = new NetworkConfig
-                    {
-                        LogFile = "TimeSeries",
-                        LossFunction = NetworkConfig.LossFunctionEnum.Mse,
-                        RandomizeOrder = true,
-                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                        Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss},
-                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
-                        DataAugmentation = DataAugmentationConfig.NoDataAugmentation
-                    }
-                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-                    
-                    //.WithSGD(0.9, false)
-                    .WithAdam()
-
-                ,
-                NumEpochs = 150,
-                BatchSize = 1024,
-                //InitialLearningRate = 0.0005, //new default 16-jan-2021
-                InitialLearningRate = 0.001, //validated on 17-jan-2021 : -0.0040
-            };
-
+                          {
+                              Config = new NetworkConfig
+                                       {
+                                           LogFile = "TimeSeries",
+                                           LossFunction = NetworkConfig.LossFunctionEnum.Mse,
+                                           RandomizeOrder = true,
+                                           CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                                           Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss },
+                                           LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
+                                           DataAugmentation = DataAugmentationConfig.NoDataAugmentation
+                                       }
+                                  .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+                                  .WithAdam()
+                          };
+            builder.NumEpochs = 150;
+            builder.BatchSize = 1024;
+            builder.InitialLearningRate = 0.001;
+            builder.Use_day_in_InputTensor = true;
+            builder.Use_y_LinearRegressionEstimate_in_InputTensor = false;
+            builder.Use_pid_y_vol_in_InputTensor = false;
+            builder.NumEpochs = 70;
+            builder.TimeSteps = 20;
+            builder.DenseUnits = 100;
+            builder.Use_LS_in_InputTensor = false; //validated on 21-june-2021: -0.011155486
             return builder;
         }
+
+
+
+       
 
         public Network CFM60()
         {
@@ -247,10 +329,24 @@ namespace SharpNet.Networks
             network.Dense_Activation(DenseUnits, 0.0, true, ActivationFunctionAfterFirstDense);
             network.Dense(1, 0.0, true);
 
+            if (WithSpecialEndV1)
+            {
+                network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                network.Linear(2, 0);
+                network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LN);
+                ActivationFunctionAfterSecondDense = cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY;
+                Use_CustomLinearFunctionLayer = false;
+                LinearLayer_slope = 1.0f;
+                LinearLayer_intercept = 0.0f;
+            }
+
+
             if (ActivationFunctionAfterSecondDense != cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY)
             {
                 network.Activation(ActivationFunctionAfterSecondDense);
             }
+
+            
 
             if (Use_CustomLinearFunctionLayer)
             {
@@ -261,6 +357,8 @@ namespace SharpNet.Networks
             {
                 network.Linear(LinearLayer_slope, LinearLayer_intercept);
             }
+
+        
 
             return network;
         }

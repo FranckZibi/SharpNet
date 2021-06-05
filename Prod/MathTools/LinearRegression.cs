@@ -72,10 +72,8 @@ namespace SharpNet.MathTools
             }
         }
 
-
-
         public double Y_Average => (count == 0) ? 0 : (y_sum / count);
-        public double Y_Volatility => System.Math.Sqrt(Y_Variance);
+        public double Y_Volatility => Math.Sqrt(Y_Variance);
         public double Y_Variance
         {
             get

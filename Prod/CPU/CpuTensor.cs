@@ -598,9 +598,11 @@ namespace SharpNet.CPU
                     Debug.Assert(activationParameter.Dimension == 1);
                     CpuTensorActivationFunctions.SoftmaxWithHierarchy(x, y, activationParameter);
                     return;
-
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
                     CpuTensorActivationFunctions.Swish(x, y);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LN:
+                    CpuTensorActivationFunctions.Ln(x, y);
                     return;
                 default:
                     throw new ArgumentException("invalid activation mode " + activationType);
@@ -638,6 +640,9 @@ namespace SharpNet.CPU
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
                     CpuTensorActivationFunctions.SwishGradient(y, dy, x, dx);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LN:
+                    CpuTensorActivationFunctions.LnGradient(dy, x, dx);
                     return;
                 default:
                     throw new ArgumentException("invalid activation mode " + activationType);

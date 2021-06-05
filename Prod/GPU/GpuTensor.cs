@@ -204,6 +204,12 @@ namespace SharpNet.GPU
                 _wrapper.RunKernel("ComputeSoftmaxWithHierarchy", y.Shape[0], new object[] { y.MultDim0, activationParameter, y});
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LN)
+            {
+                Debug.Assert(activationParameter.UseGPU);
+                _wrapper.RunKernel("ComputeLn", x.Count, new object[] { x, y });
+                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
+            }
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
             {
                 Debug.Assert(activationParameter.UseGPU);
@@ -262,6 +268,11 @@ namespace SharpNet.GPU
             else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
             {
                 _wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx });
+                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
+            }
+            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LN)
+            {
+                _wrapper.RunKernel("LnGradient", dx.Count, new object[] { dy, x, dx });
                 res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
             }
             else

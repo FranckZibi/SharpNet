@@ -238,6 +238,25 @@
             dX[row] = dY[row] * (sigmoid_x + x * sigmoid_x * (1 - sigmoid_x));
 		}
 	}
+
+
+	__global__ void ComputeLn(int N, const float* __restrict X, float* Y)
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < N) {
+			float x = X[row];
+			Y[row] = (x<=0) ? (-100.0f) : logf(x);
+		}
+	}
+
+	__global__ void LnGradient(int N, const float* __restrict dY, const float* __restrict X, float* dX)
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < N) {
+			float x = X[row];
+			dX[row] = dY[row] / x;
+		}
+	}
     
 	__global__ void MultiplyEachRowIntoSingleValue(int nbRows, int nbCols, float *result, const float* __restrict a, const float* __restrict b) 
 	{
