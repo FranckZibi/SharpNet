@@ -892,8 +892,8 @@ namespace SharpNet.Networks
                     var x_miniBatch_cpu_slave = x_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
                     var yExpected_miniBatch_cpu_slave = yExpected_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
                     var yPredicted_miniBatch_slave = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
-                    var batchIndexToElementIdInDataSet_slave = shuffledElementIdMemory.Slice(firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
-                    slave._slaveParamForMiniBatchGradientDescent = Tuple.Create(x_miniBatch_cpu_slave, yExpected_miniBatch_cpu_slave, yPredicted_miniBatch_slave, isTraining, dataSet, batchIndexToElementIdInDataSet_slave);
+                    var elementIdsInDataSet_slave = shuffledElementIdMemory.Slice(firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
+                    slave._slaveParamForMiniBatchGradientDescent = Tuple.Create(x_miniBatch_cpu_slave, yExpected_miniBatch_cpu_slave, yPredicted_miniBatch_slave, isTraining, dataSet, elementIdsInDataSet_slave);
                     slave._slaveStatus = SLAVE_NETWORK_STATUS.PERFORM_FORWARD_AND_BACKWARD_PROPAGATION;
                     firstIndexInShuffledElement_slave += miniBatchSizeForEachWorker;
                     usedSlaves.Add(slave);
@@ -905,8 +905,8 @@ namespace SharpNet.Networks
                 x_miniBatch_cpu_master.CopyTo(_x_miniBatch);
                 var yPredicted_miniBatch_master = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
                 var yExpected_miniBatch_master = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
-                var batchIndexToElementIdInDataSet_master = shuffledElementIdMemory.Slice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
-                PropagationManager.Forward(_x_miniBatch, yPredicted_miniBatch_master, isTraining, dataSet, batchIndexToElementIdInDataSet_master);
+                var elementIdsInDataSet_master = shuffledElementIdMemory.Slice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
+                PropagationManager.Forward(_x_miniBatch, yPredicted_miniBatch_master, isTraining, dataSet, elementIdsInDataSet_master);
                 if (isTraining)
                 {
                     PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Config.LossFunction);

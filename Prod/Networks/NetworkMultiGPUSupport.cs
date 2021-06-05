@@ -235,7 +235,7 @@ namespace SharpNet.Networks
                 }
             }
         }
-        private void MiniBatchGradientDescentForSlave(Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining, IDataSet dataSet, Memory<int> batchIndexToElementIdInDataSet)
+        private void MiniBatchGradientDescentForSlave(Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining, IDataSet dataSet, Memory<int> elementIdsInDataSet)
         {
             Debug.Assert(_yPredictedForEpoch == null);
             Debug.Assert(_yExpectedForEpoch == null);
@@ -259,7 +259,7 @@ namespace SharpNet.Networks
             MemoryPool.GetFloatTensor(ref _yExpected_miniBatch_slave, yExpected_miniBatch_cpu_slave.Shape);
             yExpected_miniBatch_cpu_slave.CopyTo(_yExpected_miniBatch_slave);
             MemoryPool.GetFloatTensor(ref _yPredicted_miniBatch_slave, _yExpected_miniBatch_slave.Shape);
-            PropagationManager.Forward(_x_miniBatch, _yPredicted_miniBatch_slave, isTraining, dataSet, batchIndexToElementIdInDataSet);
+            PropagationManager.Forward(_x_miniBatch, _yPredicted_miniBatch_slave, isTraining, dataSet, elementIdsInDataSet);
             if (isTraining)
             {
                 PropagationManager.Backward(_yExpected_miniBatch_slave, _yPredicted_miniBatch_slave, Config.LossFunction);

@@ -49,9 +49,9 @@ namespace SharpNet.Networks
         ///     false for inference only (we'll use existing weights to make a prediction)
         /// </param>
         /// <param name="dataSet">needed for layers implementing ILayerNeedingDataSetForForwardPropagation</param>
-        /// <param name="batchIndexToElementIdInDataSet">needed for layers implementing ILayerNeedingDataSetForForwardPropagation</param>
+        /// <param name="elementIdIsnDataSet">needed for layers implementing ILayerNeedingDataSetForForwardPropagation</param>
         /// <returns></returns>
-        public void Forward([NotNull] Tensor X, [NotNull] Tensor yPredicted, bool isTraining, IDataSet dataSet, Memory<int> batchIndexToElementIdInDataSet)
+        public void Forward([NotNull] Tensor X, [NotNull] Tensor yPredicted, bool isTraining, IDataSet dataSet, Memory<int> elementIdIsnDataSet)
         {
             FreeAllMemory();
             Debug.Assert(_all_allocated_Y.Count == 0);
@@ -85,7 +85,7 @@ namespace SharpNet.Networks
 
                 if (layer is ILayerNeedingDataSetForForwardPropagation propagation)
                 {
-                    propagation.ForwardPropagationWithDataSet(allX, yBuffer, isTraining, dataSet, batchIndexToElementIdInDataSet);
+                    propagation.ForwardPropagationWithDataSet(allX, yBuffer, isTraining, dataSet, elementIdIsnDataSet);
                 }
                 else
                 {

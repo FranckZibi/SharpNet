@@ -92,10 +92,10 @@ namespace SharpNet.Networks
         public string SerializedNetwork { get; set; } = "";
 
         // ReSharper disable once UnusedMember.Global
-        public void WithCustomLinearFunctionLayer(float alpha, cudnnActivationMode_t activationFunctionAfterSecondDense)
+        public void WithCustomLinearFunctionLayer(float slope, cudnnActivationMode_t activationFunctionAfterSecondDense)
         {
             Use_CustomLinearFunctionLayer = true;
-            Slope_for_CustomLinearFunctionLayer = alpha;
+            Slope_for_CustomLinearFunctionLayer = slope;
             LinearLayer_slope = 1f;
             LinearLayer_intercept = 0f;
             ActivationFunctionAfterSecondDense = activationFunctionAfterSecondDense;
@@ -239,7 +239,6 @@ namespace SharpNet.Networks
                                   .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                                   .WithAdam()
                           };
-            builder.NumEpochs = 150;
             builder.BatchSize = 1024;
             builder.InitialLearningRate = 0.001;
             builder.Use_day_in_InputTensor = true;
@@ -347,7 +346,6 @@ namespace SharpNet.Networks
             }
 
             
-
             if (Use_CustomLinearFunctionLayer)
             {
                 network.CustomLinear(Slope_for_CustomLinearFunctionLayer);
@@ -357,8 +355,6 @@ namespace SharpNet.Networks
             {
                 network.Linear(LinearLayer_slope, LinearLayer_intercept);
             }
-
-        
 
             return network;
         }

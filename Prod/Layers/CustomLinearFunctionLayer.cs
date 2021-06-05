@@ -12,7 +12,7 @@ namespace SharpNet.Layers
 
     public interface ILayerNeedingDataSetForForwardPropagation
     { 
-        void ForwardPropagationWithDataSet(List<Tensor> allX, Tensor y, bool isTraining, IDataSet dataSet, Memory<int> batchIndexToElementIdInDataSet);
+        void ForwardPropagationWithDataSet(List<Tensor> allX, Tensor y, bool isTraining, IDataSet dataSet, Memory<int> elementIdsInDataSet);
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ namespace SharpNet.Layers
             throw new ArgumentException("should never be called, call "+nameof(ForwardPropagationWithDataSet)+" instead");
         }
 
-        public void ForwardPropagationWithDataSet(List<Tensor> allX, Tensor y, bool isTraining, IDataSet dataSet, Memory<int> batchIndexToElementIdInDataSet)
+        public void ForwardPropagationWithDataSet(List<Tensor> allX, Tensor y, bool isTraining, IDataSet dataSet, Memory<int> elementIdsInDataSet)
         {
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
@@ -56,7 +56,7 @@ namespace SharpNet.Layers
             Debug.Assert(x.SameShape(y));
             Debug.Assert(x.SameShape(new [] {batchSize, 1}));
 
-            Debug.Assert(batchIndexToElementIdInDataSet.Length == batchSize);
+            Debug.Assert(elementIdsInDataSet.Length == batchSize);
 
             var dataSetWithExpectedAverage = dataSet as IDataSetWithExpectedAverage;
             if (dataSetWithExpectedAverage == null)
@@ -67,7 +67,7 @@ namespace SharpNet.Layers
             var slopeInCpu= new float[batchSize];
             var interceptInCpu= new float[batchSize];
             int idx = 0;
-            foreach (var elementId in batchIndexToElementIdInDataSet.Span)
+            foreach (var elementId in elementIdsInDataSet.Span)
             {
                 slopeInCpu[idx] = SlopeConstant; //todo: use custom value for the slope
                 interceptInCpu[idx] = dataSetWithExpectedAverage.ElementIdToExpectedAverage(elementId);

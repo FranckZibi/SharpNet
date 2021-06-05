@@ -101,7 +101,7 @@ namespace SharpNet.Layers
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX: return "Softmax";
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY: return "Softmax_Hierarchy";
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH: return "Swish";
-                default: return base.LayerType();
+                default: return ToString(ActivationFunction);
             }
         }
 

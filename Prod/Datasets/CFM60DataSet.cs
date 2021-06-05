@@ -105,7 +105,10 @@ namespace SharpNet.Datasets
         private readonly CFM60DataSet TrainingDataSetIfAny;
         private readonly IDictionary<int, List<CFM60Entry>> _pidToSortedEntries = new Dictionary<int, List<CFM60Entry>>();
         private readonly IDictionary<int, CFM60Entry> _elementIdToEntryToPredict = new Dictionary<int, CFM60Entry>();
-        private readonly IDictionary<int, int> _entryIdToElementId= new Dictionary<int, int>();
+
+        // CFM60EntryID = CFM60Entry.ID: the unique ID of a CFM60Entry
+        // elementId : id of an element in the dataSet (in range [0, dataSet.Count[ )
+        private readonly IDictionary<int, int> _CFM60EntryIDToElementId= new Dictionary<int, int>();
         private readonly IDictionary<int, float> _elementIdToPrediction = new Dictionary<int, float>();
 
         /// <summary>
@@ -210,7 +213,7 @@ namespace SharpNet.Datasets
                             || (i >= TimeSteps)) //in the Training DataSet: only entries in the range [TimeSteps, +infinite[ can be trained
                         {
                             _elementIdToEntryToPredict[elementId] = pidEntries[i];
-                            _entryIdToElementId[pidEntries[i].ID] = elementId;
+                            _CFM60EntryIDToElementId[pidEntries[i].ID] = elementId;
                             ++elementId;
                         }
                     }
@@ -373,14 +376,15 @@ namespace SharpNet.Datasets
         public void CreatePredictionFile(Network network, int miniBatchSizeForAllWorkers, string filePath)
         {
             var res = network.Predict(this, miniBatchSizeForAllWorkers);
-            var predictions = new Dictionary<int, double>();
+            var CFM60EntryIDToPrediction = new Dictionary<int, double>();
             var spanResult = res.ReadonlyContent;
-            for (int i = 0; i < Entries.Length; ++i)
+            for (int elementId = 0; elementId < Count; ++elementId)
             {
-                predictions[Entries[i].ID] = spanResult[i];
+                var entryToPredict = _elementIdToEntryToPredict[elementId];
+                CFM60EntryIDToPrediction[entryToPredict.ID] = spanResult[elementId];
             }
 
-            CreatePredictionFile(predictions, filePath);
+            CreatePredictionFile(CFM60EntryIDToPrediction, filePath);
         }
 
         /// <summary>
@@ -426,11 +430,11 @@ namespace SharpNet.Datasets
         }
 
 
-        public static void CreatePredictionFile(IDictionary<int, double> IDToPredictions, string filePath)
+        public static void CreatePredictionFile(IDictionary<int, double> CFM60EntryIDToPrediction, string filePath)
         {
             var sb = new StringBuilder();
             sb.Append("ID,target");
-            foreach (var p in IDToPredictions.OrderBy(x => x.Key))
+            foreach (var p in CFM60EntryIDToPrediction.OrderBy(x => x.Key))
             {
                 sb.Append(Environment.NewLine + p.Key + "," + p.Value.ToString(CultureInfo.InvariantCulture));
             }
@@ -530,7 +534,7 @@ namespace SharpNet.Datasets
                     else
                     {
                         //we need to use the estimated value for Y (even if the true value of Y is available)
-                        var previousElementId = _entryIdToElementId[previousEntry.ID];
+                        var previousElementId = _CFM60EntryIDToElementId[previousEntry.ID];
                         if (!_elementIdToPrediction.ContainsKey(previousElementId))
                         {
                             throw new Exception("missing prediction for ID " + previousEntry.ID + " with pid " + pid + " : it is required to make the prediction for next ID " + entry.ID);
@@ -633,6 +637,11 @@ namespace SharpNet.Datasets
                 {
                     xDest[idx++] = EndOfTrimester.Contains(entry.day) ? 1 : 0;
                 }
+
+                if (timeStep == 0 && idx != Cfm60NetworkBuilder.InputSize)
+                {
+                    throw new Exception("expecting "+ Cfm60NetworkBuilder.InputSize+" elements but got "+idx);
+                }
             }
 
             if (yBuffer != null)
@@ -643,9 +652,7 @@ namespace SharpNet.Datasets
 
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
-            var countInTraining = (int) (percentageInTrainingSet * Entries.Length);
-            var list = Entries.ToList();
-            Utils.Shuffle(list, new Random(0));
+            var countInTraining = (int) (percentageInTrainingSet * Count);
             if (Cfm60NetworkBuilder.SplitTrainingAndValidationBasedOnDays)
             {
                 var sortedDays = Entries.Select(e => e.day).OrderBy(x => x).ToArray();
@@ -654,8 +661,8 @@ namespace SharpNet.Datasets
                 //dayThreshold = 728 => 90% in training, 10% in validation
                 //dayThreshold = 766 => 95% in training,  5% in validation
                 var dayThreshold = sortedDays[countInTraining];
-                var training = new CFM60DataSet(list.Where(e => e.day <= dayThreshold).ToArray(), Cfm60NetworkBuilder);
-                var validation = new CFM60DataSet(list.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder, training);
+                var training = new CFM60DataSet(Entries.Where(e => e.day <= dayThreshold).ToArray(), Cfm60NetworkBuilder);
+                var validation = new CFM60DataSet(Entries.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder, training);
                 return new TrainingAndTestDataLoader(training, validation, Name);
             }
             else
@@ -689,8 +696,9 @@ namespace SharpNet.Datasets
 
         public float ElementIdToExpectedAverage(int elementId)
         {
-            var pid = Entries[elementId].pid;
-            var day = Entries[elementId].day;
+            var entryToPredict = _elementIdToEntryToPredict[elementId];
+            var pid = entryToPredict.pid;
+            var day = entryToPredict.day;
             return CFM60TrainingAndTestDataSet.LinearRegressionEstimateBasedOnFullTrainingSet(pid, day);
         }
 
@@ -698,24 +706,23 @@ namespace SharpNet.Datasets
         /// return the Mean Squared Error associated with the prediction 'idToPredictions'
         /// return value will be double.NaN if the MSE can not be computed
         /// </summary>
-        /// <param name="idToPredictions">a prediction</param>
+        /// <param name="CFM60EntryIDToPrediction">a prediction</param>
         /// <param name="applyLogToPrediction">true if we should apply log to the prediction before computing the MSE</param>
         /// <returns>
         /// The Mean Squared Error of the predictions, or double.NaN if was not computed
         /// </returns>
-        public double ComputeMeanSquareError(IDictionary<int, double> idToPredictions, bool applyLogToPrediction)
+        public double ComputeMeanSquareError(IDictionary<int, double> CFM60EntryIDToPrediction, bool applyLogToPrediction)
         {
-            var IDToEntryIndex = new Dictionary<int, int>();
-            for (var entryIndex = 0; entryIndex < Entries.Length; entryIndex++)
+            var CFM60EntryIDToCFM60Entry = new Dictionary<int, CFM60Entry>();
+            foreach(var entry in Entries)
             {
-                var id = Entries[entryIndex].ID;
-                IDToEntryIndex[id] = entryIndex;
+                CFM60EntryIDToCFM60Entry[entry.ID] = entry;
             }
             double mse = 0; //the mean squared error
-            foreach (var (id, value) in idToPredictions)
+            foreach (var (id, value) in CFM60EntryIDToPrediction)
             {
                 var predictedValue = applyLogToPrediction ? Math.Log(value) : value;
-                var expectedValue = Entries[IDToEntryIndex[id]].Y;
+                var expectedValue = CFM60EntryIDToCFM60Entry[id].Y;
                 if (double.IsNaN(expectedValue))
                 {
                     Log.Error("no known expected value for id:" + id);
@@ -723,7 +730,7 @@ namespace SharpNet.Datasets
                 }
                 mse += Math.Pow(predictedValue - expectedValue, 2);
             }
-            return mse / idToPredictions.Count;
+            return mse / CFM60EntryIDToPrediction.Count;
         }
 
         public static IDictionary<int, double> LoadPredictionFile(string filePath)
@@ -743,16 +750,17 @@ namespace SharpNet.Datasets
         // ReSharper disable once UnusedMember.Global
         public void ComputePredictions(Func<CFM60Entry, double> entryToPrediction, string comment)
         {
-            var IDToPredictions = new ConcurrentDictionary<int, double>();
-            void ComputePrediction(int i)
+            var CFM60EntryIDToPrediction = new ConcurrentDictionary<int, double>();
+            void ComputePrediction(int elementId)
             {
-                var prediction = entryToPrediction(Entries[i]);
-                IDToPredictions[Entries[i].ID] = prediction;
+                var entryToPredict = _elementIdToEntryToPredict[elementId];
+                var prediction = entryToPrediction(entryToPredict);
+                CFM60EntryIDToPrediction[entryToPredict.ID] = prediction;
             }
-            System.Threading.Tasks.Parallel.For(0, Entries.Length, ComputePrediction);
-            CreatePredictionFile(IDToPredictions, Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", comment + "_" + DateTime.Now.Ticks + ".csv"));
+            System.Threading.Tasks.Parallel.For(0, Count, ComputePrediction);
+            CreatePredictionFile(CFM60EntryIDToPrediction, Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", comment + "_" + DateTime.Now.Ticks + ".csv"));
             //we update the file with all predictions
-            var mse = ComputeMeanSquareError(IDToPredictions, false);
+            var mse = ComputeMeanSquareError(CFM60EntryIDToPrediction, false);
             var testsCsv = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", "Tests_CFM60_PerformPrediction.csv");
             var line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";" + comment.Replace(';', '_') + ";" + mse.ToString(CultureInfo.InvariantCulture) + ";" + Environment.NewLine;
             File.AppendAllText(testsCsv, line);
