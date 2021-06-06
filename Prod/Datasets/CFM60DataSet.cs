@@ -104,6 +104,9 @@ namespace SharpNet.Datasets
         private readonly CFM60NetworkBuilder Cfm60NetworkBuilder;
         private readonly CFM60DataSet TrainingDataSetIfAny;
         private readonly IDictionary<int, List<CFM60Entry>> _pidToSortedEntries = new Dictionary<int, List<CFM60Entry>>();
+        private readonly IDictionary<int, int> _CFM60EntryIDToIndexIn_pidToSortedEntries = new Dictionary<int, int>();
+
+
         private readonly IDictionary<int, CFM60Entry> _elementIdToEntryToPredict = new Dictionary<int, CFM60Entry>();
 
         // CFM60EntryID = CFM60Entry.ID: the unique ID of a CFM60Entry
@@ -197,6 +200,14 @@ namespace SharpNet.Datasets
                     _pidToSortedEntries[entry.pid] = new List<CFM60Entry>();
                 }
                 _pidToSortedEntries[entry.pid].Add(entry);
+            }
+            //we initialize _IDToIndexIn_pidToSortedEntries
+            foreach (var e in _pidToSortedEntries.Values)
+            {
+                for (int index_in_pidToSortedEntries = 0; index_in_pidToSortedEntries < e.Count; ++index_in_pidToSortedEntries)
+                {
+                    _CFM60EntryIDToIndexIn_pidToSortedEntries[e[index_in_pidToSortedEntries].ID] = index_in_pidToSortedEntries;
+                }
             }
 
             //we initialize: _elementIdToEntryToPredict and _entryIdToElementId
@@ -392,13 +403,15 @@ namespace SharpNet.Datasets
         /// </summary>
         /// <param name="directory">the directory where the predictions files are located</param>
         /// <param name="fileNameWithPredictionToWeight">the fileNames of the prediction files in directory 'directory' and associated weight</param>
+        /// <param name="multiplierCorrection"></param>
         /// <returns>a path to a prediction file with the weighted average of predictions</returns>
         // ReSharper disable once UnusedMember.Global
-        public static string EnsembleLearning(string directory, IDictionary<string,double> fileNameWithPredictionToWeight)
+        public static string EnsembleLearning(string directory, IDictionary<string,double> fileNameWithPredictionToWeight, double multiplierCorrection = 1.0)
         {
             int? predictionsByFile = null;
             var ensembleLearningPredictions = new Dictionary<int, double>();
             var totalWeights = fileNameWithPredictionToWeight.Values.Sum();
+
             foreach (var (fileNameWithPrediction, weight) in fileNameWithPredictionToWeight)
             {
                 var singleFilePredictions = LoadPredictionFile(Path.Combine(directory, fileNameWithPrediction));
@@ -416,7 +429,7 @@ namespace SharpNet.Datasets
                     {
                         ensembleLearningPredictions[id] = 0;
                     }
-                    ensembleLearningPredictions[id] += (weight/totalWeights) * prediction;
+                    ensembleLearningPredictions[id] += (multiplierCorrection*weight / totalWeights) * prediction;
                 }
             }
             if (predictionsByFile.HasValue && predictionsByFile.Value != ensembleLearningPredictions.Count)
@@ -494,19 +507,8 @@ namespace SharpNet.Datasets
             int idx = 0;
             var entryToPredict = _elementIdToEntryToPredict[elementId];
             var pid = entryToPredict.pid;
-            var pidEntries = _pidToSortedEntries[pid];
-            int indexInPidEntries = entryToPredict.day - pidEntries[0].day;
-
-            for (int i = 0; i < pidEntries.Count; ++i)
-            {
-                if (pidEntries[i].ID == entryToPredict.ID)
-                {
-                    indexInPidEntries = i;
-                    break;
-                }
-            }
-
-            Debug.Assert(pidEntries[indexInPidEntries].ID == entryToPredict.ID);
+            int indexInPidEntries = _CFM60EntryIDToIndexIn_pidToSortedEntries[entryToPredict.ID];
+            Debug.Assert(_pidToSortedEntries[pid][indexInPidEntries].ID == entryToPredict.ID);
 
             for (int timeStep = 0; timeStep < TimeSteps; ++timeStep)
             {
@@ -545,17 +547,13 @@ namespace SharpNet.Datasets
 
                 if (Cfm60NetworkBuilder.Use_ret_vol_in_InputTensor)
                 {
-                    foreach (var ret_vol in entry.ret_vol)
-                    {
-                        xDest[idx++] = ret_vol;
-                    }
+                    entry.ret_vol.AsSpan().CopyTo(xDest.Slice(idx, entry.ret_vol.Length));
+                    idx += entry.ret_vol.Length;
                 }
                 if (Cfm60NetworkBuilder.Use_abs_ret_in_InputTensor)
                 {
-                    foreach (var abs_ret in entry.abs_ret)
-                    {
-                        xDest[idx++] = abs_ret;
-                    }
+                    entry.abs_ret.AsSpan().CopyTo(xDest.Slice(idx, entry.abs_ret.Length));
+                    idx += entry.abs_ret.Length;
                 }
 
                 if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate_in_InputTensor)
@@ -594,7 +592,6 @@ namespace SharpNet.Datasets
                     {
                         ls = (ls + 3.185075f) / 1.072115f;
                     }
-
                     xDest[idx++] = ls;
                 }
 
@@ -623,7 +620,6 @@ namespace SharpNet.Datasets
                 {
                     xDest[idx++] = DayToFractionOfYear(entry.day);
                 }
-                
 
                 if (Cfm60NetworkBuilder.Use_EndOfYear_flag_in_InputTensor)
                 {
@@ -638,9 +634,9 @@ namespace SharpNet.Datasets
                     xDest[idx++] = EndOfTrimester.Contains(entry.day) ? 1 : 0;
                 }
 
-                if (timeStep == 0 && idx != Cfm60NetworkBuilder.InputSize)
+                if (timeStep == 0 && elementId == 0 && idx != Cfm60NetworkBuilder.InputSize)
                 {
-                    throw new Exception("expecting "+ Cfm60NetworkBuilder.InputSize+" elements but got "+idx);
+                    throw new Exception("expecting " + Cfm60NetworkBuilder.InputSize + " elements but got " + idx);
                 }
             }
 

@@ -912,10 +912,13 @@ namespace SharpNet.Networks
                     PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Config.LossFunction);
                 }
 
-                //we wait for all slave to finish the forward & backward propagation pass
-                StartTimer("WaitForSlave_Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-                WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS.IDLE);
-                StopTimer("WaitForSlave_Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+                if (_slaveNetworks.Any())
+                { 
+                    //we wait for all slave to finish the forward & backward propagation pass
+                    StartTimer("WaitForSlave_Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+                    WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS.IDLE);
+                    StopTimer("WaitForSlave_Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
+                }
 
                 if (isTraining)
                 {
@@ -927,15 +930,16 @@ namespace SharpNet.Networks
                     }
                     double percentagePerformedInEpoch = firstIndexInShuffledElementId / (double) dataSetCountWithExtraBufferAtEnd;
                     PropagationManager.UpdateWeights(miniBatchSizeForAllWorkers, learningRateComputerIfTraining.LearningRate(epoch, percentagePerformedInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau));
-
                 }
 
                 if (!isTraining && dataSet is ITimeSeriesDataSet)
                 {
+                    StartTimer("SetBatchPredictions", ForwardPropagationInferenceTime);
                     //During inference for TimeSeries, we'll need the previous predicted values to predict the next one
                     var batchPredictions = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElementId, actualNumberOfLoadedItems);
                     var batchElementIds = shuffledElementIdMemory.Slice(firstIndexInShuffledElementId, actualNumberOfLoadedItems).ToArray();
                     ((ITimeSeriesDataSet)dataSet).SetBatchPredictionsForInference(batchElementIds, batchPredictions);
+                    StopTimer("SetBatchPredictions", ForwardPropagationInferenceTime);
                 }
 
                 CallBackAfterEachMiniBatch?.Invoke(yExpected_miniBatch_master, yPredicted_miniBatch_master);
