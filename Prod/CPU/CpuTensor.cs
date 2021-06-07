@@ -1846,7 +1846,7 @@ namespace SharpNet.CPU
             else
             {
                 //copy from CPU ('this' tensor) to CPU ('b' tensor)
-                MKL_BLAS.cblas_scopy(Count, AsFloatPointer, 1, b.AsFloatPointer, 1);
+                AsFloatCpu.Content.Slice(0, Count).CopyTo(b.AsFloatCpu.Content.Slice(0, Count));
             }
         }
 
