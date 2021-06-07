@@ -121,7 +121,6 @@ namespace SharpNet.Networks
         
         //public double PercentageInTraining { get; set; } = 0.68; //discarded on 16-jan-2021: +0.2759
         public double PercentageInTraining { get; set; } = 0.9;
-        public bool SplitTrainingAndValidationBasedOnDays { get; set; } = true;
         public bool UseConv1D { get; set; } = false;
         public bool UseBatchNormAfterConv1D { get; set; } = false;
         public bool UseReluAfterConv1D { get; set; } = false;
@@ -150,78 +149,8 @@ namespace SharpNet.Networks
 
         public cudnnActivationMode_t ActivationFunctionAfterFirstDense { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU;
         public cudnnActivationMode_t ActivationFunctionAfterSecondDense { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY;
-
-
         public bool WithSpecialEndV1 { get; set; } = false;
 
-
-        //public static CFM60NetworkBuilder Default()
-        //{
-        //    var builder = new CFM60NetworkBuilder
-        //                  {
-        //                      Config = new NetworkConfig
-        //                               {
-        //                                   LogFile = "TimeSeries",
-        //                                   LossFunction = NetworkConfig.LossFunctionEnum.Mse,
-        //                                   RandomizeOrder = true,
-        //                                   CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-        //                                   Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss },
-        //                                   LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
-        //                                   DataAugmentation = DataAugmentationConfig.NoDataAugmentation
-        //                               }
-        //                          .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-
-        //                          //.WithSGD(0.9, false)
-        //                          .WithAdam()
-
-        //                      ,
-        //                      NumEpochs = 150,
-        //                      BatchSize = 1024,
-        //                      //InitialLearningRate = 0.0005, //new default 16-jan-2021
-        //                      InitialLearningRate = 0.001, //validated on 17-jan-2021 : -0.0040
-        //                  };
-
-        //    return builder;
-        //}
-
-        //public static CFM60NetworkBuilder Default()
-        //{
-        //    var builder = new CFM60NetworkBuilder
-        //                  {
-        //                      Config = new NetworkConfig
-        //                               {
-        //                                   LogFile = "TimeSeries",
-        //                                   LossFunction = NetworkConfig.LossFunctionEnum.Mse,
-        //                                   RandomizeOrder = true,
-        //                                   CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-        //                                   Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss },
-        //                                   LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
-        //                                   DataAugmentation = DataAugmentationConfig.NoDataAugmentation
-        //                               }
-        //                          .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-
-        //                          //.WithSGD(0.9, false)
-        //                          .WithAdam()
-
-        //                      ,
-        //                      NumEpochs = 150,
-        //                      BatchSize = 1024,
-        //                      //InitialLearningRate = 0.0005, //new default 16-jan-2021
-        //                      InitialLearningRate = 0.001, //validated on 17-jan-2021 : -0.0040
-        //                  };
-        //    builder.Use_day_in_InputTensor = true;
-        //    builder.Use_y_LinearRegressionEstimate_in_InputTensor = false;
-        //    builder.Use_pid_y_vol_in_InputTensor = false;
-        //    builder.NumEpochs = 70;
-        //    builder.TimeSteps = 20;
-        //    builder.DenseUnits = 100; //validated on 27-may-2021: -0.0253
-        //    return builder;
-        //}
-
-        /// <summary>
-        /// 2-june-2021
-        /// </summary>
-        /// <returns></returns>
         public static CFM60NetworkBuilder Default()
         {
             var builder = new CFM60NetworkBuilder
@@ -246,14 +175,11 @@ namespace SharpNet.Networks
             builder.Use_pid_y_vol_in_InputTensor = false;
             builder.NumEpochs = 70;
             builder.TimeSteps = 20;
-            builder.DenseUnits = 100;
-            builder.Use_LS_in_InputTensor = false; //validated on 21-june-2021: -0.011155486
+            builder.Use_LS_in_InputTensor = false; //validated on 2-june-2021: -0.011155486
+            builder.Pid_EmbeddingDim = 8; //validated on 6-june-2021: -0.0226
+            builder.DenseUnits = 50; //validated on 6-june-2021: -0.0121
             return builder;
         }
-
-
-
-       
 
         public Network CFM60()
         {

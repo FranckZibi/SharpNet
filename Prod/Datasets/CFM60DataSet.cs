@@ -210,7 +210,7 @@ namespace SharpNet.Datasets
                 }
             }
 
-            //we initialize: _elementIdToEntryToPredict and _entryIdToElementId
+            //we initialize: _elementIdToEntryToPredict and _CFM60EntryIDToElementId
             int longestEntry = _pidToSortedEntries.Values.Select(x => x.Count).Max();
             int[] pids = _pidToSortedEntries.Keys.OrderBy(x => x).ToArray();
             for (int i = 0; i < longestEntry; ++i)
@@ -648,27 +648,12 @@ namespace SharpNet.Datasets
 
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
-            var countInTraining = (int) (percentageInTrainingSet * Count);
-            if (Cfm60NetworkBuilder.SplitTrainingAndValidationBasedOnDays)
-            {
-                var sortedDays = Entries.Select(e => e.day).OrderBy(x => x).ToArray();
-                //dayThreshold = 651 => 80% in training, 20% in validation
-                //dayThreshold = 690 => 85% in training, 15% in validation
-                //dayThreshold = 728 => 90% in training, 10% in validation
-                //dayThreshold = 766 => 95% in training,  5% in validation
-                var dayThreshold = sortedDays[countInTraining];
-                var training = new CFM60DataSet(Entries.Where(e => e.day <= dayThreshold).ToArray(), Cfm60NetworkBuilder);
-                var validation = new CFM60DataSet(Entries.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder, training);
-                return new TrainingAndTestDataLoader(training, validation, Name);
-            }
-            else
-            {
-                var training = new CFM60DataSet(Entries.Take(countInTraining).ToArray(), Cfm60NetworkBuilder);
-                var validation = new CFM60DataSet(Entries.Skip(countInTraining).ToArray(), Cfm60NetworkBuilder);
-                Debug.Assert(Count == training.Count + validation.Count);
-                return new TrainingAndTestDataLoader(training, validation, Name);
-            }
-
+            var sortedDays = Entries.Select(e => e.day).OrderBy(x => x).ToArray();
+            var countInTraining = (int)(percentageInTrainingSet * Count);
+            var dayThreshold = sortedDays[countInTraining];
+            var training = new CFM60DataSet(Entries.Where(e => e.day <= dayThreshold).ToArray(), Cfm60NetworkBuilder);
+            var validation = new CFM60DataSet(Entries.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder, training);
+            return new TrainingAndTestDataLoader(training, validation, Name);
         }
 
         public override int Count => Y.Shape[0];
