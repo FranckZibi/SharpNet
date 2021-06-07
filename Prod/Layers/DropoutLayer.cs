@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.GPU;
@@ -11,7 +10,6 @@ namespace SharpNet.Layers
     {
         #region fields
         private readonly double _dropProbability;
-        private readonly Random _dropOutRandomForCpuOnly = new Random(0);
         private Tensor _dropoutReservedSpaceForTraining;
         #endregion
 
@@ -36,7 +34,7 @@ namespace SharpNet.Layers
                 //no need of dropout reserved space for inference
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
-            x.DropoutForward(y, _dropProbability, isTraining, _dropOutRandomForCpuOnly, _dropoutReservedSpaceForTraining, Network.GetRandomNumberGeneratorStatesBuffer());
+            x.DropoutForward(y, _dropProbability, isTraining, Rand, _dropoutReservedSpaceForTraining, Network.GetRandomNumberGeneratorStatesBuffer());
             if (!BackwardPropagationNeeded(isTraining, FirstTrainableLayer(Layers)))
             {
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);

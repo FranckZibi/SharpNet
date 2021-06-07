@@ -39,6 +39,7 @@ namespace SharpNet.Networks
 
         #region public fields
         public NetworkConfig Config { get; }
+        public Random Rand { get; } = new Random(0);
         public List<Layer> Layers { get; } = new List<Layer>();
         public string Description { private get; set; } = "";
         public PropagationManager PropagationManager { get; }
@@ -850,7 +851,7 @@ namespace SharpNet.Networks
 
             if (epoch >= 2 && Config.RandomizeOrder && isTraining)
             {
-                Utils.Shuffle(shuffledElementId, Config.Rand);
+                Utils.Shuffle(shuffledElementId, Rand);
             }
 
             //we ensure that all slaves are on Idle state

@@ -475,7 +475,7 @@ namespace SharpNet.Layers
             return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
         }
 
-        protected Random Rand => Config.Rand;
+        protected Random Rand => Network.Rand;
         protected TensorMemoryPool MemoryPool => Network.MemoryPool;
         protected List<Layer> Layers => Network.Layers;
         protected NetworkConfig Config => Network.Config;

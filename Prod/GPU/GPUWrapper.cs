@@ -67,6 +67,10 @@ namespace SharpNet.GPU
         #region constructor
         private GPUWrapper(int deviceId)
         {
+            // We use Deterministic mode for RNN
+            // See: https://docs.nvidia.com/deeplearning/cudnn/release-notes/rel_8.html#rel-800-Preview__section_qhc_jc1_5kb
+            Environment.SetEnvironmentVariable("CUBLAS_WORKSPACE_CONFIG", ":16:8");
+
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CUDA_PATH")))
             {
                 throw new Exception("CUDA_PATH environment variable is missing");
@@ -117,6 +121,7 @@ namespace SharpNet.GPU
             MaxThreadsPerBlock = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK];
             MultiProcessorCount = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT];
             WarpSize = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE];
+
             DefaultStream = new StreamWrapper();
             var cudnnRes = CudnnWrapper.cudnnCreate(out _cudnnHandle);
             CheckStatus(cudnnRes);

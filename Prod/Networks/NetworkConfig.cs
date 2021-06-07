@@ -61,8 +61,6 @@ namespace SharpNet.Networks
         /// </summary>
         public double MinimumLearningRate { get; } = 1e-9;
         public bool SGD_usenesterov { get; private set; }
-        public Random Rand { get; }
-
         public string DataSetName { get; set; }
 
         public DataAugmentationConfig DataAugmentation { get; set; }
@@ -129,7 +127,6 @@ namespace SharpNet.Networks
         #region constructors
         public NetworkConfig()
         {
-            Rand = new Random(0);
             DataAugmentation = new DataAugmentationConfig();
         }
         static NetworkConfig()
@@ -325,7 +322,6 @@ namespace SharpNet.Networks
             LogDirectory = (string)serialized[nameof(LogDirectory)];
             LogFile = (string)serialized[nameof(LogFile)];
             DataAugmentation = DataAugmentationConfig.ValueOf(serialized);
-            Rand = new Random(0);
         }
         public static NetworkConfig ValueOf(IDictionary<string, object> serialized)
         {
