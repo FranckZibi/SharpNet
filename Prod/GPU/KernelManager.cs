@@ -69,7 +69,8 @@ namespace SharpNet.GPU
                     "Switch_First_2_axis",
                     "LinearFunction",
                     "ComputeLn",
-                    "LnGradient"
+                    "LnGradient",
+                    "Clip"
         },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

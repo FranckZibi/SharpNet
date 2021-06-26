@@ -775,6 +775,17 @@ namespace SharpNet.CPU
             }
         }
 
+        public override void Clip(float lower, float upper)
+        {
+            Debug.Assert(upper >= lower);
+            var thisFloat = AsFloatCpuSpan;
+            for (int i = 0; i < Count; ++i)
+            {
+                var curValue = thisFloat[i];
+                thisFloat[i] = Math.Min(Math.Max(curValue, lower), upper);
+            }
+        }
+
         public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             //we are adding padding to 'unpaddedTensor' to initialize 'paddedTensor'

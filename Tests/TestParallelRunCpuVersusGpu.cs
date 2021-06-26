@@ -392,6 +392,19 @@ namespace SharpNetTests
             TestAll(new[] { result, a, b }, tensors => tensors[0].MultiplyEachRowIntoSingleValue(tensors[1], tensors[2]));
         }
 
+        [TestCase(new[] { 1 })]
+        [TestCase(new[] { 10000 })]
+        [TestCase(new[] { BatchSize})]
+        [TestCase(new[] { 1024,1024})]
+        [TestCase(new[] { 1024,1})]
+        [TestCase(new[] { 1,1024})]
+        [TestCase(new[] { BatchSize, ChannelsCount, 1, 1 })]
+        public void TestClip(int[] shape)
+        {
+            var result = TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
+            TestAll(new[] { result}, tensors => tensors[0].Clip(-0.5f, 0.7f));
+        }
+
         [Test]
         public void TestZeroPadding()
         {

@@ -896,6 +896,23 @@ namespace SharpNet.GPU
             int nbColumns_in_a_and_b = a.Count / nbRows;
             _wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
         }
+
+        public override void Clip(float lower, float upper)
+        {
+            Debug.Assert(upper>=lower);
+            int nbRows = Shape[0];
+            Debug.Assert(Count % nbRows == 0);
+            int nbColumns = Count / nbRows;
+            if (nbRows < 100)
+            {
+                nbRows = Count;
+                nbColumns = 1;
+            }
+            Debug.Assert(nbRows*nbColumns == Count);
+            _wrapper.RunKernel("Clip", nbRows, new object[] { nbColumns, this, lower, upper });
+        }
+
+
         public override void ZeroPadding(Tensor unpaddedTensor, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             var paddedTensor = this;

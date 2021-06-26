@@ -275,6 +275,18 @@
 		}
 	}
 
+	__global__ void Clip(int nbRows, int nbCols, float* result, float lower, float upper)
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < nbRows) {
+			result += row * nbCols;
+			for (int i = 0; i < nbCols; ++i)
+			{
+				result[i] = fminf(fmaxf(result[i], lower), upper);
+			}
+		}
+	}
+
 	// src tensor (unpadded tensor) has shape (n, c, h_src, w_src)
 	// dest tensor (padded tensor) has shape (n, c, h_dest, w_dest) with:
     //		h_dest = top_pad + h_src + bottom_pad;

@@ -367,6 +367,13 @@ namespace SharpNet.Data
         /// <param name="b">[in] matrix of size (m,n) </param>
         public abstract void MultiplyEachRowIntoSingleValue(Tensor a, Tensor b);
 
+        /// <summary>
+        /// clip all values in the tensor in [lower, upper] range
+        /// </summary>
+        /// <param name="lower">minimum allowed value</param>
+        /// <param name="upper">maximum allowed value</param>
+        public abstract void Clip(float lower, float upper);
+
         public abstract void BroadcastAddVectorToOutput(Tensor y);
 
 
