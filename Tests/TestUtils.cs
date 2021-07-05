@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 using SharpNet;
 using SharpNetTests.Data;
@@ -18,6 +19,13 @@ namespace SharpNetTests
         {
             Assert.AreEqual(expected, Utils.FirstMultipleOfAtomicValueAboveOrEqualToMinimum(minimum, atomicValue));
         }
+
+        [Test]
+        public void TestRepeat()
+        {
+            Assert.IsTrue(new[]{1,1,1,3,3,3,1,1,1}.SequenceEqual(Utils.Repeat(new []{1,3,1},3)));
+        }
+        
 
         [TestCase(0, null)]
         [TestCase(0, new int[0])]

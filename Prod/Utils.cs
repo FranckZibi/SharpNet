@@ -50,6 +50,32 @@ namespace SharpNet
             AllPermutationsHelper(data, 0, result);
             return result;
         }
+
+
+        /// <summary>
+        /// duplicate the input list 'data' by 'repeatCount' time:
+        /// Each element of the initial list will be duplicated 'repeatCount' time:
+        /// Ex:
+        /// if
+        ///     data = [1,2 3, 2] and repeatCount = 2
+        /// then
+        ///     output = [1,1, 2,2, 3,3, 2,2]
+        /// </summary>
+        /// <returns></returns>
+        public static List<T> Repeat<T>(IEnumerable<T> data, int repeatCount)
+        {
+            var result = new List<T>();
+            foreach(var t in data)
+            {
+                for (int i = 0; i < repeatCount; ++i)
+                {
+                    result.Add(t);
+                }
+            }
+            return result;
+        }
+
+
         public static string ShapeToStringWithBatchSize(int[] shape)
         {
             if (shape == null)
