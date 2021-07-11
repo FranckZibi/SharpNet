@@ -59,12 +59,12 @@ namespace SharpNet.MathTools
 
 
         /// <summary>
-        /// Coefficient O fVariation, see https://en.wikipedia.org/wiki/Coefficient_of_variation
+        /// Coefficient Of Variation, see https://en.wikipedia.org/wiki/Coefficient_of_variation
         /// Volatility / Average 
         /// </summary>
         public double CoefficientOfVariation => (Math.Abs(Average) < 1e-6) ? 0 : (Volatility / Average);
 
-        private double Variance
+        public double Variance
 		{
 			get
 			{
@@ -73,7 +73,7 @@ namespace SharpNet.MathTools
                     return 0;
                 }
 
-                return System.Math.Abs(sumSquare - Count * Average * Average) / Count;
+                return Math.Abs(sumSquare - Count * Average * Average) / Count;
 			}
 		}
 		public override string ToString()
