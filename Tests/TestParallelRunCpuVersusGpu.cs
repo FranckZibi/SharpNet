@@ -300,7 +300,8 @@ namespace SharpNetTests
                 var x = XWithRandomWordIndexes3D(BatchSize, timeSteps, vocabularySize, inputSize, indexInLastDimensionToUse);
                 var y = RandomTensor(new[] { BatchSize, timeSteps, inputSize+embeddingDim-1 });
                 var wordEmbedding = RandomTensor(new[] { vocabularySize, embeddingDim });
-                TestAll(new[] { y, x, wordEmbedding }, tensors => tensors[0].WordEmbeddingForwardPropagation(tensors[1], tensors[2], indexInLastDimensionToUse));
+                var indexInLastDimensionToUseLocal = indexInLastDimensionToUse;
+                TestAll(new[] { y, x, wordEmbedding }, tensors => tensors[0].WordEmbeddingForwardPropagation(tensors[1], tensors[2], indexInLastDimensionToUseLocal));
             }
         }
 

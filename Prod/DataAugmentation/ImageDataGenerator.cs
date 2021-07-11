@@ -22,7 +22,8 @@ namespace SharpNet.DataAugmentation
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP,
             AUTO_AUGMENT_SVHN,
             AUTO_AUGMENT_IMAGENET,
-            RAND_AUGMENT
+            RAND_AUGMENT,
+            TIME_SERIES
         };
 
         public ImageDataGenerator(DataAugmentationConfig config)

@@ -176,13 +176,19 @@ namespace SharpNet.Networks
         {
             Debug.Assert(Layers.Count == 0);
             Input(maxWordsBySentence, -1, -1);
-            Embedding(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, layerName);
+            Embedding(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, 0, false, layerName);
             return this;
         }
-        public Network Embedding(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, double lambdaL2Regularization, string layerName = "")
+        public Network Embedding(int vocabularySize, 
+            int embeddingDim, 
+            int indexInLastDimensionToUse, 
+            double lambdaL2Regularization,
+            float clipValueForGradients,
+            bool divideGradientsByTimeSteps,
+            string layerName = "")
         {
             Debug.Assert(Layers.Count == 1);
-            Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, true, this, layerName));
+            Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
             return this;
         }
         public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
@@ -874,7 +880,7 @@ namespace SharpNet.Networks
             var shuffledElementIdMemory = new Memory<int>(shuffledElementId);
             for (int firstIndexInShuffledElementId = 0; firstIndexInShuffledElementId < dataSet.Count; )
             {
-                //Log.Debug("Processing epoch " + epoch + " for elements [" + firstIndexInShuffledElementId + "," + (firstIndexInShuffledElementId_master + currentMiniBatchSize_master - 1) + "]");
+                //Log.Info("Processing epoch " + epoch + " for elements [" + firstIndexInShuffledElementId + ":]");
 
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);

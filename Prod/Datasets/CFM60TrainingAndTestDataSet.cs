@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
-using System.Linq;
 using SharpNet.MathTools;
 using SharpNet.Networks;
 
@@ -11,7 +9,6 @@ namespace SharpNet.Datasets
     public class CFM60TrainingAndTestDataSet : AbstractTrainingAndTestDataSet
     {
         private static IDictionary<int, LinearRegression> PidToLinearRegressionBetweenDayAndY;
-
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
 
@@ -67,29 +64,5 @@ namespace SharpNet.Datasets
         }
 
         private static readonly object lockObject = new object();
-    
-        // ReSharper disable once UnusedMember.Global
-        public string ComputeStats(double percentageInTrainingSet)
-        {
-            using var splitted = Training.SplitIntoTrainingAndValidation(percentageInTrainingSet);
-            var allTrainingStats = ((CFM60DataSet)Training).ComputeStats();
-            var trainingStats = ((CFM60DataSet)splitted.Training).ComputeStats();
-            var validationStats = ((CFM60DataSet)splitted.Test).ComputeStats();
-            var testStats = ((CFM60DataSet)Test).ComputeStats();
-
-            string result = Environment.NewLine+"percentageInTrainingSet=" + percentageInTrainingSet.ToString(CultureInfo.InvariantCulture)+Environment.NewLine;
-            foreach (var name in trainingStats.Keys.OrderBy(x => x).ToArray())
-            {
-                result += name + ":" + Environment.NewLine;
-                result += "\t\tALL Training: " + allTrainingStats[name] + Environment.NewLine;
-                result += "\t\t\t\tSplitted:Training: " + trainingStats[name] + Environment.NewLine;
-                result += "\t\t\t\tSplitted:Validation: " + validationStats[name] + Environment.NewLine;
-                result += "\t\tTest " + testStats[name] + Environment.NewLine;
-                result += "\t\tAll: " + DoubleAccumulator.Sum(allTrainingStats[name], testStats[name]) + Environment.NewLine;
-                
-            }
-            return result;
-        }
-
     }
 }

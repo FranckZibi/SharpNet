@@ -411,6 +411,10 @@ namespace SharpNet.Datasets
                 Log.Info("Done: " + (100 * newNbPerformed) / Count + "%");
             }
         }
+
+
+        private TimeSeriesDataAugmentation TimeSeriesDataAugmentation;
+
         /// <summary>
         /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the mini batch starting
         /// at 'firstIndexInShuffledElementId'
@@ -455,11 +459,23 @@ namespace SharpNet.Datasets
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
             if (!dataAugmentationConfig.UseDataAugmentation || !withDataAugmentation)
             {
-                //we'll just copy the input element
+                //no Data Augmentation: we'll just copy the input element
                 xOriginalNotAugmentedMiniBatch.CopyTo(xDataAugmentedMiniBatch);
+            }
+            else if (dataAugmentationConfig.DataAugmentationType == ImageDataGenerator.DataAugmentationEnum.TIME_SERIES)
+            {
+                //Data Augmentation for time series
+                xOriginalNotAugmentedMiniBatch.CopyTo(xDataAugmentedMiniBatch);
+                if (TimeSeriesDataAugmentation == null)
+                {
+                    var featuresCount = xOriginalNotAugmentedMiniBatch.Shape[2];
+                    TimeSeriesDataAugmentation = new TimeSeriesDataAugmentation(dataAugmentationConfig, (ITimeSeriesDataSet) this, featuresCount);
+                }
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => TimeSeriesDataAugmentation.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, xDataAugmentedMiniBatch, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
             }
             else
             {
+                //Data Augmentation for images
                 int targetHeight = xMiniBatchShape[2];
                 int targetWidth = xMiniBatchShape[3];
                 Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));

@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using SharpNet.Data;
 
 namespace SharpNet.DataAugmentation
@@ -44,6 +46,70 @@ namespace SharpNet.DataAugmentation
         /// If less or equal to 0 , Cutout will be disabled
         /// </summary>
         public double CutoutPatchPercentage { get; set; } = 0.0;
+
+        #region time series
+
+        public void WithTimeSeriesDataAugmentation(TimeSeriesDataAugmentationEnum timeSeriesDataAugmentationType,
+            double augmentedFeaturesPercentage,
+            bool useContinuousFeatureInEachTimeStep,
+            bool sameAugmentedFeaturesForEachTimeStep,
+            double noiseInPercentageOfVolatility = 0.0)
+        {
+            Debug.Assert(augmentedFeaturesPercentage >= 0);
+            Debug.Assert(augmentedFeaturesPercentage <= (1f + 1e-6));
+            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.TIME_SERIES;
+            TimeSeriesDataAugmentationType = timeSeriesDataAugmentationType;
+            AugmentedFeaturesPercentage = augmentedFeaturesPercentage;
+            UseContinuousFeatureInEachTimeStep = useContinuousFeatureInEachTimeStep;
+            SameAugmentedFeaturesForEachTimeStep = sameAugmentedFeaturesForEachTimeStep;
+            NoiseInPercentageOfVolatility = noiseInPercentageOfVolatility;
+        }
+
+        public enum TimeSeriesDataAugmentationEnum
+        {
+            NOTHING,         //no change
+            REPLACE_BY_MEAN, //replace feature by its mean
+            REPLACE_BY_ZERO, //replace feature by zero
+            ADD_NOISE,       //add noise to feature
+
+        }
+
+
+        public string TimeSeriesDescription()
+        {
+            string res = "_";
+            res += TimeSeriesDataAugmentationType;
+            res += "_" + AugmentedFeaturesPercentage.ToString(CultureInfo.InvariantCulture).Replace(".", "_");
+
+            if (UseContinuousFeatureInEachTimeStep)
+            {
+                res += "_Continuous";
+            }
+            if (SameAugmentedFeaturesForEachTimeStep)
+            {
+                res += "_SameFeaturesByTimeStep";
+            }
+            if (TimeSeriesDataAugmentationType == TimeSeriesDataAugmentationEnum.ADD_NOISE)
+            {
+                res += "_noise_" + NoiseInPercentageOfVolatility.ToString(CultureInfo.InvariantCulture).Replace(".", "_");
+            }
+            return res;
+        }
+
+        public TimeSeriesDataAugmentationEnum TimeSeriesDataAugmentationType { get; private set; } = TimeSeriesDataAugmentationEnum.NOTHING;
+        public bool UseContinuousFeatureInEachTimeStep  { get; private set; }
+        /// <summary>
+        /// % of the number of features to be 'augmented'
+        /// Ex: 0.2 means 20% of the features will be 'augmented'
+        /// </summary>
+        public double AugmentedFeaturesPercentage { get; private set; }
+        public bool SameAugmentedFeaturesForEachTimeStep { get; private set; }
+        /// <summary>
+        /// When TimeSeriesType = TimeSeriesAugmentationType.ADD_NOISE
+        /// the % of noise to add to the feature in % of the feature volatility
+        /// </summary>
+        public double NoiseInPercentageOfVolatility { get; private set; }
+        #endregion
 
         /// <summary>
         /// The alpha coefficient used to compute lambda in CutMix
@@ -134,6 +200,7 @@ namespace SharpNet.DataAugmentation
             RandAugment_M = M;
         }
 
+      
         public static readonly DataAugmentationConfig NoDataAugmentation = new DataAugmentationConfig();
 
         public bool Equals(DataAugmentationConfig other, double epsilon, string id, ref string errors)
@@ -195,6 +262,12 @@ namespace SharpNet.DataAugmentation
                 .Add(nameof(ContrastOperationEnhancementFactor), ContrastOperationEnhancementFactor)
                 .Add(nameof(RandAugment_N), RandAugment_N)
                 .Add(nameof(RandAugment_M), RandAugment_M)
+                //time series
+                .Add(nameof(TimeSeriesDataAugmentationType), (int)TimeSeriesDataAugmentationType)
+                .Add(nameof(UseContinuousFeatureInEachTimeStep), UseContinuousFeatureInEachTimeStep)
+                .Add(nameof(AugmentedFeaturesPercentage), AugmentedFeaturesPercentage)
+                .Add(nameof(SameAugmentedFeaturesForEachTimeStep), SameAugmentedFeaturesForEachTimeStep)
+                .Add(nameof(NoiseInPercentageOfVolatility), NoiseInPercentageOfVolatility)
                 .ToString();
         }
         public static DataAugmentationConfig ValueOf(IDictionary<string, object> serialized)
@@ -227,6 +300,12 @@ namespace SharpNet.DataAugmentation
             da.ContrastOperationEnhancementFactor = (double)serialized[nameof(ContrastOperationEnhancementFactor)];
             da.RandAugment_N = (int)serialized[nameof(RandAugment_N)];
             da.RandAugment_M = (int)serialized[nameof(RandAugment_M)];
+            //time series
+            da.TimeSeriesDataAugmentationType = (TimeSeriesDataAugmentationEnum)serialized[nameof(TimeSeriesDataAugmentationType)];
+            da.UseContinuousFeatureInEachTimeStep = (bool)serialized[nameof(UseContinuousFeatureInEachTimeStep)];
+            da.AugmentedFeaturesPercentage = (double)serialized[nameof(AugmentedFeaturesPercentage)];
+            da.SameAugmentedFeaturesForEachTimeStep = (bool)serialized[nameof(SameAugmentedFeaturesForEachTimeStep)];
+            da.NoiseInPercentageOfVolatility = (double)serialized[nameof(NoiseInPercentageOfVolatility)];
             return da;
         }
         #endregion

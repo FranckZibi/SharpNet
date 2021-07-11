@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using ProtoBuf;
 using SharpNet.MathTools;
 
@@ -15,6 +16,8 @@ namespace SharpNet.Datasets
 
 
         private float? _ret_vol_Volatility = null;
+        private float? _abs_ret_Volatility = null;
+        private float? _mean_abs_ret = null;
         private float? _ret_vol_CoefficientOfVariation = null;
 
         /// <summary>
@@ -108,7 +111,6 @@ namespace SharpNet.Datasets
             log("ProtoBuf file " + protoBufFile + " has been loaded");
             return entries;
         }
-
         public float Get_ret_vol_Volatility()
         {
             if (!_ret_vol_Volatility.HasValue)
@@ -118,6 +120,25 @@ namespace SharpNet.Datasets
                 _ret_vol_Volatility = (float)acc.Volatility;
             }
             return _ret_vol_Volatility.Value;
+        }
+
+        public float Get_mean_abs_ret()
+        {
+            if (!_mean_abs_ret.HasValue)
+            {
+                _mean_abs_ret = abs_ret.Sum() / abs_ret.Length;
+            }
+            return _mean_abs_ret.Value;
+        }
+        public float Get_abs_ret_Volatility()
+        {
+            if (!_abs_ret_Volatility.HasValue)
+            {
+                var acc = new DoubleAccumulator();
+                acc.Add(abs_ret);
+                _abs_ret_Volatility = (float)acc.Volatility;
+            }
+            return _abs_ret_Volatility.Value;
         }
 
         public float Get_ret_vol_CoefficientOfVariation()

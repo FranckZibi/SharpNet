@@ -41,20 +41,32 @@ namespace SharpNet.Layers
 
         [NotNull] private readonly Optimizer _optimizer;
         private readonly int IndexInLastDimensionToUse;
+
         /// <summary>
         /// Size of the vocabulary, i.e. maximum integer index + 1
         /// In the input 'x' tensor:
         ///     each element must be in [1, VocabularySize-1]
         /// </summary>
-        private int VocabularySize { get; }
+        private readonly int VocabularySize;
         /// <summary>
         ///  Dimension of the dense embedding.
         /// </summary>
-        private int EmbeddingDim { get; }
+        private readonly int EmbeddingDim;
         /// <summary>
         /// regularization hyper parameter. 0 if no L2 regularization
         /// </summary>
-        private double LambdaL2Regularization { get; }
+        private readonly double LambdaL2Regularization;
+        /// <summary>
+        /// if value > 0 
+        ///     clip values of weights gradients in range [-ClipValueForGradients, ClipValueForGradients]
+        /// else
+        ///     do not clip values
+        /// </summary>
+        private readonly float ClipValueForGradients;
+        /// <summary>
+        /// true if we should divide the weight gradients by the time steps
+        /// </summary>
+        private readonly bool DivideGradientsByTimeSteps;
         #endregion
 
         #region constructor
@@ -63,17 +75,21 @@ namespace SharpNet.Layers
             int embeddingDim,
             int indexInLastDimensionToUse,
             double lambdaL2Regularization,
+            float clipValueForGradients,
+            bool divideGradientsByTimeSteps,
             bool trainable, Network network, string layerName) : base(network, layerName)
         {
             IndexInLastDimensionToUse = indexInLastDimensionToUse;
             VocabularySize = vocabularySize;
             EmbeddingDim = embeddingDim;
             LambdaL2Regularization = lambdaL2Regularization;
+            ClipValueForGradients = clipValueForGradients;
+            DivideGradientsByTimeSteps = divideGradientsByTimeSteps;
 
             Trainable = trainable;
 
             //trainable params
-            _weights = GetFloatTensor(new[] { VocabularySize, EmbeddingDim });
+            _weights = GetFloatTensor(new[] { 1+VocabularySize+10, EmbeddingDim });
             _weightGradients = GetFloatTensor(_weights.Shape);
 
             _optimizer = GetOptimizer(_weights.Shape, null);
@@ -93,6 +109,7 @@ namespace SharpNet.Layers
             //We compute y = x*Weights
             y.WordEmbeddingForwardPropagation(x, _weights, IndexInLastDimensionToUse);
         }
+
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
         {
             Debug.Assert(y_NotUsed == null);
@@ -103,6 +120,18 @@ namespace SharpNet.Layers
 
             //we compute dW
             _weightGradients.WordEmbeddingBackwardPropagation(x, dx, dy, IndexInLastDimensionToUse);
+
+
+            if (DivideGradientsByTimeSteps)
+            {
+                int timeSteps = x.Shape[1];
+                _weightGradients.Update_Multiplying_By_Alpha(1f/ timeSteps);
+            }
+            if (ClipValueForGradients > 1e-6)
+            {
+                _weightGradients.Clip(-ClipValueForGradients, ClipValueForGradients);
+            }
+
             //L2 regularization on dW
             if (UseL2Regularization)
             {
@@ -177,6 +206,8 @@ namespace SharpNet.Layers
                 .Add(nameof(EmbeddingDim), EmbeddingDim)
                 .Add(nameof(IndexInLastDimensionToUse), IndexInLastDimensionToUse)
                 .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
+                .Add(nameof(ClipValueForGradients), ClipValueForGradients)
+                .Add(nameof(DivideGradientsByTimeSteps), DivideGradientsByTimeSteps)
                 .ToString();
         }
 
@@ -187,6 +218,8 @@ namespace SharpNet.Layers
                 (int) serialized[nameof(EmbeddingDim)],
                 (int) serialized[nameof(IndexInLastDimensionToUse)],
                 (double)serialized[nameof(LambdaL2Regularization)],
+                (float)serialized[nameof(ClipValueForGradients)],
+                (bool)serialized[nameof(DivideGradientsByTimeSteps)],
                 (bool)serialized[nameof(Trainable)],
                 network,
                 (string)serialized[nameof(LayerName)]);
