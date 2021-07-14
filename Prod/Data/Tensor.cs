@@ -39,7 +39,7 @@ namespace SharpNet.Data
 
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
-        public bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
+        protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
 
         public bool SameShapeExceptFirstDimension(Tensor b) { return SameShapeExceptFirstDimension(b.Shape); }
         public override string ToString()
@@ -383,6 +383,13 @@ namespace SharpNet.Data
         /// <param name="target"></param>
         public abstract void Switch_First_2_axis(Tensor target);
 
+        /// <summary>
+        /// transform the content of the 'this' tensor from shape [N, C, H] (or [N, C, H, 1]) to shape [N, H, C]
+        /// and store it in target
+        /// </summary>
+        /// <param name="target"></param>
+        public abstract void SwitchSecondAndThirdDimension(/*[OUT]*/ Tensor target);
+        
 
         /// <summary>
         /// create a copy of the 'this' tensor with the axis updated

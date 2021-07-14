@@ -742,7 +742,21 @@
 			target[idx_target] = src[idx_src];
 		}
 	}
-	
 
+	// transform a 'src' tensor of shape [n,c,h] to a 'target' tensor of shape [n,h,c] 
+	__global__ void SwitchSecondAndThirdDimension(int N, int nLength, int cLength, int hLength, const float* __restrict src, float* target)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i >= N)
+			return;
+		int n = i / cLength;
+		int c = i % cLength;
+		for(int h=0;h<hLength;++h)
+		{
+			int src_index = h + c * hLength + n * cLength * hLength;
+			int target_index = c + h * cLength + n * cLength * hLength;
+			target[target_index] = src[src_index];
+		}
+	}
 }
 
