@@ -15,8 +15,8 @@ namespace SharpNet.Datasets
         public const int DISTINCT_PID_COUNT = 900;  //total number of distinct companies (pid)
 
 
-        private float? _ret_vol_Volatility = null;
-        private float? _abs_ret_Volatility = null;
+        private float? _volatility_ret_vol = null;
+        private float? _volatility_abs_ret = null;
         private float? _mean_abs_ret = null;
         private float? _ret_vol_CoefficientOfVariation = null;
 
@@ -111,15 +111,15 @@ namespace SharpNet.Datasets
             log("ProtoBuf file " + protoBufFile + " has been loaded");
             return entries;
         }
-        public float Get_ret_vol_Volatility()
+        public float Get_volatility_ret_vol()
         {
-            if (!_ret_vol_Volatility.HasValue)
+            if (!_volatility_ret_vol.HasValue)
             {
                 var acc = new DoubleAccumulator();
                 acc.Add(ret_vol);
-                _ret_vol_Volatility = (float)acc.Volatility;
+                _volatility_ret_vol = (float)acc.Volatility;
             }
-            return _ret_vol_Volatility.Value;
+            return _volatility_ret_vol.Value;
         }
 
         public float Get_mean_abs_ret()
@@ -130,15 +130,15 @@ namespace SharpNet.Datasets
             }
             return _mean_abs_ret.Value;
         }
-        public float Get_abs_ret_Volatility()
+        public float Get_volatility_abs_ret()
         {
-            if (!_abs_ret_Volatility.HasValue)
+            if (!_volatility_abs_ret.HasValue)
             {
                 var acc = new DoubleAccumulator();
                 acc.Add(abs_ret);
-                _abs_ret_Volatility = (float)acc.Volatility;
+                _volatility_abs_ret = (float)acc.Volatility;
             }
-            return _abs_ret_Volatility.Value;
+            return _volatility_abs_ret.Value;
         }
 
         public float Get_ret_vol_CoefficientOfVariation()

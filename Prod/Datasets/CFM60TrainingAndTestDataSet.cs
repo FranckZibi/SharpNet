@@ -50,7 +50,7 @@ namespace SharpNet.Datasets
         {
             return (float)PidToLinearRegressionBetweenDayAndY[pid].Estimation(day);
         }
-        public static float Y_Average_BasedOnFullTrainingSet(int pid)
+        public static float Y_Mean_BasedOnFullTrainingSet(int pid)
         {
             return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Average;
         }

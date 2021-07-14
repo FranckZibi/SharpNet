@@ -314,11 +314,11 @@ namespace SharpNet.Datasets
                     //acc.AddFeature(entry.Get_mean_abs_ret(), "mean_abs_ret");
                     //acc.AddFeature((entry.Get_mean_abs_ret() - 0.118588544f) / 0.08134923f, "mean(abs_ret_normalized)");
                     calculator.AddFeature(CFM60TrainingAndTestDataSet.LinearRegressionEstimateBasedOnFullTrainingSet(entry.pid, entry.day),"y_LinearRegressionEstimate");
-                    calculator.AddFeature(CFM60TrainingAndTestDataSet.Y_Average_BasedOnFullTrainingSet(entry.pid), "mean(pid_y)");
+                    calculator.AddFeature(CFM60TrainingAndTestDataSet.Y_Mean_BasedOnFullTrainingSet(entry.pid), "mean(pid_y)");
                     calculator.AddFeature(CFM60TrainingAndTestDataSet.Y_Volatility_BasedOnFullTrainingSet(entry.pid), "vol(pid_y)");
                     calculator.AddFeature(CFM60TrainingAndTestDataSet.Y_Variance_BasedOnFullTrainingSet(entry.pid), "var(pid_y)");
                     calculator.AddFeature(entry.Get_ret_vol_CoefficientOfVariation(), "ret_vol_CoefficientOfVariation");
-                    calculator.AddFeature(entry.Get_ret_vol_Volatility(), "vol(ret_vol)");
+                    calculator.AddFeature(entry.Get_volatility_ret_vol(), "vol(ret_vol)");
                     calculator.AddFeature(entry.LS, "LS");
                     calculator.AddFeature(NormalizeBetween_0_and_1(entry.LS, ls_min, ls_max), "NormalizeLS");
                     calculator.AddFeature((entry.LS + 3.185075f) / 1.072115f, "NormalizeLS_V2");
@@ -516,7 +516,7 @@ namespace SharpNet.Datasets
                 }
 
                 //y estimate
-                if (Cfm60NetworkBuilder.Use_prev_Y_InputTensor)
+                if (Cfm60NetworkBuilder.Use_prev_Y)
                 {
                     var previousEntry = GetEntry(pid, indexInPidEntryArray - 1);
                     if (IsTrainingDataSet || (indexInPidEntryArray - 1) < 0)
@@ -527,7 +527,7 @@ namespace SharpNet.Datasets
                         {
                             throw new Exception("no Y value associated with entry " + (indexInPidEntryArray - 1) + " of pid " + pid);
                         }
-                        xDest[idx++] = Normalize(previousY, idx % featuresLength);
+                        xDest[idx++] = previousY;
                     }
                     else
                     {
@@ -537,50 +537,50 @@ namespace SharpNet.Datasets
                         {
                             throw new Exception("missing prediction for ID " + previousEntry.ID + " with pid " + pid + " : it is required to make the prediction for next ID " + entry.ID);
                         }
-                        xDest[idx++] = Normalize(_elementIdToPrediction[previousElementId], idx % featuresLength);
+                        xDest[idx++] = _elementIdToPrediction[previousElementId];
                     }
                 }
-                if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate)
                 {
-                    xDest[idx++] = CFM60TrainingAndTestDataSet.LinearRegressionEstimateBasedOnFullTrainingSet(entry.pid, entry.day);
+                    xDest[idx++] = Normalize(CFM60TrainingAndTestDataSet.LinearRegressionEstimateBasedOnFullTrainingSet(entry.pid, entry.day), idx % featuresLength);
                 }
-                if (Cfm60NetworkBuilder.Use_pid_y_avg_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_mean_pid_y)
                 {
-                    xDest[idx++] = Normalize(CFM60TrainingAndTestDataSet.Y_Average_BasedOnFullTrainingSet(entry.pid), idx % featuresLength);
+                    xDest[idx++] = Normalize(CFM60TrainingAndTestDataSet.Y_Mean_BasedOnFullTrainingSet(entry.pid), idx % featuresLength);
                 }
-                if (Cfm60NetworkBuilder.Use_pid_y_vol_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_volatility_pid_y)
                 {
                     xDest[idx++] = Normalize(CFM60TrainingAndTestDataSet.Y_Volatility_BasedOnFullTrainingSet(entry.pid), idx % featuresLength);
                 }
-                if (Cfm60NetworkBuilder.Use_pid_y_variance_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_variance_pid_y)
                 {
                     xDest[idx++] = Normalize(CFM60TrainingAndTestDataSet.Y_Variance_BasedOnFullTrainingSet(entry.pid), idx % featuresLength);
                 }
 
                 //day/year
-                if (Cfm60NetworkBuilder.Use_day_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_day)
                 {
-                    xDest[idx++] = Normalize(entry.day / Cfm60NetworkBuilder.Use_day_in_InputTensor_Divider, idx%featuresLength);
+                    xDest[idx++] = Normalize(entry.day / Cfm60NetworkBuilder.Use_day_Divider, idx % featuresLength);
                 }
-                if (Cfm60NetworkBuilder.Use_fraction_of_year_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_fraction_of_year)
                 {
                     xDest[idx++] = Normalize(DayToFractionOfYear(entry.day), idx % featuresLength);
                 }
-                if (Cfm60NetworkBuilder.Use_EndOfYear_flag_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_EndOfYear_flag)
                 {
                     xDest[idx++] = EndOfYear.Contains(entry.day) ? 1 : 0;
                 }
-                if (Cfm60NetworkBuilder.Use_Christmas_flag_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_Christmas_flag)
                 {
                     xDest[idx++] = Christmas.Contains(entry.day) ? 1 : 0;
                 }
-                if (Cfm60NetworkBuilder.Use_EndOfTrimester_flag_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_EndOfTrimester_flag)
                 {
                     xDest[idx++] = EndOfTrimester.Contains(entry.day) ? 1 : 0;
                 }
 
                 //abs_ret
-                if (Cfm60NetworkBuilder.Use_abs_ret_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_abs_ret)
                 {
                     //entry.abs_ret.AsSpan().CopyTo(xDest.Slice(idx, entry.abs_ret.Length));
                     //idx += entry.abs_ret.Length;
@@ -589,18 +589,17 @@ namespace SharpNet.Datasets
                         xDest[idx++] = Normalize(entry.abs_ret[i], idx % featuresLength);
                     }
                 }
-                if (Cfm60NetworkBuilder.Use_mean_abs_ret_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_mean_abs_ret)
                 {
-                    //TODO: check without normalizing
                     xDest[idx++] = Normalize(entry.Get_mean_abs_ret(), idx % featuresLength);
                 }
-                if (Cfm60NetworkBuilder.Use_abs_ret_Volatility_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_volatility_abs_ret)
                 {
-                    xDest[idx++] = Normalize(entry.Get_abs_ret_Volatility(), idx % featuresLength);
+                    xDest[idx++] = Normalize(entry.Get_volatility_abs_ret(), idx % featuresLength);
                 }
 
                 //ret_vol
-                if (Cfm60NetworkBuilder.Use_ret_vol_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_ret_vol)
                 {
                     //var asSpan = entry.ret_vol.AsSpan();
                     if (Cfm60NetworkBuilder.Use_ret_vol_start_and_end_only)
@@ -627,23 +626,19 @@ namespace SharpNet.Datasets
                         }
                     }
                 }
-                if (Cfm60NetworkBuilder.Use_ret_vol_CoefficientOfVariation_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_volatility_ret_vol)
                 {
-                    xDest[idx++] = Normalize(entry.Get_ret_vol_CoefficientOfVariation(), idx % featuresLength);
-                }
-                if (Cfm60NetworkBuilder.Use_ret_vol_Volatility_in_InputTensor)
-                {
-                    xDest[idx++] = Normalize(entry.Get_ret_vol_Volatility(), idx % featuresLength);
+                    xDest[idx++] = Normalize(entry.Get_volatility_ret_vol(), idx % featuresLength);
                 }
 
                 //LS
-                if (Cfm60NetworkBuilder.Use_LS_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_LS)
                 {
                     xDest[idx++] = Normalize(entry.LS, idx % featuresLength);
                 }
 
                 //NLV
-                if (Cfm60NetworkBuilder.Use_NLV_in_InputTensor)
+                if (Cfm60NetworkBuilder.Use_NLV)
                 {
                     xDest[idx++] = Normalize(entry.NLV, idx % featuresLength);
                 }
@@ -663,22 +658,26 @@ namespace SharpNet.Datasets
         private float Normalize(float featureValue, int featureId)
         {
             var stats = FeaturesStatistics[featureId];
-            if (stats == null || Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.NO_NORMALIZATION)
+            if (  stats == null 
+                ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.NONE
+                ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER
+                )
             {
                 return featureValue;
             }
-            if (Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.Z_SCORE_NORMALIZATION)
+            if (Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.Z_SCORE)
             {
                 var mean = (float)stats.Item3;
                 var volatility = (float)stats.Item4;
                 return (featureValue - mean) / volatility;
             }
-            if (Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN_NORMALIZATION)
+            if (  Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN
+                ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
             {
                 var mean = (float)stats.Item3;
                 return featureValue - mean;
             }
-            throw new NotImplementedException("not supported "+ Cfm60NetworkBuilder.InputNormalizationType);    
+            throw new NotImplementedException("not supported " + Cfm60NetworkBuilder.InputNormalizationType);
         }
 
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)

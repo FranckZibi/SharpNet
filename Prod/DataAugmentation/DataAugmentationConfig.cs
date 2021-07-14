@@ -75,6 +75,7 @@ namespace SharpNet.DataAugmentation
         }
 
 
+        // ReSharper disable once UnusedMember.Global
         public string TimeSeriesDescription()
         {
             string res = "_";
@@ -98,17 +99,19 @@ namespace SharpNet.DataAugmentation
 
         public TimeSeriesDataAugmentationEnum TimeSeriesDataAugmentationType { get; private set; } = TimeSeriesDataAugmentationEnum.NOTHING;
         public bool UseContinuousFeatureInEachTimeStep  { get; private set; }
+
         /// <summary>
         /// % of the number of features to be 'augmented'
         /// Ex: 0.2 means 20% of the features will be 'augmented'
         /// </summary>
-        public double AugmentedFeaturesPercentage { get; private set; }
+        public double AugmentedFeaturesPercentage { get; private set; } = 0.03;
         public bool SameAugmentedFeaturesForEachTimeStep { get; private set; }
+
         /// <summary>
         /// When TimeSeriesType = TimeSeriesAugmentationType.ADD_NOISE
         /// the % of noise to add to the feature in % of the feature volatility
         /// </summary>
-        public double NoiseInPercentageOfVolatility { get; private set; }
+        public double NoiseInPercentageOfVolatility { get; private set; } = 0.1;
         #endregion
 
         /// <summary>
