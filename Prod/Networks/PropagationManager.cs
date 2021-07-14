@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.Data;
-using SharpNet.Datasets;
 using SharpNet.Layers;
 
 namespace SharpNet.Networks
@@ -48,10 +47,8 @@ namespace SharpNet.Networks
         ///     true if we are training the network (the goal is to update weights)
         ///     false for inference only (we'll use existing weights to make a prediction)
         /// </param>
-        /// <param name="dataSet">needed for layers implementing ILayerNeedingDataSetForForwardPropagation</param>
-        /// <param name="elementIdIsnDataSet">needed for layers implementing ILayerNeedingDataSetForForwardPropagation</param>
         /// <returns></returns>
-        public void Forward([NotNull] Tensor X, [NotNull] Tensor yPredicted, bool isTraining, IDataSet dataSet, Memory<int> elementIdIsnDataSet)
+        public void Forward([NotNull] Tensor X, [NotNull] Tensor yPredicted, bool isTraining)
         {
             FreeAllMemory();
             Debug.Assert(_all_allocated_Y.Count == 0);
@@ -82,15 +79,7 @@ namespace SharpNet.Networks
                 }
                 referenceCountToLayer.Add(layer.NextLayerIndexes.Count);
                 var allX = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
-
-                if (layer is ILayerNeedingDataSetForForwardPropagation propagation)
-                {
-                    propagation.ForwardPropagationWithDataSet(allX, yBuffer, isTraining, dataSet, elementIdIsnDataSet);
-                }
-                else
-                {
-                    layer.ForwardPropagation(allX, yBuffer, isTraining);
-                }
+                layer.ForwardPropagation(allX, yBuffer, isTraining);
 
                 if (LogPropagation)
                 {
