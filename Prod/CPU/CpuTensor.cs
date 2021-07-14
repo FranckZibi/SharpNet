@@ -265,7 +265,22 @@ namespace SharpNet.CPU
             target.Reshape(targetShape);
         }
 
-
+        public override void SwitchSecondAndThirdDimension(Tensor target)
+        {
+            Debug.Assert(Shape.Length == 3 || (Shape.Length==4&&Shape[3] == 1));
+            var srcContent = AsReadonlyFloatCpuContent;
+            var targetContent = target.AsFloatCpuSpan;
+            for (int n = 0; n < Shape[0]; ++n)
+            {
+                for (int c = 0; c < Shape[1]; ++c)
+                {
+                    for (int h = 0; h < Shape[2]; ++h)
+                    {
+                        targetContent[target.Idx(n, h, c)] = srcContent[Idx(n, c, h)];
+                    }
+                }
+            }
+        }
 
         public override Tensor ChangeAxis(int[] targetAxisToSrcAxis)
         {

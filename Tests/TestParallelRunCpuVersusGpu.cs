@@ -868,6 +868,18 @@ namespace SharpNetTests
             TestAll(new[] {src, target}, tensors => tensors[0].Switch_First_2_axis(tensors[1]));
         }
 
+
+        [TestCase(new[] { 2, 3,7}, new[]{ 2, 7, 3 })]
+        [TestCase(new[] { 2, 3,7,1}, new[]{ 2, 7, 3 })]
+        [TestCase(new[] { 2, 3,7,1}, new[]{ 2,7,3, 1})]
+        [TestCase(new[] { 2, 3,7}, new[]{2,7,3,1})]
+        public void TestSwitchSecondAndThirdDimension(int[] srcShape, int[] targetShape)
+        {
+            var src = RandomTensor(srcShape);
+            var target = RandomTensor(targetShape);
+            TestAll(new[] { src, target }, tensors => tensors[0].SwitchSecondAndThirdDimension(tensors[1]));
+        }
+
         [TestCase(10)]
         [TestCase(1)]
         public void TestComputeAccuracyOneHot(int categoryCount)

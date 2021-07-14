@@ -444,6 +444,19 @@ namespace SharpNet.GPU
             target.Reshape(targetShape);
         }
 
+        public override void SwitchSecondAndThirdDimension(Tensor target)
+        {
+            Debug.Assert(Shape.Length == 3 || (Shape.Length==4&&Shape[3]==1));
+            Debug.Assert(target.Shape.Length == 3 || (target.Shape.Length==4&& target.Shape[3]==1));
+            Debug.Assert(Shape[0] == target.Shape[0]);
+            Debug.Assert(Shape[1] == target.Shape[2]);
+            Debug.Assert(Shape[2] == target.Shape[1]);
+            int n = Shape[0];
+            int c = Shape[1];
+            int h = Shape[2];
+            _wrapper.RunKernel("SwitchSecondAndThirdDimension", n*c, new object[] { n, c, h, this, target });
+        }
+
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient)
         {
             var dy = this;

@@ -67,6 +67,7 @@ namespace SharpNet.GPU
                     "WordEmbeddingForwardPropagation",
                     "WordEmbeddingBackwardPropagation",
                     "Switch_First_2_axis",
+                    "SwitchSecondAndThirdDimension",
                     "LinearFunction",
                     "ComputeLn",
                     "LnGradient",

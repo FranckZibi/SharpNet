@@ -236,12 +236,12 @@ namespace SharpNet.Layers
                 case nameof(EmbeddingLayer): return EmbeddingLayer.Deserialize(serialized, network);
                 case nameof(FlattenLayer): return FlattenLayer.Deserialize(serialized, network);
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
-                case nameof(CustomLinearFunctionLayer): return CustomLinearFunctionLayer.Deserialize(serialized, network);
                 case nameof(LinearFunctionLayer): return LinearFunctionLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
                 case nameof(RecurrentLayer): return RecurrentLayer.Deserialize(serialized, network);
+                case nameof(SwitchSecondAndThirdDimensionLayer): return SwitchSecondAndThirdDimensionLayer.Deserialize(serialized, network);
                 case nameof(UpSampling2DLayer): return UpSampling2DLayer.Deserialize(serialized, network);
                 case nameof(YOLOV3Layer): return YOLOV3Layer.Deserialize(serialized, network);
                 case nameof(ZeroPadding2DLayer): return ZeroPadding2DLayer.Deserialize(serialized, network);
