@@ -4,6 +4,7 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
+using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
@@ -89,6 +90,13 @@ namespace SharpNet.Datasets
         IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet);
 
 
+
         ResizeStrategyEnum ResizeStrategy { get; }
+
+        /// <summary>
+        /// check if we should save the network for the current epoch
+        /// </summary>
+        bool ShouldCreateSnapshotForEpoch(int epoch, Network network);
+        void SaveModelAndParameters(Network network, string modelFilePath, string parametersFilePath);
     }
 }

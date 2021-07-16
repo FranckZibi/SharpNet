@@ -514,16 +514,16 @@ namespace SharpNet.Networks
         /// Weights Update =       =       =       =       = [in,out] = [in]  =
         /// ===================================================================
         /// </summary>
-        /// <param name="trainingDataSetCpu"></param>
+        /// <param name="trainingDataSet"></param>
         /// <param name="learningRateComputer"></param>
         /// <param name="numEpochs"></param>
         /// <param name="miniBatchSizeForAllWorkers"></param>
         /// <param name="testDataSetCpuIfAny"></param>
-        public void Fit(IDataSet trainingDataSetCpu, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSizeForAllWorkers, IDataSet testDataSetCpuIfAny)
+        public void Fit(IDataSet trainingDataSet, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSizeForAllWorkers, IDataSet testDataSetCpuIfAny)
         {
             try
             {
-                Debug.Assert(Config.TypeSize == trainingDataSetCpu.TypeSize);
+                Debug.Assert(Config.TypeSize == trainingDataSet.TypeSize);
                 Debug.Assert(miniBatchSizeForAllWorkers >= 1);
                 if (learningRateComputer == null)
                 {
@@ -534,7 +534,7 @@ namespace SharpNet.Networks
 
                 FreezeSelectedLayers();
 
-                Log.Debug("Fit( " + Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSetCpu.Count))+" => " + Tensor.ShapeToString(trainingDataSetCpu.YMiniBatch_Shape(trainingDataSetCpu.Count))+" )");
+                Log.Debug("Fit( " + Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))+" => " + Tensor.ShapeToString(trainingDataSet.YMiniBatch_Shape(trainingDataSet.Count))+" )");
                 Log.Info(ToString());
 
 
@@ -542,7 +542,7 @@ namespace SharpNet.Networks
                 {
                     Log.Debug(GpuWrapper.ToString());
                 }
-                Log.Debug("Training Set: " + trainingDataSetCpu);
+                Log.Debug("Training Set: " + trainingDataSet);
                 if (testDataSetCpuIfAny != null)
                 {
                     Log.Debug("Test Set: " + testDataSetCpuIfAny);
@@ -578,7 +578,7 @@ namespace SharpNet.Networks
 
                     #region Mini Batch gradient descent
                     var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                    var yPredicted = MiniBatchGradientDescentForSingleEpoch(trainingDataSetCpu, miniBatchSizeForAllWorkers, learningRateComputer, null);
+                    var yPredicted = MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateComputer, null);
                     #endregion
 
                     //We display stats about the just finished epoch
@@ -588,8 +588,8 @@ namespace SharpNet.Networks
                     }
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
-                    var trainingMetricsForEpoch = ComputeMetrics(_yExpectedForEpoch, yPredicted);
-                    var lossAndAccuracyMsg = MetricsToString(trainingMetricsForEpoch, "");
+                    var trainingMetrics = ComputeMetrics(_yExpectedForEpoch, yPredicted);
+                    var lossAndAccuracyMsg = MetricsToString(trainingMetrics, "");
                     if (testDataSetCpuIfAny != null)
                     {
                         //We compute the validation (= test) loss&accuracy
@@ -610,7 +610,7 @@ namespace SharpNet.Networks
                     StopTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
 
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
-                    double nbStepsByEpoch = ((double)trainingDataSetCpu.Count) / miniBatchSizeForAllWorkers;
+                    double nbStepsByEpoch = ((double)trainingDataSet.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
                     Log.Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ Description);
                     Log.Debug(MemoryInfo());
@@ -621,7 +621,7 @@ namespace SharpNet.Networks
                     }
 
                     #region we save stats about the just finished epoch
-                    var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, secondsForEpoch, trainingMetricsForEpoch, validationMetrics);
+                    var currentEpochData = new EpochData(epoch, learningRateAtEpochStart, lrMultiplicativeFactorFromReduceLrOnPlateau, secondsForEpoch, trainingMetrics, validationMetrics);
                     EpochData.Add(currentEpochData);
                     #endregion
 
@@ -631,18 +631,19 @@ namespace SharpNet.Networks
                             //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
                         || ( (Config.AutoSaveIntervalInMinutes>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinutes)
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
-                        )
+                        || trainingDataSet.ShouldCreateSnapshotForEpoch(epoch, this)
+                    )
                     {
-                        var modelFilePath = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + ".txt");
+                        var modelFilePath = Path.Combine(Config.LogDirectory, UniqueId + ".txt");
                         var parametersFilePath = ModelFilePath2ParameterFilePath(modelFilePath);
-                        SaveModelAndParameters(modelFilePath, parametersFilePath);
+                        trainingDataSet.SaveModelAndParameters(this, modelFilePath, parametersFilePath);
                         lastAutoSaveTime = DateTime.Now;
                     }
                     #endregion
 
                     if (Config.SaveNetworkStatsAfterEachEpoch)
                     {
-                        var networkStatFileName = Path.Combine(Config.LogDirectory, UniqueId + "_" + epoch + "_NetworkStats.txt");
+                        var networkStatFileName = Path.Combine(Config.LogDirectory, UniqueId + "_NetworkStats.txt");
                         Log.Info("Saving network '" + Description + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
@@ -666,7 +667,7 @@ namespace SharpNet.Networks
                         + EpochData.Last().ValidationLoss + ";"
                         + EpochData.Last().ValidationAccuracy + ";"
                         + Environment.NewLine;
-                    var testsCsv = string.IsNullOrEmpty(trainingDataSetCpu.Name)?"Tests.csv": ("Tests_"+ trainingDataSetCpu.Name + ".csv");
+                    var testsCsv = string.IsNullOrEmpty(trainingDataSet.Name)?"Tests.csv": ("Tests_"+ trainingDataSet.Name + ".csv");
                     if (Config.LogEnabled)
                     {
                         File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, testsCsv), line);
@@ -999,8 +1000,34 @@ namespace SharpNet.Networks
             return ((InputLayer) Layers[0]).OutputShape(miniBatchSize);
         }
 
+        public bool CurrentEpochIsAbsolutelyBestInValidationLoss()
+        {
+            return
+                EpochData.Count >= 1
+                && EpochData.All(e => !double.IsNaN(e.ValidationLoss))
+                && Math.Abs(EpochData.Select(e => e.ValidationLoss).Min() - EpochData.Last().ValidationLoss) < 1e-6;
+        }
 
-        public string UniqueId => (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description)) + "_" + _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
+        public string UniqueId
+        {
+            get
+            {
+                var desc = (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description));
+                var epoch = EpochData.Count;
+                var trainingLoss = "";
+                if (epoch >= 1 && !double.IsNaN(EpochData.Last().TrainingLoss))
+                {
+                    trainingLoss = "_" + Math.Round(EpochData.Last().TrainingLoss, 4).ToString(CultureInfo.InvariantCulture).Replace(".", "_");
+                }
+                var validationLoss = "";
+                if (epoch >=1 && !double.IsNaN(EpochData.Last().ValidationLoss))
+                {
+                    validationLoss = "_" + Math.Round(EpochData.Last().ValidationLoss, 4).ToString(CultureInfo.InvariantCulture) .Replace(".", "_");
+                }
+                var timeStamp = _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
+                return desc + "_" + epoch + trainingLoss + validationLoss + "_" + timeStamp + "_" + Thread.CurrentThread.ManagedThreadId;
+            }
+        }
         private void CreateLogDirectoryIfNeeded()
         {
             if (!string.IsNullOrEmpty(Config.LogDirectory) && !Directory.Exists(Config.LogDirectory))

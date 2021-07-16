@@ -9,6 +9,7 @@ using System.Text;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Layers;
 using SharpNet.MathTools;
 using SharpNet.Networks;
 
@@ -355,6 +356,11 @@ namespace SharpNet.Datasets
         }
 
 
+        /// <summary>
+        /// the original (and complete) Test Data Set for the CFM60 challenge
+        /// </summary>
+        public CFM60DataSet OriginalTestDataSet { get; set; }
+
         public Tuple<double, double, double, double, double, double> GetFeatureStatistics(int featureId)
         {
             return FeaturesStatistics[featureId];
@@ -375,9 +381,32 @@ namespace SharpNet.Datasets
             return pidToLinearRegression;
         }
 
-        public void CreatePredictionFile(Network network, int miniBatchSizeForAllWorkers, string filePath)
+        /// <summary>
+        /// will save also the pid features, and the prediction file for the Test dataset
+        /// </summary>
+        public override void SaveModelAndParameters(Network network, string modelFilePath, string parametersFilePath)
         {
-            var res = network.Predict(this, miniBatchSizeForAllWorkers);
+            base.SaveModelAndParameters(network, modelFilePath, parametersFilePath);
+
+            OriginalTestDataSet?.CreatePredictionFile(network);
+            var embeddingLayer = network.Layers.FirstOrDefault(l => l is EmbeddingLayer);
+            if (embeddingLayer == null)
+            {
+                return;
+            }
+            var cpuTensor = embeddingLayer.Weights.ToCpuFloat();
+            cpuTensor.Save(Path.Combine(network.Config.LogDirectory, "pid_features_" + network.UniqueId + ".csv"),
+                row => row>=1&&row<=CFM60Entry.DISTINCT_PID_COUNT, //the first row is not used in word embedding
+                true,
+                "pid;"+string.Join(";", Enumerable.Range(0,cpuTensor.Shape[0]).Select(i=>"feature_"+i))
+                );
+        }
+
+        public void CreatePredictionFile(Network network)
+        {
+            string filePath = Path.Combine(network.Config.LogDirectory, IsTrainingDataSet?"validation_predictions":"test_predictions", network.UniqueId + ".csv");
+
+            var res = network.Predict(this, Cfm60NetworkBuilder.BatchSize);
             var CFM60EntryIDToPrediction = new Dictionary<int, double>();
             var spanResult = res.ReadonlyContent;
             for (int elementId = 0; elementId < Count; ++elementId)
@@ -527,7 +556,7 @@ namespace SharpNet.Datasets
                         {
                             throw new Exception("no Y value associated with entry " + (indexInPidEntryArray - 1) + " of pid " + pid);
                         }
-                        xDest[idx++] = previousY;
+                        xDest[idx++] = Normalize(previousY, idx % featuresLength);
                     }
                     else
                     {
@@ -537,7 +566,7 @@ namespace SharpNet.Datasets
                         {
                             throw new Exception("missing prediction for ID " + previousEntry.ID + " with pid " + pid + " : it is required to make the prediction for next ID " + entry.ID);
                         }
-                        xDest[idx++] = _elementIdToPrediction[previousElementId];
+                        xDest[idx++] = Normalize(_elementIdToPrediction[previousElementId], idx % featuresLength);
                     }
                 }
                 if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate)
@@ -690,6 +719,17 @@ namespace SharpNet.Datasets
             return new TrainingAndTestDataLoader(training, validation, Name);
         }
 
+        /// <summary>
+        /// we'll save the network if we have reached a very small loss
+        /// </summary>
+        public override bool ShouldCreateSnapshotForEpoch(int epoch, Network network)
+        {
+            return    epoch >= 2
+                   && network.CurrentEpochIsAbsolutelyBestInValidationLoss()
+                   && !double.IsNaN(network.EpochData.Last().ValidationLoss)
+                   && network.EpochData.Last().ValidationLoss < Cfm60NetworkBuilder.MaxLossToSaveTheNetwork;
+        }
+
         public override int Count => Y.Shape[0];
 
         public override int ElementIdToCategoryIndex(int elementId)
@@ -706,7 +746,8 @@ namespace SharpNet.Datasets
 
         public override string ToString()
         {
-            return Entries + " => " + Y;
+            var xShape = new [] {Count, TimeSteps, Cfm60NetworkBuilder.InputSize, FeaturesStatistics.Length};
+            return Tensor.ShapeToString(xShape) + " => " + Tensor.ShapeToString(Y.Shape);
         }
 
         public float ElementIdToExpectedAverage(int elementId)

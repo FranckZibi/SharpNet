@@ -57,7 +57,8 @@ namespace SharpNetTests.NonReg
             //we save the network
             var savedModelFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.txt");
             var saveParametersFile = Network.ModelFilePath2ParameterFilePath(savedModelFile);
-            network.SaveModelAndParameters(savedModelFile, saveParametersFile);
+            network.SaveModel(savedModelFile);
+            network.SaveParameters(saveParametersFile);
             network.Dispose();
 
             //we ensure that the saved version of the network behave the same as the original one

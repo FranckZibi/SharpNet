@@ -9,6 +9,7 @@ using log4net;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
+using SharpNet.Networks;
 using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
@@ -265,6 +266,17 @@ namespace SharpNet.Datasets
         public abstract int Count { get; }
         public string Name { get; }
         public ResizeStrategyEnum ResizeStrategy { get; }
+        public virtual bool ShouldCreateSnapshotForEpoch(int epoch, Network network)
+        {
+            return false;
+        }
+
+        public virtual void SaveModelAndParameters(Network network, string modelFilePath, string parametersFilePath)
+        {
+            network.SaveModel(modelFilePath);
+            network.SaveParameters(parametersFilePath);
+        }
+
         public int Channels { get; }
         /// <summary>
         /// return the mean of channel 'channel' of the original DataSet (before normalization)

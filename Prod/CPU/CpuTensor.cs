@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading.Tasks;
 using SharpNet.Data;
 using SharpNet.GPU;
@@ -1394,7 +1396,7 @@ namespace SharpNet.CPU
             adam_sW.AsFloatCpu.Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
             //Update parameters
-            W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon))));
+            W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) ));
         }
         //this = yExpected
         public override double ComputeLoss([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
@@ -2142,6 +2144,34 @@ namespace SharpNet.CPU
                 //varianceContent[i] = varianceContent[i]/meanDivider - meanContent[i] * meanContent[i];
                 varianceContent[i] = (meanDivider <= 1) ? 1f : (varianceContent[i] - meanDivider * meanContent[i] * meanContent[i]) / (meanDivider - 1);
             }
+        }
+
+        public void Save(string filePath, Func<int,bool> shouldSaveRow, bool addColumnWithRowIndex, string header = null)
+        {
+            var sb = new StringBuilder();
+            if (!string.IsNullOrEmpty(header))
+            {
+                sb.Append(header + Environment.NewLine);
+            }
+
+            int rowIndex = 0;
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                if (!shouldSaveRow(row))
+                {
+                    continue;
+                }
+
+                if (addColumnWithRowIndex)
+                {
+                    sb.Append(rowIndex+";");
+                }
+                var tmp  = ElementSlice(row).AsFloatCpuSpan.ToArray();
+                sb.Append(string.Join(";", tmp.Select(x => x.ToString(CultureInfo.InvariantCulture))));
+                sb.Append(Environment.NewLine);
+                ++rowIndex;
+            }
+            System.IO.File.WriteAllText(filePath, sb.ToString());
         }
     }
 }

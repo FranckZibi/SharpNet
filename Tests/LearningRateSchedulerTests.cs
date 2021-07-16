@@ -73,7 +73,9 @@ namespace SharpNetTests
             Assert.AreEqual(0.1, lr.LearningRate(-1, 0), epsilon);
             Assert.AreEqual(0.1, lr.LearningRate(0, 0), epsilon);
             Assert.AreEqual(0.1, lr.LearningRate(1, 0), epsilon);
+            Assert.AreEqual(0.1, lr.LearningRate(1, 0.5), epsilon);
             Assert.AreEqual(0.2, lr.LearningRate(2, 0), epsilon);
+            Assert.AreEqual(0.2, lr.LearningRate(2, 1.0), epsilon);
             Assert.AreEqual(0.3, lr.LearningRate(3, 0), epsilon);
             Assert.AreEqual(0.3, lr.LearningRate(100, 0), epsilon);
         }
@@ -86,11 +88,35 @@ namespace SharpNetTests
             Assert.AreEqual(0.1, lr.LearningRate(0, 0), epsilon);
             Assert.AreEqual(0.1, lr.LearningRate(1, 0), epsilon);
             Assert.AreEqual(0.2, lr.LearningRate(2, 0), epsilon);
+            Assert.AreEqual(0.2, lr.LearningRate(2, 0.5), epsilon);
             Assert.AreEqual(0.3, lr.LearningRate(3, 0), epsilon);
             Assert.AreEqual(0.5, lr.LearningRate(4, 0), epsilon);
+            Assert.AreEqual(0.5, lr.LearningRate(4, 0.75), epsilon);
             Assert.AreEqual(0.7, lr.LearningRate(5, 0), epsilon);
             Assert.AreEqual(0.9, lr.LearningRate(6, 0), epsilon);
             Assert.AreEqual(0.9, lr.LearningRate(100, 0), epsilon);
+        }
+
+
+        [Test]
+        public void InterpolateByIntervalTest3()
+        {
+            var startLearningRate = 0.0;
+            var lastLearningRate = 100.0;
+            var lr = LearningRateScheduler.Linear(startLearningRate, 100, lastLearningRate);
+            Assert.AreEqual(startLearningRate, lr.LearningRate(-1, 0), epsilon);
+            Assert.AreEqual(startLearningRate, lr.LearningRate(0, 0), epsilon);
+            Assert.AreEqual(0.5, lr.LearningRate(1, 0.5), epsilon);
+            Assert.AreEqual(1.0, lr.LearningRate(1, 1.0), epsilon);
+            Assert.AreEqual(1.0, lr.LearningRate(2, 0), epsilon);
+            Assert.AreEqual(2.0, lr.LearningRate(3, 0), epsilon);
+            Assert.AreEqual(2.75, lr.LearningRate(3, 0.75), epsilon);
+            Assert.AreEqual(98, lr.LearningRate(99, 0), epsilon);
+            Assert.AreEqual(98.5, lr.LearningRate(99, 0.5), epsilon);
+            Assert.AreEqual(99, lr.LearningRate(100, 0), epsilon);
+            Assert.AreEqual(99.5, lr.LearningRate(100, 0.5), epsilon);
+            Assert.AreEqual(lastLearningRate, lr.LearningRate(100, 1.0), epsilon);
+            Assert.AreEqual(lastLearningRate, lr.LearningRate(500, 0), epsilon);
         }
     }
 }

@@ -18,7 +18,7 @@ namespace SharpNet.Networks
         #region fields
 
         #region learning rate scheduler fields
-        public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, CyclicCosineAnnealing, Cifar10WideResNet, Constant}
+        public enum LearningRateSchedulerEnum { Cifar10ResNet, Cifar10DenseNet, OneCycle, CyclicCosineAnnealing, Cifar10WideResNet, Linear, Constant}
 
         private LearningRateSchedulerEnum LearningRateSchedulerType { get; set; } = LearningRateSchedulerEnum.Constant;
         private int CyclicCosineAnnealing_nbEpochsInFirstRun { get; set; } = 10;
@@ -29,6 +29,9 @@ namespace SharpNet.Networks
         /// </summary>
         private int OneCycle_DividerForMinLearningRate { get; set; } = 10;
         private double OneCycle_PercentInAnnealing { get; set; } = 0.2;
+
+
+        private int Linear_DividerForMinLearningRate { get; set; } = 100;
 
         /// <summary>
         /// the minimum value for the learning rate (default value:  1e-6)
@@ -170,6 +173,13 @@ namespace SharpNet.Networks
             CyclicCosineAnnealing_MinLearningRate = minLearningRate;
             return this;
         }
+        public NetworkConfig WithLinearLearningRateScheduler(int dividerForMinLearningRate)
+        {
+            DisableReduceLROnPlateau = true;
+            LearningRateSchedulerType = LearningRateSchedulerEnum.Linear;
+            Linear_DividerForMinLearningRate = dividerForMinLearningRate;
+            return this;
+        }
         public NetworkConfig WithOneCycleLearningRateScheduler(int dividerForMinLearningRate, double percentInAnnealing)
         {
             LearningRateSchedulerType = LearningRateSchedulerEnum.OneCycle;
@@ -232,6 +242,8 @@ namespace SharpNet.Networks
                         : LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 80, initialLearningRate / 10, 120, initialLearningRate / 100, 200, initialLearningRate / 100);
                 case LearningRateSchedulerEnum.Cifar10WideResNet:
                     return LearningRateScheduler.ConstantByInterval(1, initialLearningRate, 60, initialLearningRate / 5, 120, initialLearningRate / 25, 160, initialLearningRate / 125);
+                case LearningRateSchedulerEnum.Linear:
+                    return LearningRateScheduler.Linear(initialLearningRate, numEpochs, initialLearningRate/Linear_DividerForMinLearningRate);
                 case LearningRateSchedulerEnum.Constant:
                     return LearningRateScheduler.Constant(initialLearningRate);
                 default:

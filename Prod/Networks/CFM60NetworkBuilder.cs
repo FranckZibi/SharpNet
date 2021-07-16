@@ -175,7 +175,9 @@ namespace SharpNet.Networks
         public int LSTMLayersReturningFullSequence { get; set; } = 1;
         public double DropProbability { get; set; } = 0.2;       //validated on 15-jan-2021
         public bool UseBatchNorm2 { get; set; } = false;
+
         public int HiddenSize { get; set; } = 128;               //validated on 15-jan-2021
+        
         public int DenseUnits { get; set; } = 200;              //validated on 21-jan-2021: -0.0038
         //public int DenseUnits { get; set; } = 100;
 
@@ -187,6 +189,9 @@ namespace SharpNet.Networks
         public bool UseReluAfterConv1D { get; set; } = false;
         public double LambdaL2Regularization { get; set; } = 0;
 
+        // max value of the loss to consider saving the network
+        public double MaxLossToSaveTheNetwork { get; set; } = 0.355;
+        
         // ReSharper disable once UnusedMember.Global
         public void WithConv1D(int kernelWidth, ConvolutionLayer.PADDING_TYPE paddingType, bool useBatchNormAfterConv1D, bool useReluAfterConv1D)
         {
@@ -238,9 +243,10 @@ namespace SharpNet.Networks
             builder.LambdaL2Regularization = 0.00005; //validated on 4-july-2021: no change but lower volatility
             builder.ClipValueForGradients = 1000;  //validated on 4-july-2021: -0.0110
             builder.Config.WithOneCycleLearningRateScheduler(200, 0.1); //validated on 14-july-2021: -0.0078
+            builder.HiddenSize = 64; //validated on 14-july-2021: very small degradation (+0.0010) but much less parameters
 
+            //builder.Pid_EmbeddingDim = 12;
             //builder.InitialLearningRate = 0.01;
-            builder.NumEpochs = 30;
             return builder;
         }
 

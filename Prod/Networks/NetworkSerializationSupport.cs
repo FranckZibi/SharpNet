@@ -11,12 +11,6 @@ namespace SharpNet.Networks
 {
     public partial class Network
     {
-        public void SaveModelAndParameters(string modelFilePath, string parametersFilePath)
-        {
-            SaveModel(modelFilePath);
-            SaveParameters(parametersFilePath);
-        }
-
 
         /// <summary>
         /// ensure that the resource ids required for a network are available, and fix them if it is not
@@ -152,7 +146,7 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="modelFilePath">the file where to store the network model
         /// if it already exist, it will be removed first</param>
-        private void SaveModel(string modelFilePath)
+        public void SaveModel(string modelFilePath)
         {
             var swSaveModelTime = Stopwatch.StartNew();
 
