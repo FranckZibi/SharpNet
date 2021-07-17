@@ -483,7 +483,8 @@ namespace SharpNet.Layers
         {
             switch (Config.OptimizerType)
             {
-                case Optimizer.OptimizationEnum.Adam: return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.Adam: return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, 0.0, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.AdamW: return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, Config.lambdaL2Regularization, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.SGD: return new Sgd(MemoryPool, Config.SGD_momentum, Config.SGD_usenesterov, weightShape, biasShape);
                 default: return VanillaSgd.Instance;
             }

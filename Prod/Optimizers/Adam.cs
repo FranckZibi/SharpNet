@@ -18,6 +18,7 @@ namespace SharpNet.Optimizers
         private readonly double _adam_beta1;
         private readonly double _adam_beta2;
         private readonly double _adam_epsilon;
+        private readonly double _adamW_l2Regularization;
         private readonly Tensor _adam_VW;                      // same as 'Weights'
         private readonly Tensor _adam_SW;                      // same as 'Weights'
         [CanBeNull] private readonly Tensor _adam_VB;          // same as 'Bias'
@@ -26,12 +27,13 @@ namespace SharpNet.Optimizers
 
         #endregion
 
-        public Adam(TensorMemoryPool memoryPool, double adam_beta1, double adam_beta2, double adam_epsilon, int[] weightShape, int[] biasShapeIfAny)
+        public Adam(TensorMemoryPool memoryPool, double adam_beta1, double adam_beta2, double adam_epsilon, double adamW_l2Regularization, int[] weightShape, int[] biasShapeIfAny)
         {
             _memoryPool = memoryPool;
             _adam_beta1 = adam_beta1;
             _adam_beta2 = adam_beta2;
             _adam_epsilon = adam_epsilon;
+            _adamW_l2Regularization = adamW_l2Regularization;
             _memoryPool.GetFloatTensor(ref _adam_VW, weightShape);
             _memoryPool.GetFloatTensor(ref _adam_SW , weightShape);
             if (biasShapeIfAny != null)
@@ -58,8 +60,8 @@ namespace SharpNet.Optimizers
             Debug.Assert(bias == null || bias.SameShape(biasGradient));
             ++_timestep;
             var ponderedLearningRate = (float) learningRate;
-            weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, weightGradients, _adam_VW, _adam_SW, _timestep);
-            bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, biasGradient, _adam_VB, _adam_SB, _timestep);
+            weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, _adamW_l2Regularization, weightGradients, _adam_VW, _adam_SW, _timestep);
+            bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, _adamW_l2Regularization, biasGradient, _adam_VB, _adam_SB, _timestep);
         }
         public override void Dispose()
         {
@@ -80,6 +82,7 @@ namespace SharpNet.Optimizers
                 .Add(nameof(_adam_beta1), _adam_beta1)
                 .Add(nameof(_adam_beta2), _adam_beta2)
                 .Add(nameof(_adam_epsilon), _adam_epsilon)
+                .Add(nameof(_adamW_l2Regularization), _adamW_l2Regularization)
                 .Add(nameof(_adam_VW), _adam_VW)
                 .Add(nameof(_adam_SW), _adam_SW)
                 .Add(nameof(_adam_VB), _adam_VB)
@@ -96,6 +99,7 @@ namespace SharpNet.Optimizers
             serialized.TryGet(nameof(_adam_beta1), out _adam_beta1);
             serialized.TryGet(nameof(_adam_beta2), out _adam_beta2);
             serialized.TryGet(nameof(_adam_epsilon), out _adam_epsilon);
+            serialized.TryGet(nameof(_adamW_l2Regularization), out _adamW_l2Regularization);
             serialized.TryGet(nameof(_adam_VW), out _adam_VW);
             serialized.TryGet(nameof(_adam_SW), out _adam_SW);
             serialized.TryGet(nameof(_adam_VB), out _adam_VB);

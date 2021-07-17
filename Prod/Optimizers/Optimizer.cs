@@ -6,7 +6,8 @@ namespace SharpNet.Optimizers
 {
     public abstract class Optimizer : IDisposable
     {
-        public enum OptimizationEnum { VanillaSGD, Adam, SGD }
+        //for AdamW, see: https://www.fast.ai/2018/07/02/adam-weight-decay/
+        public enum OptimizationEnum { VanillaSGD, Adam, SGD, AdamW }
         protected bool _isDisposed;
 
         public static Optimizer ValueOf(IDictionary<string, object> serialized)

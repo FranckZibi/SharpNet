@@ -9,7 +9,7 @@
 			output[i] = left[i] + right[i];
 	}
 
-    __global__ void UpdateAdamOptimizer(int N, float beta1, float beta2, float epsilon, float multiplicative_factor,
+    __global__ void UpdateAdamOptimizer(int N, float beta1, float beta2, float epsilon, float adamW_l2Regularization, float multiplicative_factor,
 				const float* __restrict dW, float* __restrict W,
 				float* __restrict adam_vW, float* __restrict adam_sW) {
 		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {

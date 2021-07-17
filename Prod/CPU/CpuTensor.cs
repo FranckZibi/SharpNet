@@ -1372,6 +1372,7 @@ namespace SharpNet.CPU
         {
             ComputeSumByColumn(biasGradient);
         }
+
         /// <summary>
         /// Use Adam optimizer (see https://arxiv.org/pdf/1412.6980.pdf)
         /// this = Weights or Bias
@@ -1380,11 +1381,13 @@ namespace SharpNet.CPU
         /// <param name="beta1"></param>
         /// <param name="beta2"></param>
         /// <param name="epsilon"></param>
+        /// <param name="adamW_l2Regularization"></param>
         /// <param name="dW"></param>
         /// <param name="adam_vW">biased first moment estimate</param>
         /// <param name="adam_sW">biased second raw moment estimate</param>
         /// <param name="timeStep"></param>
-        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
+        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon,
+            double adamW_l2Regularization, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
         {
             var beta1_power = Math.Pow(beta1, timeStep);
             var beta2_power = Math.Pow(beta2, timeStep);
@@ -1432,24 +1435,6 @@ namespace SharpNet.CPU
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
             }
-
-            //!D TODO using CUDA
-            /*
-            //L2 regularization
-            if (Layers.Skip(1).Any(l => l.UseL2Regularization))
-            {
-                double L2RegularizationCost = 0.0;
-                foreach (var l in Layers.Skip(1))
-                {
-                    if (l.UseL2Regularization && l is DenseLayer)
-                    {
-                        DenseLayer fclayer = l as DenseLayer;
-                        L2RegularizationCost += (1.0 / batchSize) * (fclayer.lambdaL2Regularization / 2) * fclayer.Weights.SumSquare();
-                    }
-                }
-                cost += L2RegularizationCost;
-            }
-            */
 
             return cost;
         }

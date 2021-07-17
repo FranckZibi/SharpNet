@@ -513,7 +513,7 @@ namespace SharpNet.Layers
             Padding(xShape4D[2], _kernelHeight, _stride, paddingTypeForHeight, Config.CompatibilityMode, out paddingTop, out paddingBottom);
             Padding(xShape4D[3], _kernelWidth, _stride, paddingTypeForWidth, Config.CompatibilityMode, out paddingLeft, out paddingRight);
         }
-        private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
+        private bool UseL2Regularization => _lambdaL2Regularization > 0.0 && Config.OptimizerType != Optimizer.OptimizationEnum.AdamW;
         private int[] ConvolutionShape
         {
             get
