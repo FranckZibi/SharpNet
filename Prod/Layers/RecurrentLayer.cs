@@ -25,6 +25,7 @@ namespace SharpNet.Layers
         #region Fields
         #region GPU Parameters 
         private readonly cudnnRNNDescriptor_t _cudnnRNNDescriptor_t;
+
         /// <summary>
         /// needed only for training, null for inference
         /// </summary>
@@ -37,10 +38,19 @@ namespace SharpNet.Layers
 
         #region trainable parameters
         [NotNull] private Tensor _weightsAndBiases;
+        [NotNull] private readonly List<Tensor> _weights_ax = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_aa = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_ax_bias = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_aa_bias = new List<Tensor>();
         #endregion
         #region gradients
         [NotNull] private Tensor _weightsAndBiasesGradients;
+        [NotNull] private readonly List<Tensor> _weights_ax_gradients = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_aa_gradients = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_ax_bias_gradients = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_aa_bias_gradients = new List<Tensor>();
         #endregion
+
         private readonly bool _returnSequences;
         private readonly RNNDescriptor _rnnDescriptor;
         /// <summary>
@@ -54,13 +64,19 @@ namespace SharpNet.Layers
 
         private cudnnRNNMode_t CellMode => _rnnDescriptor.cellMode;
         private cudnnRNNBiasMode_t BiasMode => _rnnDescriptor.biasMode;
+        private int NumLayers => _rnnDescriptor.numLayers;
+        private double DropoutRate => _rnnDescriptor.dropoutRate;
         private int InputSize => _rnnDescriptor.inputSize;      // == features
         private int HiddenSize => _rnnDescriptor.hiddenSize;    // == units
         private bool IsBidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
 
         #region constructor
-        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, bool trainable, Network network, string layerName) : base(network, layerName)
+        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool trainable, Network network, string layerName) : base(network, layerName)
         {
+            if (!Network.UseGPU)
+            {
+                throw new NotImplementedException();
+            }
             int inputSize = PrevLayer.OutputShape(1)[2]; // inputSize == Features
             uint auxFlags = 0;
             auxFlags |= CudnnWrapper.CUDNN_RNN_PADDED_IO_ENABLED;
@@ -76,35 +92,112 @@ namespace SharpNet.Layers
                 inputSize,  /* = features */
                 hiddenSize, /* hiddenSize */
                 hiddenSize, /* projSize*/
-                1,          /* numLayers */
-                0.0,
+                numLayers,  /* numLayers */
+                dropoutRate, /* dropout rate */
                 auxFlags);
 
             _returnSequences = returnSequences;
             Trainable = trainable;
 
-            _weightsAndBiases = GetFloatTensor(new []{ _rnnDescriptor.WeightAndBiasCount});
-            _weightsAndBiasesGradients = GetFloatTensor(_weightsAndBiases.Shape);
-            _optimizer = GetOptimizer(_weightsAndBiases.Shape, null);
 
+            _cudnnRNNDescriptor_t = Network.GpuWrapper.RNNDesc(_rnnDescriptor, Network.GetRandomNumberGeneratorStatesBuffer());
+            CudnnWrapper.cudnnGetRNNWeightSpaceSize(Network.GpuWrapper.CudnnHandle, _cudnnRNNDescriptor_t, out var weightSpaceSize);
+
+            _weightsAndBiases = GetFloatTensor(new[] { (int)(weightSpaceSize / 4) });
+            _weightsAndBiasesGradients = GetFloatTensor(_weightsAndBiases.Shape);
+            
+
+            InitializeWeightAndBiasTensorList(_weightsAndBiases, false);
+            InitializeWeightAndBiasTensorList(_weightsAndBiasesGradients, true);
+            _optimizer = GetOptimizer(_weightsAndBiases.Shape, null);
+          
             // ReSharper disable once VirtualMemberCallInConstructor
             ResetParameters(false);
+        }
 
-            if (network.UseGPU)
+
+
+        #region extract of all tensors embedded in '_weightsAndBiases' and '_weightsAndBiasesGradients' GPU memory space
+
+        /// <summary>
+        /// Initialize the 8 following lists:
+        ///     _weights_ax
+        ///     _weights_aa
+        ///     _weights_ax_bias  
+        ///     _weights_aa_bias
+        ///     _weights_ax_gradients
+        ///     _weights_aa_gradients
+        ///     _weights_ax_bias_gradients
+        ///     _weights_aa_bias_gradients 
+        /// </summary>
+        private void InitializeWeightAndBiasTensorList(Tensor t, bool isGradient)
+        {
+            var res = CudnnWrapper.cudnnCreateTensorDescriptor(out var weightDesc);
+            GPUWrapper.CheckStatus(res);
+            res = CudnnWrapper.cudnnCreateTensorDescriptor(out var biasDesc);
+            GPUWrapper.CheckStatus(res);
+
+            for (int pseudoLayer = 0; pseudoLayer < _rnnDescriptor.PseudoLayersCount; ++pseudoLayer)
             {
-                _cudnnRNNDescriptor_t = Network.GpuWrapper.RNNDesc(_rnnDescriptor, Network.GetRandomNumberGeneratorStatesBuffer());
-                CudnnWrapper.cudnnGetRNNWeightSpaceSize(Network.GpuWrapper.CudnnHandle, _cudnnRNNDescriptor_t, out var weightSpaceSize);
-                if (_weightsAndBiases.Count != (int)(weightSpaceSize / 4))
+                for (int linLayerID = 0; linLayerID < _rnnDescriptor.LinLayerIDCount; ++linLayerID)
                 {
-                    throw new ArgumentException("expecting 4*" + _weightsAndBiases.Count + " weights and bias but got " + weightSpaceSize);
+                    res = CudnnWrapper.cudnnGetRNNWeightParams(Network.GpuWrapper.CudnnHandle, _cudnnRNNDescriptor_t,
+                        pseudoLayer, t.ReallyNeededMemoryInBytes, t.Pointer, linLayerID, weightDesc,
+                        out IntPtr weightAddress, biasDesc, out IntPtr biasAddress);
+                    GPUWrapper.CheckStatus(res);
+                    var weight = GetWeightTensor(weightDesc, weightAddress, false);
+                    var bias = GetWeightTensor(biasDesc, biasAddress, true);
+                    bool isAx = linLayerID < (_rnnDescriptor.LinLayerIDCount / 2);
+                    GetTensorListToUpdate(false, isGradient, isAx).Add(weight);
+                    GetTensorListToUpdate(true, isGradient, isAx).Add(bias);
                 }
             }
+            res = CudnnWrapper.cudnnDestroyTensorDescriptor(weightDesc);
+            GPUWrapper.CheckStatus(res);
+            res = CudnnWrapper.cudnnDestroyTensorDescriptor(biasDesc);
+            GPUWrapper.CheckStatus(res);
         }
+
+        private List<Tensor> GetTensorListToUpdate(bool isBiasList, bool isGradientList, bool isAxList)
+        {
+            if (isBiasList)
+            {
+                if (isAxList)
+                {
+                    return isGradientList ? _weights_ax_bias_gradients : _weights_ax_bias;
+                }
+                return isGradientList ? _weights_aa_bias_gradients : _weights_aa_bias;
+            }
+            if (isAxList)
+            {
+                return isGradientList ? _weights_ax_gradients : _weights_ax;
+            }
+            return isGradientList ? _weights_aa_gradients : _weights_aa;
+        }
+
+
+        private GPUTensor<float> GetWeightTensor(cudnnTensorDescriptor_t tensorDesc, IntPtr tensorAddress, bool isBias)
+        {
+            if (tensorAddress == IntPtr.Zero)
+            {
+                return null;
+            }
+            var tensorShape = Network.GpuWrapper.GetTensorShape(tensorDesc);
+            Debug.Assert(tensorShape.Length >= 3);
+            Debug.Assert(tensorShape[0] == 1);
+            Debug.Assert(!isBias || tensorShape[2] == 1);
+            var actualShape = isBias
+                ? new[] {1, tensorShape[1] }                //for bias, tensorShape will be: {1, rows, 1}
+                : new[] {tensorShape[1], tensorShape[2]};   //for weights, tensorShape will be: {1, rows, cols}
+            return new GPUTensor<float>(actualShape, tensorAddress, Network.GpuWrapper);
+        }
+        #endregion
+
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
-            Weights_ax.GlorotUniform(Rand);
-            Weights_aa.Orthogonal(Rand);
-            Bias?.ZeroMemory();
+            _weightsAndBiases.ZeroMemory();
+            _weights_aa.ForEach(t=>t.Orthogonal(Rand));
+            _weights_ax.ForEach(t => t.GlorotUniform(Rand));
         }
         #endregion
 
@@ -158,11 +251,7 @@ namespace SharpNet.Layers
         /// <param name="isTraining"></param>
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
-            if (!Network.UseGPU)
-            {
-                ForwardPropagationCPU(allX, y);
-                return;
-            }
+            Debug.Assert(Network.UseGPU);
             Debug.Assert(allX.Count == 1);
             Debug.Assert(_reserveSpace == null);
             Debug.Assert(_yIfReturnSequences == null);
@@ -259,11 +348,7 @@ namespace SharpNet.Layers
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dxList)
         {
-            if (!Network.UseGPU)
-            {
-                BackwardPropagationCPU(allX, dy);
-                return;
-            }
+            Debug.Assert(Network.UseGPU);
             Debug.Assert(allX.Count == 1);
             Debug.Assert(_reserveSpace != null);
             Debug.Assert((_returnSequences && _yIfReturnSequences == null) || (!_returnSequences && _yIfReturnSequences != null));
@@ -290,6 +375,7 @@ namespace SharpNet.Layers
                 //      (batchSize, timeSteps, K*hiddenSize)
                 //we build dyIfReturnSequences from dy
                 Debug.Assert(_yIfReturnSequences != null); //_yIfReturnSequences must have been kept from forward propagation
+                // ReSharper disable once PossibleNullReferenceException
                 dyIfReturnSequences = GetFloatTensor(_yIfReturnSequences.Shape);
                 dyIfReturnSequences.ZeroMemory();
                 // from dy (batchSize, K*hiddenSize) to dyIfReturnSequences (batchSize, timeSteps, K*hiddenSize)
@@ -371,180 +457,13 @@ namespace SharpNet.Layers
             Debug.Assert(_yIfReturnSequences == null);
             Debug.Assert(_reserveSpace == null);
         }
-        #region forward and backward propagation for CPU
-        /// <summary>
-        /// This is a simple implementation on CPU.
-        /// It only supports unidirectional SimpleRNN with _returnSequences == false
-        /// </summary>
-        /// <param name="allX"></param>
-        /// <param name="y"></param>
-        private void ForwardPropagationCPU(List<Tensor> allX, Tensor y)
-        {
-            if (_returnSequences)
-            {
-                throw new NotSupportedException("_returnSequences == true");
-            }
-            if (_rnnDescriptor.dirMode != cudnnDirectionMode_t.CUDNN_UNIDIRECTIONAL)
-            {
-                throw new NotSupportedException(_rnnDescriptor.dirMode + " != cudnnDirectionMode_t.CUDNN_UNIDIRECTIONAL");
-            }
-            if (_rnnDescriptor.cellMode != cudnnRNNMode_t.CUDNN_RNN_TANH)
-            {
-                throw new NotSupportedException(_rnnDescriptor.cellMode + " !=  cudnnRNNMode_t.CUDNN_RNN_TANH");
-            }
-
-            Debug.Assert(allX.Count == 1);
-            var x = allX[0];
-            var batchSize = x.Shape[0];                 //x.Shape[0] : batch size : number of sentences 
-            int timeSteps = x.Shape[1];                 //x.Shape[1] : number of words in each sentence
-            Debug.Assert(x.Shape[2] == InputSize);      //x.Shape[2] : number of distinct words (_inputSize)
-            var aShape = new[] { batchSize, HiddenSize };
-            var xShape = new[] { batchSize, InputSize };
-            var a_init = GetFloatTensor(aShape);
-            var a_buffer1 = GetFloatTensor(aShape);
-            var a_buffer2 = GetFloatTensor(aShape);
-
-            var x_at_t_buffer = GetFloatTensor(xShape);
-            a_init.ZeroMemory();
-
-            GetFloatTensor(ref _yIfReturnSequences, new[] { timeSteps, batchSize, HiddenSize });
-
-
-            var a_tShape = new[] { batchSize, HiddenSize };
-            for (int t = 0; t < timeSteps; ++t)
-            {
-                var y_t = _yIfReturnSequences.ElementSlice(t, a_tShape);
-                // y_t = hidden state at time step 't'          (batchSize, hiddenSize)
-                //     = tanh( x_t[t]*Weights_ax + y[t-1]*Weights_aa)
-
-                x.From_NCH_to_NH(x_at_t_buffer, t);
-
-                a_buffer1.Dot(x_at_t_buffer, Weights_ax);
-                var a_prev = (t == 0) ? a_init : _yIfReturnSequences.ElementSlice(t - 1, a_tShape);
-                a_buffer2.Dot(a_prev, Weights_aa);
-                a_buffer1.AddTensor(1, a_buffer2, 1);
-                Bias.BroadcastAddVectorToOutput(a_buffer1);
-                a_buffer1.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_TANH, null, y_t);
-            }
-            _yIfReturnSequences.ElementSlice(timeSteps - 1, y.Shape).CopyTo(y);
-            FreeFloatTensor(a_init);
-            FreeFloatTensor(a_buffer1);
-            FreeFloatTensor(a_buffer2);
-            FreeFloatTensor(x_at_t_buffer);
-        }
-        private void BackwardPropagationCPU(List<Tensor> allX, Tensor dy)
-        {
-            Debug.Assert(allX.Count == 1);
-            var x = allX[0];                // x shape  :     (batchSize, timeSteps, _inputSize)
-            var batchSize = x.Shape[0];
-            var timeSteps = x.Shape[1];
-            Debug.Assert(InputSize == x.Shape[2]);
-            var aShape = dy.Shape;          // a shape  :     (batchSize, _hiddenSize )
-            Debug.Assert(_yIfReturnSequences.Shape[0] == timeSteps);
-
-            _weightsAndBiasesGradients.ZeroMemory();
-
-            var a_buffer1 = GetFloatTensor(aShape);
-            var a_buffer2 = GetFloatTensor(aShape);
-            var da_t = GetFloatTensor(new[] { 1, HiddenSize });
-            var _1_minus_aSquare = GetFloatTensor(da_t.Shape);
-            var _1_vector = GetFloatTensor(da_t.Shape);
-            _1_vector.SetValue(1f);
-            var tmpBuffer = GetFloatTensor(da_t.Shape);
-            var tmpWeight_aa = GetFloatTensor(Weights_aaGradients.Shape);
-
-            var a_tShape = new[] { batchSize, HiddenSize };
-
-            for (int batchId = 0; batchId < batchSize; ++batchId)
-            {
-                var x_batchId = x.ElementSlice(batchId);
-                x_batchId.Reshape(x.Shape.Skip(1).ToArray());
-                for (int t = timeSteps - 1; t >= 0; --t)
-                {
-                    var at = _yIfReturnSequences.ElementSlice(t, a_tShape).ElementSlice(batchId);
-                    var xt = x_batchId.ElementSlice(t);
-
-                    //we compute _1_minus_aSquare = 1-a[t]^2
-                    at.CopyTo(_1_minus_aSquare);
-                    _1_minus_aSquare.Update_Multiply_By_x(at);
-                    _1_minus_aSquare.AddTensor(1f, _1_vector, -1f);
-
-                    //We compute da[t]
-                    if (t == timeSteps - 1)
-                    {
-                        //da[t] = dy*(1-a[t]^2)
-                        _1_minus_aSquare.CopyTo(da_t);
-                        da_t.Update_Multiply_By_x(dy.ElementSlice(batchId));
-                    }
-                    else
-                    {
-                        //da[t] = (Weights_aa dot da[t+1]) * (1-a[t]^2)
-                        da_t.CopyTo(tmpBuffer); //da_t+1
-                        da_t.Dot(Weights_aa, false, tmpBuffer, true, 1f, 0f);
-                        da_t.Update_Multiply_By_x(_1_minus_aSquare);
-                    }
-
-                    //we update the Bias Gradient
-                    // _biasGradients += da[t]
-                    BiasGradients?.Update_Adding_Alpha_X(1, da_t);
-
-                    //we update _weights_ax_gradient
-                    //_weights_ax_gradient += da[t] * x[t]
-                    da_t.CopyTo(tmpBuffer);
-                    tmpBuffer.Update_Multiply_By_x(xt);
-                    Weights_axGradients.Update_Adding_Alpha_X(1, tmpBuffer);
-
-                    if (t >= 1)
-                    {
-                        //we update _weights_aa_gradient
-                        var a_t_1 = _yIfReturnSequences.ElementSlice(t - 1, a_tShape).ElementSlice(batchId);
-                        tmpWeight_aa.Dot(a_t_1, true, da_t, false, 1f, 0f);
-                        //_weights_aa_gradient += a[t-1].T * da[t].T
-                        Weights_aaGradients.Update_Adding_Alpha_X(1, tmpWeight_aa);
-                    }
-                }
-            }
-
-            FreeFloatTensor(a_buffer1);
-            FreeFloatTensor(a_buffer2);
-            FreeFloatTensor(da_t);
-            FreeFloatTensor(_1_minus_aSquare);
-            FreeFloatTensor(tmpBuffer);
-            FreeFloatTensor(tmpWeight_aa);
-            FreeFloatTensor(_1_vector);
-        }
-        #endregion
         #endregion
 
         #region parameters and gradients
-        public override Tensor Weights => _weightsAndBiases;
-        private Tensor Weights_ax => _weightsAndBiases.Slice(0, _rnnDescriptor.Weight_ax_Shape);
-        private Tensor Weights_aa => _weightsAndBiases.Slice(_rnnDescriptor.Weight_ax_count, _rnnDescriptor.Weight_recurrent_Shape);
-        public override Tensor Bias
-        {
-            get
-            {
-                if (_rnnDescriptor.Bias_count == 0)
-                {
-                    return null;
-                }
-                return _weightsAndBiases.Slice(_rnnDescriptor.Weight_ax_count + _rnnDescriptor.Weight_recurrent_count, _rnnDescriptor.BiasShape);
-            }
-        }
-        public override Tensor WeightGradients => _weightsAndBiasesGradients;
-        private Tensor Weights_axGradients => _weightsAndBiasesGradients.Slice(0, _rnnDescriptor.Weight_ax_Shape);
-        private Tensor Weights_aaGradients => _weightsAndBiasesGradients.Slice(_rnnDescriptor.Weight_ax_count, _rnnDescriptor.Weight_recurrent_Shape);
-        public override Tensor BiasGradients
-        {
-            get
-            {
-                if (_rnnDescriptor.Bias_count == 0)
-                {
-                    return null;
-                }
-                return _weightsAndBiasesGradients.Slice(_rnnDescriptor.Weight_ax_count + _rnnDescriptor.Weight_recurrent_count, _rnnDescriptor.BiasShape);
-            }
-        }
+        public override Tensor Weights => throw new Exception("should never be called");
+        public override Tensor Bias => throw new Exception("should never be called");
+        public override Tensor WeightGradients => throw new Exception("should never be called");
+        public override Tensor BiasGradients => throw new Exception("should never be called");
         public override int DisableBias()
         {
             //TODO : be able to disable bias
@@ -621,6 +540,8 @@ namespace SharpNet.Layers
                 .Add(nameof(BiasMode), (int)BiasMode)
                 .Add(nameof(_returnSequences), _returnSequences)
                 .Add(nameof(IsBidirectional), IsBidirectional)
+                .Add(nameof(NumLayers), NumLayers)
+                .Add(nameof(DropoutRate), DropoutRate)
                 .ToString();
         }
         public static RecurrentLayer Deserialize(IDictionary<string, object> serialized, Network network)
@@ -631,6 +552,8 @@ namespace SharpNet.Layers
                 (cudnnRNNBiasMode_t) serialized[nameof(BiasMode)],
                 (bool) serialized[nameof(_returnSequences)],
                 (bool) serialized[nameof(IsBidirectional)],
+                (int) serialized[nameof(NumLayers)],
+                (double) serialized[nameof(DropoutRate)],
                 (bool) serialized[nameof(Trainable)],
                 network,
                 (string) serialized[nameof(LayerName)]);

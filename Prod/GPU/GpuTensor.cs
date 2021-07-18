@@ -53,7 +53,7 @@ namespace SharpNet.GPU
         /// <param name="shape">shape of the tensor</param>
         /// <param name="pointerToMemoryOwner">the already allocated memory area that the tensor will use</param>
         /// <param name="wrapper"></param>
-        private GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
+        public GPUTensor(int[] shape, IntPtr pointerToMemoryOwner, GPUWrapper wrapper) : base(shape, Marshal.SizeOf(typeof(T)), true)
         {
             _wrapper = wrapper;
             _wrapper.CheckThreadId();

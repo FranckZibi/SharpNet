@@ -191,13 +191,6 @@ namespace SharpNet.Networks
             Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
             return this;
         }
-        public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
-        {
-            Debug.Assert(Layers.Count >= 1);
-            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, true, this, layerName);
-            Layers.Add(simpleRnn);
-            return this;
-        }
 
         public Network SwitchSecondAndThirdDimension(bool addOneDimensionInOutputShape, string layerName = "")
         {
@@ -206,20 +199,29 @@ namespace SharpNet.Networks
             Layers.Add(layer);
             return this;
         }
-        public Network LSTM(int units, bool returnSequences, bool isBidirectional, string layerName = "")
+
+        public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, 1, 0.0, true, this, layerName);
+            Layers.Add(simpleRnn);
+            return this;
+        }
+
+        public Network LSTM(int units, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
-            var lstm = new RecurrentLayer(units, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, true, this, layerName);
+            var lstm = new RecurrentLayer(units, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, this, layerName);
             Layers.Add(lstm);
             return this;
         }
 
-        public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
+        public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
-            var lstm = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, true, this, layerName);
+            var lstm = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, this, layerName);
             Layers.Add(lstm);
             return this;
         }

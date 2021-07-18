@@ -170,8 +170,9 @@ namespace SharpNet.Networks
         public bool DivideGradientsByTimeSteps { get; set; } = false;
         public bool Use_GRU_instead_of_LSTM { get; set; } = false;
         public bool Use_Bidirectional_RNN { get; set; } = true;
-        public float LinearLayer_slope { get; set; } = 1.0f;
-        public float LinearLayer_intercept { get; set; } = 0.0f;
+
+        public int NumLayersLastLSTM { get; set; } = 1;
+        public double DropoutRateLastLSTM { get; set; } = 0.0;
         public int LSTMLayersReturningFullSequence { get; set; } = 1;
         public double DropProbability { get; set; } = 0.2;       //validated on 15-jan-2021
         public bool UseBatchNorm2 { get; set; } = false;
@@ -293,11 +294,11 @@ namespace SharpNet.Networks
             {
                 if (Use_GRU_instead_of_LSTM)
                 {
-                    network.GRU(HiddenSize, true, Use_Bidirectional_RNN);
+                    network.GRU(HiddenSize, true, Use_Bidirectional_RNN, 1, 0.0);
                 }
                 else
                 {
-                    network.LSTM(HiddenSize, true, Use_Bidirectional_RNN);
+                    network.LSTM(HiddenSize, true, Use_Bidirectional_RNN, 1, 0.0);
                 }
                 if (DropProbability >= 1e-6)
                 {
@@ -316,11 +317,11 @@ namespace SharpNet.Networks
             //network.Linear(aNormalization, bNormalization);
             if (Use_GRU_instead_of_LSTM)
             {
-                network.GRU(HiddenSize, false, Use_Bidirectional_RNN);
+                network.GRU(HiddenSize, false, Use_Bidirectional_RNN, NumLayersLastLSTM, DropoutRateLastLSTM);
             }
             else
             {
-                network.LSTM(HiddenSize, false, Use_Bidirectional_RNN);
+                network.LSTM(HiddenSize, false, Use_Bidirectional_RNN, NumLayersLastLSTM, DropoutRateLastLSTM);
             }
             if (DropProbability >= 1e-6)
             {
@@ -336,19 +337,11 @@ namespace SharpNet.Networks
                 network.Linear(2, 0);
                 network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LN);
                 ActivationFunctionAfterSecondDense = cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY;
-                LinearLayer_slope = 1.0f;
-                LinearLayer_intercept = 0.0f;
             }
-
 
             if (ActivationFunctionAfterSecondDense != cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY)
             {
                 network.Activation(ActivationFunctionAfterSecondDense);
-            }
-
-            if (Math.Abs(LinearLayer_slope - 1f) > 1e-5 || Math.Abs(LinearLayer_intercept) > 1e-5)
-            {
-                network.Linear(LinearLayer_slope, LinearLayer_intercept);
             }
 
             return network;

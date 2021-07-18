@@ -845,6 +845,19 @@ namespace SharpNet.GPU
             int w);
 
         [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetTensor4dDescriptor(
+            cudnnTensorDescriptor_t tensorDesc,
+            out cudnnDataType_t dataType,
+            out int n,
+            out int c,
+            out int h,
+            out int w,
+            out int nStride,
+            out int cStride,
+            out int hStride,
+            out int wStride);
+
+        [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnDestroyTensorDescriptor(
             cudnnTensorDescriptor_t tensorDesc);
 
@@ -1015,6 +1028,19 @@ namespace SharpNet.GPU
             cudnnHandle_t handle,
             cudnnRNNDescriptor_t rnnDesc,
             out size_t weightSpaceSize);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetRNNWeightParams(
+            cudnnHandle_t handle,
+            cudnnRNNDescriptor_t rnnDesc,
+            int pseudoLayer,
+            size_t weightSpaceSize,
+            IntPtr weightSpace,
+            int linLayerID,
+            cudnnTensorDescriptor_t mDesc,
+            out IntPtr mAddress,
+            cudnnTensorDescriptor_t bDesc,
+            out IntPtr bAddress);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnRNNForward(

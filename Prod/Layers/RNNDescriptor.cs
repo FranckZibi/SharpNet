@@ -40,22 +40,6 @@ namespace SharpNet.Layers
             this.auxFlags = auxFlags;
         }
 
-        public int[] Weight_ax_Shape => new[] {inputSize, WeightWidth };
-
-        public int[] Weight_recurrent_Shape => new[] { hiddenSize, WeightWidth };
-
-        public int[] BiasShape
-        {
-            get
-            {
-                if (biasMode == cudnnRNNBiasMode_t.CUDNN_RNN_NO_BIAS)
-                {
-                    return null;
-                }
-                return new[] {biasMode == cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS ? 2 : 1, WeightWidth };
-            }
-        }
-
         public int[] YRnnData_Shape(int timeSteps, int batchSize)
         {
             int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
@@ -68,45 +52,45 @@ namespace SharpNet.Layers
             return returnSequences
                 ?new[] { batchSize, timeSteps, K * hiddenSize }
                 :new[] { batchSize, K * hiddenSize };
-
         }
 
+
         /// <summary>
-        /// the width dimension of the weights & bias associated with the recurrent layer
-        /// all weights & bias are 2D matrix
+        /// total number of pseudo layers.
+        /// see: https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNWeightParams
         /// </summary>
-        private int WeightWidth
+        public int PseudoLayersCount
         {
             get
             {
                 int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
-                switch (cellMode)
-                {
-                    case cudnnRNNMode_t.CUDNN_RNN_TANH: return K * 1 * hiddenSize;
-                    case cudnnRNNMode_t.CUDNN_LSTM: return K * 4 * hiddenSize;
-                    case cudnnRNNMode_t.CUDNN_GRU: return K * 3 * hiddenSize;
-                    default:
-                        throw new NotImplementedException(nameof(WeightWidth) + " " + cellMode);
-                }
+                return K * numLayers;
             }
         }
 
-        public int WeightAndBiasCount => Weight_ax_count + Weight_recurrent_count + Bias_count;
+
 
         /// <summary>
-        /// number of elements in the Weight_ax Tensor
+        /// total number of weight matrices in each pseudo layers:
+        ///     the first half is associated with weight matrices (or bias vectors) used in conjunction with the input from the previous pseudo layer
+        ///     the second half is associated with weight matrices (or bias vectors) used in conjunction with the hidden state from the previous time step
+        /// see: https://docs.nvidia.com/deeplearning/cudnn/api/index.html#cudnnGetRNNWeightParams
         /// </summary>
-        public int Weight_ax_count => Utils.Product(Weight_ax_Shape);
-
-        /// <summary>
-        /// number of elements in the Weight_aa Tensor
-        /// </summary>
-        public int Weight_recurrent_count => Utils.Product(Weight_recurrent_Shape);
-
-        /// <summary>
-        /// number of elements in the Bias Tensor
-        /// </summary>
-        public int Bias_count => Utils.Product(BiasShape);
+        public int LinLayerIDCount
+        {
+            get
+            {
+                switch (cellMode)
+                {
+                    case cudnnRNNMode_t.CUDNN_RNN_RELU: return 2*1;
+                    case cudnnRNNMode_t.CUDNN_RNN_TANH: return 2*1;
+                    case cudnnRNNMode_t.CUDNN_LSTM: return 2*4;
+                    case cudnnRNNMode_t.CUDNN_GRU: return 2*3;
+                    default:
+                        throw new NotImplementedException(nameof(LinLayerIDCount) + " " + cellMode);
+                }
+            }
+        }
 
         public override bool Equals(object obj)
         {

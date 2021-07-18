@@ -445,6 +445,24 @@ namespace SharpNet.GPU
             }
             return desc;
         }
+
+        public int[] GetTensorShape(cudnnTensorDescriptor_t tensorDesc)
+        {
+            var res = CudnnWrapper.cudnnGetTensor4dDescriptor(
+                tensorDesc,
+                out cudnnDataType_t _,
+                out int n,
+                out int c,
+                out int h,
+                out int w,
+                out int _,
+                out int _,
+                out int _,
+                out int _);
+            CheckStatus(res);
+            return new[] { n, c, h, w };
+        }
+
         public cudnnTensorDescriptor_t TensorDesc(cudnnDataType_t dataType, int[] shape)
         {
             CheckThreadId();
