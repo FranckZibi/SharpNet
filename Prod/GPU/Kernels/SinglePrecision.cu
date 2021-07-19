@@ -16,7 +16,7 @@
 			float dw = dW[i];
 			adam_vW[i] = beta1*adam_vW[i]+(1-beta1)*dw;
             adam_sW[i] = beta2*adam_sW[i]+(1-beta2)*dw*dw;
-			W[i] -= (multiplicative_factor * adam_vW[i]) / (sqrtf(adam_sW[i]) + epsilon);
+			W[i] -= (multiplicative_factor * adam_vW[i]) / (sqrtf(adam_sW[i]) + epsilon) + adamW_l2Regularization * W[i];
 		}
 	}
 

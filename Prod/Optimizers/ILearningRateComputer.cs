@@ -9,5 +9,7 @@ namespace SharpNet.Optimizers
         bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData);
         double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData);
         bool ShouldCreateSnapshotForEpoch(int epoch);
+        double MaxLearningRate { get;  }
+
     }
 }

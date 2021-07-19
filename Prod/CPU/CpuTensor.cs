@@ -1399,7 +1399,7 @@ namespace SharpNet.CPU
             adam_sW.AsFloatCpu.Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
             //Update parameters
-            W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float) (w - multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) ));
+            W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float)(w - ( multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) + adamW_l2Regularization*w )));
         }
         //this = yExpected
         public override double ComputeLoss([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)

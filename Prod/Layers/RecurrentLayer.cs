@@ -518,13 +518,13 @@ namespace SharpNet.Layers
         }
         #endregion
 
-        public override void UpdateWeights(int batchSize, double learningRate)
+        public override void UpdateWeights(int batchSize, double learningRate, double maxLearningRate)
         {
             Debug.Assert(Network.IsMaster);
             Debug.Assert(_weightsAndBiases.SameShape(_weightsAndBiasesGradients));
             if (Trainable)
             {
-                _optimizer.UpdateWeights(learningRate, batchSize, _weightsAndBiases, _weightsAndBiasesGradients, null, null);
+                _optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, _weightsAndBiases, _weightsAndBiasesGradients, null, null);
             }
         }
         #endregion

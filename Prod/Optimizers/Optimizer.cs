@@ -25,7 +25,8 @@ namespace SharpNet.Optimizers
             return VanillaSgd.Instance;
         }
         public abstract List<Tensor> EmbeddedTensors { get; }
-        public abstract void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient);
+        public abstract void UpdateWeights(double learningRate, double maxLearningRate, int batchSize, Tensor weights,
+            Tensor weightGradients, Tensor bias, Tensor biasGradient);
         /// <summary>
         /// reset( by setting to 0) all embedded tensors in the current optimizer
         /// </summary>

@@ -75,5 +75,7 @@ namespace SharpNet.Optimizers
         {
             return _lrScheduler.ShouldCreateSnapshotForEpoch(epoch);
         }
+
+        public double MaxLearningRate => _lrScheduler.MaxLearningRate;
     }
 }

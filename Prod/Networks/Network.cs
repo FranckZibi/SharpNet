@@ -937,7 +937,9 @@ namespace SharpNet.Networks
                         StopTimer("CopyGradients", BackwardPropagationTime);
                     }
                     double percentagePerformedInEpoch = firstIndexInShuffledElementId / (double) dataSetCountWithExtraBufferAtEnd;
-                    PropagationManager.UpdateWeights(miniBatchSizeForAllWorkers, learningRateComputerIfTraining.LearningRate(epoch, percentagePerformedInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau));
+                    var learningRate = learningRateComputerIfTraining.LearningRate(epoch, percentagePerformedInEpoch, lrMultiplicativeFactorFromReduceLrOnPlateau);
+                    var maxLearningRate = learningRateComputerIfTraining.MaxLearningRate;
+                    PropagationManager.UpdateWeights(miniBatchSizeForAllWorkers, learningRate, maxLearningRate);
                 }
 
                 if (!isTraining && dataSet is ITimeSeriesDataSet set)

@@ -188,8 +188,7 @@ namespace SharpNet.Networks
         public bool UseConv1D { get; set; } = false;
         public bool UseBatchNormAfterConv1D { get; set; } = false;
         public bool UseReluAfterConv1D { get; set; } = false;
-        public double LambdaL2Regularization { get; set; } = 0;
-
+        
         // max value of the loss to consider saving the network
         public double MaxLossToSaveTheNetwork { get; set; } = 0.355;
         
@@ -228,7 +227,6 @@ namespace SharpNet.Networks
                                            DataAugmentation = new DataAugmentationConfig()
                                        }
                                   .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-                                  .WithAdam()
                           };
             //builder.BatchSize = 1024; //updated on 13-june-2021
             builder.InitialLearningRate = 0.001;
@@ -241,13 +239,16 @@ namespace SharpNet.Networks
             builder.Pid_EmbeddingDim = 8; //validated on 6-june-2021: -0.0226
             builder.DenseUnits = 50; //validated on 6-june-2021: -0.0121
             builder.BatchSize = 2048; //validated on 13-june-2021: -0.01
-            builder.LambdaL2Regularization = 0.00005; //validated on 4-july-2021: no change but lower volatility
             builder.ClipValueForGradients = 1000;  //validated on 4-july-2021: -0.0110
             builder.Config.WithOneCycleLearningRateScheduler(200, 0.1); //validated on 14-july-2021: -0.0078
             builder.HiddenSize = 64; //validated on 14-july-2021: very small degradation (+0.0010) but much less parameters
 
-            //builder.Pid_EmbeddingDim = 12;
-            //builder.InitialLearningRate = 0.01;
+            builder.NumEpochs = 30; //?D
+            //builder.InitialLearningRate = 0.002; //?D
+
+            
+            builder.Config.WithAdamW(0.00005); //validated on 19-july-2021: very small degradation (+0.0016) but better expected results for bigger data set
+
             return builder;
         }
 
@@ -260,13 +261,12 @@ namespace SharpNet.Networks
             const string networkName = "CFM60";
             var network = BuildEmptyNetwork(networkName);
             network.Config.RandomizeOrder = Shuffle;
-            network.Config.lambdaL2Regularization = LambdaL2Regularization;
 
             network.Input(TimeSteps, InputSize, -1);
 
             if (Pid_EmbeddingDim >= 1)
             {
-                network.Embedding(CFM60Entry.DISTINCT_PID_COUNT, Pid_EmbeddingDim, 0, LambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+                network.Embedding(CFM60Entry.DISTINCT_PID_COUNT, Pid_EmbeddingDim, 0, network.Config.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
             }
 
             if (InputNormalizationType == InputNormalizationEnum.BATCH_NORM_LAYER || InputNormalizationType == InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)

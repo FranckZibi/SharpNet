@@ -94,7 +94,8 @@ namespace SharpNet.Layers
         /// </summary>
         /// <param name="batchSize"></param>
         /// <param name="learningRate"></param>
-        public virtual void UpdateWeights(int batchSize, double learningRate)
+        /// <param name="maxLearningRate"></param>
+        public virtual void UpdateWeights(int batchSize, double learningRate, double maxLearningRate)
         {
             Debug.Assert(Network.IsMaster);
             if (Weights == null)
@@ -105,7 +106,7 @@ namespace SharpNet.Layers
             Debug.Assert(Bias == null || Bias.SameShape(Bias));
             if (Trainable)
             {
-                Optimizer?.UpdateWeights(learningRate, batchSize, Weights, WeightGradients, Bias, BiasGradients);
+                Optimizer?.UpdateWeights(learningRate, maxLearningRate, batchSize, Weights, WeightGradients, Bias, BiasGradients);
             }
         }
         #endregion
@@ -483,8 +484,22 @@ namespace SharpNet.Layers
         {
             switch (Config.OptimizerType)
             {
-                case Optimizer.OptimizationEnum.Adam: return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, 0.0, weightShape, biasShape);
-                case Optimizer.OptimizationEnum.AdamW: return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, Config.lambdaL2Regularization, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.Adam:
+                    if (Math.Abs(Config.AdamW_L2Regularization) > 1e-6)
+                    {
+                        throw new Exception("Invalid AdamW_L2Regularization (" + Config.AdamW_L2Regularization+") for Adam: should be 0");
+                    }
+                    return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, 0.0, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.AdamW:
+                    if (Math.Abs(Config.lambdaL2Regularization) > 1e-6)
+                    {
+                        throw new Exception("Can't use both AdamW and L2 Regularization");
+                    }
+                    if (Config.AdamW_L2Regularization < 1e-6)
+                    {
+                        throw new Exception("Invalid AdamW_L2Regularization (" + Config.AdamW_L2Regularization + ") for AdamW: should be > 0");
+                    }
+                    return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, Config.AdamW_L2Regularization, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.SGD: return new Sgd(MemoryPool, Config.SGD_momentum, Config.SGD_usenesterov, weightShape, biasShape);
                 default: return VanillaSgd.Instance;
             }

@@ -31,7 +31,11 @@ namespace SharpNet.Optimizers
             Values = values;
             _constantByInterval = constantByInterval;
             ConstantInEachEpoch = constantInEachEpoch;
+            MaxLearningRate = Values.Select(v => v.Item2).Max();
         }
+
+        public double MaxLearningRate { get; }
+
         public static LearningRateScheduler Constant(double learningRate)
         {
             var values = new List<Tuple<double, double>> { Tuple.Create(1.0, learningRate) };

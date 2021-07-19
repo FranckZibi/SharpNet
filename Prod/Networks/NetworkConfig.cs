@@ -54,6 +54,7 @@ namespace SharpNet.Networks
         /// The convolution algo to be used
         /// </summary>
         public ConvolutionAlgoPreference ConvolutionAlgoPreference { get; set;} = ConvolutionAlgoPreference.FASTEST_DETERMINIST;
+        public double AdamW_L2Regularization { get; set; }
         public double Adam_beta1 { get; private set; }
         public double Adam_beta2 { get; private set; }
         public double Adam_epsilon { get; private set; }
@@ -146,10 +147,27 @@ namespace SharpNet.Networks
             Debug.Assert(_beta1 <= 1.0);
             Debug.Assert(_beta2 >= 0);
             Debug.Assert(_beta2 <= 1.0);
+            AdamW_L2Regularization = 0.0;
             Adam_beta1 = _beta1;
             Adam_beta2 = _beta2;
             Adam_epsilon = _epsilon;
             OptimizerType = Optimizer.OptimizationEnum.Adam;
+            return this;
+        }
+
+        public NetworkConfig WithAdamW(double l2Regularization, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8)
+        {
+            Debug.Assert(beta1 >= 0);
+            Debug.Assert(beta1 <= 1.0);
+            Debug.Assert(beta2 >= 0);
+            Debug.Assert(beta2 <= 1.0);
+            Debug.Assert(l2Regularization>1e-6);
+            AdamW_L2Regularization = l2Regularization;
+            lambdaL2Regularization = 0; //L2 regularization is not compatible with AdamW
+            Adam_beta1 = beta1;
+            Adam_beta2 = beta2;
+            Adam_epsilon = epsilon;
+            OptimizerType = Optimizer.OptimizationEnum.AdamW;
             return this;
         }
 
@@ -258,7 +276,7 @@ namespace SharpNet.Networks
         {
             return new Serializer()
                 .Add(nameof(LossFunction), (int)LossFunction).Add(nameof(OptimizerType), (int)OptimizerType)
-                .Add(nameof(Adam_beta1), Adam_beta1).Add(nameof(Adam_beta2), Adam_beta2).Add(nameof(Adam_epsilon), Adam_epsilon)
+                .Add(nameof(AdamW_L2Regularization), AdamW_L2Regularization).Add(nameof(Adam_beta1), Adam_beta1).Add(nameof(Adam_beta2), Adam_beta2).Add(nameof(Adam_epsilon), Adam_epsilon)
                 .Add(nameof(SGD_momentum), SGD_momentum).Add(nameof(SGD_usenesterov), SGD_usenesterov)
 
                 #region learning rate scheduler fields
@@ -296,6 +314,7 @@ namespace SharpNet.Networks
 
             //optimizers fields
             OptimizerType = (Optimizer.OptimizationEnum)serialized[nameof(OptimizerType)];
+            AdamW_L2Regularization = (double)serialized[nameof(AdamW_L2Regularization)];
             Adam_beta1 = (double)serialized[nameof(Adam_beta1)];
             Adam_beta2 = (double)serialized[nameof(Adam_beta2)];
             Adam_epsilon = (double)serialized[nameof(Adam_epsilon)];

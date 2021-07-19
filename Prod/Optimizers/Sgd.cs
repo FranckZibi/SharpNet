@@ -38,7 +38,9 @@ namespace SharpNet.Optimizers
             }
         }
 
-        public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)
+        public override void UpdateWeights(double learningRate, double maxLearningRate, int batchSize, Tensor weights,
+            Tensor weightGradients,
+            Tensor bias, Tensor biasGradient)
         {
             Debug.Assert(weights.SameShape(weightGradients));
             Debug.Assert(bias == null || bias.SameShape(biasGradient));

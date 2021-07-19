@@ -27,7 +27,8 @@ namespace SharpNet.Optimizers
 
         #endregion
 
-        public Adam(TensorMemoryPool memoryPool, double adam_beta1, double adam_beta2, double adam_epsilon, double adamW_l2Regularization, int[] weightShape, int[] biasShapeIfAny)
+        public Adam(TensorMemoryPool memoryPool, double adam_beta1, double adam_beta2, double adam_epsilon, double adamW_l2Regularization,
+            int[] weightShape, int[] biasShapeIfAny)
         {
             _memoryPool = memoryPool;
             _adam_beta1 = adam_beta1;
@@ -54,14 +55,18 @@ namespace SharpNet.Optimizers
             }
         }
 
-        public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)
-        {
+        public override void UpdateWeights(double learningRate, double maxLearningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradient)
+        { 
             Debug.Assert(weights.SameShape(weightGradients));
             Debug.Assert(bias == null || bias.SameShape(biasGradient));
+            Debug.Assert(learningRate<=maxLearningRate+1e-6);
             ++_timestep;
-            var ponderedLearningRate = (float) learningRate;
-            weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, _adamW_l2Regularization, weightGradients, _adam_VW, _adam_SW, _timestep);
-            bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, _adamW_l2Regularization, biasGradient, _adam_VB, _adam_SB, _timestep);
+
+            var pondered_l2Regularization = (learningRate / maxLearningRate) * _adamW_l2Regularization;
+
+            var ponderedLearningRate = (float)learningRate;
+            weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, pondered_l2Regularization, weightGradients, _adam_VW, _adam_SW, _timestep);
+            bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, pondered_l2Regularization, biasGradient, _adam_VB, _adam_SB, _timestep);
         }
         public override void Dispose()
         {

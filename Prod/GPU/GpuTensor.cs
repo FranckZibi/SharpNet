@@ -783,7 +783,8 @@ namespace SharpNet.GPU
             var res = CudnnWrapper.cudnnDropoutBackward(CudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, dropoutReserveSpace, dropoutReserveSpace.CapacityInBytes);
             CheckStatus(res);
         }
-        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, double adamW_l2Regularization, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
+        public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon,
+            double adamW_l2Regularization, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
         {
             var W = this;
             var beta1_power = Math.Pow(beta1, timeStep);

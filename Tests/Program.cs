@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Globalization;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
 using SharpNet.GPU;
@@ -37,7 +37,6 @@ namespace SharpNetTests
 
         //private static string ImageDatabaseManagementPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"AppData\Roaming\ImageDatabaseManagement");
 
-
         private static void Main()
         {
             SharpNet.Utils.ConfigureGlobalLog4netProperties(NetworkConfig.DefaultLogDirectory, "SharpNet");
@@ -59,6 +58,7 @@ namespace SharpNetTests
             //470*400 :  0.18% errors (630 epochs, lr=0.02)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Cancel_400_470_20200715_2244_630.txt");
             //new CancelDatabase().CreatePredictionFile(Path.Combine(ImageDatabaseManagementPath, "Prediction_def.csv"));return;
+
 
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
@@ -442,27 +442,236 @@ namespace SharpNetTests
                 (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_CFM60(p);},
             };
             var networkMetaParameters = new List<Func<CFM60NetworkBuilder>>{
-                
-                //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2, p.InitialLearningRate / 200);p.ExtraDescription = "_mean_lr_divider_200";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true; p.ExtraDescription = p.UseBatchNorm1+"_"+p.UseBatchNorm2;return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2, p.InitialLearningRate / 200);p.UseBatchNorm2=true; p.ExtraDescription = p.UseBatchNorm1+"_"+p.UseBatchNorm2+"_mean_lr_divider_200";return p;},
 
-                //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate = 0.01;p.ExtraDescription = "_lr_0_01";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability=0.1; p.ExtraDescription ="_drop_0_10";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim=16; p.ExtraDescription ="_16embeddding";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true; p.ExtraDescription ="_false_true";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER;p.UseBatchNorm2=false; p.ExtraDescription ="_BATCH_NORM_LAYER";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN;p.UseBatchNorm2=false; p.ExtraDescription ="_DEDUCE_MEAN";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER;p.UseBatchNorm2=false; p.ExtraDescription ="_DEDUCE_MEAN_AND_BATCH_NORM_LAYER";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=128; p.ExtraDescription ="_128HiddenSize";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=64; p.ExtraDescription ="_64HiddenSize";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.DenseUnits=100; p.ExtraDescription ="_100DenseUnits";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true;p.Pid_EmbeddingDim=16;p.UseBatchNorm2=true; p.ExtraDescription ="_False_True_0_10_dropout_16embeddding";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true;p.Pid_EmbeddingDim=16;p.ExtraDescription ="_0_10_dropout_16embeddding";return p;},
+                //TODO:
+                //try: https://ianlondon.github.io/blog/encoding-cyclical-features-24hour-time/
+                
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.lambdaL2Regularization/= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_divide_2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.lambdaL2Regularization*= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_mult_2";return p;},
+
+                
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;p.ExtraDescription = "_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;p.Config.WithAdamW(0.000005);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;p.Config.WithAdamW(0.00001);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;p.Config.WithAdamW(0.000025);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;p.Config.WithAdamW(0.0001);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;p.ExtraDescription = "_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;p.Config.WithAdamW(0.000005);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;p.Config.WithAdamW(0.00001);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;p.Config.WithAdamW(0.000025);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                () =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;p.Config.WithAdamW(0.0001);p.ExtraDescription = "_AdamWl2_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+
+
+
+
 
 
             #region already performed tests
+                //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.lambdaL2Regularization/= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_divide_2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.lambdaL2Regularization*= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_mult_2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.lambdaL2Regularization=0;p.ExtraDescription = "_no_l2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(p.Config.lambdaL2Regularization);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(p.Config.lambdaL2Regularization/2);p.ExtraDescription = "_l2_div2_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(p.Config.lambdaL2Regularization*2);p.ExtraDescription = "_l2_mult2_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.lambdaL2Regularization/= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_divide_2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.lambdaL2Regularization*= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_mult_2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.lambdaL2Regularization=0;p.ExtraDescription = "_no_l2"+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.WithAdamW(p.Config.lambdaL2Regularization);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.WithAdamW(p.Config.lambdaL2Regularization/2);p.ExtraDescription = "_l2_div2_A_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=40;  p.Config.WithAdamW(p.Config.lambdaL2Regularization*2);p.ExtraDescription = "_l2_mult2_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.Config.lambdaL2Regularization/= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_divide_2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.Config.lambdaL2Regularization*= 2;p.ExtraDescription = ""+"_"+p.TimeSteps+"timesteps_l2_mult_2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.Config.lambdaL2Regularization=0;p.ExtraDescription = "_no_l2"+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.Config.WithAdamW(p.Config.lambdaL2Regularization);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.Config.WithAdamW(p.Config.lambdaL2Regularization/2);p.ExtraDescription = "_l2_div2_A_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps=60;  p.Config.WithAdamW(p.Config.lambdaL2Regularization*2);p.ExtraDescription = "_l2_mult2_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_')+"_"+p.TimeSteps+"timesteps";return p;},
+
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2LayersLastLSTM";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.NumLayersLastLSTM = 4;p.ExtraDescription = "_4LayersLastLSTM";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2 = true;p.ExtraDescription = "_UseBatchNorm2";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType = CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER;p.ExtraDescription = "_BATCH_NORM_LAYER";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType = CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN;p.ExtraDescription = "_DEDUCE_MEAN";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(0.000005);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(0.00001);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(0.0001);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.10;p.ExtraDescription = "_0_10_dropout";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.30;p.ExtraDescription = "_0_30_dropout";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.0; p.ExtraDescription = "_no_dropout";return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(0.00005);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW( 0.0005);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(  0.001);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(  0.005);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithAdamW(   0.05);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default(); p.Config.WithAdamW(   0.1);p.ExtraDescription = "_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.ExtraDescription = "_60timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_60timesteps_2LayersLastLSTM";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.ExtraDescription = "_60timesteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.Config.WithAdamW(0.00005);p.ExtraDescription = "_60timesteps_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.Config.WithAdamW( 0.0005);p.ExtraDescription = "_60timesteps_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.Config.WithAdamW(  0.001);p.ExtraDescription = "_60timesteps_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.Config.WithAdamW(  0.005);p.ExtraDescription = "_60timesteps_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.Config.WithAdamW(   0.05);p.ExtraDescription = "_60timesteps_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.Config.WithAdamW(   0.1);p.ExtraDescription = "_60timesteps_AdamW_"+p.Config.AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture).Replace('.','_');return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.10;p.TimeSteps = 60;p.ExtraDescription = "_60timesteps_0_10_dropout";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.30;p.TimeSteps = 60;p.ExtraDescription = "_60timesteps_0_30_dropout";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.0;p.TimeSteps = 60;p.ExtraDescription = "_60timesteps_no_dropout";return p;},
+
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LSTMLayersReturningFullSequence = 0;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_last";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LSTMLayersReturningFullSequence = 0;p.DropoutRateLastLSTM=p.DropProbability ;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_last_dropout_everywhere";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LSTMLayersReturningFullSequence = 0;p.DropoutRateLastLSTM=p.DropProbability=0 ;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_no_dropout_at_all";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LSTMLayersReturningFullSequence = 0;p.DropoutRateLastLSTM=p.DropProbability ;p.DropProbability=0 ;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_last_dropout_only_in_lstm";return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 16;p.ExtraDescription = "_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 16;p.LSTMLayersReturningFullSequence = 0;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_last_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 16;p.LSTMLayersReturningFullSequence = 0;p.DropoutRateLastLSTM=p.DropProbability ;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_last_dropout_everywhere_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 16;p.LSTMLayersReturningFullSequence = 0;p.DropoutRateLastLSTM=p.DropProbability=0 ;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_no_dropout_at_all_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 16;p.LSTMLayersReturningFullSequence = 0;p.DropoutRateLastLSTM=p.DropProbability ;p.DropProbability=0 ;p.NumLayersLastLSTM = 2;p.ExtraDescription = "_2layers_last_dropout_only_in_lstm_16embedding";return p;},
+                
+
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0; p.ExtraDescription = "_l2_0_0";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0.00001; p.ExtraDescription = "_l2_0_00001";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0.00005; p.ExtraDescription = "_l2_0_00005";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0.0001; p.ExtraDescription = "_l2_0_0001";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0.0005; p.ExtraDescription = "_l2_0_0005";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0.001; p.ExtraDescription = "_l2_0_001";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0.005; p.ExtraDescription = "_l2_0_005";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.ExtraDescription = "_Cyclic";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.LambdaL2Regularization = 0.00005; p.ExtraDescription = "";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.ExtraDescription = "_Cyclic";return p;},
+
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 10; p.ExtraDescription = "10TimeSteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 30; p.ExtraDescription = "30TimeSteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 40; p.ExtraDescription = "40TimeSteps";return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(20);p.NumEpochs = 10;p.TimeSteps = 45;p.InitialLearningRate = 0.002; p.ExtraDescription = "_45TimeSteps_lr_002_12embedding_linear";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(20);p.NumEpochs = 10;p.TimeSteps = 55;p.InitialLearningRate = 0.002; p.ExtraDescription = "_55TimeSteps_lr_002_12embedding_linear";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(20);p.NumEpochs = 10;p.TimeSteps = 65;p.InitialLearningRate = 0.002; p.ExtraDescription = "_65TimeSteps_lr_002_12embedding_linear";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(20);p.NumEpochs = 10;p.TimeSteps = 75;p.InitialLearningRate = 0.002; p.ExtraDescription = "_75TimeSteps_lr_002_12embedding_linear";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(20);p.NumEpochs = 10;p.TimeSteps = 85;p.InitialLearningRate = 0.002; p.ExtraDescription = "_85TimeSteps_lr_002_12embedding_linear";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(20);p.NumEpochs = 10;p.TimeSteps = 90;p.InitialLearningRate = 0.002; p.ExtraDescription = "_90TimeSteps_lr_002_12embedding_linear";return p;},
+
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 10;p.TimeSteps = 45;p.InitialLearningRate = 0.002; p.ExtraDescription = "_45TimeSteps_lr_002_12embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 10;p.TimeSteps = 55;p.InitialLearningRate = 0.002; p.ExtraDescription = "_55TimeSteps_lr_002_12embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 10;p.TimeSteps = 65;p.InitialLearningRate = 0.002; p.ExtraDescription = "_65TimeSteps_lr_002_12embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 10;p.TimeSteps = 75;p.InitialLearningRate = 0.002; p.ExtraDescription = "_75TimeSteps_lr_002_12embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 10;p.TimeSteps = 85;p.InitialLearningRate = 0.002; p.ExtraDescription = "_85TimeSteps_lr_002_12embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2);p.NumEpochs = 10;p.TimeSteps = 90;p.InitialLearningRate = 0.002; p.ExtraDescription = "_90TimeSteps_lr_002_12embedding";return p;},
+
+                
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize=1024;p.NumEpochs = 30;p.InitialLearningRate = 0.002; p.ExtraDescription = "_45TimeSteps_lr_002_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize=1024;p.NumEpochs = 30;p.InitialLearningRate = 0.002; p.ExtraDescription = "_55TimeSteps_lr_002_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize=1024;p.NumEpochs = 30;p.InitialLearningRate = 0.002; p.ExtraDescription = "_65TimeSteps_lr_002_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize=1024;p.NumEpochs = 30;p.InitialLearningRate = 0.002; p.ExtraDescription = "_75TimeSteps_lr_002_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize=1024;p.NumEpochs = 30;p.InitialLearningRate = 0.002; p.ExtraDescription = "_85TimeSteps_lr_002_16embedding";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize=1024;p.NumEpochs = 30;p.InitialLearningRate = 0.002; p.ExtraDescription = "_90TimeSteps_lr_002_16embedding";return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 10;p.TimeSteps = 60;p.Config.WithOneCycleLearningRateScheduler(20, 0.1); p.ExtraDescription = "_60TimeSteps_lr_divide_20";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 10;p.TimeSteps = 100; p.ExtraDescription = "_60TimeSteps";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 10;p.TimeSteps = 60;p.Config.WithOneCycleLearningRateScheduler(20, 0.1); p.ExtraDescription = "_60TimeSteps_lr_divide_20";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 10;p.TimeSteps = 100;p.InitialLearningRate = 0.002;p.Config.WithOneCycleLearningRateScheduler(20, 0.1); p.ExtraDescription = "_100TimeSteps_lr_0_002_divide_20";return p;},
+
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.InitialLearningRate = 0.002;p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2, p.InitialLearningRate/20); p.ExtraDescription = "_60TimeSteps_lr_0_002_cyclic";return p;},
+                //() =>{var p = CFM60NetworkBuilder.Default();p.TimeSteps = 60;p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2,p.InitialLearningRate/20); p.ExtraDescription = "_60TimeSteps_cyclic";return p;},
+
+                
+
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.20, true, true, 0.02);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.50, true, true, 0.03);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.20, true, true, 0.02);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.50, true, true, 0.03);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.LSTMLayersReturningFullSequence=2;p.ExtraDescription ="_2LSTMLayersReturningFullSequence";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.LSTMLayersReturningFullSequence=3;p.ExtraDescription ="_3LSTMLayersReturningFullSequence";return p;},
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability=0.1;p.ExtraDescription ="_drop_0_10";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability=0.3;p.ExtraDescription ="_drop_0_30";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability=0.0;p.ExtraDescription ="_nodrop";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.WithSpecialEndV1=true;p.ExtraDescription ="_WithSpecialEndV1";return p;},
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.05, true, true, 0.01);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.10, true, true, 0.01);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.20, true, true, 0.01);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.50, true, true, 0.01);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+
+
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER;p.ExtraDescription ="_BATCH_NORM_LAYER";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN;p.ExtraDescription ="_DEDUCE_MEAN";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.Z_SCORE;p.ExtraDescription ="_Z_SCORE";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER;p.ExtraDescription ="_DEDUCE_MEAN_AND_BATCH_NORM_LAYER";return p;},
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2 = true;p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER;p.ExtraDescription ="_BATCH_NORM_LAYER_UseBatchNorm2";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2 = true;p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN;p.ExtraDescription ="_DEDUCE_MEAN_UseBatchNorm2";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2 = true;p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.Z_SCORE;p.ExtraDescription ="_Z_SCORE_UseBatchNorm2";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2 = true;p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER;p.ExtraDescription ="_DEDUCE_MEAN_AND_BATCH_NORM_LAYER_UseBatchNorm2";return p;},
+
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate=0.01;p.ExtraDescription ="_lr_0_01";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate=0.005;p.ExtraDescription ="_lr_0_005";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate=0.0005;p.ExtraDescription ="_lr_0_0005";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate=0.0001;p.ExtraDescription ="_lr_0_0001";return p;},
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Use_ret_vol_start_and_end_only=true; p.ExtraDescription ="_Use_ret_vol_start_and_end_only";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Use_ret_vol=false; p.ExtraDescription ="_no_Use_ret_vol";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=50;p.Use_ret_vol_start_and_end_only=true; p.ExtraDescription ="_Use_ret_vol_start_and_end_only_50HiddenSize";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=50;p.Use_ret_vol=false; p.ExtraDescription ="_no_Use_ret_vol_50HiddenSize";return p;},
+
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(200); p.ExtraDescription ="_linear_divide_200";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(2000); p.ExtraDescription ="_linear_divide_2000";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithLinearLearningRateScheduler(100); p.ExtraDescription ="_linear_divide_100";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate = 0.01;p.Config.WithLinearLearningRateScheduler(200); p.ExtraDescription ="_lr_0_01_linear_divide_200";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=64;p.NumEpochs = 70; p.ExtraDescription ="_64HiddenSize_70epochs";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize = 4096;p.HiddenSize=64; p.ExtraDescription ="_64HiddenSize_4096batchSize";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=50; p.ExtraDescription ="_50HiddenSize";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DenseUnits=100; p.ExtraDescription ="_100DenseUnits";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DenseUnits=60; p.ExtraDescription ="_60DenseUnits";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DenseUnits=40; p.ExtraDescription ="_40DenseUnits";return p;},
+
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.BatchSize = 4096;p.DenseUnits=25; p.ExtraDescription ="_25DenseUnits_4096batchSize";return p;},
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2, p.InitialLearningRate / 200);p.ExtraDescription = "_mean_lr_divider_200";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true; p.ExtraDescription = p.UseBatchNorm1+"_"+p.UseBatchNorm2;return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2, p.InitialLearningRate / 200);p.UseBatchNorm2=true; p.ExtraDescription = p.UseBatchNorm1+"_"+p.UseBatchNorm2+"_mean_lr_divider_200";return p;},
+
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate = 0.01;p.ExtraDescription = "_lr_0_01";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability=0.1; p.ExtraDescription ="_drop_0_10";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim=16; p.ExtraDescription ="_16embeddding";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true; p.ExtraDescription ="_false_true";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER;p.UseBatchNorm2=false; p.ExtraDescription ="_BATCH_NORM_LAYER";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN;p.UseBatchNorm2=false; p.ExtraDescription ="_DEDUCE_MEAN";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.InputNormalizationType=CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER;p.UseBatchNorm2=false; p.ExtraDescription ="_DEDUCE_MEAN_AND_BATCH_NORM_LAYER";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=128; p.ExtraDescription ="_128HiddenSize";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.HiddenSize=64; p.ExtraDescription ="_64HiddenSize";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DenseUnits=100; p.ExtraDescription ="_100DenseUnits";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true;p.Pid_EmbeddingDim=16;p.UseBatchNorm2=true; p.ExtraDescription ="_False_True_0_10_dropout_16embeddding";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=true;p.Pid_EmbeddingDim=16;p.ExtraDescription ="_0_10_dropout_16embeddding";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm1=true;p.UseBatchNorm2=false; p.ExtraDescription = p.UseBatchNorm1+"_"+p.UseBatchNorm2;return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.UseBatchNorm2=false;p.ExtraDescription = p.UseBatchNorm1+"_"+p.UseBatchNorm2;return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.3;p.UseBatchNorm1=true;p.UseBatchNorm2=true; p.ExtraDescription = p.UseBatchNorm1+"_"+p.UseBatchNorm2+"_0_30_dropout";return p;},
@@ -532,16 +741,16 @@ namespace SharpNetTests
             //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.05, true, false, 0.10);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.05, true, false, 0.50);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE, 0.05, true, false, 1.00);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.01, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.03, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.05, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.07, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.10, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.01, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.03, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.05, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.07, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.10, true, false);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.01);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.03);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.05);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.07);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.10);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO, 0.01);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.03);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.05);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.07);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.DA.WithTimeSeriesDataAugmentation(DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN, 0.10);p.ExtraDescription = p.DA.TimeSeriesDescription();return p;},
 
 
             //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate = 0.01;;p.Use_mean_abs_ret=true ;p.Config.WithOneCycleLearningRateScheduler(200,0.1);p.ExtraDescription = "_lr_0_01_1cycle_divide200_mean_abs_ret";return p;},
@@ -780,10 +989,10 @@ namespace SharpNetTests
             //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 70;p.PercentageInTraining = 0.95;p.ExtraDescription = "_0_95_in_training";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 70;p.Use_day=false;p.ExtraDescription = "_no_day";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 70;p.ModuloForDay=250;p.ExtraDescription = "_ModuloForDay_250";return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, false, false);p.ExtraDescription = "_Conv1D";return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, true, false);p.ExtraDescription = "_Conv1D_BatchNorm";return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, false, true);p.ExtraDescription = "_Conv1D_Relu";return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, true, true);p.ExtraDescription = "_Conv1D_BatchNorm_Relu";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, false);p.ExtraDescription = "_Conv1D";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME);p.ExtraDescription = "_Conv1D_BatchNorm";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, false);p.ExtraDescription = "_Conv1D_Relu";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, true);p.ExtraDescription = "_Conv1D_BatchNorm_Relu";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.InitialLearningRate=0.001;p.ExtraDescription = "_lr_0_001";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.InitialLearningRate=0.0001;p.ExtraDescription = "_lr_0_0001";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.NumEpochs = 150;p.LinearLayer_a=1/0.909245f;p.LinearLayer_b=+1.958691f/0.909245f;p.ExtraDescription = "_linear_1_95";return p;},
@@ -805,7 +1014,7 @@ namespace SharpNetTests
             //() =>{var p = CFM60NetworkBuilder.Default();p.InitialLearningRate=0.0005;p.ExtraDescription = "_lr_0_0005";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.Use_pid_y_vol = true;p.SplitTrainingAndValidationBasedOnDays=false;p.ExtraDescription = "_SplitTrainingAndValidation_Random_Use_pid_y_vol";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.1;p.SplitTrainingAndValidationBasedOnDays=false;p.ExtraDescription = "_SplitTrainingAndValidation_Random_drop_0_10";return p;},
-            //() =>{var p = CFM60NetworkBuilder.Default();p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, true, true);p.ExtraDescription = "_Conv1D_BatchNorm_Relu";return p;},
+            //() =>{var p = CFM60NetworkBuilder.Default();p.WithConv1D(1, ConvolutionLayer.PADDING_TYPE.SAME, true);p.ExtraDescription = "_Conv1D_BatchNorm_Relu";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.ExtraDescription = "_default";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.15;p.ExtraDescription = "_drop0_0_15";return p;},
             //() =>{var p = CFM60NetworkBuilder.Default();p.DropProbability = 0.0;p.ExtraDescription = "_nodrop";return p;},
@@ -837,9 +1046,9 @@ namespace SharpNetTests
             //() => {var p = CFM60NetworkBuilder.Default();p.NumEpochs = 70;p.InitialLearningRate = 0.00005; p.LSTMLayersReturningFullSequence=2;p.ExtraDescription = "_2LSTMLayersReturningFullSequence_lr_0_00005";return p;},
             //() => {var p = CFM60NetworkBuilder.Default();p.NumEpochs = 70;p.InitialLearningRate = 0.00001; p.LSTMLayersReturningFullSequence=2;p.ExtraDescription = "_2LSTMLayersReturningFullSequence_lr_0_00001";return p;},
             #endregion
-        };
+            };
 
-            networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 2);
+            //networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 4);
 
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
@@ -858,9 +1067,12 @@ namespace SharpNetTests
             //var res = network.FindBestLearningRate(cfm60, 1e-7, 0.9, p.BatchSize);return;
 
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            ((CFM60DataSet) trainingValidation.Training).OriginalTestDataSet = (CFM60DataSet)cfm60TrainingAndTestDataSet.Test;
             network.Fit(trainingValidation.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingValidation.Test);
-            ((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network, 1024, Path.Combine(network.Config.LogDirectory, "test_predictions", network.UniqueId+".csv"));
-            ((CFM60DataSet)trainingValidation.Test).CreatePredictionFile(network, 1024, Path.Combine(network.Config.LogDirectory, "validation_predictions", network.UniqueId+".csv"));
+            ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = null;
+
+            //((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network);
+            //((CFM60DataSet)trainingValidation.Test).CreatePredictionFile(network);
         }
         #endregion
 

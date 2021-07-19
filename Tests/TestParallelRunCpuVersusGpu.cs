@@ -704,7 +704,6 @@ namespace SharpNetTests
             TestAll(new[] {b,y}, tensors => tensors[0].BroadcastAddVectorToOutput(tensors[1]));
 	    }
 
-        //TODO : add test for AdamW
         [Test]
         public void TestUpdateAdamOptimizer()
         {
@@ -712,7 +711,18 @@ namespace SharpNetTests
             var dW = RandomTensor(W.Shape);
             var adam_vW = RandomTensor(W.Shape);
             var adam_sW = RandomTensor(W.Shape);
-            TestAll(new[] { W, dW, adam_vW, adam_sW}, tensors => tensors[0].UpdateAdamOptimizer(0.001, 0.9,0.999,1e-8, 0.0, tensors[1], tensors[2], tensors[3], 5));
+            TestAll(new[] { W, dW, adam_vW, adam_sW}, tensors => tensors[0].UpdateAdamOptimizer(0.001, 0.9, 0.999,1e-8, 0.0, tensors[1], tensors[2], tensors[3], 5));
+        }
+
+        [Test]
+        public void TestUpdateAdamWOptimizer()
+        {
+            const double adamW_l2Regularization = 0.0005;
+            var W = RandomTensor(new[] { Width, Height });
+            var dW = RandomTensor(W.Shape);
+            var adam_vW = RandomTensor(W.Shape);
+            var adam_sW = RandomTensor(W.Shape);
+            TestAll(new[] { W, dW, adam_vW, adam_sW }, tensors => tensors[0].UpdateAdamOptimizer(0.001, 0.9, 0.999, 1e-8, adamW_l2Regularization, tensors[1], tensors[2], tensors[3], 5));
         }
 
         [TestCase(0.1, 0.9, 0.0, true)]

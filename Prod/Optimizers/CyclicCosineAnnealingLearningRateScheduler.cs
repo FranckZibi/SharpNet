@@ -12,11 +12,7 @@ namespace SharpNet.Optimizers
     {
         #region private fields
         private readonly double _minLearningRate;
-        private readonly double _maxLearningRate;
         private readonly List<Tuple<double, double>> _values = new List<Tuple<double, double>>();
-        #endregion
-
-
         /// <summary>
         /// the last epoch of each cycle.
         /// For instance, if we have 3 cycles :
@@ -24,7 +20,8 @@ namespace SharpNet.Optimizers
         /// then it will contains
         ///     10, 30, 70
         /// </summary>
-        private List<int> EndEpochForEachCycle { get; }= new List<int>();
+        private List<int> EndEpochForEachCycle { get; } = new List<int>();
+        #endregion
 
         /// <summary>
         /// see https://arxiv.org/pdf/1608.03983.pdf
@@ -64,7 +61,7 @@ namespace SharpNet.Optimizers
                 nbEpochsInCurrentRun = nbEpochsInNextRun;
             }
             _minLearningRate = minLearningRate;
-            _maxLearningRate = maxLearningRate;
+            MaxLearningRate = maxLearningRate;
         }
         public bool ShouldCreateSnapshotForEpoch(int epoch)
         {
@@ -76,8 +73,10 @@ namespace SharpNet.Optimizers
         {
             var currentEpoch = epoch + percentagePerformedInEpoch;
             var multiplier = Utils.Interpolate(_values, currentEpoch);
-            var learningRate = _minLearningRate + 0.5* (_maxLearningRate -_minLearningRate) * (1.0 + Math.Cos(multiplier * Math.PI));
+            var learningRate = _minLearningRate + 0.5* (MaxLearningRate - _minLearningRate) * (1.0 + Math.Cos(multiplier * Math.PI));
             return learningRate;
         }
+
+        public double MaxLearningRate { get; }
     }
 }

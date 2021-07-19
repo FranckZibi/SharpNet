@@ -278,7 +278,7 @@ namespace SharpNet.Networks
         }
 
        
-        public void UpdateWeights(int batchSize, double learningRate)
+        public void UpdateWeights(int batchSize, double learningRate, double maxLearningRate)
         {
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
             if (firstTrainableLayer == null)
@@ -289,7 +289,7 @@ namespace SharpNet.Networks
             {
                 var layer = _layers[index];
                 Network.StartTimer(layer.LayerType(), _updateWeightsTime);
-                layer.UpdateWeights(batchSize, learningRate);
+                layer.UpdateWeights(batchSize, learningRate, maxLearningRate);
                 Network.StopTimer(layer.LayerType(), _updateWeightsTime);
             }
         }

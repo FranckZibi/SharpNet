@@ -31,6 +31,7 @@ namespace SharpNet.Optimizers
         {
             _momentum = momentum;
             _minLearningRate = minLearningRate;
+            MaxLearningRate = maxLearningRate;
             _nbBlocksPerEpoch = (entireBatchSize + miniBatchSize - 1) / miniBatchSize;
             _multiplicativeCoeff = Math.Pow(maxLearningRate / minLearningRate, (1.0 / (_nbBlocksPerEpoch - 1)));
         }
@@ -106,5 +107,7 @@ namespace SharpNet.Optimizers
         {
             return false;
         }
+
+        public double MaxLearningRate { get; }
     }
 }

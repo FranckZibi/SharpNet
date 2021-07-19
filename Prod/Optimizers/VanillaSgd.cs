@@ -9,7 +9,9 @@ namespace SharpNet.Optimizers
         private VanillaSgd() {}
         public static readonly VanillaSgd Instance = new VanillaSgd();
 
-        public override void UpdateWeights(double learningRate, int batchSize, Tensor weights, Tensor weightGradients, Tensor bias, Tensor biasGradients)
+        public override void UpdateWeights(double learningRate, double maxLearningRate, int batchSize, Tensor weights,
+            Tensor weightGradients,
+            Tensor bias, Tensor biasGradients)
         {
             Debug.Assert(weights.SameShape(weightGradients));
             Debug.Assert(bias == null || bias.SameShape(biasGradients));

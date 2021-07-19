@@ -329,7 +329,7 @@ namespace SharpNet.Layers
             return result;
         }
 
-        private bool UseL2Regularization => LambdaL2Regularization > 0.0 && Config.OptimizerType != Optimizer.OptimizationEnum.AdamW;
+        private bool UseL2Regularization => LambdaL2Regularization > 0.0;
         private bool UseBias => _bias != null;
     }
 }
