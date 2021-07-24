@@ -305,14 +305,14 @@ namespace SharpNetTests.CPU
         [TestCase(100000, 1.0, true, 100000-10, 100000)]  // only 0 if drop probability = 100%
         [TestCase(100000, 0.25, true, (int)(100000*0.2), (int)(100000 *0.3))]
         [TestCase(100000, 0.75, true, (int)(100000 *0.7), (int)(100000 *0.8))]
-        public void TestDropoutForward(int nbRows, double dropProbability, bool isTraining, int minEqualToZeroAfterDropout, int maxEqualToZeroAfterDropout)
+        public void TestDropoutForward(int nbRows, double dropoutRate, bool isTraining, int minEqualToZeroAfterDropout, int maxEqualToZeroAfterDropout)
         {
             var rand = new Random(0);
             var x = RandomFloatTensor(new []{nbRows, 1}, rand, 10, 20);
             var y = RandomFloatTensor(x.Shape, rand, 10, 20);
             var memoryPool = new TensorMemoryPool(null);
             var dropoutReserveSpace = memoryPool.GetFloatTensor(y.Shape);
-            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace);
+            x.DropoutForward(y, dropoutRate, isTraining, rand, dropoutReserveSpace);
             int nbObservedZeroAfterDropout = y.ReadonlyContent.Count(i => Math.Abs(i) < 1e-8);
             Assert.IsTrue(nbObservedZeroAfterDropout>=minEqualToZeroAfterDropout);
             Assert.IsTrue(nbObservedZeroAfterDropout<= maxEqualToZeroAfterDropout);

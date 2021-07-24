@@ -750,7 +750,7 @@ namespace SharpNet.GPU
 
             return buffer.ContentAsFloatArray().Average();
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, [NotNull] Tensor dropoutReservedSpaceForTraining) 
+        public override void DropoutForward(Tensor y, double dropoutRate, bool isTraining, Random dropoutRandom, [NotNull] Tensor dropoutReservedSpaceForTraining) 
         {
             var x = this;
             if (!isTraining)
@@ -761,7 +761,7 @@ namespace SharpNet.GPU
             Debug.Assert(dropoutReservedSpaceForTraining.UseGPU); 
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
-            cudnnDropoutDescriptor_t dropoutDesc = _wrapper.DropoutDesc(dropProbability);
+            cudnnDropoutDescriptor_t dropoutDesc = _wrapper.DropoutDesc(dropoutRate);
             var res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, dropoutDesc, xDesc, x, yDesc, y, dropoutReservedSpaceForTraining.Pointer, dropoutReservedSpaceForTraining.CapacityInBytes);
             CheckStatus(res);
         }
@@ -771,15 +771,15 @@ namespace SharpNet.GPU
         /// </summary>
         /// <param name="dy"></param>
         /// <param name="dx"></param>
-        /// <param name="dropProbability"></param>
+        /// <param name="dropoutRate"></param>
         /// <param name="dropoutReserveSpace"></param>
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, [NotNull] Tensor dropoutReserveSpace)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropoutRate, [NotNull] Tensor dropoutReserveSpace)
         {
             Debug.Assert(dropoutReserveSpace.UseGPU);
             var dxDesc = TensorDesc(dx);
             var dyDesc = TensorDesc(dy);
             //no need of memory pool : the descriptor has been already created on forward propagation
-            var dropoutDesc = _wrapper.DropoutDesc(dropProbability);
+            var dropoutDesc = _wrapper.DropoutDesc(dropoutRate);
             var res = CudnnWrapper.cudnnDropoutBackward(CudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, dropoutReserveSpace, dropoutReserveSpace.CapacityInBytes);
             CheckStatus(res);
         }

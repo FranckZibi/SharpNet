@@ -686,20 +686,20 @@ namespace SharpNet.Data
         /// this = x
         /// </summary>
         /// <param name="y"></param>
-        /// <param name="dropProbability"></param>
+        /// <param name="dropoutRate"></param>
         /// <param name="isTraining"></param>
         /// <param name="dropoutRandom"></param>
         /// <param name="dropoutReservedSpaceForTraining">a reserved space used only for training (null for inference)</param>
-        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining);
+        public abstract void DropoutForward(Tensor y, double dropoutRate, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining);
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="dy"></param>
         /// <param name="dx"></param>
-        /// <param name="dropProbability"></param>
+        /// <param name="dropoutRate"></param>
         /// <param name="dropoutReserveSpace"></param>
-        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace);
+        public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropoutRate, Tensor dropoutReserveSpace);
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)

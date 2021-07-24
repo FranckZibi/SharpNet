@@ -563,7 +563,7 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining)
+        public override void DropoutForward(Tensor y, double dropoutRate, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining)
         {
             var x = this;
             if (!isTraining)
@@ -572,15 +572,15 @@ namespace SharpNet.CPU
                 return;
             }
             Debug.Assert(!dropoutReservedSpaceForTraining.UseGPU);
-            var dropProbabilityFloat = (float)dropProbability;
+            var dropoutRateFloat = (float)dropoutRate;
             Utils.UniformDistribution(dropoutReservedSpaceForTraining.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
-            y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutReservedSpaceForTraining, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));
+            y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutReservedSpaceForTraining, (prevLayer, prob) => prob < dropoutRate ? 0f : prevLayer / (1 - dropoutRateFloat));
         }
-        public override void DropoutBackward(Tensor dy, Tensor dx, double dropProbability, Tensor dropoutReserveSpace)
+        public override void DropoutBackward(Tensor dy, Tensor dx, double dropoutRate, Tensor dropoutReserveSpace)
         {
             Debug.Assert(!dropoutReserveSpace.UseGPU);
-            var dropProbabilityFloat = (float)dropProbability;
-            dx.AsFloatCpu.BuildEntirelyFromInput(dy, dropoutReserveSpace, (dOutput, prob) => prob < dropProbabilityFloat ? 0f : dOutput / (1 - dropProbabilityFloat));
+            var dropoutRateFloat = (float)dropoutRate;
+            dx.AsFloatCpu.BuildEntirelyFromInput(dy, dropoutReserveSpace, (dOutput, prob) => prob < dropoutRateFloat ? 0f : dOutput / (1 - dropoutRateFloat));
         }
         //this = dy
 

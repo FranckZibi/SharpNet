@@ -100,7 +100,7 @@ namespace SharpNet.Networks
         /// <param name="useBottleneckInEachConvBlock"></param>
         /// <param name="growthRate"></param>
         /// <param name="compression"> 1.0 = no compression</param>
-        /// <param name="dropProbability"></param>
+        /// <param name="dropoutRate"></param>
         /// <returns></returns>
         private Network Build(
             string networkName,
@@ -111,7 +111,7 @@ namespace SharpNet.Networks
             bool useBottleneckInEachConvBlock,
             int growthRate,
             double compression,
-            double? dropProbability)
+            double? dropoutRate)
         {
             var net = BuildEmptyNetwork(networkName);
 
@@ -133,7 +133,7 @@ namespace SharpNet.Networks
 
             for (int denseBlockId = 0; denseBlockId < nbConvBlocksInEachDenseBlock.Length; ++denseBlockId)
             {
-                AddDenseBlock(net, nbConvBlocksInEachDenseBlock[denseBlockId], growthRate, useBottleneckInEachConvBlock, dropProbability, Config.lambdaL2Regularization);
+                AddDenseBlock(net, nbConvBlocksInEachDenseBlock[denseBlockId], growthRate, useBottleneckInEachConvBlock, dropoutRate, Config.lambdaL2Regularization);
                 if (denseBlockId != nbConvBlocksInEachDenseBlock.Length - 1)
                 {
                     //the last dense block does not have a transition block
@@ -160,7 +160,7 @@ namespace SharpNet.Networks
         /// <param name="nbConvBlocksInDenseBlock"></param>
         /// <param name="growthRate"></param>
         /// <param name="bottleneck"></param>
-        /// <param name="dropProbability"></param>
+        /// <param name="dropoutRate"></param>
         /// <param name="lambdaL2Regularization"></param>
         /// <returns></returns>
         private static void AddDenseBlock(
@@ -168,13 +168,13 @@ namespace SharpNet.Networks
             int nbConvBlocksInDenseBlock,
             int growthRate,
             bool bottleneck,
-            double? dropProbability,
+            double? dropoutRate,
             double lambdaL2Regularization)
         {
             for (int convBlockId = 0; convBlockId < nbConvBlocksInDenseBlock; ++convBlockId)
             {
                 var previousLayerIndex1 = network.LastLayerIndex;
-                AddConvolutionBlock(network, growthRate, bottleneck, dropProbability, lambdaL2Regularization);
+                AddConvolutionBlock(network, growthRate, bottleneck, dropoutRate, lambdaL2Regularization);
                 var previousLayerIndex2 = network.LastLayerIndex;
                 network.ConcatenateLayer(previousLayerIndex1, previousLayerIndex2);
             }
@@ -185,10 +185,10 @@ namespace SharpNet.Networks
         /// <param name="network"></param>
         /// <param name="growthRate"></param>
         /// <param name="bottleneck"></param>
-        /// <param name="dropProbability">optional value, if presents will add a Dropout layer at the end of the block</param>
+        /// <param name="dropoutRate">optional value, if presents will add a Dropout layer at the end of the block</param>
         /// <param name="lambdaL2Regularization"></param>
         /// <returns></returns>
-        private static void AddConvolutionBlock(Network network, int growthRate, bool bottleneck, double? dropProbability, double lambdaL2Regularization)
+        private static void AddConvolutionBlock(Network network, int growthRate, bool bottleneck, double? dropoutRate, double lambdaL2Regularization)
         {
             if (bottleneck)
             {
@@ -196,9 +196,9 @@ namespace SharpNet.Networks
             }
             //network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, lambdaL2Regularization, true);
             network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true);
-            if (dropProbability.HasValue)
+            if (dropoutRate.HasValue)
             {
-                network.Dropout(dropProbability.Value);
+                network.Dropout(dropoutRate.Value);
             }
         }
         /// <summary>

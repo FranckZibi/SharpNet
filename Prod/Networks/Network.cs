@@ -186,23 +186,44 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network LSTM(int units, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
+        public Network LSTM(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
         {
-            Debug.Assert(Layers.Count >= 1);
-            Debug.Assert(UseGPU);
-            var lstm = new RecurrentLayer(units, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, this, layerName);
-            Layers.Add(lstm);
-            return this;
+            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, layerName);
         }
 
         public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
         {
+            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, layerName);
+        }
+
+
+        public Network RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool trainable, string layerName = "")
+        {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
-            var lstm = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, this, layerName);
-            Layers.Add(lstm);
+
+            if (numLayers >= 2 && dropoutRate > 1e-6)
+            {
+                //there is ann issue with cuDNN 8.* when using multi layer RNN with dropout.
+                //We are using a workaround: building several stacked single layer RNN with a dropout layer between each of them
+                for (int i = 0; i < numLayers-1; ++i)
+                {
+                    /* first 'numLayers-1' layers: single layer with no dropout, always returning a full sequence */
+                    RecurrentLayer(hiddenSize, cellMode, biasMode, true, isBidirectional, 1, 0.0, trainable, "");
+                    Dropout(dropoutRate);
+                }
+                /* last layer: single layer with no dropout, returning a full sequence iif 'returnSequences' is true */
+                RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, 1, 0.0, trainable, "");
+            }
+            else
+            {
+                var recurrentLayer = new RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, numLayers, dropoutRate, trainable, this, layerName);
+                Layers.Add(recurrentLayer);
+            }
+
             return this;
         }
+        
 
         public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
         {
@@ -335,10 +356,10 @@ namespace SharpNet.Networks
             Layers.Add(new ConvolutionLayer(true, false, -1, depthMultiplier, kernelSize, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, true, this, layerName));
             return this;
         }
-        public Network Dropout(double dropProbability, string layerName = "")
+        public Network Dropout(double dropoutRate, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new DropoutLayer(dropProbability, this, layerName));
+            Layers.Add(new DropoutLayer(dropoutRate, this, layerName));
             return this;
         }
         public Network Activation(cudnnActivationMode_t activationFunction, string layerName = "")

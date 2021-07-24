@@ -171,10 +171,16 @@ namespace SharpNet.Networks
         public bool Use_GRU_instead_of_LSTM { get; set; } = false;
         public bool Use_Bidirectional_RNN { get; set; } = true;
 
-        public int NumLayersLastLSTM { get; set; } = 1;
-        public double DropoutRateLastLSTM { get; set; } = 0.0;
-        public int LSTMLayersReturningFullSequence { get; set; } = 1;
-        public double DropProbability { get; set; } = 0.2;       //validated on 15-jan-2021
+        /// <summary>
+        /// numb er of layer in the encoder.
+        /// </summary>
+        public int EncoderNumLayers { get; set; } = 2;
+        /// <summary>
+        /// dropout to use for the encoder. A value of 0 means no dropout
+        /// </summary>
+        public double EncoderDropoutRate { get; set; } = 0.0;
+
+        public double DropoutRate { get; set; } = 0.2;       //validated on 15-jan-2021
         public bool UseBatchNorm2 { get; set; } = false;
 
         public int HiddenSize { get; set; } = 128;               //validated on 15-jan-2021
@@ -245,6 +251,9 @@ namespace SharpNet.Networks
             builder.NumEpochs = 30; //validated on 20-july-2021: speed up tests
             builder.Config.WithAdamW(0.0001); //validated on 20-july-2021: small change but better generalization
 
+            builder.NumEpochs = 10; //?D
+
+
             return builder;
         }
 
@@ -286,42 +295,28 @@ namespace SharpNet.Networks
                 }
             }
 
-            for (int i = 0; i < LSTMLayersReturningFullSequence; ++i)
-            {
-                if (Use_GRU_instead_of_LSTM)
-                {
-                    network.GRU(HiddenSize, true, Use_Bidirectional_RNN, 1, 0.0);
-                }
-                else
-                {
-                    network.LSTM(HiddenSize, true, Use_Bidirectional_RNN, 1, 0.0);
-                }
-                if (DropProbability >= 1e-6)
-                {
-                    network.Dropout(DropProbability);
-                }
-                if (UseBatchNorm2)
-                {
-                    network.SwitchSecondAndThirdDimension(true);
-
-                    //TO TEST:  network.BatchNorm(0.0, 1e-5);
-                    network.BatchNorm(0.99, 1e-5);
-                    network.SwitchSecondAndThirdDimension(false);
-                }
-            }
-
-            //network.Linear(aNormalization, bNormalization);
+            //We add the Encoder
             if (Use_GRU_instead_of_LSTM)
             {
-                network.GRU(HiddenSize, false, Use_Bidirectional_RNN, NumLayersLastLSTM, DropoutRateLastLSTM);
+                network.GRU(HiddenSize, true, Use_Bidirectional_RNN, EncoderNumLayers, EncoderDropoutRate);
             }
             else
             {
-                network.LSTM(HiddenSize, false, Use_Bidirectional_RNN, NumLayersLastLSTM, DropoutRateLastLSTM);
+                network.LSTM(HiddenSize, true, Use_Bidirectional_RNN, EncoderNumLayers, EncoderDropoutRate);
             }
-            if (DropProbability >= 1e-6)
+
+            if (UseBatchNorm2)
             {
-                network.Dropout(DropProbability);
+                network.SwitchSecondAndThirdDimension(true);
+
+                //TO TEST:  network.BatchNorm(0.0, 1e-5);
+                network.BatchNorm(0.99, 1e-5);
+                network.SwitchSecondAndThirdDimension(false);
+            }
+
+            if (DropoutRate >= 1e-6)
+            {
+                network.Dropout(DropoutRate);
             }
 
             network.Dense_Activation(DenseUnits, network.Config.lambdaL2Regularization, true, ActivationFunctionAfterFirstDense);

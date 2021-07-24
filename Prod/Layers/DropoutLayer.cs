@@ -9,13 +9,13 @@ namespace SharpNet.Layers
     public class DropoutLayer : Layer
     {
         #region fields
-        private readonly double _dropProbability;
+        private readonly double _dropoutRate;
         private Tensor _dropoutReservedSpaceForTraining;
         #endregion
 
-        public DropoutLayer(double dropProbability, Network network, string layerName) : base(network, layerName)
+        public DropoutLayer(double dropoutRate, Network network, string layerName) : base(network, layerName)
         {
-            _dropProbability = dropProbability;
+            _dropoutRate = dropoutRate;
         }
 
         #region forward and backward propagation
@@ -34,7 +34,7 @@ namespace SharpNet.Layers
                 //no need of dropout reserved space for inference
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
-            x.DropoutForward(y, _dropProbability, isTraining, Rand, _dropoutReservedSpaceForTraining);
+            x.DropoutForward(y, _dropoutRate, isTraining, Rand, _dropoutReservedSpaceForTraining);
             if (!BackwardPropagationNeeded(isTraining, FirstTrainableLayer(Layers)))
             {
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
@@ -47,7 +47,7 @@ namespace SharpNet.Layers
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
             Debug.Assert(_dropoutReservedSpaceForTraining != null);
-            allX[0].DropoutBackward(dy, dx[0], _dropProbability, _dropoutReservedSpaceForTraining);
+            allX[0].DropoutBackward(dy, dx[0], _dropoutRate, _dropoutReservedSpaceForTraining);
             FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
         }
         public override bool OutputNeededForBackwardPropagation => false;
@@ -56,11 +56,11 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(_dropProbability), _dropProbability).ToString();
+            return RootSerializer().Add(nameof(_dropoutRate), _dropoutRate).ToString();
         }
         public static DropoutLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            return new DropoutLayer((double)serialized[nameof(_dropProbability)], network, (string)serialized[nameof(LayerName)]);
+            return new DropoutLayer((double)serialized[nameof(_dropoutRate)], network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
