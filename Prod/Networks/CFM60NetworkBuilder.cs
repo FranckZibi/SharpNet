@@ -190,7 +190,7 @@ namespace SharpNet.Networks
         public bool UseReluAfterConv1D { get; set; } = false;
         
         // max value of the loss to consider saving the network
-        public double MaxLossToSaveTheNetwork { get; set; } = 0.355;
+        public double MaxLossToSaveTheNetwork { get; set; } = 0.36;
         
         // ReSharper disable once UnusedMember.Global
         public void WithConv1D(int kernelWidth, ConvolutionLayer.PADDING_TYPE paddingType, bool useBatchNormAfterConv1D, bool useReluAfterConv1D)
@@ -233,7 +233,6 @@ namespace SharpNet.Networks
             builder.Use_day = true;
             builder.Use_y_LinearRegressionEstimate = false;
             builder.Use_volatility_pid_y = false;
-            builder.NumEpochs = 70;
             builder.TimeSteps = 20;
             builder.Use_LS = false; //validated on 2-june-2021: -0.011155486
             builder.Pid_EmbeddingDim = 8; //validated on 6-june-2021: -0.0226
@@ -242,12 +241,9 @@ namespace SharpNet.Networks
             builder.ClipValueForGradients = 1000;  //validated on 4-july-2021: -0.0110
             builder.Config.WithOneCycleLearningRateScheduler(200, 0.1); //validated on 14-july-2021: -0.0078
             builder.HiddenSize = 64; //validated on 14-july-2021: very small degradation (+0.0010) but much less parameters
-
-            builder.NumEpochs = 30; //?D
-            //builder.InitialLearningRate = 0.002; //?D
-
-            
-            builder.Config.WithAdamW(0.00005); //validated on 19-july-2021: very small degradation (+0.0016) but better expected results for bigger data set
+            //builder.Config.WithAdamW(0.00005); //validated on 19-july-2021: very small degradation (+0.0016) but better expected results for bigger data set
+            builder.NumEpochs = 30; //validated on 20-july-2021: speed up tests
+            builder.Config.WithAdamW(0.0001); //validated on 20-july-2021: small change but better generalization
 
             return builder;
         }

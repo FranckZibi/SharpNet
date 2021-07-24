@@ -34,7 +34,7 @@ namespace SharpNet.Layers
                 //no need of dropout reserved space for inference
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
-            x.DropoutForward(y, _dropProbability, isTraining, Rand, _dropoutReservedSpaceForTraining, Network.GetRandomNumberGeneratorStatesBuffer());
+            x.DropoutForward(y, _dropProbability, isTraining, Rand, _dropoutReservedSpaceForTraining);
             if (!BackwardPropagationNeeded(isTraining, FirstTrainableLayer(Layers)))
             {
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);

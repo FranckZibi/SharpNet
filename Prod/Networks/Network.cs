@@ -32,7 +32,6 @@ namespace SharpNet.Networks
         private readonly List<int> _resourceIds;
         private Tensor buffer;
         private Tensor _bufferComputeLoss;
-        private Tensor _randomNumberGeneratorStatesBufferForGPU;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         // bytes/batchSize needed for forward & backward propagation
         #endregion
@@ -120,7 +119,6 @@ namespace SharpNet.Networks
             EpochData.Clear();
             MemoryPool.FreeFloatTensor(ref buffer);
             MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
-            MemoryPool.FreeFloatTensor(ref _randomNumberGeneratorStatesBufferForGPU);
             MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
             MemoryPool.FreeFloatTensor(ref _yExpectedForEpoch);
             MemoryPool.FreeFloatTensor(ref _x_miniBatch);
@@ -139,26 +137,6 @@ namespace SharpNet.Networks
                 GC.Collect();
                 Log.Debug("After clearing memory: " + MemoryInfo());
             }
-        }
-
-        /// <summary>
-        /// build a buffer needed by all Dropout layers when run on GPU
-        /// this tensor is null for CPU
-        /// </summary>
-        /// <returns></returns>
-        public Tensor GetRandomNumberGeneratorStatesBuffer()
-        {
-            if (!UseGPU)
-            {
-                return null;
-            }
-            if (_randomNumberGeneratorStatesBufferForGPU == null)
-            {
-                var res = CudnnWrapper.cudnnDropoutGetStatesSize(GpuWrapper.CudnnHandle, out var dropoutStateSize);
-                GPUWrapper.CheckStatus(res);
-                _randomNumberGeneratorStatesBufferForGPU = MemoryPool.GetBuffer(dropoutStateSize);
-            }
-            return _randomNumberGeneratorStatesBufferForGPU;
         }
 
         #region network construction: adding layers

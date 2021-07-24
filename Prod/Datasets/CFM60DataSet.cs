@@ -104,6 +104,7 @@ namespace SharpNet.Datasets
     {
         private readonly CFM60NetworkBuilder Cfm60NetworkBuilder;
         private readonly CFM60DataSet TrainingDataSetIfAny;
+        //TODO : add element for each valid day, even if no entry is associated with that day
         private readonly IDictionary<int, List<CFM60Entry>> _pidToSortedEntries = new Dictionary<int, List<CFM60Entry>>();
         private readonly IDictionary<int, int> _CFM60EntryIDToIndexIn_pidToSortedEntries = new Dictionary<int, int>();
 
@@ -474,7 +475,6 @@ namespace SharpNet.Datasets
 
             File.WriteAllText(filePath, sb.ToString());
         }
-
 
         /// <summary>
         /// return the entry associated with the pid 'pid' for index 'indexInPidEntryArray'

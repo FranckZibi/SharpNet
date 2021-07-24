@@ -312,7 +312,7 @@ namespace SharpNetTests.CPU
             var y = RandomFloatTensor(x.Shape, rand, 10, 20);
             var memoryPool = new TensorMemoryPool(null);
             var dropoutReserveSpace = memoryPool.GetFloatTensor(y.Shape);
-            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace, null);
+            x.DropoutForward(y, dropProbability, isTraining, rand, dropoutReserveSpace);
             int nbObservedZeroAfterDropout = y.ReadonlyContent.Count(i => Math.Abs(i) < 1e-8);
             Assert.IsTrue(nbObservedZeroAfterDropout>=minEqualToZeroAfterDropout);
             Assert.IsTrue(nbObservedZeroAfterDropout<= maxEqualToZeroAfterDropout);
@@ -410,7 +410,7 @@ namespace SharpNetTests.CPU
             var x = TestNetworkPropagation.FromNumpyArray("[[3,1], [2,1], [2,3], [1,2]]");
             var wordEmbedding = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [101,102,103], [201,202,203], [301,302,303]]");
             var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[301,302,303],[101,102,103]], [ [201,202,203],[101,102,103]], [ [201,202,203],[301,302,303]], [[101,102,103],[201,202,203]] ]");
-            var yPredicted = RandomTensor(yExpected.Shape); ;
+            var yPredicted = RandomTensor(yExpected.Shape);
             yPredicted.WordEmbeddingForwardPropagation(x, wordEmbedding, -1);
             TestTensor.SameContent(yExpected, yPredicted, 1e-6);
         }
@@ -491,10 +491,6 @@ namespace SharpNetTests.CPU
             return result;
         }
 
-
-
-
-
         //random tensor
         //in each row: only 2 elements with non zero value, the sum of the 2 elements is always = 1.0
         public static CpuTensor<float> RandomTwoHotTensor(int[] shape, Random rand)
@@ -513,10 +509,9 @@ namespace SharpNetTests.CPU
             return result;
         }
 
-
         private CpuTensor<float> RandomTensor(int[] shape)
         {
-            return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
+            return RandomFloatTensor(shape, _rand, -1.5, +1.5);
         }
 
     }

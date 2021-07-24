@@ -404,6 +404,7 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="tensor_NH"></param>
         /// <param name="channel"></param>
+        // ReSharper disable once UnusedMember.Global
         public void From_NCH_to_NH(Tensor tensor_NH, int channel)
         {
             var tensor_NCH = this;
@@ -599,6 +600,7 @@ namespace SharpNet.Data
         {
             return RowSlice(elementIndex, 1);
         }
+        // ReSharper disable once UnusedMember.Global
         public Tensor ElementSlice(int elementIndex, int[] newShape)
         {
             return Slice(Idx(elementIndex), newShape);
@@ -688,10 +690,7 @@ namespace SharpNet.Data
         /// <param name="isTraining"></param>
         /// <param name="dropoutRandom"></param>
         /// <param name="dropoutReservedSpaceForTraining">a reserved space used only for training (null for inference)</param>
-        /// <param name="randomNumberGeneratorStatesBufferForGPU"></param>
-        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom,
-            Tensor dropoutReservedSpaceForTraining,
-            Tensor randomNumberGeneratorStatesBufferForGPU);
+        public abstract void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining);
 
         /// <summary>
         /// 

@@ -100,7 +100,7 @@ namespace SharpNet.Layers
             Trainable = trainable;
 
 
-            _cudnnRNNDescriptor_t = Network.GpuWrapper.RNNDesc(_rnnDescriptor, Network.GetRandomNumberGeneratorStatesBuffer());
+            _cudnnRNNDescriptor_t = Network.GpuWrapper.RNNDesc(_rnnDescriptor);
             CudnnWrapper.cudnnGetRNNWeightSpaceSize(Network.GpuWrapper.CudnnHandle, _cudnnRNNDescriptor_t, out var weightSpaceSize);
 
             _weightsAndBiases = GetFloatTensor(new[] { (int)(weightSpaceSize / 4) });
@@ -182,7 +182,7 @@ namespace SharpNet.Layers
             {
                 return null;
             }
-            var tensorShape = Network.GpuWrapper.GetTensorShape(tensorDesc);
+            var tensorShape = GPUWrapper.GetTensorShape(tensorDesc);
             Debug.Assert(tensorShape.Length >= 3);
             Debug.Assert(tensorShape[0] == 1);
             Debug.Assert(!isBias || tensorShape[2] == 1);

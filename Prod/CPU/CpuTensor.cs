@@ -563,7 +563,7 @@ namespace SharpNet.CPU
                 }
             }
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining, Tensor randomNumberGeneratorStatesBufferForGPU)
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining)
         {
             var x = this;
             if (!isTraining)
@@ -572,7 +572,6 @@ namespace SharpNet.CPU
                 return;
             }
             Debug.Assert(!dropoutReservedSpaceForTraining.UseGPU);
-            Debug.Assert(randomNumberGeneratorStatesBufferForGPU == null);
             var dropProbabilityFloat = (float)dropProbability;
             Utils.UniformDistribution(dropoutReservedSpaceForTraining.AsFloatCpuSpan, dropoutRandom, 0.0, 1.0);
             y.AsFloatCpu.BuildEntirelyFromInput(x, dropoutReservedSpaceForTraining, (prevLayer, prob) => prob < dropProbability ? 0f : prevLayer / (1 - dropProbabilityFloat));

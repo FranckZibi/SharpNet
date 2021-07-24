@@ -750,7 +750,7 @@ namespace SharpNet.GPU
 
             return buffer.ContentAsFloatArray().Average();
         }
-        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, [NotNull] Tensor dropoutReservedSpaceForTraining, [NotNull] Tensor randomNumberGeneratorStatesBufferForGPU) 
+        public override void DropoutForward(Tensor y, double dropProbability, bool isTraining, Random dropoutRandom, [NotNull] Tensor dropoutReservedSpaceForTraining) 
         {
             var x = this;
             if (!isTraining)
@@ -759,13 +759,13 @@ namespace SharpNet.GPU
                 return;
             }
             Debug.Assert(dropoutReservedSpaceForTraining.UseGPU); 
-            Debug.Assert(randomNumberGeneratorStatesBufferForGPU.UseGPU);
             var xDesc = TensorDesc(x);
             var yDesc = TensorDesc(y);
-            var dropoutDesc = _wrapper.DropoutDesc(dropProbability, randomNumberGeneratorStatesBufferForGPU);
+            cudnnDropoutDescriptor_t dropoutDesc = _wrapper.DropoutDesc(dropProbability);
             var res = CudnnWrapper.cudnnDropoutForward(CudnnHandle, dropoutDesc, xDesc, x, yDesc, y, dropoutReservedSpaceForTraining.Pointer, dropoutReservedSpaceForTraining.CapacityInBytes);
             CheckStatus(res);
         }
+
         /// <summary>
         /// this = x
         /// </summary>
@@ -779,7 +779,7 @@ namespace SharpNet.GPU
             var dxDesc = TensorDesc(dx);
             var dyDesc = TensorDesc(dy);
             //no need of memory pool : the descriptor has been already created on forward propagation
-            var dropoutDesc = _wrapper.DropoutDesc(dropProbability, null);
+            var dropoutDesc = _wrapper.DropoutDesc(dropProbability);
             var res = CudnnWrapper.cudnnDropoutBackward(CudnnHandle, dropoutDesc, dyDesc, dy, dxDesc, dx, dropoutReserveSpace, dropoutReserveSpace.CapacityInBytes);
             CheckStatus(res);
         }

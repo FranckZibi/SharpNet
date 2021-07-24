@@ -33,6 +33,7 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheConvolutionForwardAlgorithm = new Dictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private readonly IDictionary<Tuple<int, int>, Tensor> _cacheDevSeqLengths = new Dictionary<Tuple<int, int>, Tensor>();
+        private readonly List<Tensor> _randomNumberGeneratorStatesBuffers = new List<Tensor>();
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
         private cudnnHandle_t _cudnnHandle;
@@ -175,11 +176,11 @@ namespace SharpNet.GPU
             return desc;
         }
 
-        public cudnnRNNDescriptor_t RNNDesc(RNNDescriptor key, Tensor randomNumberGeneratorStatesBuffer)
+        public cudnnRNNDescriptor_t RNNDesc(RNNDescriptor key)
         {
             if (!cacheRNNDesc.TryGetValue(key, out var rnnDesc))
             {
-                var dropoutDesc = DropoutDesc(key.dropoutRate, randomNumberGeneratorStatesBuffer);
+                var dropoutDesc = DropoutDesc(key.dropoutRate);
                 var res = CudnnWrapper.cudnnCreateRNNDescriptor(out rnnDesc);
                 CheckStatus(res);
                 res = CudnnWrapper.cudnnSetRNNDescriptor_v8(rnnDesc, key.algo, key.cellMode, key.biasMode, key.dirMode, key.inputMode, key.dataType, key.mathPrec, key.mathType, key.inputSize, key.hiddenSize, key.projSize, key.numLayers, dropoutDesc, key.auxFlags);
@@ -432,21 +433,26 @@ namespace SharpNet.GPU
 
 
         #endregion
-        public cudnnDropoutDescriptor_t DropoutDesc(double dropoutRate, Tensor randomNumberGeneratorStatesBuffer)
+        public cudnnDropoutDescriptor_t DropoutDesc(double dropoutRate)
         {
             CheckThreadId();
             if (!cacheDropoutDesc.TryGetValue(dropoutRate, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateDropoutDescriptor(out desc);
                 CheckStatus(res);
-                res = CudnnWrapper.cudnnSetDropoutDescriptor(desc, _cudnnHandle, (float) dropoutRate, randomNumberGeneratorStatesBuffer, randomNumberGeneratorStatesBuffer.CapacityInBytes, 0);
+
+                res = CudnnWrapper.cudnnDropoutGetStatesSize(CudnnHandle, out var dropoutStateSize);
+                CheckStatus(res);
+                var randomNumberGeneratorStatesBuffer = new GPUTensor<float>(new []{ (int)(ulong)dropoutStateSize/4+1}, null, this);
+                _randomNumberGeneratorStatesBuffers.Add(randomNumberGeneratorStatesBuffer);
+                res = CudnnWrapper.cudnnSetDropoutDescriptor(desc, _cudnnHandle, (float) dropoutRate, randomNumberGeneratorStatesBuffer, dropoutStateSize, 0);
                 CheckStatus(res);
                 cacheDropoutDesc[dropoutRate] = desc;
             }
             return desc;
         }
 
-        public int[] GetTensorShape(cudnnTensorDescriptor_t tensorDesc)
+        public static int[] GetTensorShape(cudnnTensorDescriptor_t tensorDesc)
         {
             var res = CudnnWrapper.cudnnGetTensor4dDescriptor(
                 tensorDesc,
@@ -554,6 +560,8 @@ namespace SharpNet.GPU
             cacheDropoutDesc.Clear();
             cacheRNNDesc.Values.ToList().ForEach(x => CheckStatus(CudnnWrapper.cudnnDestroyRNNDescriptor(x)));
             cacheRNNDesc.Clear();
+            _randomNumberGeneratorStatesBuffers.ForEach(x => x.Dispose());
+            _randomNumberGeneratorStatesBuffers.Clear();
         }
         public void LogCopyDeviceToSameDeviceCall(ulong byteCopied)
         {
