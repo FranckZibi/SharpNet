@@ -41,45 +41,65 @@ namespace SharpNet.Networks
         /// <summary>
         /// = ForwardPropagation
         /// </summary>
-        /// <param name="X"></param>
+        /// <param name="allXForInputLayers">for each InputLayer in the Network, the associate input of this Input Layer</param>
         /// <param name="yPredicted">if provided: the buffer where to store the prediction</param>
         /// <param name="isTraining">
         ///     true if we are training the network (the goal is to update weights)
         ///     false for inference only (we'll use existing weights to make a prediction)
         /// </param>
         /// <returns></returns>
-        public void Forward([NotNull] Tensor X, [NotNull] Tensor yPredicted, bool isTraining)
+        public void Forward([NotNull] List<Tensor> allXForInputLayers, [NotNull] Tensor yPredicted, bool isTraining)
         {
             FreeAllMemory();
             Debug.Assert(_all_allocated_Y.Count == 0);
             var stopwatchDico = isTraining ? _forwardPropagationTrainingTime : _forwardPropagationInferenceTime;
-            ((InputLayer)_layers[0]).SetInputHeightAndWidth(X.Shape.Length>=3?X.Shape[2]:-1, X.Shape.Length >= 4 ? X.Shape[3]:-1);
+            // we ensure that we have the right number of elements in 'allXForInputLayers'
+            // it should be equal to the number of Input Layer in the Network
+            int inputLayerCount = _layers.Count(l => l.IsInputLayer);
+            if (inputLayerCount != allXForInputLayers.Count)
+            {
+                throw new ArgumentException("invalid number of X input ("+ allXForInputLayers.Count+") compared to number of InputLayer ("+ inputLayerCount + ")");
+            }
+
             //referenceCountToLayer[layerIndex] : number of layers using the output of layer 'layerIndex'
             var referenceCountToLayer = new List<int>();
-            int batchSize = X.Shape[0];
-            _all_allocated_Y.Add(X); //input layer (layerIndex = 0) as output 'X'
+            int batchSize = allXForInputLayers[0].Shape[0];
 
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
             var lastLayerIndex = _layers.Last().LayerIndex;
-            referenceCountToLayer.Add(_layers[0].NextLayerIndexes.Count);
+            int inputLayerProcessed = 0;
 
-            for (var layerIndex = 1; layerIndex <= lastLayerIndex; layerIndex++)
+            for (var layerIndex = 0; layerIndex <= lastLayerIndex; layerIndex++)
             {
                 var layer = _layers[layerIndex];
                 Network.StartTimer(layer.LayerType(), stopwatchDico);
-                Tensor yBuffer;
-                if (layerIndex == lastLayerIndex)
+
+                var allLayerInput = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
+                referenceCountToLayer.Add(layer.NextLayerIndexes.Count);
+
+                if (layer.IsInputLayer)
                 {
-                    yBuffer = yPredicted;
+                    var X = allXForInputLayers[inputLayerProcessed++];
+                    // The Height & Width in allowed to change from one batch to another.
+                    // But all elements in the same batch must have exactly the same shape
+                    ((InputLayer)layer).SetInputHeightAndWidth(X.Shape.Length >= 3 ? X.Shape[2] : -1, X.Shape.Length >= 4 ? X.Shape[3] : -1);
+                    _all_allocated_Y.Add(X);
                 }
                 else
                 {
-                    yBuffer = Get_yBuffer(layer, batchSize);
-                    _all_allocated_Y.Add(yBuffer);
+                    Tensor yBuffer;
+                    if (layerIndex == lastLayerIndex)
+                    {
+                        yBuffer = yPredicted;
+                    }
+                    else
+                    {
+                        yBuffer = Get_yBuffer(layer, batchSize);
+                        _all_allocated_Y.Add(yBuffer);
+                    }
+                    layer.ForwardPropagation(allLayerInput, yBuffer, isTraining);
                 }
-                referenceCountToLayer.Add(layer.NextLayerIndexes.Count);
-                var allX = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
-                layer.ForwardPropagation(allX, yBuffer, isTraining);
+
 
                 if (LogPropagation)
                 {
@@ -88,7 +108,7 @@ namespace SharpNet.Networks
                                    + layer);
                     layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + " " + v.Item1.ToShapeAndNumpy()));
                     //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
-                    layer.LogDebug("output: " + yBuffer.ToShapeAndNumpy());
+                    //layer.LogDebug("output: " + yBuffer.ToShapeAndNumpy());
                     //layer.LogDebug("output:" + yBuffer.ContentStats());
                     if (layerIndex == lastLayerIndex)
                     {
@@ -108,7 +128,7 @@ namespace SharpNet.Networks
                         //and if we can collect the output tensor of layer 'previousLayerIndex' because it will not be used by backward propagation
                         && !_layers[previousLayerIndex].LayerOutputShouldBeKeptForBackwardPropagation(isTraining, firstTrainableLayer) )
                     {
-                        if (previousLayerIndex != 0)
+                        if (!_layers[previousLayerIndex].IsInputLayer)
                         {
                             //we can not collect the input 'x' tensor
                             _memoryPool.FreeFloatTensor(_all_allocated_Y, previousLayerIndex);
@@ -190,8 +210,13 @@ namespace SharpNet.Networks
                 //we already know 'dy' for this layer ( = all_dY[layerIndex])
                 //we want to compute dx (& weight gradients if the layer has weights) of current layer by backward propagation
                 var layer = _layers[layerIndex];
-                Network.StartTimer(layer.LayerType(), _backwardPropagationTime);
                 var dy = all_dY[layerIndex];
+                if (layer.IsInputLayer)
+                {
+                    Debug.Assert(dy == null);
+                    continue;
+                }
+                Network.StartTimer(layer.LayerType(), _backwardPropagationTime);
                 Debug.Assert(dy != null);
                 var y = (layerIndex == lastLayerIndex)? yPredicted : _all_allocated_Y[layerIndex];
 
@@ -264,7 +289,7 @@ namespace SharpNet.Networks
                 _memoryPool.FreeFloatTensor(all_dY, layerIndex);
 
                 //we put back 'y' in the cache because it is not used anymore
-                if ((layerIndex != lastLayerIndex)&& (layerIndex != 0))
+                if ((layerIndex != lastLayerIndex)&& !layer.IsInputLayer)
                 {
                     _memoryPool.FreeFloatTensor(_all_allocated_Y, layerIndex);
                 }
@@ -296,10 +321,17 @@ namespace SharpNet.Networks
 
         private void FreeAllMemory()
         {
-            if (_all_allocated_Y.Count >= 1)
+            for(int i=0;i< _all_allocated_Y.Count;++i)
             {
-                _all_allocated_Y[0] = null;
-                _all_allocated_Y.ForEach(_memoryPool.FreeFloatTensor);
+                if (_all_allocated_Y[i] == null)
+                {
+                    continue;
+                }
+                if (_layers.Count>i && _layers[i].IsInputLayer)
+                {
+                    continue;
+                }
+                _memoryPool.FreeFloatTensor(_all_allocated_Y[i]);
             }
             _all_allocated_Y.Clear();
         }

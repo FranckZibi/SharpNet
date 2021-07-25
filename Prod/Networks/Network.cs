@@ -121,7 +121,11 @@ namespace SharpNet.Networks
             MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
             MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
             MemoryPool.FreeFloatTensor(ref _yExpectedForEpoch);
-            MemoryPool.FreeFloatTensor(ref _x_miniBatch);
+            foreach (var t in all_x_miniBatch)
+            {
+                MemoryPool.FreeFloatTensor(t);
+            }
+            all_x_miniBatch.Clear();
             MemoryPool.FreeFloatTensor(ref _yExpected_miniBatch_slave);
             MemoryPool.FreeFloatTensor(ref _yPredicted_miniBatch_slave);
             MemoryPool.FreeFloatTensor(ref _compactedParametersIfAny);
@@ -146,7 +150,6 @@ namespace SharpNet.Networks
         }
         public Network Input(int channelCount, int h, int w, string layerName = "")
         {
-            Debug.Assert(Layers.Count == 0);
             Layers.Add(new InputLayer(channelCount, h, w, this, layerName));
             return this;
         }
@@ -165,7 +168,9 @@ namespace SharpNet.Networks
             bool divideGradientsByTimeSteps,
             string layerName = "")
         {
-            Debug.Assert(Layers.Count == 1);
+            Debug.Assert(Layers.Count >= 1);
+            Debug.Assert(Layers.Last().IsInputLayer);
+
             Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
             return this;
         }
@@ -181,23 +186,22 @@ namespace SharpNet.Networks
         public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, 1, 0.0, true, this, layerName);
+            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, 1, 0.0, -1 /* encoder layer index */, true, this, layerName);
             Layers.Add(simpleRnn);
             return this;
         }
 
         public Network LSTM(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
         {
-            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, layerName);
+            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, -1, layerName);
         }
 
         public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
         {
-            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, true, layerName);
+            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, -1, layerName);
         }
 
-
-        public Network RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool trainable, string layerName = "")
+        private Network RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, int encoderLayerIndexIfAny, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
@@ -209,21 +213,50 @@ namespace SharpNet.Networks
                 for (int i = 0; i < numLayers-1; ++i)
                 {
                     /* first 'numLayers-1' layers: single layer with no dropout, always returning a full sequence */
-                    RecurrentLayer(hiddenSize, cellMode, biasMode, true, isBidirectional, 1, 0.0, trainable, "");
+                    RecurrentLayer(hiddenSize, cellMode, biasMode, true, isBidirectional, 1, 0.0, encoderLayerIndexIfAny, "");
                     Dropout(dropoutRate);
+                    encoderLayerIndexIfAny = -1;
                 }
                 /* last layer: single layer with no dropout, returning a full sequence iif 'returnSequences' is true */
-                RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, 1, 0.0, trainable, "");
+                RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, 1, 0.0, encoderLayerIndexIfAny, "");
             }
             else
             {
-                var recurrentLayer = new RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, numLayers, dropoutRate, trainable, this, layerName);
+                var recurrentLayer = new RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, numLayers, dropoutRate, encoderLayerIndexIfAny, true, this, layerName);
                 Layers.Add(recurrentLayer);
             }
 
             return this;
         }
-        
+
+
+        public Network DecoderLayer(int encoderLayerIndex, int numLayers,
+            double dropoutRate, string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Debug.Assert(UseGPU);
+
+            /* we look for the associate encoder */
+            var layer = Layers[encoderLayerIndex];
+            while (! (layer is RecurrentLayer))
+            {
+                layer = layer.PreviousLayers[0];
+            }
+            var encoder  = (RecurrentLayer)layer;
+
+            var xLayer = Layers.Last();
+            var xLayerShape = xLayer.OutputShape(1);
+            Debug.Assert(xLayerShape.Length == 3);
+            var timeSteps = xLayerShape[1];
+            bool returnSequences = timeSteps != 1;
+
+            return RecurrentLayer(encoder.HiddenSize, encoder.CellMode, encoder.BiasMode, returnSequences,
+                encoder.IsBidirectional, numLayers, dropoutRate, encoderLayerIndex,
+                layerName);
+        }
+
+
+
 
         public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
         {
@@ -535,7 +568,7 @@ namespace SharpNet.Networks
 
                 FreezeSelectedLayers();
 
-                Log.Debug("Fit( " + Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))+" => " + Tensor.ShapeToString(trainingDataSet.YMiniBatch_Shape(trainingDataSet.Count))+" )");
+                Log.Debug("Fit( " /*+ Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))*/ +" => " + Tensor.ShapeToString(trainingDataSet.YMiniBatch_Shape(trainingDataSet.Count))+" )");
                 Log.Info(ToString());
 
 
@@ -783,9 +816,18 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public Tensor Predict(Tensor X, bool isTraining)
         {
-            var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(X.Shape[0]));
-            X = ReformatToCorrectDevice_GPU_or_CPU(X);
-            PropagationManager.Forward(X, yPredicted, isTraining);
+            return Predict(new List<Tensor> {X}, isTraining);
+        }
+
+        private Tensor Predict(List<Tensor> allX, bool isTraining)
+        {
+            var batchSize = allX[0].Shape[0];
+            var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(batchSize));
+            for(int i= 0;i<allX.Count;++i)
+            {
+                allX[i] = ReformatToCorrectDevice_GPU_or_CPU(allX[i]);
+            }
+            PropagationManager.Forward(allX, yPredicted, isTraining);
             return yPredicted;
         }
 
@@ -857,7 +899,7 @@ namespace SharpNet.Networks
                 shuffledElementId[i] = i%dataSet.Count;
             }
 
-            if ( (epoch >= 2||dataSet is IDataSetWithExpectedAverage) && Config.RandomizeOrder && isTraining)
+            if ( (epoch >= 2||dataSet is ITimeSeriesDataSet) && Config.RandomizeOrder && isTraining)
             {
                 Utils.Shuffle(shuffledElementId, Rand);
             }
@@ -876,9 +918,13 @@ namespace SharpNet.Networks
             WaitForAllSlavesInStatus(SLAVE_NETWORK_STATUS.IDLE);
             StopTimer("WaitForSlave_Prepare", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
-            var x_miniBatch_cpu_allWorkers = new CpuTensor<float>(XMiniBatch_Shape(miniBatchSizeForAllWorkers), null);
+            var all_x_miniBatch_cpu_allWorkers = new List<CpuTensor<float>>();
+            var shapeForFirstLayer = Layers[0].OutputShape(miniBatchSizeForAllWorkers);
+            foreach (var xShape in dataSet.XMiniBatch_Shape(shapeForFirstLayer))
+            {
+                all_x_miniBatch_cpu_allWorkers.Add(new CpuTensor<float>(xShape));
+            }
             var yExpected_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.YMiniBatch_Shape(miniBatchSizeForAllWorkers), null);
-
             var shuffledElementIdMemory = new Memory<int>(shuffledElementId);
             for (int firstIndexInShuffledElementId = 0; firstIndexInShuffledElementId < dataSet.Count; )
             {
@@ -887,7 +933,7 @@ namespace SharpNet.Networks
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 bool withDataAugmentation = Config.DataAugmentation.UseDataAugmentation && (epoch >= 2) && isTraining;
-                int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, Config.DataAugmentation, x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
+                int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, Config.DataAugmentation, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 //we copy yExpected_miniBatch_cpu_allWorkers from CPU to appropriate target (CPU or GPU)
                 var yExpectedForMiniBatch_allWorkers = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForAllWorkers);
@@ -898,7 +944,7 @@ namespace SharpNet.Networks
                 int firstIndexInShuffledElement_slave = firstIndexInShuffledElementId + miniBatchSizeForEachWorker;
                 foreach (var slave in _slaveNetworks)
                 {
-                    var x_miniBatch_cpu_slave = x_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
+                    var x_miniBatch_cpu_slave = Tensor.RowSlice(all_x_miniBatch_cpu_allWorkers, firstIndexInShuffledElement_slave - firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
                     var yExpected_miniBatch_cpu_slave = yExpected_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
                     var yPredicted_miniBatch_slave = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
                     slave._slaveParamForMiniBatchGradientDescent = Tuple.Create(x_miniBatch_cpu_slave, yExpected_miniBatch_cpu_slave, yPredicted_miniBatch_slave, isTraining);
@@ -908,12 +954,25 @@ namespace SharpNet.Networks
                 }
 
                 //we launch the forward & backward propagation on the master network
-                var x_miniBatch_cpu_master = x_miniBatch_cpu_allWorkers.RowSlice(0, miniBatchSizeForEachWorker);
-                MemoryPool.GetFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_master.Shape);
-                x_miniBatch_cpu_master.CopyTo(_x_miniBatch);
+                var all_x_miniBatch_cpu_master = Tensor.RowSlice(all_x_miniBatch_cpu_allWorkers, 0, miniBatchSizeForEachWorker);
+                for (int x = 0; x < all_x_miniBatch_cpu_master.Count; ++x)
+                {
+                    if (all_x_miniBatch.Count <= x)
+                    {
+                        all_x_miniBatch.Add(MemoryPool.GetFloatTensor(all_x_miniBatch_cpu_master[x].Shape));
+                    }
+                    else
+                    {
+                        var tmp_x_miniBatch = all_x_miniBatch[x];
+                        MemoryPool.GetFloatTensor(ref tmp_x_miniBatch, all_x_miniBatch_cpu_master[x].Shape);
+                    }
+                    all_x_miniBatch_cpu_master[x].CopyTo(all_x_miniBatch[x]);
+                }
+
                 var yPredicted_miniBatch_master = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
                 var yExpected_miniBatch_master = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
-                PropagationManager.Forward(_x_miniBatch, yPredicted_miniBatch_master, isTraining);
+
+                PropagationManager.Forward(all_x_miniBatch, yPredicted_miniBatch_master, isTraining);
                 if (isTraining)
                 {
                     PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Config.LossFunction);
@@ -966,7 +1025,8 @@ namespace SharpNet.Networks
                 firstIndexInShuffledElementId += actualNumberOfLoadedItems;
             }
 
-            x_miniBatch_cpu_allWorkers.Dispose();
+            all_x_miniBatch_cpu_allWorkers.ForEach(t => t.Dispose());
+            all_x_miniBatch_cpu_allWorkers.Clear();
             yExpected_miniBatch_cpu_allWorkers.Dispose();
 
             _yPredictedForEpoch.Reshape(dataSet.Y.Shape);
@@ -994,15 +1054,6 @@ namespace SharpNet.Networks
             }
             return result;
         }
-
-
-        private int[] XMiniBatch_Shape(int miniBatchSize)
-        {
-            Debug.Assert(Layers.Count>=1);
-            Debug.Assert(Layers[0] is InputLayer);
-            return ((InputLayer) Layers[0]).OutputShape(miniBatchSize);
-        }
-
         public bool CurrentEpochIsAbsolutelyBestInValidationLoss()
         {
             return

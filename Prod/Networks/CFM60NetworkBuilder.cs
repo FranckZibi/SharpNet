@@ -16,85 +16,92 @@ namespace SharpNet.Networks
     /// </summary>
     public class CFM60NetworkBuilder : NetworkBuilder
     {
-        private List<string> FeatureNames;
-
-        public int InputSize
+        private int GetInputSize(bool isEncoderInputSize)
         {
-            get
+            if (isEncoderInputSize && Encoder_FeatureNames != null)
             {
-                if (FeatureNames != null)
-                {
-                    return FeatureNames.Count;
-                }
-
-                var featureNames = new List<string>();
-
-                int result = 0;
-
-                //pid embedding
-                if (Pid_EmbeddingDim >= 1) { ++result; featureNames.Add(nameof(Pid_EmbeddingDim)); }
-                //y estimate
-                if (Use_prev_Y) { ++result; featureNames.Add("prev_y"); }
-                if (Use_y_LinearRegressionEstimate) { ++result; featureNames.Add("y_LinearRegressionEstimate"); }
-                if (Use_mean_pid_y) { ++result; featureNames.Add("mean(pid_y)"); }
-                if (Use_volatility_pid_y) { ++result; featureNames.Add("vol(pid_y)"); }
-                if (Use_variance_pid_y) { ++result; featureNames.Add("var(pid_y)"); }
-
-                //day/year
-                if (Use_day) {++result; featureNames.Add("day/"+(int)Use_day_Divider);}
-                if (Use_fraction_of_year) { ++result; featureNames.Add("fraction_of_year"); }
-                if (Use_EndOfYear_flag) { ++result; featureNames.Add("EndOfYear_flag"); }
-                if (Use_Christmas_flag) { ++result; featureNames.Add("Christmas_flag"); }
-                if (Use_EndOfTrimester_flag) { ++result; featureNames.Add("EndOfTrimester_flag"); }
-
-                //abs_ret
-                if (Use_abs_ret)
-                {
-                    result += CFM60Entry.POINTS_BY_DAY;
-                    for (int i = 0; i < CFM60Entry.POINTS_BY_DAY; ++i)
-                    {
-                        featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("abs_ret", i));
-                    }
-                }
-                if (Use_mean_abs_ret) {++result; featureNames.Add("mean(abs_ret)");}
-                if (Use_volatility_abs_ret) { ++result; featureNames.Add("vol(abs_ret)"); }
-
-                //ret_vol
-                if (Use_ret_vol)
-                {
-                    result += Use_ret_vol_start_and_end_only?(2*12):CFM60Entry.POINTS_BY_DAY;
-                    for (int i = 0; i < CFM60Entry.POINTS_BY_DAY; ++i)
-                    {
-                        if (i < 12 || !Use_ret_vol_start_and_end_only || i >= CFM60Entry.POINTS_BY_DAY - 12)
-                        {
-                            featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("ret_vol", i));
-                        }
-                    }
-                }
-                if (Use_volatility_ret_vol) { ++result; featureNames.Add("vol(ret_vol)"); }
-
-                //LS
-                if (Use_LS)
-                {
-                    ++result;
-                    featureNames.Add("LS");
-                }
-
-                //NLV
-                if (Use_NLV)
-                {
-                    ++result;
-                    featureNames.Add("NLV");
-                }
-
-                if (result != featureNames.Count)
-                {
-                    throw new Exception("invalid " + nameof(InputSize));
-                }
-
-                FeatureNames = featureNames;
-                return FeatureNames.Count;
+                return Encoder_FeatureNames.Count;
             }
+            if (!isEncoderInputSize && Decoder_FeatureNames != null)
+            {
+                return Decoder_FeatureNames.Count;
+            }
+
+            var featureNames = new List<string>();
+
+            int result = 0;
+
+            //pid embedding
+            if (Pid_EmbeddingDim >= 1) { ++result; featureNames.Add(nameof(Pid_EmbeddingDim)); }
+            //y estimate
+            if (Use_prev_Y && isEncoderInputSize) { ++result; featureNames.Add("prev_y"); }
+            if (Use_y_LinearRegressionEstimate) { ++result; featureNames.Add("y_LinearRegressionEstimate"); }
+            if (Use_mean_pid_y) { ++result; featureNames.Add("mean(pid_y)"); }
+            if (Use_volatility_pid_y) { ++result; featureNames.Add("vol(pid_y)"); }
+            if (Use_variance_pid_y) { ++result; featureNames.Add("var(pid_y)"); }
+
+            //day/year
+            if (Use_day) {++result; featureNames.Add("day/"+(int)Use_day_Divider);}
+            if (Use_fraction_of_year) { ++result; featureNames.Add("fraction_of_year"); }
+            if (Use_EndOfYear_flag) { ++result; featureNames.Add("EndOfYear_flag"); }
+            if (Use_Christmas_flag) { ++result; featureNames.Add("Christmas_flag"); }
+            if (Use_EndOfTrimester_flag) { ++result; featureNames.Add("EndOfTrimester_flag"); }
+
+            //abs_ret
+            if (Use_abs_ret)
+            {
+                result += CFM60Entry.POINTS_BY_DAY;
+                for (int i = 0; i < CFM60Entry.POINTS_BY_DAY; ++i)
+                {
+                    featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("abs_ret", i));
+                }
+            }
+            if (Use_mean_abs_ret) {++result; featureNames.Add("mean(abs_ret)");}
+            if (Use_volatility_abs_ret) { ++result; featureNames.Add("vol(abs_ret)"); }
+
+            //ret_vol
+            if (Use_ret_vol)
+            {
+                result += Use_ret_vol_start_and_end_only?(2*12):CFM60Entry.POINTS_BY_DAY;
+                for (int i = 0; i < CFM60Entry.POINTS_BY_DAY; ++i)
+                {
+                    if (i < 12 || !Use_ret_vol_start_and_end_only || i >= CFM60Entry.POINTS_BY_DAY - 12)
+                    {
+                        featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("ret_vol", i));
+                    }
+                }
+            }
+            if (Use_volatility_ret_vol) { ++result; featureNames.Add("vol(ret_vol)"); }
+
+            //LS
+            if (Use_LS)
+            {
+                ++result;
+                featureNames.Add("LS");
+            }
+
+            //NLV
+            if (Use_NLV)
+            {
+                ++result;
+                featureNames.Add("NLV");
+            }
+
+            if (result != featureNames.Count)
+            {
+                throw new Exception("invalid " + nameof(Encoder_InputSize));
+            }
+
+            if (isEncoderInputSize)
+            {
+                Encoder_FeatureNames = featureNames;
+            }
+            else
+            {
+                Decoder_FeatureNames = featureNames;
+            }
+
+            return result;
         }
 
         //pid embedding
@@ -109,7 +116,8 @@ namespace SharpNet.Networks
         public bool Use_volatility_pid_y { get; set; } = true; //validated on 17-jan-2021: -0.0053
         public bool Use_variance_pid_y { get; set; } = false;
         public bool Use_prev_Y { get; set; } = true;
-
+        
+        
         //ret_vol fields
         public bool Use_ret_vol { get; set; } = true;
         public bool Use_ret_vol_start_and_end_only { get; set; } = false; //use only the first 12 and last 12 elements of ret_vol
@@ -165,20 +173,39 @@ namespace SharpNet.Networks
         /// </summary>
         public string SerializedNetwork { get; set; } = "";
 
-        public int TimeSteps { get; set; } = 20;
         public float ClipValueForGradients { get; set; } = 0f;
         public bool DivideGradientsByTimeSteps { get; set; } = false;
         public bool Use_GRU_instead_of_LSTM { get; set; } = false;
         public bool Use_Bidirectional_RNN { get; set; } = true;
 
+
+        public int Total_TimeSteps => Use_Decoder ? Encoder_TimeSteps + Decoder_TimeSteps : Encoder_TimeSteps;
+
+        #region Encoder
+        private List<string> Encoder_FeatureNames;
         /// <summary>
         /// numb er of layer in the encoder.
         /// </summary>
-        public int EncoderNumLayers { get; set; } = 2;
+        public int Encoder_NumLayers { get; set; } = 2;
+        public int Encoder_TimeSteps { get; set; } = 20;
         /// <summary>
         /// dropout to use for the encoder. A value of 0 means no dropout
         /// </summary>
-        public double EncoderDropoutRate { get; set; } = 0.0;
+        public double Encoder_DropoutRate { get; set; } = 0.2;
+        public int Encoder_InputSize => GetInputSize(true);
+        #endregion
+
+        #region Decoder 
+        private List<string> Decoder_FeatureNames;
+        public bool Use_Decoder => Decoder_NumLayers >= 1 && Decoder_TimeSteps >= 1;
+        public int Decoder_NumLayers { get; set; } = 0;
+        /// <summary>
+        /// Number of time steps for the decoder. 0 means that we are not using a decoder
+        /// </summary>
+        public int Decoder_TimeSteps { get; set; } = 0;
+        public double Decoder_DropoutRate { get; set; } = 0.2;
+        public int Decoder_InputSize => GetInputSize(false);
+        #endregion
 
         public double DropoutRate { get; set; } = 0.2;       //validated on 15-jan-2021
         public bool UseBatchNorm2 { get; set; } = false;
@@ -239,7 +266,7 @@ namespace SharpNet.Networks
             builder.Use_day = true;
             builder.Use_y_LinearRegressionEstimate = false;
             builder.Use_volatility_pid_y = false;
-            builder.TimeSteps = 20;
+            builder.Encoder_TimeSteps = 20;
             builder.Use_LS = false; //validated on 2-june-2021: -0.011155486
             builder.Pid_EmbeddingDim = 8; //validated on 6-june-2021: -0.0226
             builder.DenseUnits = 50; //validated on 6-june-2021: -0.0121
@@ -250,9 +277,6 @@ namespace SharpNet.Networks
             //builder.Config.WithAdamW(0.00005); //validated on 19-july-2021: very small degradation (+0.0016) but better expected results for bigger data set
             builder.NumEpochs = 30; //validated on 20-july-2021: speed up tests
             builder.Config.WithAdamW(0.0001); //validated on 20-july-2021: small change but better generalization
-
-            builder.NumEpochs = 10; //?D
-
 
             return builder;
         }
@@ -267,7 +291,7 @@ namespace SharpNet.Networks
             var network = BuildEmptyNetwork(networkName);
             network.Config.RandomizeOrder = Shuffle;
 
-            network.Input(TimeSteps, InputSize, -1);
+            network.Input(Encoder_TimeSteps, Encoder_InputSize, -1);
 
             if (Pid_EmbeddingDim >= 1)
             {
@@ -283,7 +307,7 @@ namespace SharpNet.Networks
 
             if (UseConv1D)
             {
-                network.Conv1D(TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, network.Config.lambdaL2Regularization, true);
+                network.Conv1D(Encoder_TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, network.Config.lambdaL2Regularization, true);
 
                 if (UseBatchNormAfterConv1D)
                 {
@@ -298,11 +322,11 @@ namespace SharpNet.Networks
             //We add the Encoder
             if (Use_GRU_instead_of_LSTM)
             {
-                network.GRU(HiddenSize, true, Use_Bidirectional_RNN, EncoderNumLayers, EncoderDropoutRate);
+                network.GRU(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate);
             }
             else
             {
-                network.LSTM(HiddenSize, true, Use_Bidirectional_RNN, EncoderNumLayers, EncoderDropoutRate);
+                network.LSTM(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate);
             }
 
             if (UseBatchNorm2)
@@ -317,6 +341,18 @@ namespace SharpNet.Networks
             if (DropoutRate >= 1e-6)
             {
                 network.Dropout(DropoutRate);
+            }
+
+            //We add the Decoder
+            if (Use_Decoder)
+            {
+                int encoderLayerIndex = network.Layers.Count - 1;
+                network.Input(Decoder_TimeSteps, Decoder_InputSize, -1);
+                if (Pid_EmbeddingDim >= 1)
+                {
+                    network.Embedding(CFM60Entry.DISTINCT_PID_COUNT, Pid_EmbeddingDim, 0, network.Config.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+                }
+                network.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
             }
 
             network.Dense_Activation(DenseUnits, network.Config.lambdaL2Regularization, true, ActivationFunctionAfterFirstDense);
@@ -337,9 +373,10 @@ namespace SharpNet.Networks
 
             return network;
         }
+
         public string FeatureIdToFeatureName(int featureId)
         {
-            return FeatureNames[featureId];
+            return Encoder_FeatureNames[featureId];
         }
 
 

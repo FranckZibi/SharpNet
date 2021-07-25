@@ -17,7 +17,7 @@ namespace SharpNet.Networks
         #endregion
 
         #region private fields used by master network only
-        private Tensor _x_miniBatch;
+        private readonly List<Tensor> all_x_miniBatch = new List<Tensor>();
         /// <summary>
         /// list of all slave networks
         /// empty list of:
@@ -46,7 +46,7 @@ namespace SharpNet.Networks
         /// Tensor yPredicted_miniBatch_master,
         /// bool isTraining
         /// </summary>
-        private Tuple<Tensor, Tensor, Tensor, bool> _slaveParamForMiniBatchGradientDescent;
+        private Tuple<List<Tensor>, Tensor, Tensor, bool> _slaveParamForMiniBatchGradientDescent;
         private Tensor _yExpected_miniBatch_slave;
         private Tensor _yPredicted_miniBatch_slave;
         #endregion
@@ -234,13 +234,13 @@ namespace SharpNet.Networks
                 }
             }
         }
-        private void MiniBatchGradientDescentForSlave(Tensor x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining)
+        private void MiniBatchGradientDescentForSlave(List<Tensor> all_x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining)
         {
             Debug.Assert(_yPredictedForEpoch == null);
             Debug.Assert(_yExpectedForEpoch == null);
             Debug.Assert(yExpected_miniBatch_cpu_slave.SameShape(yPredicted_miniBatch_master));
-            Debug.Assert(x_miniBatch_cpu_slave.Shape[0] == yExpected_miniBatch_cpu_slave.Shape[0]);
-            Debug.Assert(!x_miniBatch_cpu_slave.UseGPU);
+            Debug.Assert(all_x_miniBatch_cpu_slave[0].Shape[0] == yExpected_miniBatch_cpu_slave.Shape[0]);
+            Debug.Assert(!all_x_miniBatch_cpu_slave[0].UseGPU);
             Debug.Assert(!yExpected_miniBatch_cpu_slave.UseGPU);
             Debug.Assert(yPredicted_miniBatch_master.UseGPU == UseGPU);
             Debug.Assert(_masterNetworkIfAny._compactedParametersIfAny != null);
@@ -253,12 +253,25 @@ namespace SharpNet.Networks
             StopTimer("CopyWeights_Master2Slave", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
             //we initialize '_xMiniBatch' & '_yExpected_miniBatch_slave'
-            MemoryPool.GetFloatTensor(ref _x_miniBatch, x_miniBatch_cpu_slave.Shape);
-            x_miniBatch_cpu_slave.CopyTo(_x_miniBatch);
+            for (int x = 0; x < all_x_miniBatch_cpu_slave.Count; ++x)
+            {
+                if (all_x_miniBatch.Count <= x)
+                {
+                    all_x_miniBatch.Add(MemoryPool.GetFloatTensor(all_x_miniBatch_cpu_slave[x].Shape));
+                }
+                else
+                {
+                    var tmp_x_miniBatch = all_x_miniBatch[x];
+                    MemoryPool.GetFloatTensor(ref tmp_x_miniBatch, all_x_miniBatch_cpu_slave[x].Shape);
+                }
+            }
+
+           
+
             MemoryPool.GetFloatTensor(ref _yExpected_miniBatch_slave, yExpected_miniBatch_cpu_slave.Shape);
             yExpected_miniBatch_cpu_slave.CopyTo(_yExpected_miniBatch_slave);
             MemoryPool.GetFloatTensor(ref _yPredicted_miniBatch_slave, _yExpected_miniBatch_slave.Shape);
-            PropagationManager.Forward(_x_miniBatch, _yPredicted_miniBatch_slave, isTraining);
+            PropagationManager.Forward(all_x_miniBatch, _yPredicted_miniBatch_slave, isTraining);
             if (isTraining)
             {
                 PropagationManager.Backward(_yExpected_miniBatch_slave, _yPredicted_miniBatch_slave, Config.LossFunction);

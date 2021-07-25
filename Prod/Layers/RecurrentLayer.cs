@@ -62,16 +62,19 @@ namespace SharpNet.Layers
         [NotNull] private readonly Optimizer _optimizer;
         #endregion
 
-        private cudnnRNNMode_t CellMode => _rnnDescriptor.cellMode;
-        private cudnnRNNBiasMode_t BiasMode => _rnnDescriptor.biasMode;
+        public cudnnRNNMode_t CellMode => _rnnDescriptor.cellMode;
+        public cudnnRNNBiasMode_t BiasMode => _rnnDescriptor.biasMode;
         private int NumLayers => _rnnDescriptor.numLayers;
         private double DropoutRate => _rnnDescriptor.dropoutRate;
         private int InputSize => _rnnDescriptor.inputSize;      // == features
-        private int HiddenSize => _rnnDescriptor.hiddenSize;    // == units
-        private bool IsBidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
+        public int HiddenSize => _rnnDescriptor.hiddenSize;    // == units
+        public bool IsBidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
 
         #region constructor
-        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool trainable, Network network, string layerName) : base(network, layerName)
+        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, int encoderLayerIndexIfAny, bool trainable, Network network, string layerName) : 
+            base(network, 
+                encoderLayerIndexIfAny>=0?new []{ network.Layers.Count-1, encoderLayerIndexIfAny} :new[]{ network.Layers.Count - 1 },
+                layerName)
         {
             if (!Network.UseGPU)
             {
@@ -201,12 +204,19 @@ namespace SharpNet.Layers
         }
         #endregion
 
+        private bool IsDecoder => PreviousLayerIndexes.Count == 2;
+        
         public override string LayerType()
         {
+            if (IsDecoder)
+            {
+                return "Decoder" + (IsBidirectional ? " Bidirectional" : "");
+            }
             if (IsBidirectional)
             {
                 return "Bidirectional";
             }
+
             switch (CellMode)
             {
                 case cudnnRNNMode_t.CUDNN_RNN_RELU:
@@ -252,7 +262,6 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(Network.UseGPU);
-            Debug.Assert(allX.Count == 1);
             Debug.Assert(_reserveSpace == null);
             Debug.Assert(_yIfReturnSequences == null);
             var x = allX[0];
@@ -261,7 +270,6 @@ namespace SharpNet.Layers
             Debug.Assert(x.Shape[2] == InputSize);
             Debug.Assert(x.Shape.Length == 3);
 
-            const cudnnDataType_t dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
             var xRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
             var yRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, y.Shape.Last());
 
@@ -296,7 +304,9 @@ namespace SharpNet.Layers
                 x,
                 yRnnDataDesc,
                 _yIfReturnSequences,
-                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero,
+                HiddenDesc(batchSize),
+                IsDecoder ? allX[1] : null, /* h */
+                IntPtr.Zero,
                 new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero,
                 _weightsAndBiases.CapacityInBytes,
                 _weightsAndBiases,
@@ -346,10 +356,12 @@ namespace SharpNet.Layers
                 _yIfReturnSequences = null;
             }
         }
+
+        const cudnnDataType_t dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
+
         public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dxList)
         {
             Debug.Assert(Network.UseGPU);
-            Debug.Assert(allX.Count == 1);
             Debug.Assert(_reserveSpace != null);
             Debug.Assert((_returnSequences && _yIfReturnSequences == null) || (!_returnSequences && _yIfReturnSequences != null));
             var x = allX[0];                // x shape  :     (batchSize, timeSteps, features)
@@ -395,7 +407,6 @@ namespace SharpNet.Layers
             }
             #endregion
 
-            const cudnnDataType_t dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
             var xDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
             var yIfReturnSequencesDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, _yIfReturnSequences.Shape.Last());
             var devSeqLengths = Network.GpuWrapper.GetDevSeqLengths(batchSize, timeSteps);
@@ -403,7 +414,8 @@ namespace SharpNet.Layers
             Debug.Assert(_reserveSpace != null);
             var workSpaceBuffer = GetBuffer(_workSpaceBufferSizeInBytes);
             var dx = dxList[0] ?? GetFloatTensor(x.Shape);
-
+            var hx = IsDecoder ? allX[1] : null;
+            var dhx = IsDecoder ? dxList[1] : null;
             var res = CudnnWrapper.cudnnRNNBackwardData_v8(
                 Network.GpuWrapper.CudnnHandle,
                 _cudnnRNNDescriptor_t,
@@ -413,7 +425,10 @@ namespace SharpNet.Layers
                 dyIfReturnSequences,
                 xDesc,
                 dx,
-                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
+                HiddenDesc(batchSize),
+                hx,
+                IntPtr.Zero,
+                dhx,
                 new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
                 _weightsAndBiases.CapacityInBytes,
                 _weightsAndBiases,
@@ -457,6 +472,13 @@ namespace SharpNet.Layers
             Debug.Assert(_yIfReturnSequences == null);
             Debug.Assert(_reserveSpace == null);
         }
+
+        private cudnnTensorDescriptor_t HiddenDesc(int batchSize)
+        {
+            int K = (_rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
+            return Network.GpuWrapper.TensorDesc(dataType, new[] {K * NumLayers, batchSize, HiddenSize});
+        }
+
         #endregion
 
         #region parameters and gradients
@@ -546,6 +568,8 @@ namespace SharpNet.Layers
         }
         public static RecurrentLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
+            var previousLayerIndexes = (int[]) serialized[nameof(PreviousLayerIndexes)];
+            int encoderLayerIndexIfAny = previousLayerIndexes.Length >= 2 ? previousLayerIndexes[1] : -1;
             return new RecurrentLayer(
                 (int) serialized[nameof(HiddenSize)],
                 (cudnnRNNMode_t) serialized[nameof(CellMode)],
@@ -554,6 +578,7 @@ namespace SharpNet.Layers
                 (bool) serialized[nameof(IsBidirectional)],
                 (int) serialized[nameof(NumLayers)],
                 (double) serialized[nameof(DropoutRate)],
+                encoderLayerIndexIfAny,
                 (bool) serialized[nameof(Trainable)],
                 network,
                 (string) serialized[nameof(LayerName)]);

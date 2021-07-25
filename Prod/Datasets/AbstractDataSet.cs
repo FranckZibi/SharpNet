@@ -60,15 +60,15 @@ namespace SharpNet.Datasets
         /// <summary>
         /// tensor with all original elements (no data augmentation) in the order needed for the current mini batch 
         /// </summary>
-        private readonly CpuTensor<float> xOriginalNotAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
+        private readonly List<CpuTensor<float>> all_xOriginalNotAugmentedMiniBatch = new List<CpuTensor<float>>();
         /// <summary>
         /// tensor with all augmented elements in the order needed for the current mini batch 
         /// </summary>
-        private readonly CpuTensor<float> xDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
+        private readonly List<CpuTensor<float>> all_xDataAugmentedMiniBatch = new List<CpuTensor<float>>();
         /// <summary>
         /// a temporary buffer used to construct the data augmented pictures
         /// </summary>
-        private readonly CpuTensor<float> xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
+        private readonly List<CpuTensor<float>> all_xBufferForDataAugmentedMiniBatch = new List<CpuTensor<float>>();
         private readonly CpuTensor<float> yDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
         /// <summary>
         /// the miniBatch Id associated with the above xBufferMiniBatchCpu & yBufferMiniBatchCpu tensors
@@ -112,14 +112,29 @@ namespace SharpNet.Datasets
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,[CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
 
-        public int LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationConfig dataAugmentationConfig, [NotNull] CpuTensor<float> xMiniBatch, [NotNull] CpuTensor<float> yMiniBatch)
+        protected virtual void LoadAt(int elementId, int indexInBuffer, [NotNull] List<CpuTensor<float>> xBuffers,
+            [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
-            Debug.Assert(xMiniBatch.Shape.Length>=1);
-            Debug.Assert(xMiniBatch.TypeSize == TypeSize);
-            Debug.Assert(AreCompatible_X_Y(xMiniBatch, yMiniBatch));
+            if (xBuffers.Count != 1)
+            {
+                throw new ArgumentException("only 1 InputLayer is supported, received "+xBuffers.Count);
+            }
+            LoadAt(elementId, indexInBuffer, xBuffers[0], yBuffer, withDataAugmentation);
+        }
 
 
-            xMiniBatch.AssertIsNotDisposed();
+        public int LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId,
+            DataAugmentationConfig dataAugmentationConfig, [NotNull] List<CpuTensor<float>> all_xMiniBatches,
+            [NotNull] CpuTensor<float> yMiniBatch)
+        {
+            Debug.Assert(all_xMiniBatches[0].Shape.Length>=1);
+            Debug.Assert(all_xMiniBatches[0].TypeSize == TypeSize);
+            Debug.Assert(AreCompatible_X_Y(all_xMiniBatches[0], yMiniBatch));
+
+
+            var all_xMiniBatchesShapes = all_xMiniBatches.Select(t => t.Shape).ToList();
+
+            all_xMiniBatches[0].AssertIsNotDisposed();
             yMiniBatch.AssertIsNotDisposed();
 
             int elementsActuallyLoaded;
@@ -129,10 +144,10 @@ namespace SharpNet.Datasets
                 backgroundThreadIsIdle.WaitOne();
 
                 //the background is in idle state
-                var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, xMiniBatch.Shape[0]);
+                var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, all_xMiniBatches[0].Shape[0]);
                 if (miniBatchId != alreadyComputedMiniBatchId)
                 {
-                    elementsActuallyLoaded = LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
+                    elementsActuallyLoaded = LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, all_xMiniBatchesShapes, yMiniBatch.Shape);
                 }
                 else
                 {
@@ -144,12 +159,16 @@ namespace SharpNet.Datasets
             }
             else
             {
-                elementsActuallyLoaded = LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, xMiniBatch.Shape, yMiniBatch.Shape);
+                elementsActuallyLoaded = LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationConfig, all_xMiniBatchesShapes, yMiniBatch.Shape);
             }
 
-            Debug.Assert(xMiniBatch.Shape.Length >= 1);
-            xDataAugmentedMiniBatch.CopyTo(xMiniBatch.AsCpu<float>());
-            Debug.Assert(xMiniBatch.Shape.Length >= 1);
+            Debug.Assert(all_xMiniBatches[0].Shape.Length >= 1);
+            for (int x = 0; x < all_xDataAugmentedMiniBatch.Count; ++x)
+            {
+                Debug.Assert(all_xMiniBatches[x].Shape.Length >= 1);
+                all_xDataAugmentedMiniBatch[x].CopyTo(all_xMiniBatches[x].AsCpu<float>());
+            }
+
             yDataAugmentedMiniBatch.CopyTo(yMiniBatch.AsCpu<float>());
 
             //uncomment to store data augmented pictures
@@ -169,15 +188,22 @@ namespace SharpNet.Datasets
             //}
 
             //we check if we can start compute the next mini batch content in advance
-            int firstIndexInShuffledElementIdForNextMiniBatch = firstIndexInShuffledElementId + xMiniBatch.Shape[0];
-            int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, xMiniBatch.Shape[0]);
+            int firstIndexInShuffledElementIdForNextMiniBatch = firstIndexInShuffledElementId + all_xMiniBatches[0].Shape[0];
+            int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, all_xMiniBatches[0].Shape[0]);
             if (_useBackgroundThreadToLoadNextMiniBatch && nextMiniBatchSize > 0)
             {
                 //we will ask the background thread to compute the next mini batch
                 backgroundThreadIsIdle.WaitOne();
-                var xNextMiniBatchShape = (int[])xMiniBatch.Shape.Clone();
+                var xNextMiniBatchShape = new List<int[]>();
+                foreach (var shape in all_xMiniBatchesShapes)
+                {
+                    var clonedShape = (int[]) shape.Clone();
+                    clonedShape[0] = nextMiniBatchSize;
+                    xNextMiniBatchShape.Add(clonedShape);
+                }
+                //(int[])xMiniBatches.Shape.Clone();
                 var yNextMiniBatchShape = (int[])yMiniBatch.Shape.Clone();
-                xNextMiniBatchShape[0] = yNextMiniBatchShape[0] = nextMiniBatchSize;
+                yNextMiniBatchShape[0] = nextMiniBatchSize;
                 threadParameters = Tuple.Create(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementIdForNextMiniBatch, dataAugmentationConfig, xNextMiniBatchShape, yNextMiniBatchShape);
                 backgroundThreadHasSomethingTodo.Set();
             }
@@ -366,9 +392,12 @@ namespace SharpNet.Datasets
 
         public virtual void Dispose()
         {
-            xOriginalNotAugmentedMiniBatch?.Dispose();
-            xDataAugmentedMiniBatch?.Dispose();
-            xBufferForDataAugmentedMiniBatch?.Dispose();
+            all_xOriginalNotAugmentedMiniBatch.ForEach(t=>t.Dispose());
+            all_xOriginalNotAugmentedMiniBatch.Clear();
+            all_xDataAugmentedMiniBatch.ForEach(t => t.Dispose());
+            all_xDataAugmentedMiniBatch.Clear();
+            all_xBufferForDataAugmentedMiniBatch.ForEach(t => t.Dispose());
+            all_xBufferForDataAugmentedMiniBatch.Clear();
             yDataAugmentedMiniBatch?.Dispose();
             if (_useBackgroundThreadToLoadNextMiniBatch)
             {
@@ -389,6 +418,11 @@ namespace SharpNet.Datasets
             var yMiniBatchShape = (int[])Y.Shape.Clone();
             yMiniBatchShape[0] = miniBatchSize;
             return yMiniBatchShape;
+        }
+
+        public virtual List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer)
+        {
+            return new List<int[]> {shapeForFirstLayer};
         }
 
         public int TypeSize => 4; //float size
@@ -435,16 +469,16 @@ namespace SharpNet.Datasets
         /// <param name="shuffledElementId"></param>
         /// <param name="firstIndexInShuffledElementId"></param>
         /// <param name="dataAugmentationConfig"></param>
-        /// <param name="xMiniBatchShape"></param>
+        /// <param name="all_xMiniBatchShape"></param>
         /// <param name="yMiniBatchShape"></param>
         /// <returns>the number of actually loaded elements,in the range [1, xMiniBatchShape[0] ]  </returns>
         private int LoadMiniBatchInCpu(bool withDataAugmentation,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
             DataAugmentationConfig dataAugmentationConfig,
-            int[] xMiniBatchShape, int[] yMiniBatchShape)
+            List<int[]> all_xMiniBatchShape, int[] yMiniBatchShape)
         {
-            Debug.Assert(Channels == xMiniBatchShape[1]);
-            var miniBatchSize = xMiniBatchShape[0];
+            Debug.Assert(Channels == all_xMiniBatchShape[0][1]);
+            var miniBatchSize = all_xMiniBatchShape[0][0];
 
             int maxElementsToLoad = GetMaxElementsToLoad(shuffledElementId, firstIndexInShuffledElementId, miniBatchSize);
 
@@ -457,42 +491,62 @@ namespace SharpNet.Datasets
 
             //we initialize 'xOriginalNotAugmentedMiniBatchCpu' with all the original (not augmented elements)
             //contained in the mini batch
-            xOriginalNotAugmentedMiniBatch.Reshape(xMiniBatchShape);
+
             //we'll first create mini batch input in a local CPU buffer, then copy them in xMiniBatch/yMiniBatch
-            xDataAugmentedMiniBatch.Reshape(xMiniBatchShape);
-            xBufferForDataAugmentedMiniBatch.Reshape(xMiniBatchShape);
+            for (int x = 0; x < all_xMiniBatchShape.Count; ++x)
+            {
+                foreach(var l in new[] { all_xOriginalNotAugmentedMiniBatch , all_xDataAugmentedMiniBatch , all_xBufferForDataAugmentedMiniBatch })
+                { 
+                    if (l.Count <= x)
+                    {
+                        l.Add(new CpuTensor<float>(all_xMiniBatchShape[x]));
+                    }
+                    else
+                    {
+                        l[x].Reshape(all_xMiniBatchShape[x]);
+                    }
+                }
+            }
+
             yDataAugmentedMiniBatch.Reshape(yMiniBatchShape);
             yDataAugmentedMiniBatch.ZeroMemory();
 
             int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[ (firstIndexInShuffledElementId+miniBatchIdx)%shuffledElementId.Length ];
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer%maxElementsToLoad), indexInBuffer, xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation));
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer%maxElementsToLoad), indexInBuffer, all_xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation));
 
-            Debug.Assert(AreCompatible_X_Y(xDataAugmentedMiniBatch, yDataAugmentedMiniBatch));
+            Debug.Assert(AreCompatible_X_Y(all_xDataAugmentedMiniBatch[0], yDataAugmentedMiniBatch));
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
             if (!dataAugmentationConfig.UseDataAugmentation || !withDataAugmentation)
             {
                 //no Data Augmentation: we'll just copy the input element
-                xOriginalNotAugmentedMiniBatch.CopyTo(xDataAugmentedMiniBatch);
+                for (int x = 0; x < all_xOriginalNotAugmentedMiniBatch.Count; ++x)
+                {
+                    all_xOriginalNotAugmentedMiniBatch[x].CopyTo(all_xDataAugmentedMiniBatch[x]);
+                }
             }
             else if (dataAugmentationConfig.DataAugmentationType == ImageDataGenerator.DataAugmentationEnum.TIME_SERIES)
             {
                 //Data Augmentation for time series
-                xOriginalNotAugmentedMiniBatch.CopyTo(xDataAugmentedMiniBatch);
+                for (int x = 0; x < all_xOriginalNotAugmentedMiniBatch.Count; ++x)
+                {
+                    all_xOriginalNotAugmentedMiniBatch[x].CopyTo(all_xDataAugmentedMiniBatch[x]);
+                }
                 if (TimeSeriesDataAugmentation == null)
                 {
-                    var featuresCount = xOriginalNotAugmentedMiniBatch.Shape[2];
+                    var featuresCount = all_xOriginalNotAugmentedMiniBatch[0].Shape[2];
                     TimeSeriesDataAugmentation = new TimeSeriesDataAugmentation(dataAugmentationConfig, (ITimeSeriesDataSet) this, featuresCount);
                 }
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => TimeSeriesDataAugmentation.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, xDataAugmentedMiniBatch, GetRandomForIndexInMiniBatch(indexInMiniBatch)));
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => TimeSeriesDataAugmentation.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xDataAugmentedMiniBatch[0], GetRandomForIndexInMiniBatch(indexInMiniBatch)));
             }
             else
             {
                 //Data Augmentation for images
-                int targetHeight = xMiniBatchShape[2];
-                int targetWidth = xMiniBatchShape[3];
+                Debug.Assert(all_xMiniBatchShape.Count == 1);
+                int targetHeight = all_xMiniBatchShape[0][2];
+                int targetWidth = all_xMiniBatchShape[0][3];
                 Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationConfig);
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, xOriginalNotAugmentedMiniBatch, xDataAugmentedMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch));
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xOriginalNotAugmentedMiniBatch[0], all_xDataAugmentedMiniBatch[0], yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), all_xBufferForDataAugmentedMiniBatch[0]));
             }
 
             //TODO: ensure that there is no NaN or Infinite in xDataAugmentedMiniBatch and yDataAugmentedMiniBatch
@@ -529,7 +583,7 @@ namespace SharpNet.Datasets
         /// </summary>
         private readonly bool _useBackgroundThreadToLoadNextMiniBatch;
         private readonly Thread thread;
-        private Tuple<bool, int[], int, DataAugmentationConfig, int[], int[]> threadParameters;
+        private Tuple<bool, int[], int, DataAugmentationConfig, List<int[]>, int[]> threadParameters;
         private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new AutoResetEvent(false);
         private readonly AutoResetEvent backgroundThreadIsIdle = new AutoResetEvent(false);
         private bool shouldStopBackgroundThread = false;

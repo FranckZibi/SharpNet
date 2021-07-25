@@ -596,6 +596,11 @@ namespace SharpNet.Data
             extractedShape[0] = nbRows; //new number of rows
             return Slice(Idx(startRowIndex), extractedShape);
         }
+        public static List<Tensor> RowSlice(List<CpuTensor<float>> d, int startRowIndex, int nbRows)
+        {
+            return d.Select(t => t.RowSlice(startRowIndex, nbRows)).ToList();
+        }
+
         public Tensor ElementSlice(int elementIndex)
         {
             return RowSlice(elementIndex, 1);

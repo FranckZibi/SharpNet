@@ -184,7 +184,7 @@ namespace SharpNetTests.NonReg
             using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(p, s => Network.Log.Info(s));
             var dataset = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
 
-            var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.TimeSteps, p.InputSize };
+            var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Cfm60NetworkBuilder.Encoder_TimeSteps, p.Encoder_InputSize };
 
             var yMiniBatchShape = dataset.YMiniBatch_Shape(miniBatchSize);
             var rand = new Random(0);

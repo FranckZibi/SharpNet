@@ -8,11 +8,6 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
-    public interface IDataSetWithExpectedAverage
-    {
-        float ElementIdToExpectedAverage(int elementId);
-    }
-
     public interface ITimeSeriesDataSet
     {
         void SetBatchPredictionsForInference(int[] batchElementIds, Tensor batchPredictions);
@@ -31,18 +26,19 @@ namespace SharpNet.Datasets
         ///     shuffledElementId[firstIndexInShuffledElementId+'miniBatch'-1 ]
         /// </summary>
         /// <param name="withDataAugmentation">true if data augmentation should be used
-        /// if false will return the original (not augmented) input</param>
+        ///     if false will return the original (not augmented) input</param>
         /// <param name="shuffledElementId">list of all elementId in 'random' (shuffled) order</param>
         /// <param name="firstIndexInShuffledElementId"></param>
         /// <param name="dataAugmentationConfig"></param>
-        /// <param name="xMiniBatch">buffer where all elements (associated with the mini batch) will be stored</param>
+        /// <param name="all_xMiniBatches"></param>
         /// <param name="yMiniBatch">buffer where all categoryCount (associated with the mini batch) will be stored</param>
         /// <returns>number of actual items loaded,
         /// in range [1, miniBatchSize ]
         ///     with xMiniBatch.Shape[0] = xMiniBatch.Shape[0] </returns>
-        int LoadMiniBatch(bool withDataAugmentation, 
+        int LoadMiniBatch(bool withDataAugmentation,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
-            DataAugmentationConfig dataAugmentationConfig, CpuTensor<float> xMiniBatch, CpuTensor<float> yMiniBatch);
+            DataAugmentationConfig dataAugmentationConfig, List<CpuTensor<float>> all_xMiniBatches,
+            CpuTensor<float> yMiniBatch);
 
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
@@ -77,6 +73,9 @@ namespace SharpNet.Datasets
         /// number of channels of each elements
         /// </summary>
         int Channels { get; }
+
+
+        List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
         [NotNull] CpuTensor<float> Y { get; }
 
