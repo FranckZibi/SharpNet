@@ -408,6 +408,7 @@ namespace SharpNet.Layers
             #endregion
 
             var xDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
+            var hDesc = HiddenDesc(batchSize);
             var yIfReturnSequencesDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, _yIfReturnSequences.Shape.Last());
             var devSeqLengths = Network.GpuWrapper.GetDevSeqLengths(batchSize, timeSteps);
 
@@ -425,7 +426,7 @@ namespace SharpNet.Layers
                 dyIfReturnSequences,
                 xDesc,
                 dx,
-                HiddenDesc(batchSize),
+                hDesc,
                 hx,
                 IntPtr.Zero,
                 dhx,
@@ -446,7 +447,10 @@ namespace SharpNet.Layers
                 devSeqLengths,
                 xDesc,
                 x,
-                new cudnnTensorDescriptor_t(), IntPtr.Zero,
+
+                //new cudnnTensorDescriptor_t(), IntPtr.Zero, //Test uncommenting this line
+                hDesc, hx,
+
                 yIfReturnSequencesDesc,
                 _yIfReturnSequences,
                 _weightsAndBiasesGradients.CapacityInBytes,

@@ -546,7 +546,7 @@ namespace SharpNet.Datasets
             if (Cfm60NetworkBuilder.Use_Decoder)
             {
                 Debug.Assert(all_xBuffer.Count == 2);
-                var xDecoder = all_xBuffer[0];
+                var xDecoder = all_xBuffer[1];
                 LoadAt(elementId, indexInBuffer, xDecoder, false);
             }
 
@@ -589,11 +589,13 @@ namespace SharpNet.Datasets
                 //y estimate
                 if (Cfm60NetworkBuilder.Use_prev_Y && isEncoder)
                 {
-                    var yEntry = 
-                        Cfm60NetworkBuilder.Use_Decoder
-                        ? entry
-                        : GetEntry(pid, indexInPidEntryArray - 1); //we take the previous entry
-                    if (IsTrainingDataSet || (indexInPidEntryArray - 1) < 0)
+                    var indexOfyEntryInPidEntryArray = Cfm60NetworkBuilder.Use_Decoder
+                        ? indexInPidEntryArray
+                        : indexInPidEntryArray - 1;  //we take the previous entry
+                    var yEntry = GetEntry(pid, indexOfyEntryInPidEntryArray);
+                    if (  IsTrainingDataSet 
+                        ||indexOfyEntryInPidEntryArray < 0 //the entry is in the training set
+                        )
                     {
                         //we will use the true value for Y
                         var y = yEntry.Y;

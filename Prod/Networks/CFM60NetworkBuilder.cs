@@ -181,6 +181,12 @@ namespace SharpNet.Networks
 
         public int Total_TimeSteps => Use_Decoder ? Encoder_TimeSteps + Decoder_TimeSteps : Encoder_TimeSteps;
 
+
+        public void Dropout(double dropoutRate)
+        {
+            DropoutRate = Encoder_DropoutRate = Decoder_DropoutRate = dropoutRate;
+        }
+
         #region Encoder
         private List<string> Encoder_FeatureNames;
         /// <summary>
