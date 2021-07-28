@@ -8,7 +8,7 @@ using SharpNet.Layers;
 
 namespace SharpNet.GPU
 {
-    public enum CUDA_Versions { CUDA_10_1, CUDA_10_2, CUDA_11_0 };
+    public enum CUDA_Versions { CUDA_10_1, CUDA_10_2, CUDA_11_0, CUDA_11_4 };
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public unsafe class GPUWrapper : IDisposable
@@ -674,7 +674,8 @@ namespace SharpNet.GPU
             }
             else if (cudaVersion.Major == 11)
             {
-                return CUDA_Versions.CUDA_11_0;
+                if (cudaVersion.Minor == 0) { return CUDA_Versions.CUDA_11_0; }
+                if (cudaVersion.Minor == 4) { return CUDA_Versions.CUDA_11_4; }
             }
             throw new Exception("cuda " + cudaVersion + " is not supported");
         }
