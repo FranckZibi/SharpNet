@@ -75,7 +75,8 @@ namespace SharpNet.Networks
         ///     we'll always use the full test data set to compute the loss and accuracy of this test data set
         /// else
         ///     we'll use the full test data set for some specific epochs (the first, the last, etc.)
-        ///     and a small part (10%) of this test data set for other epochs
+        ///     and a small part of this test data set for other epochs:
+        ///         IDataSet.PercentageToUseForLossAndAccuracyFastEstimate
         /// </summary>
         public bool AlwaysUseFullTestDataSetForLossAndAccuracy { get; set; } = true;
 

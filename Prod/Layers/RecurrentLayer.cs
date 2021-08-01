@@ -52,6 +52,7 @@ namespace SharpNet.Layers
         #endregion
 
         private readonly bool _returnSequences;
+        private readonly bool IsEncoder;
         private readonly RNNDescriptor _rnnDescriptor;
         /// <summary>
         /// when returnSequences is false and we are in training mode (not inference) :
@@ -71,7 +72,7 @@ namespace SharpNet.Layers
         public bool IsBidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
 
         #region constructor
-        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, int encoderLayerIndexIfAny, bool trainable, Network network, string layerName) : 
+        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool isEncoder, int encoderLayerIndexIfAny, bool trainable, Network network, string layerName) : 
             base(network, 
                 encoderLayerIndexIfAny>=0?new []{ network.Layers.Count-1, encoderLayerIndexIfAny} :new[]{ network.Layers.Count - 1 },
                 layerName)
@@ -100,8 +101,12 @@ namespace SharpNet.Layers
                 auxFlags);
 
             _returnSequences = returnSequences;
+            IsEncoder = isEncoder;
             Trainable = trainable;
-
+            if (IsEncoder && _returnSequences)
+            {
+                throw new ArgumentException("an Encoder can not return a sequence");
+            }
 
             _cudnnRNNDescriptor_t = Network.GpuWrapper.RNNDesc(_rnnDescriptor);
             CudnnWrapper.cudnnGetRNNWeightSpaceSize(Network.GpuWrapper.CudnnHandle, _cudnnRNNDescriptor_t, out var weightSpaceSize);
@@ -212,6 +217,10 @@ namespace SharpNet.Layers
             {
                 return "Decoder" + (IsBidirectional ? " Bidirectional" : "");
             }
+            if (IsEncoder)
+            {
+                return "Encoder" + (IsBidirectional ? " Bidirectional" : "");
+            }
             if (IsBidirectional)
             {
                 return "Bidirectional";
@@ -245,12 +254,13 @@ namespace SharpNet.Layers
         }
 
         #region forward and backward propagation
+
         /// <summary>
         /// </summary>
         /// <param name="allX"></param>
         /// input 'x' shape:
         ///     (batchSize, timeSteps, inputSize)
-        /// <param name="y">
+        /// <param name="yFull">
         /// output 'y' shape:
         ///     (batchSize, timeSteps, K*hiddenSize)      if _returnSequences == true
         ///     (batchSize, K*hiddenSize)                 if _returnSequences == false
@@ -259,7 +269,7 @@ namespace SharpNet.Layers
         ///      K == 1     if IsBidirectional == false
         /// </param>
         /// <param name="isTraining"></param>
-        public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
+        public override void ForwardPropagation(List<Tensor> allX, Tensor yFull, bool isTraining)
         {
             Debug.Assert(Network.UseGPU);
             Debug.Assert(_reserveSpace == null);
@@ -269,6 +279,9 @@ namespace SharpNet.Layers
             int timeSteps = x.Shape[1];
             Debug.Assert(x.Shape[2] == InputSize);
             Debug.Assert(x.Shape.Length == 3);
+
+            var (y, cy) = IsEncoder? ExtractEncoderContextVector(yFull):(yFull,null);
+            var (hx, cx) = IsDecoder ? ExtractEncoderContextVector(allX[1]) : (null, null);
 
             var xRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
             var yRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, y.Shape.Last());
@@ -305,9 +318,11 @@ namespace SharpNet.Layers
                 yRnnDataDesc,
                 _yIfReturnSequences,
                 HiddenDesc(batchSize),
-                IsDecoder ? allX[1] : null, /* h */
-                IntPtr.Zero,
-                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero,
+                hx,
+                _returnSequences ? null : y, /* hy */
+                CellDesc(batchSize),
+                cx,
+                cy,
                 _weightsAndBiases.CapacityInBytes,
                 _weightsAndBiases,
                 _workSpaceBufferSizeInBytes,
@@ -316,31 +331,22 @@ namespace SharpNet.Layers
                 _reserveSpace);        // null for inference
             GPUWrapper.CheckStatus(res);
 
-            //We need to convert 'yRnnData' tensor to output 'y' tensor
-            // '_yIfReturnSequences' shape:
-            //      (batchSize, timeSteps, hiddenSize)
-            // y shape:
-            //      (batchSize, timeSteps, hiddenSize)      when _returnSequences == true
-            //      (batchSize, hiddenSize)                 when _returnSequences == false
-            if (_returnSequences)
+            if (IsBidirectional & !_returnSequences)
             {
-            }
-            else
-            {
-                //from yRnnData (batchSize, timeSteps, K*hiddenSize) to y (batchSize, K*hiddenSize)
-                int lastDim = _yIfReturnSequences.Shape[2];
-                for (int batchId = 0; batchId < batchSize; ++batchId)
-                {
-                    if (IsBidirectional)
-                    {
-                        _yIfReturnSequences.CopyTo(_yIfReturnSequences.Idx(batchId, timeSteps - 1, 0), y, y.Idx(batchId, 0), lastDim/2);
-                        _yIfReturnSequences.CopyTo(_yIfReturnSequences.Idx(batchId, 0, lastDim/2), y, y.Idx(batchId, lastDim/2), lastDim/2);
-                    }
-                    else
-                    {
-                        _yIfReturnSequences.CopyTo(_yIfReturnSequences.Idx(batchId, timeSteps - 1, 0), y, y.Idx(batchId, 0), lastDim);
-                    }
-                }
+                //We need to convert initial y ('hy') tensor to output 'y' tensor
+                // initial y (= 'hy') shape:
+                //      (K=2, batchSize, hiddenSize)
+                // target y shape:
+                //      (batchSize, K*hiddenSize)
+                Debug.Assert(y.Shape.Length == 2);
+                var yCopy = GetFloatTensor(y.Shape);
+                var yShape = y.Shape;
+                const int K = 2;
+                y.CopyTo(yCopy);
+                yCopy.Reshape(new[] { K, batchSize, HiddenSize });
+                yCopy.Switch_First_2_axis(y);
+                y.Reshape(yShape);
+                FreeFloatTensor(yCopy);
             }
 
             FreeFloatTensor(workSpaceBuffer);
@@ -357,9 +363,7 @@ namespace SharpNet.Layers
             }
         }
 
-        const cudnnDataType_t dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
-
-        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dy, List<Tensor> dxList)
+        public override void BackwardPropagation(List<Tensor> allX, Tensor y, Tensor dyFull, List<Tensor> dxList)
         {
             Debug.Assert(Network.UseGPU);
             Debug.Assert(_reserveSpace != null);
@@ -369,7 +373,11 @@ namespace SharpNet.Layers
             var timeSteps = x.Shape[1];
             Debug.Assert(x.Shape[2] == InputSize);
 
-            #region we need to convert 'y' (& 'dy') tensor shape to '_yRnnData' (& 'dyRnnData') shape
+            var (dy, dcy) = IsEncoder ? ExtractEncoderContextVector(dyFull) : (dyFull, null);
+            var (hx, cx) = IsDecoder ? ExtractEncoderContextVector(allX[1]) : (null, null);
+            var (dhx, dcx) = IsDecoder ? ExtractEncoderContextVector(dxList[1]) : (null, null);
+
+#region we need to convert 'y' (& 'dy') tensor shape to '_yRnnData' (& 'dyRnnData') shape
             Tensor dyIfReturnSequences;
             if (_returnSequences)
             {
@@ -405,18 +413,19 @@ namespace SharpNet.Layers
                     }
                 }
             }
-            #endregion
+#endregion
 
             var xDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
             var hDesc = HiddenDesc(batchSize);
+            var cDesc = CellDesc(batchSize);
             var yIfReturnSequencesDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, _yIfReturnSequences.Shape.Last());
             var devSeqLengths = Network.GpuWrapper.GetDevSeqLengths(batchSize, timeSteps);
 
             Debug.Assert(_reserveSpace != null);
             var workSpaceBuffer = GetBuffer(_workSpaceBufferSizeInBytes);
             var dx = dxList[0] ?? GetFloatTensor(x.Shape);
-            var hx = IsDecoder ? allX[1] : null;
-            var dhx = IsDecoder ? dxList[1] : null;
+
+
             var res = CudnnWrapper.cudnnRNNBackwardData_v8(
                 Network.GpuWrapper.CudnnHandle,
                 _cudnnRNNDescriptor_t,
@@ -428,9 +437,12 @@ namespace SharpNet.Layers
                 dx,
                 hDesc,
                 hx,
-                IntPtr.Zero,
+                IntPtr.Zero, /* dhy */
                 dhx,
-                new cudnnTensorDescriptor_t(), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
+                cDesc, 
+                cx,
+                dcy,
+                dcx,
                 _weightsAndBiases.CapacityInBytes,
                 _weightsAndBiases,
                 _workSpaceBufferSizeInBytes,
@@ -447,10 +459,8 @@ namespace SharpNet.Layers
                 devSeqLengths,
                 xDesc,
                 x,
-
-                //new cudnnTensorDescriptor_t(), IntPtr.Zero, //Test uncommenting this line
-                hDesc, hx,
-
+                hDesc, 
+                hx,
                 yIfReturnSequencesDesc,
                 _yIfReturnSequences,
                 _weightsAndBiasesGradients.CapacityInBytes,
@@ -477,15 +487,35 @@ namespace SharpNet.Layers
             Debug.Assert(_reserveSpace == null);
         }
 
+        /// <summary>
+        /// Extract the Context Vector associated with the Encoder output
+        /// </summary>
+        /// <param name="encoderContextVector">The encoder context vector</param>
+        /// <returns>2 tensors:  the hidden state of the encoder and the cell state of the encoder</returns>
+        private (Tensor, Tensor) ExtractEncoderContextVector(Tensor encoderContextVector)
+        {
+            var stateShape = (int[])encoderContextVector.Shape.Clone();
+            stateShape[^1] = encoderContextVector.Shape[^1] / 2;
+            var hiddenStateTensor = new GPUTensor<float>(stateShape, encoderContextVector.Pointer, Network.GpuWrapper);
+            var cellStateTensor = new GPUTensor<float>(stateShape, encoderContextVector.Pointer + (encoderContextVector.Count / 2) * encoderContextVector.TypeSize, Network.GpuWrapper);
+            return (hiddenStateTensor, cellStateTensor);
+        }
+
+        const cudnnDataType_t dataType = cudnnDataType_t.CUDNN_DATA_FLOAT;
+
         private cudnnTensorDescriptor_t HiddenDesc(int batchSize)
         {
             int K = (_rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
             return Network.GpuWrapper.TensorDesc(dataType, new[] {K * NumLayers, batchSize, HiddenSize});
         }
+        private cudnnTensorDescriptor_t CellDesc(int batchSize)
+        {
+            return HiddenDesc(batchSize);
+        }
 
-        #endregion
+#endregion
 
-        #region parameters and gradients
+#region parameters and gradients
         public override Tensor Weights => throw new Exception("should never be called");
         public override Tensor Bias => throw new Exception("should never be called");
         public override Tensor WeightGradients => throw new Exception("should never be called");
@@ -529,7 +559,7 @@ namespace SharpNet.Layers
             return result;
         }
 
-        #region Multi GPU Support
+#region Multi GPU Support
         public override void ReplaceParameters(List<Tensor> newParameters)
         {
             Debug.Assert(newParameters.Count == 1);
@@ -542,7 +572,7 @@ namespace SharpNet.Layers
             FreeFloatTensor(ref _weightsAndBiasesGradients);
             _weightsAndBiasesGradients = newGradients[0];
         }
-        #endregion
+#endregion
 
         public override void UpdateWeights(int batchSize, double learningRate, double maxLearningRate)
         {
@@ -553,11 +583,11 @@ namespace SharpNet.Layers
                 _optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, _weightsAndBiases, _weightsAndBiasesGradients, null, null);
             }
         }
-        #endregion
+#endregion
 
         private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");
 
-        #region serialization
+#region serialization
         public override string Serialize()
         {
             return RootSerializer()
@@ -582,18 +612,19 @@ namespace SharpNet.Layers
                 (bool) serialized[nameof(IsBidirectional)],
                 (int) serialized[nameof(NumLayers)],
                 (double) serialized[nameof(DropoutRate)],
+                (bool) serialized[nameof(IsEncoder)],
                 encoderLayerIndexIfAny,
                 (bool) serialized[nameof(Trainable)],
                 network,
                 (string) serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
-        #endregion
+#endregion
 
         public override int[] OutputShape(int batchSize)
         {
             int timeSteps = PrevLayer.OutputShape(1)[1];
-            return _rnnDescriptor.Y_Shape(_returnSequences, timeSteps, batchSize);
+            return _rnnDescriptor.Y_Shape(_returnSequences, timeSteps, batchSize, IsEncoder);
         }
     }
 }

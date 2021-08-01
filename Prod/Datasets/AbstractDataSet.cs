@@ -75,7 +75,7 @@ namespace SharpNet.Datasets
         /// or -1 if those tensors are empty
         /// </summary>
         private long alreadyComputedMiniBatchId = -1;
-        private readonly Random[] _rands;
+        protected readonly Random[] _rands;
         #endregion
 
         #region public properties
@@ -362,6 +362,13 @@ namespace SharpNet.Datasets
             Utils.Shuffle(elementIdToOriginalElementId, r);
             return new MappedDataSet(this, elementIdToOriginalElementId);
         }
+
+        public virtual IDataSet SubDataSet(double percentageToKeep)
+        {
+            return SubDataSet(elementId => _rands[0].NextDouble() < percentageToKeep);
+        }
+
+        public virtual double PercentageToUseForLossAndAccuracyFastEstimate => 0.1;
 
         public IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet)
         {

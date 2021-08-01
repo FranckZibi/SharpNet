@@ -15,6 +15,69 @@ namespace SharpNet.Datasets
         public const int DISTINCT_PID_COUNT = 900;  //total number of distinct companies (pid)
 
 
+        private static float Interpolate(CFM60Entry before, CFM60Entry after, int dayToInterpolate, Func<CFM60Entry, float> extractValue)
+        {
+            if (after == null)
+            {
+                return extractValue(before);
+            }
+            if (before == null)
+            {
+                return extractValue(after);
+            }
+            Debug.Assert(before.pid == after.pid);
+            Debug.Assert(before.day < after.day);
+            Debug.Assert(dayToInterpolate>before.day);
+            Debug.Assert(dayToInterpolate<after.day);
+            var beforeValue = extractValue(before);
+            var afterValue = extractValue(after);
+            if (float.IsNaN(afterValue))
+            {
+                return beforeValue;
+            }
+            if (float.IsNaN(beforeValue))
+            {
+                return afterValue;
+            }
+            return beforeValue + ((dayToInterpolate-before.day) / ((float)(after.day - before.day))) * (afterValue - beforeValue);
+        }
+        private static float[] Interpolate(CFM60Entry before, CFM60Entry after, int dayToInterpolate, Func<CFM60Entry, float[]> extractValue)
+        {
+            if (after == null)
+            {
+                return (float[])extractValue(before).Clone();
+            }
+            if (before == null)
+            {
+                return (float[])extractValue(after).Clone();
+            }
+            var result = new float[extractValue(before).Length];
+            for (int i = 0; i < result.Length; ++i)
+            {
+                var iCopy = i;
+                result[i] = Interpolate(before, after, dayToInterpolate, e => extractValue(e)[iCopy]);
+            }
+            return result;
+        }
+        public static bool IsInterpolatedId(int id) {return id < 0;}
+
+
+
+        public static CFM60Entry Interpolate(CFM60Entry before, CFM60Entry after, int dayToInterpolate)
+        {
+            return new CFM60Entry
+                        {
+                            ID = -(Math.Abs(before.ID)+1),
+                            pid = before.pid,
+                            day = dayToInterpolate,
+                            abs_ret = Interpolate(before, after, dayToInterpolate, e => e.abs_ret),
+                            ret_vol = Interpolate(before, after, dayToInterpolate, e => e.ret_vol),
+                            LS = Interpolate(before, after, dayToInterpolate, e => e.LS),
+                            NLV = Interpolate(before, after, dayToInterpolate, e => e.NLV),
+                            Y = Interpolate(before, after, dayToInterpolate, e => e.Y)
+                        };
+        }
+
         private float? _volatility_ret_vol = null;
         private float? _volatility_abs_ret = null;
         private float? _mean_abs_ret = null;
@@ -54,19 +117,19 @@ namespace SharpNet.Datasets
         }
 
         [ProtoMember(1)]
-        public int ID { get;  }
+        public int ID { get; set; }
         [ProtoMember(2)]
-        public int pid { get; }
+        public int pid { get; set; }
         [ProtoMember(3)]
-        public int day { get; }
+        public int day { get; set; }
         [ProtoMember(4)]
-        public float[] abs_ret { get; }
+        public float[] abs_ret { get; set; }
         [ProtoMember(5)]
-        public float[] ret_vol{ get; }
+        public float[] ret_vol{ get; set; }
         [ProtoMember(6)]
-        public float LS { get; }
+        public float LS { get; set; }
         [ProtoMember(7)]
-        public float NLV { get; }
+        public float NLV { get; set; }
         [ProtoMember(8)] 
         public float Y { get; private set; } = float.NaN;
 
@@ -151,6 +214,6 @@ namespace SharpNet.Datasets
             }
             return _ret_vol_CoefficientOfVariation.Value;
         }
-
+   
     }
 }

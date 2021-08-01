@@ -186,52 +186,55 @@ namespace SharpNet.Networks
         public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, 1, 0.0, -1 /* encoder layer index */, true, this, layerName);
+            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, 1, 0.0, false /* isEncoder */,-1 /* encoder layer index */, true, this, layerName);
             Layers.Add(simpleRnn);
             return this;
         }
 
-        public Network LSTM(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
+        public Network LSTM(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool isEncoder, string layerName = "")
         {
-            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, -1, layerName);
+            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_LSTM, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, isEncoder, -1, layerName);
         }
 
-        public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, string layerName = "")
+        public Network GRU(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool isEncoder, string layerName = "")
         {
-            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, -1, layerName);
+            return RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_GRU, cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS, returnSequences, isBidirectional, numLayers, dropoutRate, isEncoder, -1, layerName);
         }
 
-        private Network RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, int encoderLayerIndexIfAny, string layerName = "")
+        private Network RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool isEncoder, int encoderLayerIndexIfAny, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
 
-            if (numLayers >= 2 && dropoutRate > 1e-6)
+            if (numLayers == 1 && dropoutRate > 1e-6)
+            {
+                throw new ArgumentException("invalid dropoutRate (" + dropoutRate + ") for a 1 Layer RecurrentLayer");
+            }
+
+            if (numLayers >= 2)
             {
                 //there is ann issue with cuDNN 8.* when using multi layer RNN with dropout.
                 //We are using a workaround: building several stacked single layer RNN with a dropout layer between each of them
                 for (int i = 0; i < numLayers-1; ++i)
                 {
                     /* first 'numLayers-1' layers: single layer with no dropout, always returning a full sequence */
-                    RecurrentLayer(hiddenSize, cellMode, biasMode, true, isBidirectional, 1, 0.0, encoderLayerIndexIfAny, "");
+                    RecurrentLayer(hiddenSize, cellMode, biasMode, true, isBidirectional, 1, 0.0, false, encoderLayerIndexIfAny, "");
                     Dropout(dropoutRate);
                     encoderLayerIndexIfAny = -1;
                 }
                 /* last layer: single layer with no dropout, returning a full sequence iif 'returnSequences' is true */
-                RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, 1, 0.0, encoderLayerIndexIfAny, "");
+                RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, 1, 0.0, isEncoder, encoderLayerIndexIfAny, "");
             }
             else
             {
-                var recurrentLayer = new RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, numLayers, dropoutRate, encoderLayerIndexIfAny, true, this, layerName);
+                var recurrentLayer = new RecurrentLayer(hiddenSize, cellMode, biasMode, returnSequences, isBidirectional, numLayers, dropoutRate, isEncoder, encoderLayerIndexIfAny, true, this, layerName);
                 Layers.Add(recurrentLayer);
             }
 
             return this;
         }
 
-
-        public Network DecoderLayer(int encoderLayerIndex, int numLayers,
-            double dropoutRate, string layerName = "")
+        public Network DecoderLayer(int encoderLayerIndex, int numLayers, double dropoutRate, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(UseGPU);
@@ -251,8 +254,7 @@ namespace SharpNet.Networks
             bool returnSequences = timeSteps != 1;
 
             return RecurrentLayer(encoder.HiddenSize, encoder.CellMode, encoder.BiasMode, returnSequences,
-                encoder.IsBidirectional, numLayers, dropoutRate, encoderLayerIndex,
-                layerName);
+                encoder.IsBidirectional, numLayers, dropoutRate, false, encoderLayerIndex, layerName);
         }
 
 
@@ -634,10 +636,14 @@ namespace SharpNet.Networks
                         }
                         else
                         {
-                            //we'll compute loss and accuracy using only 10% of the test data set
-                            using var subDataSet = testDataSetCpuIfAny.SubDataSet(i => i%10 == 0);
-                            validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
-                            lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
+                            var percentageToUseInTestDataSet = testDataSetCpuIfAny.PercentageToUseForLossAndAccuracyFastEstimate;
+                            //we'll compute loss and accuracy using only 'percentageToUsForLossAndAccuracyFastEstimate' of the test data set
+                            if (percentageToUseInTestDataSet > 1e-6)
+                            { 
+                                using var subDataSet = testDataSetCpuIfAny.SubDataSet(percentageToUseInTestDataSet);
+                                validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
+                                lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
+                            }
                         }
 
                     }

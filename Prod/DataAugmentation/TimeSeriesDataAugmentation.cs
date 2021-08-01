@@ -23,7 +23,7 @@ namespace SharpNet.DataAugmentation
             FeatureStatistics = new Tuple<double, double, double, double, double, double>[featuresCount];
             for (int featureId = 0; featureId < featuresCount; ++featureId)
             {
-                FeatureStatistics[featureId] = dataSet.GetFeatureStatistics(featureId);
+                FeatureStatistics[featureId] = dataSet.GetEncoderFeatureStatistics(featureId);
             }
         }
 

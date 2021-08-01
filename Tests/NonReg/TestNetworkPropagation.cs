@@ -1102,7 +1102,7 @@ namespace SharpNetTests.NonReg
             network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .LSTM(2, returnSequences, isBidirectional, 1, 0.0)
+                .LSTM(2, returnSequences, isBidirectional, 1, 0.0, false)
                 .Dense(1, 0.0, true);
 
             network.Layers[1].Weights.ZeroMemory();
@@ -1139,7 +1139,7 @@ namespace SharpNetTests.NonReg
             network.Config.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
-                .GRU(2, returnSequences, isBidirectional, 1, 0.0)
+                .GRU(2, returnSequences, isBidirectional, 1, 0.0, false)
                 .Dense(1, 0.0, true);
 
             network.Layers[1].Weights.ZeroMemory();

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -16,88 +15,6 @@ using SharpNet.Networks;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-/*
-==========================================================================
-= percentageInTrainingSet: 90 %
-==========================================================================
-abs_ret:
-		ALL Training: E(x)=0.118589; Vol(X)=0.18531; Count=41753402; Min=0; Max=33.171913146972656
-				Splitted:Training: E(x)=0.119316; Vol(X)=0.187061; Count=37592958; Min=0; Max=22.816667556762695
-				Splitted:Validation: E(x)=0.112014; Vol(X)=0.168528; Count=4160444; Min=0; Max=33.171913146972656
-		Test E(x)=0.129822; Vol(X)=0.233596; Count=19016384; Min=0; Max=99.36603546142578
-		All: E(x)=0.122104; Vol(X)=0.201734; Count=60769786; Min=0; Max=99.36603546142578
-days:
-		ALL Training: E(x)=412.493759; Vol(X)=231.328505; Count=684482; Min=0; Max=804
-				Splitted:Training: E(x)=373.313415; Vol(X)=209.70433; Count=616278; Min=0; Max=728
-				Splitted:Validation: E(x)=766.519676; Vol(X)=21.95167; Count=68204; Min=729; Max=804
-		Test E(x)=977.772153; Vol(X)=100.09615; Count=311744; Min=805; Max=1151
-		All: E(x)=589.383488; Vol(X)=329.552116; Count=996226; Min=0; Max=1151
-LS:
-		ALL Training: E(x)=-3.185075; Vol(X)=1.072115; Count=684482; Min=-6.984719276428223; Max=2.7631983757019043
-				Splitted:Training: E(x)=-3.192015; Vol(X)=1.068935; Count=616278; Min=-6.984719276428223; Max=2.7631983757019043
-				Splitted:Validation: E(x)=-3.122362; Vol(X)=1.098445; Count=68204; Min=-4.605170249938965; Max=1.7952927350997925
-		Test E(x)=-2.919658; Vol(X)=1.176852; Count=311744; Min=-4.605170249938965; Max=2.479624032974243
-		All: E(x)=-3.102019; Vol(X)=1.112783; Count=996226; Min=-6.984719276428223; Max=2.7631983757019043
-NLV:
-		ALL Training: E(x)=-0.018128; Vol(X)=1.002737; Count=684482; Min=-4.3548359870910645; Max=4.443584442138672
-				Splitted:Training: E(x)=-0.020225; Vol(X)=1.003731; Count=616278; Min=-4.3548359870910645; Max=4.443584442138672
-				Splitted:Validation: E(x)=0.000818; Vol(X)=0.993511; Count=68204; Min=-3.3405704498291016; Max=3.7534914016723633
-		Test E(x)=0.039803; Vol(X)=0.992802; Count=311744; Min=-3.3068394660949707; Max=4.196197032928467
-		All: E(x)=-0; Vol(X)=0.999999; Count=996226; Min=-4.3548359870910645; Max=4.443584442138672
-ret_vol:
-		ALL Training: E(x)=0.016393; Vol(X)=0.018006; Count=41753402; Min=0; Max=1
-				Splitted:Training: E(x)=0.016393; Vol(X)=0.018024; Count=37592958; Min=0; Max=1
-				Splitted:Validation: E(x)=0.016393; Vol(X)=0.017848; Count=4160444; Min=0; Max=1
-		Test E(x)=0.016393; Vol(X)=0.01777; Count=19016384; Min=0; Max=0.9172645807266235
-		All: E(x)=0.016393; Vol(X)=0.017933; Count=60769786; Min=0; Max=1
-Y:
-		ALL Training: E(x)=-1.958691; Vol(X)=0.909245; Count=684482; Min=-7.137685775756836; Max=3.580919027328491
-				Splitted:Training: E(x)=-1.987459; Vol(X)=0.908148; Count=616278; Min=-7.137685775756836; Max=3.580919027328491
-				Splitted:Validation: E(x)=-1.698744; Vol(X)=0.87732; Count=68204; Min=-5.528903484344482; Max=3.087144374847412
-		Test N/A
-		All: E(x)=-1.958691; Vol(X)=0.909245; Count=684482; Min=-7.137685775756836; Max=3.580919027328491
-
-==========================================================================
-= percentageInTrainingSet: 68 %
-==========================================================================
-abs_ret:
-		ALL Training: E(x)=0.118589; Vol(X)=0.18531; Count=41753402; Min=0; Max=33.171913146972656
-				Splitted:Training: E(x)=0.121058; Vol(X)=0.192538; Count=28410262; Min=0; Max=22.816667556762695
-				Splitted:Validation: E(x)=0.11333; Vol(X)=0.168773; Count=13343140; Min=0; Max=33.171913146972656
-		Test E(x)=0.129822; Vol(X)=0.233596; Count=19016384; Min=0; Max=99.36603546142578
-		All: E(x)=0.122104; Vol(X)=0.201734; Count=60769786; Min=0; Max=99.36603546142578
-days:
-		ALL Training: E(x)=412.493759; Vol(X)=231.328505; Count=684482; Min=0; Max=804
-				Splitted:Training: E(x)=285.788256; Vol(X)=161.415105; Count=465742; Min=0; Max=558
-				Splitted:Validation: E(x)=682.275574; Vol(X)=70.792443; Count=218740; Min=559; Max=804
-		Test E(x)=977.772153; Vol(X)=100.09615; Count=311744; Min=805; Max=1151
-		All: E(x)=589.383488; Vol(X)=329.552116; Count=996226; Min=0; Max=1151
-LS:
-		ALL Training: E(x)=-3.185075; Vol(X)=1.072115; Count=684482; Min=-6.984719276428223; Max=2.7631983757019043
-				Splitted:Training: E(x)=-3.196913; Vol(X)=1.067255; Count=465742; Min=-6.984719276428223; Max=2.7631983757019043
-				Splitted:Validation: E(x)=-3.159868; Vol(X)=1.081958; Count=218740; Min=-4.605170249938965; Max=1.9762426614761353
-		Test E(x)=-2.919658; Vol(X)=1.176852; Count=311744; Min=-4.605170249938965; Max=2.479624032974243
-		All: E(x)=-3.102019; Vol(X)=1.112783; Count=996226; Min=-6.984719276428223; Max=2.7631983757019043
-NLV:
-		ALL Training: E(x)=-0.018128; Vol(X)=1.002737; Count=684482; Min=-4.3548359870910645; Max=4.443584442138672
-				Splitted:Training: E(x)=-0.016303; Vol(X)=1.006889; Count=465742; Min=-4.3548359870910645; Max=4.443584442138672
-				Splitted:Validation: E(x)=-0.022014; Vol(X)=0.993827; Count=218740; Min=-3.3468830585479736; Max=3.861933708190918
-		Test E(x)=0.039803; Vol(X)=0.992802; Count=311744; Min=-3.3068394660949707; Max=4.196197032928467
-		All: E(x)=-0; Vol(X)=0.999999; Count=996226; Min=-4.3548359870910645; Max=4.443584442138672
-ret_vol:
-		ALL Training: E(x)=0.016393; Vol(X)=0.018006; Count=41753402; Min=0; Max=1
-				Splitted:Training: E(x)=0.016393; Vol(X)=0.018106; Count=28410262; Min=0; Max=1
-				Splitted:Validation: E(x)=0.016393; Vol(X)=0.017792; Count=13343140; Min=0; Max=1
-		Test E(x)=0.016393; Vol(X)=0.01777; Count=19016384; Min=0; Max=0.9172645807266235
-		All: E(x)=0.016393; Vol(X)=0.017933; Count=60769786; Min=0; Max=1
-Y:
-		ALL Training: E(x)=-1.958691; Vol(X)=0.909245; Count=684482; Min=-7.137685775756836; Max=3.580919027328491
-				Splitted:Training: E(x)=-2.061522; Vol(X)=0.914849; Count=465742; Min=-7.137685775756836; Max=3.580919027328491
-				Splitted:Validation: E(x)=-1.739741; Vol(X)=0.857033; Count=218740; Min=-5.98342752456665; Max=3.087144374847412
-		Test N/A
-		All: E(x)=-1.958691; Vol(X)=0.909245; Count=684482; Min=-7.137685775756836; Max=3.580919027328491
-*/
-
 namespace SharpNet.Datasets
 {
     public class CFM60DataSet : AbstractDataSet, ITimeSeriesDataSet
@@ -107,6 +24,7 @@ namespace SharpNet.Datasets
         //TODO : add element for each valid day, even if no entry is associated with that day
         private readonly IDictionary<int, List<CFM60Entry>> _pidToSortedEntries = new Dictionary<int, List<CFM60Entry>>();
         private readonly IDictionary<int, int> _CFM60EntryIDToIndexIn_pidToSortedEntries = new Dictionary<int, int>();
+        private readonly IDictionary<int, LinearRegression> PidToLinearRegressionBetweenDayAndY;
 
         ///For each featureId, a Tuple with:
         ///     Item1:  feature minimum
@@ -202,24 +120,6 @@ namespace SharpNet.Datasets
             Entries = entries;
             int elementId = 0;
 
-            var featureImportances = FeatureImportancesCalculator.LoadFromFile(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "featureimportances.csv"));
-            Encoder_FeaturesStatistics = new Tuple<double, double, double, double, double, double>[Cfm60NetworkBuilder.Encoder_InputSize];
-            for (int featureId = 0; featureId < Encoder_FeaturesStatistics.Length; ++featureId)
-            {
-                var featureName = Cfm60NetworkBuilder.FeatureIdToFeatureName(featureId);
-                Encoder_FeaturesStatistics[featureId] = featureImportances.TryGetValue(featureName, out var result) ? result : null;
-            }
-
-            if (Cfm60NetworkBuilder.Use_Decoder)
-            { 
-                Decoder_FeaturesStatistics = new Tuple<double, double, double, double, double, double>[Cfm60NetworkBuilder.Decoder_InputSize];
-                for (int featureId = 0; featureId < Decoder_FeaturesStatistics.Length; ++featureId)
-                {
-                    var featureName = Cfm60NetworkBuilder.FeatureIdToFeatureName(featureId);
-                    Decoder_FeaturesStatistics[featureId] = featureImportances.TryGetValue(featureName, out var result) ? result : null;
-                }
-            }
-
             //we initialize: _pidToSortedEntries
             foreach (var entry in Entries.OrderBy(e => e.pid).ThenBy(e => e.day))
             {
@@ -240,7 +140,7 @@ namespace SharpNet.Datasets
                 }
             }
 
-            //we initialize: _elementIdToAssociateLastCFM60Entry and _LastCFM60EntryIDToElementId
+            //we initialize _elementIdToAssociateLastCFM60Entry and _LastCFM60EntryIDToElementId
             int longestEntry = _pidToSortedEntries.Values.Select(x => x.Count).Max();
             int[] pids = _pidToSortedEntries.Keys.OrderBy(x => x).ToArray();
             for (int i = 0; i < longestEntry; ++i)
@@ -262,53 +162,57 @@ namespace SharpNet.Datasets
                 }
             }
 
+            //we initialize Y
             //total number of items in the dataSet
             int count = IsTrainingDataSet
                 ? _pidToSortedEntries.Values.Select(e => Math.Max(e.Count - Total_TimeSteps, 0)).Sum()
                 : _pidToSortedEntries.Values.Select(e => e.Count).Sum();
-
             var yData = new float[count];
             for (int i = 0; i < yData.Length; ++i)
             {
                 yData[i] = _elementIdToLastAssociateCFM60Entry[i].Y;
             }
-
             Y = new CpuTensor<float>(new[] {yData.Length, 1}, yData);
 
-            if (IsTrainingDataSet)
+            //if we are in a training data set
+            if (trainingDataSetIfAny == null) 
             {
-                //We ensure that the Training DataSet is valid
-                foreach (var e in _pidToSortedEntries)
+                //we ensure that the training data set is valid
+                foreach (var (pid, trainingEntries) in _pidToSortedEntries)
                 {
-                    if (e.Value.Count <= Total_TimeSteps)
+                    if (trainingEntries.Count <= Total_TimeSteps)
                     {
-                        throw new Exception("invalid Training DataSet: not enough entries (" + e.Value.Count + ") for pid " + e.Key);
+                        throw new Exception("invalid Training DataSet: not enough entries (" + trainingEntries.Count + ") for pid " + pid);
                     }
 
-                    if (e.Value.Any(x => double.IsNaN(x.Y)))
+                    if (trainingEntries.Any(x => double.IsNaN(x.Y)))
                     {
-                        throw new Exception("invalid Training DataSet: no known Y value for pid " + e.Key);
+                        throw new Exception("invalid Training DataSet: no known Y value for pid " + pid);
                     }
                 }
+                Encoder_FeaturesStatistics = Cfm60NetworkBuilder.Compute_Encoder_FeaturesStatistics();
+                Decoder_FeaturesStatistics = Cfm60NetworkBuilder.Compute_Decoder_FeaturesStatistics();
+                PidToLinearRegressionBetweenDayAndY = ComputePidToLinearRegressionBetweenDayAndY();
             }
-            else //Validation DataSet
+            else //validation or test data set
             {
-                //We ensure that the associate Training DataSet is valid.
-                // ReSharper disable once PossibleNullReferenceException
-                if (!_pidToSortedEntries.Keys.OrderBy(x => x).SequenceEqual(trainingDataSetIfAny._pidToSortedEntries.Keys.OrderBy(x => x)))
+                //we ensure that the associate training data set is valid
+                foreach (var (pid, validationEntries) in _pidToSortedEntries)
                 {
-                    throw new Exception("pid are incoherent between Training and Validation DataSet");
-                }
-
-                foreach (var pid in _pidToSortedEntries.Keys)
-                {
-                    var trainingEntries = trainingDataSetIfAny._pidToSortedEntries[pid];
-                    if (trainingEntries.Count < Total_TimeSteps)
+                    if (!trainingDataSetIfAny._pidToSortedEntries.ContainsKey(pid))
                     {
-                        throw new Exception("not enough entries (" + trainingEntries.Count + ") in Training DataSet for pid " + pid);
+                        throw new Exception("validation pid "+ pid + " doesn't exist in training data set");
+                    }
+                    if (validationEntries.Count == 0)
+                    {
+                        throw new Exception("not enough entries (" + validationEntries.Count + ") in validation data set for pid " + pid);
                     }
                 }
+                Encoder_FeaturesStatistics = trainingDataSetIfAny.Encoder_FeaturesStatistics;
+                Decoder_FeaturesStatistics = trainingDataSetIfAny.Decoder_FeaturesStatistics;
+                PidToLinearRegressionBetweenDayAndY = null;
             }
+
         }
         // ReSharper disable once UnusedMember.Global
         public void ComputeFeatureImportances(string filePath, bool computeExtraFeature)
@@ -326,10 +230,10 @@ namespace SharpNet.Datasets
                     calculator.AddFeature(entry.abs_ret, "abs_ret");
                     //acc.AddFeature(entry.Get_mean_abs_ret(), "mean_abs_ret");
                     //acc.AddFeature((entry.Get_mean_abs_ret() - 0.118588544f) / 0.08134923f, "mean(abs_ret_normalized)");
-                    calculator.AddFeature(CFM60TrainingAndTestDataSet.LinearRegressionEstimateBasedOnFullTrainingSet(entry.pid, entry.day),"y_LinearRegressionEstimate");
-                    calculator.AddFeature(CFM60TrainingAndTestDataSet.Y_Mean_BasedOnFullTrainingSet(entry.pid), "mean(pid_y)");
-                    calculator.AddFeature(CFM60TrainingAndTestDataSet.Y_Volatility_BasedOnFullTrainingSet(entry.pid), "vol(pid_y)");
-                    calculator.AddFeature(CFM60TrainingAndTestDataSet.Y_Variance_BasedOnFullTrainingSet(entry.pid), "var(pid_y)");
+                    calculator.AddFeature(LinearRegressionEstimate(entry.pid, entry.day),"y_LinearRegressionEstimate");
+                    calculator.AddFeature(Y_Mean(entry.pid), "mean(pid_y)");
+                    calculator.AddFeature(Y_Volatility(entry.pid), "vol(pid_y)");
+                    calculator.AddFeature(Y_Variance(entry.pid), "var(pid_y)");
                     calculator.AddFeature(entry.Get_ret_vol_CoefficientOfVariation(), "ret_vol_CoefficientOfVariation");
                     calculator.AddFeature(entry.Get_volatility_ret_vol(), "vol(ret_vol)");
                     calculator.AddFeature(entry.LS, "LS");
@@ -374,13 +278,19 @@ namespace SharpNet.Datasets
         /// </summary>
         public CFM60DataSet OriginalTestDataSet { get; set; }
 
-        public Tuple<double, double, double, double, double, double> GetFeatureStatistics(int featureId)
+        public Tuple<double, double, double, double, double, double> GetEncoderFeatureStatistics(int featureId)
         {
             return Encoder_FeaturesStatistics[featureId];
         }
 
         public IDictionary<int, LinearRegression> ComputePidToLinearRegressionBetweenDayAndY()
         {
+            if (!IsTrainingDataSet)
+            {
+                //We do not use Y in validation / test data set
+                return null;
+            }
+
             var pidToLinearRegression = new Dictionary<int, LinearRegression>();
             foreach (var e in Entries)
             {
@@ -482,6 +392,10 @@ namespace SharpNet.Datasets
             sb.Append("ID,target");
             foreach (var p in CFM60EntryIDToPrediction.OrderBy(x => x.Key))
             {
+                if (CFM60Entry.IsInterpolatedId(p.Key))
+                {
+                    continue;
+                }
                 sb.Append(Environment.NewLine + p.Key + "," + p.Value.ToString(CultureInfo.InvariantCulture));
             }
 
@@ -532,13 +446,12 @@ namespace SharpNet.Datasets
         protected override void LoadAt(int elementId, int indexInBuffer, List<CpuTensor<float>> all_xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
         {
             var xEncoder = all_xBuffer[0];
-            int miniBatchSize = all_xBuffer[0].Shape[0];
             Debug.Assert(xEncoder.Shape.Length == 3);
-            Debug.Assert(indexInBuffer >= 0 && indexInBuffer < miniBatchSize);
+            Debug.Assert(indexInBuffer >= 0 && indexInBuffer < all_xBuffer[0].Shape[0]);
             Debug.Assert(xEncoder.Shape[1] == Cfm60NetworkBuilder.Encoder_TimeSteps);
             Debug.Assert(xEncoder.Shape[2] == Cfm60NetworkBuilder.Encoder_InputSize);
             Debug.Assert(xEncoder.Shape[2] == Encoder_FeaturesStatistics.Length);
-            Debug.Assert(yBuffer == null || miniBatchSize == yBuffer.Shape[0]); //same batch size
+            Debug.Assert(yBuffer == null || all_xBuffer[0].Shape[0] == yBuffer.Shape[0]); //same batch size
             Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
             Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
 
@@ -603,7 +516,7 @@ namespace SharpNet.Datasets
                         {
                             throw new Exception("no Y value associated with entry " + (indexInPidEntryArray - 1) + " of pid " + pid);
                         }
-                        xElementId[idx++] = Normalize(y, idx % featuresLength);
+                        xElementId[idx++] = Normalize(y, idx % featuresLength, isEncoder);
                     }
                     else
                     {
@@ -613,34 +526,34 @@ namespace SharpNet.Datasets
                         {
                             throw new Exception("missing prediction for ID " + yEntry.ID + " with pid " + pid + " : it is required to make the prediction for next ID " + entry.ID);
                         }
-                        xElementId[idx++] = Normalize(_elementIdToPrediction[associatedElementId], idx % featuresLength);
+                        xElementId[idx++] = Normalize(_elementIdToPrediction[associatedElementId], idx % featuresLength, isEncoder);
                     }
                 }
 
                 if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate)
                 {
-                    xElementId[idx++] = Normalize( CFM60TrainingAndTestDataSet.LinearRegressionEstimateBasedOnFullTrainingSet(entry.pid, entry.day), idx % featuresLength);
+                    xElementId[idx++] = Normalize(LinearRegressionEstimate(entry.pid, entry.day), idx % featuresLength, isEncoder);
                 }
                 if (Cfm60NetworkBuilder.Use_mean_pid_y)
                 {
-                    xElementId[idx++] = Normalize(CFM60TrainingAndTestDataSet.Y_Mean_BasedOnFullTrainingSet(entry.pid), idx % featuresLength);
+                    xElementId[idx++] = Normalize(Y_Mean(entry.pid), idx % featuresLength, isEncoder);
                 }
                 if (Cfm60NetworkBuilder.Use_volatility_pid_y)
                 {
-                    xElementId[idx++] = Normalize(CFM60TrainingAndTestDataSet.Y_Volatility_BasedOnFullTrainingSet(entry.pid), idx % featuresLength);
+                    xElementId[idx++] = Normalize(Y_Volatility(entry.pid), idx % featuresLength, isEncoder);
                 }
                 if (Cfm60NetworkBuilder.Use_variance_pid_y)
                 {
-                    xElementId[idx++] = Normalize(CFM60TrainingAndTestDataSet.Y_Variance_BasedOnFullTrainingSet(entry.pid), idx % featuresLength);
+                    xElementId[idx++] = Normalize(Y_Variance(entry.pid), idx % featuresLength, isEncoder);
                 }
                 //day/year
                 if (Cfm60NetworkBuilder.Use_day)
                 {
-                    xElementId[idx++] = Normalize(entry.day / Cfm60NetworkBuilder.Use_day_Divider, idx % featuresLength);
+                    xElementId[idx++] = Normalize(entry.day / Cfm60NetworkBuilder.Use_day_Divider, idx % featuresLength, isEncoder);
                 }
                 if (Cfm60NetworkBuilder.Use_fraction_of_year)
                 {
-                    xElementId[idx++] = Normalize(DayToFractionOfYear(entry.day), idx % featuresLength);
+                    xElementId[idx++] = Normalize(DayToFractionOfYear(entry.day), idx % featuresLength, isEncoder);
                 }
                 if (Cfm60NetworkBuilder.Use_EndOfYear_flag)
                 {
@@ -661,16 +574,16 @@ namespace SharpNet.Datasets
                     //idx += entry.abs_ret.Length;
                     for (int i = 0; i < entry.abs_ret.Length; ++i)
                     {
-                        xElementId[idx++] = Normalize(entry.abs_ret[i], idx % featuresLength);
+                        xElementId[idx++] = Normalize(entry.abs_ret[i], idx % featuresLength, isEncoder);
                     }
                 }
                 if (Cfm60NetworkBuilder.Use_mean_abs_ret)
                 {
-                    xElementId[idx++] = Normalize(entry.Get_mean_abs_ret(), idx % featuresLength);
+                    xElementId[idx++] = Normalize(entry.Get_mean_abs_ret(), idx % featuresLength, isEncoder);
                 }
                 if (Cfm60NetworkBuilder.Use_volatility_abs_ret)
                 {
-                    xElementId[idx++] = Normalize(entry.Get_volatility_abs_ret(), idx % featuresLength);
+                    xElementId[idx++] = Normalize(entry.Get_volatility_abs_ret(), idx % featuresLength, isEncoder);
                 }
                 //ret_vol
                 if (Cfm60NetworkBuilder.Use_ret_vol)
@@ -683,12 +596,12 @@ namespace SharpNet.Datasets
                         //idx += 2 * 12;
                         for (int i = 0; i < 12; ++i)
                         {
-                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength);
+                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength, isEncoder);
                         }
 
                         for (int i = entry.ret_vol.Length - 12; i < entry.ret_vol.Length; ++i)
                         {
-                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength);
+                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength, isEncoder);
                         }
                     }
                     else
@@ -697,23 +610,23 @@ namespace SharpNet.Datasets
                         //idx += entry.ret_vol.Length;
                         for (int i = 0; i < entry.ret_vol.Length; ++i)
                         {
-                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength);
+                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength, isEncoder);
                         }
                     }
                 }
                 if (Cfm60NetworkBuilder.Use_volatility_ret_vol)
                 {
-                    xElementId[idx++] = Normalize(entry.Get_volatility_ret_vol(), idx % featuresLength);
+                    xElementId[idx++] = Normalize(entry.Get_volatility_ret_vol(), idx % featuresLength, isEncoder);
                 }
                 //LS
                 if (Cfm60NetworkBuilder.Use_LS)
                 {
-                    xElementId[idx++] = Normalize(entry.LS, idx % featuresLength);
+                    xElementId[idx++] = Normalize(entry.LS, idx % featuresLength, isEncoder);
                 }
                 //NLV
                 if (Cfm60NetworkBuilder.Use_NLV)
                 {
-                    xElementId[idx++] = Normalize(entry.NLV, idx % featuresLength);
+                    xElementId[idx++] = Normalize(entry.NLV, idx % featuresLength, isEncoder);
                 }
                 int expectedInputSize = isEncoder ? Cfm60NetworkBuilder.Encoder_InputSize : Cfm60NetworkBuilder.Decoder_InputSize;
                 if (timeStep == 0 && elementId == 0 && idx != expectedInputSize)
@@ -723,9 +636,18 @@ namespace SharpNet.Datasets
             }
         }
 
-        private float Normalize(float featureValue, int featureId)
+        private float Normalize(float featureValue, int featureId, bool isEncoder)
         {
-            var stats = Encoder_FeaturesStatistics[featureId];
+            if (TrainingDataSetIfAny != null)
+            {
+                //in validation/test data set, we'll normalize using the training data set stats
+                return TrainingDataSetIfAny.Normalize(featureValue, featureId, isEncoder);
+            }
+
+            Debug.Assert(IsTrainingDataSet);
+            var stats = isEncoder
+                ?Encoder_FeaturesStatistics[featureId]
+                :Decoder_FeaturesStatistics[featureId];
             if (  stats == null 
                 ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.NONE
                 ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER
@@ -758,6 +680,17 @@ namespace SharpNet.Datasets
             return new TrainingAndTestDataLoader(training, validation, Name);
         }
 
+        public override IDataSet SubDataSet(double percentageToKeep)
+        {
+            var entries = new List<CFM60Entry>();
+            foreach (var pidEntries in _pidToSortedEntries.Values)
+            {
+                int count = Math.Max(1, (int)(percentageToKeep * pidEntries.Count));
+                entries.AddRange(pidEntries.Take(count));
+            }
+            return new CFM60DataSet(entries.ToArray(), Cfm60NetworkBuilder, TrainingDataSetIfAny);
+        }
+
         /// <summary>
         /// we'll save the network if we have reached a very small loss
         /// </summary>
@@ -766,6 +699,7 @@ namespace SharpNet.Datasets
             return    epoch >= 2
                    && network.CurrentEpochIsAbsolutelyBestInValidationLoss()
                    && !double.IsNaN(network.EpochData.Last().ValidationLoss)
+                   && network.Config.AlwaysUseFullTestDataSetForLossAndAccuracy
                    && network.EpochData.Last().ValidationLoss < Cfm60NetworkBuilder.MaxLossToSaveTheNetwork;
         }
 
@@ -775,6 +709,8 @@ namespace SharpNet.Datasets
         {
             return -1;
         }
+
+        public override double PercentageToUseForLossAndAccuracyFastEstimate => 0.0; //we do not compute any estimate
 
         public override string ElementIdToPathIfAny(int elementId)
         {
@@ -787,37 +723,6 @@ namespace SharpNet.Datasets
         {
             var xShape = new [] {Count, Cfm60NetworkBuilder.Encoder_TimeSteps, Cfm60NetworkBuilder.Encoder_InputSize, Encoder_FeaturesStatistics.Length};
             return Tensor.ShapeToString(xShape) + " => " + Tensor.ShapeToString(Y.Shape);
-        }
-
-        /// <summary>
-        /// return the Mean Squared Error associated with the prediction 'idToPredictions'
-        /// return value will be double.NaN if the MSE can not be computed
-        /// </summary>
-        /// <param name="CFM60EntryIDToPrediction">a prediction</param>
-        /// <param name="applyLogToPrediction">true if we should apply log to the prediction before computing the MSE</param>
-        /// <returns>
-        /// The Mean Squared Error of the predictions, or double.NaN if was not computed
-        /// </returns>
-        public double ComputeMeanSquareError(IDictionary<int, double> CFM60EntryIDToPrediction, bool applyLogToPrediction)
-        {
-            var CFM60EntryIDToCFM60Entry = new Dictionary<int, CFM60Entry>();
-            foreach(var entry in Entries)
-            {
-                CFM60EntryIDToCFM60Entry[entry.ID] = entry;
-            }
-            double mse = 0; //the mean squared error
-            foreach (var (id, value) in CFM60EntryIDToPrediction)
-            {
-                var predictedValue = applyLogToPrediction ? Math.Log(value) : value;
-                var expectedValue = CFM60EntryIDToCFM60Entry[id].Y;
-                if (double.IsNaN(expectedValue))
-                {
-                    Log.Error("no known expected value for id:" + id);
-                    return double.NaN;
-                }
-                mse += Math.Pow(predictedValue - expectedValue, 2);
-            }
-            return mse / CFM60EntryIDToPrediction.Count;
         }
 
         public static IDictionary<int, double> LoadPredictionFile(string filePath)
@@ -834,25 +739,7 @@ namespace SharpNet.Datasets
             }
             return predictions;
         }
-        // ReSharper disable once UnusedMember.Global
-        public void ComputePredictions(Func<CFM60Entry, double> entryToPrediction, string comment)
-        {
-            var CFM60EntryIDToPrediction = new ConcurrentDictionary<int, double>();
-            void ComputePrediction(int elementId)
-            {
-                var entryToPredict = _elementIdToLastAssociateCFM60Entry[elementId];
-                var prediction = entryToPrediction(entryToPredict);
-                CFM60EntryIDToPrediction[entryToPredict.ID] = prediction;
-            }
-            System.Threading.Tasks.Parallel.For(0, Count, ComputePrediction);
-            CreatePredictionFile(CFM60EntryIDToPrediction, Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", comment + "_" + DateTime.Now.Ticks + ".csv"));
-            //we update the file with all predictions
-            var mse = ComputeMeanSquareError(CFM60EntryIDToPrediction, false);
-            var testsCsv = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60", "PerformPrediction", "Tests_CFM60_PerformPrediction.csv");
-            var line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";" + comment.Replace(';', '_') + ";" + mse.ToString(CultureInfo.InvariantCulture) + ";" + Environment.NewLine;
-            File.AppendAllText(testsCsv, line);
-        }
-
+      
         private static float NormalizeBetween_0_and_1(float initialValue, float knownMinValue, float knownMaxValue)
         {
             if (knownMinValue >= knownMaxValue)
@@ -890,6 +777,26 @@ namespace SharpNet.Datasets
             }
             return result;
         }
+
+
+        private float LinearRegressionEstimate(int pid, int day)
+        {
+            return (float)PidToLinearRegressionBetweenDayAndY[pid].Estimation(day);
+        }
+        private float Y_Mean(int pid)
+        {
+            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Average;
+        }
+        private float Y_Volatility(int pid)
+        {
+            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Volatility;
+        }
+
+        private float Y_Variance(int pid)
+        {
+            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Variance;
+        }
+
 
         protected override int GetMaxElementsToLoad(int[] shuffledElementId, int firstIndexInShuffledElementId, int batchSize)
         {

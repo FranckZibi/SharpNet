@@ -33,6 +33,7 @@ namespace SharpNet.Networks
 
             //pid embedding
             if (Pid_EmbeddingDim >= 1) { ++result; featureNames.Add(nameof(Pid_EmbeddingDim)); }
+
             //y estimate
             if (Use_prev_Y && isEncoderInputSize) { ++result; featureNames.Add("prev_y"); }
             if (Use_y_LinearRegressionEstimate) { ++result; featureNames.Add("y_LinearRegressionEstimate"); }
@@ -177,21 +178,49 @@ namespace SharpNet.Networks
         public bool DivideGradientsByTimeSteps { get; set; } = false;
         public bool Use_GRU_instead_of_LSTM { get; set; } = false;
         public bool Use_Bidirectional_RNN { get; set; } = true;
-
-
         public int Total_TimeSteps => Use_Decoder ? Encoder_TimeSteps + Decoder_TimeSteps : Encoder_TimeSteps;
-
-
-        public void Dropout(double dropoutRate)
-        {
-            DropoutRate = Encoder_DropoutRate = Decoder_DropoutRate = dropoutRate;
-        }
 
         #region Encoder
         private List<string> Encoder_FeatureNames;
         /// <summary>
         /// numb er of layer in the encoder.
         /// </summary>
+        public void Encoder(int numLayers, int timeSteps, double dropoutRate)
+        {
+            if (numLayers == 1 && dropoutRate > 1e-6)
+            {
+                throw new ArgumentException("invalid dropoutRate (" + dropoutRate + ") for a 1 Layer Encoder");
+            }
+            Encoder_NumLayers = numLayers;
+            Encoder_TimeSteps = timeSteps;
+            Encoder_DropoutRate = dropoutRate;
+        }
+
+        public string EncDesc()
+        {
+            var res = "_"+DropoutRate + "drop";
+            res += "_encoder_" + Encoder_NumLayers + "_" + Encoder_TimeSteps;
+            if (Encoder_DropoutRate > 1e-6)
+            {
+                res += "_" + Encoder_DropoutRate + "drop";
+            }
+            if (Use_Decoder)
+            {
+                res += "_decoder_" + Decoder_NumLayers + "_" + Decoder_TimeSteps;
+                if (Decoder_DropoutRate > 1e-6)
+                {
+                    res += "_" + Decoder_DropoutRate + "drop";
+                }
+            }
+            if (DropoutRate_After_Decoder >1e-6)
+            {
+                res += "_" + DropoutRate_After_Decoder + "dropAfter";
+            }
+
+            res = res.Replace(".", "");
+            return res;
+        }
+
         public int Encoder_NumLayers { get; set; } = 2;
         public int Encoder_TimeSteps { get; set; } = 20;
         /// <summary>
@@ -203,6 +232,16 @@ namespace SharpNet.Networks
 
         #region Decoder 
         private List<string> Decoder_FeatureNames;
+        public void Decoder(int numLayers, int timeSteps, double dropoutRate)
+        {
+            if (numLayers == 1 && dropoutRate > 1e-6)
+            {
+                throw new ArgumentException("invalid dropoutRate (" + dropoutRate + ") for a 1 Layer Decoder");
+            }
+            Decoder_NumLayers = numLayers;
+            Decoder_TimeSteps = timeSteps;
+            Decoder_DropoutRate = dropoutRate;
+        }
         public bool Use_Decoder => Decoder_NumLayers >= 1 && Decoder_TimeSteps >= 1;
         public int Decoder_NumLayers { get; set; } = 0;
         /// <summary>
@@ -214,6 +253,7 @@ namespace SharpNet.Networks
         #endregion
 
         public double DropoutRate { get; set; } = 0.2;       //validated on 15-jan-2021
+        public double DropoutRate_After_Decoder { get; set; } = 0.0;
         public bool UseBatchNorm2 { get; set; } = false;
 
         public int HiddenSize { get; set; } = 128;               //validated on 15-jan-2021
@@ -283,6 +323,7 @@ namespace SharpNet.Networks
             //builder.Config.WithAdamW(0.00005); //validated on 19-july-2021: very small degradation (+0.0016) but better expected results for bigger data set
             builder.NumEpochs = 30; //validated on 20-july-2021: speed up tests
             builder.Config.WithAdamW(0.0001); //validated on 20-july-2021: small change but better generalization
+            builder.Config.AlwaysUseFullTestDataSetForLossAndAccuracy = false;
 
             return builder;
         }
@@ -328,11 +369,11 @@ namespace SharpNet.Networks
             //We add the Encoder
             if (Use_GRU_instead_of_LSTM)
             {
-                network.GRU(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate);
+                network.GRU(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate, Use_Decoder);
             }
             else
             {
-                network.LSTM(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate);
+                network.LSTM(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate, Use_Decoder);
             }
 
             if (UseBatchNorm2)
@@ -361,6 +402,12 @@ namespace SharpNet.Networks
                 network.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
             }
 
+
+            if (DropoutRate_After_Decoder >= 1e-6)
+            {
+                network.Dropout(DropoutRate_After_Decoder);
+            }
+
             network.Dense_Activation(DenseUnits, network.Config.lambdaL2Regularization, true, ActivationFunctionAfterFirstDense);
             network.Dense(1, network.Config.lambdaL2Regularization, true);
 
@@ -380,9 +427,41 @@ namespace SharpNet.Networks
             return network;
         }
 
-        public string FeatureIdToFeatureName(int featureId)
+
+        public Tuple<double, double, double, double, double, double>[] Compute_Encoder_FeaturesStatistics()
+        {
+            var featureImportances = FeatureImportancesCalculator.LoadFromFile(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "featureimportances.csv"));
+            var res = new Tuple<double, double, double, double, double, double>[Encoder_InputSize];
+            for (int featureId = 0; featureId < res.Length; ++featureId)
+            {
+                var featureName = FeatureIdToEncoderFeatureName(featureId);
+                res[featureId] = featureImportances.TryGetValue(featureName, out var result) ? result : null;
+            }
+            return res;
+        }
+        public Tuple<double, double, double, double, double, double>[] Compute_Decoder_FeaturesStatistics()
+        {
+            if (!Use_Decoder)
+            {
+                return null;
+            }
+            var featureImportances = FeatureImportancesCalculator.LoadFromFile(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "featureimportances.csv"));
+            var res = new Tuple<double, double, double, double, double, double>[Decoder_InputSize];
+            for (int featureId = 0; featureId < res.Length; ++featureId)
+            {
+                var featureName = FeatureIdToDecoderFeatureName(featureId);
+                res[featureId] = featureImportances.TryGetValue(featureName, out var result) ? result : null;
+            }
+            return res;
+        }
+
+        public string FeatureIdToEncoderFeatureName(int featureId)
         {
             return Encoder_FeatureNames[featureId];
+        }
+        public string FeatureIdToDecoderFeatureName(int featureId)
+        {
+            return Decoder_FeatureNames[featureId];
         }
 
 

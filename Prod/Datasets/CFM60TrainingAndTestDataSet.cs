@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using SharpNet.MathTools;
 using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
     public class CFM60TrainingAndTestDataSet : AbstractTrainingAndTestDataSet
     {
-        private static IDictionary<int, LinearRegression> PidToLinearRegressionBetweenDayAndY;
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
 
@@ -34,35 +31,10 @@ namespace SharpNet.Datasets
                 null, 
                 log,
                 cfm60NetworkBuilder,
+                // ReSharper disable once VirtualMemberCallInConstructor
                 (CFM60DataSet)Training);
 
-            lock (lockObject)
-            {
-                if (PidToLinearRegressionBetweenDayAndY == null)
-                {
-                    // ReSharper disable once VirtualMemberCallInConstructor
-                    PidToLinearRegressionBetweenDayAndY = ((CFM60DataSet) Training).ComputePidToLinearRegressionBetweenDayAndY();
-                }
-            }
+           
         }
-
-        public static float LinearRegressionEstimateBasedOnFullTrainingSet(int pid, int day)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Estimation(day);
-        }
-        public static float Y_Mean_BasedOnFullTrainingSet(int pid)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Average;
-        }
-        public static float Y_Volatility_BasedOnFullTrainingSet(int pid)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Volatility;
-        }
-        public static float Y_Variance_BasedOnFullTrainingSet(int pid)
-        {
-            return (float)PidToLinearRegressionBetweenDayAndY[pid].Y_Variance;
-        }
-
-        private static readonly object lockObject = new object();
     }
 }

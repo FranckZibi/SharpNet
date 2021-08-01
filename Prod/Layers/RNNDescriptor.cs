@@ -46,9 +46,14 @@ namespace SharpNet.Layers
             return new[] {batchSize, timeSteps, K * hiddenSize };
         }
 
-        public int[] Y_Shape(bool returnSequences, int timeSteps, int batchSize)
+        public int[] Y_Shape(bool returnSequences, int timeSteps, int batchSize, bool isEncoder)
         {
             int K = (dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
+            if (isEncoder)
+            {
+                //for encoders, the output context vector will be both the hidden state and the cell state
+                K *= 2;
+            }
             return returnSequences
                 ?new[] { batchSize, timeSteps, K * hiddenSize }
                 :new[] { batchSize, K * hiddenSize };

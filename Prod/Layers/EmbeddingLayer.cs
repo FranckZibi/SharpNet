@@ -89,7 +89,7 @@ namespace SharpNet.Layers
             Trainable = trainable;
 
             //trainable params
-            _weights = GetFloatTensor(new[] { 1+VocabularySize+10, EmbeddingDim });
+            _weights = GetFloatTensor(new[] { 1 + VocabularySize, EmbeddingDim });
             _weightGradients = GetFloatTensor(_weights.Shape);
 
             _optimizer = GetOptimizer(_weights.Shape, null);

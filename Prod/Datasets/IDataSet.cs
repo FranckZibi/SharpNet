@@ -11,7 +11,7 @@ namespace SharpNet.Datasets
     public interface ITimeSeriesDataSet
     {
         void SetBatchPredictionsForInference(int[] batchElementIds, Tensor batchPredictions);
-        Tuple<double, double, double, double, double, double>  GetFeatureStatistics(int featureId);
+        Tuple<double, double, double, double, double, double>  GetEncoderFeatureStatistics(int featureId);
     }
 
 
@@ -87,8 +87,14 @@ namespace SharpNet.Datasets
         // ReSharper disable once UnusedMember.Global
         IDataSet Shuffle(Random r);
         IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet);
+        /// <summary>
+        /// return a data set keeping only 'percentageToKeep' elements of the current data set
+        /// </summary>
+        /// <param name="percentageToKeep">percentage to keep between 0 and 1.0</param>
+        /// <returns></returns>
+        IDataSet SubDataSet(double percentageToKeep);
 
-
+        double PercentageToUseForLossAndAccuracyFastEstimate { get; }
 
         ResizeStrategyEnum ResizeStrategy { get; }
 
