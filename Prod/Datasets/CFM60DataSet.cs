@@ -40,8 +40,7 @@ namespace SharpNet.Datasets
 
         // CFM60EntryID = CFM60Entry.ID: the unique ID of a CFM60Entry
         // elementId : id of an element in the dataSet (in range [0, dataSet.Count[ )
-        private readonly IDictionary<int, int> _LastCFM60EntryIDToElementId= new Dictionary<int, int>();
-        private readonly IDictionary<int, float> _elementIdToPrediction = new Dictionary<int, float>();
+        private readonly IDictionary<int, float> _idToPrediction = new Dictionary<int, float>();
 
         /// <summary>
         /// day is the end of year
@@ -131,6 +130,18 @@ namespace SharpNet.Datasets
                 _pidToSortedEntries[entry.pid].Add(entry);
             }
 
+            if (IsValidationOrTestDataSet && EntriesCountForEachElementId_Y>1)
+            {
+                // we need to make sure that each pid has a multiple of 'EntriesCountForEachElementId_Y' as number of entries
+                foreach (var l in _pidToSortedEntries.Values)
+                {
+                    while (l.Count % EntriesCountForEachElementId_Y != 0)
+                    {
+                        l.Add(CFM60Entry.Interpolate(l.Last(), null, l.Last().day+1));
+                    }
+                }
+            }
+
             //we initialize _IDToIndexIn_pidToSortedEntries
             foreach (var e in _pidToSortedEntries.Values)
             {
@@ -140,39 +151,50 @@ namespace SharpNet.Datasets
                 }
             }
 
-            //we initialize _elementIdToAssociateLastCFM60Entry and _LastCFM60EntryIDToElementId
+            //we initialize _elementIdToAssociateLastCFM60Entry
             int longestEntry = _pidToSortedEntries.Values.Select(x => x.Count).Max();
             int[] pids = _pidToSortedEntries.Keys.OrderBy(x => x).ToArray();
-            for (int i = 0; i < longestEntry; ++i)
+            int idxLastEntry = IsTrainingDataSet
+                ? EntriesCountForEachElementId_X+EntriesCountForEachElementId_Y - 1
+                : EntriesCountForEachElementId_Y - 1;
+            while(idxLastEntry < longestEntry)
             {
                 foreach (var pid in pids)
                 {
                     var pidEntries = _pidToSortedEntries[pid];
-                    if (i < pidEntries.Count)
+                    if (idxLastEntry < pidEntries.Count)
                     {
-                        if (!IsTrainingDataSet //in the Validation/Test DataSets: each element is a prediction to make
-                            || (i >= Total_TimeSteps)
-                        ) //in the Training DataSet: only entries in the range [TimeSteps, +infinite[ can be trained
-                        {
-                            _elementIdToLastAssociateCFM60Entry[elementId] = pidEntries[i];
-                            _LastCFM60EntryIDToElementId[pidEntries[i].ID] = elementId;
-                            ++elementId;
-                        }
+                        _elementIdToLastAssociateCFM60Entry[elementId] = pidEntries[idxLastEntry];
+                        ++elementId;
                     }
+                }
+
+                if (IsTrainingDataSet)
+                {
+                    //in the Training DataSet: only entries in the range [TimeSteps, +infinite[ can be trained
+                    idxLastEntry += 1;
+                }
+                else
+                {
+                    //in the Validation/Test DataSets: each element is a prediction to make
+                    idxLastEntry += EntriesCountForEachElementId_Y; 
                 }
             }
 
             //we initialize Y
             //total number of items in the dataSet
-            int count = IsTrainingDataSet
-                ? _pidToSortedEntries.Values.Select(e => Math.Max(e.Count - Total_TimeSteps, 0)).Sum()
-                : _pidToSortedEntries.Values.Select(e => e.Count).Sum();
-            var yData = new float[count];
-            for (int i = 0; i < yData.Length; ++i)
+            int count = elementId;
+            var yData = new float[count * EntriesCountForEachElementId_Y];
+            int nextIdxInY = 0;
+            for (elementId = 0; elementId < count; ++elementId)
             {
-                yData[i] = _elementIdToLastAssociateCFM60Entry[i].Y;
+                foreach(var e in ElementId_to_YEntries(elementId))
+                {
+                    yData[nextIdxInY++] = e.Y;
+                }
             }
-            Y = new CpuTensor<float>(new[] {yData.Length, 1}, yData);
+            Debug.Assert(nextIdxInY == yData.Length);
+            Y = new CpuTensor<float>(new[] { count, EntriesCountForEachElementId_Y }, yData);
 
             //if we are in a training data set
             if (trainingDataSetIfAny == null) 
@@ -262,14 +284,38 @@ namespace SharpNet.Datasets
         //public int Encoder_TimeSteps => Cfm60NetworkBuilder.Encoder_TimeSteps;
         public int Total_TimeSteps => Cfm60NetworkBuilder.Total_TimeSteps;
 
+        int EntriesCountForEachElementId_X =>
+            Cfm60NetworkBuilder.Use_Decoder
+                ? Cfm60NetworkBuilder.Encoder_TimeSteps: 
+                1+ Cfm60NetworkBuilder.Encoder_TimeSteps;
+
+        int EntriesCountForEachElementId_Y => Cfm60NetworkBuilder.Use_Decoder ? Cfm60NetworkBuilder.Decoder_TimeSteps : 1;
+
+        public IEnumerable<CFM60Entry> ElementId_to_YEntries(int elementId)
+        {
+            var lastEntry = _elementIdToLastAssociateCFM60Entry[elementId];
+            var pidEntries = _pidToSortedEntries[lastEntry.pid];
+            var lastIdx = _CFM60EntryIDToIndexIn_pidToSortedEntries[lastEntry.ID];
+            int firstIdx = lastIdx - EntriesCountForEachElementId_Y + 1;
+            for (int idx = firstIdx; idx<=lastIdx; ++idx)
+            {
+                yield return pidEntries[idx];
+            }
+        }
+
         public void SetBatchPredictionsForInference(int[] batchElementIds, Tensor batchPredictions)
         {
-            Debug.Assert(batchPredictions.Count == batchElementIds.Length);
+            Debug.Assert(batchPredictions.Count == batchElementIds.Length* EntriesCountForEachElementId_Y);
             var predictions = batchPredictions.ContentAsFloatArray();
-            for (int i = 0; i < batchElementIds.Length; ++i)
+            int nextPredictionIdx = 0;
+            foreach (var elementId in batchElementIds)
             {
-                _elementIdToPrediction[batchElementIds[i]] = predictions[i];
+                foreach (var e in ElementId_to_YEntries(elementId))
+                {
+                    _idToPrediction[e.ID] = predictions[nextPredictionIdx++];
+                }
             }
+            Debug.Assert(nextPredictionIdx == batchPredictions.Count);
         }
 
 
@@ -285,7 +331,7 @@ namespace SharpNet.Datasets
 
         public IDictionary<int, LinearRegression> ComputePidToLinearRegressionBetweenDayAndY()
         {
-            if (!IsTrainingDataSet)
+            if (IsValidationOrTestDataSet)
             {
                 //We do not use Y in validation / test data set
                 return null;
@@ -498,38 +544,7 @@ namespace SharpNet.Datasets
                     //EmbeddingLayer is expecting them in range [1,900] that's why we add +1
                     xElementId[idx++] = entry.pid + 1;
                 }
-
-                //y estimate
-                if (Cfm60NetworkBuilder.Use_prev_Y && isEncoder)
-                {
-                    var indexOfyEntryInPidEntryArray = Cfm60NetworkBuilder.Use_Decoder
-                        ? indexInPidEntryArray
-                        : indexInPidEntryArray - 1;  //we take the previous entry
-                    var yEntry = GetEntry(pid, indexOfyEntryInPidEntryArray);
-                    if (  IsTrainingDataSet 
-                        ||indexOfyEntryInPidEntryArray < 0 //the entry is in the training set
-                        )
-                    {
-                        //we will use the true value for Y
-                        var y = yEntry.Y;
-                        if (double.IsNaN(y))
-                        {
-                            throw new Exception("no Y value associated with entry " + (indexInPidEntryArray - 1) + " of pid " + pid);
-                        }
-                        xElementId[idx++] = Normalize(y, idx % featuresLength, isEncoder);
-                    }
-                    else
-                    {
-                        //we need to use the estimated value for Y (even if the true value of Y is available)
-                        var associatedElementId = _LastCFM60EntryIDToElementId[yEntry.ID];
-                        if (!_elementIdToPrediction.ContainsKey(associatedElementId))
-                        {
-                            throw new Exception("missing prediction for ID " + yEntry.ID + " with pid " + pid + " : it is required to make the prediction for next ID " + entry.ID);
-                        }
-                        xElementId[idx++] = Normalize(_elementIdToPrediction[associatedElementId], idx % featuresLength, isEncoder);
-                    }
-                }
-
+               
                 if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate)
                 {
                     xElementId[idx++] = Normalize(LinearRegressionEstimate(entry.pid, entry.day), idx % featuresLength, isEncoder);
@@ -628,6 +643,38 @@ namespace SharpNet.Datasets
                 {
                     xElementId[idx++] = Normalize(entry.NLV, idx % featuresLength, isEncoder);
                 }
+                //y estimate
+                if (Cfm60NetworkBuilder.Use_prev_Y && isEncoder)
+                {
+                    var indexOfyEntryInPidEntryArray = Cfm60NetworkBuilder.Use_Decoder
+                        ? indexInPidEntryArray
+                        : indexInPidEntryArray - 1;  //we take the previous entry
+                    var yEntry = GetEntry(pid, indexOfyEntryInPidEntryArray);
+                    if (IsTrainingDataSet
+                        || indexOfyEntryInPidEntryArray < 0 //the entry is in the training set
+                    )
+                    {
+                        //we will use the true value for Y
+                        var y = yEntry.Y;
+                        if (double.IsNaN(y))
+                        {
+                            throw new Exception("no Y value associated with entry " + (indexInPidEntryArray - 1) + " of pid " + pid);
+                        }
+                        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                        xElementId[idx++] = Normalize(y, idx % featuresLength, isEncoder);
+                    }
+                    else
+                    {
+                        //we need to use the estimated value for Y (even if the true value of Y is available)
+                        if (!_idToPrediction.ContainsKey(yEntry.ID))
+                        {
+                            throw new Exception("missing prediction for ID " + yEntry.ID + " with pid " + pid + " : it is required to make the prediction for next ID " + entry.ID);
+                        }
+                        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+                        xElementId[idx++] = Normalize(_idToPrediction[yEntry.ID], idx % featuresLength, isEncoder);
+                    }
+                }
+
                 int expectedInputSize = isEncoder ? Cfm60NetworkBuilder.Encoder_InputSize : Cfm60NetworkBuilder.Decoder_InputSize;
                 if (timeStep == 0 && elementId == 0 && idx != expectedInputSize)
                 {
@@ -682,13 +729,7 @@ namespace SharpNet.Datasets
 
         public override IDataSet SubDataSet(double percentageToKeep)
         {
-            var entries = new List<CFM60Entry>();
-            foreach (var pidEntries in _pidToSortedEntries.Values)
-            {
-                int count = Math.Max(1, (int)(percentageToKeep * pidEntries.Count));
-                entries.AddRange(pidEntries.Take(count));
-            }
-            return new CFM60DataSet(entries.ToArray(), Cfm60NetworkBuilder, TrainingDataSetIfAny);
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -761,6 +802,7 @@ namespace SharpNet.Datasets
         }
 
         public bool IsTrainingDataSet => TrainingDataSetIfAny == null;
+        public bool IsValidationOrTestDataSet => !IsTrainingDataSet;
 
         public override List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer)
         {

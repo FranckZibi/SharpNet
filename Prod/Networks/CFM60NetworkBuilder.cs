@@ -196,25 +196,30 @@ namespace SharpNet.Networks
             Encoder_DropoutRate = dropoutRate;
         }
 
+        // ReSharper disable once UnusedMember.Global
         public string EncDesc()
         {
-            var res = "_"+DropoutRate + "drop";
-            res += "_encoder_" + Encoder_NumLayers + "_" + Encoder_TimeSteps;
+            var res = "_encoder_" + Encoder_NumLayers + "_" + Encoder_TimeSteps;
             if (Encoder_DropoutRate > 1e-6)
             {
                 res += "_" + Encoder_DropoutRate + "drop";
             }
+
+            if (DropoutRate_Between_Encoder_And_Decoder > 1e-6)
+            {
+                res += "_then_" + DropoutRate_Between_Encoder_And_Decoder + "drop";
+            }
             if (Use_Decoder)
             {
-                res += "_decoder_" + Decoder_NumLayers + "_" + Decoder_TimeSteps;
+                res += "_then_decoder_" + Decoder_NumLayers + "_" + Decoder_TimeSteps;
                 if (Decoder_DropoutRate > 1e-6)
                 {
                     res += "_" + Decoder_DropoutRate + "drop";
                 }
             }
-            if (DropoutRate_After_Decoder >1e-6)
+            if (DropoutRate_After_EncoderDecoder >1e-6)
             {
-                res += "_" + DropoutRate_After_Decoder + "dropAfter";
+                res += "_then_" + DropoutRate_After_EncoderDecoder + "drop";
             }
 
             res = res.Replace(".", "");
@@ -252,8 +257,8 @@ namespace SharpNet.Networks
         public int Decoder_InputSize => GetInputSize(false);
         #endregion
 
-        public double DropoutRate { get; set; } = 0.2;       //validated on 15-jan-2021
-        public double DropoutRate_After_Decoder { get; set; } = 0.0;
+        public double DropoutRate_Between_Encoder_And_Decoder { get; set; } = 0.2;       //validated on 15-jan-2021
+        public double DropoutRate_After_EncoderDecoder { get; set; } = 0.0;
         public bool UseBatchNorm2 { get; set; } = false;
 
         public int HiddenSize { get; set; } = 128;               //validated on 15-jan-2021
@@ -324,6 +329,11 @@ namespace SharpNet.Networks
             builder.NumEpochs = 30; //validated on 20-july-2021: speed up tests
             builder.Config.WithAdamW(0.0001); //validated on 20-july-2021: small change but better generalization
             builder.Config.AlwaysUseFullTestDataSetForLossAndAccuracy = false;
+            //validated on 2-aug-2021:  -0.0078
+            builder.Encoder(1, 20, 0.0); //validated on 2-aug-2021:  -0.0078
+            builder.DropoutRate_Between_Encoder_And_Decoder = 0.2; //validated on 2-aug-2021:  -0.0078
+            builder.Decoder(2, 1, 0.2); //validated on 2-aug-2021:  -0.0078
+            builder.DropoutRate_After_EncoderDecoder = 0.2; //validated on 2-aug-2021:  -0.0078
 
             return builder;
         }
@@ -385,9 +395,9 @@ namespace SharpNet.Networks
                 network.SwitchSecondAndThirdDimension(false);
             }
 
-            if (DropoutRate >= 1e-6)
+            if (Use_Decoder && DropoutRate_Between_Encoder_And_Decoder >= 1e-6)
             {
-                network.Dropout(DropoutRate);
+                network.Dropout(DropoutRate_Between_Encoder_And_Decoder);
             }
 
             //We add the Decoder
@@ -403,13 +413,14 @@ namespace SharpNet.Networks
             }
 
 
-            if (DropoutRate_After_Decoder >= 1e-6)
+            if (DropoutRate_After_EncoderDecoder >= 1e-6)
             {
-                network.Dropout(DropoutRate_After_Decoder);
+                network.Dropout(DropoutRate_After_EncoderDecoder);
             }
 
             network.Dense_Activation(DenseUnits, network.Config.lambdaL2Regularization, true, ActivationFunctionAfterFirstDense);
             network.Dense(1, network.Config.lambdaL2Regularization, true);
+            network.Flatten();
 
             if (WithSpecialEndV1)
             {

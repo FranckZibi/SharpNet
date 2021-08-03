@@ -86,7 +86,7 @@ namespace SharpNet.Datasets
         IDataSet Resize(int targetSize, bool shuffle);
         // ReSharper disable once UnusedMember.Global
         IDataSet Shuffle(Random r);
-        IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet);
+
         /// <summary>
         /// return a data set keeping only 'percentageToKeep' elements of the current data set
         /// </summary>
