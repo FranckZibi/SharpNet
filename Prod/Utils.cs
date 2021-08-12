@@ -181,6 +181,7 @@ namespace SharpNet
         /// </summary>
         /// <param name="data"></param>
         /// <returns></returns>
+        // ReSharper disable once UnusedMember.Global
         public static (float mean,float volatility) MeanAndVolatility(ReadOnlySpan<float> data)
         {
             if (data.Length == 0)
@@ -329,6 +330,15 @@ namespace SharpNet
             }
             value = default;
             return false;
+        }
+
+        public static T GetOrDefault<T>(this IDictionary<string, object> serialized, string key, T defaultValue)
+        {
+            if (serialized.TryGetValue(key, out var resAsObject))
+            {
+                return (T)resAsObject;
+            }
+            return defaultValue;
         }
         public static T TryGet<T>(this IDictionary<string, object> serialized, string key)
         {

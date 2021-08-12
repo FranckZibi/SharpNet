@@ -59,6 +59,46 @@ namespace SharpNetTests
             //new CancelDatabase().CreatePredictionFile(Path.Combine(ImageDatabaseManagementPath, "Prediction_def.csv"));return;
 
 
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions", new Dictionary<string, double>
+            //{
+            //    ["CFM60__20210605_1901.csv"] = 1,
+            //    ["CFM60_DenseUnits_50_20210606_0825.csv"] = 1,
+            //    ["CFM60_min_lr_10_20210606_1919.csv"] = 1
+            //}); return;
+
+
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20200613", new Dictionary<string, double>
+            //{
+            //    ["CFM60_l2_0_00001_batch4096_V1_20210613_1158.csv"] = 1,
+            //    ["CFM60_l2_0_00001_V1_20210613_1029.csv"] = 1,
+            //    ["CFM60_l2_0_00005_batch4096_V1_20210613_1158.csv"] = 1,
+            //    ["CFM60_l2_0_00005_V1_20210613_1029.csv"] = 1,
+            //    ["CFM60_l2_0_0001_batch4096_V1_20210613_1158.csv"] = 1,
+            //    ["CFM60_l2_0_0001_V2_20210613_1049.csv"] = 1,
+            //    ["CFM60_l2_0_0005_batch4096_V1_20210613_1158.csv"] = 1,
+            //    ["CFM60_l2_0_0005_V1_20210613_1029.csv"] = 1
+            //}, 1.0, Math.Log(1.00)); return;
+
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210712", new Dictionary<string, double>
+            //{
+            //    ["CFM60True_True_False_20210712_0738_0_3819.csv"] = 1,
+            //    ["CFM60_20210708_0808_0_3702.csv"] = 1,
+            //    ["CFM60_ADD_NOISE_0_03_Continuous_noise_0_1_20210711_1636_0_3818.csv"] = 1,
+            //    ["CFM60_lr_0_001_divide_200_20210708_0808_0_3664.csv"] = 1,
+            //    ["CFM60_lr_0_005_1cycle_divide500_20210709_1551_0_3797.csv"] = 1,
+            //    ["CFM60_norm_deduce_mean_20210711_1823_0_3756.csv"] = 1,
+            //    ["CFM60_Pid_EmbeddingDim_16_20210705_1245_0_3665.csv"] = 1,
+            //}, 1.0, Math.Log(1.00)); return;
+
+
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210716", null,  1.0, Math.Log(1.00));return;
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210717b", null,  1.0, Math.Log(1.00));return;
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.06), Math.Log(1.06));return;  // -0.0020
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.03), Math.Log(1.09));return;  // -0.0028
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.00), Math.Log(1.12));return;  // -0.0031
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210717", null,  1.0, Math.Log(1.06));return;
+
+
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
             //builder.CreateIDM(Path.Combine(ImageDatabaseManagementPath, "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));

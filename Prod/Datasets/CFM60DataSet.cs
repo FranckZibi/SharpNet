@@ -237,11 +237,11 @@ namespace SharpNet.Datasets
 
         }
         // ReSharper disable once UnusedMember.Global
-        public void ComputeFeatureImportances(string filePath, bool computeExtraFeature)
+        public void ComputeFeatureImportance(string filePath, bool computeExtraFeature)
         { 
             var calculator = new FeatureImportancesCalculator(computeExtraFeature);
             foreach(var (_,entries) in _pidToSortedEntries)
-
+            { 
                 for (var index = 0; index < entries.Count; index++)
                 {
                     var entry = entries[index];
@@ -278,6 +278,7 @@ namespace SharpNet.Datasets
                     //acc.AddFeature(1f, "const_1");
                     calculator.AddLabel(entry.Y);
                 }
+            }
             calculator.Write(filePath);
         }
 
@@ -393,10 +394,22 @@ namespace SharpNet.Datasets
         /// <param name="directory">the directory where the predictions files are located</param>
         /// <param name="fileNameWithPredictionToWeight">the fileNames of the prediction files in directory 'directory' and associated weight</param>
         /// <param name="multiplierCorrection"></param>
+        /// <param name="addCorrectionStart"></param>
+        /// <param name="addCorrectionEnd"></param>
         /// <returns>a path to a prediction file with the weighted average of predictions</returns>
         // ReSharper disable once UnusedMember.Global
-        public static string EnsembleLearning(string directory, IDictionary<string,double> fileNameWithPredictionToWeight, double multiplierCorrection = 1.0)
+        public static string EnsembleLearning(string directory, IDictionary<string,double> fileNameWithPredictionToWeight, double multiplierCorrection = 1.0, double addCorrectionStart = 0.0, double addCorrectionEnd = double.NaN)
         {
+            if (double.IsNaN(addCorrectionEnd))
+            {
+                addCorrectionEnd = addCorrectionStart;
+            }
+            if (fileNameWithPredictionToWeight == null)
+            {
+                fileNameWithPredictionToWeight = new Dictionary<string, double>();
+                new DirectoryInfo(directory).GetFiles("*.csv").ToList().ForEach(f => fileNameWithPredictionToWeight[f.FullName] = 1);
+            }
+
             int? predictionsByFile = null;
             var ensembleLearningPredictions = new Dictionary<int, double>();
             var totalWeights = fileNameWithPredictionToWeight.Values.Sum();
@@ -418,7 +431,7 @@ namespace SharpNet.Datasets
                     {
                         ensembleLearningPredictions[id] = 0;
                     }
-                    ensembleLearningPredictions[id] += (multiplierCorrection*weight / totalWeights) * prediction;
+                    ensembleLearningPredictions[id] += (weight / totalWeights) * prediction;
                 }
             }
             if (predictionsByFile.HasValue && predictionsByFile.Value != ensembleLearningPredictions.Count)
@@ -427,22 +440,34 @@ namespace SharpNet.Datasets
             }
 
             var ensembleLearningPredictionFile = Path.Combine(directory, "EnsembleLearning_" + DateTime.Now.Ticks + ".csv");
-            CreatePredictionFile(ensembleLearningPredictions, ensembleLearningPredictionFile);
+            CreatePredictionFile(ensembleLearningPredictions, ensembleLearningPredictionFile, multiplierCorrection, addCorrectionStart, addCorrectionEnd);
             return ensembleLearningPredictionFile;
         }
 
 
-        public static void CreatePredictionFile(IDictionary<int, double> CFM60EntryIDToPrediction, string filePath)
+        public static void CreatePredictionFile(IDictionary<int, double> CFM60EntryIDToPrediction, string filePath, double multiplierCorrection = 1.0, double addCorrectionStart = 0.0, double addCorrectionEnd = 0.0)
         {
+            var id2dayFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "id2day.csv");
+            var id2day = new Dictionary<int, int>();
+            foreach (var l in File.ReadAllLines(id2dayFile).Skip(1))
+            {
+                var splitted = l.Split(";").Select(int.Parse).ToArray();
+                id2day[splitted[0]] = splitted[1];
+            }
+
             var sb = new StringBuilder();
             sb.Append("ID,target");
-            foreach (var p in CFM60EntryIDToPrediction.OrderBy(x => x.Key))
+            foreach (var (id, originalPrediction) in CFM60EntryIDToPrediction.OrderBy(x => x.Key))
             {
-                if (CFM60Entry.IsInterpolatedId(p.Key))
+                if (CFM60Entry.IsInterpolatedId(id))
                 {
                     continue;
                 }
-                sb.Append(Environment.NewLine + p.Key + "," + p.Value.ToString(CultureInfo.InvariantCulture));
+                var day = id2day[id];
+                var fraction = (day - 805.0) / (1151 - 805.0);
+                var toAdd = addCorrectionStart + (addCorrectionEnd - addCorrectionStart) * fraction;
+                var prediction = multiplierCorrection* originalPrediction+ toAdd;
+                sb.Append(Environment.NewLine + id + "," + prediction.ToString(CultureInfo.InvariantCulture));
             }
 
             File.WriteAllText(filePath, sb.ToString());

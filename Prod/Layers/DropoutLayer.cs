@@ -60,7 +60,10 @@ namespace SharpNet.Layers
         }
         public static DropoutLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            return new DropoutLayer((double)serialized[nameof(_dropoutRate)], network, (string)serialized[nameof(LayerName)]);
+            var dropoutRate = serialized.ContainsKey("_dropProbability") 
+                    ? (double)serialized["_dropProbability"]
+                    :(double)serialized[nameof(_dropoutRate)];
+            return new DropoutLayer(dropoutRate, network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion

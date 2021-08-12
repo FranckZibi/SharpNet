@@ -49,6 +49,7 @@ namespace SharpNet.DataAugmentation
 
         #region time series
 
+        // ReSharper disable once UnusedMember.Global
         public void WithTimeSeriesDataAugmentation(TimeSeriesDataAugmentationEnum timeSeriesDataAugmentationType,
             double augmentedFeaturesPercentage,
             bool useContinuousFeatureInEachTimeStep,
@@ -304,11 +305,11 @@ namespace SharpNet.DataAugmentation
             da.RandAugment_N = (int)serialized[nameof(RandAugment_N)];
             da.RandAugment_M = (int)serialized[nameof(RandAugment_M)];
             //time series
-            da.TimeSeriesDataAugmentationType = (TimeSeriesDataAugmentationEnum)serialized[nameof(TimeSeriesDataAugmentationType)];
-            da.UseContinuousFeatureInEachTimeStep = (bool)serialized[nameof(UseContinuousFeatureInEachTimeStep)];
-            da.AugmentedFeaturesPercentage = (double)serialized[nameof(AugmentedFeaturesPercentage)];
-            da.SameAugmentedFeaturesForEachTimeStep = (bool)serialized[nameof(SameAugmentedFeaturesForEachTimeStep)];
-            da.NoiseInPercentageOfVolatility = (double)serialized[nameof(NoiseInPercentageOfVolatility)];
+            da.TimeSeriesDataAugmentationType = (TimeSeriesDataAugmentationEnum)serialized.GetOrDefault(nameof(TimeSeriesDataAugmentationType), (int)TimeSeriesDataAugmentationEnum.NOTHING);
+            da.UseContinuousFeatureInEachTimeStep = serialized.GetOrDefault(nameof(UseContinuousFeatureInEachTimeStep), false);
+            da.AugmentedFeaturesPercentage = serialized.GetOrDefault(nameof(AugmentedFeaturesPercentage), 0.0);
+            da.SameAugmentedFeaturesForEachTimeStep = serialized.GetOrDefault(nameof(SameAugmentedFeaturesForEachTimeStep), false);
+            da.NoiseInPercentageOfVolatility = serialized.GetOrDefault(nameof(NoiseInPercentageOfVolatility), 0.0);
             return da;
         }
         #endregion

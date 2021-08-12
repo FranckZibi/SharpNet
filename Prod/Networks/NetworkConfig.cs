@@ -315,7 +315,7 @@ namespace SharpNet.Networks
 
             //optimizers fields
             OptimizerType = (Optimizer.OptimizationEnum)serialized[nameof(OptimizerType)];
-            AdamW_L2Regularization = (double)serialized[nameof(AdamW_L2Regularization)];
+            AdamW_L2Regularization = serialized.GetOrDefault(nameof(AdamW_L2Regularization), 0.0);
             Adam_beta1 = (double)serialized[nameof(Adam_beta1)];
             Adam_beta2 = (double)serialized[nameof(Adam_beta2)];
             Adam_epsilon = (double)serialized[nameof(Adam_epsilon)];
