@@ -44,6 +44,12 @@ namespace SharpNet.Networks
             //day/year
             if (Use_day) {++result; featureNames.Add("day/"+(int)Use_day_Divider);}
             if (Use_fraction_of_year) { ++result; featureNames.Add("fraction_of_year"); }
+            if (Use_year_Cyclical_Encoding) {
+                ++result;
+                featureNames.Add("sin_year");
+                ++result;
+                featureNames.Add("cos_year");
+            }
             if (Use_EndOfYear_flag) { ++result; featureNames.Add("EndOfYear_flag"); }
             if (Use_Christmas_flag) { ++result; featureNames.Add("Christmas_flag"); }
             if (Use_EndOfTrimester_flag) { ++result; featureNames.Add("EndOfTrimester_flag"); }
@@ -87,7 +93,6 @@ namespace SharpNet.Networks
                 ++result;
                 featureNames.Add("NLV");
             }
-
             if (result != featureNames.Count)
             {
                 throw new Exception("invalid " + nameof(Encoder_InputSize));
@@ -144,10 +149,24 @@ namespace SharpNet.Networks
         /// it is a value between 1/250f (1-jan) to 1f (31-dec)
         /// </summary>
         public bool Use_fraction_of_year { get; set; } = false;
+
         /// <summary>
-        /// When 'Use_day' is true, by how much we should divide the day before inputting it for training 
+        /// add a cyclical encoding of the current year into 2 new features:
+        ///     year_sin: sin(2*pi*fraction_of_year)
+        ///and 
+        ///     year_cos: cos (2*pi*fraction_of_year)
+        ///where
+        ///     fraction_of_year: a real between 0 (beginning of the year(, and 1 (end of the year)
+        /// see: https://www.kaggle.com/avanwyk/encoding-cyclical-features-for-deep-learning
         /// </summary>
-        public float Use_day_Divider { get; set; } = 1151f;
+        public bool Use_year_Cyclical_Encoding { get; set; } = false; //discarded on 18-sep-2021: +0.01
+
+        /// <summary>
+        /// when 'Use_day' is true, we add the following feature value:   day / Use_day_Divider 
+        /// </summary>
+        //public float Use_day_Divider { get; set; } = 1151f;
+        public float Use_day_Divider { get; set; } = 650f; //validated on 18-sept-2021 -0.002384 vs 1151f
+
         public bool Use_day { get; set; } = false; //discarded on 19-jan-2021: +0.0501 (with other changes)
         public bool Use_EndOfYear_flag { get; set; } = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
         public bool Use_Christmas_flag { get; set; } = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
@@ -293,7 +312,6 @@ namespace SharpNet.Networks
         public bool Shuffle { get; set; } = true;
 
         public cudnnActivationMode_t ActivationFunctionAfterFirstDense { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU;
-        public cudnnActivationMode_t ActivationFunctionAfterSecondDense { get; set; } = cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY;
         public bool WithSpecialEndV1 { get; set; } = false;
 
         public static CFM60NetworkBuilder Default()
@@ -310,14 +328,14 @@ namespace SharpNet.Networks
                                            LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CFM60"),
                                            DataAugmentation = new DataAugmentationConfig()
                                        }
-                                  .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+                                  //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                           };
             //builder.BatchSize = 1024; //updated on 13-june-2021
-            builder.InitialLearningRate = 0.001;
+            //builder.InitialLearningRate = 0.001;
             builder.Use_day = true;
             builder.Use_y_LinearRegressionEstimate = false;
             builder.Use_volatility_pid_y = false;
-            builder.Encoder_TimeSteps = 20;
+            //builder.Encoder_TimeSteps = 20;
             builder.Use_LS = false; //validated on 2-june-2021: -0.011155486
             builder.Pid_EmbeddingDim = 8; //validated on 6-june-2021: -0.0226
             builder.DenseUnits = 50; //validated on 6-june-2021: -0.0121
@@ -328,12 +346,13 @@ namespace SharpNet.Networks
             //builder.Config.WithAdamW(0.00005); //validated on 19-july-2021: very small degradation (+0.0016) but better expected results for bigger data set
             builder.NumEpochs = 30; //validated on 20-july-2021: speed up tests
             builder.Config.WithAdamW(0.0001); //validated on 20-july-2021: small change but better generalization
-            builder.Config.AlwaysUseFullTestDataSetForLossAndAccuracy = false;
+            //builder.Config.AlwaysUseFullTestDataSetForLossAndAccuracy = false;
             //validated on 2-aug-2021:  -0.0078
             builder.Encoder(1, 20, 0.0); //validated on 2-aug-2021:  -0.0078
             builder.DropoutRate_Between_Encoder_And_Decoder = 0.2; //validated on 2-aug-2021:  -0.0078
             builder.Decoder(2, 1, 0.2); //validated on 2-aug-2021:  -0.0078
             builder.DropoutRate_After_EncoderDecoder = 0.2; //validated on 2-aug-2021:  -0.0078
+            builder.InitialLearningRate = 0.002;  //validated on 4-aug-2021:  -0.0011
 
             return builder;
         }
@@ -427,12 +446,6 @@ namespace SharpNet.Networks
                 network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
                 network.Linear(2, 0);
                 network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LN);
-                ActivationFunctionAfterSecondDense = cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY;
-            }
-
-            if (ActivationFunctionAfterSecondDense != cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY)
-            {
-                network.Activation(ActivationFunctionAfterSecondDense);
             }
 
             return network;

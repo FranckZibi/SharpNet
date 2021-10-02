@@ -557,6 +557,7 @@ namespace SharpNet.Datasets
 
             int timeSteps = x.Shape[1];
             int featuresLength = x.Shape[2];
+            // ReSharper disable once LoopVariableIsNeverChangedInsideLoop
             for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
             {
                 var indexInPidEntryArray = lastIndexInPidEntries - timeSteps + timeStep + 1;
@@ -589,11 +590,16 @@ namespace SharpNet.Datasets
                 //day/year
                 if (Cfm60NetworkBuilder.Use_day)
                 {
-                    xElementId[idx++] = Normalize(entry.day / Cfm60NetworkBuilder.Use_day_Divider, idx % featuresLength, isEncoder);
+                    xElementId[idx++] = Normalize( entry.day / Cfm60NetworkBuilder.Use_day_Divider, idx % featuresLength, isEncoder);
                 }
                 if (Cfm60NetworkBuilder.Use_fraction_of_year)
                 {
                     xElementId[idx++] = Normalize(DayToFractionOfYear(entry.day), idx % featuresLength, isEncoder);
+                }
+                if (Cfm60NetworkBuilder.Use_year_Cyclical_Encoding)
+                {
+                    xElementId[idx++] = (float)Math.Sin(2*Math.PI*DayToFractionOfYear(entry.day));
+                    xElementId[idx++] = (float)Math.Cos(2*Math.PI*DayToFractionOfYear(entry.day));
                 }
                 if (Cfm60NetworkBuilder.Use_EndOfYear_flag)
                 {
