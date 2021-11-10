@@ -778,6 +778,24 @@ namespace SharpNet.Data
         public abstract void MseGradient(Tensor yExpected, Tensor yPredicted);
 
         /// <summary>
+        /// Compute the Mean Absolute Error loss
+        /// and stores it in the 'this' tensor
+        /// This loss is defined by:
+        ///     loss  = abs( predicted - expected )
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void MaeLoss(Tensor yExpected, Tensor yPredicted);
+
+        /// <summary>
+        /// Compute the output gradient when are using Mean Absolute Error loss
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void MaeGradient(Tensor yExpected, Tensor yPredicted);
+
+        /// <summary>
         /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
         /// This loss is defined by:
         ///     loss  = ( log( max(predicted,epsilon) ) - log(expected) ) ^2

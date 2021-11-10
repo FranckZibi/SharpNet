@@ -188,6 +188,9 @@ namespace SharpNet.Networks
                 case NetworkConfig.LossFunctionEnum.Mse:
                     dyPredicted.MseGradient(yExpected, yPredicted);
                     break;
+                case NetworkConfig.LossFunctionEnum.Mae:
+                    dyPredicted.MaeGradient(yExpected, yPredicted);
+                    break;
                 default:
                     throw new Exception("Invalid loss function " + lossFunction);
             }

@@ -722,6 +722,22 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("MseOfLogGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted, epsilon });
         }
 
+        public override void MaeGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseGradient = this;
+            int batchSize = yExpected.Shape[0];
+            _wrapper.RunKernel("MaeGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
+        }
+
+        public override void MaeLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            _wrapper.RunKernel("MaeLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted });
+        }
+
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>

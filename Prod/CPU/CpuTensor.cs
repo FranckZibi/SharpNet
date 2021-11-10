@@ -1428,6 +1428,9 @@ namespace SharpNet.CPU
                 case NetworkConfig.LossFunctionEnum.Mse:
                     cost = (1.0 / (batchSize*yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(expected - prediction, 2))).NaNSum();
                     break;
+                case NetworkConfig.LossFunctionEnum.Mae:
+                    cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (Math.Abs(expected - prediction))).NaNSum();
+                    break;
                 case NetworkConfig.LossFunctionEnum.MseOfLog:
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(Math.Log(expected) - Math.Log(Math.Max(prediction,NetworkConfig.Default_MseOfLog_Loss)), 2)/ Math.Max(prediction, NetworkConfig.Default_MseOfLog_Loss))).NaNSum();
                     break;
@@ -1790,7 +1793,48 @@ namespace SharpNet.CPU
             for (int i = 0; i < gradient.Length; ++i)
             {
                 var error = predicted[i] - expected[i];
-                gradient[i] = 2*error/ gradient.Length;
+                gradient[i] = error/ gradient.Length;
+            }
+        }
+        #endregion
+
+        #region Mae loss
+        public override void MaeLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Parallel.For(0, batchSize, batchId => { MaeLoss(batchId, mseLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent); });
+        }
+
+        private static void MaeLoss(int batchId, Span<float> mseLoss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        {
+            Debug.Assert(expected.Length == predicted.Length);
+            var loss = 0.0f;
+            for (int i = 0; i < expected.Length; ++i)
+            {
+                var error = predicted[i] - expected[i];
+                loss += Math.Abs(error);
+            }
+            mseLoss[batchId] = loss / expected.Length;
+        }
+        public override void MaeGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var loss = this;
+            Debug.Assert(loss.SameShape(yExpected));
+            Debug.Assert(loss.SameShape(yPredicted));
+            Parallel.For(0, loss.Shape[0], m => { MaeGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+        }
+
+        private static void MaeGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        {
+            Debug.Assert(gradient.Length == expected.Length);
+            Debug.Assert(gradient.Length == predicted.Length);
+            for (int i = 0; i < gradient.Length; ++i)
+            {
+                var error = predicted[i] - expected[i];
+                gradient[i] = Math.Sign(error) / (float)gradient.Length;
             }
         }
         #endregion

@@ -666,6 +666,38 @@
 		}
 	}
 
+
+	__global__ void MaeLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			float loss = 0.0f;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = yExpected[j] - yPredicted[j];
+				loss += fabsf(diff);
+			}
+			losses[i] = loss / lineSize;
+		}
+	}
+
+	__global__ void MaeGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = yPredicted[j] - yExpected[j];
+				mseGradient[j] = (diff>=0?1.0f:-1.f) / lineSize;
+			}
+		}
+	}
+
+
 	// Compute:  y = slope * x + intercept
 	__global__ void LinearFunction(int N, float* y, float slope, const float* x, float intercept)
 	{
