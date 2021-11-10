@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -133,7 +134,42 @@ namespace SharpNet.Datasets
         [ProtoMember(8)] 
         public float Y { get; private set; } = float.NaN;
 
-        public static CFM60Entry[] Load(string xFile, string yFileIfAny, Action<string> log)
+        public static void ReplaceYByError(CFM60Entry[] entries, Action<string> log, string[] predictionFilesIfComputeErrors)
+        {
+            Debug.Assert(predictionFilesIfComputeErrors!=null);
+            var idToEntry = new Dictionary<int, CFM60Entry>();
+            foreach (var e in entries)
+            {
+                idToEntry[e.ID] = e;
+            }
+            log("trying to reduce errors");
+            foreach (var f in predictionFilesIfComputeErrors)
+            {
+                int count = 0;
+                int missed = 0;
+                double totalError = 0;
+                foreach (var (id, prediction) in CFM60DataSet.LoadPredictionFile(f))
+                {
+                    ++count;
+                    if (!idToEntry.ContainsKey(id))
+                    {
+                        ++missed;
+                        continue;
+                    }
+                    var entry = idToEntry[id];
+                    var error = entry.Y - prediction;
+                    entry.Y = (float)error;
+                    totalError += Math.Abs(error);
+                }
+                if (missed != 0 && missed != count)
+                {
+                    throw new Exception("invalid file " + f);
+                }
+                log("Mae = "+ (totalError / Math.Max(count, 1)) + " for " + f);
+            }
+        }
+
+        public static CFM60Entry[] Load(string xFile, string yFileIfAny, Action<string> log, string[] predictionFilesIfComputeErrors)
         {
             Debug.Assert(xFile != null);
 
@@ -143,6 +179,10 @@ namespace SharpNet.Datasets
                 log("Loading ProtoBuf file " + protoBufFile + "...");
                 using var fsLoad = new FileStream(protoBufFile, FileMode.Open, FileAccess.Read);
                 var result = Serializer.Deserialize<CFM60Entry[]>(fsLoad);
+                if (predictionFilesIfComputeErrors != null)
+                {
+                    ReplaceYByError(result, log, predictionFilesIfComputeErrors);
+                }
                 log("Binary file " + protoBufFile + " has been loaded");
                 return result;
             }
@@ -167,6 +207,9 @@ namespace SharpNet.Datasets
             {
                 entries[idToIndex[id]].Y = (float)y;
             }
+
+          
+
             log("Writing ProtoBuf file " + protoBufFile + "...");
             using var fs = new FileStream(protoBufFile, FileMode.Create);
             Serializer.Serialize(fs, entries);

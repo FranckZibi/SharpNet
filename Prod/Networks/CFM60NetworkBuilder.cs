@@ -293,8 +293,14 @@ namespace SharpNet.Networks
         public bool UseReluAfterConv1D { get; set; } = false;
         
         // max value of the loss to consider saving the network
-        public double MaxLossToSaveTheNetwork { get; set; } = 0.36;
-        
+        public double MaxLossToSaveTheNetwork => IsTryingToPredictErrors?0.356:0.36;
+
+        public string[] predictionFilesIfComputeErrors = null;
+
+        public bool IsTryingToPredictErrors => predictionFilesIfComputeErrors != null;
+
+        public string DatasetName => IsTryingToPredictErrors ? "CFM60Errors" : "CFM60";
+
         // ReSharper disable once UnusedMember.Global
         public void WithConv1D(int kernelWidth, ConvolutionLayer.PADDING_TYPE paddingType, bool useBatchNormAfterConv1D, bool useReluAfterConv1D)
         {
@@ -330,6 +336,7 @@ namespace SharpNet.Networks
                                        }
                                   //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                           };
+            builder.predictionFilesIfComputeErrors = null;
             //builder.BatchSize = 1024; //updated on 13-june-2021
             //builder.InitialLearningRate = 0.001;
             builder.Use_day = true;
@@ -357,14 +364,32 @@ namespace SharpNet.Networks
             return builder;
         }
 
+        public static CFM60NetworkBuilder DefaultToPredictError()
+        {
+            var builder = Default();
+            builder.predictionFilesIfComputeErrors = new[]
+                                                        {
+                                                            @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\train_predictions\CFM60_30_0_3099_0_3595_20211024_1207_4.csv",
+                                                            @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\validation_predictions\CFM60_30_0_3099_0_3595_20211024_1207_4.csv"
+                                                        };
+            //builder.Config.LossFunction = NetworkConfig.LossFunctionEnum.Mae;
+            //builder.NumEpochs = 10;
+            //builder.Use_fraction_of_year = true;
+            //builder.Use_year_Cyclical_Encoding = true;
+            //builder.Use_ret_vol = false;
+            //builder.Use_abs_ret = false;
+            //builder.BatchSize= 1024;
+            builder.Pid_EmbeddingDim= 20; //validated on 26/10/2021 : 
+            return builder;
+        }
+
         public Network CFM60()
         {
             if (!string.IsNullOrEmpty(SerializedNetwork))
             {
                 return Network.ValueOf(SerializedNetwork);
             }
-            const string networkName = "CFM60";
-            var network = BuildEmptyNetwork(networkName);
+            var network = BuildEmptyNetwork(DatasetName);
             network.Config.RandomizeOrder = Shuffle;
 
             network.Input(Encoder_TimeSteps, Encoder_InputSize, -1);

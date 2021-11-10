@@ -102,12 +102,12 @@ namespace SharpNet.Datasets
         #endregion
 
         public CFM60DataSet(string xFile, string yFileIfAny, Action<string> log, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null) 
-            : this(CFM60Entry.Load(xFile, yFileIfAny, log), cfm60NetworkBuilder, trainingDataSetIfAny)
+            : this(CFM60Entry.Load(xFile, yFileIfAny, log, cfm60NetworkBuilder.predictionFilesIfComputeErrors), cfm60NetworkBuilder, trainingDataSetIfAny)
         {
         }
 
         public CFM60DataSet(CFM60Entry[] entries, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null)
-            : base("CFM60",
+            : base(cfm60NetworkBuilder.IsTryingToPredictErrors? "CFM60Errors":"CFM60",
                 cfm60NetworkBuilder.Encoder_TimeSteps,
                 new[] {"NONE"},
                 null,
@@ -321,10 +321,14 @@ namespace SharpNet.Datasets
 
 
         /// <summary>
+        /// the sub part of the original (and complete) Training Data Set used for Validation
+        /// </summary>
+        public CFM60DataSet ValidationDataSet { get; set; }
+
+        /// <summary>
         /// the original (and complete) Test Data Set for the CFM60 challenge
         /// </summary>
         public CFM60DataSet OriginalTestDataSet { get; set; }
-
         public Tuple<double, double, double, double, double, double> GetEncoderFeatureStatistics(int featureId)
         {
             return Encoder_FeaturesStatistics[featureId];
@@ -352,13 +356,16 @@ namespace SharpNet.Datasets
         }
 
         /// <summary>
-        /// will save also the pid features, and the prediction file for the Test dataset
+        /// will save also the pid features, and the prediction file for the Train + Validation + Test datasets
         /// </summary>
         public override void SaveModelAndParameters(Network network, string modelFilePath, string parametersFilePath)
         {
             base.SaveModelAndParameters(network, modelFilePath, parametersFilePath);
 
-            OriginalTestDataSet?.CreatePredictionFile(network);
+            CreatePredictionFile(network, "train_predictions");
+            ValidationDataSet?.CreatePredictionFile(network, "validation_predictions");
+            OriginalTestDataSet?.CreatePredictionFile(network, "test_predictions");
+
             var embeddingLayer = network.Layers.FirstOrDefault(l => l is EmbeddingLayer);
             if (embeddingLayer == null)
             {
@@ -372,9 +379,9 @@ namespace SharpNet.Datasets
                 );
         }
 
-        public void CreatePredictionFile(Network network)
+        public void CreatePredictionFile(Network network, string subDirectory)
         {
-            string filePath = Path.Combine(network.Config.LogDirectory, IsTrainingDataSet?"validation_predictions":"test_predictions", network.UniqueId + ".csv");
+            string filePath = Path.Combine(network.Config.LogDirectory, subDirectory, network.UniqueId + ".csv");
 
             var res = network.Predict(this, Cfm60NetworkBuilder.BatchSize);
             var CFM60EntryIDToPrediction = new Dictionary<int, double>();

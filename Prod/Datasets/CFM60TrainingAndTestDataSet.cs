@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using SharpNet.Networks;
 
 namespace SharpNet.Datasets
@@ -35,6 +37,19 @@ namespace SharpNet.Datasets
                 (CFM60DataSet)Training);
 
            
+        }
+
+        private static IDictionary<int, float> LoadPredictions(string datasetPath)
+        {
+            var res = new Dictionary<int, float>();
+            foreach (var l in File.ReadAllLines(datasetPath).Skip(1))
+            {
+                var splitted = l.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                var ID = int.Parse(splitted[0]);
+                var Y = float.Parse(splitted[1]);
+                res[ID] = Y;
+            }
+            return res;
         }
     }
 }
