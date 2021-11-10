@@ -102,7 +102,7 @@ namespace SharpNet.Datasets
         #endregion
 
         public CFM60DataSet(string xFile, string yFileIfAny, Action<string> log, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null) 
-            : this(CFM60Entry.Load(xFile, yFileIfAny, log, cfm60NetworkBuilder.predictionFilesIfComputeErrors), cfm60NetworkBuilder, trainingDataSetIfAny)
+            : this(CFM60Entry.Load(xFile, yFileIfAny, log, cfm60NetworkBuilder.ValueToPredict, cfm60NetworkBuilder.predictionFilesIfComputeErrors), cfm60NetworkBuilder, trainingDataSetIfAny)
         {
         }
 
@@ -259,10 +259,10 @@ namespace SharpNet.Datasets
                     calculator.AddFeature(entry.Get_ret_vol_CoefficientOfVariation(), "ret_vol_CoefficientOfVariation");
                     calculator.AddFeature(entry.Get_volatility_ret_vol(), "vol(ret_vol)");
                     calculator.AddFeature(entry.LS, "LS");
-                    calculator.AddFeature(NormalizeBetween_0_and_1(entry.LS, ls_min, ls_max), "NormalizeLS");
+                    calculator.AddFeature(CFM60Utils.NormalizeBetween_0_and_1(entry.LS, ls_min, ls_max), "NormalizeLS");
                     calculator.AddFeature((entry.LS + 3.185075f) / 1.072115f, "NormalizeLS_V2");
                     calculator.AddFeature(entry.NLV, "NLV");
-                    calculator.AddFeature(NormalizeBetween_0_and_1(entry.NLV, nlv_min, nlv_max), "NormalizeNLV");
+                    calculator.AddFeature(CFM60Utils.NormalizeBetween_0_and_1(entry.NLV, nlv_min, nlv_max), "NormalizeNLV");
                     calculator.AddFeature((entry.NLV + 0.018128f) / 1.002737f, "NormalizeNLV_V2");
                     calculator.AddFeature(entry.day, "day");
                     calculator.AddFeature(entry.day / 250f, "day/250");
@@ -342,17 +342,7 @@ namespace SharpNet.Datasets
                 return null;
             }
 
-            var pidToLinearRegression = new Dictionary<int, LinearRegression>();
-            foreach (var e in Entries)
-            {
-                if (!pidToLinearRegression.ContainsKey(e.pid))
-                {
-                    pidToLinearRegression[e.pid] = new LinearRegression();
-                }
-                Debug.Assert(!double.IsNaN(e.Y));
-                pidToLinearRegression[e.pid].Add(e.day, e.Y);
-            }
-            return pidToLinearRegression;
+            return CFM60Utils.ComputePidToLinearRegressionBetweenDayAndY(Entries);
         }
 
         /// <summary>
@@ -382,17 +372,24 @@ namespace SharpNet.Datasets
         public void CreatePredictionFile(Network network, string subDirectory)
         {
             string filePath = Path.Combine(network.Config.LogDirectory, subDirectory, network.UniqueId + ".csv");
-
             var res = network.Predict(this, Cfm60NetworkBuilder.BatchSize);
             var CFM60EntryIDToPrediction = new Dictionary<int, double>();
             var spanResult = res.ReadonlyContent;
             for (int elementId = 0; elementId < Count; ++elementId)
             {
-                var associateLastCFM60Entry = _elementIdToLastAssociateCFM60Entry[elementId];
-                CFM60EntryIDToPrediction[associateLastCFM60Entry.ID] = spanResult[elementId];
+                var id = _elementIdToLastAssociateCFM60Entry[elementId].ID;
+                var prediction = spanResult[elementId];
+                if (Cfm60NetworkBuilder.ValueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_LR)
+                {
+                    prediction += CFM60Utils.LinearRegressionEstimate(id);
+                }
+                else if (Cfm60NetworkBuilder.ValueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
+                {
+                    prediction += CFM60Utils.LinearRegressionAdjustedByMeanEstimate(id);
+                }
+                CFM60EntryIDToPrediction[id] = prediction;
             }
-
-            CreatePredictionFile(CFM60EntryIDToPrediction, filePath);
+            CFM60Utils.SavePredictions(CFM60EntryIDToPrediction, filePath);
         }
 
         /// <summary>
@@ -423,7 +420,7 @@ namespace SharpNet.Datasets
 
             foreach (var (fileNameWithPrediction, weight) in fileNameWithPredictionToWeight)
             {
-                var singleFilePredictions = LoadPredictionFile(Path.Combine(directory, fileNameWithPrediction));
+                var singleFilePredictions = CFM60Utils.LoadPredictions(Path.Combine(directory, fileNameWithPrediction));
                 if (!predictionsByFile.HasValue)
                 {
                     predictionsByFile = singleFilePredictions.Count;
@@ -447,37 +444,109 @@ namespace SharpNet.Datasets
             }
 
             var ensembleLearningPredictionFile = Path.Combine(directory, "EnsembleLearning_" + DateTime.Now.Ticks + ".csv");
-            CreatePredictionFile(ensembleLearningPredictions, ensembleLearningPredictionFile, multiplierCorrection, addCorrectionStart, addCorrectionEnd);
+            CFM60Utils.SavePredictions(ensembleLearningPredictions, ensembleLearningPredictionFile, multiplierCorrection, addCorrectionStart, addCorrectionEnd);
             return ensembleLearningPredictionFile;
         }
 
 
-        public static void CreatePredictionFile(IDictionary<int, double> CFM60EntryIDToPrediction, string filePath, double multiplierCorrection = 1.0, double addCorrectionStart = 0.0, double addCorrectionEnd = 0.0)
+        public void Augment_x_training_and_test_csv_file(string embedding_pid_values_if_any)
         {
-            var id2dayFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "id2day.csv");
-            var id2day = new Dictionary<int, int>();
-            foreach (var l in File.ReadAllLines(id2dayFile).Skip(1))
+            float[][] embedding_values = null;
+
+            //we load the embedding associated with the pids
+            if (!string.IsNullOrEmpty(embedding_pid_values_if_any))
             {
-                var splitted = l.Split(";").Select(int.Parse).ToArray();
-                id2day[splitted[0]] = splitted[1];
+                var content = File.ReadAllLines(embedding_pid_values_if_any, Encoding.ASCII).Where(l=>l.Length!=0).ToArray();
+                var header = content[0];
+                var separator  = header.Contains(",") ? ',' : ';';
+                var pid_count = content.Length - 1;
+                embedding_values = new float[pid_count][];
+                for (int pid = 0; pid < pid_count; ++pid)
+                {
+                    embedding_values[pid] = content[1 + pid].Split(separator).Select(float.Parse).ToArray();
+                }
+            }
+            Augment_X_csv_file(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_training.csv"), embedding_values);
+            Augment_X_csv_file(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_test.csv"), embedding_values);
+        }
+
+        public void Augment_X_csv_file(string x_csv_path, float[][] embedding_values_if_any)
+        {
+            var x_content = File.ReadAllLines(x_csv_path, Encoding.ASCII).Where(l => l.Length != 0).ToArray();
+            var header = x_content[0];
+            var separator = header.Contains(",") ? ',' : ';';
+            var x_augmented_csv_path = Path.ChangeExtension(x_csv_path,null) + "_augmented.csv";
+            if (File.Exists(x_augmented_csv_path))
+            {
+                File.Delete(x_augmented_csv_path);
+            }
+            var new_header = header.TrimEnd(separator);
+
+            if (embedding_values_if_any != null)
+            {
+                for (int i = 0; i < embedding_values_if_any[0].Length; ++i)
+                {
+                    new_header += separator + "embedding" + i;
+                }
             }
 
-            var sb = new StringBuilder();
-            sb.Append("ID,target");
-            foreach (var (id, originalPrediction) in CFM60EntryIDToPrediction.OrderBy(x => x.Key))
+            new_header += separator + "adj_day";
+            new_header += separator + "fraction_of_year";
+            new_header += separator + "sin_encoding";
+            new_header += separator + "cos_encoding";
+            new_header += separator + "end_of_year";
+            new_header += separator + "christmas";
+            new_header += separator + "end_of_trimester";
+            new_header += separator + "pid_mean";
+            new_header += separator + "pid_vol";
+            new_header += separator + "pid_variance";
+
+            var sb =  new StringBuilder();
+            sb.Append(new_header + Environment.NewLine);
+
+            for (int line = 1; line < x_content.Length; ++line)
             {
-                if (CFM60Entry.IsInterpolatedId(id))
+                var l = x_content[line];
+                if (l.Length == 0)
                 {
                     continue;
                 }
-                var day = id2day[id];
-                var fraction = (day - 805.0) / (1151 - 805.0);
-                var toAdd = addCorrectionStart + (addCorrectionEnd - addCorrectionStart) * fraction;
-                var prediction = multiplierCorrection* originalPrediction+ toAdd;
-                sb.Append(Environment.NewLine + id + "," + prediction.ToString(CultureInfo.InvariantCulture));
-            }
+                var new_l = l;
+                var data = l.Split(separator).ToArray();
+                var ID = int.Parse(data[0]);
+                var pid = int.Parse(data[1]);
+                var day = int.Parse(data[2]);
+                if (embedding_values_if_any != null)
+                {
+                    foreach (var e in embedding_values_if_any[pid])
+                    {
+                        new_l += separator + e.ToString(CultureInfo.InvariantCulture);
+                    }
+                }
 
-            File.WriteAllText(filePath, sb.ToString());
+                new_l += separator +  (day / 650f).ToString(CultureInfo.InvariantCulture);
+                new_l += separator + DayToFractionOfYear(day).ToString(CultureInfo.InvariantCulture);
+                new_l += separator + Math.Sin(2 * Math.PI * DayToFractionOfYear(day)).ToString(CultureInfo.InvariantCulture);
+                new_l += separator + Math.Cos(2 * Math.PI * DayToFractionOfYear(day)).ToString(CultureInfo.InvariantCulture);
+                new_l += separator + (EndOfYear.Contains(day) ? "1" :"0");
+                new_l += separator + (Christmas.Contains(day) ? "1" :"0");
+                new_l += separator + (EndOfTrimester.Contains(day) ? "1" :"0");
+                new_l += separator + Y_Mean(pid).ToString(CultureInfo.InvariantCulture);
+                new_l += separator + Y_Volatility(pid).ToString(CultureInfo.InvariantCulture);
+                new_l += separator + Y_Variance(pid).ToString(CultureInfo.InvariantCulture);
+
+                if (line != x_content.Length - 1)
+                {
+                    new_l += Environment.NewLine;
+                }
+                sb.Append(new_l);
+                if (sb.Length >= 100_000_000)
+                {
+                    File.AppendAllText(x_augmented_csv_path, sb.ToString());
+                    sb.Clear();
+                }
+            }
+            File.AppendAllText(x_augmented_csv_path, sb.ToString());
         }
 
         /// <summary>
@@ -757,13 +826,12 @@ namespace SharpNet.Datasets
 
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
-            var sortedDays = Entries.Select(e => e.day).OrderBy(x => x).ToArray();
-            var countInTraining = (int)(percentageInTrainingSet * Count);
-            var dayThreshold = sortedDays[countInTraining];
+            var dayThreshold = CFM60Utils.DayThreshold(Entries, percentageInTrainingSet);
             var training = new CFM60DataSet(Entries.Where(e => e.day <= dayThreshold).ToArray(), Cfm60NetworkBuilder);
             var validation = new CFM60DataSet(Entries.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder, training);
             return new TrainingAndTestDataLoader(training, validation, Name);
         }
+
 
         public override IDataSet SubDataSet(double percentageToKeep)
         {
@@ -804,30 +872,6 @@ namespace SharpNet.Datasets
             return Tensor.ShapeToString(xShape) + " => " + Tensor.ShapeToString(Y.Shape);
         }
 
-        public static IDictionary<int, double> LoadPredictionFile(string filePath)
-        {
-            var predictions = new Dictionary<int, double>();
-            if (string.IsNullOrEmpty(filePath))
-            {
-                return predictions;
-            }
-            foreach (var l in File.ReadAllLines(filePath).Skip(1))
-            {
-                var splitted = l.Split(',');
-                predictions[int.Parse(splitted[0])] = double.Parse(splitted[1]);
-            }
-            return predictions;
-        }
-      
-        private static float NormalizeBetween_0_and_1(float initialValue, float knownMinValue, float knownMaxValue)
-        {
-            if (knownMinValue >= knownMaxValue)
-            {
-                return 0; //constant
-            }
-
-            return (initialValue - knownMinValue) / (knownMaxValue - knownMinValue);
-        }
         private static bool UseBackgroundThreadToLoadNextMiniBatch(CFM60DataSet trainingDataSetIfAny)
         {
             if (trainingDataSetIfAny != null)

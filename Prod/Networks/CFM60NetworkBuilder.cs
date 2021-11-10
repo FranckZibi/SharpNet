@@ -297,6 +297,16 @@ namespace SharpNet.Networks
 
         public string[] predictionFilesIfComputeErrors = null;
 
+        //the kind of value embedded in Y (and that we are trying to predict)
+        public ValueToPredictEnum ValueToPredict = ValueToPredictEnum.Y_TRUE;
+
+        public enum ValueToPredictEnum { 
+            Y_TRUE,  // we try to predict the true value 'Y'
+            Y_TRUE_MINUS_LR, //we try to predict the spread between the true value and a linear regression estimate
+            Y_TRUE_MINUS_ADJUSTED_LR, //we try to predict the spread between the true value and a linear regression estimate adjusted by the estimate error
+            ERROR, //we try to predict the error (Y_TRUE-Y_PRED) made by a previously trained network
+        }
+
         public bool IsTryingToPredictErrors => predictionFilesIfComputeErrors != null;
 
         public string DatasetName => IsTryingToPredictErrors ? "CFM60Errors" : "CFM60";
@@ -336,6 +346,7 @@ namespace SharpNet.Networks
                                        }
                                   //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                           };
+            builder.ValueToPredict = ValueToPredictEnum.Y_TRUE;
             builder.predictionFilesIfComputeErrors = null;
             //builder.BatchSize = 1024; //updated on 13-june-2021
             //builder.InitialLearningRate = 0.001;
@@ -367,6 +378,7 @@ namespace SharpNet.Networks
         public static CFM60NetworkBuilder DefaultToPredictError()
         {
             var builder = Default();
+            builder.ValueToPredict = ValueToPredictEnum.ERROR;
             builder.predictionFilesIfComputeErrors = new[]
                                                         {
                                                             @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\train_predictions\CFM60_30_0_3099_0_3595_20211024_1207_4.csv",

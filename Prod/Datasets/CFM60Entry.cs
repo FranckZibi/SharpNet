@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using ProtoBuf;
 using SharpNet.MathTools;
+using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
@@ -132,7 +133,7 @@ namespace SharpNet.Datasets
         [ProtoMember(7)]
         public float NLV { get; set; }
         [ProtoMember(8)] 
-        public float Y { get; private set; } = float.NaN;
+        public float Y { get; set; } = float.NaN;
 
         public static void ReplaceYByError(CFM60Entry[] entries, Action<string> log, string[] predictionFilesIfComputeErrors)
         {
@@ -148,7 +149,7 @@ namespace SharpNet.Datasets
                 int count = 0;
                 int missed = 0;
                 double totalError = 0;
-                foreach (var (id, prediction) in CFM60DataSet.LoadPredictionFile(f))
+                foreach (var (id, prediction) in CFM60Utils.LoadPredictions(f))
                 {
                     ++count;
                     if (!idToEntry.ContainsKey(id))
@@ -169,7 +170,22 @@ namespace SharpNet.Datasets
             }
         }
 
-        public static CFM60Entry[] Load(string xFile, string yFileIfAny, Action<string> log, string[] predictionFilesIfComputeErrors)
+        public static void ReplaceYByLinearRegressionEstimate(CFM60Entry[] entries)
+        {
+            foreach (var e in entries)
+            {
+                e.Y = e.Y - CFM60Utils.LinearRegressionEstimate(e.ID);
+            }
+        }
+        public static void ReplaceYByLinearRegressionAdjustedByMeanEstimate(CFM60Entry[] entries)
+        {
+            foreach (var e in entries)
+            {
+                e.Y = e.Y - CFM60Utils.LinearRegressionAdjustedByMeanEstimate(e.ID);
+            }
+        }
+
+        public static CFM60Entry[] Load(string xFile, string yFileIfAny, Action<string> log, CFM60NetworkBuilder.ValueToPredictEnum valueToPredict, string[] predictionFilesIfComputeErrors)
         {
             Debug.Assert(xFile != null);
 
@@ -179,9 +195,19 @@ namespace SharpNet.Datasets
                 log("Loading ProtoBuf file " + protoBufFile + "...");
                 using var fsLoad = new FileStream(protoBufFile, FileMode.Open, FileAccess.Read);
                 var result = Serializer.Deserialize<CFM60Entry[]>(fsLoad);
-                if (predictionFilesIfComputeErrors != null)
+                if (valueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.ERROR)
                 {
                     ReplaceYByError(result, log, predictionFilesIfComputeErrors);
+                }
+                else if (valueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_LR)
+                {
+                    log("Trying to predict error compared to linear regression estimate");
+                    ReplaceYByLinearRegressionEstimate(result);
+                }
+                else if (valueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
+                {
+                    log("Trying to predict error compared to adjusted linear regression estimate");
+                    ReplaceYByLinearRegressionAdjustedByMeanEstimate(result);
                 }
                 log("Binary file " + protoBufFile + " has been loaded");
                 return result;
@@ -203,7 +229,7 @@ namespace SharpNet.Datasets
             }
             System.Threading.Tasks.Parallel.For(1, xFileLines.Length, ProcessLine);
             log("Lines of file " + xFile + " have been parsed");
-            foreach (var (id, y) in CFM60DataSet.LoadPredictionFile(yFileIfAny))
+            foreach (var (id, y) in CFM60Utils.LoadPredictions(yFileIfAny))
             {
                 entries[idToIndex[id]].Y = (float)y;
             }
