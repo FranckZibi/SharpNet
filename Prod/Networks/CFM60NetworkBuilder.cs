@@ -66,19 +66,19 @@ namespace SharpNet.Networks
             if (Use_mean_abs_ret) {++result; featureNames.Add("mean(abs_ret)");}
             if (Use_volatility_abs_ret) { ++result; featureNames.Add("vol(abs_ret)"); }
 
-            //ret_vol
-            if (Use_ret_vol)
+            //rel_vol
+            if (Use_rel_vol)
             {
-                result += Use_ret_vol_start_and_end_only?(2*12):CFM60Entry.POINTS_BY_DAY;
+                result += Use_rel_vol_start_and_end_only?(2*12):CFM60Entry.POINTS_BY_DAY;
                 for (int i = 0; i < CFM60Entry.POINTS_BY_DAY; ++i)
                 {
-                    if (i < 12 || !Use_ret_vol_start_and_end_only || i >= CFM60Entry.POINTS_BY_DAY - 12)
+                    if (i < 12 || !Use_rel_vol_start_and_end_only || i >= CFM60Entry.POINTS_BY_DAY - 12)
                     {
-                        featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("ret_vol", i));
+                        featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("rel_vol", i));
                     }
                 }
             }
-            if (Use_volatility_ret_vol) { ++result; featureNames.Add("vol(ret_vol)"); }
+            if (Use_volatility_rel_vol) { ++result; featureNames.Add("vol(rel_vol)"); }
 
             //LS
             if (Use_LS)
@@ -124,10 +124,10 @@ namespace SharpNet.Networks
         public bool Use_prev_Y { get; set; } = true;
         
         
-        //ret_vol fields
-        public bool Use_ret_vol { get; set; } = true;
-        public bool Use_ret_vol_start_and_end_only { get; set; } = false; //use only the first 12 and last 12 elements of ret_vol
-        public bool Use_volatility_ret_vol { get; set; } = false; //'true' discarded on 22-jan-2020: +0.0065
+        //rel_vol fields
+        public bool Use_rel_vol { get; set; } = true;
+        public bool Use_rel_vol_start_and_end_only { get; set; } = false; //use only the first 12 and last 12 elements of rel_vol
+        public bool Use_volatility_rel_vol { get; set; } = false; //'true' discarded on 22-jan-2020: +0.0065
 
         //abs_ret
         public bool Use_abs_ret { get; set; } = true;  //validated on 16-jan-2021: -0.0515
@@ -181,7 +181,7 @@ namespace SharpNet.Networks
             BATCH_NORM_LAYER, //we'll use a batch norm layer for normalization
             DEDUCE_MEAN_AND_BATCH_NORM_LAYER
         }
-        //entry.ret_vol.Length - 12
+        //entry.rel_vol.Length - 12
 
         public InputNormalizationEnum InputNormalizationType { get; set; } = InputNormalizationEnum.NONE;
 
@@ -388,7 +388,7 @@ namespace SharpNet.Networks
             //builder.NumEpochs = 10;
             //builder.Use_fraction_of_year = true;
             //builder.Use_year_Cyclical_Encoding = true;
-            //builder.Use_ret_vol = false;
+            //builder.Use_rel_vol = false;
             //builder.Use_abs_ret = false;
             //builder.BatchSize= 1024;
             builder.Pid_EmbeddingDim= 20; //validated on 26/10/2021 : 

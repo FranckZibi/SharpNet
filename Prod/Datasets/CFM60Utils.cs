@@ -164,9 +164,8 @@ namespace SharpNet.Datasets
             {
                 id2Day[e.ID] = e.day;
             }
-            foreach (var i in new[]
+            foreach (var i in new Tuple<int,int>[]
             {
-                Tuple.Create(805, 810),
             })
             {
                 var predictions = new Dictionary<int, double>();

@@ -73,17 +73,17 @@ namespace SharpNet.Datasets
                             pid = before.pid,
                             day = dayToInterpolate,
                             abs_ret = Interpolate(before, after, dayToInterpolate, e => e.abs_ret),
-                            ret_vol = Interpolate(before, after, dayToInterpolate, e => e.ret_vol),
+                            rel_vol = Interpolate(before, after, dayToInterpolate, e => e.rel_vol),
                             LS = Interpolate(before, after, dayToInterpolate, e => e.LS),
                             NLV = Interpolate(before, after, dayToInterpolate, e => e.NLV),
                             Y = Interpolate(before, after, dayToInterpolate, e => e.Y)
                         };
         }
 
-        private float? _volatility_ret_vol = null;
+        private float? _volatility_rel_vol = null;
         private float? _volatility_abs_ret = null;
         private float? _mean_abs_ret = null;
-        private float? _ret_vol_CoefficientOfVariation = null;
+        private float? _rel_vol_CoefficientOfVariation = null;
 
         /// <summary>
         /// parameter less constructor needed for ProtoBuf serialization 
@@ -106,12 +106,12 @@ namespace SharpNet.Datasets
                     abs_ret[i] = (float)tmp;
                 }
             }
-            ret_vol = new float[POINTS_BY_DAY];
+            rel_vol = new float[POINTS_BY_DAY];
             for (int i = 0; i < POINTS_BY_DAY; ++i)
             {
                 if (double.TryParse(splitted[index++], out var tmp))
                 {
-                    ret_vol[i] = (float)tmp;
+                    rel_vol[i] = (float)tmp;
                 }
             }
             LS = (float)double.Parse(splitted[index++]);
@@ -127,7 +127,7 @@ namespace SharpNet.Datasets
         [ProtoMember(4)]
         public float[] abs_ret { get; set; }
         [ProtoMember(5)]
-        public float[] ret_vol{ get; set; }
+        public float[] rel_vol{ get; set; }
         [ProtoMember(6)]
         public float LS { get; set; }
         [ProtoMember(7)]
@@ -243,15 +243,15 @@ namespace SharpNet.Datasets
             log("ProtoBuf file " + protoBufFile + " has been loaded");
             return entries;
         }
-        public float Get_volatility_ret_vol()
+        public float Get_volatility_rel_vol()
         {
-            if (!_volatility_ret_vol.HasValue)
+            if (!_volatility_rel_vol.HasValue)
             {
                 var acc = new DoubleAccumulator();
-                acc.Add(ret_vol);
-                _volatility_ret_vol = (float)acc.Volatility;
+                acc.Add(rel_vol);
+                _volatility_rel_vol = (float)acc.Volatility;
             }
-            return _volatility_ret_vol.Value;
+            return _volatility_rel_vol.Value;
         }
 
         public float Get_mean_abs_ret()
@@ -273,15 +273,15 @@ namespace SharpNet.Datasets
             return _volatility_abs_ret.Value;
         }
 
-        public float Get_ret_vol_CoefficientOfVariation()
+        public float Get_rel_vol_CoefficientOfVariation()
         {
-            if (!_ret_vol_CoefficientOfVariation.HasValue)
+            if (!_rel_vol_CoefficientOfVariation.HasValue)
             {
                 var acc = new DoubleAccumulator();
-                acc.Add(ret_vol);
-                _ret_vol_CoefficientOfVariation = (float)acc.CoefficientOfVariation;
+                acc.Add(rel_vol);
+                _rel_vol_CoefficientOfVariation = (float)acc.CoefficientOfVariation;
             }
-            return _ret_vol_CoefficientOfVariation.Value;
+            return _rel_vol_CoefficientOfVariation.Value;
         }
    
     }

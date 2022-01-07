@@ -79,6 +79,13 @@ namespace SharpNetTests
             //    ["CFM60_l2_0_0005_V1_20210613_1029.csv"] = 1
             //}, 1.0, Math.Log(1.00)); return;
 
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211229", new Dictionary<string, double>
+            //{
+            //    ["mse_val_0_3713__learning_rate_0.001_num_boost_round_20000_20211012_001042.csv"] = 10,
+            //    ["mse_val_0_3991__target_type_Y_model_name_linear_regression_Use_LS_False_Use_day_True_20210312_020019.csv"] = 10,
+            //    ["EnsembleLearning_637621601154307303_2x_network_actual_0_4069_add_ln_0then_addd_ln_1_12_actual_0_4050_fixed_actual_0_4020_untrend.csv"] = 80,
+            //}, 1.0, Math.Log(1.00)); return;
+
             //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210712", new Dictionary<string, double>
             //{
             //    ["CFM60True_True_False_20210712_0738_0_3819.csv"] = 1,
@@ -97,6 +104,13 @@ namespace SharpNetTests
             //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.03), Math.Log(1.09));return;  // -0.0028
             //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.00), Math.Log(1.12));return;  // -0.0031
             //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210717", null,  1.0, Math.Log(1.06));return;
+
+            //var dico = new Dictionary<string, double>
+            //{
+            //    ["mse_val_0_3991__target_type_Y_model_name_linear_regression_Use_LS_False_Use_day_True_20210312_020019.csv"] = 1.0/0.4367,
+            //    ["EnsembleLearning_637621601154307303_2x_network_actual_0_4069_add_ln_0then_addd_ln_1_12_actual_0_4050_fixed_actual_0_4020_untrend.csv"] = 1/0.405
+            //};
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211203b", null,  1.0, Math.Log(1.00));return;
 
 
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
@@ -129,6 +143,13 @@ namespace SharpNetTests
             //Network.Log.Info(cfm60TrainingAndTestDataSet.ComputeStats(0.68));
             //return;
 
+            //var adjustedPreds = new Dictionary<int, double>();
+            //foreach (var e in CFM60Utils.GetTestPredictions())
+            //{
+            //    adjustedPreds[e.ID] = CFM60Utils.LinearRegressionAdjustedByMeanEstimate(e.ID);
+            //}
+            //CFM60Utils.SavePredictions(adjustedPreds, @"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211110\constant_adjusted.csv");return;
+
 
             //using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(new CFM60NetworkBuilder(), s => Network.Log.Info(s));
             //var IDToPredictions = CFM60TrainingAndTestDataSet.LoadPredictionFile(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\validation_predictions\CFM60_do_not_use_day_20210117_1923.csv");
@@ -149,9 +170,18 @@ namespace SharpNetTests
             //test.CreateSummaryFile("c:/temp/test.csv");
             //return;
 
-
             //new TestCFM60DataSet().TestDayToFractionOfYear();return;
             //new TestParallelRunCpuVersusGpu().TestSwitchSecondAndThirdDimension(new[] {2,3,5}, new[] { 2, 5, 3 });
+
+            //var originalPredictions = CFM60Utils.LoadPredictions(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211229\EnsembleLearning_637753734141871380_20_10_70_untrend.csv");
+            //var fixedPredictions = CFM60Utils.AdjustPredictionFromTargetMean(originalPredictions);
+            //CFM60Utils.SavePredictions(fixedPredictions, @"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211229\EnsembleLearning_637753734141871380_20_10_70_untrend_fixed.csv"); return;
+
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211213b", null,  1.0, Math.Log(1.03));return;
+
+
+            //CFM60Utils.Create_Intervals_To_Mean_For_Training(7);return;
+            //CFM60Utils.CreateTestPredictionFileForAverage();return;
 
             CFM60Tests();
 
@@ -483,40 +513,7 @@ namespace SharpNetTests
 
             var networkMetaParameters = new List<Func<CFM60NetworkBuilder>>
             {
-                () =>{var p = CFM60NetworkBuilder.Default(); p.ExtraDescription = "";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.Encoder(2,20,0.2);p.Decoder(0,0,0); p.ExtraDescription = "_no_decoder";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.Decoder_TimeSteps = 2; p.ExtraDescription = "_2predictions";return p;},
-                () =>{var p = CFM60NetworkBuilder.Default();p.Decoder_TimeSteps = 50; p.ExtraDescription = "_50predictions";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder_TimeSteps = 80;p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc();return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder_TimeSteps = 60;p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc();return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder_TimeSteps = 40;p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc();return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder_TimeSteps = 30;p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc();return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc();return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 6;p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc()+"_"+p.Pid_EmbeddingDim+"embedding";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 12;p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc()+"_"+p.Pid_EmbeddingDim+"embedding";return p;},
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Pid_EmbeddingDim = 16;p.Config.AlwaysUseFullTestDataSetForLossAndAccuracy=true; p.ExtraDescription = p.EncDesc()+"_"+p.Pid_EmbeddingDim+"embedding";return p;},
-
-                //TODO:
-                //try: https://ianlondon.github.io/blog/encoding-cyclical-features-24hour-time/
-
-                #region already performed tests
-                ////CFM60_02drop_encoder_2_20_decoder_2_1_02drop    423861  30  5.00E-06    1086.415833 0.313492924 0.361346334
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(2, 20, 0.0);p.Decoder(2, 1, 0.2);p.DropoutRate=0.2;p.DropoutRate_After_Decoder=0.0;p.ExtraDescription = p.EncDesc();return p;},
-                ////CFM60_0drop_encoder_1_20_decoder_1_1_02dropAfter    226229  30  5.00E-06    904.2233133 0.326655418 0.363409907
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(1, 20, 0.0);p.Decoder(1, 1, 0.0);p.DropoutRate=0.0;p.DropoutRate_After_Decoder=0.2;p.ExtraDescription = p.EncDesc();return p;},
-                ////CFM60_02drop_encoder_1_20_decoder_2_1_02dropAfter   325045  30  5.00E-06    914.494669  0.319439262 0.363662958
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(1, 20, 0.0);p.Decoder(2, 1, 0.2);p.DropoutRate=0.2;p.DropoutRate_After_Decoder=0.2;p.ExtraDescription = p.EncDesc();return p;},
-                ////CFM60_0drop_encoder_2_20_02drop_decoder_1_1 325045  30  5.00E-06    1052.748153 0.319399804 0.363881439
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(2, 20, 0.2);p.Decoder(1, 1, 0.0);p.DropoutRate=0.0;p.DropoutRate_After_Decoder=0.0;p.ExtraDescription = p.EncDesc();return p;},
-                ////CFM60_0drop_encoder_2_20_decoder_2_1_02drop 423861  30  5.00E-06    1025.255989 0.319993883 0.364001006
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(2, 20, 0.0);p.Decoder(2, 1, 0.2);p.DropoutRate=0.0;p.DropoutRate_After_Decoder=0.0;p.ExtraDescription = p.EncDesc();return p;},
-                ////CFM60_0drop_encoder_2_20_02drop 215437  30  5.00E-06    844.7426773 0.322956085 0.3643727
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(2, 20, 0.2);p.Decoder(0, 0, 0);p.DropoutRate=0.0;p.DropoutRate_After_Decoder=0.0;p.ExtraDescription = p.EncDesc();return p;},
-                ////CFM60_0drop_encoder_1_20_decoder_2_1    325045  30  5.00E-06    948.3809039 0.320686072 0.364709973
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(1, 20, 0.0);p.Decoder(2, 1, 0);p.DropoutRate=0.0;p.DropoutRate_After_Decoder=0.0;p.ExtraDescription = p.EncDesc();return p;},
-                ////CFM60_02drop_encoder_1_20_decoder_1_1_02dropAfter
-                //() =>{var p = CFM60NetworkBuilder.Default();p.Encoder(1, 20, 0.0);p.Decoder(1, 1, 0.0);p.DropoutRate=0.2;p.DropoutRate_After_Decoder=0.2;p.ExtraDescription = p.EncDesc();return p;},
-                #endregion
+                () =>{var p = CFM60NetworkBuilder.Default();p.ValueToPredict= CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_LR ;p.ExtraDescription = "";return p;},
             };
 
             //double[] allDropRates = {0, 0.2};

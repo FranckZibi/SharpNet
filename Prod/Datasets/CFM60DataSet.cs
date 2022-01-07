@@ -248,7 +248,7 @@ namespace SharpNet.Datasets
                     var previousEntry = index==0? entry: entries[index-1];
                     Debug.Assert(!double.IsNaN(entry.Y));
                     calculator.AddFeature(previousEntry.Y, "prev_y");
-                    calculator.AddFeature(entry.ret_vol, "ret_vol");
+                    calculator.AddFeature(entry.rel_vol, "rel_vol");
                     calculator.AddFeature(entry.abs_ret, "abs_ret");
                     //acc.AddFeature(entry.Get_mean_abs_ret(), "mean_abs_ret");
                     //acc.AddFeature((entry.Get_mean_abs_ret() - 0.118588544f) / 0.08134923f, "mean(abs_ret_normalized)");
@@ -256,8 +256,8 @@ namespace SharpNet.Datasets
                     calculator.AddFeature(Y_Mean(entry.pid), "mean(pid_y)");
                     calculator.AddFeature(Y_Volatility(entry.pid), "vol(pid_y)");
                     calculator.AddFeature(Y_Variance(entry.pid), "var(pid_y)");
-                    calculator.AddFeature(entry.Get_ret_vol_CoefficientOfVariation(), "ret_vol_CoefficientOfVariation");
-                    calculator.AddFeature(entry.Get_volatility_ret_vol(), "vol(ret_vol)");
+                    calculator.AddFeature(entry.Get_rel_vol_CoefficientOfVariation(), "rel_vol_CoefficientOfVariation");
+                    calculator.AddFeature(entry.Get_volatility_rel_vol(), "vol(rel_vol)");
                     calculator.AddFeature(entry.LS, "LS");
                     calculator.AddFeature(CFM60Utils.NormalizeBetween_0_and_1(entry.LS, ls_min, ls_max), "NormalizeLS");
                     calculator.AddFeature((entry.LS + 3.185075f) / 1.072115f, "NormalizeLS_V2");
@@ -446,28 +446,6 @@ namespace SharpNet.Datasets
             var ensembleLearningPredictionFile = Path.Combine(directory, "EnsembleLearning_" + DateTime.Now.Ticks + ".csv");
             CFM60Utils.SavePredictions(ensembleLearningPredictions, ensembleLearningPredictionFile, multiplierCorrection, addCorrectionStart, addCorrectionEnd);
             return ensembleLearningPredictionFile;
-        }
-
-
-        public void Augment_x_training_and_test_csv_file(string embedding_pid_values_if_any)
-        {
-            float[][] embedding_values = null;
-
-            //we load the embedding associated with the pids
-            if (!string.IsNullOrEmpty(embedding_pid_values_if_any))
-            {
-                var content = File.ReadAllLines(embedding_pid_values_if_any, Encoding.ASCII).Where(l=>l.Length!=0).ToArray();
-                var header = content[0];
-                var separator  = header.Contains(",") ? ',' : ';';
-                var pid_count = content.Length - 1;
-                embedding_values = new float[pid_count][];
-                for (int pid = 0; pid < pid_count; ++pid)
-                {
-                    embedding_values[pid] = content[1 + pid].Split(separator).Select(float.Parse).ToArray();
-                }
-            }
-            Augment_X_csv_file(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_training.csv"), embedding_values);
-            Augment_X_csv_file(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_test.csv"), embedding_values);
         }
 
         public void Augment_X_csv_file(string x_csv_path, float[][] embedding_values_if_any)
@@ -707,38 +685,38 @@ namespace SharpNet.Datasets
                 {
                     xElementId[idx++] = Normalize(entry.Get_volatility_abs_ret(), idx % featuresLength, isEncoder);
                 }
-                //ret_vol
-                if (Cfm60NetworkBuilder.Use_ret_vol)
+                //rel_vol
+                if (Cfm60NetworkBuilder.Use_rel_vol)
                 {
-                    //var asSpan = entry.ret_vol.AsSpan();
-                    if (Cfm60NetworkBuilder.Use_ret_vol_start_and_end_only)
+                    //var asSpan = entry.rel_vol.AsSpan();
+                    if (Cfm60NetworkBuilder.Use_rel_vol_start_and_end_only)
                     {
                         //asSpan.Slice(0, 12).CopyTo(xDest.Slice(idx, 12));
-                        //asSpan.Slice(entry.ret_vol.Length - 12, 12).CopyTo(xDest.Slice(idx + 12, 12));
+                        //asSpan.Slice(entry.rel_vol.Length - 12, 12).CopyTo(xDest.Slice(idx + 12, 12));
                         //idx += 2 * 12;
                         for (int i = 0; i < 12; ++i)
                         {
-                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength, isEncoder);
+                            xElementId[idx++] = Normalize(entry.rel_vol[i], idx % featuresLength, isEncoder);
                         }
 
-                        for (int i = entry.ret_vol.Length - 12; i < entry.ret_vol.Length; ++i)
+                        for (int i = entry.rel_vol.Length - 12; i < entry.rel_vol.Length; ++i)
                         {
-                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength, isEncoder);
+                            xElementId[idx++] = Normalize(entry.rel_vol[i], idx % featuresLength, isEncoder);
                         }
                     }
                     else
                     {
-                        //asSpan.CopyTo(xDest.Slice(idx, entry.ret_vol.Length));
-                        //idx += entry.ret_vol.Length;
-                        for (int i = 0; i < entry.ret_vol.Length; ++i)
+                        //asSpan.CopyTo(xDest.Slice(idx, entry.rel_vol.Length));
+                        //idx += entry.rel_vol.Length;
+                        for (int i = 0; i < entry.rel_vol.Length; ++i)
                         {
-                            xElementId[idx++] = Normalize(entry.ret_vol[i], idx % featuresLength, isEncoder);
+                            xElementId[idx++] = Normalize(entry.rel_vol[i], idx % featuresLength, isEncoder);
                         }
                     }
                 }
-                if (Cfm60NetworkBuilder.Use_volatility_ret_vol)
+                if (Cfm60NetworkBuilder.Use_volatility_rel_vol)
                 {
-                    xElementId[idx++] = Normalize(entry.Get_volatility_ret_vol(), idx % featuresLength, isEncoder);
+                    xElementId[idx++] = Normalize(entry.Get_volatility_rel_vol(), idx % featuresLength, isEncoder);
                 }
                 //LS
                 if (Cfm60NetworkBuilder.Use_LS)
