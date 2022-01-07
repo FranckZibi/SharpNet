@@ -672,6 +672,7 @@ namespace SharpNet.Networks
                         || ( (Config.AutoSaveIntervalInMinutes>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinutes)
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
                         || trainingDataSet.ShouldCreateSnapshotForEpoch(epoch, this)
+                        || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds)
                     )
                     {
                         var modelFilePath = Path.Combine(Config.LogDirectory, UniqueId + ".txt");
@@ -686,6 +687,11 @@ namespace SharpNet.Networks
                         var networkStatFileName = Path.Combine(Config.LogDirectory, UniqueId + "_NetworkStats.txt");
                         Log.Info("Saving network '" + Description + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
+                    }
+                    if (ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds))
+                    {
+                        Log.Info("Stopping Training because of EarlyStopping");
+                        break;
                     }
                 }
 
@@ -732,7 +738,39 @@ namespace SharpNet.Networks
                 throw;
             }
         }
-        
+
+
+        /// <summary>
+        /// if the validation loss has degraded for several consecutive epochs  (at least 'earlyStoppingRounds')
+        /// then we stop the training
+        /// </summary>
+        /// <returns></returns>
+        private static bool ShouldStopTrainingBecauseOfEarlyStopping(List<EpochData> epochData, int earlyStoppingRounds)
+        {
+            if (earlyStoppingRounds <= 0)
+            {
+                return false;
+            }
+            // number of consecutive epochs where the validation loss has degraded.
+            int nbConsecutiveEpochsWithDegradationOfValidationLoss = 0;
+            for (int i = epochData.Count - 1; i >= 1; --i)
+            {
+                var currentValidationLoss = epochData[i].ValidationLoss;
+                var previousValidationLoss = epochData[i - 1].ValidationLoss;
+                if (double.IsNaN(previousValidationLoss) || double.IsNaN(currentValidationLoss))
+                {
+                    break;
+                }
+                var validationLossHasDegraded = currentValidationLoss > previousValidationLoss;
+                if (!validationLossHasDegraded)
+                {
+                    break;
+                }
+                ++nbConsecutiveEpochsWithDegradationOfValidationLoss;
+            }
+            return nbConsecutiveEpochsWithDegradationOfValidationLoss >= earlyStoppingRounds;
+        }
+
         private bool ShouldUseFullTestDataSetForLossAndAccuracy(ILearningRateComputer learningRateComputer, int epoch, int numEpoch)
         {
             if (Config.AlwaysUseFullTestDataSetForLossAndAccuracy || epoch == 1 || epoch == numEpoch)
@@ -751,6 +789,7 @@ namespace SharpNet.Networks
             return ComputeMetrics(testDataSet.Y, yPredicted);
         }
 
+     
         private IDictionary<NetworkConfig.Metric, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
         {
             _swComputeMetrics?.Start();

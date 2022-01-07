@@ -66,6 +66,10 @@ namespace SharpNetTests
             //    ["CFM60_min_lr_10_20210606_1919.csv"] = 1
             //}); return;
 
+            var pred = CFM60Utils.LoadPredictions(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\test_predictions\20211111\EnsembleLearning_32x_637722548893087857.csv");
+            CFM60Utils.SavePredictions(CFM60Utils.AdjustPredictionFromTargetMean(pred), @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\test_predictions\20211111\EnsembleLearning_32x_637722548893087857_fixed.csv");
+            //CFM60DataSet.EnsembleLearning(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\test_predictions\aaa", null);
+            return;
 
             //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20200613", new Dictionary<string, double>
             //{
@@ -516,34 +520,6 @@ namespace SharpNetTests
                 () =>{var p = CFM60NetworkBuilder.Default();p.ValueToPredict= CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_LR ;p.ExtraDescription = "";return p;},
             };
 
-            //double[] allDropRates = {0, 0.2};
-            //int[] allNumLayers = {2, 1};
-            //foreach (var dropRate in allDropRates)
-            //foreach (var encoderNumLayers in allNumLayers)
-            //foreach (var encoderTimeSteps in new[] { /*40,*/ 20 })
-            //foreach (var encoderDropRate in allDropRates)
-            //foreach (var useDecoder in new[] { false,true })
-            ////foreach (var useDecoder in new[] { true })
-            //foreach (var decoderNumLayers in useDecoder? allNumLayers : new []{0})
-            //foreach (var decoderTimeSteps in useDecoder ? new[] { 1 } : new[] { 0 })
-            //foreach (var decoderDropRate in useDecoder ? allDropRates : new[] { 0.0 })
-            //foreach (var dropoutRate_After_Decoder in useDecoder ? allDropRates : new[] { 0.0 })
-            //{
-            //    if (   encoderNumLayers <= 1 && encoderDropRate > 1e-6
-            //         ||decoderNumLayers <= 1 && decoderDropRate > 1e-6 )
-            //    {
-            //        continue;
-            //    }
-            //    networkMetaParameters.Add(
-            //        () => { var p = CFM60NetworkBuilder.Default();
-            //            p.DropoutRate = dropRate;
-            //            p.Encoder(encoderNumLayers, encoderTimeSteps, encoderDropRate); 
-            //            p.Decoder(decoderNumLayers, decoderTimeSteps, decoderDropRate);
-            //            p.DropoutRate_After_Decoder = dropoutRate_After_Decoder;
-            //            p.ExtraDescription = p.EncDesc(); return p; }
-            //        );
-            //}
-
             //networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 2);
 
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
@@ -561,10 +537,11 @@ namespace SharpNetTests
             //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;
             using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.PercentageInTraining);
             //var res = network.FindBestLearningRate(cfm60, 1e-7, 0.9, p.BatchSize);return;
-
             var learningRateComputer = network.Config.GetLearningRateComputer(p.InitialLearningRate, p.NumEpochs);
+            ((CFM60DataSet) trainingValidation.Training).ValidationDataSet = (CFM60DataSet) trainingValidation.Test;
             ((CFM60DataSet) trainingValidation.Training).OriginalTestDataSet = (CFM60DataSet)cfm60TrainingAndTestDataSet.Test;
             network.Fit(trainingValidation.Training, learningRateComputer, p.NumEpochs, p.BatchSize, trainingValidation.Test);
+            ((CFM60DataSet)trainingValidation.Training).ValidationDataSet = null;
             ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = null;
 
             //((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network);

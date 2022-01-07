@@ -102,6 +102,15 @@ namespace SharpNet.Networks
         /// </summary>
         public int AutoSaveIntervalInMinutes { get; set; } = 3*60;
 
+
+        /// <summary>
+        /// number of consecutive epochs with a degradation of the validation loss to
+        /// stop training the network.
+        /// A value less or equal then 0 means no early stopping
+        /// </summary>
+        public int EarlyStoppingRounds { get; set; } = 0;
+
+
         /// <summary>
         /// name of the the first layer for which we want ot freeze the weights
         /// if 'FirstLayerNameToFreeze' is valid and 'LastLayerNameToFreeze' is empty
@@ -301,6 +310,7 @@ namespace SharpNet.Networks
                 .Add(nameof(DisplayTensorContentStats), DisplayTensorContentStats)
                 .Add(nameof(LogDirectory), LogDirectory)
                 .Add(nameof(AutoSaveIntervalInMinutes), AutoSaveIntervalInMinutes)
+                .Add(nameof(EarlyStoppingRounds), EarlyStoppingRounds)
                 .Add(nameof(SaveNetworkStatsAfterEachEpoch), SaveNetworkStatsAfterEachEpoch)
                 .Add(nameof(MinimumLearningRate), MinimumLearningRate)
                 .Add(nameof(LogDirectory), LogDirectory)
@@ -349,6 +359,7 @@ namespace SharpNet.Networks
                 serialized.ContainsKey(nameof(AutoSaveIntervalInMinutes))
                     ? (int) serialized[nameof(AutoSaveIntervalInMinutes)]
                     : (int) serialized["AutoSaveIntervalInMinuts"];
+            EarlyStoppingRounds = serialized.TryGet<int>(nameof(EarlyStoppingRounds));
             SaveNetworkStatsAfterEachEpoch = (bool)serialized[nameof(SaveNetworkStatsAfterEachEpoch)];
             MinimumLearningRate = (double)serialized[nameof(MinimumLearningRate)];
             LogDirectory = (string)serialized[nameof(LogDirectory)];

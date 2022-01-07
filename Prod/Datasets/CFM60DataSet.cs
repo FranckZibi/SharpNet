@@ -420,6 +420,7 @@ namespace SharpNet.Datasets
 
             foreach (var (fileNameWithPrediction, weight) in fileNameWithPredictionToWeight)
             {
+                Console.WriteLine("Processing file "+ fileNameWithPrediction+" with weight "+weight);
                 var singleFilePredictions = CFM60Utils.LoadPredictions(Path.Combine(directory, fileNameWithPrediction));
                 if (!predictionsByFile.HasValue)
                 {
