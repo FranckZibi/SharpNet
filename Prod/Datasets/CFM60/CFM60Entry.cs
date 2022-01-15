@@ -8,7 +8,7 @@ using ProtoBuf;
 using SharpNet.MathTools;
 using SharpNet.Networks;
 
-namespace SharpNet.Datasets
+namespace SharpNet.Datasets.CFM60
 {
     [ProtoContract]
     public class CFM60Entry

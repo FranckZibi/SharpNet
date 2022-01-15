@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using SharpNet.MathTools;
 
-namespace SharpNet.Datasets
+namespace SharpNet.Datasets.CFM60
 {
     public static class CFM60FeatureEngineering
     {

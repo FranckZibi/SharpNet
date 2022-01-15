@@ -1,6 +1,6 @@
 ﻿using System.Linq;
 using NUnit.Framework;
-using SharpNet.Datasets;
+using SharpNet.Datasets.CFM60;
 
 namespace SharpNetTests.Datasets
 {

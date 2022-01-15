@@ -15,7 +15,7 @@ using SharpNet.Networks;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SharpNet.Datasets
+namespace SharpNet.Datasets.CFM60
 {
     public class CFM60DataSet : AbstractDataSet, ITimeSeriesDataSet
     {

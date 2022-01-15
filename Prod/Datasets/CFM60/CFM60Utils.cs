@@ -8,7 +8,7 @@ using System.Text;
 using SharpNet.MathTools;
 using SharpNet.Networks;
 
-namespace SharpNet.Datasets
+namespace SharpNet.Datasets.CFM60
 {
     public static class CFM60Utils
     {

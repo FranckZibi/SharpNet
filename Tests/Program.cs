@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
+using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Networks;
 

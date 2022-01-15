@@ -12,6 +12,7 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
+using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;

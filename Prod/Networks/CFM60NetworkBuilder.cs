@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using SharpNet.DataAugmentation;
-using SharpNet.Datasets;
+using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.MathTools;

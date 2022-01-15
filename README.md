@@ -1,4 +1,4 @@
-SharpNet is an Open-source Deep Learning library written in C# 8.0.
+SharpNet is an Open-source Deep Learning library written in C# 10.0.
 
 It supports:
  - Residual Networks [v1](https://arxiv.org/pdf/1512.03385.pdf), [v2](https://arxiv.org/pdf/1603.05027.pdf), [WideResNet](https://arxiv.org/pdf/1605.07146.pdf) and [EfficientNet](https://arxiv.org/pdf/1905.11946.pdf)

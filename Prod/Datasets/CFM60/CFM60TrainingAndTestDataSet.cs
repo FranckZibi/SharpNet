@@ -2,7 +2,7 @@
 using System.IO;
 using SharpNet.Networks;
 
-namespace SharpNet.Datasets
+namespace SharpNet.Datasets.CFM60
 {
     public class CFM60TrainingAndTestDataSet : AbstractTrainingAndTestDataSet
     {
