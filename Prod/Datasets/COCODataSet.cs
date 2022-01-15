@@ -13,7 +13,14 @@ namespace SharpNet.Datasets
         #endregion
 
         #region constructor
-        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, resizeStrategy, true)
+        public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 
+            Objective_enum.Classification, 
+            3, 
+            CategoryIndexToDescription, 
+            meanAndVolatilityOfEachChannel, 
+            resizeStrategy, 
+            null, 
+            true)
         {
             _cocoDirectory = cocoDirectory;
             throw new NotImplementedException();

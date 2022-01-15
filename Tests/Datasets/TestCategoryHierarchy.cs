@@ -120,11 +120,12 @@ namespace SharpNetTests.Datasets
                 elementIdToCategoryIndex,
                 null,
                 path,
+                Objective_enum.Classification,
                 3,
                 categoryDescriptions,
                 CancelDatabase.CancelMeanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
-
+                ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion,
+                null);
         }
 
         public static CategoryHierarchy StarExample()

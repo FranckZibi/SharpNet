@@ -26,13 +26,13 @@ namespace SharpNet.Datasets
             var xTrain = trainWorkingSet.Item1;
             var yTrain = trainWorkingSet.Item2;
 
-            Training = new InMemoryDataSet(xTrain, yTrain, Name, null, CategoryIndexToDescription);
+            Training = new InMemoryDataSet(xTrain, yTrain, Name, Objective_enum.Classification, null, CategoryIndexToDescription);
 
             var testSet = PictureTools.ReadInputPictures(FileNameToPath("t10k-images.idx3-ubyte"), FileNameToPath("t10k-labels.idx1-ubyte"));
             var testWorkingSet = ToWorkingSet(testSet);
             var xTest = testWorkingSet.Item1;
             var yTest = testWorkingSet.Item2;
-            Test = new InMemoryDataSet(xTest, yTest, Name, null, CategoryIndexToDescription);
+            Test = new InMemoryDataSet(xTest, yTest, Name, Objective_enum.Classification, null, CategoryIndexToDescription);
         }
 
 

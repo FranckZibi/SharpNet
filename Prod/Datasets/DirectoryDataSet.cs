@@ -51,10 +51,12 @@ namespace SharpNet.Datasets
                 elementIdToCategoryIndex,
                 null,
                 "FromFiles", 
+                Objective_enum.Classification,
                 3, 
                 Enumerable.Range(0, categoryCount).Select(i=>i.ToString()).ToArray(),
                 meanAndVolatilityForEachChannel,
-                resizeStrategy);
+                resizeStrategy,
+                null);
         }
 
         #region constructor
@@ -63,12 +65,22 @@ namespace SharpNet.Datasets
             List<string> elementIdToDescription, 
             List<int> elementIdToCategoryIndex,
             CpuTensor<float> expectedYIfAny,
-            string name, 
+            string name,
+            Objective_enum objective,
             int channels, 
             string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
-            ResizeStrategyEnum resizeStrategy)
-            : base(name, channels, categoryDescriptions, meanAndVolatilityForEachChannel, resizeStrategy, true)
+            ResizeStrategyEnum resizeStrategy,
+            string[] featureNamesIfAny
+            )
+            : base(name,
+                objective, 
+                channels, 
+                categoryDescriptions, 
+                meanAndVolatilityForEachChannel, 
+                resizeStrategy,
+                featureNamesIfAny, 
+                true)
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
             _elementIdToDescription.AddRange(elementIdToDescription);

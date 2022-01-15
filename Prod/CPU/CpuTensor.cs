@@ -1525,9 +1525,6 @@ namespace SharpNet.CPU
             Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
             int batchSize = yExpected.Shape[0];
 
-            var yExpectedOneHotCpu = yExpected.AsFloatCpu;
-            var yPredictedCpu = yPredicted.AsFloatCpu;
-
             var bufferPointer = (float*)buffer.Pointer;
             if (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
             {
@@ -1542,7 +1539,9 @@ namespace SharpNet.CPU
             }
             else
             {
-                Parallel.For(0, batchSize, m => bufferPointer[m] = ComputeSingleAccuracy(yExpectedOneHotCpu, yPredictedCpu, m, out _));
+                var yExpectedCpu = yExpected.AsFloatCpu;
+                var yPredictedCpu = yPredicted.AsFloatCpu;
+                Parallel.For(0, batchSize, row => bufferPointer[row] = ComputeSingleAccuracy(yExpectedCpu, yPredictedCpu, row, out _));
             }
             return buffer.AsReadonlyFloatCpuContent.Average();
         }
@@ -1583,24 +1582,24 @@ namespace SharpNet.CPU
             return buffer.ContentAsFloatArray().Average();
         }
 
-        private static float ComputeSingleAccuracy(CpuTensor<float> yExpectedOneHot, CpuTensor<float> yPredicted, int m, out int maxIndexPredicted)
+        private static float ComputeSingleAccuracy(CpuTensor<float> yExpected, CpuTensor<float> yPredicted, int row, out int maxIndexPredicted)
         {
-            Debug.Assert(yExpectedOneHot.SameShape(yPredicted));
+            Debug.Assert(yExpected.SameShape(yPredicted));
             maxIndexPredicted = 0;
-            var categoryCount = yExpectedOneHot.Shape[1];
+            var categoryCount = yExpected.Shape[1];
             if (categoryCount == 1)
             {
-                var error = Math.Abs(yExpectedOneHot.Get(m, 0) - yPredicted.Get(m, 0));
+                var error = Math.Abs(yExpected.Get(row, 0) - yPredicted.Get(row, 0));
                 return (error < 0.5) ? 1 : 0;
             }
             int maxIndexExpected = 0;
             for (int j = 1; j < categoryCount; ++j)
             {
-                if (yPredicted.Get(m, j) > yPredicted.Get(m, maxIndexPredicted))
+                if (yPredicted.Get(row, j) > yPredicted.Get(row, maxIndexPredicted))
                 {
                     maxIndexPredicted = j;
                 }
-                if (yExpectedOneHot.Get(m, j) > yExpectedOneHot.Get(m, maxIndexExpected))
+                if (yExpected.Get(row, j) > yExpected.Get(row, maxIndexExpected))
                 {
                     maxIndexExpected = j;
                 }
@@ -1905,6 +1904,84 @@ namespace SharpNet.CPU
                 AsFloatCpu.Content.Slice(0, Count).CopyTo(b.AsFloatCpu.Content.Slice(0, Count));
             }
         }
+
+
+        /// <summary>
+        /// return a new Tensor keeping only columns at index 'columnIndexesToKeep'
+        /// </summary>
+        /// <param name="columnIndexesToRemove">the columnindexes to keep</param>
+        /// <returns></returns>
+        public CpuTensor<T> DropColumns(IEnumerable<int> columnIndexesToRemove)
+        {
+            if (Shape.Length != 2)
+            {
+                throw new Exception($"{nameof(DropColumns)} only works with matrix");
+            }
+            var columnIndexesToKeep = Enumerable.Range(0, Shape[1]).ToList();
+            foreach (var col in columnIndexesToRemove)
+            {
+                columnIndexesToKeep.Remove(col);
+            }
+            return KeepColumns(columnIndexesToKeep);
+        }
+
+        /// <summary>
+        /// return a new Tensor keeping only columns at index 'columnIndexesToKeep'
+        /// </summary>
+        /// <param name="columnIndexesToKeep">the column indexes to keep</param>
+        /// <returns></returns>
+        public CpuTensor<T> KeepColumns(IEnumerable<int> columnIndexesToKeep)
+        {
+            if (Shape.Length != 2)
+            {
+                throw new Exception($"{nameof(KeepColumns)} only works with matrix");
+            }
+            var columnIndexesToKeepHash = new HashSet<int>(columnIndexesToKeep);
+            var dataAsSpan = SpanContent;
+            var newShape = new[] {Shape[0], columnIndexesToKeepHash.Count};
+            var newData = new T[newShape[0]* newShape[1]];
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                int newCol = 0;
+                for (int col = 0; col < Shape[1]; ++col)
+                {
+                    if (columnIndexesToKeepHash.Contains(col))
+                    {
+                        newData[row * newShape[1] + newCol] = dataAsSpan[row * Shape[1] + col];
+                        ++newCol;
+                    }
+                }
+            }
+            return new CpuTensor<T>(newShape, newData);
+        }
+
+        public static CpuTensor<T> MergeHorizontally(CpuTensor<T> left, CpuTensor<T> right)
+        {
+            Debug.Assert(left.Shape.Length == 2);
+            Debug.Assert(right.Shape.Length == 2);
+            //same number of rows
+            Debug.Assert(left.Shape[0] == right.Shape[0]);
+            var newShape = new [] {left.Shape[0], left.Shape[1] + right.Shape[1]};
+
+            var leftSpan = left.SpanContent;
+            var rightSpan = right.SpanContent;
+
+            var newData = new T[newShape[0] * newShape[1]];
+            for (int row = 0; row < newShape[0]; ++row)
+            {
+                int idx = newShape[1] * row;
+                for (int col = 0; col < left.Shape[1]; ++col)
+                {
+                    newData[idx++] = leftSpan[row * left.Shape[1] + col];
+                }
+                for (int col = 0; col < right.Shape[1]; ++col)
+                {
+                    newData[idx++] = rightSpan[row * right.Shape[1] + col];
+                }
+            }
+            return new CpuTensor<T>(newShape, newData);
+        }
+
 
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount)
         {

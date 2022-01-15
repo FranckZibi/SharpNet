@@ -39,7 +39,7 @@ namespace SharpNetTests.Datasets
             var meanAndVolatilityForEachChannel = tensorX.ComputeMeanAndVolatilityOfEachChannel(t => t);
             var x = AbstractDataSet.ToXWorkingSet(tensorX, meanAndVolatilityForEachChannel);
             var y = AbstractDataSet.ToYWorkingSet(tensorY, categoryCount, categoryByte=>categoryByte);
-            return new InMemoryDataSet(x, y, "TestAbstractDataSet", meanAndVolatilityForEachChannel);
+            return new InMemoryDataSet(x, y, "TestAbstractDataSet", Objective_enum.Classification, meanAndVolatilityForEachChannel);
         }
     }
 }

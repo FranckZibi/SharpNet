@@ -655,6 +655,24 @@ namespace SharpNet
             var minor = (version % 1000) / 10;
             return new Version(major, minor);
         }
+
+        public static string ComputeHash(string input, int maxLength)
+        {
+            // Use input string to calculate MD5 hash
+            var sb = new StringBuilder();
+            using MD5 md5 = MD5.Create();
+            var inputBytes = Encoding.ASCII.GetBytes(input);
+            var hashBytes = md5.ComputeHash(inputBytes);
+
+            // Convert the byte array to hexadecimal string
+            foreach (var t in hashBytes)
+            {
+                sb.Append(t.ToString("X2"));
+            }
+            return sb.ToString().Substring(0, maxLength);
+        }
+
+
     }
 
 }

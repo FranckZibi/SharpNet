@@ -9,7 +9,14 @@ namespace SharpNet.Datasets
         private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
         
         public MappedDataSet(IDataSet original, IReadOnlyList<int> elementIdToOriginalElementId) 
-            : base(original.Name, original.Channels, ((AbstractDataSet)original).CategoryDescriptions, original.MeanAndVolatilityForEachChannel, original.ResizeStrategy, true)
+            : base(original.Name, 
+                original.Objective, 
+                original.Channels, 
+                ((AbstractDataSet)original).CategoryDescriptions, 
+                original.MeanAndVolatilityForEachChannel, 
+                original.ResizeStrategy, 
+                null, 
+                true)
         {
             _original = original;
             this._elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);
@@ -28,6 +35,12 @@ namespace SharpNet.Datasets
             _original.LoadAt(_elementIdToOriginalElementId[subElementId], indexInBuffer, xBuffer, yBuffer, withDataAugmentation);
         }
         public override int Count => _elementIdToOriginalElementId.Count;
+
+        public override string ColIdToFeatureName(int colId)
+        {
+            return _original.ColIdToFeatureName(colId);
+        }
+
         public override int ElementIdToCategoryIndex(int elementId)
         {
             return _original.ElementIdToCategoryIndex(_elementIdToOriginalElementId[elementId]);

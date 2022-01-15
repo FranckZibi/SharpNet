@@ -516,6 +516,14 @@ namespace SharpNet.Networks
             return res;
         }
 
+
+
+        public string[] ComputeFeatureNames()
+        {
+            return null; //TODO
+        }
+
+
         public string FeatureIdToEncoderFeatureName(int featureId)
         {
             return Encoder_FeatureNames[featureId];

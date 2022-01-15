@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpNet.CPU;
 
@@ -9,27 +10,30 @@ namespace SharpNet.Datasets
     public class InMemoryDataSet : AbstractDataSet
     {
         #region private fields
-        private readonly CpuTensor<float> _x;
         private readonly int[] _elementIdToCategoryIndex;
+        private readonly CpuTensor<float> _x;
         #endregion
 
         /// <summary>
         /// TODO : remove 'elementIdToCategoryIndex' from input
         /// </summary>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        /// <param name="name"></param>
-        /// <param name="meanAndVolatilityForEachChannel"></param>
-        /// <param name="categoryDescriptions"></param>
-        public InMemoryDataSet(CpuTensor<float> x, CpuTensor<float> y,
-            string name = "", List<Tuple<float, float>> meanAndVolatilityForEachChannel = null, string[] categoryDescriptions = null)
-            : base(name, 
+        public InMemoryDataSet([NotNull] CpuTensor<float> x, 
+            [NotNull] CpuTensor<float> y,
+            string name = "",
+            Objective_enum? objective = null,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel = null, 
+            string[] categoryDescriptions = null,
+            string[] featureNames = null,
+            bool useBackgroundThreadToLoadNextMiniBatch = true)
+            : base(name,
+                objective,
                 x.Shape[1], 
                 categoryDescriptions ?? Enumerable.Range(0, y.Shape[1]).Select(i => i.ToString()).ToArray(), 
                 meanAndVolatilityForEachChannel, 
-                ResizeStrategyEnum.None, true)
+                ResizeStrategyEnum.None,
+                featureNames, 
+                useBackgroundThreadToLoadNextMiniBatch)
         {
-            Debug.Assert(y != null);
             Debug.Assert(AreCompatible_X_Y(x, y));
 
             _x = x;
@@ -73,6 +77,16 @@ namespace SharpNet.Datasets
             return "";
         }
 
+        public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
+        {
+            int rowsInTrainingSet = (int)(percentageInTrainingSet * Count + 0.1);
+            int rowsInValidationSet = Count - rowsInTrainingSet;
+            var training = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(0, rowsInTrainingSet), (CpuTensor<float>)Y.RowSlice(0, rowsInTrainingSet), Name,  Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
+            var test = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(rowsInTrainingSet, rowsInValidationSet), (CpuTensor<float>)Y.RowSlice(rowsInTrainingSet, rowsInValidationSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
+            return new TrainingAndTestDataLoader(training, test, Name);
+        }
+
+        public override CpuTensor<float> X_if_available => _x;
 
         public override CpuTensor<float> Y { get; }
         public override string ToString()

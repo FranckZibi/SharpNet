@@ -81,14 +81,22 @@ namespace SharpNet.Datasets
 
         #region public properties
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
+        [CanBeNull] public string[] FeatureNamesIfAny { get; }
+
         #endregion
 
         #region constructor
-        protected AbstractDataSet(string name, int channels, string[] categoryDescriptions,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy,
+        protected AbstractDataSet(string name,
+            Objective_enum? objective, 
+            int channels, 
+            string[] categoryDescriptions,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel, 
+            ResizeStrategyEnum resizeStrategy,
+            string[] featureNamesIfAny,
             bool useBackgroundThreadToLoadNextMiniBatch)
         {
             Name = name;
+            Objective = objective ?? (categoryDescriptions==null?Objective_enum.Regression:Objective_enum.Classification);
             Channels = channels;
             Debug.Assert(categoryDescriptions != null);
             CategoryDescriptions = categoryDescriptions;
@@ -100,7 +108,7 @@ namespace SharpNet.Datasets
             {
                 _rands[i] = new Random(i);
             }
-
+            FeatureNamesIfAny = featureNamesIfAny;
             if (_useBackgroundThreadToLoadNextMiniBatch)
             {
                 thread = new Thread(BackgroundThread);
@@ -108,6 +116,16 @@ namespace SharpNet.Datasets
             }
         }
         #endregion
+
+        public virtual string ColIdToFeatureName(int colId)
+        {
+            return FeatureNamesIfAny == null ? colId.ToString() : FeatureNamesIfAny[colId];
+        }
+
+        /// <summary>
+        /// the type of use of the dataset : Regression or Classification
+        /// </summary>
+        public Objective_enum Objective { get; }
 
         public string[] CategoryDescriptions { get; }
 
@@ -291,6 +309,7 @@ namespace SharpNet.Datasets
 
 
         public abstract int Count { get; }
+        public virtual CpuTensor<float> X_if_available => null;
         public string Name { get; }
         public ResizeStrategyEnum ResizeStrategy { get; }
         public virtual bool ShouldCreateSnapshotForEpoch(int epoch, Network network)
@@ -473,12 +492,6 @@ namespace SharpNet.Datasets
         /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the mini batch starting
         /// at 'firstIndexInShuffledElementId'
         /// </summary>
-        /// <param name="withDataAugmentation"></param>
-        /// <param name="shuffledElementId"></param>
-        /// <param name="firstIndexInShuffledElementId"></param>
-        /// <param name="dataAugmentationConfig"></param>
-        /// <param name="all_xMiniBatchShape"></param>
-        /// <param name="yMiniBatchShape"></param>
         /// <returns>the number of actually loaded elements,in the range [1, xMiniBatchShape[0] ]  </returns>
         private int LoadMiniBatchInCpu(bool withDataAugmentation,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
@@ -589,7 +602,7 @@ namespace SharpNet.Datasets
         /// true if we should use a separate thread to load the content of the next mini batch
         /// while working on the current mini batch
         /// </summary>
-        private readonly bool _useBackgroundThreadToLoadNextMiniBatch;
+        protected readonly bool _useBackgroundThreadToLoadNextMiniBatch;
         private readonly Thread thread;
         private Tuple<bool, int[], int, DataAugmentationConfig, List<int[]>, int[]> threadParameters;
         private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new AutoResetEvent(false);

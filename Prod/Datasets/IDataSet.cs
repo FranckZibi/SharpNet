@@ -15,6 +15,9 @@ namespace SharpNet.Datasets
     }
 
 
+    public enum Objective_enum { Regression, Classification }
+
+
     public interface IDataSet : IDisposable
     {
         /// <summary>
@@ -69,15 +72,40 @@ namespace SharpNet.Datasets
         string ElementIdToDescription(int elementId);
         string ElementIdToPathIfAny(int elementId);
 
+
+        string[] FeatureNamesIfAny { get; }
+
+        /// <summary>
+        /// the name associate with a column (= feature)
+        /// </summary>
+        /// <param name="colId"></param>
+        /// <returns></returns>
+        string ColIdToFeatureName(int colId);
+
+        /// <summary>
+        /// the type of use of the dataset : Regression or Classification
+        /// </summary>
+        Objective_enum Objective { get; }
+
+
         /// <summary>
         /// number of channels of each elements
         /// </summary>
         int Channels { get; }
 
 
+        /// <summary>
+        /// the length of the returned list is:
+        ///     2 for Encoder Decoder (first is the shape of the network input, second is the shape of the decoder input)
+        ///     1 for all other kind of networks (with the shape of the network input)
+        /// </summary>
+        /// <param name="shapeForFirstLayer"></param>
+        /// <returns></returns>
         List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
         [NotNull] CpuTensor<float> Y { get; }
+
+        [CanBeNull] CpuTensor<float> X_if_available { get; }
 
         string Name { get; }
 

@@ -12,8 +12,6 @@ using System.Runtime.InteropServices;
 
 namespace SharpNet.Pictures
 {
-
-
     public class BitmapContent : CpuTensor<byte>
     {
         /// <summary>

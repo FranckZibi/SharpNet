@@ -15,11 +15,14 @@ namespace SharpNet.Datasets
 
         public UnivariateTimeSeriesDataSet(Memory<float> univariateTimeSeries, int timeSteps, int stride, 
             string name = "", List<Tuple<float, float>> meanAndVolatilityForEachChannel = null)
-            : base(name,
+            : base(name, 
+                Objective_enum.Regression,
                 timeSteps,
                 new []{"NA"},
                 meanAndVolatilityForEachChannel,
-                ResizeStrategyEnum.None, true)
+                ResizeStrategyEnum.None, 
+                null, 
+                true)
         {
             _univariateTimeSeries = univariateTimeSeries;
             _timeSteps = timeSteps;

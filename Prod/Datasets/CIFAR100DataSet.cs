@@ -110,8 +110,8 @@ namespace SharpNet.Datasets
             //Uncomment the following line to take only the first elements
             //xTrain = (CpuTensor<float>)xTrain.Slice(0, 1000);yTrain = (CpuTensor<float>)yTrain.Slice(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.Slice(0, 1000); ; yTest = (CpuTensor<float>)yTest.Slice(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSet(xTrain, yTrain, Name, meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
-            Test = new InMemoryDataSet(xTest, yTest, Name, meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
+            Training = new InMemoryDataSet(xTrain, yTrain, Name, Objective_enum.Classification,meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
+            Test = new InMemoryDataSet(xTest, yTest, Name, Objective_enum.Classification, meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
         }
 
         private static void Load(string path, CpuTensor<byte> x, CpuTensor<byte> y)

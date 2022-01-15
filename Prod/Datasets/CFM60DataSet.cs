@@ -105,13 +105,15 @@ namespace SharpNet.Datasets
             : this(CFM60Entry.Load(xFile, yFileIfAny, log, cfm60NetworkBuilder.ValueToPredict, cfm60NetworkBuilder.predictionFilesIfComputeErrors), cfm60NetworkBuilder, trainingDataSetIfAny)
         {
         }
-
+        
         public CFM60DataSet(CFM60Entry[] entries, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null)
-            : base(cfm60NetworkBuilder.IsTryingToPredictErrors? "CFM60Errors":"CFM60",
+            : base(cfm60NetworkBuilder.IsTryingToPredictErrors? "CFM60Errors":"CFM60", 
+                Objective_enum.Regression,
                 cfm60NetworkBuilder.Encoder_TimeSteps,
                 new[] {"NONE"},
                 null,
                 ResizeStrategyEnum.None,
+                cfm60NetworkBuilder.ComputeFeatureNames(),
                 UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetIfAny))
         {
             Cfm60NetworkBuilder = cfm60NetworkBuilder;
@@ -870,13 +872,13 @@ namespace SharpNet.Datasets
             var result = new List<int[]> {shapeForFirstLayer};
             if (Cfm60NetworkBuilder.Use_Decoder)
             {
-                //(None, timesteps_decoder=350, input_size_decoder=135)
-
-                var inputSizeDecoder = new int[3];
-                inputSizeDecoder[0] = shapeForFirstLayer[0];
-                inputSizeDecoder[1] = Cfm60NetworkBuilder.Decoder_TimeSteps;
-                inputSizeDecoder[2] = Cfm60NetworkBuilder.Decoder_InputSize;
-                result.Add(inputSizeDecoder);
+                var inputShapeDecoder = new int[]
+                {
+                    shapeForFirstLayer[0],
+                    Cfm60NetworkBuilder.Decoder_TimeSteps,
+                    Cfm60NetworkBuilder.Decoder_InputSize
+                };
+                result.Add(inputShapeDecoder);
             }
             return result;
         }
