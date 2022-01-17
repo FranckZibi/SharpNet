@@ -1,61 +1,107 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
+using JetBrains.Annotations;
 using SharpNet.MathTools;
 
 namespace SharpNet.HPO
 {
-    public abstract class AbstractHPO<T> where T : class, new()
+    public abstract class AbstractHPO<T> where T : class
     {
-        private readonly IDictionary<string, object> _searchSpace;
-        private readonly IDictionary<string, List<HyperParameterStatistics>> _parameter2Stats;
+        private readonly IDictionary<string, HyperParameterSearchSpace> _searchSpace;
+        private readonly Func<T> _createDefaultHyperParameters;
         private readonly DoubleAccumulator _allResults = new DoubleAccumulator();
 
-        protected AbstractHPO(IDictionary<string, object> searchSpace)
+        protected AbstractHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters)
         {
-            _searchSpace = searchSpace;
-            _parameter2Stats = new Dictionary<string, List<HyperParameterStatistics>>();
-
-            foreach (var (parameterName, searchSpaceForParameter) in _searchSpace.OrderBy(e => e.Key))
+            _searchSpace = new Dictionary<string, HyperParameterSearchSpace>();
+            foreach (var e in searchSpace)
             {
-                int searchSpaceSizeForParameter = ComputeParameterValuesLength(searchSpaceForParameter);
-                var parameterStatistics = new List<HyperParameterStatistics>();
-                while (parameterStatistics.Count < searchSpaceSizeForParameter)
+                _searchSpace[e.Key] = new HyperParameterSearchSpace(e.Key, e.Value);
+            }
+            _createDefaultHyperParameters = createDefaultHyperParameters;
+        }
+
+
+        private string StatisticsDescription()
+        {
+            string res = "";
+            foreach (var e in _searchSpace.OrderBy(e=>e.Key))
+            {
+                res += "Stats for " + e.Key + ":"+Environment.NewLine+e.Value;
+            }
+            return res;
+        }
+
+        public void Process(int nbCpuCores, Func<T, double> toPerformOnEachHyperParameters, Action<string> log)
+        {
+            log("Computation(s) will be done on " + nbCpuCores + " cores");
+            var cpuTasks = new Task[nbCpuCores];
+            for (int i = 0; i < cpuTasks.Length; ++i)
+            {
+                cpuTasks[i] = new Task(() => PerformActionsInSingleThread(toPerformOnEachHyperParameters, log));
+                cpuTasks[i].Start();
+            }
+            Task.WaitAll(cpuTasks);
+        }
+
+        /// <summary>
+        /// perform as much actions as possible among 'allActionsToPerform'
+        /// </summary>
+        /// <param name="toPerformOnEachHyperParameters"></param>
+        /// <param name="log"></param>
+        private void PerformActionsInSingleThread([NotNull] Func<T, double> toPerformOnEachHyperParameters, [NotNull] Action<string> log)
+        {
+            for (; ; )
+            {
+                T next;
+                lock (this)
                 {
-                    parameterStatistics.Add(new HyperParameterStatistics());
+                    next = Next;
                 }
-                _parameter2Stats[parameterName] = parameterStatistics;
+                if (next == null)
+                {
+                    log("Finished processing all Hyper-Parameters");
+                    return;
+                }
+                try
+                {
+                    log("starting new computation");
+                    double result = toPerformOnEachHyperParameters(next);
+
+                    _allResults.Add(result, 1);
+                    foreach (var (parameterName, parameterSearchSpace) in _searchSpace)
+                    {
+                        var parameterValue = ClassFieldSetter.Get(next, parameterName);
+                        parameterSearchSpace.RegisterError(parameterValue, result);
+                    }
+                    log("ended new computation");
+                    log($"{Processed} processed search spaces");
+                    log(StatisticsDescription());
+                }
+                catch (Exception e)
+                {
+                    log(e.ToString());
+                    log("ignoring error");
+                }
             }
         }
-
-        public void RegisterSearchSpaceResult(int searchSpaceIndex, double result)
-        {
-            _allResults.Add(result,1);
-            foreach (var (parameterName, parameterNameStatistics) in _parameter2Stats.OrderBy(e => e.Key))
-            {
-                int searchSpaceForParameterLength = ParameterValuesLength(parameterName);
-                parameterNameStatistics[searchSpaceIndex % searchSpaceForParameterLength].RegisterResult(result);
-                searchSpaceIndex /= searchSpaceForParameterLength;
-            }
-        }
-
-
-        public abstract T Next { get; }
 
         /// <summary>
         /// number of processed search spaces
         /// </summary>
-        public int Processed => _allResults.Count;
+        private int Processed => _allResults.Count;
 
-        public int SearchSpaceSize
+        protected int SearchSpaceSize
         {
             get
             {
                 int result = 1;
-                foreach (var v in _parameter2Stats.Values)
+                foreach (var v in _searchSpace.Values)
                 {
-                    result *= v.Count;
+                    result *= v.Length;
                 }
                 return result;
             }
@@ -66,11 +112,12 @@ namespace SharpNet.HPO
         /// </summary>
         /// <param name="searchSpaceIndex"></param>
         /// <returns></returns>
-        public T GetHyperParameters(int searchSpaceIndex)
+        protected T GetHyperParameters(int searchSpaceIndex)
         {
             Debug.Assert(searchSpaceIndex >= 0);
             Debug.Assert(searchSpaceIndex < SearchSpaceSize);
-            var t = new T();
+            var t = _createDefaultHyperParameters();
+
             ClassFieldSetter.Set(t, GetSearchSpaceHyperParameters(searchSpaceIndex));
             return t;
         }
@@ -83,11 +130,10 @@ namespace SharpNet.HPO
         private IDictionary<string, object> GetSearchSpaceHyperParameters(int searchSpaceIndex)
         {
             var searchSpaceParameters = new Dictionary<string, object>();
-            foreach (var e in _searchSpace.OrderBy(e => e.Key))
+            foreach (var (parameterName, parameterValues) in _searchSpace.OrderBy(e => e.Key))
             {
-                var parameterName = e.Key;
                 int parameterValuesLength = ParameterValuesLength(parameterName);
-                searchSpaceParameters[parameterName] = ExtractParameterValueForIndex(parameterValuesLength, searchSpaceIndex % parameterValuesLength);
+                searchSpaceParameters[parameterName] = parameterValues.ExtractParameterValueForIndex(searchSpaceIndex % parameterValuesLength);
                 searchSpaceIndex /= parameterValuesLength;
             }
             return searchSpaceParameters;
@@ -95,65 +141,10 @@ namespace SharpNet.HPO
 
         private int ParameterValuesLength(string parameterName)
         {
-            return _parameter2Stats[parameterName].Count;
+            return _searchSpace[parameterName].Length;
         }
 
-        private static int ComputeParameterValuesLength(object parameterValues)
-        {
-            if (parameterValues is bool[])
-            {
-                return ((bool[])parameterValues).Length;
-            }
-            if (parameterValues is int[])
-            {
-                return ((int[])parameterValues).Length;
-            }
-            if (parameterValues is float[])
-            {
-                return ((float[])parameterValues).Length;
-            }
-            if (parameterValues is double[])
-            {
-                return ((double[])parameterValues).Length;
-            }
-            if (parameterValues is string[])
-            {
-                return ((string[])parameterValues).Length;
-            }
-            if (parameterValues is bool || parameterValues is int || parameterValues is float || parameterValues is double || parameterValues is string)
-            {
-                return 1;
-            }
-            throw new InvalidEnumArgumentException($"can not get size of {parameterValues}");
-        }
 
-        private static object ExtractParameterValueForIndex(object values, int index)
-        {
-            if (values is bool[])
-            {
-                return ((bool[])values)[index];
-            }
-            if (values is int[])
-            {
-                return ((int[])values)[index];
-            }
-            if (values is float[])
-            {
-                return ((float[])values)[index];
-            }
-            if (values is double[])
-            {
-                return ((double[])values)[index];
-            }
-            if (values is string[])
-            {
-                return ((string[])values)[index];
-            }
-            if (values is bool || values is int || values is float || values is double || values is string)
-            {
-                return values;
-            }
-            throw new InvalidEnumArgumentException($"can not extract value of {values} at index {index}");
-        }
+        protected abstract T Next { get; }
     }
 }

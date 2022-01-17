@@ -1,15 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace SharpNet.HPO
 {
-    public class GridSearchHPO<T> : AbstractHPO<T> where T : class, new()
+    public class GridSearchHPO<T> : AbstractHPO<T> where T : class
     {
         private int _nextSearchSpaceIndex;
 
-        public GridSearchHPO(IDictionary<string, object> searchSpace) : base(searchSpace)
+        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters) : base(searchSpace, createDefaultHyperParameters)
         {
         }
-        public override T Next
+
+        protected override T Next
         {
             get
             {

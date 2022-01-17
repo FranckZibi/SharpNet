@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using JetBrains.Annotations;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
@@ -11,14 +11,14 @@ namespace SharpNet.Datasets
     {
         #region private fields
         private readonly int[] _elementIdToCategoryIndex;
-        private readonly CpuTensor<float> _x;
+        protected readonly CpuTensor<float> _x;
         #endregion
 
         /// <summary>
         /// TODO : remove 'elementIdToCategoryIndex' from input
         /// </summary>
-        public InMemoryDataSet([NotNull] CpuTensor<float> x, 
-            [NotNull] CpuTensor<float> y,
+        public InMemoryDataSet([System.Diagnostics.CodeAnalysis.NotNull] CpuTensor<float> x, 
+            [CanBeNull] CpuTensor<float> y,
             string name = "",
             Objective_enum? objective = null,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel = null, 
@@ -34,21 +34,28 @@ namespace SharpNet.Datasets
                 featureNames, 
                 useBackgroundThreadToLoadNextMiniBatch)
         {
-            Debug.Assert(AreCompatible_X_Y(x, y));
+            Debug.Assert(y==null || AreCompatible_X_Y(x, y));
 
             _x = x;
             Y = y;
 
-            _elementIdToCategoryIndex = new int[y.Shape[0]];
-            var ySpan = y.AsReadonlyFloatCpuContent;
-            for (int elementId = 0; elementId < y.Shape[0]; ++elementId)
+            if (Objective == Objective_enum.Regression || y == null)
             {
-                int startIndex = elementId * y.Shape[1];
-                for (int categoryIdx = 0; categoryIdx < y.Shape[1]; ++categoryIdx)
+                _elementIdToCategoryIndex = null;
+            }
+            else
+            {
+                _elementIdToCategoryIndex = new int[y.Shape[0]];
+                var ySpan = y.AsReadonlyFloatCpuContent;
+                for (int elementId = 0; elementId < y.Shape[0]; ++elementId)
                 {
-                    if (ySpan[startIndex + categoryIdx] > 0.9f)
+                    int startIndex = elementId * y.Shape[1];
+                    for (int categoryIdx = 0; categoryIdx < y.Shape[1]; ++categoryIdx)
                     {
-                        _elementIdToCategoryIndex[elementId] = categoryIdx;
+                        if (ySpan[startIndex + categoryIdx] > 0.9f)
+                        {
+                            _elementIdToCategoryIndex[elementId] = categoryIdx;
+                        }
                     }
                 }
             }
@@ -68,10 +75,17 @@ namespace SharpNet.Datasets
         }
 
         public override int Count => _x.Shape[0];
+
         public override int ElementIdToCategoryIndex(int elementId)
         {
+            if (Objective == Objective_enum.Regression)
+            {
+                throw new Exception("can't return a category index for regression");
+            }
+
             return _elementIdToCategoryIndex[elementId];
         }
+
         public override string ElementIdToPathIfAny(int elementId)
         {
             return "";
@@ -80,11 +94,18 @@ namespace SharpNet.Datasets
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
             int rowsInTrainingSet = (int)(percentageInTrainingSet * Count + 0.1);
+            return SplitIntoTrainingAndValidation(rowsInTrainingSet);
+        }
+
+
+        public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(int rowsInTrainingSet)
+        {
             int rowsInValidationSet = Count - rowsInTrainingSet;
-            var training = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(0, rowsInTrainingSet), (CpuTensor<float>)Y.RowSlice(0, rowsInTrainingSet), Name,  Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
+            var training = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(0, rowsInTrainingSet), (CpuTensor<float>)Y.RowSlice(0, rowsInTrainingSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
             var test = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(rowsInTrainingSet, rowsInValidationSet), (CpuTensor<float>)Y.RowSlice(rowsInTrainingSet, rowsInValidationSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
             return new TrainingAndTestDataLoader(training, test, Name);
         }
+
 
         public override CpuTensor<float> X_if_available => _x;
 

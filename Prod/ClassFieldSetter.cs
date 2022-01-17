@@ -38,13 +38,15 @@ namespace SharpNet
         {
             return Utils.ComputeHash(ToConfigContent(t, true), 10);
         }
+
         /// <param name="t"></param>
         /// <param name="path"></param>
         /// <param name="ignoreDefaultValue">if a parameter config is already at its default value, we do not save it</param>
         /// <param name="mandatoryParametersInConfigFile"></param>
         public static void Save<T>(this T t, string path, bool ignoreDefaultValue, HashSet<string> mandatoryParametersInConfigFile = null) where T : new()
         {
-            System.IO.File.WriteAllText(path, ToConfigContent(t, ignoreDefaultValue, mandatoryParametersInConfigFile));
+            var configContent = ToConfigContent(t, ignoreDefaultValue, mandatoryParametersInConfigFile);
+            System.IO.File.WriteAllText(path, configContent);
         }
 
         #region private methods
@@ -85,7 +87,7 @@ namespace SharpNet
                 throw new Exception($"invalid field {fieldName} with value {fieldValue}");
             }
         }
-        private static string FieldValueToString(object fieldValue)
+        public static string FieldValueToString(object fieldValue)
         {
             if (fieldValue == null)
             {
@@ -199,16 +201,16 @@ namespace SharpNet
         /// <summary>
         /// public for testing purpose only
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="t"></param>
         /// <param name="ignoreDefaultValue"></param>
         /// <param name="mandatoryParametersInConfigFile"></param>
         /// <returns></returns>
-        public static string ToConfigContent<T>(T t, bool ignoreDefaultValue, HashSet<string> mandatoryParametersInConfigFile = null) where T : new()
+        public static string ToConfigContent(object t, bool ignoreDefaultValue, HashSet<string> mandatoryParametersInConfigFile = null)
         {
-            var defaultT = new T();
+            var type = t.GetType();
+            var defaultT = type.GetConstructor(Type.EmptyTypes).Invoke(null);
             var result = new List<string>();
-            foreach (var (parameterName, fieldInfo) in GetFieldName2FieldInfo(t.GetType()).OrderBy(f => f.Key))
+            foreach (var (parameterName, fieldInfo) in GetFieldName2FieldInfo(type).OrderBy(f => f.Key))
             {
                 if (ignoreDefaultValue
                     && Equals(fieldInfo.GetValue(t), fieldInfo.GetValue(defaultT))
@@ -221,6 +223,7 @@ namespace SharpNet
             }
             return string.Join(Environment.NewLine, result) + Environment.NewLine;
         }
+
         private static T LoadFromConfigContent<T>(string configContent) where T : new()
         {
             var t = new T();

@@ -14,7 +14,7 @@ namespace SharpNet.DataAugmentation
         ///     Item3:  feature mean
         ///     Item4:  feature volatility
         ///     Item5:  feature correlation with label
-        ///     Item6:  feature importances
+        ///     Item6:  feature importance
         private readonly Tuple<double, double, double, double, double, double>[] FeatureStatistics;
 
         public TimeSeriesDataAugmentation(DataAugmentationConfig config, ITimeSeriesDataSet dataSet, int featuresCount)

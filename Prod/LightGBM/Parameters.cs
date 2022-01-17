@@ -7,6 +7,20 @@ namespace SharpNet.LightGBM
 {
     public class Parameters
     {
+
+        public string DeviceName()
+        {
+
+            if (device_type == device_type_enum.cpu)
+            {
+                return num_threads + "cpu";
+            }
+            else
+            {
+                return "gpu";
+            }
+        }
+
         #region Core Parameters
 
         #region CLI specific

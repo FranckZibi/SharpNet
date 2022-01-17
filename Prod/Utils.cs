@@ -19,31 +19,36 @@ namespace SharpNet
     public static class Utils
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(Utils));
-      
+
         public static string ToValidFileName(string fileName)
         {
             var invalids = new HashSet<char>(Path.GetInvalidFileNameChars());
             return new string(fileName.Select(x => invalids.Contains(x) ? '_' : x).ToArray());
         }
+
         public static int Product(int[] data)
         {
             if ((data == null) || (data.Length == 0))
             {
                 return 0;
             }
+
             var result = data[0];
             for (int i = 1; i < data.Length; ++i)
             {
                 result *= data[i];
             }
+
             return result;
         }
+
         // ReSharper disable once UnusedMember.Global
         public static ulong AvailableRamMemoryInBytes()
         {
             var ramCounter = new PerformanceCounter("Memory", "Available Bytes");
             return (ulong)ramCounter.NextValue();
         }
+
         public static IList<IList<T>> AllPermutations<T>(List<T> data)
         {
             var result = new List<IList<T>>();
@@ -65,13 +70,14 @@ namespace SharpNet
         public static List<T> Repeat<T>(IEnumerable<T> data, int repeatCount)
         {
             var result = new List<T>();
-            foreach(var t in data)
+            foreach (var t in data)
             {
                 for (int i = 0; i < repeatCount; ++i)
                 {
                     result.Add(t);
                 }
             }
+
             return result;
         }
 
@@ -82,16 +88,20 @@ namespace SharpNet
             {
                 return "(?)";
             }
+
             return "(None, " + string.Join(", ", shape.Skip(1)) + ")";
         }
+
         public static string ShapeToString(int[] shape)
         {
             if (shape == null)
             {
                 return "(?)";
             }
+
             return "(" + string.Join(", ", shape) + ")";
         }
+
         public static ulong Sum(this IEnumerable<ulong> vector)
         {
             ulong result = 0;
@@ -99,30 +109,37 @@ namespace SharpNet
             {
                 result += d;
             }
+
             return result;
         }
+
         public static string MemoryBytesToString(ulong bytes)
         {
             if (bytes > 15_000_000_000)
             {
                 return (bytes / 1_000_000_000) + "GB";
             }
+
             if (bytes > 3_000_000)
             {
                 return (bytes / 1_000_000) + "MB";
             }
+
             if (bytes > 3_000)
             {
                 return (bytes / 1_000) + "KB";
             }
+
             return bytes + "B";
         }
-        public static double Interpolate(List<Tuple<double,double>> values, double x, bool constantByInterval = false)
+
+        public static double Interpolate(List<Tuple<double, double>> values, double x, bool constantByInterval = false)
         {
             if (values.Count == 1)
             {
                 return values[0].Item2;
             }
+
             for (int i = 0; i < values.Count; ++i)
             {
                 var x2 = values[i].Item1;
@@ -130,11 +147,13 @@ namespace SharpNet
                 {
                     continue;
                 }
+
                 var y2 = values[i].Item2;
                 if ((Math.Abs(x2 - x) < 1e-9) || i == 0)
                 {
                     return y2;
                 }
+
                 Debug.Assert(x < x2);
                 var x1 = values[i - 1].Item1;
                 Debug.Assert(x > x1);
@@ -143,16 +162,20 @@ namespace SharpNet
                 {
                     return y1;
                 }
+
                 return Interpolate(x1, y1, x2, y2, x);
             }
+
             return values.Last().Item2;
         }
+
         public static double Interpolate(double x1, double y1, double x2, double y2, double xToInterpolate)
         {
             double dEpoch = (xToInterpolate - x1) / (x2 - x1);
             double deltaLearningRate = (y2 - y1);
             return y1 + dEpoch * deltaLearningRate;
         }
+
         public static void UniformDistribution(Span<float> toRandomize, Random rand, double minValue, double maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
@@ -160,13 +183,15 @@ namespace SharpNet
                 toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
             }
         }
+
         public static void UniformDistribution(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
             {
-                toRandomize[j] = (byte)(minValue + rand.Next(maxValue - minValue+1));
+                toRandomize[j] = (byte)(minValue + rand.Next(maxValue - minValue + 1));
             }
         }
+
         public static void NormalDistribution(Span<float> toRandomize, Random rand, double mean, double stdDev)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
@@ -182,12 +207,13 @@ namespace SharpNet
         /// <param name="data"></param>
         /// <returns></returns>
         // ReSharper disable once UnusedMember.Global
-        public static (float mean,float volatility) MeanAndVolatility(ReadOnlySpan<float> data)
+        public static (float mean, float volatility) MeanAndVolatility(ReadOnlySpan<float> data)
         {
             if (data.Length == 0)
             {
                 return (0f, 0f);
             }
+
             double sum = 0f;
             double sumSquare = 0.0;
             foreach (var val in data)
@@ -195,6 +221,7 @@ namespace SharpNet
                 sum += val;
                 sumSquare += val * val;
             }
+
             var mean = (sum / data.Length);
             var variance = (sumSquare / data.Length) - mean * mean;
             var volatility = Math.Sqrt(Math.Max(0, variance));
@@ -212,7 +239,7 @@ namespace SharpNet
         /// <param name="cols">number of columns in matrix 'rectangularMatrix'</param>
         public static void ToOrthogonalMatrix(Span<float> rectangularMatrix, int rows, int cols)
         {
-            Debug.Assert(rectangularMatrix.Length == rows*cols);
+            Debug.Assert(rectangularMatrix.Length == rows * cols);
 
             //We compute the U matrix as described in: https://en.wikipedia.org/wiki/QR_decomposition 
             var U = new Span<float>(new float[rectangularMatrix.Length]);
@@ -256,6 +283,7 @@ namespace SharpNet
             {
                 result += a[i] * b[i];
             }
+
             return result;
         }
 
@@ -271,24 +299,30 @@ namespace SharpNet
                 list[n] = value;
             }
         }
+
         public static int FirstMultipleOfAtomicValueAboveOrEqualToMinimum(int minimum, int atomicValue)
         {
             if (minimum % atomicValue != 0)
             {
                 minimum += atomicValue - minimum % atomicValue;
             }
+
             return minimum;
         }
-        public static string UpdateFilePathChangingExtension(string filePath, string prefix, string suffix, string newExtension)
+
+        public static string UpdateFilePathChangingExtension(string filePath, string prefix, string suffix,
+            string newExtension)
         {
             string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
             if (!newExtension.StartsWith("."))
             {
                 newExtension = "." + newExtension;
             }
+
             string path = GetDirectoryName(filePath);
             return ConcatenatePathWithFileName(path, prefix + fileNameWithoutExtension + suffix + newExtension);
         }
+
         public static string ConcatenatePathWithFileName(string path, params string[] subPaths)
         {
             string result = path;
@@ -296,8 +330,10 @@ namespace SharpNet
             {
                 result = Path.Combine(result, t);
             }
+
             return result;
         }
+
         public static long FileLength(string path)
         {
             return new FileInfo(path).Length;
@@ -321,6 +357,7 @@ namespace SharpNet
                 return b.ReadBytes(byteCount);
             }
         }
+
         public static bool TryGet<T>(this IDictionary<string, object> serialized, string key, out T value)
         {
             if (serialized.TryGetValue(key, out var resAsObject))
@@ -328,6 +365,7 @@ namespace SharpNet
                 value = (T)resAsObject;
                 return true;
             }
+
             value = default;
             return false;
         }
@@ -338,14 +376,17 @@ namespace SharpNet
             {
                 return (T)resAsObject;
             }
+
             return defaultValue;
         }
+
         public static T TryGet<T>(this IDictionary<string, object> serialized, string key)
         {
             if (serialized.TryGetValue(key, out var resAsObject))
             {
                 return (T)resAsObject;
             }
+
             return default;
         }
 
@@ -356,8 +397,10 @@ namespace SharpNet
                 errors += id + ": " + a + " != " + b + Environment.NewLine;
                 return false;
             }
+
             return true;
         }
+
         public static bool Equals(double a, double b, double epsilon, string id, ref string errors)
         {
             if (Math.Abs(a - b) > epsilon)
@@ -365,8 +408,10 @@ namespace SharpNet
                 errors += id + ": " + a + " != " + b + Environment.NewLine;
                 return false;
             }
+
             return true;
         }
+
         public static double BetaDistribution(double a, double b, Random rand)
         {
             var alpha = a + b;
@@ -389,31 +434,36 @@ namespace SharpNet
                 var v = beta * Math.Log(u1 / (1 - u1));
                 w = a * Math.Exp(v);
                 var tmp = Math.Log(alpha / (b + w));
-                if ((alpha*tmp+(gamma*v)-1.3862944) >= Math.Log(u1*u1*u2))
+                if ((alpha * tmp + (gamma * v) - 1.3862944) >= Math.Log(u1 * u1 * u2))
                 {
                     break;
                 }
             }
+
             return w / (b + w);
         }
+
         public static string LoadResourceContent(Assembly assembly, string resourceName)
         {
             using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
-            // ReSharper disable once AssignNullToNotNullAttribute
+                // ReSharper disable once AssignNullToNotNullAttribute
             using (var reader = new StreamReader(resourceStream, Encoding.UTF8))
             {
                 return reader.ReadToEnd();
             }
         }
-        public static T2[] Select<T1,T2>(this ReadOnlySpan<T1> s, Func<T1, T2> select)
+
+        public static T2[] Select<T1, T2>(this ReadOnlySpan<T1> s, Func<T1, T2> select)
         {
             var res = new T2[s.Length];
             for (int i = 0; i < s.Length; ++i)
             {
                 res[i] = select(s[i]);
             }
+
             return res;
         }
+
         public static int Count<T>(this ReadOnlySpan<T> s, Func<T, bool> isIncluded)
         {
             int result = 0;
@@ -424,8 +474,10 @@ namespace SharpNet
                     ++result;
                 }
             }
+
             return result;
         }
+
         public static float Max(this ReadOnlySpan<float> s)
         {
             var result = float.MinValue;
@@ -433,8 +485,10 @@ namespace SharpNet
             {
                 result = Math.Max(result, t);
             }
+
             return result;
         }
+
         public static float Min(this ReadOnlySpan<float> s)
         {
             var result = float.MaxValue;
@@ -442,6 +496,7 @@ namespace SharpNet
             {
                 result = Math.Min(result, t);
             }
+
             return result;
         }
 
@@ -452,14 +507,17 @@ namespace SharpNet
             {
                 result += t;
             }
+
             return result;
         }
+
         public static float Average(this ReadOnlySpan<float> s)
         {
             if (s == null || s.Length == 0)
             {
                 return 0;
             }
+
             return Sum(s) / s.Length;
         }
 
@@ -470,6 +528,7 @@ namespace SharpNet
                 result.Add(new List<T>(data));
                 return;
             }
+
             //var alreadyUsed = new HashSet<T>(); //to discard duplicate solutions
             for (var j = i; j < data.Count; ++j)
             {
@@ -483,6 +542,7 @@ namespace SharpNet
                 data[j] = tmp;
             }
         }
+
         private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
         {
             //uniform(0,1) random double
@@ -494,6 +554,7 @@ namespace SharpNet
             //random normal(mean,stdDev^2)
             return mean + stdDev * randStdNormal;
         }
+
         private static string GetDirectoryName(string path)
         {
             try
@@ -502,6 +563,7 @@ namespace SharpNet
                 {
                     return "";
                 }
+
                 return Path.GetDirectoryName(path);
             }
             catch (Exception)
@@ -509,19 +571,23 @@ namespace SharpNet
                 return "";
             }
         }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Sigmoid(float x)
         {
             return (float)(1 / (1 + Math.Exp(-x)));
         }
+
         public static string GetString(XmlNode node, string keyName)
         {
             return node?.SelectSingleNode(keyName)?.InnerText ?? "";
         }
+
         public static int GetInt(XmlNode node, string keyName, int defaultValue)
         {
             return int.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
         }
+
         public static bool GetBool(XmlNode node, string keyName, bool defaultValue)
         {
             return bool.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
@@ -532,10 +598,10 @@ namespace SharpNet
             lock (lockConfigureLog4netProperties)
             {
                 ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties);
-                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
+                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()),
+                    new FileInfo(@"log4net.config"));
             }
         }
-
 
         public static void ConfigureThreadLog4netProperties(string logDirectory, string logFile)
         {
@@ -592,6 +658,7 @@ namespace SharpNet
             {
                 return "";
             }
+
             using var fs = new FileStream(filePath, FileMode.Open);
             using var bs = new BufferedStream(fs);
             using var sha1 = new SHA1Managed();
@@ -601,6 +668,7 @@ namespace SharpNet
             {
                 formatted.AppendFormat("{0:X2}", b);
             }
+
             return formatted.ToString();
         }
 
@@ -615,17 +683,20 @@ namespace SharpNet
             {
                 return false;
             }
+
             for (int i = 0; i < a.Length; ++i)
             {
                 if (double.IsNaN(a[i]) != double.IsNaN(b[i]))
                 {
                     return false;
                 }
+
                 if (Math.Abs(a[i] - b[i]) > epsilon)
                 {
                     return false;
                 }
             }
+
             return true;
         }
 
@@ -669,10 +740,21 @@ namespace SharpNet
             {
                 sb.Append(t.ToString("X2"));
             }
+
             return sb.ToString().Substring(0, maxLength);
         }
 
-
+        public static int CoreCount
+        {
+            get
+            {
+                int coreCount = 0;
+                foreach (var item in new System.Management.ManagementObjectSearcher("Select * from Win32_Processor").Get())
+                {
+                    coreCount += int.Parse(item["NumberOfCores"].ToString());
+                }
+                return coreCount;
+            }
+        }
     }
-
 }
