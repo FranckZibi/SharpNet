@@ -7,11 +7,21 @@ namespace SharpNet.HPO;
 
 public class HyperParameterSearchSpace
 {
+    #region private fields
     private readonly string _hyperParameterName;
-    private readonly string[] _allValuesAsString;
+    private readonly string[] _allHyperParameterValuesAsString;
     private readonly IDictionary<string, SingleHyperParameterValueStatistics> _statistics = new Dictionary<string, SingleHyperParameterValueStatistics>();
+    #endregion
 
-
+    public HyperParameterSearchSpace(string hyperParameterName, object hyperParameterSearchSpace)
+    {
+        _hyperParameterName = hyperParameterName;
+        _allHyperParameterValuesAsString = ToObjectArray(hyperParameterSearchSpace);
+        foreach (var e in _allHyperParameterValuesAsString)
+        {
+            _statistics[e] = new SingleHyperParameterValueStatistics();
+        }
+    }
     public override string ToString()
     {
         var res = "";
@@ -21,26 +31,21 @@ public class HyperParameterSearchSpace
         }
         return res;
     }
-
-    public HyperParameterSearchSpace(string hyperParameterName, object hyperParameterSearchSpace)
+    public string GetRandomSearchSpaceHyperParameterStringValue(Random rand)
     {
-        _hyperParameterName = hyperParameterName;
-        _allValuesAsString = ToObjectArray(hyperParameterSearchSpace);
-        foreach (var e in _allValuesAsString)
-        {
-            _statistics[e] = new SingleHyperParameterValueStatistics();
-        }
+        int randomIndex = rand.Next(Length);
+        return _allHyperParameterValuesAsString[randomIndex];
     }
-
-    public int Length => _allValuesAsString.Length;
-
-
-    public void RegisterError(object parameterValue, double error)
+    public int Length => _allHyperParameterValuesAsString.Length;
+    public void RegisterError(object parameterValue, double error, double elapsedTimeInSeconds)
     {
-        ParameterValueToStatistics(parameterValue).RegisterError(error);
+        HyperParameterValueToStatistics(parameterValue).RegisterError(error, elapsedTimeInSeconds);
     }
-
-    private SingleHyperParameterValueStatistics ParameterValueToStatistics(object parameterValue)
+    public string HyperParameterStringValueAtIndex(int index)
+    {
+        return _allHyperParameterValuesAsString[index];
+    }
+    private SingleHyperParameterValueStatistics HyperParameterValueToStatistics(object parameterValue)
     {
         var parameterValueAsString = ClassFieldSetter.FieldValueToString(parameterValue);
         if (!_statistics.ContainsKey(parameterValueAsString))
@@ -49,7 +54,6 @@ public class HyperParameterSearchSpace
         }
         return _statistics[parameterValueAsString];
     }
-
     private static string[] ToObjectArray(object parameterValues)
     {
         string[] ToStringObjects<T>(IEnumerable<T> values)
@@ -79,13 +83,8 @@ public class HyperParameterSearchSpace
         }
         if (parameterValues is bool || parameterValues is int || parameterValues is float || parameterValues is double || parameterValues is string)
         {
-            return new[]{ ClassFieldSetter.FieldValueToString(parameterValues) };
+            return new[] { ClassFieldSetter.FieldValueToString(parameterValues) };
         }
         throw new InvalidEnumArgumentException($"can not process {parameterValues}");
-    }
-
-    public string ExtractParameterValueForIndex(int index)
-    {
-        return _allValuesAsString[index];
     }
 }

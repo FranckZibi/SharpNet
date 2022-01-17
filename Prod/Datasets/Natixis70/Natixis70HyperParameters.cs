@@ -16,6 +16,30 @@ namespace SharpNet.Datasets.Natixis70
     public class Natixis70HyperParameters : NetworkBuilder
     {
 
+        public bool IsValid()
+        {
+            if (bagging_freq <= 0)
+            {
+                //bagging is disabled
+                //bagging_fraction must be equal to 1.0 (100%)
+                if (bagging_fraction < 0.999)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                //bagging is enabled
+                //bagging_fraction must be less then 1.0 (100%)
+                if (bagging_fraction > 0.999)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+
         /// <summary>
         /// true if we want to predict all horizons (1d / 1w / 2w) at the same time
         /// false if we want to predict each horizon separately

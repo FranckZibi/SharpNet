@@ -1,14 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SharpNet.HPO
 {
     public class RandomGridSearchHPO<T> : AbstractHPO<T> where T : class, new()
     {
-        private readonly HashSet<int> _processedSearchSpaceIndex = new HashSet<int>();
-        private readonly Random _rand= new Random();
+        #region private fields
+        private readonly Random _rand = new();
+        private readonly HashSet<string> _processedSpaces = new();
+        #endregion
 
-        public RandomGridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters): base(searchSpace, createDefaultHyperParameters)
+        public RandomGridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Func<T, bool> isValid) : 
+            base(searchSpace, createDefaultHyperParameters, isValid)
         {
         }
 
@@ -16,17 +20,28 @@ namespace SharpNet.HPO
         {
             get
             {
-                if (_processedSearchSpaceIndex.Count == SearchSpaceSize)
+                //we'll make '1000' tries to retrieve a new and valid hyper parameter space
+                for (int i = 0; i < 1000; ++i)
                 {
-                    return null;
-                }
-
-                for (int i = 0; i < 10 * SearchSpaceSize; ++i)
-                {
-                    int searchSpaceIndex = _rand.Next(SearchSpaceSize);
-                    if (_processedSearchSpaceIndex.Add(searchSpaceIndex))
+                    var searchSpaceHyperParameters = new Dictionary<string, string>();
+                    foreach (var (parameterName, parameterSearchSpace) in _searchSpace.OrderBy(l => l.Key))
                     {
-                        return GetHyperParameters(searchSpaceIndex);
+                        searchSpaceHyperParameters[parameterName] = parameterSearchSpace.GetRandomSearchSpaceHyperParameterStringValue(_rand);
+                    }
+                    //we ensure that we have not already processed this search space
+                    var searchSpaceHash = ComputeHash(searchSpaceHyperParameters);
+                    lock (_processedSpaces)
+                    {
+                        if (!_processedSpaces.Add(searchSpaceHash))
+                        {
+                            continue; //already processed before
+                        }
+                    }
+                    var t = _createDefaultHyperParameters();
+                    ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
+                    if (_isValid(t))
+                    {
+                        return t;
                     }
                 }
                 return null;

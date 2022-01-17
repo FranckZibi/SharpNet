@@ -257,9 +257,9 @@ namespace SharpNet.LightGBM
         //can be used to deal with over-fitting
         //Note: unlike feature_fraction, this cannot speed up training
         //Note: if both feature_fraction and feature_fraction_bynode are smaller than 1.0, the final fraction of each node is feature_fraction * feature_fraction_bynode
-        // aliases: sub_feature_bynode, colsample_bynode
+        // aliases: sub_feature_bynode, feature_fraction_bynode  
         // constraints: 0.0 < feature_fraction_bynode <= 1.0
-        public double feature_fraction_bynode = 1.0;
+        public double colsample_bynode = 1.0;
 
         //random seed for feature_fraction
         public int feature_fraction_seed = 2;

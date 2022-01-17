@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using SharpNet.MathTools;
@@ -10,11 +11,12 @@ namespace SharpNet.HPO
 {
     public abstract class AbstractHPO<T> where T : class
     {
-        private readonly IDictionary<string, HyperParameterSearchSpace> _searchSpace;
-        private readonly Func<T> _createDefaultHyperParameters;
+        protected readonly IDictionary<string, HyperParameterSearchSpace> _searchSpace;
+        protected readonly Func<T> _createDefaultHyperParameters;
+        protected readonly Func<T, bool> _isValid;
         private readonly DoubleAccumulator _allResults = new DoubleAccumulator();
 
-        protected AbstractHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters)
+        protected AbstractHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Func<T, bool> isValid)
         {
             _searchSpace = new Dictionary<string, HyperParameterSearchSpace>();
             foreach (var e in searchSpace)
@@ -22,6 +24,7 @@ namespace SharpNet.HPO
                 _searchSpace[e.Key] = new HyperParameterSearchSpace(e.Key, e.Value);
             }
             _createDefaultHyperParameters = createDefaultHyperParameters;
+            _isValid = isValid;
         }
 
 
@@ -69,13 +72,15 @@ namespace SharpNet.HPO
                 try
                 {
                     log("starting new computation");
+                    var sw = Stopwatch.StartNew();
                     double result = toPerformOnEachHyperParameters(next);
+                    double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
 
                     _allResults.Add(result, 1);
                     foreach (var (parameterName, parameterSearchSpace) in _searchSpace)
                     {
                         var parameterValue = ClassFieldSetter.Get(next, parameterName);
-                        parameterSearchSpace.RegisterError(parameterValue, result);
+                        parameterSearchSpace.RegisterError(parameterValue, result, elapsedTimeInSeconds);
                     }
                     log("ended new computation");
                     log($"{Processed} processed search spaces");
@@ -94,49 +99,27 @@ namespace SharpNet.HPO
         /// </summary>
         private int Processed => _allResults.Count;
 
-        protected int SearchSpaceSize
+        protected static IDictionary<string, object> FromString2String_to_String2Object(IDictionary<string, string> dicoString2String)
         {
-            get
+            var dicoString2Object = new Dictionary<string, object>();
+            foreach (var (key, value) in dicoString2String)
             {
-                int result = 1;
-                foreach (var v in _searchSpace.Values)
-                {
-                    result *= v.Length;
-                }
-                return result;
+                dicoString2Object[key] = value;
             }
+            return dicoString2Object;
         }
 
-        /// <summary>
-        /// return the complete set of hyper parameters to be used for 'searchSpaceIndex'
-        /// </summary>
-        /// <param name="searchSpaceIndex"></param>
-        /// <returns></returns>
-        protected T GetHyperParameters(int searchSpaceIndex)
-        {
-            Debug.Assert(searchSpaceIndex >= 0);
-            Debug.Assert(searchSpaceIndex < SearchSpaceSize);
-            var t = _createDefaultHyperParameters();
 
-            ClassFieldSetter.Set(t, GetSearchSpaceHyperParameters(searchSpaceIndex));
-            return t;
-        }
+      
 
-        /// <summary>
-        /// return the sub set of hyper parameters for 'searchSpaceIndex' (with their associated values) 
-        /// </summary>
-        /// <param name="searchSpaceIndex"></param>
-        /// <returns></returns>
-        private IDictionary<string, object> GetSearchSpaceHyperParameters(int searchSpaceIndex)
+        protected static string ComputeHash(IDictionary<string, string> dico)
         {
-            var searchSpaceParameters = new Dictionary<string, object>();
-            foreach (var (parameterName, parameterValues) in _searchSpace.OrderBy(e => e.Key))
+            var sb = new StringBuilder();
+            foreach (var e in dico.OrderBy(t => t.Key))
             {
-                int parameterValuesLength = ParameterValuesLength(parameterName);
-                searchSpaceParameters[parameterName] = parameterValues.ExtractParameterValueForIndex(searchSpaceIndex % parameterValuesLength);
-                searchSpaceIndex /= parameterValuesLength;
+                sb.Append(e.Key + ":" + e.Value + " ");
             }
-            return searchSpaceParameters;
+            return Utils.ComputeHash(sb.ToString(), 8);
         }
 
         private int ParameterValuesLength(string parameterName)
