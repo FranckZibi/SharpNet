@@ -16,6 +16,12 @@ namespace SharpNet.Datasets.Natixis70
     public class Natixis70HyperParameters : NetworkBuilder
     {
 
+
+        public void ToBeCalledAfterEachConstruction()
+        {
+            Update_categorical_feature_field();
+        }
+
         public bool IsValid()
         {
             if (bagging_freq <= 0)
@@ -36,6 +42,14 @@ namespace SharpNet.Datasets.Natixis70
                     return false;
                 }
             }
+
+            if (MergeHorizonAndMarketIdInSameFeature)
+            {
+                if (TryToPredictAllMarketsAtTheSameTime || TryToPredictAllHorizonAtTheSameTime)
+                {
+                    return false;
+                }
+            }
             return true;
         }
 
@@ -52,12 +66,16 @@ namespace SharpNet.Datasets.Natixis70
         /// </summary>
         public bool TryToPredictAllMarketsAtTheSameTime = false;
 
+        public bool MergeHorizonAndMarketIdInSameFeature = false;
+
+
         /// <summary>
         /// normalize all label:
         ///     y = (y -average(y)) / volatility(y)
         /// </summary>
-        public bool NormalizeAllLabels = false;
+        public normalize_enum Normalization = normalize_enum.NONE;
 
+        public enum normalize_enum {NONE, MINUS_MEAN_DIVIDE_BY_VOL, DIVIDE_BY_ABS_MEAN};
 
         public double PercentageInTraining = 0.8;
 
@@ -73,21 +91,35 @@ namespace SharpNet.Datasets.Natixis70
             return featureNames.ToArray();
         }
 
+
+        public void Update_categorical_feature_field()
+        {
+            var categoricalFeaturesFieldValue = (CategoricalFeatures().Count >= 1) ? ("name:" + string.Join(',', CategoricalFeatures())) : "";
+            categorical_feature = categoricalFeaturesFieldValue;
+        }
+
         public List<string> CategoricalFeatures()
         {
             var categoricalFeatures = new List<string>();
-
-            if (!TryToPredictAllMarketsAtTheSameTime)
+            if (MergeHorizonAndMarketIdInSameFeature)
             {
-                categoricalFeatures.Add("marketId");
+                Debug.Assert(!TryToPredictAllMarketsAtTheSameTime);
+                Debug.Assert(!TryToPredictAllHorizonAtTheSameTime);
+                categoricalFeatures.Add("marketIdhorizonId");
             }
-            if (!TryToPredictAllHorizonAtTheSameTime)
+            else
             {
-                categoricalFeatures.Add("horizonId");
+                if (!TryToPredictAllMarketsAtTheSameTime)
+                {
+                    categoricalFeatures.Add("marketId");
+                }
+                if (!TryToPredictAllHorizonAtTheSameTime)
+                {
+                    categoricalFeatures.Add("horizonId");
+                }
             }
             return categoricalFeatures;
         }
-
 
         public void SavePredictions(CpuTensor<float> y, string path)
         {
@@ -159,13 +191,23 @@ namespace SharpNet.Datasets.Natixis70
         public int[] X_Shape(int xRowCount)
         {
             int xColCount = Natixis70Utils.EMBEDDING_DIMENSION;
-            if (!TryToPredictAllHorizonAtTheSameTime)
+
+            if (MergeHorizonAndMarketIdInSameFeature)
             {
-                xColCount += 1; //we'll have on more feature : the horizon to predict (1d / 1w / 2w)
+                Debug.Assert(!TryToPredictAllMarketsAtTheSameTime);
+                Debug.Assert(!TryToPredictAllHorizonAtTheSameTime);
+                xColCount += 1; //we'll have one single feature for both market to predict and horizon
             }
-            if (!TryToPredictAllMarketsAtTheSameTime)
+            else
             {
-                xColCount += 1; //we'll have on more feature : the market to predict (VIX, EURUSD, etc...)
+                if (!TryToPredictAllHorizonAtTheSameTime)
+                {
+                    xColCount += 1; //we'll have one more feature : the horizon to predict (1d / 1w / 2w)
+                }
+                if (!TryToPredictAllMarketsAtTheSameTime)
+                {
+                    xColCount += 1; //we'll have one more feature : the market to predict (VIX, EURUSD, etc...)
+                }
             }
             return new[] { RawCountToCount(xRowCount), xColCount };
         }

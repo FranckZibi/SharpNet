@@ -11,8 +11,8 @@ namespace SharpNet.HPO
         private int _nextSearchSpaceIndex;
         #endregion
 
-        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Func<T, bool> isValid) 
-            : base(searchSpace, createDefaultHyperParameters, isValid)
+        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Action<T> postBuild, Func<T, bool> isValid) 
+            : base(searchSpace, createDefaultHyperParameters, postBuild, isValid)
         {
         }
 
@@ -35,6 +35,7 @@ namespace SharpNet.HPO
                 }
                 var t = _createDefaultHyperParameters();
                 ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
+                _postBuild(t);
                 return _isValid(t) ? t : Next;
             }
         }

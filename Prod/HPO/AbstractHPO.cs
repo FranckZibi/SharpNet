@@ -13,10 +13,11 @@ namespace SharpNet.HPO
     {
         protected readonly IDictionary<string, HyperParameterSearchSpace> _searchSpace;
         protected readonly Func<T> _createDefaultHyperParameters;
+        protected readonly Action<T> _postBuild;
         protected readonly Func<T, bool> _isValid;
         private readonly DoubleAccumulator _allResults = new DoubleAccumulator();
 
-        protected AbstractHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Func<T, bool> isValid)
+        protected AbstractHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Action<T> postBuild, Func<T, bool> isValid)
         {
             _searchSpace = new Dictionary<string, HyperParameterSearchSpace>();
             foreach (var e in searchSpace)
@@ -24,6 +25,7 @@ namespace SharpNet.HPO
                 _searchSpace[e.Key] = new HyperParameterSearchSpace(e.Key, e.Value);
             }
             _createDefaultHyperParameters = createDefaultHyperParameters;
+            _postBuild = postBuild;
             _isValid = isValid;
         }
 

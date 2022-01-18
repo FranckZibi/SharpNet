@@ -60,15 +60,24 @@ namespace SharpNet.Datasets.Natixis70
                 {
                     xSpan[xSpanIndex++] = xRawSpan[rawRow * xRaw.Shape[1] + col];
                 }
-                if (marketId >= 0)
-                {
-                    xSpan[xSpanIndex++] = marketId;
-                }
-                if (horizonId >= 0)
-                {
-                    xSpan[xSpanIndex++] = horizonId;
-                }
 
+                if (hyperParameters.MergeHorizonAndMarketIdInSameFeature)
+                {
+                    Debug.Assert(marketId >= 0);
+                    Debug.Assert(horizonId >= 0);
+                    xSpan[xSpanIndex++] = marketId*Natixis70Utils.HORIZON_NAMES.Length+ horizonId;
+                }
+                else
+                {
+                    if (marketId >= 0)
+                    {
+                        xSpan[xSpanIndex++] = marketId;
+                    }
+                    if (horizonId >= 0)
+                    {
+                        xSpan[xSpanIndex++] = horizonId;
+                    }
+                }
                 if (yRaw != null)
                 {
                     //we load the row 'row' in 'y' tensor
@@ -78,10 +87,15 @@ namespace SharpNet.Datasets.Natixis70
                         {
                             int rawColIndex = 1 + HORIZON_NAMES.Length * currentMarketId + currentHorizonId;
                             var yRawValue = yRawSpan[rawRow * yRaw.Shape[1] + rawColIndex];
-                            if (hyperParameters.NormalizeAllLabels)
+                            if (hyperParameters.Normalization == Natixis70HyperParameters.normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
                             {
                                 var colStatistics = Y_RAW_statistics[rawColIndex-1];
                                 yRawValue = (float) ((yRawValue - colStatistics.Average) / colStatistics.Volatility);
+                            }
+                            else if (hyperParameters.Normalization == Natixis70HyperParameters.normalize_enum.DIVIDE_BY_ABS_MEAN)
+                            {
+                                var absColStatistics = Y_RAW_abs_statistics[rawColIndex - 1];
+                                yRawValue = (float)(yRawValue / absColStatistics.Average);
                             }
                             ySpan[ySpanIndex++] = yRawValue;
                         }
