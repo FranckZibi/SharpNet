@@ -29,11 +29,6 @@ namespace SharpNet
         {
             return GetFieldInfo(o.GetType(), fieldName).GetValue(o);
         }
-
-        public static T Clone<T>(this T t) where T: new()
-        {
-            return LoadFromConfigContent<T>(ToConfigContent(t, false));
-        }
         public static string ComputeHash<T>(this T t) where T : new()
         {
             return Utils.ComputeHash(ToConfigContent(t, true), 10);

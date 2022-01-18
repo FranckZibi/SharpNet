@@ -22,7 +22,10 @@ namespace SharpNet.LightGBM
         /// <summary>
         /// parameters that must be present in the config file, even if they have the default value
         /// </summary>
-        private static readonly HashSet<string> MandatoryParametersInConfigFile = new HashSet<string> { "objective", "task" };
+        private static readonly HashSet<string> MandatoryParametersInConfigFile = new()
+        {
+            "bagging_fraction", "bagging_freq", "colsample_bynode","colsample_bytree", "device_type", "early_stopping_round", "extra_trees", "lambda_l1", "lambda_l2", "learning_rate","max_bin", "max_depth", "MergeHorizonAndMarketIdInSameFeature", "min_sum_hessian_in_leaf", "min_data_in_bin", "min_data_in_leaf", "Normalization", "num_iterations", "num_leaves", "num_threads", "objective", "path_smooth", "task"
+        };
         //private static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "CFM63");
         private readonly string _workingDirectory;
         private readonly string _modelPrefix;
@@ -86,13 +89,12 @@ namespace SharpNet.LightGBM
             }
 
             var modelHash = _parameters.ComputeHash();
-            _modelPath = Path.Combine(_workingDirectory, "Models",  (string.IsNullOrEmpty(_modelPrefix) ? "" : "_") + modelHash  + ".txt");
+            _modelPath = Path.Combine(_workingDirectory, (string.IsNullOrEmpty(_modelPrefix) ? "" : "_") + modelHash  + ".txt");
             ClassFieldSetter.Set(_parameters, "output_model", _modelPath);
             var configFilePath = _modelPath.Replace(".txt", ".conf");
             Log.Info($"Training model {ModelName} with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
             Launch(configFilePath);
         }
-
 
         public (double,double) CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
         {
@@ -102,12 +104,9 @@ namespace SharpNet.LightGBM
             Log.Info("Computing Model Accuracy on Training");
             var rmseTrain = ComputeRmse(UnNormalizeYIfNeeded(trainDataset.Y), trainPredictions);
             Log.Info($"Model Accuracy on training: {rmseTrain}");
-
-            var trainPredictionsFileName = ModelName + "_train_"+Math.Round(rmseTrain, 5) + ".csv";
-
+            var trainPredictionsFileName = ModelName + "_predict_train_"+Math.Round(rmseTrain, 5) + ".csv";
             Log.Info("Saving predictions for Training Dataset");
-            var trainPredictionPath = Path.Combine(TrainingPredictionPath, trainPredictionsFileName);
-            savePredictions(trainPredictions, trainPredictionPath);
+            savePredictions(trainPredictions, Path.Combine(_workingDirectory, trainPredictionsFileName));
 
             double rmseValidation = double.NaN;
             if (validationDataset != null)
@@ -121,11 +120,9 @@ namespace SharpNet.LightGBM
 
                 Log.Info("Saving predictions for Validation Dataset");
                 var validationPredictionsFileName = ModelName
-                                          + "_valid_" + Math.Round(rmseValidation, 5)
-                                          + "_train_" + Math.Round(rmseTrain, 5)
+                                          + "_predict_valid_" + Math.Round(rmseValidation, 5)
                                           + ".csv";
-                var validationPredictionPath  = Path.Combine(ValidationPredictionPath, validationPredictionsFileName);
-                savePredictions(validationPredictions, validationPredictionPath);
+                savePredictions(validationPredictions, Path.Combine(_workingDirectory, validationPredictionsFileName));
             }
 
             if (testDataset != null)
@@ -133,12 +130,12 @@ namespace SharpNet.LightGBM
                 Log.Info("Computing Model predictions for Test Dataset");
                 var testPredictions = Predict(testDataset);
                 Log.Info("Saving predictions for Test Dataset");
-                var testPredictionsFileName = ModelName 
-                                      + (double.IsNaN(rmseValidation) ? "" : ("_valid_" + Math.Round(rmseValidation, 4)))
-                                      + "_train_" + Math.Round(rmseTrain, 5)
-                                      + ".csv";
-                var testPredictionPath = Path.Combine(TestPredictionPath, testPredictionsFileName);
-                savePredictions(testPredictions, testPredictionPath);
+                var testPredictionsFileName = ModelName
+                                              + "_predict_test_"
+                                              + (double.IsNaN(rmseValidation) ? "" : Math.Round(rmseValidation, 5))
+                                              + "_train_" + Math.Round(rmseTrain, 5)
+                                              + ".csv";
+                savePredictions(testPredictions, Path.Combine(_workingDirectory, testPredictionsFileName));
             }
 
 
@@ -232,11 +229,6 @@ namespace SharpNet.LightGBM
         private static string ExePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "bin", "lightgbm.exe");
         private string RootDatasetPath => Path.Combine(_workingDirectory, "Dataset");
         private string TempPath => Path.Combine(_workingDirectory, "Temp");
-
-        private string TrainingPredictionPath => Path.Combine(_workingDirectory, "train_predictions");
-        private string ValidationPredictionPath => Path.Combine(_workingDirectory, "validation_predictions");
-        private string TestPredictionPath => Path.Combine(_workingDirectory, "test_predictions");
-
 
         private string DatasetPath(IDataSet dataset, Parameters.task_enum task) => Path.Combine(RootDatasetPath, ComputeUniqueDatasetName(dataset, task) + ".csv");
         private static bool ShouldSaveLabel(Parameters.task_enum task)

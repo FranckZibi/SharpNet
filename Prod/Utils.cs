@@ -756,5 +756,116 @@ namespace SharpNet
                 return coreCount;
             }
         }
+
+
+        /// <summary>
+        /// Compute the % time to invest on each use case, knowing the error associated with each use case
+        /// </summary>
+        /// <param name="errors">
+        /// each use case is a tuple with 3 values:
+        ///     Item1 : the error to minimize
+        ///     Item2 : the volatility around this error
+        ///     Item3 : the number of experiments made to compute this error
+        /// </param>
+        /// <returns>
+        /// For each use case, the % of time (between 0 and 1.0) we are willing to invest to explore this use case
+        ///  => a value close to 1 means we want to invest most of our time on this use case (because it seems very promising
+        ///  => a value close to 0 means we want to invest very little time on this usecase (because it doesn't seem use full)
+        /// </returns>
+        public static double[] TargetCpuInvestmentTime(List<Tuple<double, double, int>> errors)
+        {
+            double[] result = new double[errors.Count];
+            //by default we want to invest the exact same time for each parameter
+            for (int i = 0; i < errors.Count; ++i)
+            {
+                result[i] = 1.0 / errors.Count;
+            }
+            if (errors.Count <= 1)
+            {
+                return result;
+            }
+
+            var valueWithIndex = new List<Tuple<Tuple<double, double, int>, int>>();
+            for (int i = 0; i < errors.Count; ++i)
+            {
+                if (errors[i].Item3 <= 1)
+                {
+                    //if the error is computed on 0 or 1 experiment, we can not rely on the associated error,
+                    //so the associated use case will have the mean cpu time of all use cases
+                    continue;
+                }
+                valueWithIndex.Add(Tuple.Create(errors[i], i));
+            }
+            if (valueWithIndex.Count <= 1)
+            {
+                //we have 1 (or 0) use case with relevant info : we'll use the same amount of time for all use cases
+                return result; 
+            }
+
+            //we order all relevant use cases (at least 2 experiments) from the lowest to the max error
+            valueWithIndex = valueWithIndex.OrderBy((t => t.Item1.Item1)).ToList();
+            var weights = new List<double>();
+            weights.Add(1);
+            var bestUseCase = valueWithIndex[0].Item1;
+            var lowestError = bestUseCase.Item1;
+            var volatilityOfBestUseCase = bestUseCase.Item2;
+            const double MinPonderation = 0.05;
+            for (int i = 1; i < valueWithIndex.Count; ++i)
+            {
+                var currentUseCase = valueWithIndex[i].Item1;
+                var currentError = currentUseCase.Item1;
+                var currentVolatility = currentUseCase.Item2;
+                var volatility = Math.Max(volatilityOfBestUseCase, currentVolatility);
+
+                var lowestErrorInfMargin = lowestError - volatility;
+                var lowestErrorSupMargin = lowestError + volatility;
+                var currentErrorInfMargin = currentError - volatility;
+
+                if (currentErrorInfMargin >= lowestErrorSupMargin)
+                {
+                    weights.Add(MinPonderation);
+                    continue;
+                }
+
+                double percentageInCommon = (lowestErrorSupMargin - currentErrorInfMargin) /  (lowestErrorSupMargin - lowestErrorInfMargin);
+                double weight = percentageInCommon / (2 - percentageInCommon);
+                Debug.Assert(weight<=1.0001);
+                Debug.Assert(weight>=0.0);
+                weights.Add(Math.Max(MinPonderation, weight));
+            }
+
+            double expectedWeightSum = valueWithIndex.Count / ((double)errors.Count);
+            double observedWeightSum = weights.Sum();
+
+            for (var i = 0; i < valueWithIndex.Count; i++)
+            {
+                var normalizedWeights = weights[i]*(expectedWeightSum/ observedWeightSum);
+                result[valueWithIndex[i].Item2 ] = normalizedWeights;
+            }
+            Debug.Assert(Math.Abs(result.ToList().Sum()-1)<=1e-5);
+            return result;
+        }
+
+
+        public static int RandomIndexBasedOnWeights(double[] weights, Random rand)
+        {
+            if (weights.Length <= 1)
+            {
+                return 0;
+            }
+            Debug.Assert(weights.Min() >= 0.0);
+            var targetSum = weights.Sum() * rand.NextDouble();
+            var currentSum = 0.0;
+            for (int i = 0; i < weights.Length; i++)
+            {
+                currentSum += weights[i];
+                if (targetSum <= currentSum)
+                {
+                    return i;
+                }
+            }
+            return weights.Length - 1;
+        }
     }
+
 }

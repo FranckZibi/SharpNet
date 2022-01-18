@@ -51,7 +51,7 @@ namespace SharpNet.Datasets.Natixis70
             //{ "colsample_bynode", new[]{0.5,1.0}},
         };
 
-            var hpo = new RandomGridSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid());
+            var hpo = new RandomSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid(), HyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING);
             hpo.Process(Utils.CoreCount, t => TrainWithHyperParameters(t, ""), LightGBMModel.Log.Info);
         }
 

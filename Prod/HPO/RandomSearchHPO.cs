@@ -4,16 +4,19 @@ using System.Linq;
 
 namespace SharpNet.HPO
 {
-    public class RandomGridSearchHPO<T> : AbstractHPO<T> where T : class, new()
+    public class RandomSearchHPO<T> : AbstractHPO<T> where T : class, new()
     {
+        private readonly HyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
+
         #region private fields
         private readonly Random _rand = new();
         private readonly HashSet<string> _processedSpaces = new();
         #endregion
 
-        public RandomGridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Action<T> postBuild, Func<T, bool> isValid) : 
+        public RandomSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Action<T> postBuild, Func<T, bool> isValid, HyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption) : 
             base(searchSpace, createDefaultHyperParameters, postBuild, isValid)
         {
+            _randomSearchOption = randomSearchOption;
         }
 
         protected override T Next
@@ -26,7 +29,7 @@ namespace SharpNet.HPO
                     var searchSpaceHyperParameters = new Dictionary<string, string>();
                     foreach (var (parameterName, parameterSearchSpace) in _searchSpace.OrderBy(l => l.Key))
                     {
-                        searchSpaceHyperParameters[parameterName] = parameterSearchSpace.GetRandomSearchSpaceHyperParameterStringValue(_rand);
+                        searchSpaceHyperParameters[parameterName] = parameterSearchSpace.GetRandomSearchSpaceHyperParameterStringValue(_rand, _randomSearchOption);
                     }
                     //we ensure that we have not already processed this search space
                     var searchSpaceHash = ComputeHash(searchSpaceHyperParameters);

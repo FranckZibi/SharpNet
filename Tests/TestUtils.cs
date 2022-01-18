@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using SharpNet;
@@ -83,6 +85,62 @@ namespace SharpNetTests
         {
             Assert.AreEqual(new Version(9, 2), Utils.NewVersionXXYY0(9020));
             Assert.AreEqual(new Version(10, 1), Utils.NewVersionXXYY0(10010));
+        }
+
+
+        [Test]
+        public void TestTargetCpuInvestmentTime()
+        {
+            AssertAreEqual(Array.Empty<double>(), Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>>()), 1e-6);
+
+            var empty = Tuple.Create(0.0, 0.0, 0);
+            var single_lowError = Tuple.Create(5.0, 0.0, 1);
+            var single_highError = Tuple.Create(10.0, 0.0, 1);
+            var lowError = Tuple.Create(5.0, 5.0, 99);
+            var highError = Tuple.Create(10.0, 5.0, 99);
+
+            foreach (var e in new [] { empty, single_highError, single_lowError, lowError, highError })
+            {
+                AssertAreEqual(new[] { 1.0 },  Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { e }), 1e-6);
+            }
+
+            foreach (var e in new[] { empty, single_highError, single_lowError, lowError, highError })
+            {
+                AssertAreEqual(new[] { 0.5, 0.5 }, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { empty, e }), 1e-6);
+            }
+
+            foreach (var e in new[] { empty, single_highError, single_lowError, lowError, highError })
+            {
+                AssertAreEqual(new[] { 0.25, 0.25, 0.25 , 0.25 }, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { empty, e, single_highError, single_lowError }), 1e-6);
+            }
+
+            AssertAreEqual(new[] { 0.75, 0.25}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { lowError, highError }), 1e-6);
+            AssertAreEqual(new[] { 0.25, 0.75}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { highError, lowError  }), 1e-6);
+            AssertAreEqual(new[] { 0.25, 0.25/2, 0.75/2, 0.25}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { single_highError, highError, lowError, single_lowError  }), 1e-6);
+        }
+
+        private static void AssertAreEqual(double[] expected, double[] observed, double epsilon)
+        {
+            Assert.AreEqual(expected.Length, observed.Length);
+            for (int i = 0; i < expected.Length; ++i)
+            {
+                Assert.AreEqual(expected[i], observed[i], epsilon);
+            }
+        }
+
+        [Test]
+        public void TestRandomIndexBasedOnWeights()
+        {
+            var rand = new Random();
+            var weights = new[] { 3 * 1.0, 3 * 7.0, 3 * 2.0 };
+            var indexes = new int[weights.Length];
+            for (int i = 0; i < 10000; ++i)
+            {
+                ++indexes[Utils.RandomIndexBasedOnWeights(weights, rand)];
+            }
+            Debug.Assert(Math.Abs(indexes[0] - 1000) < 100);
+            Debug.Assert(Math.Abs(indexes[1] - 7000) < 500);
+            Debug.Assert( Math.Abs(indexes[2]-2000)<200 );
         }
     }
 }
