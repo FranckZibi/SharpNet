@@ -24,7 +24,7 @@ namespace SharpNet.LightGBM
         /// </summary>
         private static readonly HashSet<string> MandatoryParametersInConfigFile = new()
         {
-            "bagging_fraction", "bagging_freq", "colsample_bynode","colsample_bytree", "device_type", "early_stopping_round", "extra_trees", "lambda_l1", "lambda_l2", "learning_rate","max_bin", "max_depth", "MergeHorizonAndMarketIdInSameFeature", "min_sum_hessian_in_leaf", "min_data_in_bin", "min_data_in_leaf", "Normalization", "num_iterations", "num_leaves", "num_threads", "objective", "path_smooth", "task"
+            "bagging_fraction", "colsample_bynode","colsample_bytree", "device_type", "early_stopping_round", "extra_trees", "lambda_l1", "lambda_l2", "learning_rate","max_bin", "max_depth", "min_sum_hessian_in_leaf", "min_data_in_bin", "min_data_in_leaf", "num_iterations", "num_leaves", "num_threads", "objective", "path_smooth", "task"
         };
         //private static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "CFM63");
         private readonly string _workingDirectory;
@@ -96,7 +96,18 @@ namespace SharpNet.LightGBM
             Launch(configFilePath);
         }
 
-        public (double,double) CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="savePredictions"></param>
+        /// <param name="UnNormalizeYIfNeeded"></param>
+        /// <param name="trainingTimeInSeconds"></param>
+        /// <param name="totalParams"></param>
+        /// <param name="trainDataset"></param>
+        /// <param name="validationDataset"></param>
+        /// <param name="testDataset"></param>
+        /// <returns>the cost associated with the model</returns>
+        public double CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
         {
             Log.Info("Computing Model predictions for Training Dataset");
             var trainPredictions = UnNormalizeYIfNeeded(Predict(trainDataset));
@@ -131,10 +142,7 @@ namespace SharpNet.LightGBM
                 var testPredictions = Predict(testDataset);
                 Log.Info("Saving predictions for Test Dataset");
                 var testPredictionsFileName = ModelName
-                                              + "_predict_test_"
-                                              + (double.IsNaN(rmseValidation) ? "" : Math.Round(rmseValidation, 5))
-                                              + "_train_" + Math.Round(rmseTrain, 5)
-                                              + ".csv";
+                                              + "_predict_test_.csv";
                 savePredictions(testPredictions, Path.Combine(_workingDirectory, testPredictionsFileName));
             }
 
@@ -166,7 +174,7 @@ namespace SharpNet.LightGBM
                 Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
             }
 
-            return (rmseTrain,rmseValidation);
+            return rmseValidation;
         }
 
         // ReSharper disable once MemberCanBePrivate.Global

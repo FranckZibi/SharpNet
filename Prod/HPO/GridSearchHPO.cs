@@ -5,14 +5,14 @@ using System.Linq;
 
 namespace SharpNet.HPO
 {
-    public class GridSearchHPO<T> : AbstractHPO<T> where T : class
+    public class GridSearchHPO<T> : AbstractHpo<T> where T : class
     {
         #region private fields
-        private int _nextSearchSpaceIndex;
+        private int _nextSampleIndex;
         #endregion
 
-        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Action<T> postBuild, Func<T, bool> isValid) 
-            : base(searchSpace, createDefaultHyperParameters, postBuild, isValid)
+        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample) 
+            : base(searchSpace, createDefaultSample, postBuild, isValidSample)
         {
         }
 
@@ -20,23 +20,23 @@ namespace SharpNet.HPO
         {
             get
             {
-                if (_nextSearchSpaceIndex >= SearchSpaceSize)
+                if (_nextSampleIndex >= SearchSpaceSize)
                 {
                     return null;
                 }
-                var currentSearchSpaceIndex = _nextSearchSpaceIndex++;
-                Debug.Assert(currentSearchSpaceIndex >= 0);
-                Debug.Assert(currentSearchSpaceIndex < SearchSpaceSize);
-                var searchSpaceHyperParameters = new Dictionary<string, string>();
-                foreach (var (parameterName, parameterValues) in _searchSpace.OrderBy(e => e.Key))
+                var currentSampleIndex = _nextSampleIndex++;
+                Debug.Assert(currentSampleIndex >= 0);
+                Debug.Assert(currentSampleIndex < SearchSpaceSize);
+                var sample = new Dictionary<string, string>();
+                foreach (var (parameterName, parameterValues) in SearchSpace.OrderBy(e => e.Key))
                 {
-                    searchSpaceHyperParameters[parameterName] = parameterValues.HyperParameterStringValueAtIndex(currentSearchSpaceIndex % parameterValues.Length);
-                    _nextSearchSpaceIndex /= parameterValues.Length;
+                    sample[parameterName] = parameterValues.HyperParameterStringValueAtIndex(currentSampleIndex % parameterValues.Length);
+                    _nextSampleIndex /= parameterValues.Length;
                 }
-                var t = _createDefaultHyperParameters();
-                ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
-                _postBuild(t);
-                return _isValid(t) ? t : Next;
+                var t = CreateDefaultSample();
+                ClassFieldSetter.Set(t, FromString2String_to_String2Object(sample));
+                PostBuild(t);
+                return IsValidSample(t) ? t : Next;
             }
         }
 
@@ -45,7 +45,7 @@ namespace SharpNet.HPO
             get
             {
                 int result = 1;
-                foreach (var v in _searchSpace.Values)
+                foreach (var v in SearchSpace.Values)
                 {
                     result *= v.Length;
                 }

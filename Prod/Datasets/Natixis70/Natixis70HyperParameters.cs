@@ -83,7 +83,7 @@ namespace SharpNet.Datasets.Natixis70
         public string[] ComputeFeatureNames()
         {
             var featureNames = new List<string>();
-            for (int i = 0; i < Natixis70Utils.EMBEDDING_DIMENSION; ++i)
+            for (int i = 0; i < Natixis70Utils.EmbeddingDimension; ++i)
             {
                 featureNames.Add("embed_" + i);
             }
@@ -124,7 +124,7 @@ namespace SharpNet.Datasets.Natixis70
         public void SavePredictions(CpuTensor<float> y, string path)
         {
             var sb = new StringBuilder();
-            sb.Append(Natixis70Utils.PREDICTION_HEADER+Environment.NewLine);
+            sb.Append(Natixis70Utils.PredictionHeader+Environment.NewLine);
 
             var ySpan = y.AsReadonlyFloatCpuContent;
             var ySpanIndex = 0;
@@ -140,11 +140,11 @@ namespace SharpNet.Datasets.Natixis70
                 int horizonId = RowToHorizonId(row);
                 int marketId = RowToMarketId(row);
                 //we load the row 'row' in 'yRaw' tensor
-                for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HORIZON_NAMES.Length-1) : marketId); ++currentMarketId)
+                for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length-1) : marketId); ++currentMarketId)
                 {
-                    for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HORIZON_NAMES.Length-1) : horizonId); ++currentHorizonId)
+                    for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length-1) : horizonId); ++currentHorizonId)
                     {
-                        int rawColIndex = 1 + Natixis70Utils.HORIZON_NAMES.Length * currentMarketId + currentHorizonId;
+                        int rawColIndex = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
                         var yValue = ySpan[ySpanIndex++];
                         if (Math.Abs(yValue)<1e-4)
                         {
@@ -154,7 +154,7 @@ namespace SharpNet.Datasets.Natixis70
                     }
                 }
             }
-            new Dataframe(yRaw, Natixis70Utils.PREDICTION_HEADER.Split(','), "").Save(path);
+            new Dataframe(yRaw, Natixis70Utils.PredictionHeader.Split(','), "").Save(path);
         }
 
 
@@ -164,11 +164,11 @@ namespace SharpNet.Datasets.Natixis70
             int count = rawCount;
             if (!TryToPredictAllHorizonAtTheSameTime)
             {
-                count *= Natixis70Utils.HORIZON_NAMES.Length;
+                count *= Natixis70Utils.HorizonNames.Length;
             }
             if (!TryToPredictAllMarketsAtTheSameTime)
             {
-                count *= Natixis70Utils.MARKET_NAMES.Length;
+                count *= Natixis70Utils.MarketNames.Length;
             }
             return count;
         }
@@ -177,20 +177,20 @@ namespace SharpNet.Datasets.Natixis70
             int rawCount = count;
             if (!TryToPredictAllHorizonAtTheSameTime)
             {
-                Debug.Assert(count % Natixis70Utils.HORIZON_NAMES.Length == 0);
-                rawCount /= Natixis70Utils.HORIZON_NAMES.Length;
+                Debug.Assert(count % Natixis70Utils.HorizonNames.Length == 0);
+                rawCount /= Natixis70Utils.HorizonNames.Length;
             }
             if (!TryToPredictAllMarketsAtTheSameTime)
             {
-                Debug.Assert(count % Natixis70Utils.MARKET_NAMES.Length == 0);
-                rawCount /= Natixis70Utils.MARKET_NAMES.Length;
+                Debug.Assert(count % Natixis70Utils.MarketNames.Length == 0);
+                rawCount /= Natixis70Utils.MarketNames.Length;
             }
             return rawCount;
         }
 
         public int[] X_Shape(int xRowCount)
         {
-            int xColCount = Natixis70Utils.EMBEDDING_DIMENSION;
+            int xColCount = Natixis70Utils.EmbeddingDimension;
 
             if (MergeHorizonAndMarketIdInSameFeature)
             {
@@ -217,18 +217,18 @@ namespace SharpNet.Datasets.Natixis70
             int yColCount = 1;
             if (TryToPredictAllHorizonAtTheSameTime)
             {
-                yColCount *= Natixis70Utils.HORIZON_NAMES.Length;
+                yColCount *= Natixis70Utils.HorizonNames.Length;
             }
             if (TryToPredictAllMarketsAtTheSameTime)
             {
-                yColCount *= Natixis70Utils.MARKET_NAMES.Length;
+                yColCount *= Natixis70Utils.MarketNames.Length;
             }
             return new[] { RawCountToCount(yRawCount), yColCount };
         }
 
         public int[] YRaw_Shape(int yCount)
         {
-            return new[] { CountToRawCount(yCount), 1 + Natixis70Utils.MARKET_NAMES.Length* Natixis70Utils.HORIZON_NAMES.Length };
+            return new[] { CountToRawCount(yCount), 1 + Natixis70Utils.MarketNames.Length* Natixis70Utils.HorizonNames.Length };
         }
 
 
@@ -243,7 +243,7 @@ namespace SharpNet.Datasets.Natixis70
             {
                 return -1;
             }
-            return row%Natixis70Utils.HORIZON_NAMES.Length;
+            return row%Natixis70Utils.HorizonNames.Length;
         }
 
         /// <summary>
@@ -259,10 +259,10 @@ namespace SharpNet.Datasets.Natixis70
             }
             if (!TryToPredictAllHorizonAtTheSameTime)
             {
-                row /= Natixis70Utils.HORIZON_NAMES.Length;
+                row /= Natixis70Utils.HorizonNames.Length;
             }
 
-            return row % Natixis70Utils.MARKET_NAMES.Length;
+            return row % Natixis70Utils.MarketNames.Length;
         }
         // max value of the loss to consider saving the network
         public double MaxLossToSaveTheNetwork => double.MaxValue; //TODO

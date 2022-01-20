@@ -11,13 +11,11 @@ namespace SharpNet.Datasets
     {
         #region private fields
         private readonly int[] _elementIdToCategoryIndex;
-        protected readonly CpuTensor<float> _x;
+        private readonly CpuTensor<float> _x;
         #endregion
 
-        /// <summary>
-        /// TODO : remove 'elementIdToCategoryIndex' from input
-        /// </summary>
-        public InMemoryDataSet([System.Diagnostics.CodeAnalysis.NotNull] CpuTensor<float> x, 
+        public InMemoryDataSet(
+            [NotNull] CpuTensor<float> x, 
             [CanBeNull] CpuTensor<float> y,
             string name = "",
             Objective_enum? objective = null,
@@ -105,8 +103,6 @@ namespace SharpNet.Datasets
             var test = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(rowsInTrainingSet, rowsInValidationSet), (CpuTensor<float>)Y.RowSlice(rowsInTrainingSet, rowsInValidationSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
             return new TrainingAndTestDataLoader(training, test, Name);
         }
-
-
         public override CpuTensor<float> X_if_available => _x;
 
         public override CpuTensor<float> Y { get; }

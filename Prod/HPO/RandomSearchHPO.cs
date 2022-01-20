@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace SharpNet.HPO
 {
-    public class RandomSearchHPO<T> : AbstractHPO<T> where T : class, new()
+    public class RandomSearchHPO<T> : AbstractHpo<T> where T : class, new()
     {
         private readonly HyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
 
@@ -13,8 +13,8 @@ namespace SharpNet.HPO
         private readonly HashSet<string> _processedSpaces = new();
         #endregion
 
-        public RandomSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultHyperParameters, Action<T> postBuild, Func<T, bool> isValid, HyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption) : 
-            base(searchSpace, createDefaultHyperParameters, postBuild, isValid)
+        public RandomSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, HyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption) : 
+            base(searchSpace, createDefaultSample, postBuild, isValidSample)
         {
             _randomSearchOption = randomSearchOption;
         }
@@ -27,7 +27,7 @@ namespace SharpNet.HPO
                 for (int i = 0; i < 1000; ++i)
                 {
                     var searchSpaceHyperParameters = new Dictionary<string, string>();
-                    foreach (var (parameterName, parameterSearchSpace) in _searchSpace.OrderBy(l => l.Key))
+                    foreach (var (parameterName, parameterSearchSpace) in SearchSpace.OrderBy(l => l.Key))
                     {
                         searchSpaceHyperParameters[parameterName] = parameterSearchSpace.GetRandomSearchSpaceHyperParameterStringValue(_rand, _randomSearchOption);
                     }
@@ -40,10 +40,10 @@ namespace SharpNet.HPO
                             continue; //already processed before
                         }
                     }
-                    var t = _createDefaultHyperParameters();
+                    var t = CreateDefaultSample();
                     ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
-                    _postBuild(t);
-                    if (_isValid(t))
+                    PostBuild(t);
+                    if (IsValidSample(t))
                     {
                         return t;
                     }

@@ -103,7 +103,7 @@ namespace SharpNet.Datasets
         /// <returns></returns>
         List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
-        [NotNull] CpuTensor<float> Y { get; }
+        [CanBeNull] CpuTensor<float> Y { get; }
 
         [CanBeNull] CpuTensor<float> X_if_available { get; }
 

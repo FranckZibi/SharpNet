@@ -34,7 +34,7 @@ public class HyperParameterSearchSpace
     {
         var res = "";
         var targetInvestmentTime = TargetCpuInvestmentTime();
-        foreach (var e in _statistics.OrderBy(e=>(e.Value.Errors.Count==0)?double.MaxValue:e.Value.Errors.Average))
+        foreach (var e in _statistics.OrderBy(e=>(e.Value.Cost.Count==0)?double.MaxValue:e.Value.Cost.Average))
         {
             res += " "+e.Key + ":" + e.Value;
 
@@ -63,9 +63,9 @@ public class HyperParameterSearchSpace
         throw new ArgumentException($"invalid argument {randomSearchOption}");
     }
     public int Length => _allHyperParameterValuesAsString.Length;
-    public void RegisterError(object parameterValue, double error, double elapsedTimeInSeconds)
+    public void RegisterCost(object parameterValue, double cost, double elapsedTimeInSeconds)
     {
-        HyperParameterValueToStatistics(parameterValue).RegisterError(error, elapsedTimeInSeconds);
+        HyperParameterValueToStatistics(parameterValue).RegisterCost(cost, elapsedTimeInSeconds);
     }
     public string HyperParameterStringValueAtIndex(int index)
     {
@@ -94,7 +94,7 @@ public class HyperParameterSearchSpace
         {
             return Tuple.Create(acc.Average, acc.Volatility, acc.Count);
         }
-        var allUseCases = _allHyperParameterValuesAsString.Select(n => ToTuple(_statistics[n].Errors)).ToList();
+        var allUseCases = _allHyperParameterValuesAsString.Select(n => ToTuple(_statistics[n].Cost)).ToList();
         return Utils.TargetCpuInvestmentTime(allUseCases);
     }
     private static string[] ToObjectArray(object parameterValues)

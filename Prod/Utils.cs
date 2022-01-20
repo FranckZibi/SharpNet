@@ -788,13 +788,11 @@ namespace SharpNet
             var valueWithIndex = new List<Tuple<Tuple<double, double, int>, int>>();
             for (int i = 0; i < errors.Count; ++i)
             {
-                if (errors[i].Item3 <= 1)
+                if (errors[i].Item3 >= 3)
                 {
-                    //if the error is computed on 0 or 1 experiment, we can not rely on the associated error,
-                    //so the associated use case will have the mean cpu time of all use cases
-                    continue;
+                    //if the cost is computed on at least 3 samples, we can rely on this cost
+                    valueWithIndex.Add(Tuple.Create(errors[i], i));
                 }
-                valueWithIndex.Add(Tuple.Create(errors[i], i));
             }
             if (valueWithIndex.Count <= 1)
             {
