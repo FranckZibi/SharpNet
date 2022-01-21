@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using SharpNet.MathTools;
 
 namespace SharpNet.HPO;
 
@@ -48,7 +47,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     {
         if (randomSearchOption == RANDOM_SEARCH_OPTION.FULLY_RANDOM)
         {
-            int randomIndex = rand.Next(Length);
+            int randomIndex = rand.Next(_allHyperParameterValuesAsString.Length);
             return randomIndex;
         }
         if (randomSearchOption == RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING)
@@ -67,12 +66,12 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     }
 
 
-    public override int Length => _allHyperParameterValuesAsString.Length;
+    public override int LengthForGridSearch => _allHyperParameterValuesAsString.Length;
     public override void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds)
     {
         SampleValueToStatistics(sampleValue).RegisterCost(cost, elapsedTimeInSeconds);
     }
-    public override string SampleStringValue_at_Index(int index)
+    public override string SampleStringValue_at_Index_For_GridSearch(int index)
     {
         return _allHyperParameterValuesAsString[index];
     }
@@ -94,13 +93,10 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     /// <returns></returns>
     private double[] TargetCpuInvestmentTime()
     {
-        Tuple<double, double, int> ToTuple(DoubleAccumulator acc)
-        {
-            return Tuple.Create(acc.Average, acc.Volatility, acc.Count);
-        }
-        var allUseCases = _allHyperParameterValuesAsString.Select(n => ToTuple(_statistics[n].Cost)).ToList();
-        return Utils.TargetCpuInvestmentTime(allUseCases);
+        var t = _allHyperParameterValuesAsString.Select(hyperParameterName => _statistics[hyperParameterName]).ToArray();
+        return TargetCpuInvestmentTime(t);
     }
+    
     private static string[] ToObjectArray(object parameterValues)
     {
         string[] ToStringObjects<T>(IEnumerable<T> values)

@@ -92,8 +92,8 @@ namespace SharpNet.HPO
                 }
                 try
                 {
-                    _log("starting computation of new sample:"+Environment.NewLine+sampleDescription);
-                    
+                    _log($"starting computation of sampleId {sampleId}");
+
                     var sw = Stopwatch.StartNew();
                     float cost = objectiveFunction(sample);
                     if (BestSampleFoundSoFar == null || float.IsNaN(CostOfBestSampleFoundSoFar) || cost < CostOfBestSampleFoundSoFar)

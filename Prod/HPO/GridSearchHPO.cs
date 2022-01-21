@@ -32,8 +32,8 @@ namespace SharpNet.HPO
                     var sample = new Dictionary<string, string>();
                     foreach (var (parameterName, parameterValues) in SearchSpace.OrderBy(e => e.Key))
                     {
-                        sample[parameterName] = parameterValues.SampleStringValue_at_Index(currentSampleIndex % parameterValues.Length);
-                        _nextSearchSpaceIndex /= parameterValues.Length;
+                        sample[parameterName] = parameterValues.SampleStringValue_at_Index_For_GridSearch(currentSampleIndex % parameterValues.LengthForGridSearch);
+                        _nextSearchSpaceIndex /= parameterValues.LengthForGridSearch;
                     }
                     var t = CreateDefaultSample();
                     ClassFieldSetter.Set(t, FromString2String_to_String2Object(sample));
@@ -54,7 +54,7 @@ namespace SharpNet.HPO
                 int result = 1;
                 foreach (var v in SearchSpace.Values)
                 {
-                    result *= v.Length;
+                    result *= v.LengthForGridSearch;
                 }
                 return result;
             }

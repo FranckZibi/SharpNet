@@ -1,56 +1,108 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 
 namespace SharpNet.HPO;
 
 public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperParameterSearchSpace
 {
     #region private fields
+    private const int BucketCount = 5;
     protected readonly range_type _rangeType;
-
-    protected readonly SingleHyperParameterValueStatistics _singleHyperParameterValueStatistics =  new SingleHyperParameterValueStatistics();
-
-
+    protected readonly SingleHyperParameterValueStatistics[] StatsByBucket;
     #endregion
-
-    protected AbstractRangeHyperParameterSearchSpace(range_type rangeType)
-    {
-        _rangeType = rangeType;
-    }
    
     public override string BayesianSearchFloatValue_to_SampleStringValue(float f)
     {
         return f.ToString(CultureInfo.InvariantCulture);
     }
-    public override string SampleStringValue_at_Index(int index)
+    public override string ToString()
     {
-        throw new NotImplementedException();
-    }
+        var res = "";
+        var targetInvestmentTime = TargetCpuInvestmentTime(StatsByBucket);
 
-    protected static float Next_BayesianSearchFloatValue(float min, float max, Random rand, range_type rangeType, RANDOM_SEARCH_OPTION randomSearchOption)
+        var stats = StatsByBucket.Select((t, i) => Tuple.Create(t, i)).ToList();
+        foreach (var e in stats.OrderBy(e => (e.Item1.Cost.Count == 0) ? double.MaxValue : e.Item1.Cost.Average))
+        {
+            int bucketIndex = e.Item2;
+            res += " Bucket#" + bucketIndex + ":" + e.Item1;
+            res += " (target Time: " + Math.Round(100 * targetInvestmentTime[bucketIndex], 1) + "%)";
+            res += Environment.NewLine;
+        }
+        return res;
+    }
+    public override bool IsCategoricalHyperParameter => false;
+    public override int LengthForGridSearch => BucketCount;
+
+    protected AbstractRangeHyperParameterSearchSpace(range_type rangeType)
+    {
+        _rangeType = rangeType;
+        StatsByBucket = new SingleHyperParameterValueStatistics[BucketCount];
+        for (int i = 0; i < StatsByBucket.Length; ++i)
+        {
+            StatsByBucket[i] = new SingleHyperParameterValueStatistics();
+        }
+    }
+    protected static float Next_BayesianSearchFloatValue(float min, float max, Random rand, range_type rangeType, RANDOM_SEARCH_OPTION randomSearchOption, SingleHyperParameterValueStatistics[] statsByBucket)
     {
         if (Math.Abs(max - min) < 1e-6)
         {
             return max;
         }
-
-        if (randomSearchOption != RANDOM_SEARCH_OPTION.FULLY_RANDOM)
+        if (randomSearchOption == RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING)
         {
-            throw new NotImplementedException($"randomSearchOption {randomSearchOption} is not supported");
+            var targetInvestmentTime = TargetCpuInvestmentTime(statsByBucket);
+            int randomIndex = Utils.RandomIndexBasedOnWeights(targetInvestmentTime, rand);
+            var minValueInBucket = BucketIndexToBucketLowerValue(randomIndex, min, max, rangeType);
+            var maxValueInBucket = BucketIndexToBucketUpperValue(randomIndex, min, max, rangeType);
+            return Next_BayesianSearchFloatValue(minValueInBucket, maxValueInBucket, rand, rangeType, RANDOM_SEARCH_OPTION.FULLY_RANDOM, null);
         }
+        return RandomValue(min, max, rangeType, rand.NextSingle());
+    }
+    protected static float SampleValueToFloat(object sampleValue)
+    {
+        if (sampleValue is float)
+        {
+            return (float)sampleValue;
+        }
+        if (sampleValue is int)
+        {
+            return (int)sampleValue;
+        }
+        if (sampleValue is string)
+        {
+            return float.Parse((string)sampleValue);
+        }
+        throw new ArgumentException($"can't transform {sampleValue} to float");
+    }
+    protected static int SampleValueToBucketIndex(float sampleValue, float min, float max, range_type rangeType)
+    {
+        //float sampleValueAsFloat = SampleValueToFloat(sampleValue)
+        for (int bucketIndex = 0; bucketIndex < BucketCount - 1; ++bucketIndex)
+        {
+            if (sampleValue <= BucketIndexToBucketUpperValue(bucketIndex, min, max, rangeType))
+            {
+                return bucketIndex;
+            }
+        }
+
+        return BucketCount - 1;
+    }
+
+    private static float RandomValue(float min, float max, range_type rangeType, float randomUniformBetween_0_and_1)
+    {
         if (rangeType == range_type.uniform)
         {
-            return min + (max - min) * rand.NextSingle();
+            return UniformValue(min, max, randomUniformBetween_0_and_1);
         }
         if (rangeType == range_type.normal)
         {
-            return NormalValue(min, max, rand.NextDouble());
+            return NormalValue(min, max, randomUniformBetween_0_and_1);
         }
         throw new NotImplementedException($"rangeType {rangeType} is not supported");
     }
-
-    private static float NormalValue(float min, float max, double randomUniformBetween_0_and_1)
+    private static float NormalValue(float min, float max, float randomUniformBetween_0_and_1)
     {
         Debug.Assert(max>=min);
         Debug.Assert(randomUniformBetween_0_and_1>=0);
@@ -59,18 +111,27 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
         var logSampleValue = Math.Log(epsilon) + (Math.Log(max - min + epsilon) - Math.Log(epsilon)) * randomUniformBetween_0_and_1;
         return (float)(Math.Exp(logSampleValue) - epsilon);
     }
-
-    public override void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds)
+    private static float UniformValue(float min, float max, float randomUniformBetween_0_and_1)
     {
-        //TODO
-        _singleHyperParameterValueStatistics.RegisterCost(cost, elapsedTimeInSeconds);
+        Debug.Assert(max >= min);
+        Debug.Assert(randomUniformBetween_0_and_1 >= 0);
+        Debug.Assert(randomUniformBetween_0_and_1 <= 1);
+        return min + (max - min) * randomUniformBetween_0_and_1;
     }
-
-    public override string ToString()
+    protected static float BucketIndexToBucketLowerValue(int bucketIndex, float min, float max, range_type rangeType)
     {
-        //TODO
-        return "N/A"+Environment.NewLine;
+        if (bucketIndex == 0)
+        {
+            return min;
+        }
+        return BucketIndexToBucketUpperValue(bucketIndex-1, min, max, rangeType);
     }
-
-    public override bool IsCategoricalHyperParameter => false;
+    protected static float BucketIndexToBucketUpperValue(int bucketIndex, float min, float max, range_type rangeType)
+    {
+        if (bucketIndex == BucketCount - 1)
+        {
+            return max;
+        }
+        return RandomValue(min, max, rangeType, (bucketIndex + 1f) / BucketCount);
+    }
 }

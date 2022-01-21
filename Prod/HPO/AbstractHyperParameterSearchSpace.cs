@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
+using SharpNet.MathTools;
 
 namespace SharpNet.HPO;
 
@@ -24,7 +27,6 @@ public abstract class AbstractHyperParameterSearchSpace
     {
         return new IntRangeHyperParameterSearchSpace(min, max, rangeType);
     }
-
     public string Next_SampleStringValue(Random rand, RANDOM_SEARCH_OPTION randomSearchOption)
     {
         return BayesianSearchFloatValue_to_SampleStringValue(Next_BayesianSearchFloatValue(rand, randomSearchOption));
@@ -34,6 +36,18 @@ public abstract class AbstractHyperParameterSearchSpace
     public abstract void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds);
     public abstract bool IsCategoricalHyperParameter { get; }
     public abstract bool IsConstant { get; }
-    public abstract int Length { get; }
-    public abstract string SampleStringValue_at_Index(int index);
+    public abstract int LengthForGridSearch { get; }
+    public abstract string SampleStringValue_at_Index_For_GridSearch(int index);
+
+    protected static double[] TargetCpuInvestmentTime(IEnumerable<SingleHyperParameterValueStatistics> t)
+    {
+        Tuple<double, double, int> ToTuple(DoubleAccumulator acc)
+        {
+            return Tuple.Create(acc.Average, acc.Volatility, acc.Count);
+        }
+        var allUseCases = t.Select(a => ToTuple(a.Cost)).ToList();
+        return Utils.TargetCpuInvestmentTime(allUseCases);
+    }
+
+
 }

@@ -57,8 +57,8 @@ namespace SharpNet.Datasets.Natixis70
                 { "min_data_in_leaf", new[]{20,50} },
                 //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
 
-                { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0, 1)},
-                { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0, 1)},
+                { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 1f)},
+                { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 1f)},
 
                 { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
                 { "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 50) },

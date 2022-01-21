@@ -69,9 +69,9 @@ public class TestBayesianSearchHPO
             { "G", Range(0f, 0f) },
         };
         int numModelTrainingInParallel = 4;
-        var hpo = new BayesianSearchHPO<TempClass>(searchSpace, () => new TempClass(), t => { }, t => true
+        var hpo = new BayesianSearchHPO<TempClass>(searchSpace, () => new TempClass(), _ => { }, _ => true
             , testDirectory,
-            RANDOM_SEARCH_OPTION.FULLY_RANDOM,
+            RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING,
             numModelTrainingInParallel,
             100,
             10000,
