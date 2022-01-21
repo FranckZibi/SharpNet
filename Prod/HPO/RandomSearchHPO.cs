@@ -6,30 +6,29 @@ namespace SharpNet.HPO
 {
     public class RandomSearchHPO<T> : AbstractHpo<T> where T : class, new()
     {
-        private readonly HyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
-
         #region private fields
+        private readonly AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
         private readonly Random _rand = new();
         private readonly HashSet<string> _processedSpaces = new();
         #endregion
 
-        public RandomSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, HyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption) : 
-            base(searchSpace, createDefaultSample, postBuild, isValidSample)
+        public RandomSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption, Action<string> log, int maxSamplesToProcess) : 
+            base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess)
         {
             _randomSearchOption = randomSearchOption;
         }
 
-        protected override T Next
+        protected override (T,int, string) Next
         {
             get
             {
                 //we'll make '1000' tries to retrieve a new and valid hyper parameter space
                 for (int i = 0; i < 1000; ++i)
-                {
+                { 
                     var searchSpaceHyperParameters = new Dictionary<string, string>();
                     foreach (var (parameterName, parameterSearchSpace) in SearchSpace.OrderBy(l => l.Key))
                     {
-                        searchSpaceHyperParameters[parameterName] = parameterSearchSpace.GetRandomSearchSpaceHyperParameterStringValue(_rand, _randomSearchOption);
+                        searchSpaceHyperParameters[parameterName] = parameterSearchSpace.Next_SampleStringValue(_rand, _randomSearchOption);
                     }
                     //we ensure that we have not already processed this search space
                     var searchSpaceHash = ComputeHash(searchSpaceHyperParameters);
@@ -45,10 +44,11 @@ namespace SharpNet.HPO
                     PostBuild(t);
                     if (IsValidSample(t))
                     {
-                        return t;
+                        var sampleDescription = ToSampleDescription(searchSpaceHyperParameters);
+                        return (t, _nextSampleId++, sampleDescription);
                     }
                 }
-                return null;
+                return (null,-1, "");
             }
         }
     }

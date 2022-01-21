@@ -11,22 +11,41 @@ namespace SharpNet.HPO
 {
     public abstract class AbstractHpo<T> where T : class
     {
-        protected readonly IDictionary<string, HyperParameterSearchSpace> SearchSpace;
+        protected readonly IDictionary<string, AbstractHyperParameterSearchSpace> SearchSpace;
         protected readonly Func<T> CreateDefaultSample;
         protected readonly Action<T> PostBuild;
         protected readonly Func<T, bool> IsValidSample;
-        private readonly DoubleAccumulator _allCost = new();
+        /// <summary>
+        /// maximum number of samples to process
+        /// </summary>
+        private readonly int _maxSamplesToProcess;
+        protected readonly Action<string> _log;
+        protected readonly DoubleAccumulator _allCost = new();
+        protected int _nextSampleId = 0;
 
-        protected AbstractHpo(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample)
+        /// <summary>
+        /// the best sample (lowest cost) found so far (or null if no sample has been analyzed)
+        /// </summary>
+        // ReSharper disable once MemberCanBePrivate.Global
+        public T BestSampleFoundSoFar { get; protected set; } = null;
+        /// <summary>
+        /// the cost associated with the best sample found sample (or NaN if no sample has been analyzed)
+        /// </summary>
+        // ReSharper disable once MemberCanBePrivate.Global
+        public float CostOfBestSampleFoundSoFar { get; protected set; } = float.NaN;
+
+        protected AbstractHpo(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, Action<string> log, int maxSamplesToProcess)
         {
-            SearchSpace = new Dictionary<string, HyperParameterSearchSpace>();
-            foreach (var (hyperParameterName, value) in searchSpace)
+            SearchSpace = new Dictionary<string, AbstractHyperParameterSearchSpace>();
+            foreach (var (hyperParameterName, hyperParameterSearchSpace) in searchSpace)
             {
-                SearchSpace[hyperParameterName] = new HyperParameterSearchSpace(hyperParameterName, value);
+                SearchSpace[hyperParameterName] = AbstractHyperParameterSearchSpace.ValueOf(hyperParameterSearchSpace);
             }
             CreateDefaultSample = createDefaultSample;
             PostBuild = postBuild;
             IsValidSample = isValidSample;
+            _maxSamplesToProcess = maxSamplesToProcess;
+            _log = log;
         }
 
         private string StatisticsDescription()
@@ -39,61 +58,87 @@ namespace SharpNet.HPO
             return res;
         }
 
-        public void Process(int nbCpuCores, Func<T, double> objectiveFunction, Action<string> log)
+        public void Process(int numModelTrainingInParallel, Func<T, float> objectiveFunction)
         {
-            log("Computation(s) will be done on " + nbCpuCores + " cores");
-            var cpuTasks = new Task[nbCpuCores];
-            for (int i = 0; i < cpuTasks.Length; ++i)
+            _log("Computation(s) will be done on " + numModelTrainingInParallel + " cores");
+            var threadTasks = new Task[numModelTrainingInParallel];
+            for (int i = 0; i < threadTasks.Length; ++i)
             {
-                cpuTasks[i] = new Task(() => ProcessNextSample(objectiveFunction, log));
-                cpuTasks[i].Start();
+                threadTasks[i] = new Task(() => ProcessNextSample(objectiveFunction));
+                threadTasks[i].Start();
             }
-            Task.WaitAll(cpuTasks);
+            Task.WaitAll(threadTasks);
         }
 
         /// <summary>
         /// process next available sample
         /// </summary>
         /// <param name="objectiveFunction"></param>
-        /// <param name="log"></param>
-        private void ProcessNextSample([NotNull] Func<T, double> objectiveFunction, [NotNull] Action<string> log)
+        private void ProcessNextSample([NotNull] Func<T, float> objectiveFunction)
         {
             for (; ; )
             {
-                T next;
+                T sample;
+                int sampleId;
+                string sampleDescription;
                 lock (this)
                 {
-                    next = Next;
+                    (sample, sampleId, sampleDescription) = Next;
                 }
-                if (next == null)
+                if (sample == null)
                 {
-                    log("Finished processing entire search space");
+                    _log("Finished processing entire search space");
                     return;
                 }
                 try
                 {
-                    log("starting new sample computation");
+                    _log("starting computation of new sample:"+Environment.NewLine+sampleDescription);
+                    
                     var sw = Stopwatch.StartNew();
-                    double cost = objectiveFunction(next);
-                    double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
-
-                    _allCost.Add(cost, 1);
-                    foreach (var (parameterName, parameterSearchSpace) in SearchSpace)
+                    float cost = objectiveFunction(sample);
+                    if (BestSampleFoundSoFar == null || float.IsNaN(CostOfBestSampleFoundSoFar) || cost < CostOfBestSampleFoundSoFar)
                     {
-                        var parameterValue = ClassFieldSetter.Get(next, parameterName);
-                        parameterSearchSpace.RegisterCost(parameterValue, cost, elapsedTimeInSeconds);
+                        BestSampleFoundSoFar = sample;
+                        CostOfBestSampleFoundSoFar = cost;
+                        _log($"new lowest cost {CostOfBestSampleFoundSoFar} with sampleId {sampleId}"+Environment.NewLine+ sampleDescription);
                     }
-                    log("ended new computation");
-                    log($"{Processed} processed samples");
-                    log(StatisticsDescription());
+                    double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
+                    RegisterSampleCost(sample, sampleId, cost, elapsedTimeInSeconds);
+                    _log("ended new computation");
+                    _log($"{Processed} processed samples");
+                    _log(StatisticsDescription());
                 }
                 catch (Exception e)
                 {
-                    log(e.ToString());
-                    log("ignoring error");
+                    _log(e.ToString());
+                    _log("ignoring error");
+                }
+
+                if (sampleId > _maxSamplesToProcess)
+                {
+                    _log($"maximum number of samples to process ({_maxSamplesToProcess}) has been reached");
+                    return;
                 }
             }
         }
+
+
+        protected virtual void RegisterSampleCost(object sample, int sampleId, float cost, double elapsedTimeInSeconds)
+        {
+            _allCost.Add(cost, 1);
+            RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
+        }
+
+
+        protected static void RegisterSampleCost(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, object sample, float cost, double elapsedTimeInSeconds)
+        {
+            foreach (var (parameterName, parameterSearchSpace) in searchSpace)
+            {
+                var parameterValue = ClassFieldSetter.Get(sample, parameterName);
+                parameterSearchSpace.RegisterCost(parameterValue, cost, elapsedTimeInSeconds);
+            }
+        }
+
 
         /// <summary>
         /// number of processed search spaces
@@ -110,6 +155,16 @@ namespace SharpNet.HPO
             return dicoString2Object;
         }
 
+        protected static string ToSampleDescription(IDictionary<string, string> dico)
+        {
+            var description = "";
+            foreach (var (key, value) in dico.OrderBy(t=>t.Key))
+            {
+                description+= key+ " = "+value+Environment.NewLine;
+            }
+            return description.Trim();
+        }
+
         protected static string ComputeHash(IDictionary<string, string> dico)
         {
             var sb = new StringBuilder();
@@ -120,6 +175,6 @@ namespace SharpNet.HPO
             return Utils.ComputeHash(sb.ToString(), 8);
         }
 
-        protected abstract T Next { get; }
+        protected abstract (T,int, string) Next { get; }
     }
 }

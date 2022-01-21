@@ -8,7 +8,7 @@ namespace SharpNet.HPO
         public readonly DoubleAccumulator Cost = new DoubleAccumulator();
         private readonly DoubleAccumulator ElapsedTimeInSeconds = new DoubleAccumulator();
 
-        public void RegisterCost(double cost, double elapsedTimeInSeconds)
+        public void RegisterCost(float cost, double elapsedTimeInSeconds)
         {
             Cost.Add(cost,1);
             ElapsedTimeInSeconds.Add(elapsedTimeInSeconds, 1);

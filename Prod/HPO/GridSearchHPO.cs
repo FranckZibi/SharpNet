@@ -8,35 +8,42 @@ namespace SharpNet.HPO
     public class GridSearchHPO<T> : AbstractHpo<T> where T : class
     {
         #region private fields
-        private int _nextSampleIndex;
+        private int _nextSearchSpaceIndex;
         #endregion
 
-        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample) 
-            : base(searchSpace, createDefaultSample, postBuild, isValidSample)
+        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, Action<string> log, int maxSamplesToProcess) 
+            : base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess)
         {
         }
 
-        protected override T Next
+        protected override (T,int, string) Next
         {
             get
             {
-                if (_nextSampleIndex >= SearchSpaceSize)
+                for(;;)
                 {
-                    return null;
-                }
-                var currentSampleIndex = _nextSampleIndex++;
-                Debug.Assert(currentSampleIndex >= 0);
-                Debug.Assert(currentSampleIndex < SearchSpaceSize);
-                var sample = new Dictionary<string, string>();
-                foreach (var (parameterName, parameterValues) in SearchSpace.OrderBy(e => e.Key))
-                {
-                    sample[parameterName] = parameterValues.HyperParameterStringValueAtIndex(currentSampleIndex % parameterValues.Length);
-                    _nextSampleIndex /= parameterValues.Length;
-                }
-                var t = CreateDefaultSample();
-                ClassFieldSetter.Set(t, FromString2String_to_String2Object(sample));
-                PostBuild(t);
-                return IsValidSample(t) ? t : Next;
+                    if (_nextSearchSpaceIndex >= SearchSpaceSize)
+                    {
+                        return (null,-1, "");
+                    }
+                    var currentSampleIndex = _nextSearchSpaceIndex++;
+                    Debug.Assert(currentSampleIndex >= 0);
+                    Debug.Assert(currentSampleIndex < SearchSpaceSize);
+                    var sample = new Dictionary<string, string>();
+                    foreach (var (parameterName, parameterValues) in SearchSpace.OrderBy(e => e.Key))
+                    {
+                        sample[parameterName] = parameterValues.SampleStringValue_at_Index(currentSampleIndex % parameterValues.Length);
+                        _nextSearchSpaceIndex /= parameterValues.Length;
+                    }
+                    var t = CreateDefaultSample();
+                    ClassFieldSetter.Set(t, FromString2String_to_String2Object(sample));
+                    PostBuild(t);
+                    if (IsValidSample(t))
+                    {
+                        var sampleDescription = ToSampleDescription(sample);
+                        return (t, _nextSampleId++, sampleDescription);
+                    }
+                };
             }
         }
 

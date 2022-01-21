@@ -17,7 +17,6 @@ namespace SharpNet.LightGBM
     public class LightGBMModel
     {
         #region private fields & properties
-        private readonly TensorMemoryPool _memoryPool = new TensorMemoryPool(null);
         private readonly Parameters _parameters;
         /// <summary>
         /// parameters that must be present in the config file, even if they have the default value
@@ -29,9 +28,8 @@ namespace SharpNet.LightGBM
         //private static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "CFM63");
         private readonly string _workingDirectory;
         private readonly string _modelPrefix;
-        private Tensor _buffer;
-        private string _modelPath;
-        private string ModelName => string.IsNullOrEmpty(_modelPath)?"":Path.GetFileNameWithoutExtension(_modelPath);
+        public string ModelPath { get; private set; }
+        private string ModelName => string.IsNullOrEmpty(ModelPath)?"":Path.GetFileNameWithoutExtension(ModelPath);
         
         #endregion
 
@@ -68,30 +66,35 @@ namespace SharpNet.LightGBM
         public void Train(IDataSet trainDataset, IDataSet validationDataset = null)
         {
             const Parameters.task_enum task = Parameters.task_enum.train;
-            var trainDatasetPath = DatasetPath(trainDataset, task);
+            string trainDatasetPath = DatasetPath(trainDataset, task);
             Save(trainDataset, trainDatasetPath, task);
 
+            string validationDatasetPath = "";
+            if (validationDataset != null)
+            {
+                validationDatasetPath = DatasetPath(validationDataset, task);
+                Save(validationDataset, validationDatasetPath, task);
+            }
+            Train(trainDatasetPath, validationDatasetPath);
+        }
+
+        public void Train(string trainDatasetPath, string validationDatasetPath = "")
+        {
+            const Parameters.task_enum task = Parameters.task_enum.train;
             ClassFieldSetter.Set(_parameters, new Dictionary<string, object> {
                 {"task", task},
                 {"data", trainDatasetPath},
-                {"valid", ""},
+                {"valid", validationDatasetPath},
                 {"output_model", ""}, //this will be set below
                 {"input_model", ""},
                 {"prediction_result", ""},
                 {"header", true},
                 {"save_binary", false},
-                });
-            if (validationDataset != null)
-            {
-                var validationDatasetPath = DatasetPath(validationDataset, task);
-                Save(validationDataset, validationDatasetPath, task);
-                ClassFieldSetter.Set(_parameters, "valid", validationDatasetPath);
-            }
-
+            });
             var modelHash = _parameters.ComputeHash();
-            _modelPath = Path.Combine(_workingDirectory, (string.IsNullOrEmpty(_modelPrefix) ? "" : "_") + modelHash  + ".txt");
-            ClassFieldSetter.Set(_parameters, "output_model", _modelPath);
-            var configFilePath = _modelPath.Replace(".txt", ".conf");
+            ModelPath = Path.Combine(_workingDirectory, (string.IsNullOrEmpty(_modelPrefix) ? "" : "_") + modelHash  + ".txt");
+            ClassFieldSetter.Set(_parameters, "output_model", ModelPath);
+            var configFilePath = ModelPath.Replace(".txt", ".conf");
             Log.Info($"Training model {ModelName} with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
             Launch(configFilePath);
         }
@@ -107,7 +110,7 @@ namespace SharpNet.LightGBM
         /// <param name="validationDataset"></param>
         /// <param name="testDataset"></param>
         /// <returns>the cost associated with the model</returns>
-        public double CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
+        public float CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
         {
             Log.Info("Computing Model predictions for Training Dataset");
             var trainPredictions = UnNormalizeYIfNeeded(Predict(trainDataset));
@@ -119,14 +122,14 @@ namespace SharpNet.LightGBM
             Log.Info("Saving predictions for Training Dataset");
             savePredictions(trainPredictions, Path.Combine(_workingDirectory, trainPredictionsFileName));
 
-            double rmseValidation = double.NaN;
+            float rmseValidation = float.NaN;
             if (validationDataset != null)
             {
                 Log.Info("Computing Model predictions for Validation Dataset");
                 var validationPredictions = UnNormalizeYIfNeeded(Predict(validationDataset));
 
                 Log.Info("Computing Model Accuracy on Validation");
-                rmseValidation = ComputeRmse(UnNormalizeYIfNeeded(validationDataset.Y), validationPredictions);
+                rmseValidation = (float)ComputeRmse(UnNormalizeYIfNeeded(validationDataset.Y), validationPredictions);
                 Log.Info($"Model Accuracy on Validation: {rmseValidation}");
 
                 Log.Info("Saving predictions for Validation Dataset");
@@ -180,29 +183,34 @@ namespace SharpNet.LightGBM
         // ReSharper disable once MemberCanBePrivate.Global
         public CpuTensor<float> Predict(IDataSet dataset)
         {
-            if (string.IsNullOrEmpty(_modelPath))
+            const Parameters.task_enum task = Parameters.task_enum.predict;
+            string predictionDatasetPath = DatasetPath(dataset, task);
+            Save(dataset, predictionDatasetPath, task);
+            var predictions = Predict(predictionDatasetPath);
+            if (predictions.Shape[0]!= dataset.Count)
+            {
+                throw new Exception($"Invalid number of predictions, received {predictions.Shape[0]} but expected {dataset.Count}");
+            }
+            return predictions;
+        }
+
+        public CpuTensor<float> Predict(string predictionDatasetPath)
+        {
+            if (string.IsNullOrEmpty(ModelPath))
             {
                 throw new Exception("missing model for inference");
             }
             const Parameters.task_enum task = Parameters.task_enum.predict;
-            var predictionDatasetPath = DatasetPath(dataset, task);
-            var predictionResultPath = PredictionTempResultPath(dataset);
+            var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(predictionDatasetPath) + ".txt");
             var configFilePath = predictionResultPath.Replace(".txt", ".conf");
-
-            Save(dataset, predictionDatasetPath, task);
-
             ClassFieldSetter.Set(_parameters, new Dictionary<string, object> {
                 {"task", task},
                 {"data", predictionDatasetPath},
-                {"input_model", _modelPath},
+                {"input_model", ModelPath},
                 {"prediction_result", predictionResultPath},
                 });
             Launch(configFilePath);
             var predictions = File.ReadAllLines(predictionResultPath).Select(float.Parse).ToArray();
-            if (predictions.Length != dataset.Count)
-            {
-                throw new Exception($"Invalid number of predictions, received {predictions.Length} but expected {dataset.Count}");
-            }
             File.Delete(configFilePath);
             File.Delete(predictionResultPath);
             return new CpuTensor<float>(new[] { predictions.Length, 1 }, predictions);
@@ -212,15 +220,15 @@ namespace SharpNet.LightGBM
         // ReSharper disable once UnusedMember.Global
         public double ComputeAccuracy(Tensor y_true, Tensor y_predicted)
         {
-            _memoryPool.GetFloatTensor(ref _buffer, new[] { y_true.Shape[0] });
-            return y_true.ComputeAccuracy(y_predicted, NetworkConfig.LossFunctionEnum.BinaryCrossentropy, _buffer);
+            using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
+            return y_true.ComputeAccuracy(y_predicted, NetworkConfig.LossFunctionEnum.BinaryCrossentropy, buffer);
         }
 
         // ReSharper disable once MemberCanBePrivate.Global
         public double ComputeRmse(CpuTensor<float> y_true, CpuTensor<float> y_predicted)
         {
-            _memoryPool.GetFloatTensor(ref _buffer, new[] { y_true.Shape[0] });
-            return Math.Sqrt(y_true.ComputeMse(y_predicted, _buffer));
+            using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
+            return Math.Sqrt(y_true.ComputeMse(y_predicted, buffer));
         }
 
       
@@ -281,7 +289,7 @@ namespace SharpNet.LightGBM
         /// <param name="path">the path where to save the dataset</param>
         /// <param name="task">the task to perform</param>
         /// <param name="overwriteIfExists">overwrite the file if ti already exists</param>
-        private static void Save(IDataSet dataset, [NotNull] string path, Parameters.task_enum task, bool overwriteIfExists = false)
+        public static void Save(IDataSet dataset, [NotNull] string path, Parameters.task_enum task, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {

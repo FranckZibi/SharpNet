@@ -25,13 +25,18 @@ namespace SharpNet.Datasets.Natixis70
         {
             Utils.ConfigureGlobalLog4netProperties(Natixis70Utils.NatixisLogDirectory, "Natixis70");
             Utils.ConfigureThreadLog4netProperties(Natixis70Utils.NatixisLogDirectory, "Natixis70");
+            int coreCount = Utils.CoreCount;
 
-            const int num_iterations = 1000;
-            //const int num_iterations = 1;
-            const int num_threads = 1;//single core
+            // ReSharper disable once ConvertToConstant.Local
+            var num_iterations = 1000;
+
+            // number of parallel threads in each single training
+            // ReSharper disable once ConvertToConstant.Local
+            int numThreadsForEachModelTraining = 1;//single core
+
             var searchSpace = new Dictionary<string, object>
             {
-                { "num_threads", new[] { num_threads } }, 
+                { "num_threads", new[] { numThreadsForEachModelTraining } },
                 { "device_type", new[] { "cpu" } },
                 { "num_iterations", new[]{ num_iterations } },
                 { "early_stopping_round", new[] {num_iterations/10 } },
@@ -39,30 +44,44 @@ namespace SharpNet.Datasets.Natixis70
                 { "MergeHorizonAndMarketIdInSameFeature",new[]{true/*, false*/} },
                 //{ "Normalization",new[] { "NONE", "DIVIDE_BY_ABS_MEAN"} },
                 { "extra_trees", new[] { true, false } },
-                { "min_sum_hessian_in_leaf", new[] { 1e-3, 0.01, 0.1 } },
-                { "min_data_in_bin", new[] { 3 ,10 } },
-                { "path_smooth", new[] { 0 , 0.1, 1 } },
-                { "learning_rate",new[]{ /*0.04, */ 0.05, /*0.06,*/ 0.1 } },
-                { "num_leaves", new[]{25, /*50,*/ 100} }, //bad: 15
-                { "lambda_l1", new[]{0, /*0.01, 0.1*/ 1}},
-                { "lambda_l2", new[]{0, /*0.01, 0.1*/ 1}},
-                //{ "max_bin", new[]{10,50,255} },
-                { "min_data_in_leaf", new[]{20,50} },
-            //{ "max_depth", new[]{-1, 10, 20, 50, 100} },
-            //{ "bagging_fraction", new[]{0.8, 1} },
-            //{ "bagging_freq", new[]{0, 1} },
-            //{ "colsample_bytree", new[]{0.7, 0.8, 0.9, 1.0}}, //bad: 0.5
-            //{ "colsample_bynode", new[]{0.5,1.0}},
-        };
+                { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
 
-            int coreCount = Utils.CoreCount;
-            if (coreCount % num_threads != 0)
+                { "bagging_fraction",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+                { "bagging_freq", new[]{0, 1} },
+                { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+                { "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+
+                { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.03f, 0.1f)},
+                
+                { "num_leaves", AbstractHyperParameterSearchSpace.Range(10, 100) },
+                { "min_data_in_leaf", new[]{20,50} },
+                //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
+
+                { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0, 1)},
+                { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0, 1)},
+
+                { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
+                { "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 50) },
+
+                { "max_depth", new[]{-1, 10, 20, 50, 100} },
+            };
+
+            if (coreCount % numThreadsForEachModelTraining != 0)
             {
-                throw new ArgumentException($"invalid number of threads {num_threads} : core count {coreCount} must be a multiple of it");
+                throw new ArgumentException($"invalid number of threads {numThreadsForEachModelTraining} : core count {coreCount} must be a multiple of it");
             }
-            var hpo = new RandomSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid(), HyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING);
+            int numModelTrainingInParallel = coreCount / numThreadsForEachModelTraining;
+
+            //var hpo = new RandomSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid(), AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING, LightGBMModel.Log.Info);
+            var hpo = new BayesianSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid(), NatixisLogDirectory, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM, 
+                numModelTrainingInParallel, 
+                1* numModelTrainingInParallel,
+                5000*1* numModelTrainingInParallel,
+                LightGBMModel.Log.Info, 
+                10_000);
+
             // ReSharper disable once UselessBinaryOperation
-            hpo.Process(coreCount / num_threads, t => TrainWithHyperParameters(t, ""), LightGBMModel.Log.Info);
+            hpo.Process(numModelTrainingInParallel, t => TrainWithHyperParameters(t, ""));
         }
 
         static Natixis70Utils()
@@ -141,29 +160,29 @@ namespace SharpNet.Datasets.Natixis70
             }
             return Yunnormalized;
         }
-        private static double TrainWithHyperParameters(Natixis70HyperParameters hyperParameters, string modelPrefix)
+        private static float TrainWithHyperParameters(Natixis70HyperParameters sample, string modelPrefix)
         {
-            var model = new LightGBMModel(hyperParameters, NatixisLogDirectory, modelPrefix);
+            var model = new LightGBMModel(sample, NatixisLogDirectory, modelPrefix);
             Utils.ConfigureThreadLog4netProperties(NatixisLogDirectory, "Natixis70");
 
-            using var xFullTraining = Load_X(XTrainRawFile, hyperParameters);
-            using var yFullTraining = Load_Y(YTrainRawFile, hyperParameters);
-            using var xTest = Load_X(XTestRawFile, hyperParameters);
-            using var fullTraining  = NewDataSet(xFullTraining, yFullTraining, false, hyperParameters);
-            using var test = NewDataSet(xTest, null, false, hyperParameters);
+            using var xFullTraining = Load_X(XTrainRawFile, sample);
+            using var yFullTraining = Load_Y(YTrainRawFile, sample);
+            using var xTest = Load_X(XTestRawFile, sample);
+            using var fullTraining  = NewDataSet(xFullTraining, yFullTraining, false, sample);
+            using var test = NewDataSet(xTest, null, false, sample);
 
-            int rowsInTrainingSet = (int)(hyperParameters.PercentageInTraining * fullTraining.Count + 0.1);
-            rowsInTrainingSet -= rowsInTrainingSet % hyperParameters.RawCountToCount(1);
+            int rowsInTrainingSet = (int)(sample.PercentageInTraining * fullTraining.Count + 0.1);
+            rowsInTrainingSet -= rowsInTrainingSet % sample.RawCountToCount(1);
             using var trainAndValidation = fullTraining.SplitIntoTrainingAndValidation(rowsInTrainingSet);
 
             var sw = Stopwatch.StartNew();
             model.Train(trainAndValidation.Training, trainAndValidation.Test);
 
             var validationRmse = model.CreateModelResults(
-                hyperParameters.SavePredictions,
-                y => UnnormalizeYIfNeeded(y, hyperParameters),
+                sample.SavePredictions,
+                y => UnnormalizeYIfNeeded(y, sample),
                 sw.Elapsed.TotalSeconds,
-                hyperParameters.X_Shape(1)[1],
+                sample.X_Shape(1)[1],
                 trainAndValidation.Training,
                 trainAndValidation.Test,
                 test);

@@ -7,28 +7,25 @@ using SharpNet.MathTools;
 
 namespace SharpNet.HPO;
 
-
-
-public class HyperParameterSearchSpace
+public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpace
 {
     #region private fields
-    private readonly string _hyperParameterName;
     private readonly string[] _allHyperParameterValuesAsString;
     private readonly IDictionary<string, SingleHyperParameterValueStatistics> _statistics = new Dictionary<string, SingleHyperParameterValueStatistics>();
     #endregion
 
-    public enum RANDOM_SEARCH_OPTION { FULLY_RANDOM, PREFER_MORE_PROMISING };
-
-
-    public HyperParameterSearchSpace(string hyperParameterName, object hyperParameterSearchSpace)
+    public DiscreteHyperParameterSearchSpace(object hyperParameterSearchSpace)
     {
-        _hyperParameterName = hyperParameterName;
         _allHyperParameterValuesAsString = ToObjectArray(hyperParameterSearchSpace);
         foreach (var e in _allHyperParameterValuesAsString)
         {
             _statistics[e] = new SingleHyperParameterValueStatistics();
         }
     }
+
+
+    public override bool IsCategoricalHyperParameter => true;
+    public override bool IsConstant => _allHyperParameterValuesAsString.Length <= 1;
 
     public override string ToString()
     {
@@ -46,41 +43,48 @@ public class HyperParameterSearchSpace
         }
         return res;
     }
-    public string GetRandomSearchSpaceHyperParameterStringValue(Random rand, RANDOM_SEARCH_OPTION randomSearchOption)
+
+    public override float Next_BayesianSearchFloatValue(Random rand, RANDOM_SEARCH_OPTION randomSearchOption)
     {
         if (randomSearchOption == RANDOM_SEARCH_OPTION.FULLY_RANDOM)
         {
             int randomIndex = rand.Next(Length);
-            return _allHyperParameterValuesAsString[randomIndex];
+            return randomIndex;
         }
         if (randomSearchOption == RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING)
         {
             var targetInvestmentTime = TargetCpuInvestmentTime();
             int randomIndex = Utils.RandomIndexBasedOnWeights(targetInvestmentTime, rand);
-            return _allHyperParameterValuesAsString[randomIndex];
+            return randomIndex;
         }
-
         throw new ArgumentException($"invalid argument {randomSearchOption}");
     }
-    public int Length => _allHyperParameterValuesAsString.Length;
-    public void RegisterCost(object parameterValue, double cost, double elapsedTimeInSeconds)
+
+    public override string BayesianSearchFloatValue_to_SampleStringValue(float f)
     {
-        HyperParameterValueToStatistics(parameterValue).RegisterCost(cost, elapsedTimeInSeconds);
+        int index = Utils.NearestInt(f);
+        return _allHyperParameterValuesAsString[index];
     }
-    public string HyperParameterStringValueAtIndex(int index)
+
+
+    public override int Length => _allHyperParameterValuesAsString.Length;
+    public override void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds)
+    {
+        SampleValueToStatistics(sampleValue).RegisterCost(cost, elapsedTimeInSeconds);
+    }
+    public override string SampleStringValue_at_Index(int index)
     {
         return _allHyperParameterValuesAsString[index];
     }
-    private SingleHyperParameterValueStatistics HyperParameterValueToStatistics(object parameterValue)
+    private SingleHyperParameterValueStatistics SampleValueToStatistics(object sampleValue)
     {
-        var parameterValueAsString = ClassFieldSetter.FieldValueToString(parameterValue);
+        var parameterValueAsString = ClassFieldSetter.FieldValueToString(sampleValue);
         if (!_statistics.ContainsKey(parameterValueAsString))
         {
-            throw new Exception($"invalid value {parameterValueAsString} : can not be found among {string.Join(' ', _statistics.Keys)} for {_hyperParameterName}");
+            throw new Exception($"invalid value {parameterValueAsString} : can not be found among {string.Join(' ', _statistics.Keys)}");
         }
         return _statistics[parameterValueAsString];
     }
-
     /// <summary>
     /// for each possible value of the Hyper-Parameter '_hyperParameterName'
     /// the % of time (between 0 and 1.0) we are willing to invest on search this specif value.
