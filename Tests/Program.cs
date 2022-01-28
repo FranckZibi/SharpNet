@@ -60,62 +60,6 @@ namespace SharpNetTests
             //new CancelDatabase().CreatePredictionFile(Path.Combine(ImageDatabaseManagementPath, "Prediction_def.csv"));return;
 
 
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions", new Dictionary<string, double>
-            //{
-            //    ["CFM60__20210605_1901.csv"] = 1,
-            //    ["CFM60_DenseUnits_50_20210606_0825.csv"] = 1,
-            //    ["CFM60_min_lr_10_20210606_1919.csv"] = 1
-            //}); return;
-
-            var pred = CFM60Utils.LoadPredictions(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\test_predictions\20211111\EnsembleLearning_32x_637722548893087857.csv");
-            CFM60Utils.SavePredictions(CFM60Utils.AdjustPredictionFromTargetMean(pred), @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\test_predictions\20211111\EnsembleLearning_32x_637722548893087857_fixed.csv");
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\test_predictions\aaa", null);
-            return;
-
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20200613", new Dictionary<string, double>
-            //{
-            //    ["CFM60_l2_0_00001_batch4096_V1_20210613_1158.csv"] = 1,
-            //    ["CFM60_l2_0_00001_V1_20210613_1029.csv"] = 1,
-            //    ["CFM60_l2_0_00005_batch4096_V1_20210613_1158.csv"] = 1,
-            //    ["CFM60_l2_0_00005_V1_20210613_1029.csv"] = 1,
-            //    ["CFM60_l2_0_0001_batch4096_V1_20210613_1158.csv"] = 1,
-            //    ["CFM60_l2_0_0001_V2_20210613_1049.csv"] = 1,
-            //    ["CFM60_l2_0_0005_batch4096_V1_20210613_1158.csv"] = 1,
-            //    ["CFM60_l2_0_0005_V1_20210613_1029.csv"] = 1
-            //}, 1.0, Math.Log(1.00)); return;
-
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211229", new Dictionary<string, double>
-            //{
-            //    ["mse_val_0_3713__learning_rate_0.001_num_boost_round_20000_20211012_001042.csv"] = 10,
-            //    ["mse_val_0_3991__target_type_Y_model_name_linear_regression_Use_LS_False_Use_day_True_20210312_020019.csv"] = 10,
-            //    ["EnsembleLearning_637621601154307303_2x_network_actual_0_4069_add_ln_0then_addd_ln_1_12_actual_0_4050_fixed_actual_0_4020_untrend.csv"] = 80,
-            //}, 1.0, Math.Log(1.00)); return;
-
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210712", new Dictionary<string, double>
-            //{
-            //    ["CFM60True_True_False_20210712_0738_0_3819.csv"] = 1,
-            //    ["CFM60_20210708_0808_0_3702.csv"] = 1,
-            //    ["CFM60_ADD_NOISE_0_03_Continuous_noise_0_1_20210711_1636_0_3818.csv"] = 1,
-            //    ["CFM60_lr_0_001_divide_200_20210708_0808_0_3664.csv"] = 1,
-            //    ["CFM60_lr_0_005_1cycle_divide500_20210709_1551_0_3797.csv"] = 1,
-            //    ["CFM60_norm_deduce_mean_20210711_1823_0_3756.csv"] = 1,
-            //    ["CFM60_Pid_EmbeddingDim_16_20210705_1245_0_3665.csv"] = 1,
-            //}, 1.0, Math.Log(1.00)); return;
-
-
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210716", null,  1.0, Math.Log(1.00));return;
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210717b", null,  1.0, Math.Log(1.00));return;
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.06), Math.Log(1.06));return;  // -0.0020
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.03), Math.Log(1.09));return;  // -0.0028
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210811", null,  1.0, Math.Log(1.00), Math.Log(1.12));return;  // -0.0031
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20210717", null,  1.0, Math.Log(1.06));return;
-
-            //var dico = new Dictionary<string, double>
-            //{
-            //    ["mse_val_0_3991__target_type_Y_model_name_linear_regression_Use_LS_False_Use_day_True_20210312_020019.csv"] = 1.0/0.4367,
-            //    ["EnsembleLearning_637621601154307303_2x_network_actual_0_4069_add_ln_0then_addd_ln_1_12_actual_0_4050_fixed_actual_0_4020_untrend.csv"] = 1/0.405
-            //};
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211203b", null,  1.0, Math.Log(1.00));return;
 
 
             //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
@@ -126,69 +70,9 @@ namespace SharpNetTests
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
-            //var p = CFM60NetworkBuilder.Default(); p.Use_y_LinearRegressionEstimate = true; p.Use_pid_y_avg = false; p.Use_Christmas_flag = true; p.Use_EndOfYear_flag = true; p.Use_EndOfTrimester_flag = true; p.Use_day = false; ; p.ExtraDescription = "_target_eoy_eoq_christmas"; using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60_target_eoy_eoq_christmas_20210118_2308_150.txt");
-            //using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(p, s => Network.Log.Info(s));
-            //var cfm60Test = (CFM60DataSet)cfm60TrainingAndTestDataSet.Test;
-            //cfm60Test.CreatePredictionFile(network, 1024, @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60_target_eoy_eoq_christmas_20210118_2308_150" + "_" + DateTime.Now.Ticks + ".csv");
-            //return;
+          
 
-            //var p = new CFM60NetworkBuilder();
-            //p.InputSize = 5; p.HiddenSize = 128; p.NumEpochs = 150; p.BatchSize = 1024; p.InitialLearningRate = 0.0005; p.DropoutRate = 0.2;
-            //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize5_128_Drop_0_2_lr_0_0005_20210115_1842_30.txt");
-            //using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(p, s => Network.Log.Info(s));
-            //var cfm60 = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
-            //using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.PercentageInTraining);
-            //Network.Log.Info("training: "+Network.MetricsToString(network.ComputeMetricsForTestDataSet(1024, trainingValidation.Training), "train_"));
-            //Network.Log.Info("validation: "+Network.MetricsToString(network.ComputeMetricsForTestDataSet(1024, trainingValidation.Test), "val_"));
-            //return;
-
-            //var p = new CFM60NetworkBuilder();
-            //using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(p, s => Network.Log.Info(s));
-            //Network.Log.Info(cfm60TrainingAndTestDataSet.ComputeStats(0.9));
-            //Network.Log.Info(cfm60TrainingAndTestDataSet.ComputeStats(0.68));
-            //return;
-
-            //var adjustedPreds = new Dictionary<int, double>();
-            //foreach (var e in CFM60Utils.GetTestPredictions())
-            //{
-            //    adjustedPreds[e.ID] = CFM60Utils.LinearRegressionAdjustedByMeanEstimate(e.ID);
-            //}
-            //CFM60Utils.SavePredictions(adjustedPreds, @"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211110\constant_adjusted.csv");return;
-
-
-            //using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(new CFM60NetworkBuilder(), s => Network.Log.Info(s));
-            //var IDToPredictions = CFM60TrainingAndTestDataSet.LoadPredictionFile(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\validation_predictions\CFM60_do_not_use_day_20210117_1923.csv");
-            //var mse = ((CFM60DataSet) cfm60TrainingAndTestDataSet.Training).ComputeMeanSquareError(IDToPredictions, false);
-            //Network.Log.Info("mse for CFM60_do_not_use_day = " + mse.ToString(CultureInfo.InvariantCulture));
-            //return;
-
-
-            //using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(new CFM60NetworkBuilder(), s => Network.Log.Info(s));
-            //var training = ((CFM60DataSet) cfm60TrainingAndTestDataSet.Training);
-            //var test = ((CFM60DataSet) cfm60TrainingAndTestDataSet.Test);
-            //using var sub = training.SplitIntoTrainingAndValidation(0.68);
-            //var subTraining = ((CFM60DataSet)sub.Training);
-            //var subValidation = ((CFM60DataSet)sub.Test);
-            //var pidToLinearRegressionBetweenDayAndY = training.ComputePidToLinearRegressionBetweenDayAndY();
-            //test.ComputePredictions(  e => pidToLinearRegressionBetweenDayAndY[e.pid].Estimation(e.day), "linearRegression_0_68");
-            //training.CreateSummaryFile("c:/temp/training.csv");
-            //test.CreateSummaryFile("c:/temp/test.csv");
-            //return;
-
-            //new TestCFM60DataSet().TestDayToFractionOfYear();return;
-            //new TestParallelRunCpuVersusGpu().TestSwitchSecondAndThirdDimension(new[] {2,3,5}, new[] { 2, 5, 3 });
-
-            //var originalPredictions = CFM60Utils.LoadPredictions(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211229\EnsembleLearning_637753734141871380_20_10_70_untrend.csv");
-            //var fixedPredictions = CFM60Utils.AdjustPredictionFromTargetMean(originalPredictions);
-            //CFM60Utils.SavePredictions(fixedPredictions, @"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211229\EnsembleLearning_637753734141871380_20_10_70_untrend_fixed.csv"); return;
-
-            //CFM60DataSet.EnsembleLearning(@"C:\Users\fzibi\AppData\Local\SharpNet\CFM60\test_predictions\20211213b", null,  1.0, Math.Log(1.03));return;
-
-
-            //CFM60Utils.Create_Intervals_To_Mean_For_Training(7);return;
-            //CFM60Utils.CreateTestPredictionFileForAverage();return;
-
-            CFM60Tests();
+            SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchLightGBMHPO(); return;
 
             //new TestCpuTensor().TestMaxPooling3D();return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_UnivariateTimeSeries(); return;

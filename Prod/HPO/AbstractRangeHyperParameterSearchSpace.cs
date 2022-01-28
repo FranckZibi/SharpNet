@@ -26,16 +26,15 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
         foreach (var e in stats.OrderBy(e => (e.Item1.Cost.Count == 0) ? double.MaxValue : e.Item1.Cost.Average))
         {
             int bucketIndex = e.Item2;
-            res += " Bucket#" + bucketIndex + ":" + e.Item1;
+            res += BucketDescription(bucketIndex) + ":" + e.Item1;
             res += " (target Time: " + Math.Round(100 * targetInvestmentTime[bucketIndex], 1) + "%)";
             res += Environment.NewLine;
         }
         return res;
     }
-    public override bool IsCategoricalHyperParameter => false;
     public override int LengthForGridSearch => BucketCount;
 
-    protected AbstractRangeHyperParameterSearchSpace(range_type rangeType)
+    protected AbstractRangeHyperParameterSearchSpace(range_type rangeType) : base(false)
     {
         _rangeType = rangeType;
         StatsByBucket = new SingleHyperParameterValueStatistics[BucketCount];
@@ -46,6 +45,7 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
     }
     protected static float Next_BayesianSearchFloatValue(float min, float max, Random rand, range_type rangeType, RANDOM_SEARCH_OPTION randomSearchOption, SingleHyperParameterValueStatistics[] statsByBucket)
     {
+        Debug.Assert(max>=min);
         if (Math.Abs(max - min) < 1e-6)
         {
             return max;
@@ -56,12 +56,20 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
             int randomIndex = Utils.RandomIndexBasedOnWeights(targetInvestmentTime, rand);
             var minValueInBucket = BucketIndexToBucketLowerValue(randomIndex, min, max, rangeType);
             var maxValueInBucket = BucketIndexToBucketUpperValue(randomIndex, min, max, rangeType);
+            Debug.Assert(maxValueInBucket >= minValueInBucket);
             return Next_BayesianSearchFloatValue(minValueInBucket, maxValueInBucket, rand, rangeType, RANDOM_SEARCH_OPTION.FULLY_RANDOM, null);
         }
-        return RandomValue(min, max, rangeType, rand.NextSingle());
+        var result = RandomValue(min, max, rangeType, rand.NextSingle());
+        Debug.Assert(result>=(min-1e-6));
+        Debug.Assert(result<=(max+1e-6));
+        return result;
     }
     protected static float SampleValueToFloat(object sampleValue)
     {
+        if (sampleValue is double)
+        {
+            return (float)(double)sampleValue;
+        }
         if (sampleValue is float)
         {
             return (float)sampleValue;
@@ -107,9 +115,9 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
         Debug.Assert(max>=min);
         Debug.Assert(randomUniformBetween_0_and_1>=0);
         Debug.Assert(randomUniformBetween_0_and_1<=1);
-        const double epsilon = 1e-6;
+        const double epsilon = 1e-3; //TODO tune this parameter
         var logSampleValue = Math.Log(epsilon) + (Math.Log(max - min + epsilon) - Math.Log(epsilon)) * randomUniformBetween_0_and_1;
-        return (float)(Math.Exp(logSampleValue) - epsilon);
+        return (float)(min + Math.Exp(logSampleValue) - epsilon);
     }
     private static float UniformValue(float min, float max, float randomUniformBetween_0_and_1)
     {
@@ -118,6 +126,11 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
         Debug.Assert(randomUniformBetween_0_and_1 <= 1);
         return min + (max - min) * randomUniformBetween_0_and_1;
     }
+
+
+    protected abstract float LowerValueForBucket(int bucketIndex);
+    protected abstract float UpperValueForBucket(int bucketIndex);
+
     protected static float BucketIndexToBucketLowerValue(int bucketIndex, float min, float max, range_type rangeType)
     {
         if (bucketIndex == 0)
@@ -133,5 +146,14 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
             return max;
         }
         return RandomValue(min, max, rangeType, (bucketIndex + 1f) / BucketCount);
+    }
+
+    private string BucketDescription(int bucketIndex)
+    {
+        string FloatToString(float f)
+        {
+            return Math.Round(f,4).ToString(CultureInfo.InvariantCulture);
+        }
+        return "[" + FloatToString(LowerValueForBucket(bucketIndex)) + "," + FloatToString(UpperValueForBucket(bucketIndex)) + "]";
     }
 }

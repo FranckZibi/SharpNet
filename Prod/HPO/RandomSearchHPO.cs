@@ -13,7 +13,7 @@ namespace SharpNet.HPO
         #endregion
 
         public RandomSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption, Action<string> log, int maxSamplesToProcess) : 
-            base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess)
+            base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess, new HashSet<string>())
         {
             _randomSearchOption = randomSearchOption;
         }

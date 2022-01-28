@@ -273,5 +273,20 @@ namespace SharpNet.Datasets.Natixis70
 
         // ReSharper disable once UnusedMember.Global
         public string DatasetName => IsTryingToPredictErrors ? "Natixis70Errors" : "Natixis70";
+
+        public static HashSet<string> CategoricalHyperParameters()
+        {
+            return new HashSet<string>
+                   {
+                       "saved_feature_importance_type",
+                       "verbosity",
+                       "task",
+                       "objective",
+                       "boosting",
+                       "device_type",
+                       "tree_learner",
+                   };
+        }
+
     }
 }

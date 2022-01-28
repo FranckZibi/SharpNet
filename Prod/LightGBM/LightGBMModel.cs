@@ -25,10 +25,9 @@ namespace SharpNet.LightGBM
         {
             "bagging_fraction", "colsample_bynode","colsample_bytree", "device_type", "early_stopping_round", "extra_trees", "lambda_l1", "lambda_l2", "learning_rate","max_bin", "max_depth", "min_sum_hessian_in_leaf", "min_data_in_bin", "min_data_in_leaf", "num_iterations", "num_leaves", "num_threads", "objective", "path_smooth", "task"
         };
-        //private static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "CFM63");
         private readonly string _workingDirectory;
         private readonly string _modelPrefix;
-        public string ModelPath { get; private set; }
+        private string ModelPath { get; set; }
         private string ModelName => string.IsNullOrEmpty(ModelPath)?"":Path.GetFileNameWithoutExtension(ModelPath);
         
         #endregion
@@ -104,51 +103,63 @@ namespace SharpNet.LightGBM
         /// </summary>
         /// <param name="savePredictions"></param>
         /// <param name="UnNormalizeYIfNeeded"></param>
+        /// <param name="shouldSavePredictionsBasedOnValidationScore"></param>
         /// <param name="trainingTimeInSeconds"></param>
         /// <param name="totalParams"></param>
         /// <param name="trainDataset"></param>
         /// <param name="validationDataset"></param>
         /// <param name="testDataset"></param>
         /// <returns>the cost associated with the model</returns>
-        public float CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
+        public float CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, Func<double,bool> shouldSavePredictionsBasedOnValidationScore,double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
         {
-            Log.Info("Computing Model predictions for Training Dataset");
+            Log.Info($"Computing Model '{ModelName}' predictions for Training Dataset");
             var trainPredictions = UnNormalizeYIfNeeded(Predict(trainDataset));
+            Log.Info("Computing Model score on Training");
+            var scoreTrain = ComputeRmse(UnNormalizeYIfNeeded(trainDataset.Y), trainPredictions);
+            Log.Info($"Model '{ModelName}' score on training: {scoreTrain}");
 
-            Log.Info("Computing Model Accuracy on Training");
-            var rmseTrain = ComputeRmse(UnNormalizeYIfNeeded(trainDataset.Y), trainPredictions);
-            Log.Info($"Model Accuracy on training: {rmseTrain}");
-            var trainPredictionsFileName = ModelName + "_predict_train_"+Math.Round(rmseTrain, 5) + ".csv";
-            Log.Info("Saving predictions for Training Dataset");
-            savePredictions(trainPredictions, Path.Combine(_workingDirectory, trainPredictionsFileName));
-
-            float rmseValidation = float.NaN;
+            bool shouldSavePredictions = true;
+            float scoreValidation = float.NaN;
+            CpuTensor<float> validationPredictions = null;
             if (validationDataset != null)
             {
-                Log.Info("Computing Model predictions for Validation Dataset");
-                var validationPredictions = UnNormalizeYIfNeeded(Predict(validationDataset));
-
-                Log.Info("Computing Model Accuracy on Validation");
-                rmseValidation = (float)ComputeRmse(UnNormalizeYIfNeeded(validationDataset.Y), validationPredictions);
-                Log.Info($"Model Accuracy on Validation: {rmseValidation}");
-
-                Log.Info("Saving predictions for Validation Dataset");
-                var validationPredictionsFileName = ModelName
-                                          + "_predict_valid_" + Math.Round(rmseValidation, 5)
-                                          + ".csv";
-                savePredictions(validationPredictions, Path.Combine(_workingDirectory, validationPredictionsFileName));
+                Log.Info($"Computing Model '{ModelName}' predictions for Validation Dataset");
+                validationPredictions = UnNormalizeYIfNeeded(Predict(validationDataset));
+                Log.Info("Computing Model '{ModelName}' score on Validation");
+                scoreValidation = (float)ComputeRmse(UnNormalizeYIfNeeded(validationDataset.Y), validationPredictions);
+                Log.Info($"Model '{ModelName}' score on Validation: {scoreValidation}");
+                if (!shouldSavePredictionsBasedOnValidationScore(scoreValidation))
+                {
+                    Log.Info($"No need to save Model '{ModelName}' predictions because of a validation score {scoreValidation}");
+                    shouldSavePredictions = false;
+                }
             }
 
-            if (testDataset != null)
+            if (shouldSavePredictions)
             {
-                Log.Info("Computing Model predictions for Test Dataset");
-                var testPredictions = Predict(testDataset);
-                Log.Info("Saving predictions for Test Dataset");
-                var testPredictionsFileName = ModelName
-                                              + "_predict_test_.csv";
-                savePredictions(testPredictions, Path.Combine(_workingDirectory, testPredictionsFileName));
-            }
+                var trainPredictionsFileName = ModelName + "_predict_train_" + Math.Round(scoreTrain, 5) + ".csv";
+                Log.Info($"Saving Model '{ModelName}' predictions for Training Dataset");
+                savePredictions(trainPredictions, Path.Combine(_workingDirectory, trainPredictionsFileName));
 
+                if (!float.IsNaN(scoreValidation))
+                {
+                    Log.Info($"Saving Model '{ModelName}' predictions for Validation Dataset");
+                    var validationPredictionsFileName = ModelName
+                                                        + "_predict_valid_" + Math.Round(scoreValidation, 5)
+                                                        + ".csv";
+                    savePredictions(validationPredictions,  Path.Combine(_workingDirectory, validationPredictionsFileName));
+                }
+
+                if (testDataset != null)
+                {
+                    Log.Info($"Computing Model '{ModelName}' predictions for Test Dataset");
+                    var testPredictions = Predict(testDataset);
+                    Log.Info("Saving predictions for Test Dataset");
+                    var testPredictionsFileName = ModelName
+                                                  + "_predict_test_.csv";
+                    savePredictions(testPredictions, Path.Combine(_workingDirectory, testPredictionsFileName));
+                }
+            }
 
             string line = "";
             try
@@ -164,9 +175,9 @@ namespace SharpNet.LightGBM
                     + _parameters.learning_rate + ";"
                     + trainingTimeInSeconds + ";"
                     + (trainingTimeInSeconds / numEpochs) + ";"
-                    + rmseTrain + ";"
+                    + scoreTrain + ";"
                     + "NaN" + ";"
-                    + rmseValidation + ";"
+                    + scoreValidation + ";"
                     + "NaN" + ";"
                     + Environment.NewLine;
                 var testsCsv = string.IsNullOrEmpty(trainDataset.Name) ? "Tests.csv" : ("Tests_" + trainDataset.Name + ".csv");
@@ -177,7 +188,7 @@ namespace SharpNet.LightGBM
                 Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
             }
 
-            return rmseValidation;
+            return scoreValidation;
         }
 
         // ReSharper disable once MemberCanBePrivate.Global
@@ -234,14 +245,6 @@ namespace SharpNet.LightGBM
       
 
         #region private methods
-        private string PredictionTempResultPath(IDataSet dataset)
-        {
-            if (string.IsNullOrEmpty(ModelName))
-            {
-                throw new Exception("missing model");
-            }
-            return Path.Combine(TempPath, ModelName + "_predict_" + ComputeUniqueDatasetName(dataset, Parameters.task_enum.predict) + ".txt");
-        }
         private static string ExePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "bin", "lightgbm.exe");
         private string RootDatasetPath => Path.Combine(_workingDirectory, "Dataset");
         private string TempPath => Path.Combine(_workingDirectory, "Temp");

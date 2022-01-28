@@ -34,12 +34,17 @@ namespace SharpNet.HPO
         // ReSharper disable once MemberCanBePrivate.Global
         public float CostOfBestSampleFoundSoFar { get; protected set; } = float.NaN;
 
-        protected AbstractHpo(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, Action<string> log, int maxSamplesToProcess)
+        protected AbstractHpo(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, Action<string> log, int maxSamplesToProcess, HashSet<string> mandatoryCategoricalHyperParameters)
         {
             SearchSpace = new Dictionary<string, AbstractHyperParameterSearchSpace>();
+
+
+            
+
             foreach (var (hyperParameterName, hyperParameterSearchSpace) in searchSpace)
             {
-                SearchSpace[hyperParameterName] = AbstractHyperParameterSearchSpace.ValueOf(hyperParameterSearchSpace);
+                var isCategoricalHyperParameter = IsCategoricalHyperParameter(typeof(T), hyperParameterName,  mandatoryCategoricalHyperParameters);
+                SearchSpace[hyperParameterName] = AbstractHyperParameterSearchSpace.ValueOf(hyperParameterSearchSpace, isCategoricalHyperParameter);
             }
             CreateDefaultSample = createDefaultSample;
             PostBuild = postBuild;
@@ -47,6 +52,27 @@ namespace SharpNet.HPO
             _maxSamplesToProcess = maxSamplesToProcess;
             _log = log;
         }
+
+
+        private static bool IsCategoricalHyperParameter(Type sampleType, string hyperParameterName, HashSet<string> mandatoryCategoricalHyperParameters)
+        {
+            if (mandatoryCategoricalHyperParameters.Contains(hyperParameterName))
+            {
+                return true;
+            }
+
+            var hyperParameterType = ClassFieldSetter.GetFieldInfo(sampleType, hyperParameterName).FieldType;
+            if (hyperParameterType == typeof(double) || hyperParameterType == typeof(float) ||  hyperParameterType == typeof(int))
+            {
+                return false;
+            }
+            if (hyperParameterType == typeof(string) || hyperParameterType == typeof(bool) || hyperParameterType.IsEnum)
+            {
+                return true;
+            }
+            throw new ArgumentException( $"can't determine if {hyperParameterName} ({hyperParameterType}) field of class {sampleType} is categorical");
+        }
+
 
         private string StatisticsDescription()
         {

@@ -70,8 +70,9 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         int numberOfNewSamplesWithCostToRetrainSurrogateModel,
         int numberOfSampleCandidatesToPredictAtTheSameTime,
         Action<string> log, 
-        int maxSamplesToProcess) :
-        base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess)
+        int maxSamplesToProcess,
+        HashSet<string> mandatoryCategoricalHyperParameters) :
+        base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess, mandatoryCategoricalHyperParameters)
     {
         Debug.Assert(numModelTrainingInParallel >= 1);
 
@@ -270,7 +271,9 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
             _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
             RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
 
-            if (SamplesWithScore.Count >= (_samplesUsedForModelTraining + _numberOfNewSamplesWithCostToRetrainSurrogateModel))
+            if (SamplesWithScore.Count >= (_samplesUsedForModelTraining + _numberOfNewSamplesWithCostToRetrainSurrogateModel)
+                && (SamplesWithScore.Count>=4 ) 
+                )
             {
                 _samplesUsedForModelTraining = TrainSurrogateModel();
             }

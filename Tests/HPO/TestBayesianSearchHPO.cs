@@ -76,7 +76,8 @@ public class TestBayesianSearchHPO
             100,
             10000,
             Log.Info,
-            10000
+            10000,
+            new HashSet<string>()
         );
         hpo.Process(4, t => t.Cost());
     }

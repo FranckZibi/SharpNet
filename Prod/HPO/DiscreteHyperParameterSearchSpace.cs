@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 
 namespace SharpNet.HPO;
@@ -13,7 +14,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     private readonly IDictionary<string, SingleHyperParameterValueStatistics> _statistics = new Dictionary<string, SingleHyperParameterValueStatistics>();
     #endregion
 
-    public DiscreteHyperParameterSearchSpace(object hyperParameterSearchSpace)
+    public DiscreteHyperParameterSearchSpace(object hyperParameterSearchSpace, bool isCategoricalHyperParameter) : base(isCategoricalHyperParameter)
     {
         _allHyperParameterValuesAsString = ToObjectArray(hyperParameterSearchSpace);
         foreach (var e in _allHyperParameterValuesAsString)
@@ -22,8 +23,6 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
         }
     }
 
-
-    public override bool IsCategoricalHyperParameter => true;
     public override bool IsConstant => _allHyperParameterValuesAsString.Length <= 1;
 
     public override string ToString()
@@ -45,24 +44,37 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
 
     public override float Next_BayesianSearchFloatValue(Random rand, RANDOM_SEARCH_OPTION randomSearchOption)
     {
+        int randomIndex = -1;
         if (randomSearchOption == RANDOM_SEARCH_OPTION.FULLY_RANDOM)
         {
-            int randomIndex = rand.Next(_allHyperParameterValuesAsString.Length);
-            return randomIndex;
+            randomIndex = rand.Next(_allHyperParameterValuesAsString.Length);
         }
-        if (randomSearchOption == RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING)
+        else if (randomSearchOption == RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING)
         {
             var targetInvestmentTime = TargetCpuInvestmentTime();
-            int randomIndex = Utils.RandomIndexBasedOnWeights(targetInvestmentTime, rand);
+            randomIndex = Utils.RandomIndexBasedOnWeights(targetInvestmentTime, rand);
+        }
+        if (randomIndex == -1)
+        {
+            throw new ArgumentException($"invalid argument {randomSearchOption}");
+        }
+
+        if (IsCategoricalHyperParameter)
+        {
             return randomIndex;
         }
-        throw new ArgumentException($"invalid argument {randomSearchOption}");
+        return float.Parse(_allHyperParameterValuesAsString[randomIndex], CultureInfo.InvariantCulture);
     }
 
     public override string BayesianSearchFloatValue_to_SampleStringValue(float f)
     {
-        int index = Utils.NearestInt(f);
-        return _allHyperParameterValuesAsString[index];
+        if (IsCategoricalHyperParameter)
+        {
+            // f is an index
+            int index = Utils.NearestInt(f);
+            return _allHyperParameterValuesAsString[index];
+        }
+        return f.ToString(CultureInfo.InvariantCulture);
     }
 
 

@@ -29,11 +29,18 @@ public class IntRangeHyperParameterSearchSpace : AbstractRangeHyperParameterSear
     }
     public override string SampleStringValue_at_Index_For_GridSearch(int index)
     {
-        var lowerValue = BucketIndexToBucketLowerValue(index, _min, _max, _rangeType);
-        var upperValue = BucketIndexToBucketUpperValue(index, _min, _max, _rangeType);
-        var sampleValue = Utils.NearestInt((lowerValue + upperValue) / 2);
+        var sampleValue = Utils.NearestInt((LowerValueForBucket(index) + UpperValueForBucket(index)) / 2);
         return sampleValue.ToString();
     }
 
     public override bool IsConstant => _min == _max;
+    protected override float LowerValueForBucket(int bucketIndex)
+    {
+        return (int)BucketIndexToBucketLowerValue(bucketIndex, _min, _max, _rangeType);
+    }
+    protected override float UpperValueForBucket(int bucketIndex)
+    {
+        return (int)BucketIndexToBucketUpperValue(bucketIndex, _min, _max, _rangeType);
+    }
+
 }

@@ -106,7 +106,7 @@ namespace SharpNet
         //{
         //    return GetFieldInfo(objectType, fieldName).GetValue(o);
         //}
-        private static FieldInfo GetFieldInfo(Type t, string fieldName)
+        public static FieldInfo GetFieldInfo(Type t, string fieldName)
         {
             return GetFieldName2FieldInfo(t)[fieldName];
         }

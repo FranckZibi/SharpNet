@@ -12,7 +12,7 @@ namespace SharpNet.HPO
         #endregion
 
         public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, Action<string> log, int maxSamplesToProcess) 
-            : base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess)
+            : base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess, new HashSet<string>())
         {
         }
 

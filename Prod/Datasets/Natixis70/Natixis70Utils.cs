@@ -23,16 +23,19 @@ namespace SharpNet.Datasets.Natixis70
 
         public static void LaunchLightGBMHPO()
         {
-            Utils.ConfigureGlobalLog4netProperties(Natixis70Utils.NatixisLogDirectory, "Natixis70");
-            Utils.ConfigureThreadLog4netProperties(Natixis70Utils.NatixisLogDirectory, "Natixis70");
+            Utils.ConfigureGlobalLog4netProperties(NatixisLogDirectory, "Natixis70");
+            Utils.ConfigureThreadLog4netProperties(NatixisLogDirectory, "Natixis70");
             int coreCount = Utils.CoreCount;
 
             // ReSharper disable once ConvertToConstant.Local
             var num_iterations = 1000;
 
-            // number of parallel threads in each single training
             // ReSharper disable once ConvertToConstant.Local
+            // number of parallel threads in each single training
             int numThreadsForEachModelTraining = 1;//single core
+
+            //coreCount = numThreadsForEachModelTraining= num_iterations = 1;
+            //numThreadsForEachModelTraining = 2;
 
             var searchSpace = new Dictionary<string, object>
             {
@@ -43,27 +46,30 @@ namespace SharpNet.Datasets.Natixis70
 
                 { "MergeHorizonAndMarketIdInSameFeature",new[]{true/*, false*/} },
                 //{ "Normalization",new[] { "NONE", "DIVIDE_BY_ABS_MEAN"} },
-                { "extra_trees", new[] { true, false } },
+                { "extra_trees", new[] { true /*, false*/ } }, //bad: false
                 { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
 
-                { "bagging_fraction",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+                { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
+                //{ "bagging_fraction",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
                 { "bagging_freq", new[]{0, 1} },
+
                 { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
                 { "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
-
-                { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.03f, 0.1f)},
                 
-                { "num_leaves", AbstractHyperParameterSearchSpace.Range(10, 100) },
-                { "min_data_in_leaf", new[]{20,50} },
-                //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
+                { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.03f, 0.07f)}, //for 1.000 trees
+                //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.03f)}, //for 10.000trees
+                
+                { "num_leaves", AbstractHyperParameterSearchSpace.Range(5, 60) },
+                { "min_data_in_leaf", AbstractHyperParameterSearchSpace.Range(20, 200) },
+                { "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
 
                 { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 1f)},
                 { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 1f)},
 
                 { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
-                { "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 50) },
+                { "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 100) },
 
-                { "max_depth", new[]{-1, 10, 20, 50, 100} },
+                { "max_depth", new[]{10, 20, 50, 100, 255} },
             };
 
             if (coreCount % numThreadsForEachModelTraining != 0)
@@ -73,12 +79,14 @@ namespace SharpNet.Datasets.Natixis70
             int numModelTrainingInParallel = coreCount / numThreadsForEachModelTraining;
 
             //var hpo = new RandomSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid(), AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING, LightGBMModel.Log.Info);
-            var hpo = new BayesianSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid(), NatixisLogDirectory, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM, 
+            var hpo = new BayesianSearchHPO<Natixis70HyperParameters>(searchSpace, DefaultParametersLightGBM, t => t.ToBeCalledAfterEachConstruction(), t => t.IsValid(), NatixisLogDirectory, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING, 
                 numModelTrainingInParallel, 
                 1* numModelTrainingInParallel,
                 5000*1* numModelTrainingInParallel,
                 LightGBMModel.Log.Info, 
-                10_000);
+                10_000,
+                Natixis70HyperParameters.CategoricalHyperParameters()
+                );
 
             // ReSharper disable once UselessBinaryOperation
             hpo.Process(numModelTrainingInParallel, t => TrainWithHyperParameters(t, ""));
@@ -181,6 +189,7 @@ namespace SharpNet.Datasets.Natixis70
             var validationRmse = model.CreateModelResults(
                 sample.SavePredictions,
                 y => UnnormalizeYIfNeeded(y, sample),
+                validationScore => validationScore< Min_Validation_Score_To_Save_Predictions,
                 sw.Elapsed.TotalSeconds,
                 sample.X_Shape(1)[1],
                 trainAndValidation.Training,
@@ -188,6 +197,10 @@ namespace SharpNet.Datasets.Natixis70
                 test);
             return validationRmse;
         }
+
+        private const double Min_Validation_Score_To_Save_Predictions = 19.5;
+
+
         /// <summary>
         /// return the statistics (average/volatility) of each column of the matrix 'y'
         /// </summary>

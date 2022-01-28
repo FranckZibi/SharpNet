@@ -11,13 +11,19 @@ public abstract class AbstractHyperParameterSearchSpace
     public enum RANDOM_SEARCH_OPTION { FULLY_RANDOM, PREFER_MORE_PROMISING };
     public enum range_type { uniform, normal };
 
-    public static AbstractHyperParameterSearchSpace ValueOf([CanBeNull] object hyperParameterSearchSpace)
+    protected AbstractHyperParameterSearchSpace(bool isCategoricalHyperParameter)
+    {
+        IsCategoricalHyperParameter = isCategoricalHyperParameter;
+    }
+
+    public bool IsCategoricalHyperParameter { get; }
+    public static AbstractHyperParameterSearchSpace ValueOf([CanBeNull] object hyperParameterSearchSpace, bool isCategoricalHyperParameter)
     {
         if (hyperParameterSearchSpace is AbstractHyperParameterSearchSpace)
         {
             return (AbstractHyperParameterSearchSpace)hyperParameterSearchSpace;
         }
-        return new DiscreteHyperParameterSearchSpace(hyperParameterSearchSpace);
+        return new DiscreteHyperParameterSearchSpace(hyperParameterSearchSpace, isCategoricalHyperParameter);
     }
     public static AbstractHyperParameterSearchSpace Range(float min, float max, range_type rangeType = range_type.uniform)
     {
@@ -34,7 +40,6 @@ public abstract class AbstractHyperParameterSearchSpace
     public abstract float Next_BayesianSearchFloatValue(Random rand, RANDOM_SEARCH_OPTION randomSearchOption);
     public abstract string BayesianSearchFloatValue_to_SampleStringValue(float f);
     public abstract void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds);
-    public abstract bool IsCategoricalHyperParameter { get; }
     public abstract bool IsConstant { get; }
     public abstract int LengthForGridSearch { get; }
     public abstract string SampleStringValue_at_Index_For_GridSearch(int index);

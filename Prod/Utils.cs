@@ -807,7 +807,7 @@ namespace SharpNet
             var bestUseCase = valueWithIndex[0].Item1;
             var lowestError = bestUseCase.Item1;
             var volatilityOfBestUseCase = bestUseCase.Item2;
-            const double MinPonderation = 0.05;
+            const double minWeight = 0.1;
             for (int i = 1; i < valueWithIndex.Count; ++i)
             {
                 var currentUseCase = valueWithIndex[i].Item1;
@@ -821,7 +821,7 @@ namespace SharpNet
 
                 if (currentErrorInfMargin >= lowestErrorSupMargin)
                 {
-                    weights.Add(MinPonderation);
+                    weights.Add(minWeight);
                     continue;
                 }
 
@@ -829,7 +829,7 @@ namespace SharpNet
                 double weight = percentageInCommon / (2 - percentageInCommon);
                 Debug.Assert(weight<=1.0001);
                 Debug.Assert(weight>=0.0);
-                weights.Add(Math.Max(MinPonderation, weight));
+                weights.Add(Math.Max(minWeight, weight));
             }
 
             double expectedWeightSum = valueWithIndex.Count / ((double)errors.Count);
