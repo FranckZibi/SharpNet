@@ -27,7 +27,10 @@ namespace SharpNet.LightGBM
         };
         private readonly string _workingDirectory;
         private readonly string _modelPrefix;
-        private string ModelPath { get; set; }
+        [NotNull] private string ModelPath { get; set; }
+
+        [NotNull] private string ModelConfigPath => ModelPath.Replace(".txt", ".conf");
+
         private string ModelName => string.IsNullOrEmpty(ModelPath)?"":Path.GetFileNameWithoutExtension(ModelPath);
         
         #endregion
@@ -77,6 +80,9 @@ namespace SharpNet.LightGBM
             Train(trainDatasetPath, validationDatasetPath);
         }
 
+
+        private static object lockUpdateFileObject = new object();
+
         public void Train(string trainDatasetPath, string validationDatasetPath = "")
         {
             const Parameters.task_enum task = Parameters.task_enum.train;
@@ -91,11 +97,10 @@ namespace SharpNet.LightGBM
                 {"save_binary", false},
             });
             var modelHash = _parameters.ComputeHash();
-            ModelPath = Path.Combine(_workingDirectory, (string.IsNullOrEmpty(_modelPrefix) ? "" : "_") + modelHash  + ".txt");
+            ModelPath = Path.Combine(_workingDirectory, (string.IsNullOrEmpty(_modelPrefix) ? "" : (_modelPrefix+"_")) + modelHash  + ".txt");
             ClassFieldSetter.Set(_parameters, "output_model", ModelPath);
-            var configFilePath = ModelPath.Replace(".txt", ".conf");
             Log.Info($"Training model {ModelName} with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
-            Launch(configFilePath);
+            Launch(ModelConfigPath);
         }
 
         /// <summary>
@@ -112,30 +117,30 @@ namespace SharpNet.LightGBM
         /// <returns>the cost associated with the model</returns>
         public float CreateModelResults(Action<CpuTensor<float>, string> savePredictions, Func<CpuTensor<float>, CpuTensor<float>> UnNormalizeYIfNeeded, Func<double,bool> shouldSavePredictionsBasedOnValidationScore,double trainingTimeInSeconds, int totalParams, IDataSet trainDataset, IDataSet validationDataset = null, IDataSet testDataset = null)
         {
-            Log.Info($"Computing Model '{ModelName}' predictions for Training Dataset");
+            Log.Debug($"Computing Model '{ModelName}' predictions for Training Dataset");
             var trainPredictions = UnNormalizeYIfNeeded(Predict(trainDataset));
-            Log.Info("Computing Model score on Training");
+            Log.Debug("Computing Model score on Training");
             var scoreTrain = ComputeRmse(UnNormalizeYIfNeeded(trainDataset.Y), trainPredictions);
-            Log.Info($"Model '{ModelName}' score on training: {scoreTrain}");
+            Log.Debug($"Model '{ModelName}' score on training: {scoreTrain}");
 
-            bool shouldSavePredictions = true;
+            bool shouldSavePredictionsAndModelBasedOnValidationScore = true;
             float scoreValidation = float.NaN;
             CpuTensor<float> validationPredictions = null;
             if (validationDataset != null)
             {
-                Log.Info($"Computing Model '{ModelName}' predictions for Validation Dataset");
+                Log.Debug($"Computing Model '{ModelName}' predictions for Validation Dataset");
                 validationPredictions = UnNormalizeYIfNeeded(Predict(validationDataset));
-                Log.Info("Computing Model '{ModelName}' score on Validation");
+                Log.Debug($"Computing Model '{ModelName}' score on Validation");
                 scoreValidation = (float)ComputeRmse(UnNormalizeYIfNeeded(validationDataset.Y), validationPredictions);
-                Log.Info($"Model '{ModelName}' score on Validation: {scoreValidation}");
+                Log.Debug($"Model '{ModelName}' score on Validation: {scoreValidation}");
                 if (!shouldSavePredictionsBasedOnValidationScore(scoreValidation))
                 {
-                    Log.Info($"No need to save Model '{ModelName}' predictions because of a validation score {scoreValidation}");
-                    shouldSavePredictions = false;
+                    Log.Debug($"No need to save Model '{ModelName}' predictions because of a validation score {scoreValidation}");
+                    shouldSavePredictionsAndModelBasedOnValidationScore = false;
                 }
             }
 
-            if (shouldSavePredictions)
+            if (shouldSavePredictionsAndModelBasedOnValidationScore)
             {
                 var trainPredictionsFileName = ModelName + "_predict_train_" + Math.Round(scoreTrain, 5) + ".csv";
                 Log.Info($"Saving Model '{ModelName}' predictions for Training Dataset");
@@ -152,7 +157,7 @@ namespace SharpNet.LightGBM
 
                 if (testDataset != null)
                 {
-                    Log.Info($"Computing Model '{ModelName}' predictions for Test Dataset");
+                    Log.Debug($"Computing Model '{ModelName}' predictions for Test Dataset");
                     var testPredictions = Predict(testDataset);
                     Log.Info("Saving predictions for Test Dataset");
                     var testPredictionsFileName = ModelName
@@ -160,8 +165,15 @@ namespace SharpNet.LightGBM
                     savePredictions(testPredictions, Path.Combine(_workingDirectory, testPredictionsFileName));
                 }
             }
+            else
+            {
+                Log.Debug($"Removing model '{ModelName}' files: {Path.GetFileName(ModelPath)} and {Path.GetFileName(ModelConfigPath)} because of low score ({scoreValidation})");
+                File.Delete(ModelPath);
+                File.Delete(ModelConfigPath);
+            }
 
             string line = "";
+            
             try
             {
                 int numEpochs = _parameters.num_iterations;
@@ -181,7 +193,10 @@ namespace SharpNet.LightGBM
                     + "NaN" + ";"
                     + Environment.NewLine;
                 var testsCsv = string.IsNullOrEmpty(trainDataset.Name) ? "Tests.csv" : ("Tests_" + trainDataset.Name + ".csv");
-                File.AppendAllText(Utils.ConcatenatePathWithFileName(_workingDirectory, testsCsv), line);
+                lock (lockUpdateFileObject)
+                {
+                    File.AppendAllText(Utils.ConcatenatePathWithFileName(_workingDirectory, testsCsv), line);
+                }
             }
             catch (Exception e)
             {
@@ -375,7 +390,7 @@ namespace SharpNet.LightGBM
                 }
                 if (e.Data.Contains("[Warning] "))
                 {
-                    Log.Warn(e.Data.Replace("[Warning] ", ""));
+                    Log.Debug(e.Data.Replace("[Warning] ", ""));
                 }
                 else if (e.Data.Contains("[Info] "))
                 {

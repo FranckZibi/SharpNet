@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
+using log4net;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.LightGBM;
@@ -63,16 +64,18 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     private int _samplesUsedForModelTraining = 0;
     #endregion
 
-    public BayesianSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild,
-        Func<T, bool> isValidSample, [NotNull] string workingDirectory,
+    public BayesianSearchHPO(IDictionary<string, object> searchSpace, 
+        Func<T> createDefaultSample, 
+        Func<T, bool> postBuild,
+        [NotNull] string workingDirectory,
         AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption, 
         int numModelTrainingInParallel, 
         int numberOfNewSamplesWithCostToRetrainSurrogateModel,
         int numberOfSampleCandidatesToPredictAtTheSameTime,
-        Action<string> log, 
+        ILog log, 
         int maxSamplesToProcess,
         HashSet<string> mandatoryCategoricalHyperParameters) :
-        base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess, mandatoryCategoricalHyperParameters)
+        base(searchSpace, createDefaultSample, postBuild, log, maxSamplesToProcess, mandatoryCategoricalHyperParameters)
     {
         Debug.Assert(numModelTrainingInParallel >= 1);
 
@@ -90,24 +93,37 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         var surrogateModelParameters = new Parameters();
         var categoricalFeaturesFieldValue = (SurrogateModelCategoricalFeature().Length>= 1) ? ("name:" + string.Join(',', SurrogateModelCategoricalFeature())) : "";
         ClassFieldSetter.Set(surrogateModelParameters, new Dictionary<string, object> {
-            { "num_threads", 2},
-            { "device_type", "cpu" },
-            { "num_iterations", 200 },
-            { "boosting", "rf" },
-            { "verbosity", -1 },
-            { "early_stopping_round", 0 },
-            { "bagging_fraction", 0.9 },
+            { "bagging_fraction", 0.5 },
             { "bagging_freq", 1 },
-            { "colsample_bytree", 0.9 },
-            { "min_data_in_leaf", 5 },
-            //{ "num_leaves", 50 },
+            { "boosting", "rf" },
             { "categorical_feature", categoricalFeaturesFieldValue },
+            { "colsample_bytree", 0.9 },
+            { "colsample_bynode", 0.9 },
+            { "device_type", "cpu" },
+            { "early_stopping_round", 0 },
+            { "extra_trees", false },
+            { "lambda_l1", 0.15f },
+            { "lambda_l2", 0.15f },
+            { "learning_rate", 0.05f },
+            { "max_bin", 255 },
+            { "max_depth", 128},
+            { "min_data_in_leaf", 3 },
+            { "min_data_in_bin", 20 },
+            { "num_iterations", 200 },
+            { "num_leaves", 50 },
+            { "num_threads", 2},
+            { "path_smooth", 1.0f},
+            { "verbosity", -1 },
         });
-        _surrogateModel = new LightGBMModel(surrogateModelParameters, workingDirectory, "");
+        SurrogatePrefix = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
+        _surrogateModel = new LightGBMModel(surrogateModelParameters, workingDirectory, SurrogatePrefix);
     }
 
-    private string SurrogateModelTrainingDatasetPath => Path.Combine(_workingDirectory, "Dataset", "surrogate_train.csv");
-    private string SurrogateModelPredictDatasetPath => Path.Combine(_workingDirectory, "Dataset", "surrogate_predict.csv");
+
+
+    private string SurrogatePrefix { get; }
+    private string SurrogateModelTrainingDatasetPath => Path.Combine(_workingDirectory, SurrogatePrefix+"_dataset.csv");
+    private string SurrogateModelPredictDatasetPath => Path.Combine(_workingDirectory, SurrogatePrefix+"_predictions.csv");
 
     protected override (T,int,string) Next
     {
@@ -117,7 +133,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
             {
                 if (_nextSamplesToCompute.Count == 0)
                 {
-                    _log("No more samples available, computing new ones");
+                    Log.Debug("No more samples available, computing new ones");
                     _nextSamplesToCompute.AddRange(GetNextSamplesForObjectiveFunction());
                 }
 
@@ -212,8 +228,14 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         }
         var t = CreateDefaultSample();
         ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
-        PostBuild(t);
-        return (IsValidSample(t) ? t : null, sampleDescription);
+        if (PostBuild(t))
+        {
+            return (t, sampleDescription);
+        }
+        else
+        {
+            return (null, sampleDescription);
+        }
     }
 
 
@@ -267,7 +289,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
                 throw new Exception($"cost can not be NaN for sampleId {sampleId}");
             }
 
-            _log($"Registering actual cost ({cost}) of sample {sampleId} (surrogate cost estimate: {surrogateCostEstimate})");
+            Log.Debug($"Registering actual cost ({cost}) of sample {sampleId} (surrogate cost estimate: {surrogateCostEstimate})");
             _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
             RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
 
@@ -308,7 +330,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         var xRows = samplesWithScore.Select(t => t.Item2).ToList();
         if (xRows.Count == 0)
         {
-            _log($"No samples to train the surrogate model");
+            Log.Info($"No samples to train the surrogate model");
             return 0;
         }
         using var x = NewCpuTensor(xRows);
@@ -316,7 +338,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         // ReSharper disable once InconsistentNaming
         using var y_true = new CpuTensor<float>(new[] { x.Shape[0], 1 }, yData);
         using var dataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, null, SurrogateModelFeatureNames(), false);
-        _log($"Training surrogate model with {x.Shape[0]} samples");
+        Log.Info($"Training surrogate model with {x.Shape[0]} samples");
 
         LightGBMModel.Save(dataset, SurrogateModelTrainingDatasetPath, Parameters.task_enum.train, true);
         _surrogateModel.Train(SurrogateModelTrainingDatasetPath);
@@ -327,7 +349,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         File.Delete(SurrogateModelPredictDatasetPath);
 
         double surrogateModelTrainingRmse = _surrogateModel.ComputeRmse(y_true, y_pred);
-        _log($"Surrogate model Training RMSE: {surrogateModelTrainingRmse} (trained on {x.Shape[0]} samples)");
+        Log.Info($"Surrogate model Training RMSE: {surrogateModelTrainingRmse} (trained on {x.Shape[0]} samples)");
 
         return xRows.Count;
     }

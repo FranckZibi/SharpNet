@@ -17,32 +17,24 @@ namespace SharpNet.Datasets.Natixis70
     {
 
 
-        public void ToBeCalledAfterEachConstruction()
+        public bool PostBuild()
         {
-            Update_categorical_feature_field();
+            if (!IsValid())
+            {
+                return false;
+            }
+
+            var categoricalFeaturesFieldValue = (CategoricalFeatures().Count >= 1) ? ("name:" + string.Join(',', CategoricalFeatures())) : "";
+            categorical_feature = categoricalFeaturesFieldValue;
+            return true;
         }
 
-        public bool IsValid()
+        private bool IsValid()
         {
-            if (bagging_freq <= 0)
+            if (!ValidLightGBMHyperParameters())
             {
-                //bagging is disabled
-                //bagging_fraction must be equal to 1.0 (100%)
-                if (bagging_fraction < 0.999)
-                {
-                    return false;
-                }
+                return false;
             }
-            else
-            {
-                //bagging is enabled
-                //bagging_fraction must be less then 1.0 (100%)
-                if (bagging_fraction > 0.999)
-                {
-                    return false;
-                }
-            }
-
             if (MergeHorizonAndMarketIdInSameFeature)
             {
                 if (TryToPredictAllMarketsAtTheSameTime || TryToPredictAllHorizonAtTheSameTime)
@@ -91,12 +83,6 @@ namespace SharpNet.Datasets.Natixis70
             return featureNames.ToArray();
         }
 
-
-        public void Update_categorical_feature_field()
-        {
-            var categoricalFeaturesFieldValue = (CategoricalFeatures().Count >= 1) ? ("name:" + string.Join(',', CategoricalFeatures())) : "";
-            categorical_feature = categoricalFeaturesFieldValue;
-        }
 
         public List<string> CategoricalFeatures()
         {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using log4net;
 
 namespace SharpNet.HPO
 {
@@ -12,8 +13,13 @@ namespace SharpNet.HPO
         private readonly HashSet<string> _processedSpaces = new();
         #endregion
 
-        public RandomSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption, Action<string> log, int maxSamplesToProcess) : 
-            base(searchSpace, createDefaultSample, postBuild, isValidSample, log, maxSamplesToProcess, new HashSet<string>())
+        public RandomSearchHPO(IDictionary<string, object> searchSpace, 
+            Func<T> createDefaultSample, 
+            Func<T, bool> postBuild, 
+            AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption, 
+            ILog log, 
+            int maxSamplesToProcess) : 
+            base(searchSpace, createDefaultSample, postBuild, log, maxSamplesToProcess, new HashSet<string>())
         {
             _randomSearchOption = randomSearchOption;
         }
@@ -41,8 +47,7 @@ namespace SharpNet.HPO
                     }
                     var t = CreateDefaultSample();
                     ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
-                    PostBuild(t);
-                    if (IsValidSample(t))
+                    if (PostBuild(t))
                     {
                         var sampleDescription = ToSampleDescription(searchSpaceHyperParameters);
                         return (t, _nextSampleId++, sampleDescription);

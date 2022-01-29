@@ -70,8 +70,9 @@ namespace SharpNetTests
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
-          
 
+            //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220122.csv", new []{"bagging_fraction", "max_depth" }, Parameters.boosting_enum.rf, 100);
+            //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220129.csv", new string[]{}, Parameters.boosting_enum.rf, 100);
             SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchLightGBMHPO(); return;
 
             //new TestCpuTensor().TestMaxPooling3D();return;

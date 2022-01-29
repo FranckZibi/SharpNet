@@ -8,6 +8,37 @@ namespace SharpNet.LightGBM
     public class Parameters
     {
 
+        public bool ValidLightGBMHyperParameters()
+        {
+            if (boosting == boosting_enum.rf)
+            {
+                if (bagging_freq <= 0 || bagging_fraction >= 1.0f || bagging_fraction <= 0.0f)
+                {
+                    return false;
+                }
+            }
+
+            if (bagging_freq <= 0)
+            {
+                //bagging is disabled
+                //bagging_fraction must be equal to 1.0 (100%)
+                if (bagging_fraction < 1)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                //bagging is enabled
+                //bagging_fraction must be less then 1.0 (100%)
+                if (bagging_fraction >= 1)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public string DeviceName()
         {
 
@@ -442,8 +473,12 @@ namespace SharpNet.LightGBM
         //if set to zero, no smoothing is applied
         //if path_smooth > 0 then min_data_in_leaf must be at least 2
         //larger values give stronger regularization
-        //the weight of each node is (n / path_smooth) * w + w_p / (n / path_smooth + 1), where n is the number of samples in the node, w is the optimal node weight to minimise the loss (approximately -sum_gradients / sum_hessians), and w_p is the weight of the parent node
-        //note that the parent output w_p itself has smoothing applied, unless it is the root node, so that the smoothing effect accumulates with the tree depth
+        //the weight of each node is (n / path_smooth) * w + w_p / (n / path_smooth + 1), where
+        //  n is the number of samples in the node,
+        //  w is the optimal node weight to minimise the loss (approximately -sum_gradients / sum_hessians),
+        //  w_p is the weight of the parent node
+        //note that the parent output w_p itself has smoothing applied, unless it is the root node,
+        //so that the smoothing effect accumulates with the tree depth
         //constraints: path_smooth >=  0.0
         public double path_smooth = 0;
 

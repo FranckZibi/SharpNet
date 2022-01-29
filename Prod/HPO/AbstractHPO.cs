@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using log4net;
 using SharpNet.MathTools;
 
 namespace SharpNet.HPO
@@ -13,13 +14,19 @@ namespace SharpNet.HPO
     {
         protected readonly IDictionary<string, AbstractHyperParameterSearchSpace> SearchSpace;
         protected readonly Func<T> CreateDefaultSample;
-        protected readonly Action<T> PostBuild;
-        protected readonly Func<T, bool> IsValidSample;
+
+        /// <summary>
+        /// method to be called ofter building a new sample
+        /// it will update it using any needed standardization/ normalization /etc...
+        /// return true if everything working OK
+        /// return false if the sample is invalid and should be discarded
+        /// </summary>
+        protected readonly Func<T, bool> PostBuild;
         /// <summary>
         /// maximum number of samples to process
         /// </summary>
         private readonly int _maxSamplesToProcess;
-        protected readonly Action<string> _log;
+        protected readonly ILog Log;
         protected readonly DoubleAccumulator _allCost = new();
         protected int _nextSampleId = 0;
 
@@ -34,12 +41,9 @@ namespace SharpNet.HPO
         // ReSharper disable once MemberCanBePrivate.Global
         public float CostOfBestSampleFoundSoFar { get; protected set; } = float.NaN;
 
-        protected AbstractHpo(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Action<T> postBuild, Func<T, bool> isValidSample, Action<string> log, int maxSamplesToProcess, HashSet<string> mandatoryCategoricalHyperParameters)
+        protected AbstractHpo(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Func<T, bool> postBuild, ILog log, int maxSamplesToProcess, HashSet<string> mandatoryCategoricalHyperParameters)
         {
             SearchSpace = new Dictionary<string, AbstractHyperParameterSearchSpace>();
-
-
-            
 
             foreach (var (hyperParameterName, hyperParameterSearchSpace) in searchSpace)
             {
@@ -48,9 +52,8 @@ namespace SharpNet.HPO
             }
             CreateDefaultSample = createDefaultSample;
             PostBuild = postBuild;
-            IsValidSample = isValidSample;
             _maxSamplesToProcess = maxSamplesToProcess;
-            _log = log;
+            Log = log;
         }
 
 
@@ -86,7 +89,7 @@ namespace SharpNet.HPO
 
         public void Process(int numModelTrainingInParallel, Func<T, float> objectiveFunction)
         {
-            _log("Computation(s) will be done on " + numModelTrainingInParallel + " cores");
+            Log.Info("Computation(s) will be done on " + numModelTrainingInParallel + " cores");
             var threadTasks = new Task[numModelTrainingInParallel];
             for (int i = 0; i < threadTasks.Length; ++i)
             {
@@ -113,12 +116,12 @@ namespace SharpNet.HPO
                 }
                 if (sample == null)
                 {
-                    _log("Finished processing entire search space");
+                    Log.Info("Finished processing entire search space");
                     return;
                 }
                 try
                 {
-                    _log($"starting computation of sampleId {sampleId}");
+                    Log.Debug($"starting computation of sampleId {sampleId}");
 
                     var sw = Stopwatch.StartNew();
                     float cost = objectiveFunction(sample);
@@ -126,23 +129,23 @@ namespace SharpNet.HPO
                     {
                         BestSampleFoundSoFar = sample;
                         CostOfBestSampleFoundSoFar = cost;
-                        _log($"new lowest cost {CostOfBestSampleFoundSoFar} with sampleId {sampleId}"+Environment.NewLine+ sampleDescription);
+                        Log.Info($"new lowest cost {CostOfBestSampleFoundSoFar} with sampleId {sampleId}"+Environment.NewLine+ sampleDescription);
                     }
                     double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
                     RegisterSampleCost(sample, sampleId, cost, elapsedTimeInSeconds);
-                    _log("ended new computation");
-                    _log($"{Processed} processed samples");
-                    _log(StatisticsDescription());
+                    Log.Debug("ended new computation");
+                    Log.Debug($"{Processed} processed samples");
+                    Log.Debug(StatisticsDescription());
                 }
                 catch (Exception e)
                 {
-                    _log(e.ToString());
-                    _log("ignoring error");
+                    Log.Error(e.ToString());
+                    Log.Error("ignoring error");
                 }
 
                 if (sampleId > _maxSamplesToProcess)
                 {
-                    _log($"maximum number of samples to process ({_maxSamplesToProcess}) has been reached");
+                    Log.Info($"maximum number of samples to process ({_maxSamplesToProcess}) has been reached");
                     return;
                 }
             }
