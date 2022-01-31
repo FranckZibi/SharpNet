@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,7 +15,7 @@ namespace SharpNet.HPO
     {
         protected readonly IDictionary<string, AbstractHyperParameterSearchSpace> SearchSpace;
         protected readonly Func<T> CreateDefaultSample;
-
+        private readonly int numModelTrainingInParallel;
         /// <summary>
         /// method to be called ofter building a new sample
         /// it will update it using any needed standardization/ normalization /etc...
@@ -23,12 +24,19 @@ namespace SharpNet.HPO
         /// </summary>
         protected readonly Func<T, bool> PostBuild;
         /// <summary>
-        /// maximum number of samples to process
+        /// maximum time (in seconds) for the HPO
         /// </summary>
-        private readonly int _maxSamplesToProcess;
-        protected readonly ILog Log;
+        private readonly double _maxAllowedSecondsForAllComputation;
+
+        [NotNull] protected readonly string _workingDirectory;
+        private readonly DateTime _creationTime = DateTime.Now;
+        protected static readonly ILog Log = LogManager.GetLogger(typeof(AbstractHpo<T>));
+
         protected readonly DoubleAccumulator _allCost = new();
         protected int _nextSampleId = 0;
+        // the last time we have displayed statistics about the search, or null if we have never displayed statistics
+        private DateTime? lastTimeDisplayedStatisticsDateTime;
+
 
         /// <summary>
         /// the best sample (lowest cost) found so far (or null if no sample has been analyzed)
@@ -41,19 +49,42 @@ namespace SharpNet.HPO
         // ReSharper disable once MemberCanBePrivate.Global
         public float CostOfBestSampleFoundSoFar { get; protected set; } = float.NaN;
 
-        protected AbstractHpo(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Func<T, bool> postBuild, ILog log, int maxSamplesToProcess, HashSet<string> mandatoryCategoricalHyperParameters)
+        protected AbstractHpo(
+            IDictionary<string, object> searchSpace, 
+            Func<T> createDefaultSample, 
+            Func<T, bool> postBuild, 
+            double maxAllowedSecondsForAllComputation, 
+            [NotNull] string workingDirectory,
+            HashSet<string> mandatoryCategoricalHyperParameters)
         {
-            SearchSpace = new Dictionary<string, AbstractHyperParameterSearchSpace>();
+            if (!Directory.Exists(workingDirectory))
+            {
+                Directory.CreateDirectory(workingDirectory);
+            }
+            Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log");
+            Utils.ConfigureThreadLog4netProperties(workingDirectory, "log");
 
+            CreateDefaultSample = createDefaultSample;
+            PostBuild = postBuild;
+            _maxAllowedSecondsForAllComputation = maxAllowedSecondsForAllComputation;
+            _workingDirectory = workingDirectory;
+            SearchSpace = new Dictionary<string, AbstractHyperParameterSearchSpace>();
             foreach (var (hyperParameterName, hyperParameterSearchSpace) in searchSpace)
             {
                 var isCategoricalHyperParameter = IsCategoricalHyperParameter(typeof(T), hyperParameterName,  mandatoryCategoricalHyperParameters);
                 SearchSpace[hyperParameterName] = AbstractHyperParameterSearchSpace.ValueOf(hyperParameterSearchSpace, isCategoricalHyperParameter);
             }
-            CreateDefaultSample = createDefaultSample;
-            PostBuild = postBuild;
-            _maxSamplesToProcess = maxSamplesToProcess;
-            Log = log;
+
+            int coreCount = Utils.CoreCount;
+            // ReSharper disable once ConvertToConstant.Local
+            // number of parallel threads in each single training
+            int numThreadsForEachModelTraining = 1;//single core
+            numModelTrainingInParallel = coreCount;
+
+            if (coreCount % numThreadsForEachModelTraining != 0)
+            {
+                throw new ArgumentException($"invalid number of threads {numThreadsForEachModelTraining} : core count {coreCount} must be a multiple of it");
+            }
         }
 
 
@@ -87,7 +118,7 @@ namespace SharpNet.HPO
             return res;
         }
 
-        public void Process(int numModelTrainingInParallel, Func<T, float> objectiveFunction)
+        public void Process(Func<T, float> objectiveFunction)
         {
             Log.Info("Computation(s) will be done on " + numModelTrainingInParallel + " cores");
             var threadTasks = new Task[numModelTrainingInParallel];
@@ -134,8 +165,14 @@ namespace SharpNet.HPO
                     double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
                     RegisterSampleCost(sample, sampleId, cost, elapsedTimeInSeconds);
                     Log.Debug("ended new computation");
+                    Log.Debug("ended new computation");
                     Log.Debug($"{Processed} processed samples");
-                    Log.Debug(StatisticsDescription());
+                    //we display statistics only once every 10s
+                    if (lastTimeDisplayedStatisticsDateTime == null ||  (DateTime.Now - lastTimeDisplayedStatisticsDateTime.Value).TotalSeconds > 10)
+                    {
+                        lastTimeDisplayedStatisticsDateTime = DateTime.Now;
+                        Log.Debug(StatisticsDescription());
+                    }
                 }
                 catch (Exception e)
                 {
@@ -143,9 +180,9 @@ namespace SharpNet.HPO
                     Log.Error("ignoring error");
                 }
 
-                if (sampleId > _maxSamplesToProcess)
+                if (_maxAllowedSecondsForAllComputation > 0 && ((DateTime.Now - _creationTime).TotalSeconds) > _maxAllowedSecondsForAllComputation)
                 {
-                    Log.Info($"maximum number of samples to process ({_maxSamplesToProcess}) has been reached");
+                    Log.Info($"maximum time to process all samples ({_maxAllowedSecondsForAllComputation}s) has been used");
                     return;
                 }
             }
@@ -184,12 +221,13 @@ namespace SharpNet.HPO
             return dicoString2Object;
         }
 
-        protected static string ToSampleDescription(IDictionary<string, string> dico)
+        protected static string ToSampleDescription(IDictionary<string, string> dico, T sample)
         {
             var description = "";
-            foreach (var (key, value) in dico.OrderBy(t=>t.Key))
+            foreach (var (hyperParameterName, _) in dico.OrderBy(t=>t.Key))
             {
-                description+= key+ " = "+value+Environment.NewLine;
+                var hyperParameterValueAsString = ClassFieldSetter.FieldValueToString(ClassFieldSetter.Get(sample, hyperParameterName));
+                description+= hyperParameterName+ " = "+ hyperParameterValueAsString + Environment.NewLine;
             }
             return description.Trim();
         }

@@ -14,6 +14,38 @@ namespace SharpNet.Data
             return Tensor.ShapeToString(t.Shape) + Environment.NewLine + t.ToNumpy(maxLength);
         }
 
+        // ReSharper disable once UnusedMember.Global
+        public static string ToCsv(this CpuTensor<float> t, char separator, bool prefixWithRowIndex = false)
+        {
+            var sb = new StringBuilder();
+            var tSpan = t.AsReadonlyFloatCpuContent;
+            int index = 0;
+            if (t.Shape.Length != 2)
+            {
+                throw new ArgumentException($"can only create csv from matrix Tensor, not {t.Shape.Length} dimension tensor");
+            }
+            for (int row = 0; row < t.Shape[0]; ++row)
+            {
+                if (prefixWithRowIndex)
+                {
+                    sb.Append(row.ToString()+separator);
+                }
+                for (int col = 0; col < t.Shape[1]; ++col)
+                {
+                    if (col != 0)
+                    {
+                        sb.Append(separator);
+                    }
+                    sb.Append(tSpan[index++].ToString(CultureInfo.InvariantCulture));
+                }
+                if (row != t.Shape[0] - 1)
+                {
+                    sb.Append(Environment.NewLine);
+                }
+            }
+            return sb.ToString();
+        }
+
         public static string ToNumpy(this Tensor t, int maxLength = 2000)
         {
             var sb = new StringBuilder();

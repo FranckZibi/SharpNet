@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using log4net;
 
 namespace SharpNet.HPO
 {
@@ -12,8 +11,12 @@ namespace SharpNet.HPO
         private int _nextSearchSpaceIndex;
         #endregion
 
-        public GridSearchHPO(IDictionary<string, object> searchSpace, Func<T> createDefaultSample, Func<T, bool> postBuild, ILog log, int maxSamplesToProcess) 
-            : base(searchSpace, createDefaultSample, postBuild, log, maxSamplesToProcess, new HashSet<string>())
+        public GridSearchHPO(IDictionary<string, object> searchSpace, 
+            Func<T> createDefaultSample, 
+            Func<T, bool> postBuild, 
+            double maxAllowedSecondsForAllComputation,
+            string workingDirectory) 
+            : base(searchSpace, createDefaultSample, postBuild, maxAllowedSecondsForAllComputation, workingDirectory, new HashSet<string>())
         {
         }
 
@@ -40,7 +43,7 @@ namespace SharpNet.HPO
                     ClassFieldSetter.Set(t, FromString2String_to_String2Object(sample));
                     if (PostBuild(t))
                     {
-                        var sampleDescription = ToSampleDescription(sample);
+                        var sampleDescription = ToSampleDescription(sample, t);
                         return (t, _nextSampleId++, sampleDescription);
                     }
                 };

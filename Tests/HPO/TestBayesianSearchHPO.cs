@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using log4net;
+using System.IO;
 using NUnit.Framework;
-using SharpNet;
+using SharpNet.Datasets.Natixis70;
 using SharpNet.HPO;
 using static SharpNet.HPO.AbstractHyperParameterSearchSpace;
 
@@ -16,8 +16,6 @@ namespace SharpNetTests.HPO;
 
 public class TestBayesianSearchHPO
 {
-    private static readonly ILog Log = LogManager.GetLogger(typeof(TestBayesianSearchHPO));
-
     private class TempClass
     {
         public float A = 0;
@@ -55,10 +53,8 @@ public class TestBayesianSearchHPO
     [Test, Explicit]
     public void TestConvergence()
     {
-        var testDirectory = "c:/temp/BayesianTests";
-        Utils.ConfigureGlobalLog4netProperties(testDirectory, "Test");
-        Utils.ConfigureThreadLog4netProperties(testDirectory, "Test");
-
+     
+        var testDirectory = Path.Combine(Natixis70Utils.WorkingDirectory, "Natixis70", "Temp");
         var searchSpace = new Dictionary<string, object>
         {
             { "A", Range(-10f, 10f) },
@@ -68,19 +64,13 @@ public class TestBayesianSearchHPO
             { "E", Range(-10f, 10f) },
             { "G", Range(0f, 0f) },
         };
-        int numModelTrainingInParallel = 4;
         var hpo = new BayesianSearchHPO<TempClass>(searchSpace, 
             () => new TempClass(), 
-            _ => true
-            , testDirectory,
-            RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING,
-            numModelTrainingInParallel,
-            100,
-            10000,
-            Log,
-            10000,
-            new HashSet<string>()
-        );
-        hpo.Process(4, t => t.Cost());
+            _ => true,
+            60, 
+            RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING, 
+            testDirectory, 
+            new HashSet<string>());
+        hpo.Process(t => t.Cost());
     }
 }

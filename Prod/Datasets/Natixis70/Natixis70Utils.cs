@@ -20,7 +20,6 @@ namespace SharpNet.Datasets.Natixis70
         public const int EmbeddingDimension = 768;
         public static readonly string[] HorizonNames = { "1d", "1w", "2w" };
 
-
         public static void LaunchLightGBMHPO()
         {
             Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "Natixis70");
@@ -29,13 +28,6 @@ namespace SharpNet.Datasets.Natixis70
 
             // ReSharper disable once ConvertToConstant.Local
             var num_iterations = 1000;
-
-            // ReSharper disable once ConvertToConstant.Local
-            // number of parallel threads in each single training
-            int numThreadsForEachModelTraining = 1;//single core
-
-            //coreCount = numThreadsForEachModelTraining= num_iterations = 1;
-            //numThreadsForEachModelTraining = 2;
 
             var searchSpace = new Dictionary<string, object>
             {
@@ -66,51 +58,38 @@ namespace SharpNet.Datasets.Natixis70
                 //{ "Normalization",new[] { "NONE", "DIVIDE_BY_ABS_MEAN"} },
                 { "num_iterations", new[]{ num_iterations } },
                 { "num_leaves", AbstractHyperParameterSearchSpace.Range(5, 60) },
-                { "num_threads", new[] { numThreadsForEachModelTraining } },
+                { "num_threads", new[] { 1 } },
 
                 { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
 
             };
 
-            if (coreCount % numThreadsForEachModelTraining != 0)
-            {
-                throw new ArgumentException($"invalid number of threads {numThreadsForEachModelTraining} : core count {coreCount} must be a multiple of it");
-            }
-            int numModelTrainingInParallel = coreCount / numThreadsForEachModelTraining;
-
             var hpo = new BayesianSearchHPO<Natixis70HyperParameters>(searchSpace,
-                DefaultParametersLightGBM, t => t.PostBuild(), WorkingDirectory, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING, 
-                numModelTrainingInParallel, 
-                1* numModelTrainingInParallel,
-                5000*1* numModelTrainingInParallel,
-                LightGBMModel.Log, 
-                10_000,
-                Natixis70HyperParameters.CategoricalHyperParameters()
-                );
+                DefaultParametersLightGBM, t => t.PostBuild(), 
+                0,  //no time limit
+                AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING, 
+                WorkingDirectory, 
+                Natixis70HyperParameters.CategoricalHyperParameters());
 
             // ReSharper disable once UselessBinaryOperation
-            hpo.Process(numModelTrainingInParallel, t => TrainWithHyperParameters(t, ""));
+            hpo.Process(t => TrainWithHyperParameters(t, ""));
         }
 
 
         private static string DatasetHPOPath => Path.Combine(WorkingDirectory, "DatasetHPO");
-
-
-        private class ParametersWithPercentageInTraining : Parameters { public double PercentageInTraining = 0.8f; }
 
         public static void DatasetHPO(string dataframePath, 
             IList<string> categoricalFeatures,
             Parameters.boosting_enum boosting, 
             int num_iterations)
         {
-            LightGBMModel.Log.Info($"Performing HPO for Dataframe {dataframePath}");
             if (!Directory.Exists(DatasetHPOPath))
             {
                 Directory.CreateDirectory(DatasetHPOPath);
             }
 
-            Utils.ConfigureGlobalLog4netProperties(DatasetHPOPath, "log");
-            Utils.ConfigureThreadLog4netProperties(DatasetHPOPath, "log");
+
+            LightGBMModel.Log.Info($"Performing HPO for Dataframe {dataframePath}");
 
             //We load the dataset
             var dataframe = Dataframe.Load(dataframePath, true, ',');
@@ -129,12 +108,6 @@ namespace SharpNet.Datasets.Natixis70
             int rowsInTrainingSet = (int)(percentageInTraining * fullTraining.Count + 0.1);
             var trainAndValidation = fullTraining.SplitIntoTrainingAndValidation(rowsInTrainingSet);
             LightGBMModel.Log.Info($"Training Dataset: {trainAndValidation.Training} , Validation Dataset: {trainAndValidation.Test}");
-
-            int coreCount = Utils.CoreCount;
-        
-            // ReSharper disable once ConvertToConstant.Local
-            // number of parallel threads in each single training
-            int numThreadsForEachModelTraining = 1;//single core
 
             var searchSpace = new Dictionary<string, object>
             {
@@ -163,15 +136,11 @@ namespace SharpNet.Datasets.Natixis70
                 { "max_depth", new[]{10, 20, 50, 100, 255} },
                 { "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 100) },
 
-                { "num_threads", new[] { numThreadsForEachModelTraining } },
+                { "num_iterations", new[]{ num_iterations } },
+                { "num_threads", new[] { 1 } },
                 { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 200) },
             };
 
-            if (coreCount % numThreadsForEachModelTraining != 0)
-            {
-                throw new ArgumentException($"invalid number of threads {numThreadsForEachModelTraining} : core count {coreCount} must be a multiple of it");
-            }
-            int numModelTrainingInParallel = coreCount / numThreadsForEachModelTraining;
             var categoricalFeaturesFieldValue = (categoricalFeatures.Count >= 1) ? ("name:" + string.Join(',', categoricalFeatures)) : "";
             //var hpo = new RandomSearchHPO<ParametersWithPercentageInTraining>(searchSpace,
             //    () => new ParametersWithPercentageInTraining(),
@@ -181,36 +150,30 @@ namespace SharpNet.Datasets.Natixis70
             //        return t.ValidLightGBMHyperParameters();
             //    },
             //    AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM,
-            //    LightGBMModel.Log,
-            //    1_000);
+            //    WorkingDirectory,
+            //    0);
 
-            var hpo = new BayesianSearchHPO<ParametersWithPercentageInTraining>(searchSpace,
-                () => new ParametersWithPercentageInTraining(),
+            var hpo = new BayesianSearchHPO<Parameters>(searchSpace,
+                () => new Parameters(),
                 t =>
                 {
                     t.categorical_feature = categoricalFeaturesFieldValue;
                     return t.ValidLightGBMHyperParameters();
                 },
-                WorkingDirectory,
-                AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM,
-                numModelTrainingInParallel,
-                1 * numModelTrainingInParallel,
-                5000 * 1 * numModelTrainingInParallel,
-                LightGBMModel.Log,
-                1_000,
+                0, // no time limit
+                AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM, 
+                WorkingDirectory, 
                 new HashSet<string>(categoricalFeatures));
 
             // ReSharper disable once UselessBinaryOperation
             var minValidationScore = float.MaxValue;
 
          
-            hpo.Process(numModelTrainingInParallel, t => DatasetHPO(t, trainAndValidation.Training, trainAndValidation.Test, ref minValidationScore));
+            hpo.Process(t => DatasetHPO(t, trainAndValidation.Training, trainAndValidation.Test, ref minValidationScore));
         }
         private static float DatasetHPO(Parameters sample, IDataSet trainDataset, IDataSet validationDataset, ref float minValidationScore)
         {
             var model = new LightGBMModel(sample, DatasetHPOPath, "");
-            Utils.ConfigureThreadLog4netProperties(DatasetHPOPath, "log");
-
             var sw = Stopwatch.StartNew();
             model.Train(trainDataset, validationDataset);
 
@@ -320,7 +283,6 @@ namespace SharpNet.Datasets.Natixis70
         private static float TrainWithHyperParameters(Natixis70HyperParameters sample, string modelPrefix)
         {
             var model = new LightGBMModel(sample, WorkingDirectory, modelPrefix);
-            Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "Natixis70");
 
             using var xFullTraining = Load_X(XTrainRawFile, sample);
             using var yFullTraining = Load_Y(YTrainRawFile, sample);
@@ -379,7 +341,7 @@ namespace SharpNet.Datasets.Natixis70
             return result.ToArray();
         }
         #region load of datasets
-        private static string WorkingDirectory => Path.Combine(NetworkConfig.DefaultLogDirectory, "Natixis70");
+        public static string WorkingDirectory => Path.Combine(NetworkConfig.DefaultLogDirectory, "Natixis70");
         private static string NatixisDataDirectory => Path.Combine(NetworkConfig.DefaultLogDirectory, "Natixis70", "Data");
         private static string XTrainRawFile => Path.Combine(NatixisDataDirectory, "x_train_ACFqOMF.csv");
         private static string YTrainRawFile => Path.Combine(NatixisDataDirectory, "y_train_HNMbC27.csv");
@@ -504,4 +466,5 @@ namespace SharpNet.Datasets.Natixis70
         }
         #endregion
     }
+
 }

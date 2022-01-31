@@ -12,10 +12,7 @@ namespace SharpNet.LightGBM
     {
         public CpuTensor<float> Tensor { get; }
         public string[] FeatureNames { get; }
-        public string Name { get; }
-
-
-        public int[] Shape => Tensor.Shape;
+        private string Name { get; }
 
         public Dataframe(CpuTensor<float> tensor, IEnumerable<string> featureNames, string name)
         {
@@ -26,8 +23,7 @@ namespace SharpNet.LightGBM
         }
 
 
-
-        public List<int> FeatureNameToIndexes(IEnumerable<string> featureNames)
+        private List<int> FeatureNameToIndexes(IEnumerable<string> featureNames)
         {
             var indexes = new List<int>();
             foreach (var f in featureNames)

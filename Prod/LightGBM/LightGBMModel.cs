@@ -27,7 +27,11 @@ namespace SharpNet.LightGBM
         };
         private readonly string _workingDirectory;
         private readonly string _modelPrefix;
-        [NotNull] private string ModelPath { get; set; }
+        /// <summary>
+        /// path of a trained model.
+        /// null if no trained model is available
+        /// </summary>
+        [NotNull] private string ModelPath { get; set; } = "";
 
         [NotNull] private string ModelConfigPath => ModelPath.Replace(".txt", ".conf");
 
@@ -36,10 +40,6 @@ namespace SharpNet.LightGBM
         #endregion
 
         #region public fields & properties
-        /// <summary>
-        /// path of a trained model.
-        /// null if no trained model is available
-        /// </summary>
         public static readonly ILog Log = LogManager.GetLogger(typeof(LightGBMModel));
         #endregion
 
@@ -81,7 +81,7 @@ namespace SharpNet.LightGBM
         }
 
 
-        private static object lockUpdateFileObject = new object();
+        private static readonly object lockUpdateFileObject = new();
 
         public void Train(string trainDatasetPath, string validationDatasetPath = "")
         {
@@ -103,9 +103,6 @@ namespace SharpNet.LightGBM
             Launch(ModelConfigPath);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         /// <param name="savePredictions"></param>
         /// <param name="UnNormalizeYIfNeeded"></param>
         /// <param name="shouldSavePredictionsBasedOnValidationScore"></param>
@@ -256,8 +253,6 @@ namespace SharpNet.LightGBM
             using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
             return Math.Sqrt(y_true.ComputeMse(y_predicted, buffer));
         }
-
-      
 
         #region private methods
         private static string ExePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "bin", "lightgbm.exe");

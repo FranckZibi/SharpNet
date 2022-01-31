@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using log4net;
 
 namespace SharpNet.HPO
 {
@@ -13,13 +12,13 @@ namespace SharpNet.HPO
         private readonly HashSet<string> _processedSpaces = new();
         #endregion
 
-        public RandomSearchHPO(IDictionary<string, object> searchSpace, 
-            Func<T> createDefaultSample, 
-            Func<T, bool> postBuild, 
-            AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption, 
-            ILog log, 
-            int maxSamplesToProcess) : 
-            base(searchSpace, createDefaultSample, postBuild, log, maxSamplesToProcess, new HashSet<string>())
+        public RandomSearchHPO(IDictionary<string, object> searchSpace,
+            Func<T> createDefaultSample,
+            Func<T, bool> postBuild,
+            double maxAllowedSecondsForAllComputation,
+            string workingDirectory,
+            AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption) : 
+            base(searchSpace, createDefaultSample, postBuild, maxAllowedSecondsForAllComputation, workingDirectory, new HashSet<string>())
         {
             _randomSearchOption = randomSearchOption;
         }
@@ -45,12 +44,12 @@ namespace SharpNet.HPO
                             continue; //already processed before
                         }
                     }
-                    var t = CreateDefaultSample();
-                    ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
-                    if (PostBuild(t))
+                    var sample = CreateDefaultSample();
+                    ClassFieldSetter.Set(sample, FromString2String_to_String2Object(searchSpaceHyperParameters));
+                    if (PostBuild(sample))
                     {
-                        var sampleDescription = ToSampleDescription(searchSpaceHyperParameters);
-                        return (t, _nextSampleId++, sampleDescription);
+                        var sampleDescription = ToSampleDescription(searchSpaceHyperParameters, sample);
+                        return (sample, _nextSampleId++, sampleDescription);
                     }
                 }
                 return (null,-1, "");

@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
-using log4net;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.LightGBM;
@@ -17,7 +16,6 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     #region private fields
     private readonly Random _rand = new();
     private readonly HashSet<string> _processedSpaces = new();
-    [NotNull] private readonly string _workingDirectory;
     private readonly AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
     /// <summary>
     /// the model use to predict the objective function score
@@ -37,7 +35,6 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     private List<Tuple<T, float[], float, float, int, string>> SamplesWithScore =>  _samplesWithScoreIfAvailable.Where(e => !float.IsNaN(e.Item4)).ToList();
 
     /// <summary>
-    /// 
     /// next samples to use for the objective function
     /// if this list is empty, it means that we'll need to call the surrogate model to retrieve new samples to test
     /// Item1:  the sample
@@ -49,46 +46,27 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     private readonly object _lockObject = new object();
 
     /// <summary>
-    /// number of model trained in parallel (in separate threads)
-    /// </summary>
-    private readonly int _numModelTrainingInParallel;
-
-    private readonly int _numberOfNewSamplesWithCostToRetrainSurrogateModel;
-    private readonly int _numberOfSampleCandidatesToPredictAtTheSameTime;
-
-    /// <summary>
     /// Number of samples that have been used to train the model '_surrogateModel'
     /// 0 means the model has not been trained so far
     /// The value is in the range [0, SamplesWithScore.Length] 
     /// </summary>
     private int _samplesUsedForModelTraining = 0;
+    private readonly DateTime _searchStartTime;
+
+
     #endregion
 
-    public BayesianSearchHPO(IDictionary<string, object> searchSpace, 
-        Func<T> createDefaultSample, 
+    public BayesianSearchHPO(IDictionary<string, object> searchSpace,
+        Func<T> createDefaultSample,
         Func<T, bool> postBuild,
+        int maxAllowedSecondsForAllComputation,
+        AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption,
         [NotNull] string workingDirectory,
-        AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption, 
-        int numModelTrainingInParallel, 
-        int numberOfNewSamplesWithCostToRetrainSurrogateModel,
-        int numberOfSampleCandidatesToPredictAtTheSameTime,
-        ILog log, 
-        int maxSamplesToProcess,
         HashSet<string> mandatoryCategoricalHyperParameters) :
-        base(searchSpace, createDefaultSample, postBuild, log, maxSamplesToProcess, mandatoryCategoricalHyperParameters)
+        base(searchSpace, createDefaultSample, postBuild, maxAllowedSecondsForAllComputation, workingDirectory, mandatoryCategoricalHyperParameters)
     {
-        Debug.Assert(numModelTrainingInParallel >= 1);
-
-        if (!Directory.Exists(workingDirectory))
-        {
-            Directory.CreateDirectory(workingDirectory);
-        }
-
-        _workingDirectory = workingDirectory;
         _randomSearchOption = randomSearchOption;
-        _numModelTrainingInParallel = numModelTrainingInParallel;
-        _numberOfNewSamplesWithCostToRetrainSurrogateModel = numberOfNewSamplesWithCostToRetrainSurrogateModel;
-        _numberOfSampleCandidatesToPredictAtTheSameTime = numberOfSampleCandidatesToPredictAtTheSameTime;
+        _searchStartTime = DateTime.Now;
 
         var surrogateModelParameters = new Parameters();
         var categoricalFeaturesFieldValue = (SurrogateModelCategoricalFeature().Length>= 1) ? ("name:" + string.Join(',', SurrogateModelCategoricalFeature())) : "";
@@ -109,7 +87,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
             { "max_depth", 128},
             { "min_data_in_leaf", 3 },
             { "min_data_in_bin", 20 },
-            { "num_iterations", 200 },
+            { "num_iterations", 100 },
             { "num_leaves", 50 },
             { "num_threads", 2},
             { "path_smooth", 1.0f},
@@ -118,8 +96,6 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         SurrogatePrefix = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
         _surrogateModel = new LightGBMModel(surrogateModelParameters, workingDirectory, SurrogatePrefix);
     }
-
-
 
     private string SurrogatePrefix { get; }
     private string SurrogateModelTrainingDatasetPath => Path.Combine(_workingDirectory, SurrogatePrefix+"_dataset.csv");
@@ -134,7 +110,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
                 if (_nextSamplesToCompute.Count == 0)
                 {
                     Log.Debug("No more samples available, computing new ones");
-                    _nextSamplesToCompute.AddRange(GetNextSamplesForObjectiveFunction());
+                    _nextSamplesToCompute.AddRange(NextSamplesForObjectiveFunction());
                 }
 
                 if (_nextSamplesToCompute.Count == 0)
@@ -154,14 +130,44 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         }
     }
 
-    private IEnumerable<Tuple<T, float[], float, string>> GetNextSamplesForObjectiveFunction()
+    private int CountNextSamplesForObjectiveFunction()
     {
+        const int min_count = 5;
+        const int max_count = 1000;
+        int nbProcessedSamples = SamplesWithScore.Count;
+        if (nbProcessedSamples <= min_count)
+        {
+            return min_count;
+        }
+        var elapsedSeconds = (DateTime.Now - _searchStartTime).TotalSeconds;
+        double averageSpeed = elapsedSeconds / nbProcessedSamples;
+        int count = (int)(30 / averageSpeed);
+        if (nbProcessedSamples < 100 && count>50)
+        {
+            count = 50;
+        }
+        count = Math.Max(count, min_count);
+        count = Math.Min(count, max_count);
+        Log.Debug($"Computing {count} random samples for next training (observed average speed : {Math.Round(averageSpeed,4)}s/sample training)");
+        return count;
+    }
+
+
+    /// <summary>
+    /// retrieve 'count' promising samples based on their estimate associated cost (computed with the surrogate model)
+    /// </summary>
+    /// <returns></returns>
+    private IEnumerable<Tuple<T, float[], float, string>> NextSamplesForObjectiveFunction()
+    {
+        int count = CountNextSamplesForObjectiveFunction();
+
         var result = new List<Tuple<T, float[], float, string>>();
 
-        using var x = NewSamplesForPrediction();
+        // we retrieve 100x more random samples then needed to keep only the top 1%
+        using var x = RandomSamplesForPrediction(count*100);
         using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, SurrogateModelFeatureNames(), false);
 
-
+        // we compute the estimate cost associated with each random sample (using the surrogate model)
         LightGBMModel.Save(dataset, SurrogateModelPredictDatasetPath, Parameters.task_enum.predict, true);
         var y = _samplesUsedForModelTraining == 0 
                 
@@ -170,27 +176,25 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
 
                 // the model has been already trained, we can use it
                 : _surrogateModel.Predict(SurrogateModelPredictDatasetPath);
-
         File.Delete(SurrogateModelPredictDatasetPath);
-
-
         var ySpan = y.AsFloatCpuSpan;
-        var surrogateModelCostAndIndex = new List<Tuple<float, int>>();
+        var estimateRandomSampleCostAndIndex = new List<Tuple<float, int>>();
         for (var index = 0; index < ySpan.Length; index++)
         {
-            surrogateModelCostAndIndex.Add(Tuple.Create(ySpan[index], index));
+            estimateRandomSampleCostAndIndex.Add(Tuple.Create(ySpan[index], index));
         }
 
-        foreach (var (surrogateModelCost, index) in surrogateModelCostAndIndex.OrderBy(e => e.Item1))
+        //we sort all random samples from more promising (lowest cost) to less interesting (highest cost)
+        foreach (var (estimateRandomSampleCost, index) in estimateRandomSampleCostAndIndex.OrderBy(e => e.Item1))
         {
             var sampleAsFloatArray = x.RowSlice(index, 1).ContentAsFloatArray();
-            var (currentSample,currentSampleDescription) = FromFloatVectorToSampleAndDescription(sampleAsFloatArray);
-            if (currentSample == null)
+            var (randomSample,randomSampleDescription) = FromFloatVectorToSampleAndDescription(sampleAsFloatArray);
+            if (randomSample == null)
             {
                 continue;
             }
-            result.Add(Tuple.Create(currentSample, sampleAsFloatArray, surrogateModelCost, currentSampleDescription));
-            if (result.Count >= _numModelTrainingInParallel)
+            result.Add(Tuple.Create(randomSample, sampleAsFloatArray, estimateRandomSampleCost, randomSampleDescription));
+            if (result.Count >= count)
             {
                 break;
             }
@@ -214,8 +218,6 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
                 searchSpaceHyperParameters[parameterName] = parameterSearchSpace.BayesianSearchFloatValue_to_SampleStringValue(sampleAsFloatVector[idx++]);
             }
         }
-        var sampleDescription = ToSampleDescription(searchSpaceHyperParameters);
-
         Debug.Assert(idx == sampleAsFloatVector.Length);
         //we ensure that we have not already processed this search space
         var searchSpaceHash = ComputeHash(searchSpaceHyperParameters);
@@ -226,26 +228,26 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
                 return (null, ""); //already processed before
             }
         }
-        var t = CreateDefaultSample();
-        ClassFieldSetter.Set(t, FromString2String_to_String2Object(searchSpaceHyperParameters));
-        if (PostBuild(t))
+        var sample = CreateDefaultSample();
+        ClassFieldSetter.Set(sample, FromString2String_to_String2Object(searchSpaceHyperParameters));
+        if (!PostBuild(sample))
         {
-            return (t, sampleDescription);
+            return (null, "");
         }
-        else
-        {
-            return (null, sampleDescription);
-        }
+        return (sample, ToSampleDescription(searchSpaceHyperParameters, sample));
     }
 
 
-
-    private CpuTensor<float> NewSamplesForPrediction()
+    /// <summary>
+    /// return 'count' random samples
+    /// </summary>
+    /// <param name="count">the number of random samples to return (number of rows in returned tensor)</param>
+    /// <returns></returns>
+    private CpuTensor<float> RandomSamplesForPrediction(int count)
     {
-
         var orderedValues = SearchSpace.OrderBy(t => t.Key).Where(t=>!t.Value.IsConstant).Select(t=>t.Value).ToList();
 
-        float[] NextSampleForPrediction()
+        float[] NextRandomSamplesForPrediction()
         {
             var res = new float[orderedValues.Count];
             int idx = 0;
@@ -257,9 +259,9 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         }
 
         var rows = new List<float[]>();
-        while (rows.Count < _numberOfSampleCandidatesToPredictAtTheSameTime)
+        while (rows.Count < count)
         {
-            rows.Add(NextSampleForPrediction());
+            rows.Add(NextRandomSamplesForPrediction());
         }
         return NewCpuTensor(rows);
     }
@@ -293,15 +295,12 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
             _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
             RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
 
-            if (SamplesWithScore.Count >= (_samplesUsedForModelTraining + _numberOfNewSamplesWithCostToRetrainSurrogateModel)
-                && (SamplesWithScore.Count>=4 ) 
-                )
+            if (SamplesWithScore.Count >= Math.Max(10, 1.2*(_samplesUsedForModelTraining)))
             {
                 _samplesUsedForModelTraining = TrainSurrogateModel();
             }
         }
     }
-
 
     private static CpuTensor<float> NewCpuTensor(IList<float[]> rows)
     {
@@ -358,11 +357,8 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     {
         return SearchSpace.OrderBy(t => t.Key).Where(t=>!t.Value.IsConstant).Select(t=>t.Key).ToArray();
     }
-
     private string[] SurrogateModelCategoricalFeature()
     {
         return SearchSpace.OrderBy(t => t.Key).Where(t=> !t.Value.IsConstant&&t.Value.IsCategoricalHyperParameter).Select(t=>t.Key).ToArray();
     }
-
-
 }

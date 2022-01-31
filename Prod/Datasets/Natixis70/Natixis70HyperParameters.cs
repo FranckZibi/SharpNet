@@ -107,10 +107,10 @@ namespace SharpNet.Datasets.Natixis70
             return categoricalFeatures;
         }
 
-        public void SavePredictions(CpuTensor<float> y, string path)
+        public CpuTensor<float> LightGBM_2_ExpectedPredictionFormat(CpuTensor<float> y)
         {
             var sb = new StringBuilder();
-            sb.Append(Natixis70Utils.PredictionHeader+Environment.NewLine);
+            sb.Append(Natixis70Utils.PredictionHeader + Environment.NewLine);
 
             var ySpan = y.AsReadonlyFloatCpuContent;
             var ySpanIndex = 0;
@@ -126,20 +126,33 @@ namespace SharpNet.Datasets.Natixis70
                 int horizonId = RowToHorizonId(row);
                 int marketId = RowToMarketId(row);
                 //we load the row 'row' in 'yRaw' tensor
-                for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length-1) : marketId); ++currentMarketId)
+                for (int currentMarketId = (marketId < 0 ? 0 : marketId);
+                     currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : marketId);
+                     ++currentMarketId)
                 {
-                    for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length-1) : horizonId); ++currentHorizonId)
+                    for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId);
+                         currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId);
+                         ++currentHorizonId)
                     {
                         int rawColIndex = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
                         var yValue = ySpan[ySpanIndex++];
-                        if (Math.Abs(yValue)<1e-4)
+                        if (Math.Abs(yValue) < 1e-4)
                         {
                             yValue = 0;
                         }
+
                         yRawSpan[rawRow * yRaw.Shape[1] + rawColIndex] = yValue;
                     }
                 }
             }
+            Debug.Assert(yRaw.Shape.Length == 2);
+            Debug.Assert(yRaw.Shape[1] == (1+39));
+            return yRaw;
+        }
+
+        public void SavePredictions(CpuTensor<float> y, string path)
+        {
+            var yRaw = LightGBM_2_ExpectedPredictionFormat(y);
             new Dataframe(yRaw, Natixis70Utils.PredictionHeader.Split(','), "").Save(path);
         }
 
@@ -250,8 +263,6 @@ namespace SharpNet.Datasets.Natixis70
 
             return row % Natixis70Utils.MarketNames.Length;
         }
-        // max value of the loss to consider saving the network
-        public double MaxLossToSaveTheNetwork => double.MaxValue; //TODO
 
         public string[] predictionFilesIfComputeErrors = null;
 
