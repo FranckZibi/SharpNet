@@ -4,6 +4,7 @@ using System.IO;
 using NUnit.Framework;
 using SharpNet.Datasets.Natixis70;
 using SharpNet.HPO;
+using SharpNet.HyperParameters;
 using static SharpNet.HPO.AbstractHyperParameterSearchSpace;
 
 // ReSharper disable FieldCanBeMadeReadOnly.Local
@@ -16,8 +17,12 @@ namespace SharpNetTests.HPO;
 
 public class TestBayesianSearchHPO
 {
-    private class TempClass
+    private class TempClass : AbstractSample
     {
+        public TempClass() : base(new HashSet<string>())
+        {
+        }
+
         public float A = 0;
         public float B = 0;
         public int C = 0;
@@ -46,6 +51,11 @@ public class TestBayesianSearchHPO
                    + " E:" + E
                    + " G:" + G;
         }
+
+        public override bool PostBuild()
+        {
+            return true;
+        }
     }
 
 
@@ -53,7 +63,6 @@ public class TestBayesianSearchHPO
     [Test, Explicit]
     public void TestConvergence()
     {
-     
         var testDirectory = Path.Combine(Natixis70Utils.WorkingDirectory, "Natixis70", "Temp");
         var searchSpace = new Dictionary<string, object>
         {
@@ -64,13 +73,7 @@ public class TestBayesianSearchHPO
             { "E", Range(-10f, 10f) },
             { "G", Range(0f, 0f) },
         };
-        var hpo = new BayesianSearchHPO<TempClass>(searchSpace, 
-            () => new TempClass(), 
-            _ => true,
-            60, 
-            RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING, 
-            testDirectory, 
-            new HashSet<string>());
-        hpo.Process(t => t.Cost());
+        var hpo = new BayesianSearchHPO(searchSpace, () => new TempClass(), testDirectory);
+        hpo.Process(t => ((TempClass)t).Cost(), 60 );
     }
 }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
-using SharpNet.LightGBM;
 
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -11,7 +10,7 @@ using SharpNet.LightGBM;
 
 namespace SharpNet.Networks
 {
-    public abstract class NetworkBuilder : Parameters
+    public abstract class NetworkBuilder
     {
         public enum POOLING_BEFORE_DENSE_LAYER
         {

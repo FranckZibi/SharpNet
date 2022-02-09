@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,6 +17,15 @@ using SharpNet.Pictures;
 
 namespace SharpNet
 {
+
+    public enum ObjectiveFunction
+    {
+        Accuracy,
+        Mse,
+        Rmse,
+        Mae
+    }
+
     public static class Utils
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(Utils));
@@ -864,6 +874,40 @@ namespace SharpNet
             }
             return weights.Length - 1;
         }
+
+        public static string FieldValueToString(object fieldValue)
+        {
+            if (fieldValue == null)
+            {
+                return "";
+            }
+            if (fieldValue is float)
+            {
+                return ((float)fieldValue).ToString(CultureInfo.InvariantCulture);
+            }
+            if (fieldValue is double)
+            {
+                return ((double)fieldValue).ToString(CultureInfo.InvariantCulture);
+            }
+            if (fieldValue is double[])
+            {
+                return string.Join(',', ((double[])fieldValue).Select(d => d.ToString(CultureInfo.InvariantCulture)));
+            }
+            return fieldValue.ToString();
+        }
+
+        public static IDictionary<string, object> FromString2String_to_String2Object(IDictionary<string, string> dicoString2String)
+        {
+            var dicoString2Object = new Dictionary<string, object>();
+            foreach (var (key, value) in dicoString2String)
+            {
+                dicoString2Object[key] = value;
+            }
+            return dicoString2Object;
+        }
+        
+        public static string LocalApplicationFolderPath => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
     }
 
 }

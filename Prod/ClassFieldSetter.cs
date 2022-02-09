@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
@@ -29,10 +28,34 @@ namespace SharpNet
         {
             return GetFieldInfo(o.GetType(), fieldName).GetValue(o);
         }
-        public static string ComputeHash<T>(this T t) where T : new()
+
+        /// <summary>
+        /// public for testing purpose only
+        /// </summary>
+        /// <param name="t"></param>
+        /// <param name="ignoreDefaultValue"></param>
+        /// <param name="mandatoryParametersInConfigFile"></param>
+        /// <returns></returns>
+        public static string ToConfigContent(object t, bool ignoreDefaultValue, HashSet<string> mandatoryParametersInConfigFile = null)
         {
-            return Utils.ComputeHash(ToConfigContent(t, true), 10);
+            var type = t.GetType();
+            var defaultT = type.GetConstructor(Type.EmptyTypes).Invoke(null);
+            var result = new List<string>();
+            foreach (var (parameterName, fieldInfo) in GetFieldName2FieldInfo(type).OrderBy(f => f.Key))
+            {
+                if (ignoreDefaultValue
+                    && Equals(fieldInfo.GetValue(t), fieldInfo.GetValue(defaultT))
+                    && (mandatoryParametersInConfigFile == null || !mandatoryParametersInConfigFile.Contains(parameterName))
+                   )
+                {
+                    continue;
+                }
+                result.Add($"{parameterName} = {Utils.FieldValueToString(fieldInfo.GetValue(t))}");
+            }
+            return string.Join(Environment.NewLine, result) + Environment.NewLine;
         }
+
+
 
         /// <param name="t"></param>
         /// <param name="path"></param>
@@ -82,26 +105,6 @@ namespace SharpNet
                 throw new Exception($"invalid field {fieldName} with value {fieldValue}");
             }
         }
-        public static string FieldValueToString(object fieldValue)
-        {
-            if (fieldValue == null)
-            {
-                return "";
-            }
-            if (fieldValue is float)
-            {
-                return ((float)fieldValue).ToString(CultureInfo.InvariantCulture);
-            }
-            if (fieldValue is double)
-            {
-                return ((double)fieldValue).ToString(CultureInfo.InvariantCulture);
-            }
-            if (fieldValue is double[])
-            {
-                return string.Join(',', ((double[])fieldValue).Select(d => d.ToString(CultureInfo.InvariantCulture)));
-            }
-            return fieldValue.ToString();
-        }
         //private static object GetValue(object o, Type objectType, string fieldName)
         //{
         //    return GetFieldInfo(objectType, fieldName).GetValue(o);
@@ -110,7 +113,14 @@ namespace SharpNet
         {
             return GetFieldName2FieldInfo(t)[fieldName];
         }
-        private static IDictionary<string,FieldInfo> GetFieldName2FieldInfo(Type t)
+
+        public static bool HasField(Type t, string fieldName)
+        {
+            return GetFieldName2FieldInfo(t).ContainsKey(fieldName);
+        }
+
+
+        public static IDictionary<string,FieldInfo> GetFieldName2FieldInfo(Type t)
         {
             if (!type2name2FieldInfo.ContainsKey(t))
             {
@@ -192,31 +202,6 @@ namespace SharpNet
         {
             var f = GetFieldInfo(objectType, fieldName);
             f.SetValue(o, value);
-        }
-        /// <summary>
-        /// public for testing purpose only
-        /// </summary>
-        /// <param name="t"></param>
-        /// <param name="ignoreDefaultValue"></param>
-        /// <param name="mandatoryParametersInConfigFile"></param>
-        /// <returns></returns>
-        public static string ToConfigContent(object t, bool ignoreDefaultValue, HashSet<string> mandatoryParametersInConfigFile = null)
-        {
-            var type = t.GetType();
-            var defaultT = type.GetConstructor(Type.EmptyTypes).Invoke(null);
-            var result = new List<string>();
-            foreach (var (parameterName, fieldInfo) in GetFieldName2FieldInfo(type).OrderBy(f => f.Key))
-            {
-                if (ignoreDefaultValue
-                    && Equals(fieldInfo.GetValue(t), fieldInfo.GetValue(defaultT))
-                    && (mandatoryParametersInConfigFile == null || !mandatoryParametersInConfigFile.Contains(parameterName))
-                )
-                {
-                    continue;
-                }
-                result.Add($"{parameterName} = {FieldValueToString(fieldInfo.GetValue(t))}");
-            }
-            return string.Join(Environment.NewLine, result) + Environment.NewLine;
         }
 
         private static T LoadFromConfigContent<T>(string configContent) where T : new()

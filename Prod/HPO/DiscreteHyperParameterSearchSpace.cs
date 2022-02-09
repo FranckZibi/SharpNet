@@ -89,7 +89,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     }
     private SingleHyperParameterValueStatistics SampleValueToStatistics(object sampleValue)
     {
-        var parameterValueAsString = ClassFieldSetter.FieldValueToString(sampleValue);
+        var parameterValueAsString = Utils.FieldValueToString(sampleValue);
         if (!_statistics.ContainsKey(parameterValueAsString))
         {
             throw new Exception($"invalid value {parameterValueAsString} : can not be found among {string.Join(' ', _statistics.Keys)}");
@@ -113,7 +113,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     {
         string[] ToStringObjects<T>(IEnumerable<T> values)
         {
-            return values.Select(t => ClassFieldSetter.FieldValueToString(t)).ToArray();
+            return values.Select(t => Utils.FieldValueToString(t)).ToArray();
         }
 
         if (parameterValues is bool[])
@@ -138,7 +138,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
         }
         if (parameterValues is bool || parameterValues is int || parameterValues is float || parameterValues is double || parameterValues is string)
         {
-            return new[] { ClassFieldSetter.FieldValueToString(parameterValues) };
+            return new[] { Utils.FieldValueToString(parameterValues) };
         }
         throw new InvalidEnumArgumentException($"can not process {parameterValues}");
     }

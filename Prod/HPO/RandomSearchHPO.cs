@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using SharpNet.HyperParameters;
 
 namespace SharpNet.HPO
 {
-    public class RandomSearchHPO<T> : AbstractHpo<T> where T : class, new()
+    public class RandomSearchHPO : AbstractHpo
     {
         #region private fields
         private readonly AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
@@ -13,17 +14,15 @@ namespace SharpNet.HPO
         #endregion
 
         public RandomSearchHPO(IDictionary<string, object> searchSpace,
-            Func<T> createDefaultSample,
-            Func<T, bool> postBuild,
-            double maxAllowedSecondsForAllComputation,
+            Func<ISample> createDefaultSample,
             string workingDirectory,
-            AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption) : 
-            base(searchSpace, createDefaultSample, postBuild, maxAllowedSecondsForAllComputation, workingDirectory, new HashSet<string>())
+            AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption = AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING) : 
+            base(searchSpace, createDefaultSample, workingDirectory)
         {
             _randomSearchOption = randomSearchOption;
         }
 
-        protected override (T,int, string) Next
+        protected override (ISample,int, string) Next
         {
             get
             {
@@ -35,18 +34,17 @@ namespace SharpNet.HPO
                     {
                         searchSpaceHyperParameters[parameterName] = parameterSearchSpace.Next_SampleStringValue(_rand, _randomSearchOption);
                     }
+                    var sample = CreateDefaultSample();
+                    sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperParameters));
                     //we ensure that we have not already processed this search space
-                    var searchSpaceHash = ComputeHash(searchSpaceHyperParameters);
                     lock (_processedSpaces)
                     {
-                        if (!_processedSpaces.Add(searchSpaceHash))
+                        if (!_processedSpaces.Add(sample.ComputeHash()))
                         {
                             continue; //already processed before
                         }
                     }
-                    var sample = CreateDefaultSample();
-                    ClassFieldSetter.Set(sample, FromString2String_to_String2Object(searchSpaceHyperParameters));
-                    if (PostBuild(sample))
+                    if (sample.PostBuild())
                     {
                         var sampleDescription = ToSampleDescription(searchSpaceHyperParameters, sample);
                         return (sample, _nextSampleId++, sampleDescription);

@@ -731,6 +731,17 @@ namespace SharpNet.Data
         /// <returns> The Mean Squared Error (mse) between 'yExpected'( =this) and 'yPredicted'  </returns>
         public abstract double ComputeMse(Tensor yPredicted, Tensor buffer);
 
+        /// <summary>
+        /// this = yExpected
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the model</param>
+        /// <param name="buffer"></param>
+        /// <returns> The Root Mean Squared Error (rmse) between 'yExpected'( =this) and 'yPredicted'  </returns>
+        public double ComputeRmse(Tensor yPredicted, Tensor buffer)
+        {
+            return Math.Sqrt(ComputeMse(yPredicted, buffer));
+        }
+
 
         /// <summary>
         /// Compute the output gradient when we are using categorical hierarchy for categories

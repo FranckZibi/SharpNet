@@ -6,13 +6,13 @@ using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Datasets;
+using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 
 namespace SharpNet.HPO;
 
-public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
+public class BayesianSearchHPO : AbstractHpo
 {
-
     #region private fields
     private readonly Random _rand = new();
     private readonly HashSet<string> _processedSpaces = new();
@@ -21,7 +21,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     /// the model use to predict the objective function score
     /// </summary>
     private readonly LightGBMModel _surrogateModel;
-
+    private readonly string _surrogateModelName;
     /// <summary>
     /// Item1:  the sample
     /// Item2:  the sample as a float vector array
@@ -30,10 +30,8 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     /// Item5:  the sample id
     /// Item6:  the sample description
     /// </summary>
-    private readonly List< Tuple<T, float[], float, float, int, string>> _samplesWithScoreIfAvailable = new ();
-
-    private List<Tuple<T, float[], float, float, int, string>> SamplesWithScore =>  _samplesWithScoreIfAvailable.Where(e => !float.IsNaN(e.Item4)).ToList();
-
+    private readonly List< Tuple<ISample, float[], float, float, int, string>> _samplesWithScoreIfAvailable = new ();
+    private List<Tuple<ISample, float[], float, float, int, string>> SamplesWithScore =>  _samplesWithScoreIfAvailable.Where(e => !float.IsNaN(e.Item4)).ToList();
     /// <summary>
     /// next samples to use for the objective function
     /// if this list is empty, it means that we'll need to call the surrogate model to retrieve new samples to test
@@ -42,9 +40,8 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     /// Item3:  the score predicted by the surrogate model
     /// Item3:  the sample description
     /// </summary>
-    private readonly List<Tuple<T, float[], float, string>> _nextSamplesToCompute = new();
+    private readonly List<Tuple<ISample, float[], float, string>> _nextSamplesToCompute = new();
     private readonly object _lockObject = new object();
-
     /// <summary>
     /// Number of samples that have been used to train the model '_surrogateModel'
     /// 0 means the model has not been trained so far
@@ -52,25 +49,21 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
     /// </summary>
     private int _samplesUsedForModelTraining = 0;
     private readonly DateTime _searchStartTime;
-
-
     #endregion
 
     public BayesianSearchHPO(IDictionary<string, object> searchSpace,
-        Func<T> createDefaultSample,
-        Func<T, bool> postBuild,
-        int maxAllowedSecondsForAllComputation,
-        AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption,
+        Func<ISample> createDefaultSample,
         [NotNull] string workingDirectory,
-        HashSet<string> mandatoryCategoricalHyperParameters) :
-        base(searchSpace, createDefaultSample, postBuild, maxAllowedSecondsForAllComputation, workingDirectory, mandatoryCategoricalHyperParameters)
+        AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption = AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING) :
+        base(searchSpace, createDefaultSample, workingDirectory)
     {
         _randomSearchOption = randomSearchOption;
         _searchStartTime = DateTime.Now;
 
+        // the surrogate model will be trained with a LightGBM using random forests (boosting=rf)
         var surrogateModelParameters = new Parameters();
         var categoricalFeaturesFieldValue = (SurrogateModelCategoricalFeature().Length>= 1) ? ("name:" + string.Join(',', SurrogateModelCategoricalFeature())) : "";
-        ClassFieldSetter.Set(surrogateModelParameters, new Dictionary<string, object> {
+        surrogateModelParameters.Set(new Dictionary<string, object> {
             { "bagging_fraction", 0.5 },
             { "bagging_freq", 1 },
             { "boosting", "rf" },
@@ -93,15 +86,11 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
             { "path_smooth", 1.0f},
             { "verbosity", -1 },
         });
-        SurrogatePrefix = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
-        _surrogateModel = new LightGBMModel(surrogateModelParameters, workingDirectory, SurrogatePrefix);
+        _surrogateModelName = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
+        _surrogateModel = new LightGBMModel(surrogateModelParameters, workingDirectory, _surrogateModelName);
     }
 
-    private string SurrogatePrefix { get; }
-    private string SurrogateModelTrainingDatasetPath => Path.Combine(_workingDirectory, SurrogatePrefix+"_dataset.csv");
-    private string SurrogateModelPredictDatasetPath => Path.Combine(_workingDirectory, SurrogatePrefix+"_predictions.csv");
-
-    protected override (T,int,string) Next
+    protected override (ISample, int, string) Next
     {
         get
         {
@@ -129,7 +118,44 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
             }
         }
     }
+    protected override void RegisterSampleCost(ISample sample, int sampleId, float cost, double elapsedTimeInSeconds)
+    {
+        lock (_lockObject)
+        {
+            _allCost.Add(cost, 1);
+            var sampleTuple = _samplesWithScoreIfAvailable[sampleId];
+            var surrogateCostEstimate = sampleTuple.Item3;
+            var sampleDescription = sampleTuple.Item6;
+            if (float.IsNaN(surrogateCostEstimate))
+            {
+                throw new Exception($"surrogate cost is missing from sampleId {sampleId}");
+            }
+            if (!float.IsNaN(sampleTuple.Item4))
+            {
+                throw new Exception($"cost has been already registered for sampleId {sampleId}");
+            }
+            if (sampleTuple.Item5 != sampleId)
+            {
+                throw new Exception($"invalid sampleId {sampleTuple.Item5} , should be {sampleId}");
+            }
+            if (float.IsNaN(cost))
+            {
+                throw new Exception($"cost can not be NaN for sampleId {sampleId}");
+            }
 
+            Log.Debug($"Registering actual cost ({cost}) of sample {sampleId} (surrogate cost estimate: {surrogateCostEstimate})");
+            _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
+            RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
+
+            if (SamplesWithScore.Count >= Math.Max(10, 1.2 * (_samplesUsedForModelTraining)))
+            {
+                _samplesUsedForModelTraining = TrainSurrogateModel();
+            }
+        }
+    }
+
+    private string SurrogateModelTrainingDatasetPath => Path.Combine(_workingDirectory, _surrogateModelName+"_dataset.csv");
+    private string SurrogateModelPredictDatasetPath => Path.Combine(_workingDirectory, _surrogateModelName+"_predictions.csv");
     private int CountNextSamplesForObjectiveFunction()
     {
         const int min_count = 5;
@@ -151,17 +177,15 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         Log.Debug($"Computing {count} random samples for next training (observed average speed : {Math.Round(averageSpeed,4)}s/sample training)");
         return count;
     }
-
-
     /// <summary>
     /// retrieve 'count' promising samples based on their estimate associated cost (computed with the surrogate model)
     /// </summary>
     /// <returns></returns>
-    private IEnumerable<Tuple<T, float[], float, string>> NextSamplesForObjectiveFunction()
+    private IEnumerable<Tuple<ISample, float[], float, string>> NextSamplesForObjectiveFunction()
     {
         int count = CountNextSamplesForObjectiveFunction();
 
-        var result = new List<Tuple<T, float[], float, string>>();
+        var result = new List<Tuple<ISample, float[], float, string>>();
 
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
@@ -201,9 +225,7 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         }
         return result;
     }
-
-
-    private (T,string) FromFloatVectorToSampleAndDescription(float[] sampleAsFloatVector)
+    private (ISample, string) FromFloatVectorToSampleAndDescription(float[] sampleAsFloatVector)
     {
         var searchSpaceHyperParameters = new Dictionary<string, string>();
         int idx = 0;
@@ -219,25 +241,22 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
             }
         }
         Debug.Assert(idx == sampleAsFloatVector.Length);
+        var sample = CreateDefaultSample();
+        sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperParameters));
         //we ensure that we have not already processed this search space
-        var searchSpaceHash = ComputeHash(searchSpaceHyperParameters);
         lock (_processedSpaces)
         {
-            if (!_processedSpaces.Add(searchSpaceHash))
+            if (!_processedSpaces.Add(sample.ComputeHash()))
             {
                 return (null, ""); //already processed before
             }
         }
-        var sample = CreateDefaultSample();
-        ClassFieldSetter.Set(sample, FromString2String_to_String2Object(searchSpaceHyperParameters));
-        if (!PostBuild(sample))
+        if (!sample.PostBuild())
         {
             return (null, "");
         }
         return (sample, ToSampleDescription(searchSpaceHyperParameters, sample));
     }
-
-
     /// <summary>
     /// return 'count' random samples
     /// </summary>
@@ -265,43 +284,6 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         }
         return NewCpuTensor(rows);
     }
-
-    protected override void RegisterSampleCost(object sample, int sampleId, float cost, double elapsedTimeInSeconds)
-    {
-        lock (_lockObject)
-        {
-            _allCost.Add(cost, 1);
-            var sampleTuple = _samplesWithScoreIfAvailable[sampleId];
-            var surrogateCostEstimate = sampleTuple.Item3;
-            var sampleDescription = sampleTuple.Item6;
-            if (float.IsNaN(surrogateCostEstimate))
-            {
-                throw new Exception($"surrogate cost is missing from sampleId {sampleId}");
-            }
-            if (!float.IsNaN(sampleTuple.Item4))
-            {
-                throw new Exception($"cost has been already registered for sampleId {sampleId}");
-            }
-            if (sampleTuple.Item5 != sampleId)
-            {
-                throw new Exception($"invalid sampleId {sampleTuple.Item5} , should be {sampleId}");
-            }
-            if (float.IsNaN(cost))
-            {
-                throw new Exception($"cost can not be NaN for sampleId {sampleId}");
-            }
-
-            Log.Debug($"Registering actual cost ({cost}) of sample {sampleId} (surrogate cost estimate: {surrogateCostEstimate})");
-            _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
-            RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
-
-            if (SamplesWithScore.Count >= Math.Max(10, 1.2*(_samplesUsedForModelTraining)))
-            {
-                _samplesUsedForModelTraining = TrainSurrogateModel();
-            }
-        }
-    }
-
     private static CpuTensor<float> NewCpuTensor(IList<float[]> rows)
     {
         var x = new CpuTensor<float>(new[] { rows.Count, rows[0].Length });
@@ -318,7 +300,6 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
         Debug.Assert(xSpanIndex == x.Count);
         return x;
     }
-
     /// <summary>
     /// train the model with all samples with an associated score
     /// </summary>
@@ -352,7 +333,6 @@ public class BayesianSearchHPO<T> : AbstractHpo<T> where T : class, new()
 
         return xRows.Count;
     }
-
     private string[] SurrogateModelFeatureNames()
     {
         return SearchSpace.OrderBy(t => t.Key).Where(t=>!t.Value.IsConstant).Select(t=>t.Key).ToArray();

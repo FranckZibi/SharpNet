@@ -494,7 +494,7 @@ namespace SharpNet.Datasets.CFM60
                 }
                 var new_l = l;
                 var data = l.Split(separator).ToArray();
-                var ID = int.Parse(data[0]);
+                //var ID = int.Parse(data[0]);
                 var pid = int.Parse(data[1]);
                 var day = int.Parse(data[2]);
                 if (embedding_values_if_any != null)
@@ -872,7 +872,7 @@ namespace SharpNet.Datasets.CFM60
             var result = new List<int[]> {shapeForFirstLayer};
             if (Cfm60NetworkBuilder.Use_Decoder)
             {
-                var inputShapeDecoder = new int[]
+                var inputShapeDecoder = new []
                 {
                     shapeForFirstLayer[0],
                     Cfm60NetworkBuilder.Decoder_TimeSteps,

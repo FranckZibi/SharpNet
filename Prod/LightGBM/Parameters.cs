@@ -3,12 +3,40 @@
 // ReSharper disable IdentifierTypo
 // ReSharper disable CommentTypo
 
+using System.Collections.Generic;
+using SharpNet.HyperParameters;
+using SharpNet.Models;
+
 namespace SharpNet.LightGBM
 {
-    public class Parameters
+    public class Parameters : AbstractSample
     {
+        public Parameters() :base(_categoricalHyperParameters)
+        {
+        }
 
-        public bool ValidLightGBMHyperParameters()
+        public static Parameters ValueOf(string workingDirectory, string modelName)
+        {
+            return (Parameters) ISample.LoadConfigIntoSample(() => new Parameters(), workingDirectory, modelName);
+        }
+
+        private static readonly HashSet<string> _categoricalHyperParameters = new()
+        {
+                "saved_feature_importance_type",
+                "verbosity",
+                "task",
+                "objective",
+                "boosting",
+                "device_type",
+                "tree_learner",
+            };
+
+        public ModelDatasets ToModelDatasets(string testDatasetPath)
+        {
+            return new ModelDatasets(data, data,  valid, valid, testDatasetPath, true, ModelDatasets.DatasetType.LightGBMTrainingFormat);
+        }
+
+        public override bool PostBuild()
         {
             if (boosting == boosting_enum.rf)
             {
@@ -38,6 +66,7 @@ namespace SharpNet.LightGBM
             }
             return true;
         }
+
 
         public string DeviceName()
         {
@@ -887,5 +916,6 @@ namespace SharpNet.LightGBM
 
         #endregion
 
+       
     }
 }

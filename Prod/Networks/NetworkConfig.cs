@@ -47,7 +47,7 @@ namespace SharpNet.Networks
         public enum Metric {Loss, Accuracy, Mae, Mse};
 
 
-        public List<Metric> Metrics { get; set; } = new List<Metric> {Metric.Loss, Metric.Accuracy};
+        public List<Metric> Metrics { get; set; } = new() {Metric.Loss, Metric.Accuracy};
 
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace SharpNet.Networks
         #region logging
         public string LogDirectory { get; set; } = DefaultLogDirectory;
         public string LogFile { get; set; } = "SharpNet";
-        public static string DefaultLogDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet");
+        public static string DefaultLogDirectory => Path.Combine(Utils.LocalApplicationFolderPath,  "SharpNet");
         public static string DefaultDataDirectory => Path.Combine(DefaultLogDirectory, "Data");
         public bool LogEnabled => !string.IsNullOrEmpty(LogDirectory);
         #endregion

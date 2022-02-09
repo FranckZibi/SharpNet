@@ -2,25 +2,24 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using SharpNet.HyperParameters;
 
 namespace SharpNet.HPO
 {
-    public class GridSearchHPO<T> : AbstractHpo<T> where T : class
+    public class GridSearchHPO : AbstractHpo
     {
         #region private fields
         private int _nextSearchSpaceIndex;
         #endregion
 
         public GridSearchHPO(IDictionary<string, object> searchSpace, 
-            Func<T> createDefaultSample, 
-            Func<T, bool> postBuild, 
-            double maxAllowedSecondsForAllComputation,
+            Func<ISample> createDefaultSample,
             string workingDirectory) 
-            : base(searchSpace, createDefaultSample, postBuild, maxAllowedSecondsForAllComputation, workingDirectory, new HashSet<string>())
+            : base(searchSpace, createDefaultSample, workingDirectory)
         {
         }
 
-        protected override (T,int, string) Next
+        protected override (ISample,int, string) Next
         {
             get
             {
@@ -40,8 +39,8 @@ namespace SharpNet.HPO
                         _nextSearchSpaceIndex /= parameterValues.LengthForGridSearch;
                     }
                     var t = CreateDefaultSample();
-                    ClassFieldSetter.Set(t, FromString2String_to_String2Object(sample));
-                    if (PostBuild(t))
+                    t.Set(Utils.FromString2String_to_String2Object(sample));
+                    if (t.PostBuild())
                     {
                         var sampleDescription = ToSampleDescription(sample, t);
                         return (t, _nextSampleId++, sampleDescription);
