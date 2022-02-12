@@ -11,46 +11,12 @@ namespace SharpNet.Datasets.CFM60
 {
     public static class CFM60Utils
     {
-        #region privater fields
-        public static readonly Dictionary<int, CFM60Entry> id_to_entries = Load_Summary_File();
+        #region private fields
+        private static readonly Dictionary<int, CFM60Entry> id_to_entries = Load_Summary_File();
         #endregion
 
         public static float LinearRegressionEstimate(int id) => id_to_entries[id].LS;
         public static float LinearRegressionAdjustedByMeanEstimate(int id) => id_to_entries[id].NLV;
-
-        private static Dictionary<int, double> ToPredictions(IEnumerable<CFM60Entry> entries, Func<CFM60Entry, double> ExtractPrediction = null)
-        {
-            var predictions = new Dictionary<int, double>();
-            foreach (var e in entries)
-            {
-                predictions[e.ID] = (ExtractPrediction==null)?e.Y: ExtractPrediction(e);
-            }
-            return predictions;
-        }
-
-        public static double ComputeMse(IDictionary<int, double> predictions)
-        {
-            double sumSquareErrors = 0;
-            foreach (var p in predictions)
-            {
-                var id = p.Key;
-                var prediction = p.Value;
-                if (!id_to_entries.ContainsKey(id))
-                {
-                    return double.NaN;
-                }
-                var Y = id_to_entries[id].Y;
-                if (float.IsNaN(Y))
-                {
-                    return double.NaN;
-                }
-                var error = prediction - Y;
-                sumSquareErrors += error * error;
-            }
-
-            var mse = sumSquareErrors / predictions.Count;
-            return mse;
-        }
         private static Dictionary<int, CFM60Entry> Load_Summary_File()
         {
             var res = new Dictionary<int, CFM60Entry>();

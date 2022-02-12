@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SharpNet.Models;
 using SharpNet.Networks;
 
 namespace SharpNet.Data
@@ -84,8 +85,8 @@ namespace SharpNet.Data
         public override string ToString()
         {
             return "Epoch "+_index+" : learningRate:"+LearningRateAtEpochStart
-                   +" - "+ Network.MetricsToString(TrainingMetrics, "Training")
-                   +" - "+ Network.MetricsToString(ValidationMetrics, "Validation");
+                   +" - "+ IModel.MetricsToString(TrainingMetrics, "Training")
+                   +" - "+ IModel.MetricsToString(ValidationMetrics, "Validation");
         }
         public bool Equals(EpochData other, double epsilon)
         {

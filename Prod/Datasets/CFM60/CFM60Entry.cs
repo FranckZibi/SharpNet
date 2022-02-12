@@ -185,7 +185,7 @@ namespace SharpNet.Datasets.CFM60
             }
         }
 
-        public static CFM60Entry[] Load(string xFile, string yFileIfAny, Action<string> log, CFM60NetworkBuilder.ValueToPredictEnum valueToPredict, string[] predictionFilesIfComputeErrors)
+        public static CFM60Entry[] Load(string xFile, string yFileIfAny, Action<string> log, CFM60HyperParameters.ValueToPredictEnum valueToPredict, string[] predictionFilesIfComputeErrors)
         {
             Debug.Assert(xFile != null);
 
@@ -195,16 +195,16 @@ namespace SharpNet.Datasets.CFM60
                 log("Loading ProtoBuf file " + protoBufFile + "...");
                 using var fsLoad = new FileStream(protoBufFile, FileMode.Open, FileAccess.Read);
                 var result = Serializer.Deserialize<CFM60Entry[]>(fsLoad);
-                if (valueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.ERROR)
+                if (valueToPredict == CFM60HyperParameters.ValueToPredictEnum.ERROR)
                 {
                     ReplaceYByError(result, log, predictionFilesIfComputeErrors);
                 }
-                else if (valueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_LR)
+                else if (valueToPredict == CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_LR)
                 {
                     log("Trying to predict error compared to linear regression estimate");
                     ReplaceYByLinearRegressionEstimate(result);
                 }
-                else if (valueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
+                else if (valueToPredict == CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
                 {
                     log("Trying to predict error compared to adjusted linear regression estimate");
                     ReplaceYByLinearRegressionAdjustedByMeanEstimate(result);

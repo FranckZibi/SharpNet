@@ -36,7 +36,10 @@ namespace SharpNet.Datasets
         public override IDataSet Test { get; }
 
         public static readonly int[] Shape_CHW = { 3, 32, 32 };
-        public CIFAR10DataSet() : base("CIFAR-10")
+
+        public const string NAME = "CIFAR-10";
+
+        public CIFAR10DataSet() : base(NAME)
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 

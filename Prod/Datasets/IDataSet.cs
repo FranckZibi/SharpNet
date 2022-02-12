@@ -4,6 +4,7 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
+using SharpNet.Models;
 using SharpNet.Networks;
 
 namespace SharpNet.Datasets
@@ -32,7 +33,7 @@ namespace SharpNet.Datasets
         ///     if false will return the original (not augmented) input</param>
         /// <param name="shuffledElementId">list of all elementId in 'random' (shuffled) order</param>
         /// <param name="firstIndexInShuffledElementId"></param>
-        /// <param name="dataAugmentationConfig"></param>
+        /// <param name="dataAugmentationSample"></param>
         /// <param name="all_xMiniBatches"></param>
         /// <param name="yMiniBatch">buffer where all categoryCount (associated with the mini batch) will be stored</param>
         /// <returns>number of actual items loaded,
@@ -40,7 +41,7 @@ namespace SharpNet.Datasets
         ///     with xMiniBatch.Shape[0] = xMiniBatch.Shape[0] </returns>
         int LoadMiniBatch(bool withDataAugmentation,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
-            DataAugmentationConfig dataAugmentationConfig, List<CpuTensor<float>> all_xMiniBatches,
+            DataAugmentationSample dataAugmentationSample, List<CpuTensor<float>> all_xMiniBatches,
             CpuTensor<float> yMiniBatch);
 
         /// <summary>
@@ -130,6 +131,6 @@ namespace SharpNet.Datasets
         /// check if we should save the network for the current epoch
         /// </summary>
         bool ShouldCreateSnapshotForEpoch(int epoch, Network network);
-        void SaveModelAndParameters(Network network, string modelFilePath, string parametersFilePath);
+        void Save(IModel network, string workingDirectory, string modelName);
     }
 }

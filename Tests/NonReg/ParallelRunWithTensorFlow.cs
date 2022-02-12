@@ -14,7 +14,9 @@ using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.HyperParameters;
 using SharpNet.Layers;
+using SharpNet.Models;
 using SharpNet.Networks;
 using SharpNet.Pictures;
 using SharpNet.TextPreprocessing;
@@ -47,26 +49,25 @@ namespace SharpNetTests.NonReg
             var yExpectedFromKeras = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(yExpectedFileName));
 
             //we ensure that the network prediction is the same as in Keras
-            var networkBuilder = EfficientNetBuilder.CIFAR10();
-            networkBuilder.Config.LogDirectory = "";
-            networkBuilder.SetResourceId(0);
+            var networkBuilder = EfficientNetSample.CIFAR10();
+            networkBuilder.Config.WorkingDirectory = NetworkConfig.DefaultWorkingDirectory;
+            networkBuilder.Config.SetResourceId(0);
             var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] {3, 224, 224});
             var yPredicted = network.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredicted, 1e-5));
 
             //we save the network
-            var savedModelFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.txt");
-            var saveParametersFile = Network.ModelFilePath2ParameterFilePath(savedModelFile);
-            network.SaveModel(savedModelFile);
-            network.SaveParameters(saveParametersFile);
+            network.Save(network.WorkingDirectory, network.ModelName);
             network.Dispose();
 
             //we ensure that the saved version of the network behave the same as the original one
-            var networkFromSavedFile = Network.ValueOf(savedModelFile);
+            var networkFromSavedFile = Network.ValueOf(network.WorkingDirectory, network.ModelName);
             var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
 
+            var savedModelFile = Network.ToModelFilePath(network.WorkingDirectory, network.ModelName);
             File.Delete(savedModelFile);
+            var saveParametersFile = Network.ToParameterFilePath(network.WorkingDirectory, network.ModelName);
             File.Delete(saveParametersFile);
         }
 
@@ -80,8 +81,8 @@ namespace SharpNetTests.NonReg
                 return;
             }
 
-            var networkBuilder = new YOLOV3NetBuilder();
-            var network = networkBuilder.Value(new List<int> { 0 });
+            var networkBuilder = Yolov3NetSample.ValueOf(new List<int> { 0 });
+            var network = networkBuilder.Build();
             //network.PropagationManager.LogPropagation = true; 
             network.LoadParametersFromH5File(weightPath, NetworkConfig.CompatibilityModeEnum.TensorFlow2);
 
@@ -96,7 +97,7 @@ namespace SharpNetTests.NonReg
                 PreferredResizedSizeForYoloV3(imageSize.Height, imageSize.Width, out var resizedHeight,out var resizedWidth);
                 var resizedOriginalBitmap = PictureTools.ResizeImage(originalBmp, resizedWidth, resizedHeight, InterpolationMode.Bicubic);
                 var content = BitmapContent.ValueFomSingleRgbBitmap(resizedOriginalBitmap);
-                var X = content.Select((x, y, b) => b / 255f);
+                var X = content.Select((_, _, b) => b / 255f);
                 X.Reshape(new []{1, content.Shape[0], content.Shape[1], content.Shape[2]});
                 var yPredicted = network.Predict(X, false);
                 var predictions = NonMaxSuppressionLayer.ExtractSelectedAfterNonMaxSuppression(yPredicted.ToCpuFloat(), 0, int.MaxValue, int.MaxValue, 0.5, 0.5);
@@ -143,13 +144,13 @@ namespace SharpNetTests.NonReg
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
 
-            var networkBuilder = EfficientNetBuilder.CIFAR10();
-            networkBuilder.SetResourceId(0);
+            var hp = EfficientNetSample.CIFAR10();
+            hp.Config.SetResourceId(0);
 
             //int defaultHeight = 32;
             const int defaultHeight = 224;
 
-            var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] { 3, defaultHeight, defaultHeight });
+            var network = hp.EfficientNetB0(true, "imagenet", new[] { 3, defaultHeight, defaultHeight });
             //network.Save();
             //var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "Efficientnet_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             //var logger = new Logger(logFileName, true);
@@ -203,9 +204,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
         private static string PredictionToString(Tensor prediction, string description)
@@ -232,17 +233,22 @@ namespace SharpNetTests.NonReg
             int batchSize = X.Shape[0];
             //var gpuDeviceId = -1;
             const int gpuDeviceId = 0;
-            var network = new Network(
-                        new NetworkConfig
-                        {
-                            LogFile = "TestParallelRunWithTensorFlow_Convolution",
-                            LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                            RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
-                        }
-                       .WithSGD(momentum, false),
-                        new List<int> {gpuDeviceId}
-                );
+
+            var sample = new NetworkSample(new ISample[]
+            {
+                new NetworkConfig
+                    {
+                        LogFile = "TestParallelRunWithTensorFlow_Convolution",
+                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                        RandomizeOrder = false,
+                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                        ResourceIds = new List<int> { gpuDeviceId }
+                    }
+                    .WithSGD(momentum, false),
+                new DataAugmentationSample()
+            });
+
+            var network = new Network(sample);
 
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
@@ -279,9 +285,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
 
@@ -304,10 +310,11 @@ namespace SharpNetTests.NonReg
                             LogFile = "TestParallelRunWithTensorFlow_Convolution",
                             LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                            ResourceIds = new List<int> { gpuDeviceId }
                         }
                        .WithSGD(momentum, false),
-                        new List<int> { gpuDeviceId }
+                        new DataAugmentationSample()
                 );
 
             network.Input(X.Shape[1], X.Shape[2], -1)
@@ -348,9 +355,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow_Embedding()
@@ -376,10 +383,11 @@ namespace SharpNetTests.NonReg
                             LogFile = "Embedding",
                             LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                            ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new List<int> { deviceId }
+                        new DataAugmentationSample()
                 );
 
             network
@@ -417,9 +425,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -446,15 +454,14 @@ namespace SharpNetTests.NonReg
                 LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
                 RandomizeOrder = false,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                ResourceIds = new List<int> { deviceId }
             };
-            networkConfig.DataAugmentation = DataAugmentationConfig.NoDataAugmentation;
-
 
             var network = new Network(
                         networkConfig
                        .WithAdam(0.9, 0.999, 1e-7),
-                       //.WithSGD(momentum, false),
-                        new List<int> { deviceId }
+                        //.WithSGD(momentum, false),
+                        new DataAugmentationSample()
                 );
             network.PropagationManager.LogPropagation = true;
 
@@ -502,9 +509,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# momentum= " + momentum);
             Log.Info("C# batchSize= " + batchSize);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
 
@@ -553,13 +560,13 @@ namespace SharpNetTests.NonReg
                 LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
                 RandomizeOrder = true,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                ResourceIds = new List<int> { deviceId }
             };
-            networkConfig.DataAugmentation = DataAugmentationConfig.NoDataAugmentation;
 
             var network = new Network(
                         networkConfig
                         .WithAdam(0.9, 0.999, 1e-7),
-                        new List<int> { deviceId }
+                        new DataAugmentationSample()
                 );
 
             network
@@ -596,9 +603,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
 
@@ -622,10 +629,11 @@ namespace SharpNetTests.NonReg
                             LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
-                            ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM
+                            ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
+                            ResourceIds = new List<int> { gpuDeviceId }
                         }
                        .WithSGD(momentum, false),
-                        new List<int> { gpuDeviceId }
+                        new DataAugmentationSample()
                 );
 
 
@@ -667,9 +675,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -693,10 +701,11 @@ namespace SharpNetTests.NonReg
                             LossFunction = NetworkConfig.LossFunctionEnum.Huber,
                             //LossFunction = NetworkConfig.LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                            ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new List<int> { deviceId }
+                        new DataAugmentationSample()
                 );
 
             network
@@ -736,9 +745,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# momentum= " + momentum);
             Log.Info("C# batchSize= " + batchSize);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -766,10 +775,11 @@ namespace SharpNetTests.NonReg
                             LossFunction = NetworkConfig.LossFunctionEnum.Mse,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                            Metrics = new List<NetworkConfig.Metric> {NetworkConfig.Metric.Loss, NetworkConfig.Metric.Mae, NetworkConfig.Metric.Mse}
+                            Metrics = new List<NetworkConfig.Metric> {NetworkConfig.Metric.Loss, NetworkConfig.Metric.Mae, NetworkConfig.Metric.Mse},
+                            ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new List<int> { deviceId }
+                        new DataAugmentationSample()
                 );
 
             network
@@ -808,9 +818,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# momentum= " + momentum);
             Log.Info("C# batchSize= " + batchSize);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + Network.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + Network.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -876,10 +886,11 @@ namespace SharpNetTests.NonReg
                             LossFunction = NetworkConfig.LossFunctionEnum.Huber,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                            Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss, NetworkConfig.Metric.Mae}
+                            Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss, NetworkConfig.Metric.Mae},
+                            ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new List<int> { deviceId }
+                        new DataAugmentationSample()
                 );
 
 
@@ -927,9 +938,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# hiddenSize= " + hiddenSize);
             Log.Info("C# return_sequences= " + returnSequences);
             Log.Info(predict_before.ToShapeAndNumpy());
-            Log.Info("C# metrics_before= " + Network.MetricsToString(network.EpochData[0].TrainingMetrics, ""));
+            Log.Info("C# metrics_before= " + IModel.MetricsToString(network.EpochData[0].TrainingMetrics, ""));
             Log.Info(predict_after.ToShapeAndNumpy());
-            Log.Info("C# metrics_after= " + Network.MetricsToString(network.EpochData.Last().TrainingMetrics, ""));
+            Log.Info("C# metrics_after= " + IModel.MetricsToString(network.EpochData.Last().TrainingMetrics, ""));
         }
 
 
@@ -994,19 +1005,18 @@ namespace SharpNetTests.NonReg
             using var trainAndTestDataSet = fullDataSet.SplitIntoTrainingAndValidation(trainingDataSetCount / (double)fullDataSet.Count);
 
             var network = new Network(
-                        new NetworkConfig
-                        {
-                            LogFile = "TimeSeries",
-                            LossFunction = NetworkConfig.LossFunctionEnum.Mse,
-                            RandomizeOrder = shuffle,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                            Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss, NetworkConfig.Metric.Mae },
-                            DataAugmentation = DataAugmentationConfig.NoDataAugmentation
-                        }
-                       .WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-                       .WithSGD(momentum, false),
-                        new List<int> { deviceId }
-                );
+                new NetworkConfig
+                    {
+                        LogFile = "TimeSeries",
+                        LossFunction = NetworkConfig.LossFunctionEnum.Mse,
+                        RandomizeOrder = shuffle,
+                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                        Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss, NetworkConfig.Metric.Mae },
+                        ResourceIds = new List<int> { deviceId }
+                    }
+                    .WithSGD(momentum, false)
+                    .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
+                new DataAugmentationSample());
 
             const bool isBidirectional = true;
             network
@@ -1049,9 +1059,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# return_sequences= " + returnSequences);
             Log.Info("C# shuffle= " + shuffle);
             //Log.Info(predict_before.ToShapeAndNumpy());
-            Log.Info("C# metrics_before= " + Network.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
+            Log.Info("C# metrics_before= " + IModel.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
             //Log.Info(predict_after.ToShapeAndNumpy());
-            Log.Info("C# metrics_after= " + Network.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
+            Log.Info("C# metrics_after= " + IModel.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
         }
 
 
@@ -1085,12 +1095,12 @@ namespace SharpNetTests.NonReg
                             RandomizeOrder = shuffle,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
                             Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss, NetworkConfig.Metric.Accuracy},
-                            DataAugmentation = DataAugmentationConfig.NoDataAugmentation
+                            ResourceIds = new List<int> { deviceId }
                         }
-                       //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
                        //.WithSGD(momentum, false),
                        .WithAdam(),
-                        new List<int> { deviceId }
+                        //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+                        new DataAugmentationSample()
                 );
 
             const bool isBidirectional = false;
@@ -1130,9 +1140,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# batchSize= " + batchSize);
             Log.Info("C# shuffle= " + shuffle);
             //Log.Info(predict_before.ToShapeAndNumpy());
-            Log.Info("C# metrics_before= " + Network.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
+            Log.Info("C# metrics_before= " + IModel.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
             //Log.Info(predict_after.ToShapeAndNumpy());
-            Log.Info("C# metrics_after= " + Network.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
+            Log.Info("C# metrics_after= " + IModel.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
         }
     }
 }

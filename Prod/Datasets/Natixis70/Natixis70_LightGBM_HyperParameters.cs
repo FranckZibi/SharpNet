@@ -12,10 +12,10 @@ namespace SharpNet.Datasets.Natixis70
     /// </summary>
     public class Natixis70_LightGBM_HyperParameters : MultiSamples
     {
-        public Natixis70_LightGBM_HyperParameters() : this(new ISample[]{new Parameters(), new Natixis70DatasetHyperParameters()}) { }
+        public Natixis70_LightGBM_HyperParameters() : this(new ISample[]{new LightGBMSample(), new Natixis70DatasetHyperParameters()}) { }
         public Natixis70_LightGBM_HyperParameters(ISample[] samples) : base(samples) { }
 
-        public Parameters LightGBMParameters => (Parameters)Samples[0];
+        public LightGBMSample LightGbmLightGbmSample => (LightGBMSample)Samples[0];
         public Natixis70DatasetHyperParameters DatasetHyperParameters => (Natixis70DatasetHyperParameters)Samples[1];
 
         public static Natixis70_LightGBM_HyperParameters ValueOf(string workingDirectory, string modelName)
@@ -31,7 +31,7 @@ namespace SharpNet.Datasets.Natixis70
 
             return new Natixis70_LightGBM_HyperParameters(new ISample[]
             {
-                Parameters.ValueOf(workingDirectory, modelName+"_0"),
+                LightGBMSample.ValueOf(workingDirectory, modelName+"_0"),
                 Natixis70DatasetHyperParameters.ValueOf(workingDirectory, modelName+"_1")
             });
         }
@@ -48,7 +48,7 @@ namespace SharpNet.Datasets.Natixis70
                 return false;
             }
             var categoricalFeaturesFieldValue = (DatasetHyperParameters.CategoricalFeatures().Count >= 1) ? ("name:" + string.Join(',', DatasetHyperParameters.CategoricalFeatures())) : "";
-            LightGBMParameters.categorical_feature = categoricalFeaturesFieldValue;
+            LightGbmLightGbmSample.categorical_feature = categoricalFeaturesFieldValue;
             return true;
         }
        

@@ -61,7 +61,7 @@ public class BayesianSearchHPO : AbstractHpo
         _searchStartTime = DateTime.Now;
 
         // the surrogate model will be trained with a LightGBM using random forests (boosting=rf)
-        var surrogateModelParameters = new Parameters();
+        var surrogateModelParameters = new LightGBMSample();
         var categoricalFeaturesFieldValue = (SurrogateModelCategoricalFeature().Length>= 1) ? ("name:" + string.Join(',', SurrogateModelCategoricalFeature())) : "";
         surrogateModelParameters.Set(new Dictionary<string, object> {
             { "bagging_fraction", 0.5 },
@@ -192,7 +192,7 @@ public class BayesianSearchHPO : AbstractHpo
         using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, SurrogateModelFeatureNames(), false);
 
         // we compute the estimate cost associated with each random sample (using the surrogate model)
-        LightGBMModel.Save(dataset, SurrogateModelPredictDatasetPath, Parameters.task_enum.predict, true);
+        LightGBMModel.Save_in_LightGBM_format(dataset, SurrogateModelPredictDatasetPath, LightGBMSample.task_enum.predict, true);
         var y = _samplesUsedForModelTraining == 0 
                 
                 // the model has not been trained so far, we can not use it for now
@@ -320,15 +320,15 @@ public class BayesianSearchHPO : AbstractHpo
         using var dataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, null, SurrogateModelFeatureNames(), false);
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
 
-        LightGBMModel.Save(dataset, SurrogateModelTrainingDatasetPath, Parameters.task_enum.train, true);
-        _surrogateModel.Train(SurrogateModelTrainingDatasetPath);
+        LightGBMModel.Save_in_LightGBM_format(dataset, SurrogateModelTrainingDatasetPath, LightGBMSample.task_enum.train, true);
+        _surrogateModel.Fit(SurrogateModelTrainingDatasetPath, null);
         //File.Delete(SurrogateModelTrainingDatasetPath);
 
-        LightGBMModel.Save(dataset, SurrogateModelPredictDatasetPath, Parameters.task_enum.predict, true);
+        LightGBMModel.Save_in_LightGBM_format(dataset, SurrogateModelPredictDatasetPath, LightGBMSample.task_enum.predict, true);
         var y_pred = _surrogateModel.Predict(SurrogateModelPredictDatasetPath);
         File.Delete(SurrogateModelPredictDatasetPath);
 
-        double surrogateModelTrainingRmse = _surrogateModel.ComputeRmse(y_true, y_pred);
+        double surrogateModelTrainingRmse = _surrogateModel.ComputeScore(y_true, y_pred);
         Log.Info($"Surrogate model Training RMSE: {surrogateModelTrainingRmse} (trained on {x.Shape[0]} samples)");
 
         return xRows.Count;

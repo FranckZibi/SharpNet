@@ -3,51 +3,64 @@ using SharpNet.Layers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
+using SharpNet.HyperParameters;
 
 namespace SharpNet.Networks
 {
-    public class YOLOV3NetBuilder : NetworkBuilder
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    [SuppressMessage("ReSharper", "ConvertToConstant.Local")]
+    [SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Local")]
+    public class Yolov3NetSample : NetworkSample
     {
         #region fields & properties
         private readonly List<Tuple<string, Dictionary<string, string>>> _blocks;
-        private static List<Tuple<string, Dictionary<string, string>>> YOLOV3Config => ExtractConfigFileFromContent(Utils.LoadResourceContent(typeof(YOLOV3NetBuilder).Assembly, "SharpNet.ObjectDetection.yolov3.cfg"));
+        private static List<Tuple<string, Dictionary<string, string>>> YOLOV3Config => ExtractConfigFileFromContent(Utils.LoadResourceContent(typeof(Yolov3NetSample).Assembly, "SharpNet.ObjectDetection.yolov3.cfg"));
         private readonly IDictionary<int, int> _blockIdToLastLayerIndex = new Dictionary<int, int>();
-        private int[] InputShape_CHW { get; set; } = { 3, 608, 608 };
-        private double BatchNormMomentum { get; set; } = 0.99;
-        private double BatchNormEpsilon { get; } = 0.001;
-        private double Alpha_LeakyRelu { get; } = 0.1;
+        private int[] InputShape_CHW = { 3, 608, 608 };
+        private double BatchNormMomentum = 0.99;
+        private double BatchNormEpsilon = 0.001;
+        private double Alpha_LeakyRelu = 0.1;
         
-        private float MinScore { get; } = 0.5f;
-        private float IOU_threshold_for_duplicate { get; } = 0.5f;
+        private float MinScore = 0.5f;
+        private float IOU_threshold_for_duplicate = 0.5f;
 
-        private int MaxOutputSize { get; } = int.MaxValue;
-        private int MaxOutputSizePerClass { get; } = int.MaxValue;
+        private int MaxOutputSize = int.MaxValue;
+        private int MaxOutputSizePerClass = int.MaxValue;
         #endregion
 
         #region constructor
-        public YOLOV3NetBuilder(List<Tuple<string, Dictionary<string, string>>> blocks = null)
+
+        private Yolov3NetSample([JetBrains.Annotations.NotNull] List<Tuple<string, Dictionary<string, string>>> blocks, ISample[] samples)  : base(samples)
         {
-            _blocks = blocks ?? YOLOV3Config;
-            Config = new NetworkConfig
-            {
-                LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
-                lambdaL2Regularization = 0.0005,
-                LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "YOLO")
-            }
+            _blocks = blocks;
+        }
+
+        public static Yolov3NetSample ValueOf(List<int> resourceIds, List<Tuple<string, Dictionary<string, string>>> blocks = null)
+        {
+            var config = new NetworkConfig
+                {
+                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                    lambdaL2Regularization = 0.0005,
+                    WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "YOLO"),
+                    ResourceIds = resourceIds.ToList()
+                }
                 .WithSGD(0.9, false)
                 .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
+
+            return new Yolov3NetSample(blocks ?? YOLOV3Config, new ISample[]{config, new DataAugmentationSample()});
 
         }
         #endregion
 
-        public Network Value(List<int> resourceIds)
+        public Network Build()
         {
             LoadNetDescription();
-            ResourceIds = resourceIds;
             var network = BuildEmptyNetwork("YOLO V3");
 
             network.Input(InputShape_CHW[0], InputShape_CHW[1], InputShape_CHW[2], "input_1");

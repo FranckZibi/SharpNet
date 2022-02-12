@@ -10,12 +10,10 @@ namespace SharpNetTests.Optimizers
         [Test, Explicit]
         public void TestLearningRateFinderTests_ResNet20V1_CIFAR10()
         {
-            var param = new ResNetBuilder();
-            using (var cifar10 = new CIFAR10DataSet())
-            using (var network = param.ResNet20V1_CIFAR10(cifar10))
-            {
-                network.FindBestLearningRate(cifar10.Training, 1e-7, 10.0, 128);
-            }
+            var sample = ResNetSample.CIFAR10();
+            using var cifar10 = new CIFAR10DataSet();
+            using var network = sample.ResNet20V1_CIFAR10();
+            network.FindBestLearningRate(cifar10.Training, 1e-7, 10.0, 128);
         }
     }
 }

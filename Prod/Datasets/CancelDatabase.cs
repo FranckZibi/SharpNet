@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using log4net;
 using SharpNet.CPU;
+using SharpNet.Models;
 using SharpNet.Networks;
 using SharpNet.Pictures;
 // ReSharper disable UnusedMember.Local
@@ -178,7 +179,7 @@ namespace SharpNet.Datasets
         }
 
         // ReSharper disable once UnusedMember.Global
-        public void UpdateSuggestedCancelForAllDatabase(string networkFileName)
+        public void UpdateSuggestedCancelForAllDatabase(string modelName)
         {
             //foreach (var e in _database.Values.Where(e =>!e.IsRemoved))
             //{
@@ -190,7 +191,7 @@ namespace SharpNet.Datasets
             //}
             //FlushDatabase();return;
 
-            using var network =Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", networkFileName));
+            using var network =Network.ValueOf(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), modelName);
 
             //foreach (var e in _database.Values.Where(e => !e.IsRemoved))
             //{
@@ -219,9 +220,9 @@ namespace SharpNet.Datasets
         }
 
 
-        public static Network GetDefaultNetwork(int[] overridenResourceIdsIfAny = null)
+        public static Network GetDefaultNetwork()
         {
-            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Cancel_400_470_20200715_2244_630.txt"), overridenResourceIdsIfAny);
+            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), "efficientnet-b0_Cancel_400_470_20200715_2244_630");
             return network;
         }
 
@@ -381,8 +382,8 @@ namespace SharpNet.Datasets
             }
             var totalSum = totalCount.Values.Sum();
             var totalErrors = countKO.Values.Sum();
-            Network.Log.Info("Errors (total):" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
-            Network.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).ThenByDescending(e=>totalCount[e.Item1]).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
+            AbstractModel.Log.Info("Errors (total):" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
+            AbstractModel.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).ThenByDescending(e=>totalCount[e.Item1]).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
 
             File.WriteAllText(outputFile, sb.ToString());
         }

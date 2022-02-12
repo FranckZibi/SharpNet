@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 
@@ -21,7 +22,9 @@ namespace SharpNet.Networks
             foreach (var modelFilePath in _modelFilesPath)
             {
                 Console.WriteLine("Loading " + modelFilePath + " ...");
-                using var network = Network.ValueOf(modelFilePath);
+                var workingDirectory = Path.GetDirectoryName(modelFilePath);
+                var modelName = Path.GetFileNameWithoutExtension(modelFilePath);
+                using var network = Network.ValueOf(workingDirectory, modelName);
                 Console.WriteLine("File loaded");
                 Console.WriteLine("Computing accuracy for single network...");
                     

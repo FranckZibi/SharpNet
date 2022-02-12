@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
@@ -11,7 +14,7 @@ namespace SharpNet
         private static readonly Dictionary<Type,  Dictionary<string, FieldInfo>> type2name2FieldInfo = new Dictionary<Type, Dictionary<string, FieldInfo>>();
         #endregion
 
-        public static void Set(object o, IDictionary<string, object> dico)
+        private static void Set(object o, IDictionary<string, object> dico)
         {
             Type objectType = o.GetType();
             foreach (var e in dico)
@@ -33,44 +36,39 @@ namespace SharpNet
         /// public for testing purpose only
         /// </summary>
         /// <param name="t"></param>
-        /// <param name="ignoreDefaultValue"></param>
-        /// <param name="mandatoryParametersInConfigFile"></param>
         /// <returns></returns>
-        public static string ToConfigContent(object t, bool ignoreDefaultValue, HashSet<string> mandatoryParametersInConfigFile = null)
+        public static string ToConfigContent(object t)
         {
             var type = t.GetType();
-            var defaultT = type.GetConstructor(Type.EmptyTypes).Invoke(null);
             var result = new List<string>();
             foreach (var (parameterName, fieldInfo) in GetFieldName2FieldInfo(type).OrderBy(f => f.Key))
             {
-                if (ignoreDefaultValue
-                    && Equals(fieldInfo.GetValue(t), fieldInfo.GetValue(defaultT))
-                    && (mandatoryParametersInConfigFile == null || !mandatoryParametersInConfigFile.Contains(parameterName))
-                   )
-                {
-                    continue;
-                }
                 result.Add($"{parameterName} = {Utils.FieldValueToString(fieldInfo.GetValue(t))}");
             }
             return string.Join(Environment.NewLine, result) + Environment.NewLine;
         }
 
-
-
-        /// <param name="t"></param>
-        /// <param name="path"></param>
-        /// <param name="ignoreDefaultValue">if a parameter config is already at its default value, we do not save it</param>
-        /// <param name="mandatoryParametersInConfigFile"></param>
-        public static void Save<T>(this T t, string path, bool ignoreDefaultValue, HashSet<string> mandatoryParametersInConfigFile = null) where T : new()
+        public static Type GetFieldType(Type t, string fieldName)
         {
-            var configContent = ToConfigContent(t, ignoreDefaultValue, mandatoryParametersInConfigFile);
-            System.IO.File.WriteAllText(path, configContent);
+            return GetFieldName2FieldInfo(t)[fieldName].FieldType;
         }
+
+        public static IEnumerable<string> FieldNames(Type t)
+        {
+            return GetFieldName2FieldInfo(t).Keys;
+        }
+
+
 
         #region private methods
         private static void Set(object o, Type objectType, string fieldName, object fieldValue)
         {
             var f = GetFieldInfo(objectType, fieldName);
+            if (fieldValue.GetType() == f.FieldType)
+            {
+                f.SetValue(o, fieldValue);
+                return;
+            }
             if (f.FieldType == typeof(bool))
             {
                 SetBoolField(o, objectType, fieldName, fieldValue);
@@ -87,18 +85,24 @@ namespace SharpNet
             {
                 SetDoubleField(o, objectType, fieldName, fieldValue);
             }
-            else if (f.FieldType == typeof(double[]))
-            {
-                SetDoubleVectorField(o, objectType, fieldName, fieldValue);
-            }
             else if (f.FieldType == typeof(string))
             {
                 SetStringField(o, objectType, fieldName, fieldValue);
             }
-            else if (f.FieldType.IsEnum && fieldValue != null)
+            else if (f.FieldType.IsEnum)
             {
                 // ReSharper disable once AssignNullToNotNullAttribute
                 f.SetValue(o, Enum.Parse(f.FieldType, fieldValue.ToString()));
+            }
+            else if (fieldValue is string && f.FieldType.IsGenericType && f.FieldType.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                var res = ParseStringToListOrArray((string)fieldValue, f.FieldType.GetGenericArguments()[0], true);
+                f.SetValue(o, res);
+            }
+            else if (fieldValue is string && f.FieldType.IsArray)
+            {
+                var res = ParseStringToListOrArray((string)fieldValue, f.FieldType.GetElementType(), false);
+                f.SetValue(o, res);
             }
             else
             {
@@ -109,18 +113,12 @@ namespace SharpNet
         //{
         //    return GetFieldInfo(objectType, fieldName).GetValue(o);
         //}
-        public static FieldInfo GetFieldInfo(Type t, string fieldName)
+        private static FieldInfo GetFieldInfo(Type t, string fieldName)
         {
             return GetFieldName2FieldInfo(t)[fieldName];
         }
 
-        public static bool HasField(Type t, string fieldName)
-        {
-            return GetFieldName2FieldInfo(t).ContainsKey(fieldName);
-        }
-
-
-        public static IDictionary<string,FieldInfo> GetFieldName2FieldInfo(Type t)
+        private static IDictionary<string,FieldInfo> GetFieldName2FieldInfo(Type t)
         {
             if (!type2name2FieldInfo.ContainsKey(t))
             {
@@ -133,31 +131,21 @@ namespace SharpNet
             }
             return type2name2FieldInfo[t];
         }
-        private static double[] ParseDoubleVector(string data)
-        {
-            if (string.IsNullOrEmpty(data))
-            {
-                return null;
-            }
-            return data.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(double.Parse).ToArray();
-        }
         private static void SetBoolField(object o, Type objectType, string fieldName, object value)
         {
-            var f = GetFieldInfo(objectType, fieldName);
             if (value is string)
             {
                 value = bool.Parse((string)value);
             }
-            f.SetValue(o, value);
+            GetFieldInfo(objectType, fieldName).SetValue(o, value);
         }
         private static void SetIntField(object o, Type objectType, string fieldName, object value)
         {
-            var f = GetFieldInfo(objectType, fieldName);
             if (value is string)
             {
                 value = int.Parse((string)value);
             }
-            f.SetValue(o, value);
+            GetFieldInfo(objectType, fieldName).SetValue(o, value);
         }
         private static void SetFloatField(object o, Type objectType, string fieldName, object value)
         {
@@ -171,6 +159,61 @@ namespace SharpNet
                 value = (float)(int)value;
             }
             f.SetValue(o, value);
+        }
+
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
+        private static object ParseStringToListOrArray(string s, Type containedType, bool outputIsList)
+        {
+            var targetListType = typeof(List<>).MakeGenericType(new[] { containedType });
+            var list = (IList)Activator.CreateInstance(targetListType);
+            foreach (var e in s.Split(','))
+            {
+                list.Add(ParseStringToScalar(e, containedType));
+            }
+
+            if (outputIsList)
+            {
+                return list;
+            }
+            else
+            {
+                //output is an Array
+                var array = Array.CreateInstance(containedType, list.Count);
+                list.CopyTo(array, 0);
+                return array;
+            }
+        }
+
+
+        private static object ParseStringToScalar(string s, Type targetScalarType)
+        {
+            if (targetScalarType == typeof(bool))
+            {
+                return bool.Parse(s);
+            }
+            if (targetScalarType == typeof(int))
+            {
+                return int.Parse(s);
+            }
+            if (targetScalarType == typeof(float))
+            {
+                return float.Parse(s, CultureInfo.InvariantCulture);
+            }
+            if (targetScalarType == typeof(double))
+            {
+                return double.Parse(s, CultureInfo.InvariantCulture);
+            }
+            if (targetScalarType == typeof(string))
+            {
+                return s;
+            }
+            if (targetScalarType.IsEnum)
+            {
+                return Enum.Parse(targetScalarType, s);
+            }
+
+            throw new ArgumentException($"can t parse {s} to {targetScalarType}");
+
         }
         private static void SetDoubleField(object o, Type objectType, string fieldName, object value)
         {
@@ -186,15 +229,6 @@ namespace SharpNet
             else if (value is float)
             {
                 value = (double)(float)value;
-            }
-            f.SetValue(o, value);
-        }
-        private static void SetDoubleVectorField(object o, Type objectType, string fieldName, object value)
-        {
-            var f = GetFieldInfo(objectType, fieldName);
-            if (value is string)
-            {
-                value = ParseDoubleVector((string)value);
             }
             f.SetValue(o, value);
         }

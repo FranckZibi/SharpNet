@@ -2,10 +2,8 @@
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.HyperParameters;
 using SharpNet.Layers;
-
-// ReSharper disable UnusedMember.Global
-
 
 /*
 SharpNet on 12-march-2019
@@ -32,35 +30,45 @@ Cutout 16 / FillMode = Reflect / DivideBy10OnPlateau
 
 namespace SharpNet.Networks
 {
-    public class ResNetBuilder : NetworkBuilder
+    public class ResNetSample : NetworkSample
     {
-        public static ResNetBuilder ResNet_CIFAR10()
+        private ResNetSample(ISample[] samples) : base(samples)
         {
-            var builder = new ResNetBuilder {
-                Config = new NetworkConfig
-                    {
-                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                        lambdaL2Regularization = 1e-4,
-                        LogDirectory = Path.Combine(NetworkConfig.DefaultLogDirectory, "CIFAR-10")
-                }
-                    .WithSGD(0.9, false) // SGD : validated on 19-apr-2019: +70 bps
-                    .WithCifar10ResNetLearningRateScheduler(true, true, false),
-                //Config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
-                NumEpochs = 160, //64k iterations
-                BatchSize = 128,
-                InitialLearningRate = 0.1,
-        };
+        }
 
-        var da = builder.Config.DataAugmentation;
-        da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
-        da.WidthShiftRangeInPercentage = 0.1; //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
-        da.HeightShiftRangeInPercentage = 0.1;
-        da.HorizontalFlip = true; // 'true' : validated on 18-apr-2019: +70 bps
-        da.VerticalFlip = false;
-        da.FillMode = ImageDataGenerator.FillModeEnum.Reflect; //validated on 18-apr-2019: +50 bps
-        da.CutoutPatchPercentage = 0.5; // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
-        return builder;
-    }
+        /// <summary>
+        /// default Hyper-Parameters for CIFAR10
+        /// </summary>
+        /// <returns></returns>
+        public static ResNetSample CIFAR10()
+        {
+            var config = new NetworkConfig
+                {
+                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    lambdaL2Regularization = 1e-4,
+                    WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
+                    NumEpochs = 160, //64k iterations
+                    BatchSize = 128,
+                    InitialLearningRate = 0.1
+            }
+                .WithSGD(0.9, false) // SGD : validated on 19-apr-2019: +70 bps
+                //config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
+                .WithCifar10ResNetLearningRateScheduler(true, true, false);
+
+            DataAugmentationSample da = new ()
+            {
+                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
+                WidthShiftRangeInPercentage = 0.1, //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
+                HeightShiftRangeInPercentage = 0.1,
+                HorizontalFlip = true, // 'true' : validated on 18-apr-2019: +70 bps
+                VerticalFlip = false,
+                FillMode = ImageDataGenerator.FillModeEnum.Reflect, //validated on 18-apr-2019: +50 bps
+                CutoutPatchPercentage = 0.5 // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
+            };
+
+            return new ResNetSample(new ISample[] { config, da });
+
+        }
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         #region ResNet V1
@@ -128,16 +136,16 @@ namespace SharpNet.Networks
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         #region ResNetV1 for CIFAR-10
-        public Network ResNet20V1_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV1_CIFAR10(3, dataSet);}
-        public Network ResNet32V1_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV1_CIFAR10(5, dataSet);}
-        public Network ResNet44V1_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV1_CIFAR10(7, dataSet);}
-        public Network ResNet56V1_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV1_CIFAR10(9, dataSet);}
-        public Network ResNet110V1_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV1_CIFAR10(18, dataSet);}
-        public Network ResNet164V1_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV1_CIFAR10(27, dataSet);}
-        public Network ResNet1202V1_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV1_CIFAR10(200, dataSet);}
-        private Network ResNetV1_CIFAR10(int numResBlocks, CIFAR10DataSet dataSet)
+        public Network ResNet20V1_CIFAR10() {return ResNetV1_CIFAR10(3);}
+        public Network ResNet32V1_CIFAR10() {return ResNetV1_CIFAR10(5);}
+        public Network ResNet44V1_CIFAR10() {return ResNetV1_CIFAR10(7);}
+        public Network ResNet56V1_CIFAR10() {return ResNetV1_CIFAR10(9);}
+        public Network ResNet110V1_CIFAR10() {return ResNetV1_CIFAR10(18);}
+        public Network ResNet164V1_CIFAR10() {return ResNetV1_CIFAR10(27);}
+        public Network ResNet1202V1_CIFAR10() {return ResNetV1_CIFAR10(200);}
+        private Network ResNetV1_CIFAR10(int numResBlocks)
         {
-            var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_"+dataSet.Name;
+            var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_"+ CIFAR10DataSet.NAME;
             var network = BuildEmptyNetwork(networkName);
             var config = network.Config;
 
@@ -167,16 +175,16 @@ namespace SharpNet.Networks
 
         //implementation described in: https://arxiv.org/pdf/1603.05027.pdf
         #region ResNetV2 for CIFAR-10
-        public Network ResNet11V2_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV2_CIFAR10(1, dataSet);}
-        public Network ResNet20V2_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV2_CIFAR10(2, dataSet);}
-        public Network ResNet29V2_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV2_CIFAR10(3, dataSet);}
-        public Network ResNet56V2_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV2_CIFAR10(6, dataSet);}
-        public Network ResNet110V2_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV2_CIFAR10(12, dataSet);}
-        public Network ResNet164V2_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV2_CIFAR10(18, dataSet);}
-        public Network ResNet1001V2_CIFAR10(CIFAR10DataSet dataSet) {return ResNetV2_CIFAR10(111, dataSet);}
-        private Network ResNetV2_CIFAR10(int numResBlocks, CIFAR10DataSet dataSet)
+        public Network ResNet11V2_CIFAR10() {return ResNetV2_CIFAR10(1);}
+        public Network ResNet20V2_CIFAR10() {return ResNetV2_CIFAR10(2);}
+        public Network ResNet29V2_CIFAR10() {return ResNetV2_CIFAR10(3);}
+        public Network ResNet56V2_CIFAR10() {return ResNetV2_CIFAR10(6);}
+        public Network ResNet110V2_CIFAR10() {return ResNetV2_CIFAR10(12);}
+        public Network ResNet164V2_CIFAR10() {return ResNetV2_CIFAR10(18);}
+        public Network ResNet1001V2_CIFAR10() {return ResNetV2_CIFAR10(111);}
+        private Network ResNetV2_CIFAR10(int numResBlocks)
         {
-            var networkName = "ResNet" + (9 * numResBlocks + 2) + "V2_"+ dataSet.Name;
+            var networkName = "ResNet" + (9 * numResBlocks + 2) + "V2_"+ CIFAR10DataSet.NAME;
             var network = BuildEmptyNetwork(networkName);
             var config = network.Config;
 

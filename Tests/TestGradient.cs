@@ -5,6 +5,7 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using System.Collections.Generic;
 using SharpNet.CPU;
+using SharpNet.DataAugmentation;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.NonReg;
@@ -170,7 +171,14 @@ namespace SharpNetTests
         private static Network GetNetwork()
         {
             var resourceIds = new List<int> {-1};
-            return new Network(new NetworkConfig{LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, LogDirectory = ""}, resourceIds);
+            return new Network(new NetworkConfig
+                {
+                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, 
+                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, 
+                    WorkingDirectory = "",
+                    ResourceIds = resourceIds.ToList()
+                }, 
+                new DataAugmentationSample());
         }
         private static CpuTensor<float> GetY()
         {

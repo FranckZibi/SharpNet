@@ -45,6 +45,7 @@ public class Natixis70DatasetHyperParameters : AbstractSample
     /// normalize all label:
     ///     y = (y -average(y)) / volatility(y)
     /// </summary>
+    // ReSharper disable once MemberCanBePrivate.Global
     public normalize_enum Normalization = normalize_enum.NONE;
     public enum normalize_enum { NONE, MINUS_MEAN_DIVIDE_BY_VOL, DIVIDE_BY_ABS_MEAN };
     public double PercentageInTraining = 0.8;
@@ -57,7 +58,7 @@ public class Natixis70DatasetHyperParameters : AbstractSample
     public string XTestDatasetPath()
     {
         using var test = NewDataSet(Natixis70Utils.XTestRawFile, null);
-        return LightGBMModel.DatasetPath(test, Parameters.task_enum.predict, Natixis70Utils.NatixisDatasetDirectory);
+        return LightGBMModel.DatasetPath(test, LightGBMSample.task_enum.predict, Natixis70Utils.NatixisDatasetDirectory);
     }
     public override bool PostBuild()
     {
@@ -158,7 +159,7 @@ public class Natixis70DatasetHyperParameters : AbstractSample
     /// </summary>
     /// <param name="row"></param>
     /// <returns></returns>
-    public int RowToHorizonId(int row)
+    private int RowToHorizonId(int row)
     {
         if (TryToPredictAllHorizonAtTheSameTime)
         {
@@ -171,7 +172,7 @@ public class Natixis70DatasetHyperParameters : AbstractSample
     /// </summary>
     /// <param name="row"></param>
     /// <returns></returns>
-    public int RowToMarketId(int row)
+    private int RowToMarketId(int row)
     {
         if (TryToPredictAllMarketsAtTheSameTime)
         {
@@ -186,6 +187,49 @@ public class Natixis70DatasetHyperParameters : AbstractSample
     }
 
 
+
+    public CpuTensor<float> UnnormalizeYIfNeeded(CpuTensor<float> y)
+    {
+        if (Normalization == normalize_enum.NONE)
+        {
+            return y; //no need to unnormalize y
+        }
+
+        var ySpan = y.AsReadonlyFloatCpuContent;
+        var Yunnormalized = new CpuTensor<float>(y.Shape);
+        var YunnormalizedSpan = Yunnormalized.AsFloatCpuSpan;
+
+        int index = 0;
+        for (int row = 0; row < Yunnormalized.Shape[0]; ++row)
+        {
+            var horizonId = RowToHorizonId(row);
+            var marketId = RowToMarketId(row);
+            //we load the row 'row' in 'y' tensor
+            for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : marketId); ++currentMarketId)
+            {
+                for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId); ++currentHorizonId)
+                {
+                    int rawColIndex = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
+                    var yValue = ySpan[index];
+                    if (Normalization == normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
+                    {
+                        var colStatistics = Natixis70Utils.Y_RAW_statistics[rawColIndex - 1];
+                        var yUnnormalizedValue = (float)(yValue * colStatistics.Volatility + colStatistics.Average);
+                        YunnormalizedSpan[index] = yUnnormalizedValue;
+                    }
+                    else if (Normalization == normalize_enum.DIVIDE_BY_ABS_MEAN)
+                    {
+                        var absColStatistics = Natixis70Utils.Y_RAW_abs_statistics[rawColIndex - 1];
+                        var yUnnormalizedValue = (float)(yValue * absColStatistics.Average);
+                        YunnormalizedSpan[index] = yUnnormalizedValue;
+                    }
+
+                    ++index;
+                }
+            }
+        }
+        return Yunnormalized;
+    }
 
     /// <summary>
     /// Load the content of the file  'xRawFile' in a CpuTensor and return it

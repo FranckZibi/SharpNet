@@ -9,15 +9,15 @@ using SharpNet.Models;
 
 namespace SharpNet.LightGBM
 {
-    public class Parameters : AbstractSample
+    public class LightGBMSample : AbstractSample
     {
-        public Parameters() :base(_categoricalHyperParameters)
+        public LightGBMSample() :base(_categoricalHyperParameters)
         {
         }
 
-        public static Parameters ValueOf(string workingDirectory, string modelName)
+        public static LightGBMSample ValueOf(string workingDirectory, string modelName)
         {
-            return (Parameters) ISample.LoadConfigIntoSample(() => new Parameters(), workingDirectory, modelName);
+            return (LightGBMSample) ISample.LoadConfigIntoSample(() => new LightGBMSample(), workingDirectory, modelName);
         }
 
         private static readonly HashSet<string> _categoricalHyperParameters = new()

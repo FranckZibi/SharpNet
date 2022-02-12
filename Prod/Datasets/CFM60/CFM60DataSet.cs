@@ -1,15 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Layers;
 using SharpNet.MathTools;
+using SharpNet.Models;
 using SharpNet.Networks;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -19,7 +18,8 @@ namespace SharpNet.Datasets.CFM60
 {
     public class CFM60DataSet : AbstractDataSet, ITimeSeriesDataSet
     {
-        public readonly CFM60NetworkBuilder Cfm60NetworkBuilder;
+        public CFM60HyperParameters Sample => _cfm60NetworkSample.CFM60HyperParameters;
+        private readonly Cfm60NetworkSample _cfm60NetworkSample;
         private readonly CFM60DataSet TrainingDataSetIfAny;
         //TODO : add element for each valid day, even if no entry is associated with that day
         private readonly IDictionary<int, List<CFM60Entry>> _pidToSortedEntries = new Dictionary<int, List<CFM60Entry>>();
@@ -101,22 +101,22 @@ namespace SharpNet.Datasets.CFM60
 
         #endregion
 
-        public CFM60DataSet(string xFile, string yFileIfAny, Action<string> log, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null) 
-            : this(CFM60Entry.Load(xFile, yFileIfAny, log, cfm60NetworkBuilder.ValueToPredict, cfm60NetworkBuilder.predictionFilesIfComputeErrors), cfm60NetworkBuilder, trainingDataSetIfAny)
+        public CFM60DataSet(string xFile, string yFileIfAny, Action<string> log, Cfm60NetworkSample sample, CFM60DataSet trainingDataSetIfAny = null) 
+            : this(CFM60Entry.Load(xFile, yFileIfAny, log, sample.CFM60HyperParameters.ValueToPredict, sample.CFM60HyperParameters.predictionFilesIfComputeErrors), sample, trainingDataSetIfAny)
         {
         }
         
-        public CFM60DataSet(CFM60Entry[] entries, CFM60NetworkBuilder cfm60NetworkBuilder, CFM60DataSet trainingDataSetIfAny = null)
-            : base(cfm60NetworkBuilder.IsTryingToPredictErrors? "CFM60Errors":"CFM60", 
+        public CFM60DataSet(CFM60Entry[] entries, Cfm60NetworkSample cfm60NetworkSample, CFM60DataSet trainingDataSetIfAny = null)
+            : base(cfm60NetworkSample.CFM60HyperParameters.IsTryingToPredictErrors? "CFM60Errors":"CFM60", 
                 Objective_enum.Regression,
-                cfm60NetworkBuilder.Encoder_TimeSteps,
+                cfm60NetworkSample.CFM60HyperParameters.Encoder_TimeSteps,
                 new[] {"NONE"},
                 null,
                 ResizeStrategyEnum.None,
-                cfm60NetworkBuilder.ComputeFeatureNames(),
+                cfm60NetworkSample.CFM60HyperParameters.ComputeFeatureNames(),
                 UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetIfAny))
         {
-            Cfm60NetworkBuilder = cfm60NetworkBuilder;
+            _cfm60NetworkSample = cfm60NetworkSample;
             TrainingDataSetIfAny = trainingDataSetIfAny;
             Entries = entries;
             int elementId = 0;
@@ -214,8 +214,8 @@ namespace SharpNet.Datasets.CFM60
                         throw new Exception("invalid Training DataSet: no known Y value for pid " + pid);
                     }
                 }
-                Encoder_FeaturesStatistics = Cfm60NetworkBuilder.Compute_Encoder_FeaturesStatistics();
-                Decoder_FeaturesStatistics = Cfm60NetworkBuilder.Compute_Decoder_FeaturesStatistics();
+                Encoder_FeaturesStatistics = Sample.Compute_Encoder_FeaturesStatistics();
+                Decoder_FeaturesStatistics = Sample.Compute_Decoder_FeaturesStatistics();
                 PidToLinearRegressionBetweenDayAndY = ComputePidToLinearRegressionBetweenDayAndY();
             }
             else //validation or test data set
@@ -285,14 +285,14 @@ namespace SharpNet.Datasets.CFM60
         }
 
         //public int Encoder_TimeSteps => Cfm60NetworkBuilder.Encoder_TimeSteps;
-        public int Total_TimeSteps => Cfm60NetworkBuilder.Total_TimeSteps;
+        public int Total_TimeSteps => Sample.Total_TimeSteps;
 
         int EntriesCountForEachElementId_X =>
-            Cfm60NetworkBuilder.Use_Decoder
-                ? Cfm60NetworkBuilder.Encoder_TimeSteps: 
-                1+ Cfm60NetworkBuilder.Encoder_TimeSteps;
+            Sample.Use_Decoder
+                ? Sample.Encoder_TimeSteps: 
+                1+ Sample.Encoder_TimeSteps;
 
-        int EntriesCountForEachElementId_Y => Cfm60NetworkBuilder.Use_Decoder ? Cfm60NetworkBuilder.Decoder_TimeSteps : 1;
+        int EntriesCountForEachElementId_Y => Sample.Use_Decoder ? Sample.Decoder_TimeSteps : 1;
 
         public IEnumerable<CFM60Entry> ElementId_to_YEntries(int elementId)
         {
@@ -348,49 +348,55 @@ namespace SharpNet.Datasets.CFM60
         }
 
         /// <summary>
-        /// will save also the pid features, and the prediction file for the Train + Validation + Test datasets
+        /// for Neural network model:
+        ///     will save also the pid features, and the prediction file for the Train + Validation + Test datasets
         /// </summary>
-        public override void SaveModelAndParameters(Network network, string modelFilePath, string parametersFilePath)
+        public override void Save(IModel model, string workingDirectory, string modelName)
         {
-            base.SaveModelAndParameters(network, modelFilePath, parametersFilePath);
+            base.Save(model, workingDirectory, modelName);
+            CreatePredictionFile(model, "_predict_train_");
+            ValidationDataSet?.CreatePredictionFile(model, "_predict_valid_");
+            OriginalTestDataSet?.CreatePredictionFile(model, "_predict_test_");
 
-            CreatePredictionFile(network, "train_predictions");
-            ValidationDataSet?.CreatePredictionFile(network, "validation_predictions");
-            OriginalTestDataSet?.CreatePredictionFile(network, "test_predictions");
-
-            var embeddingLayer = network.Layers.FirstOrDefault(l => l is EmbeddingLayer);
-            if (embeddingLayer == null)
+            if (model is Network network)
             {
+
+                var embeddingLayer = network.Layers.FirstOrDefault(l => l is EmbeddingLayer);
+                if (embeddingLayer == null)
+                {
+                    return;
+                }
+                var cpuTensor = embeddingLayer.Weights.ToCpuFloat();
+                cpuTensor.Save(Path.Combine(network.WorkingDirectory, "pid_features_" + network.ModelName + ".csv"),
+                    row => row>=1&&row<=CFM60Entry.DISTINCT_PID_COUNT, //the first row is not used in word embedding
+                    true,
+                    "pid;"+string.Join(";", Enumerable.Range(0,cpuTensor.Shape[0]).Select(i=>"feature_"+i))
+                    );
                 return;
             }
-            var cpuTensor = embeddingLayer.Weights.ToCpuFloat();
-            cpuTensor.Save(Path.Combine(network.Config.LogDirectory, "pid_features_" + network.UniqueId + ".csv"),
-                row => row>=1&&row<=CFM60Entry.DISTINCT_PID_COUNT, //the first row is not used in word embedding
-                true,
-                "pid;"+string.Join(";", Enumerable.Range(0,cpuTensor.Shape[0]).Select(i=>"feature_"+i))
-                );
+            throw new ArgumentException($"cant' save model of type {model.GetType()}");
         }
 
-        public void CreatePredictionFile(Network network, string subDirectory)
+        public void CreatePredictionFile(IModel model, string fileSuffix)
         {
-            string filePath = Path.Combine(network.Config.LogDirectory, subDirectory, network.UniqueId + ".csv");
-            var res = network.Predict(this, Cfm60NetworkBuilder.BatchSize);
+            var res = model.Predict(this);
             var CFM60EntryIDToPrediction = new Dictionary<int, double>();
             var spanResult = res.ReadonlyContent;
             for (int elementId = 0; elementId < Count; ++elementId)
             {
                 var id = _elementIdToLastAssociateCFM60Entry[elementId].ID;
                 var prediction = spanResult[elementId];
-                if (Cfm60NetworkBuilder.ValueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_LR)
+                if (Sample.ValueToPredict == CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_LR)
                 {
                     prediction += CFM60Utils.LinearRegressionEstimate(id);
                 }
-                else if (Cfm60NetworkBuilder.ValueToPredict == CFM60NetworkBuilder.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
+                else if (Sample.ValueToPredict == CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
                 {
                     prediction += CFM60Utils.LinearRegressionAdjustedByMeanEstimate(id);
                 }
                 CFM60EntryIDToPrediction[id] = prediction;
             }
+            string filePath = Path.Combine(model.WorkingDirectory, model.ModelName + fileSuffix + ".csv");
             CFM60Utils.SavePredictions(CFM60EntryIDToPrediction, filePath);
         }
 
@@ -451,85 +457,6 @@ namespace SharpNet.Datasets.CFM60
             return ensembleLearningPredictionFile;
         }
 
-        public void Augment_X_csv_file(string x_csv_path, float[][] embedding_values_if_any)
-        {
-            var x_content = File.ReadAllLines(x_csv_path, Encoding.ASCII).Where(l => l.Length != 0).ToArray();
-            var header = x_content[0];
-            var separator = header.Contains(",") ? ',' : ';';
-            var x_augmented_csv_path = Path.ChangeExtension(x_csv_path,null) + "_augmented.csv";
-            if (File.Exists(x_augmented_csv_path))
-            {
-                File.Delete(x_augmented_csv_path);
-            }
-            var new_header = header.TrimEnd(separator);
-
-            if (embedding_values_if_any != null)
-            {
-                for (int i = 0; i < embedding_values_if_any[0].Length; ++i)
-                {
-                    new_header += separator + "embedding" + i;
-                }
-            }
-
-            new_header += separator + "adj_day";
-            new_header += separator + "fraction_of_year";
-            new_header += separator + "sin_encoding";
-            new_header += separator + "cos_encoding";
-            new_header += separator + "end_of_year";
-            new_header += separator + "christmas";
-            new_header += separator + "end_of_trimester";
-            new_header += separator + "pid_mean";
-            new_header += separator + "pid_vol";
-            new_header += separator + "pid_variance";
-
-            var sb =  new StringBuilder();
-            sb.Append(new_header + Environment.NewLine);
-
-            for (int line = 1; line < x_content.Length; ++line)
-            {
-                var l = x_content[line];
-                if (l.Length == 0)
-                {
-                    continue;
-                }
-                var new_l = l;
-                var data = l.Split(separator).ToArray();
-                //var ID = int.Parse(data[0]);
-                var pid = int.Parse(data[1]);
-                var day = int.Parse(data[2]);
-                if (embedding_values_if_any != null)
-                {
-                    foreach (var e in embedding_values_if_any[pid])
-                    {
-                        new_l += separator + e.ToString(CultureInfo.InvariantCulture);
-                    }
-                }
-
-                new_l += separator +  (day / 650f).ToString(CultureInfo.InvariantCulture);
-                new_l += separator + DayToFractionOfYear(day).ToString(CultureInfo.InvariantCulture);
-                new_l += separator + Math.Sin(2 * Math.PI * DayToFractionOfYear(day)).ToString(CultureInfo.InvariantCulture);
-                new_l += separator + Math.Cos(2 * Math.PI * DayToFractionOfYear(day)).ToString(CultureInfo.InvariantCulture);
-                new_l += separator + (EndOfYear.Contains(day) ? "1" :"0");
-                new_l += separator + (Christmas.Contains(day) ? "1" :"0");
-                new_l += separator + (EndOfTrimester.Contains(day) ? "1" :"0");
-                new_l += separator + Y_Mean(pid).ToString(CultureInfo.InvariantCulture);
-                new_l += separator + Y_Volatility(pid).ToString(CultureInfo.InvariantCulture);
-                new_l += separator + Y_Variance(pid).ToString(CultureInfo.InvariantCulture);
-
-                if (line != x_content.Length - 1)
-                {
-                    new_l += Environment.NewLine;
-                }
-                sb.Append(new_l);
-                if (sb.Length >= 100_000_000)
-                {
-                    File.AppendAllText(x_augmented_csv_path, sb.ToString());
-                    sb.Clear();
-                }
-            }
-            File.AppendAllText(x_augmented_csv_path, sb.ToString());
-        }
-
         /// <summary>
         /// return the entry associated with the pid 'pid' for index 'indexInPidEntryArray'
         /// </summary>
@@ -576,15 +503,15 @@ namespace SharpNet.Datasets.CFM60
             var xEncoder = all_xBuffer[0];
             Debug.Assert(xEncoder.Shape.Length == 3);
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < all_xBuffer[0].Shape[0]);
-            Debug.Assert(xEncoder.Shape[1] == Cfm60NetworkBuilder.Encoder_TimeSteps);
-            Debug.Assert(xEncoder.Shape[2] == Cfm60NetworkBuilder.Encoder_InputSize);
+            Debug.Assert(xEncoder.Shape[1] == Sample.Encoder_TimeSteps);
+            Debug.Assert(xEncoder.Shape[2] == Sample.Encoder_InputSize);
             Debug.Assert(xEncoder.Shape[2] == Encoder_FeaturesStatistics.Length);
             Debug.Assert(yBuffer == null || all_xBuffer[0].Shape[0] == yBuffer.Shape[0]); //same batch size
             Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
             Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
 
             LoadAt(elementId, indexInBuffer, xEncoder, true);
-            if (Cfm60NetworkBuilder.Use_Decoder)
+            if (Sample.Use_Decoder)
             {
                 Debug.Assert(all_xBuffer.Count == 2);
                 var xDecoder = all_xBuffer[1];
@@ -606,10 +533,10 @@ namespace SharpNet.Datasets.CFM60
             var pid = lastAssociateCFM60Entry.pid;
             int lastIndexInPidEntries = _CFM60EntryIDToIndexIn_pidToSortedEntries[lastAssociateCFM60Entry.ID];
             Debug.Assert(_pidToSortedEntries[pid][lastIndexInPidEntries].ID == lastAssociateCFM60Entry.ID);
-            if (isEncoder && Cfm60NetworkBuilder.Use_Decoder)
+            if (isEncoder && Sample.Use_Decoder)
             {
-                Debug.Assert(Cfm60NetworkBuilder.Decoder_TimeSteps >= 1);
-                lastIndexInPidEntries -= Cfm60NetworkBuilder.Decoder_TimeSteps;
+                Debug.Assert(Sample.Decoder_TimeSteps >= 1);
+                lastIndexInPidEntries -= Sample.Decoder_TimeSteps;
             }
 
             int timeSteps = x.Shape[1];
@@ -621,57 +548,57 @@ namespace SharpNet.Datasets.CFM60
                 var entry = GetEntry(pid, indexInPidEntryArray);
 
                 //pid
-                if (Cfm60NetworkBuilder.Pid_EmbeddingDim >= 1)
+                if (Sample.Pid_EmbeddingDim >= 1)
                 {
                     //pids are in range  [0, 899]
                     //EmbeddingLayer is expecting them in range [1,900] that's why we add +1
                     xElementId[idx++] = entry.pid + 1;
                 }
                
-                if (Cfm60NetworkBuilder.Use_y_LinearRegressionEstimate)
+                if (Sample.Use_y_LinearRegressionEstimate)
                 {
                     xElementId[idx++] = Normalize(LinearRegressionEstimate(entry.pid, entry.day), idx % featuresLength, isEncoder);
                 }
-                if (Cfm60NetworkBuilder.Use_mean_pid_y)
+                if (Sample.Use_mean_pid_y)
                 {
                     xElementId[idx++] = Normalize(Y_Mean(entry.pid), idx % featuresLength, isEncoder);
                 }
-                if (Cfm60NetworkBuilder.Use_volatility_pid_y)
+                if (Sample.Use_volatility_pid_y)
                 {
                     xElementId[idx++] = Normalize(Y_Volatility(entry.pid), idx % featuresLength, isEncoder);
                 }
-                if (Cfm60NetworkBuilder.Use_variance_pid_y)
+                if (Sample.Use_variance_pid_y)
                 {
                     xElementId[idx++] = Normalize(Y_Variance(entry.pid), idx % featuresLength, isEncoder);
                 }
                 //day/year
-                if (Cfm60NetworkBuilder.Use_day)
+                if (Sample.Use_day)
                 {
-                    xElementId[idx++] = Normalize( entry.day / Cfm60NetworkBuilder.Use_day_Divider, idx % featuresLength, isEncoder);
+                    xElementId[idx++] = Normalize( entry.day / Sample.Use_day_Divider, idx % featuresLength, isEncoder);
                 }
-                if (Cfm60NetworkBuilder.Use_fraction_of_year)
+                if (Sample.Use_fraction_of_year)
                 {
                     xElementId[idx++] = Normalize(DayToFractionOfYear(entry.day), idx % featuresLength, isEncoder);
                 }
-                if (Cfm60NetworkBuilder.Use_year_Cyclical_Encoding)
+                if (Sample.Use_year_Cyclical_Encoding)
                 {
                     xElementId[idx++] = (float)Math.Sin(2*Math.PI*DayToFractionOfYear(entry.day));
                     xElementId[idx++] = (float)Math.Cos(2*Math.PI*DayToFractionOfYear(entry.day));
                 }
-                if (Cfm60NetworkBuilder.Use_EndOfYear_flag)
+                if (Sample.Use_EndOfYear_flag)
                 {
                     xElementId[idx++] = EndOfYear.Contains(entry.day) ? 1 : 0;
                 }
-                if (Cfm60NetworkBuilder.Use_Christmas_flag)
+                if (Sample.Use_Christmas_flag)
                 {
                     xElementId[idx++] = Christmas.Contains(entry.day) ? 1 : 0;
                 }
-                if (Cfm60NetworkBuilder.Use_EndOfTrimester_flag)
+                if (Sample.Use_EndOfTrimester_flag)
                 {
                     xElementId[idx++] = EndOfTrimester.Contains(entry.day) ? 1 : 0;
                 }
                 //abs_ret
-                if (Cfm60NetworkBuilder.Use_abs_ret)
+                if (Sample.Use_abs_ret)
                 {
                     //entry.abs_ret.AsSpan().CopyTo(xDest.Slice(idx, entry.abs_ret.Length));
                     //idx += entry.abs_ret.Length;
@@ -680,19 +607,19 @@ namespace SharpNet.Datasets.CFM60
                         xElementId[idx++] = Normalize(entry.abs_ret[i], idx % featuresLength, isEncoder);
                     }
                 }
-                if (Cfm60NetworkBuilder.Use_mean_abs_ret)
+                if (Sample.Use_mean_abs_ret)
                 {
                     xElementId[idx++] = Normalize(entry.Get_mean_abs_ret(), idx % featuresLength, isEncoder);
                 }
-                if (Cfm60NetworkBuilder.Use_volatility_abs_ret)
+                if (Sample.Use_volatility_abs_ret)
                 {
                     xElementId[idx++] = Normalize(entry.Get_volatility_abs_ret(), idx % featuresLength, isEncoder);
                 }
                 //rel_vol
-                if (Cfm60NetworkBuilder.Use_rel_vol)
+                if (Sample.Use_rel_vol)
                 {
                     //var asSpan = entry.rel_vol.AsSpan();
-                    if (Cfm60NetworkBuilder.Use_rel_vol_start_and_end_only)
+                    if (Sample.Use_rel_vol_start_and_end_only)
                     {
                         //asSpan.Slice(0, 12).CopyTo(xDest.Slice(idx, 12));
                         //asSpan.Slice(entry.rel_vol.Length - 12, 12).CopyTo(xDest.Slice(idx + 12, 12));
@@ -717,24 +644,24 @@ namespace SharpNet.Datasets.CFM60
                         }
                     }
                 }
-                if (Cfm60NetworkBuilder.Use_volatility_rel_vol)
+                if (Sample.Use_volatility_rel_vol)
                 {
                     xElementId[idx++] = Normalize(entry.Get_volatility_rel_vol(), idx % featuresLength, isEncoder);
                 }
                 //LS
-                if (Cfm60NetworkBuilder.Use_LS)
+                if (Sample.Use_LS)
                 {
                     xElementId[idx++] = Normalize(entry.LS, idx % featuresLength, isEncoder);
                 }
                 //NLV
-                if (Cfm60NetworkBuilder.Use_NLV)
+                if (Sample.Use_NLV)
                 {
                     xElementId[idx++] = Normalize(entry.NLV, idx % featuresLength, isEncoder);
                 }
                 //y estimate
-                if (Cfm60NetworkBuilder.Use_prev_Y && isEncoder)
+                if (Sample.Use_prev_Y && isEncoder)
                 {
-                    var indexOfyEntryInPidEntryArray = Cfm60NetworkBuilder.Use_Decoder
+                    var indexOfyEntryInPidEntryArray = Sample.Use_Decoder
                         ? indexInPidEntryArray
                         : indexInPidEntryArray - 1;  //we take the previous entry
                     var yEntry = GetEntry(pid, indexOfyEntryInPidEntryArray);
@@ -763,7 +690,7 @@ namespace SharpNet.Datasets.CFM60
                     }
                 }
 
-                int expectedInputSize = isEncoder ? Cfm60NetworkBuilder.Encoder_InputSize : Cfm60NetworkBuilder.Decoder_InputSize;
+                int expectedInputSize = isEncoder ? Sample.Encoder_InputSize : Sample.Decoder_InputSize;
                 if (timeStep == 0 && elementId == 0 && idx != expectedInputSize)
                 {
                     throw new Exception("expecting " + expectedInputSize + " elements but got " + idx);
@@ -784,32 +711,32 @@ namespace SharpNet.Datasets.CFM60
                 ?Encoder_FeaturesStatistics[featureId]
                 :Decoder_FeaturesStatistics[featureId];
             if (  stats == null 
-                ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.NONE
-                ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.BATCH_NORM_LAYER
+                ||Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.NONE
+                ||Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.BATCH_NORM_LAYER
                 )
             {
                 return featureValue;
             }
-            if (Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.Z_SCORE)
+            if (Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.Z_SCORE)
             {
                 var mean = (float)stats.Item3;
                 var volatility = (float)stats.Item4;
                 return (featureValue - mean) / volatility;
             }
-            if (  Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN
-                ||Cfm60NetworkBuilder.InputNormalizationType == CFM60NetworkBuilder.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
+            if (  Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.DEDUCE_MEAN
+                ||Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
             {
                 var mean = (float)stats.Item3;
                 return featureValue - mean;
             }
-            throw new NotImplementedException("not supported " + Cfm60NetworkBuilder.InputNormalizationType);
+            throw new NotImplementedException("not supported " + Sample.InputNormalizationType);
         }
 
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
             var dayThreshold = CFM60Utils.DayThreshold(Entries, percentageInTrainingSet);
-            var training = new CFM60DataSet(Entries.Where(e => e.day <= dayThreshold).ToArray(), Cfm60NetworkBuilder);
-            var validation = new CFM60DataSet(Entries.Where(e => e.day > dayThreshold).ToArray(), Cfm60NetworkBuilder, training);
+            var training = new CFM60DataSet(Entries.Where(e => e.day <= dayThreshold).ToArray(), _cfm60NetworkSample);
+            var validation = new CFM60DataSet(Entries.Where(e => e.day > dayThreshold).ToArray(), _cfm60NetworkSample, training);
             return new TrainingAndTestDataLoader(training, validation, Name);
         }
 
@@ -828,7 +755,7 @@ namespace SharpNet.Datasets.CFM60
                    && network.CurrentEpochIsAbsolutelyBestInValidationLoss()
                    && !double.IsNaN(network.EpochData.Last().ValidationLoss)
                    && network.Config.AlwaysUseFullTestDataSetForLossAndAccuracy
-                   && network.EpochData.Last().ValidationLoss < Cfm60NetworkBuilder.MaxLossToSaveTheNetwork;
+                   && network.EpochData.Last().ValidationLoss < Sample.MaxLossToSaveTheNetwork;
         }
 
         public override int Count => Y.Shape[0];
@@ -849,7 +776,7 @@ namespace SharpNet.Datasets.CFM60
 
         public override string ToString()
         {
-            var xShape = new [] {Count, Cfm60NetworkBuilder.Encoder_TimeSteps, Cfm60NetworkBuilder.Encoder_InputSize, Encoder_FeaturesStatistics.Length};
+            var xShape = new [] {Count, Sample.Encoder_TimeSteps, Sample.Encoder_InputSize, Encoder_FeaturesStatistics.Length};
             return Tensor.ShapeToString(xShape) + " => " + Tensor.ShapeToString(Y.Shape);
         }
 
@@ -870,13 +797,13 @@ namespace SharpNet.Datasets.CFM60
         public override List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer)
         {
             var result = new List<int[]> {shapeForFirstLayer};
-            if (Cfm60NetworkBuilder.Use_Decoder)
+            if (Sample.Use_Decoder)
             {
                 var inputShapeDecoder = new []
                 {
                     shapeForFirstLayer[0],
-                    Cfm60NetworkBuilder.Decoder_TimeSteps,
-                    Cfm60NetworkBuilder.Decoder_InputSize
+                    Sample.Decoder_TimeSteps,
+                    Sample.Decoder_InputSize
                 };
                 result.Add(inputShapeDecoder);
             }

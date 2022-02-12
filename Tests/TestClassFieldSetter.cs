@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using SharpNet;
+
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable ConvertToConstant.Local
 // ReSharper disable NonReadonlyMemberInGetHashCode
@@ -19,42 +21,11 @@ namespace SharpNetTests
             public int Int = 42;
             public float Float = 42;
             public double Double = 42;
+            public List<double> Doubles = new() {50,51,52};
             public string String = "42";
             public NotUsedEnum Enum = NotUsedEnum.C;
-
-            public override int GetHashCode()
-            {
-                return HashCode.Combine(Bool, Int, Float, Double, String, (int)Enum);
-            }
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(null, obj))
-                {
-                    return false;
-                }
-
-                if (ReferenceEquals(this, obj))
-                {
-                    return true;
-                }
-
-                if (obj.GetType() != this.GetType())
-                {
-                    return false;
-                }
-
-                return Equals((TestClass)obj);
-            }
-
-            private bool Equals(TestClass other)
-            {
-                return Bool == other.Bool 
-                       && Int == other.Int 
-                       && Math.Abs(Float - other.Float) <1e-6
-                       && Math.Abs(Double-other.Double) <1e-6
-                       && String == other.String 
-                       && Enum == other.Enum;
-            }
+            public List<NotUsedEnum> Enums1 = new() { NotUsedEnum.C, NotUsedEnum.B };
+            public NotUsedEnum[] Enums2 = new[] { NotUsedEnum.A, NotUsedEnum.B, NotUsedEnum.B, NotUsedEnum.C };
         }
 
         [Test]
@@ -70,12 +41,22 @@ namespace SharpNetTests
             Assert.AreEqual(40, p.Float, 1e-6);
             ClassFieldSetter.Set(p, "Double", 39);
             Assert.AreEqual(39, p.Double, 1e-6);
+            ClassFieldSetter.Set(p, "Doubles", new List<double>{10.0,11.0,12.0});
+            CollectionAssert.AreEqual(new List<double> { 10.0, 11.0, 12.0 }, p.Doubles);
             ClassFieldSetter.Set(p, "String", "38");
             Assert.AreEqual("38", p.String);
             ClassFieldSetter.Set(p, "Enum", "B");
             Assert.AreEqual(NotUsedEnum.B, p.Enum);
             ClassFieldSetter.Set(p, "Enum", NotUsedEnum.A);
             Assert.AreEqual(NotUsedEnum.A, p.Enum);
+
+            var listEnums = new[] { NotUsedEnum.B, NotUsedEnum.A };
+            ClassFieldSetter.Set(p, "Enums1", listEnums.ToList());
+            CollectionAssert.AreEqual(listEnums.ToList(), p.Enums1);
+            ClassFieldSetter.Set(p, "Enums1", "B,A");
+            CollectionAssert.AreEqual(listEnums.ToList(), p.Enums1);
+            ClassFieldSetter.Set(p, "Enums2", "B,A");
+            CollectionAssert.AreEqual(listEnums.ToArray(), p.Enums2);
         }
 
         [Test]
@@ -91,38 +72,38 @@ namespace SharpNetTests
             Assert.AreEqual(40, ClassFieldSetter.Get(p, "Float"));
             p.Double = 39;
             Assert.AreEqual(39, ClassFieldSetter.Get(p, "Double"));
+
+            p.Doubles = new List<double> { 10.0, 11.0, 12.0 }.ToList();
+            CollectionAssert.AreEqual(new List<double> { 10.0, 11.0, 12.0 }.ToList(), (List<double>)ClassFieldSetter.Get(p, "Doubles"));
+
             p.String= "38";
             Assert.AreEqual("38", ClassFieldSetter.Get(p, "String"));
             p.Enum = NotUsedEnum.A;
             Assert.AreEqual(NotUsedEnum.A, ClassFieldSetter.Get(p, "Enum"));
+
+            var listEnums = new[] { NotUsedEnum.B, NotUsedEnum.A };
+            p.Enums1 = listEnums.ToList();
+            CollectionAssert.AreEqual(listEnums.ToList(), (List<NotUsedEnum>)ClassFieldSetter.Get(p, "Enums1"));
+
+            p.Enums2 = listEnums.ToArray();
+            CollectionAssert.AreEqual(listEnums.ToArray(), (NotUsedEnum[])ClassFieldSetter.Get(p, "Enums2"));
         }
 
         [Test]
         public void TestToConfigContent()
         {
             var p = new TestClass();
-
-            // with 'ignoreDefaultValue' to true
-            var res1 = ClassFieldSetter.ToConfigContent(p, true).Trim();
-            Assert.AreEqual("", res1);
-            var mandatoryParametersInConfigFile = new HashSet<string> { "Bool", "Float" };
-            res1 = ClassFieldSetter.ToConfigContent(p, true, mandatoryParametersInConfigFile).Trim();
-            Assert.AreEqual("Bool = True" + Environment.NewLine + "Float = 42", res1);
-            p.Float = 41;
-            res1 = ClassFieldSetter.ToConfigContent(p, true).Trim();
-            Assert.AreEqual("Float = 41", res1);
-            res1 = ClassFieldSetter.ToConfigContent(p, true, mandatoryParametersInConfigFile).Trim();
-            Assert.AreEqual("Bool = True" + Environment.NewLine + "Float = 41", res1);
-
-            // with 'ignoreDefaultValue' to false
-            var res2 = ClassFieldSetter.ToConfigContent(p, false).Trim();
+            var observed = ClassFieldSetter.ToConfigContent(p).Trim();
             var expected = "Bool = True" + Environment.NewLine
                                          + "Double = 42" + Environment.NewLine
+                                         + "Doubles = 50,51,52" + Environment.NewLine
                                          + "Enum = C" + Environment.NewLine
-                                         + "Float = 41" + Environment.NewLine
+                                         + "Enums1 = C,B" + Environment.NewLine
+                                         + "Enums2 = A,B,B,C" + Environment.NewLine
+                                         + "Float = 42" + Environment.NewLine
                                          + "Int = 42" + Environment.NewLine
                                          + "String = 42";
-            Assert.AreEqual(expected, res2);
+            Assert.AreEqual(expected, observed);
         }
     }
 }

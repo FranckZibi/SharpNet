@@ -36,20 +36,22 @@ namespace SharpNetTests
         public void TestSaveParametersToH5File()
         {
             //we build an efficientNet-B0 network loading the weights from in Keras
-            var networkBuilder = EfficientNetBuilder.CIFAR10();
-            networkBuilder.Config.LogDirectory = "";
+            var networkBuilder = EfficientNetSample.CIFAR10();
+            networkBuilder.Config.WorkingDirectory = NetworkConfig.DefaultWorkingDirectory;
+            var workingDirectory = networkBuilder.Config.WorkingDirectory;
             var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] { 3, 224, 224 });
 
             //we save the network parameters
-            var saveParametersFile = Path.Combine(NetworkConfig.DefaultLogDirectory, "test_EfficientNetB0.h5");
-            network.SaveParameters(saveParametersFile);
+            network.Save(workingDirectory, network.ModelName);
+            var networkFiles = network.AllFiles();
             network.Dispose();
 
             //we ensure that the saved parameters are the same as the original one in Keras
-            var kerasParametersFile = NetworkBuilder.GetKerasModelPath("efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
+            var kerasParametersFile = EfficientNetSample.GetKerasModelPath("efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
             using (var kerasParameters = new H5File(kerasParametersFile))
             {
-                using var sharpNetParameters = new H5File(saveParametersFile);
+                var parametersFile = Network.ToParameterFilePath(workingDirectory, network.ModelName);
+                using var sharpNetParameters = new H5File(parametersFile);
                 var datasetKeras = kerasParameters.Datasets();
                 var datasetSharpNet = sharpNetParameters.Datasets();
                 Debug.Assert(datasetKeras.Count == datasetSharpNet.Count);
@@ -58,24 +60,28 @@ namespace SharpNetTests
                     Assert.IsTrue(TestTensor.SameContent(datasetKeras[a.Key], datasetSharpNet[a.Key], 1e-5));
                 }
             }
-            File.Delete(saveParametersFile);
+            networkFiles.ForEach(File.Delete);
         }
 
         public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
-            using InMemoryDataSet trainingDataSet = new InMemoryDataSet(X, Y);
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
+
+            network.Config.InitialLearningRate = learningRate;
+            network.Config.NumEpochs = numEpochs;
+            network.Config.BatchSize = batchSize;
+
             Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, testDataSet);
         }
 
         public static void Fit(Network network, IDataSet trainingDataSet, double learningRate, int numEpochs, int batchSize, IDataSet testDataSet = null)
         {
             network.Config.DisableReduceLROnPlateau = true;
-
-            var learningRateComputer = network.Config.GetLearningRateComputer(learningRate, numEpochs);
-            //var learningRateComputer = new LearningRateComputer(LearningRateScheduler.Constant(learningRate), network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
-
-            network.Fit(trainingDataSet, learningRateComputer, numEpochs, batchSize, testDataSet);
+            network.Config.InitialLearningRate = learningRate;
+            network.Config.NumEpochs = numEpochs;
+            network.Config.BatchSize = batchSize;
+            network.Fit(trainingDataSet, testDataSet);
         }
     }
 }

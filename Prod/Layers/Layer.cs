@@ -5,6 +5,7 @@ using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.Models;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
 
@@ -258,9 +259,9 @@ namespace SharpNet.Layers
         }
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
-        protected void Log(string msg) {Network.Log.Info(msg);}
+        protected void Log(string msg) {AbstractModel.Log.Info(msg);}
         // ReSharper disable once MemberCanBeMadeStatic.Global
-        public void LogDebug(string msg) {Network.Log.Debug(msg);}
+        public void LogDebug(string msg) {AbstractModel.Log.Debug(msg);}
 
         public int n_x
         {

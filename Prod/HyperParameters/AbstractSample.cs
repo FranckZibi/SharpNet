@@ -21,10 +21,13 @@ public abstract class AbstractSample : ISample
     #endregion
 
     #region ISample methods
-    public bool HasHyperParameter(string hyperParameterName)
+
+    public HashSet<string> HyperParameterNames()
     {
-        return ClassFieldSetter.HasField(GetType(), hyperParameterName);
+        var type = GetType();
+        return new HashSet<string>(ClassFieldSetter.FieldNames(type));
     }
+
     public string ComputeHash()
     {
         return Utils.ComputeHash(ToConfigContent(), 10);
@@ -35,8 +38,16 @@ public abstract class AbstractSample : ISample
     }
     public virtual void Save(string workingDirectory, string modelName)
     {
-        Save(Path.Combine(workingDirectory, modelName + ".conf"));
+        var configFile = ISample.ToPath(workingDirectory, modelName);
+        Save(configFile);
     }
+
+    public virtual List<string> SampleFiles(string workingDirectory, string modelName)
+    {
+        return new List<string> { ISample.ToPath(workingDirectory, modelName) };
+    }
+
+
     public void Save(string path)
     {
         var configContent = ToConfigContent();
@@ -53,7 +64,7 @@ public abstract class AbstractSample : ISample
     public abstract bool PostBuild();
     public Type GetFieldType(string hyperParameterName)
     {
-        return ClassFieldSetter.GetFieldInfo(GetType(), hyperParameterName).FieldType;
+        return ClassFieldSetter.GetFieldType(GetType(), hyperParameterName);
     }
     public virtual void Set(IDictionary<string, object> dico)
     {
@@ -83,9 +94,8 @@ public abstract class AbstractSample : ISample
 
     private string ToConfigContent()
     {
-        var type = GetType();
         var result = new List<string>();
-        foreach (var (parameterName, _) in ClassFieldSetter.GetFieldName2FieldInfo(type).OrderBy(f => f.Key))
+        foreach (var parameterName in HyperParameterNames().OrderBy(f => f))
         {
             result.Add($"{parameterName} = {Utils.FieldValueToString(Get(parameterName))}");
         }

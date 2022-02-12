@@ -7,37 +7,35 @@ using System.Linq;
 using System.Runtime;
 using System.Text;
 using System.Threading;
-using log4net;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.HyperParameters;
 using SharpNet.Layers;
+using SharpNet.Models;
 using SharpNet.Optimizers;
 using H5GroupId = System.Int64;
 
 
 namespace SharpNet.Networks
 {
-    public partial class Network : IDisposable
+    public partial class Network : AbstractModel, IDisposable
     {
         #region private fields
-        public static readonly ILog Log = LogManager.GetLogger(typeof(Network));
-        public readonly List<EpochData> EpochData = new List<EpochData>();
-        /// <summary>
-        /// all resources (CPU or GPU) available for the current network
-        /// values superior or equal to 0 means GPU resources (device)
-        /// values strictly less then 0 mean CPU resources (host)
-        /// </summary>
-        private readonly List<int> _resourceIds;
-        private Tensor buffer;
+        public readonly List<EpochData> EpochData = new();
+        private Tensor _buffer;
         private Tensor _bufferComputeLoss;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         // bytes/batchSize needed for forward & backward propagation
         #endregion
 
         #region public fields
-        public NetworkConfig Config { get; }
+
+        public NetworkSample NetworkSample => (NetworkSample)Sample;
+        public NetworkConfig Config => NetworkSample.Config;
+        public DataAugmentationSample DA => NetworkSample.DA;
         public Random Rand { get; } = new Random(0);
         public List<Layer> Layers { get; } = new List<Layer>();
         public string Description { private get; set; } = "";
@@ -46,62 +44,47 @@ namespace SharpNet.Networks
         public GPUWrapper GpuWrapper { get; }
         #endregion
 
-        /// <param name="config"></param>
-        /// <param name="resourceIds">list of resources available for the network
-        /// if gpuDeviceIds.Count == 1
-        ///     if masterNetworkIfAny == null:
-        ///         all computation will be done in a single network (using resource gpuDeviceIds[0])
-        ///     else:
-        ///         we are in a slave network (using resource gpuDeviceIds[0]) doing part of the parallel computation
-        ///         the master network is 'masterNetworkIfAny'.
-        /// else: (gpuDeviceIds.Count >= 2)
-        ///     we are the master network (using resource gpuDeviceIds[0]) doing part of the parallel computation
-        ///     slaves network will use resourceId gpuDeviceIds[1:]
-        ///
-        /// for each resourceId in this list:
-        ///     if resourceId strictly less then 0:
-        ///         use CPU resource (no GPU usage)
-        ///     else:
-        ///         run the network on the GPU with device Id = resourceId
-        /// </param>
+        public Network(NetworkConfig config, DataAugmentationSample da) : this(new NetworkSample(new ISample[]{config, da}))
+        {
+        }
+
+
+        /// <param name="sample"></param>
         /// <param name="masterNetworkIfAny">
         ///     if the current network is a slave network doing computation for its master network:
         ///         the reference of the master network
         ///     else:
         ///         null
         /// </param>
-        public Network(NetworkConfig config, List<int> resourceIds, Network masterNetworkIfAny = null)
+        public Network(NetworkSample sample, Network masterNetworkIfAny = null) : base(sample)
         {
-            //Utils.ConfigureGlobalLog4netProperties(config.LogDirectory, config.LogFile);
-            Utils.ConfigureThreadLog4netProperties(config.LogDirectory, config.LogFile);
+            //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
+            Utils.ConfigureThreadLog4netProperties(sample.Config.WorkingDirectory, Config.LogFile);
 
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
-            Debug.Assert(masterNetworkIfAny == null || resourceIds.Count == 1);
-            Config = config;
+            Debug.Assert(masterNetworkIfAny == null || Config.ResourceIds.Count == 1);
 
             _masterNetworkIfAny = masterNetworkIfAny;
-            _resourceIds = resourceIds.ToList();
-            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(_resourceIds[0]) : null;
+            GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(Config.ResourceIds[0]) : null;
             _swComputeMetrics = new Stopwatch();
-            CreateLogDirectoryIfNeeded();
+            CreateWorkingDirectoryIfNeeded();
             MemoryPool = new TensorMemoryPool(GpuWrapper);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-            if (IsMaster && _resourceIds.Count>=2)
+            if (IsMaster && Config.ResourceIds.Count>=2)
             {
                 //we create the slave networks
-                foreach(var slaveResourceId in _resourceIds.Skip(1))
+                foreach(var slaveResourceId in Config.ResourceIds.Skip(1))
                 {
                     Log.Debug("starting thread for network running on deviceId " + slaveResourceId);
                     new Thread(() => SlaveThread(this, slaveResourceId)).Start();
                 }
-                while (_slaveNetworks.Count != _resourceIds.Count - 1)
+                while (_slaveNetworks.Count != Config.ResourceIds.Count - 1)
                 {
                     Thread.Sleep(1);
                 }
             }
-
         }
-
+        
         public string DeviceName() { return GpuWrapper?.DeviceName(); }
 
         public void Dispose()
@@ -117,7 +100,7 @@ namespace SharpNet.Networks
             Layers.Clear();
             PropagationManager.Dispose();
             EpochData.Clear();
-            MemoryPool.FreeFloatTensor(ref buffer);
+            MemoryPool.FreeFloatTensor(ref _buffer);
             MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
             MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
             MemoryPool.FreeFloatTensor(ref _yExpectedForEpoch);
@@ -256,9 +239,6 @@ namespace SharpNet.Networks
             return RecurrentLayer(encoder.HiddenSize, encoder.CellMode, encoder.BiasMode, returnSequences,
                 encoder.IsBidirectional, numLayers, dropoutRate, false, encoderLayerIndex, layerName);
         }
-
-
-
 
         public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
         {
@@ -524,7 +504,7 @@ namespace SharpNet.Networks
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
-            var fileName = Path.Combine(Config.LogDirectory, UniqueId + "_LearningRateFinder.csv");
+            var fileName = Path.Combine(WorkingDirectory, ModelName + "_LearningRateFinder.csv");
             File.WriteAllText(fileName, learningRateFinder.AsCsv());
             Log.Info("Stats stored in: " + fileName);
             var bestLearningRate = learningRateFinder.BestLearningRate();
@@ -533,6 +513,11 @@ namespace SharpNet.Networks
             return bestLearningRate;
         }
 
+
+        public override float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred)
+        {
+            throw new NotImplementedException(); //?D TODO
+        }
 
         /// <summary>
         /// Here is a summary of what is used at each step ('forward pass' / 'backward pass' / 'weights update' of the training
@@ -550,27 +535,24 @@ namespace SharpNet.Networks
         /// Weights Update =       =       =       =       = [in,out] = [in]  =
         /// ===================================================================
         /// </summary>
-        /// <param name="trainingDataSet"></param>
-        /// <param name="learningRateComputer"></param>
-        /// <param name="numEpochs"></param>
-        /// <param name="miniBatchSizeForAllWorkers"></param>
-        /// <param name="testDataSetCpuIfAny"></param>
-        public void Fit(IDataSet trainingDataSet, ILearningRateComputer learningRateComputer, int numEpochs, int miniBatchSizeForAllWorkers, IDataSet testDataSetCpuIfAny)
+        /// <param name="trainingDataset"></param>
+        /// <param name="validationDatasetIfAny"></param>
+        public override void Fit(IDataSet trainingDataset, IDataSet validationDatasetIfAny)
         {
+            int miniBatchSizeForAllWorkers = Config.BatchSize;
+            int numEpochs = Config.NumEpochs;
+            var learningRateComputer = Config.GetLearningRateComputer();
+
             try
             {
-                Debug.Assert(Config.TypeSize == trainingDataSet.TypeSize);
+                Debug.Assert(Config.TypeSize == trainingDataset.TypeSize);
                 Debug.Assert(miniBatchSizeForAllWorkers >= 1);
-                if (learningRateComputer == null)
-                {
-                    throw new ArgumentException("learningRateComputer shouldn't be null in Training mode");
-                }
                 _spInternalFit.Start();
                 StartTimer("Fit_Prepare", ForwardPropagationTrainingTime);
 
                 FreezeSelectedLayers();
 
-                Log.Debug("Fit( " /*+ Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))*/ +" => " + Tensor.ShapeToString(trainingDataSet.YMiniBatch_Shape(trainingDataSet.Count))+" )");
+                Log.Debug("Fit( " /*+ Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))*/ +" => " + Tensor.ShapeToString(trainingDataset.YMiniBatch_Shape(trainingDataset.Count))+" )");
                 Log.Info(ToString());
 
 
@@ -578,10 +560,10 @@ namespace SharpNet.Networks
                 {
                     Log.Debug(GpuWrapper.ToString());
                 }
-                Log.Debug("Training Set: " + trainingDataSet);
-                if (testDataSetCpuIfAny != null)
+                Log.Debug("Training dataset: " + trainingDataset);
+                if (validationDatasetIfAny != null)
                 {
-                    Log.Debug("Test Set: " + testDataSetCpuIfAny);
+                    Log.Debug("Validation dataset: " + validationDatasetIfAny);
                 }
                 Log.Info("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+Description);
                 if (Config.DisplayTensorContentStats)
@@ -614,7 +596,7 @@ namespace SharpNet.Networks
 
                     #region Mini Batch gradient descent
                     var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                    var yPredicted = MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateComputer, null);
+                    var yPredicted = MiniBatchGradientDescentForSingleEpoch(trainingDataset, miniBatchSizeForAllWorkers, learningRateComputer, null);
                     #endregion
 
                     //We display stats about the just finished epoch
@@ -625,24 +607,24 @@ namespace SharpNet.Networks
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
                     var trainingMetrics = ComputeMetrics(_yExpectedForEpoch, yPredicted);
-                    var lossAndAccuracyMsg = MetricsToString(trainingMetrics, "");
-                    if (testDataSetCpuIfAny != null)
+                    var lossAndAccuracyMsg = IModel.MetricsToString(trainingMetrics, "");
+                    if (validationDatasetIfAny != null)
                     {
-                        //We compute the validation (= test) loss&accuracy
+                        //We compute the validation loss&accuracy
                         if (ShouldUseFullTestDataSetForLossAndAccuracy(learningRateComputer, epoch, numEpochs))
                         {
-                            validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, testDataSetCpuIfAny);
-                            lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "val_");
+                            validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, validationDatasetIfAny);
+                            lossAndAccuracyMsg += " - " + IModel.MetricsToString(validationMetrics, "val_");
                         }
                         else
                         {
-                            var percentageToUseInTestDataSet = testDataSetCpuIfAny.PercentageToUseForLossAndAccuracyFastEstimate;
+                            var percentageToUseInTestDataSet = validationDatasetIfAny.PercentageToUseForLossAndAccuracyFastEstimate;
                             //we'll compute loss and accuracy using only 'percentageToUsForLossAndAccuracyFastEstimate' of the test data set
                             if (percentageToUseInTestDataSet > 1e-6)
                             { 
-                                using var subDataSet = testDataSetCpuIfAny.SubDataSet(percentageToUseInTestDataSet);
+                                using var subDataSet = validationDatasetIfAny.SubDataSet(percentageToUseInTestDataSet);
                                 validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
-                                lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
+                                lossAndAccuracyMsg += " - " + IModel.MetricsToString(validationMetrics, "estimate_val_");
                             }
                         }
 
@@ -650,7 +632,7 @@ namespace SharpNet.Networks
                     StopTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
 
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
-                    double nbStepsByEpoch = ((double)trainingDataSet.Count) / miniBatchSizeForAllWorkers;
+                    double nbStepsByEpoch = ((double)trainingDataset.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
                     Log.Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ Description);
                     Log.Debug(MemoryInfo());
@@ -671,20 +653,18 @@ namespace SharpNet.Networks
                             //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
                         || ( (Config.AutoSaveIntervalInMinutes>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinutes)
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
-                        || trainingDataSet.ShouldCreateSnapshotForEpoch(epoch, this)
+                        || trainingDataset.ShouldCreateSnapshotForEpoch(epoch, this)
                         || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds)
                     )
                     {
-                        var modelFilePath = Path.Combine(Config.LogDirectory, UniqueId + ".txt");
-                        var parametersFilePath = ModelFilePath2ParameterFilePath(modelFilePath);
-                        trainingDataSet.SaveModelAndParameters(this, modelFilePath, parametersFilePath);
+                        trainingDataset.Save(this, WorkingDirectory, ModelName);
                         lastAutoSaveTime = DateTime.Now;
                     }
                     #endregion
 
                     if (Config.SaveNetworkStatsAfterEachEpoch)
                     {
-                        var networkStatFileName = Path.Combine(Config.LogDirectory, UniqueId + "_NetworkStats.txt");
+                        var networkStatFileName = Path.Combine(WorkingDirectory, ModelName + "_NetworkStats.txt");
                         Log.Info("Saving network '" + Description + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
@@ -713,11 +693,8 @@ namespace SharpNet.Networks
                         + EpochData.Last().ValidationLoss + ";"
                         + EpochData.Last().ValidationAccuracy + ";"
                         + Environment.NewLine;
-                    var testsCsv = string.IsNullOrEmpty(trainingDataSet.Name)?"Tests.csv": ("Tests_"+ trainingDataSet.Name + ".csv");
-                    if (Config.LogEnabled)
-                    {
-                        File.AppendAllText(Utils.ConcatenatePathWithFileName(Config.LogDirectory, testsCsv), line);
-                    }
+                    var testsCsv = string.IsNullOrEmpty(trainingDataset.Name)?"Tests.csv": ("Tests_"+ trainingDataset.Name + ".csv");
+                    File.AppendAllText(Utils.ConcatenatePathWithFileName(WorkingDirectory, testsCsv), line);
                 }
                 catch (Exception e)
                 {
@@ -788,8 +765,6 @@ namespace SharpNet.Networks
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
             return ComputeMetrics(testDataSet.Y, yPredicted);
         }
-
-     
         private IDictionary<NetworkConfig.Metric, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
         {
             _swComputeMetrics?.Start();
@@ -806,18 +781,18 @@ namespace SharpNet.Networks
                 }
                 else if (metric == NetworkConfig.Metric.Accuracy)
                 {
-                    MemoryPool.GetFloatTensor(ref buffer, new[] { batchSize });
-                    result[metric] = yExpected.ComputeAccuracy(yPredicted, Config.LossFunction, buffer);
+                    MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
+                    result[metric] = yExpected.ComputeAccuracy(yPredicted, Config.LossFunction, _buffer);
                 }
                 else if (metric == NetworkConfig.Metric.Mae)
                 {
-                    MemoryPool.GetFloatTensor(ref buffer, new[] { batchSize });
-                    result[metric] = yExpected.ComputeMae(yPredicted, buffer);
+                    MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
+                    result[metric] = yExpected.ComputeMae(yPredicted, _buffer);
                 }
                 else if (metric == NetworkConfig.Metric.Mse)
                 {
-                    MemoryPool.GetFloatTensor(ref buffer, new[] { batchSize });
-                    result[metric] = yExpected.ComputeMse(yPredicted, buffer);
+                    MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
+                    result[metric] = yExpected.ComputeMse(yPredicted, _buffer);
                 }
                 else
                 {
@@ -826,14 +801,6 @@ namespace SharpNet.Networks
             }
             _swComputeMetrics?.Stop();
             return result;
-        }
-        public static string MetricsToString(IDictionary<NetworkConfig.Metric, double> metrics, string prefix)
-        {
-            return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + e.Key + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
-        }
-        public static string TrainingAndValidationMetricsToString(IDictionary<NetworkConfig.Metric, double> trainingMetrics, IDictionary<NetworkConfig.Metric, double> validationMetrics)
-        {
-            return MetricsToString(trainingMetrics, "") + " - " + MetricsToString(validationMetrics, "val_");
         }
         #endregion
 
@@ -876,9 +843,14 @@ namespace SharpNet.Networks
             return yPredicted;
         }
 
-        public CpuTensor<float> Predict(IDataSet dataSet, int miniBatchSizeForAllWorkers)
+        public override CpuTensor<float> Predict(IDataSet dataset)
         {
-            var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataSet, miniBatchSizeForAllWorkers);
+            return Predict(dataset, Config.BatchSize);
+        }
+
+        public CpuTensor<float> Predict(IDataSet dataset, int miniBatchSizeForAllWorkers)
+        {
+            var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataset, miniBatchSizeForAllWorkers);
             var yPredictedCpu = yPredicted.ToCpuFloat();
             return yPredictedCpu;
         }
@@ -977,8 +949,8 @@ namespace SharpNet.Networks
 
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-                bool withDataAugmentation = Config.DataAugmentation.UseDataAugmentation && (epoch >= 2) && isTraining;
-                int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, Config.DataAugmentation, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
+                bool withDataAugmentation = DA.UseDataAugmentation && (epoch >= 2) && isTraining;
+                int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, DA, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 //we copy yExpected_miniBatch_cpu_allWorkers from CPU to appropriate target (CPU or GPU)
                 var yExpectedForMiniBatch_allWorkers = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForAllWorkers);
@@ -1087,7 +1059,7 @@ namespace SharpNet.Networks
         }
 
 
-        public bool UseGPU => _resourceIds.Max() >= 0;
+        public bool UseGPU => Config.ResourceIds.Max() >= 0;
         private string MemoryInfo()
         {
             string result = "Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);
@@ -1107,7 +1079,9 @@ namespace SharpNet.Networks
                 && Math.Abs(EpochData.Select(e => e.ValidationLoss).Min() - EpochData.Last().ValidationLoss) < 1e-6;
         }
 
-        public string UniqueId
+
+        public override string WorkingDirectory => Config.WorkingDirectory;
+        public override string ModelName
         {
             get
             {
@@ -1127,11 +1101,11 @@ namespace SharpNet.Networks
                 return desc + "_" + epoch + trainingLoss + validationLoss + "_" + timeStamp + "_" + Thread.CurrentThread.ManagedThreadId;
             }
         }
-        private void CreateLogDirectoryIfNeeded()
+        private void CreateWorkingDirectoryIfNeeded()
         {
-            if (!string.IsNullOrEmpty(Config.LogDirectory) && !Directory.Exists(Config.LogDirectory))
+            if (!string.IsNullOrEmpty(WorkingDirectory) && !Directory.Exists(WorkingDirectory))
             {
-                Directory.CreateDirectory(Config.LogDirectory);
+                Directory.CreateDirectory(WorkingDirectory);
             }
         }
         private Tensor ReformatToCorrectDevice_GPU_or_CPU(Tensor X)

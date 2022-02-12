@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
+using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
-using SharpNet.Optimizers;
 
 namespace SharpNetTests.NonReg
 {
@@ -17,25 +17,26 @@ namespace SharpNetTests.NonReg
         public void Test()
         {
             const bool useGpu = true;
-            const int batchSize = 32;
-            const int numEpochs = 1000;
 
             var network = new Network(
                 new NetworkConfig
                     {
-                        LogFile = "MNIST", 
-                        DisableReduceLROnPlateau =true
+                        LogFile = "MNIST",
+                        BatchSize = 32,
+                        NumEpochs = 1000,
+                        DisableReduceLROnPlateau = true,
+                        ResourceIds = new List<int> { useGpu ? 0 : -1 },
+                        InitialLearningRate = 0.01
                 }
-                //.WithAdam()
-                .WithSGD(0.99,true)
-                ,
-                new List<int> {useGpu?0:-1}
+                    //.WithAdam()
+                    .WithSGD(0.99, true)
+                    .WithCyclicCosineAnnealingLearningRateScheduler(10,2),
+                new DataAugmentationSample()
             );
 
             //Data Augmentation
-            var da = network.Config.DataAugmentation;
-            da.WidthShiftRangeInPercentage = 0.1;
-            da.HeightShiftRangeInPercentage = 0.1;
+            network.DA.WidthShiftRangeInPercentage = 0.1;
+            network.DA.HeightShiftRangeInPercentage = 0.1;
 
             var mnist = new MNISTDataSet();
 
@@ -71,13 +72,7 @@ namespace SharpNetTests.NonReg
 
                 .Output(MNISTDataSet.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
-            var learningRate = LearningRateScheduler.DivideByConstantEveryXEpoch(0.01, 2, 5, true);
-
-            //learningRate = LearningRateScheduler.Constant(network.FindBestLearningRate(xTrain, yTrain, 128));
-            //learningRate = LearningRateScheduler.Constant(0.00774263682681115);
-
-            var learningRateComputer = new LearningRateComputer(learningRate, network.Config.ReduceLROnPlateau(), network.Config.MinimumLearningRate);
-            network.Fit(mnist.Training, learningRateComputer, numEpochs, batchSize, mnist.Test);
+            network.Fit(mnist.Training, mnist.Test);
         }
     }
 }

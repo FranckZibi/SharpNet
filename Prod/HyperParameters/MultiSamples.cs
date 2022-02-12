@@ -26,6 +26,25 @@ public abstract class MultiSamples : ISample
             Samples[sampleIndex].Save(workingDirectory, modelName+"_"+sampleIndex);
         }
     }
+    public List<string> SampleFiles(string workingDirectory, string modelName)
+    {
+        HashSet<string> res = new();
+        for (var sampleIndex = 0; sampleIndex < Samples.Length; sampleIndex++)
+        {
+            var sample = Samples[sampleIndex];
+            res.UnionWith(sample.SampleFiles(workingDirectory, modelName + "_" + sampleIndex));
+        }
+        return res.ToList();
+    }
+    public HashSet<string> HyperParameterNames()
+    {
+        HashSet<string> res = new();
+        foreach (var sample in Samples)
+        {
+            res.UnionWith(sample.HyperParameterNames());
+        }
+        return res;
+    }
     public void Set(IDictionary<string, object> dico)
     {
         foreach (var (key, value) in dico)
@@ -52,16 +71,15 @@ public abstract class MultiSamples : ISample
         }
         return true;
     }
-    public bool HasHyperParameter(string hyperParameterName)
-    {
-        return FirstSampleWithField(hyperParameterName) != null;
-    }
     public string ComputeHash()
     {
         var allHash = string.Join("_", Samples.Select(s => s.ComputeHash()));
         return Utils.ComputeHash(allHash, 10);
     }
-    public abstract CpuTensor<float> Y_Train_dataset_to_Perfect_Predictions(string y_train_dataset);
+    public virtual CpuTensor<float> Y_Train_dataset_to_Perfect_Predictions(string y_train_dataset)
+    {
+        throw new NotImplementedException();
+    }
     public Type GetFieldType(string hyperParameterName)
     {
         return FirstSampleWithField(hyperParameterName).GetFieldType(hyperParameterName);
@@ -74,6 +92,6 @@ public abstract class MultiSamples : ISample
 
     private ISample FirstSampleWithField(string hyperParameterName)
     {
-        return Samples.FirstOrDefault(s => s.HasHyperParameter(hyperParameterName));
+        return Samples.FirstOrDefault(s => s.HyperParameterNames().Contains(hyperParameterName));
     }
 }

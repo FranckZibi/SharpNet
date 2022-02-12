@@ -19,18 +19,18 @@ namespace SharpNet.Datasets.CFM60
             return 0;
         }
 
-        public CFM60TrainingAndTestDataSet(CFM60NetworkBuilder cfm60NetworkBuilder, Action<string> log) : base("CFM60")
+        public CFM60TrainingAndTestDataSet(Cfm60NetworkSample cfm60NetworkSample, Action<string> log) : base("CFM60")
         {
             Training = new CFM60DataSet(
                 Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_training.csv"),
                 Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "output_training_IxKGwDV.csv"),
                 log,
-                cfm60NetworkBuilder,
+                cfm60NetworkSample,
                 null);
             Test = new CFM60DataSet(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_test.csv"),
                 null,
                 log,
-                cfm60NetworkBuilder,
+                cfm60NetworkSample,
                 // ReSharper disable once VirtualMemberCallInConstructor
                 (CFM60DataSet) Training);
             //CFM60Utils.Create_Summary_File(((CFM60DataSet)Training).Entries.Union(((CFM60DataSet)Test).Entries).ToList());

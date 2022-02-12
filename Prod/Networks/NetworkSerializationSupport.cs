@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using JetBrains.Annotations;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -34,37 +35,34 @@ namespace SharpNet.Networks
             }
             return fixedResult.ToArray();
         }
-
-
-
-        public static Network ValueOf(string modelFilePath, int[] overridenResourceIdsIfAny = null)
+        
+        public static Network ValueOf(string workingDirectory, string modelName)
         {
-
+            var modelFilePath = Path.Combine(workingDirectory, modelName + ".txt");
             //we load the model (network description)
             var allLines = File.ReadAllLines(modelFilePath);
             var dicoFirstLine = Serializer.Deserialize(allLines[0]);
-            var config = NetworkConfig.ValueOf(dicoFirstLine);
-            if (!string.IsNullOrEmpty(config.LogDirectory) && !Directory.Exists(config.LogDirectory))
+            var sample = NetworkSample.ValueOf(workingDirectory, modelName);
+            if (!string.IsNullOrEmpty(sample.Config.WorkingDirectory) && !Directory.Exists(sample.Config.WorkingDirectory))
             {
                 // ReSharper disable once PossibleNullReferenceException
-                config.LogDirectory = new FileInfo(modelFilePath).Directory.FullName;
+                sample.Config.WorkingDirectory = new FileInfo(modelFilePath).Directory.FullName;
             }
 
+            var originalResourceIds = sample.Config.ResourceIds.ToArray();
+            int[] fixedResourceIds = AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
+            sample.Config.ResourceIds = fixedResourceIds.ToList();
 
-            var originalResourceIds = (int[]) dicoFirstLine[nameof(_resourceIds)];
-            int[] fixedResourceIds = overridenResourceIdsIfAny ?? AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
-
-
-            var network = new Network(config, fixedResourceIds.ToList());
+            var network = new Network(sample);
             if (!originalResourceIds.SequenceEqual(fixedResourceIds))
             {
                 Log.Warn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
             }
             //on CPU we must use 'GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM'
-            if (fixedResourceIds.Max() < 0 && config.ConvolutionAlgoPreference != GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            if (fixedResourceIds.Max() < 0 && sample.Config.ConvolutionAlgoPreference != GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
             {
-                Log.Warn("only " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + config.ConvolutionAlgoPreference + " is not supported on CPU)");
-                config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
+                Log.Warn("only " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + sample.Config.ConvolutionAlgoPreference + " is not supported on CPU)");
+                sample.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
                 Log.Warn("force using " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM);
             }
 
@@ -77,7 +75,7 @@ namespace SharpNet.Networks
             }
 
             //we load the parameters into the network
-            var parametersFilePath = ModelFilePath2ParameterFilePath(modelFilePath);
+            var parametersFilePath = ToParameterFilePath(workingDirectory, modelName);
             if (File.Exists(parametersFilePath))
             {
                 network.LoadParametersFromH5File(parametersFilePath, network.Config.CompatibilityMode);
@@ -87,13 +85,14 @@ namespace SharpNet.Networks
 
         /// <summary>
         /// save network the parameters in h5 file 'parametersFilePath'
+        /// if it already exist, it will be removed first
         /// </summary>
-        /// <param name="parametersFilePath">the 5h file where to store the network parameters.
-        /// if it already exist, it will be removed first</param>
-        public void SaveParameters(string parametersFilePath)
+        private void SaveParameters(string workingDirectory, string modelName)
         {
             var swSaveParametersTime = Stopwatch.StartNew();
 
+            //the 5h file where to store the network parameters.
+            var parametersFilePath = ToParameterFilePath(workingDirectory, modelName);
             if (File.Exists(parametersFilePath))
             {
                 File.Delete(parametersFilePath);
@@ -137,28 +136,45 @@ namespace SharpNet.Networks
             }
         }
 
-        public static string ModelFilePath2ParameterFilePath(string modelFilePath)
+
+        protected override List<string> ModelFiles()
         {
-            return Utils.UpdateFilePathChangingExtension(modelFilePath, "", "", ".h5");
+            return new List<string>
+            {
+                ToModelFilePath(WorkingDirectory, ModelName),
+                ToParameterFilePath(WorkingDirectory, ModelName)
+            };
         }
+
+        [NotNull] public static string ToModelFilePath(string workingDirectory, string modelName)
+        {
+            return Path.Combine(workingDirectory, modelName + ".txt");
+        }
+        public static string ToParameterFilePath(string workingDirectory, string modelName)
+        {
+            return Path.Combine(workingDirectory, modelName + ".h5");
+        }
+
         /// <summary>
-        /// save network model in file 'modelFilePath'
+        /// save network model
+        /// if it already exist, it will be removed first
         /// </summary>
-        /// <param name="modelFilePath">the file where to store the network model
-        /// if it already exist, it will be removed first</param>
-        public void SaveModel(string modelFilePath)
+        /// <param name="workingDirectory"></param>
+        /// <param name="modelName"></param>
+        private void SaveModel(string workingDirectory, string modelName)
         {
             var swSaveModelTime = Stopwatch.StartNew();
 
+            var modelFilePath = ToModelFilePath(workingDirectory, modelName);
             if (File.Exists(modelFilePath))
             {
                 File.Delete(modelFilePath);
             }
+            Sample.Save(workingDirectory, modelName);
+
 
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
-                .Add(Config.Serialize())
-                .Add(nameof(_resourceIds), _resourceIds.ToArray())
                 .Add(nameof(EpochData), EpochData.ToArray())
                 .ToString();
             File.AppendAllLines(modelFilePath, new[] { firstLine });
@@ -168,6 +184,12 @@ namespace SharpNet.Networks
             }
 
             Log.Info("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
+        }
+
+        public override void Save(string workingDirectory, string modelName)
+        {
+            SaveModel(workingDirectory, modelName);
+            SaveParameters(workingDirectory, modelName);
         }
     }
 }

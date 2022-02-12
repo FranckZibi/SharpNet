@@ -83,7 +83,8 @@ namespace SharpNet.Datasets
 
         public static readonly int[] Shape_CHW = { 3, 32, 32 };
 
-        public CIFAR100DataSet() : base("CIFAR-100")
+        public const string NAME = "CIFAR-100";
+        public CIFAR100DataSet() : base(NAME)
         {
             var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
 

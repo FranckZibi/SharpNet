@@ -7,7 +7,7 @@ namespace SharpNet.DataAugmentation
 {
     public class TimeSeriesDataAugmentation
     {
-        private readonly DataAugmentationConfig Config;
+        private readonly DataAugmentationSample _sample;
         ///for each featureId:
         ///     Item1:  feature minimum
         ///     Item2:  feature maximum
@@ -17,9 +17,9 @@ namespace SharpNet.DataAugmentation
         ///     Item6:  feature importance
         private readonly Tuple<double, double, double, double, double, double>[] FeatureStatistics;
 
-        public TimeSeriesDataAugmentation(DataAugmentationConfig config, ITimeSeriesDataSet dataSet, int featuresCount)
+        public TimeSeriesDataAugmentation(DataAugmentationSample sample, ITimeSeriesDataSet dataSet, int featuresCount)
         {
-            Config = config;
+            _sample = sample;
             FeatureStatistics = new Tuple<double, double, double, double, double, double>[featuresCount];
             for (int featureId = 0; featureId < featuresCount; ++featureId)
             {
@@ -39,19 +39,19 @@ namespace SharpNet.DataAugmentation
             int featureLength = xDataAugmentedMiniBatch.Shape[2]; //features length
             Debug.Assert(featureLength == FeatureStatistics.Length);
 
-            if (Config.AugmentedFeaturesPercentage < 1e-6)
+            if (_sample.AugmentedFeaturesPercentage < 1e-6)
             {
                 return;
             }
             var xAugmentedSpan = xDataAugmentedMiniBatch.ElementSlice(indexInMiniBatch).AsFloatCpuSpan;
-            int featureToBeAugmented = (int) Math.Ceiling(Config.AugmentedFeaturesPercentage * featureLength);
+            int featureToBeAugmented = (int) Math.Ceiling(_sample.AugmentedFeaturesPercentage * featureLength);
             Debug.Assert(featureToBeAugmented >= 1);
-            if (Config.UseContinuousFeatureInEachTimeStep)
+            if (_sample.UseContinuousFeatureInEachTimeStep)
             {
                 int firstFeatureId = rand.Next(featureLength);
                 for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
-                    if (!Config.SameAugmentedFeaturesForEachTimeStep)
+                    if (!_sample.SameAugmentedFeaturesForEachTimeStep)
                     {
                         firstFeatureId = rand.Next(featureLength);
                     }
@@ -79,30 +79,30 @@ namespace SharpNet.DataAugmentation
         private float GetAugmentedValue(float originalValue, int featureId, Random rand)
         {
             var stats = FeatureStatistics[featureId];
-            if (Config.TimeSeriesDataAugmentationType == DataAugmentationConfig.TimeSeriesDataAugmentationEnum.NOTHING || stats == null)
+            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.NOTHING || stats == null)
             {
                 return originalValue;
             }
-            if (Config.TimeSeriesDataAugmentationType == DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO)
+            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO)
             {
                 return 0f;
             }
-            if (Config.TimeSeriesDataAugmentationType == DataAugmentationConfig.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN)
+            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN)
             {
                 return (float)stats.Item3;
             }
-            if (Config.TimeSeriesDataAugmentationType == DataAugmentationConfig.TimeSeriesDataAugmentationEnum.ADD_NOISE)
+            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.ADD_NOISE)
             {
-                Debug.Assert(Config.NoiseInPercentageOfVolatility > 1e-6);
+                Debug.Assert(_sample.NoiseInPercentageOfVolatility > 1e-6);
                 var featureMinimum = stats.Item1;
                 var featureMaximum = stats.Item2;
                 var featureVolatility = stats.Item4;
-                var augmentedValue = originalValue + (2 * rand.NextDouble() - 1) * featureVolatility * Config.NoiseInPercentageOfVolatility;
+                var augmentedValue = originalValue + (2 * rand.NextDouble() - 1) * featureVolatility * _sample.NoiseInPercentageOfVolatility;
                 augmentedValue = Math.Min(augmentedValue, featureMaximum);
                 augmentedValue = Math.Max(augmentedValue, featureMinimum);
                 return (float)augmentedValue;
             }
-            throw new Exception("not implemented " + Config.TimeSeriesDataAugmentationType);
+            throw new Exception("not implemented " + _sample.TimeSeriesDataAugmentationType);
         }
     }
 }

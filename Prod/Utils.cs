@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -881,6 +882,14 @@ namespace SharpNet
             {
                 return "";
             }
+            if (fieldValue is string)
+            {
+                return (string)fieldValue;
+            }
+            if (fieldValue is bool ||  fieldValue is int)
+            {
+                return fieldValue.ToString();
+            }
             if (fieldValue is float)
             {
                 return ((float)fieldValue).ToString(CultureInfo.InvariantCulture);
@@ -889,11 +898,22 @@ namespace SharpNet
             {
                 return ((double)fieldValue).ToString(CultureInfo.InvariantCulture);
             }
-            if (fieldValue is double[])
+            if (fieldValue.GetType().IsEnum)
             {
-                return string.Join(',', ((double[])fieldValue).Select(d => d.ToString(CultureInfo.InvariantCulture)));
+                return fieldValue.ToString();
             }
-            return fieldValue.ToString();
+
+            if (fieldValue is IList)
+            {
+                List<string> elements = new();
+                foreach (var o in (IList)fieldValue)
+                {
+                    elements.Add(FieldValueToString(o));
+                }
+                return string.Join(",", elements);
+            }
+
+            throw new ArgumentException($"can transform to string field {fieldValue} of type {fieldValue.GetType()}");
         }
 
         public static IDictionary<string, object> FromString2String_to_String2Object(IDictionary<string, string> dicoString2String)

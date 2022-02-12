@@ -268,7 +268,6 @@ namespace SharpNetTests.NonReg
             
             var network = GetNetwork(NetworkConfig.LossFunctionEnum.BinaryCrossentropy, resourceIds);
             network.Config.WithAdam(0.9, 0.999, 1e-7);
-            network.Config.DataAugmentation = DataAugmentationConfig.NoDataAugmentation;
 
             network
                 .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
@@ -1008,8 +1007,6 @@ namespace SharpNetTests.NonReg
             //TestLossAccuracy(network, X, Y, 0.8678827881813049, null, 1e-3);
         }
 
-
-
         #region Recurrent Layer
         private const string X_RNN_4_2_1 = @"numpy.array([ [[1.0],[2.0]] , [[2.0],[3.0]] , [[3.0],[4.0]]  , [[4.0],[5.0]] ], numpy.float)";
         private const string Y_RNN_4_2_1 = @"numpy.array([ [[2.0],[3.0]] , [[3.0],[4.0]] , [[4.0],[5.0]] , [[5.0],[6.0]] ], numpy.float)";
@@ -1159,7 +1156,15 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(NetworkConfig.LossFunctionEnum lossFunction, List<int> resourceIds)
         {
-            return new Network(new NetworkConfig{ LossFunction = lossFunction, RandomizeOrder = false, ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, LogDirectory = ""}, resourceIds);
+            return new Network(
+                new NetworkConfig{ 
+                    LossFunction = lossFunction, 
+                    RandomizeOrder = false, 
+                    ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, 
+                    WorkingDirectory = "",
+                    ResourceIds = resourceIds.ToList()
+                }, 
+                new DataAugmentationSample());
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString, double epsilon = 1e-6)
         {

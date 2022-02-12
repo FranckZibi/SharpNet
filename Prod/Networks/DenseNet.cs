@@ -4,6 +4,7 @@ using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.HyperParameters;
 using SharpNet.Layers;
 
 /*
@@ -30,42 +31,43 @@ Orig Paper = https://arxiv.org/pdf/1608.06993.pdf
 namespace SharpNet.Networks
 {
     //DenseNet implementation as described in https://arxiv.org/pdf/1608.06993.pdf
-    public class DenseNetBuilder : NetworkBuilder
+    public static class DenseNet
     {
-        public static DenseNetBuilder DenseNet_CIFAR10()
+        public static NetworkSample CIFAR10()
         {
-            var builder = new DenseNetBuilder
-            {
-                Config = new NetworkConfig
-                    {
-                        LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
-                        lambdaL2Regularization = 1e-4,
-                        LogDirectory = System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "CIFAR-10")
-                    }
-                    .WithSGD(0.9, true)
-                    .WithCifar10DenseNetLearningRateScheduler(false, true, false),
-                NumEpochs = 300,
-                BatchSize = 64,
-                InitialLearningRate = 0.1
-            };
+            var config = new NetworkConfig
+                {
+                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    lambdaL2Regularization = 1e-4,
+                    WorkingDirectory = System.IO.Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
+                    NumEpochs = 300,
+                    BatchSize = 64,
+                    InitialLearningRate = 0.1
+            }
+                .WithSGD(0.9, true)
+                .WithCifar10DenseNetLearningRateScheduler(false, true, false);
 
             //Data augmentation
-            var da = builder.Config.DataAugmentation;
-            da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT;
-            da.WidthShiftRangeInPercentage = 0.1;
-            da.HeightShiftRangeInPercentage = 0.1;
-            da.HorizontalFlip = true;
-            da.VerticalFlip = false;
-            da.FillMode = ImageDataGenerator.FillModeEnum.Reflect;
-            //by default we use a cutout of 1/2 of the image width
-            da.CutoutPatchPercentage = 0.5; 
-            return builder;
+            DataAugmentationSample da = new ()
+            {
+                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
+                WidthShiftRangeInPercentage = 0.1,
+                HeightShiftRangeInPercentage = 0.1,
+                HorizontalFlip = true,
+                VerticalFlip = false,
+                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+                //by default we use a cutout of 1/2 of the image width
+                CutoutPatchPercentage = 0.5
+            };
+            return new NetworkSample(new ISample[] { config, da });
+
         }
 
-        public Network DenseNet_12_40(CIFAR10DataSet dataSet)
+        public static Network DenseNet_12_40(NetworkSample sample)
         {
             return Build(
-                nameof(DenseNet_12_40) + "_" + dataSet.Name,
+                sample,
+                nameof(DenseNet_12_40) + "_" + CIFAR10DataSet.NAME,
                 new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2]},
                 CIFAR10DataSet.CategoryCount,
                 false,
@@ -75,10 +77,11 @@ namespace SharpNet.Networks
                 1.0,
                 null);
         }
-        public Network DenseNetBC_12_100(CIFAR10DataSet dataSet)
+        public static Network DenseNetBC_12_100(NetworkSample sample)
         {
             return Build(
-                nameof(DenseNetBC_12_100) + "_" + dataSet.Name,
+                sample,
+                nameof(DenseNetBC_12_100) + "_" + CIFAR10DataSet.NAME,
                 new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2] },
                 CIFAR10DataSet.CategoryCount,
                 false,
@@ -88,10 +91,11 @@ namespace SharpNet.Networks
                 0.5,
                 null);
         }
-      
+
         /// <summary>
         /// build a DenseNet
         /// </summary>
+        /// <param name="sample"></param>
         /// <param name="networkName"></param>
         /// <param name="xShape"></param>
         /// <param name="categoryCount"></param>
@@ -102,7 +106,8 @@ namespace SharpNet.Networks
         /// <param name="compression"> 1.0 = no compression</param>
         /// <param name="dropoutRate"></param>
         /// <returns></returns>
-        private Network Build(
+        private static Network Build(
+            NetworkSample sample,
             string networkName,
             int[] xShape, 
             int categoryCount,
@@ -113,31 +118,33 @@ namespace SharpNet.Networks
             double compression,
             double? dropoutRate)
         {
-            var net = BuildEmptyNetwork(networkName);
+            var net = sample.BuildEmptyNetwork(networkName);
 
             Debug.Assert(net.Layers.Count == 0);
             net.Input(xShape[1], xShape[2], xShape[3]);
             var filtersCount = 2 * growthRate;
+            var lambdaL2Regularization = sample.Config.lambdaL2Regularization;
+
             if (subSampleInitialBlock)
             {
-                net.Convolution(filtersCount, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, Config.lambdaL2Regularization, false)
+                net.Convolution(filtersCount, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false)
                     .BatchNorm(0.99, 1e-5)
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                     .MaxPooling(3, 3, 2, 2);
             }
             else
             {
-                net.Convolution(filtersCount, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, Config.lambdaL2Regularization, false);
+                net.Convolution(filtersCount, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false);
                 //net.Convolution(filtersCount, 3, 1, 1, 0.0, false);
             }
 
             for (int denseBlockId = 0; denseBlockId < nbConvBlocksInEachDenseBlock.Length; ++denseBlockId)
             {
-                AddDenseBlock(net, nbConvBlocksInEachDenseBlock[denseBlockId], growthRate, useBottleneckInEachConvBlock, dropoutRate, Config.lambdaL2Regularization);
+                AddDenseBlock(net, nbConvBlocksInEachDenseBlock[denseBlockId], growthRate, useBottleneckInEachConvBlock, dropoutRate, lambdaL2Regularization);
                 if (denseBlockId != nbConvBlocksInEachDenseBlock.Length - 1)
                 {
                     //the last dense block does not have a transition block
-                    AddTransitionBlock(net, compression, Config.lambdaL2Regularization);
+                    AddTransitionBlock(net, compression, lambdaL2Regularization);
                 }
                 filtersCount = (int)Math.Round(filtersCount * compression);
             }
@@ -148,7 +155,7 @@ namespace SharpNet.Networks
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
                 //.Dense(categoryCount, 0.0) //!D check if lambdaL2Regularization should be 0
-                .Dense(categoryCount, Config.lambdaL2Regularization, false)
+                .Dense(categoryCount, lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }

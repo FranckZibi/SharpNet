@@ -5,7 +5,7 @@ using System.Linq;
 using NUnit.Framework;
 using SharpNet.Datasets;
 using SharpNet.Layers;
-using SharpNet.Networks;
+using SharpNet.Models;
 using SharpNet.Pictures;
 
 namespace SharpNetTests.Datasets
@@ -93,7 +93,7 @@ namespace SharpNetTests.Datasets
             {
                 var rowPrediction = p.RowSlice(row, 1).AsReadonlyFloatCpuContent;
                 var predictionWithProba = root.ExtractPredictionWithProba(rowPrediction);
-                Network.Log.Error(predictionWithProba);
+                AbstractModel.Log.Error(predictionWithProba);
             }
 
         }

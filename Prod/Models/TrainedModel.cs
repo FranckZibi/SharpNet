@@ -87,7 +87,7 @@ public class TrainedModel
         if (sample is Natixis70_LightGBM_HyperParameters natixis70_LightGBM)
         {
             var natixis70DatasetHyperParameters = natixis70_LightGBM.DatasetHyperParameters;
-            var lightGbmParameters = natixis70_LightGBM.LightGBMParameters;
+            var lightGbmParameters = natixis70_LightGBM.LightGbmLightGbmSample;
             string xTestDatasetPath = natixis70DatasetHyperParameters.XTestDatasetPath();
             var modelDataset = lightGbmParameters.ToModelDatasets(xTestDatasetPath);
             var modelPredictions = ModelPredictions.ValueOf(workingDirectory, modelName, true, true, ',');

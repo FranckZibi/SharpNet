@@ -39,7 +39,16 @@ public interface ISample
     Type GetFieldType(string hyperParameterName);
     bool IsCategoricalHyperParameter(string hyperParameterName);
     void Save(string workingDirectory, string modelName);
-    bool HasHyperParameter(string hyperParameterName);
+
+    /// <summary>
+    /// all Hyper-Parameters file associated with the Sample
+    /// </summary>
+    /// <param name="workingDirectory"></param>
+    /// <param name="modelName"></param>
+    /// <returns></returns>
+    List<string> SampleFiles(string workingDirectory, string modelName);
+
+    HashSet<string> HyperParameterNames();
     string ComputeHash();
     CpuTensor<float> Y_Train_dataset_to_Perfect_Predictions(string y_train_dataset);
 
@@ -105,9 +114,14 @@ public interface ISample
     [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
     public static ISample ValueOf(string workingDirectory, string modelName)
     {
+        //var allConstructores = new List<Tuple<Func<string, string, ISample>, IEnumerable<string>>>
+        //{
+        //    Tuple.Create(Natixis70_LightGBM_HyperParameters.ValueOf, ClassFieldSetter.FieldNames(typeof(Natixis70_LightGBM_HyperParameters)))
+        //};
+
         try { return Natixis70_LightGBM_HyperParameters.ValueOf(workingDirectory, modelName); } catch {}
         try { return Natixis70DatasetHyperParameters.ValueOf(workingDirectory, modelName); } catch {}
-        try { return Parameters.ValueOf(workingDirectory, modelName); } catch {}
+        try { return LightGBMSample.ValueOf(workingDirectory, modelName); } catch {}
         try { return WeightsOptimizerHyperParameters.ValueOf(workingDirectory, modelName); } catch {}
         throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
     }
