@@ -8,6 +8,7 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
+using SharpNet.Models;
 
 namespace SharpNet.Datasets.Natixis70;
 
@@ -58,7 +59,7 @@ public class Natixis70DatasetHyperParameters : AbstractSample
     public string XTestDatasetPath()
     {
         using var test = NewDataSet(Natixis70Utils.XTestRawFile, null);
-        return LightGBMModel.DatasetPath(test, LightGBMSample.task_enum.predict, Natixis70Utils.NatixisDatasetDirectory);
+        return AbstractModel.DatasetPath(test, false, Natixis70Utils.NatixisDatasetDirectory);
     }
     public override bool PostBuild()
     {
@@ -92,6 +93,10 @@ public class Natixis70DatasetHyperParameters : AbstractSample
             }
         }
         return categoricalFeatures;
+    }
+    public List<string> TargetFeatures()
+    {
+        return new List<string>{"y"};
     }
     public int RawCountToCount(int rawCount)
     {
@@ -152,6 +157,7 @@ public class Natixis70DatasetHyperParameters : AbstractSample
             null,
             new[] { "NONE" },
             ComputeFeatureNames(),
+            new string[0],
             false);
     }
     /// <summary>

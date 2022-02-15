@@ -15,10 +15,6 @@ namespace SharpNet.Datasets
         Tuple<double, double, double, double, double, double>  GetEncoderFeatureStatistics(int featureId);
     }
 
-
-    public enum Objective_enum { Regression, Classification }
-
-
     public interface IDataSet : IDisposable
     {
         /// <summary>
@@ -73,8 +69,24 @@ namespace SharpNet.Datasets
         string ElementIdToDescription(int elementId);
         string ElementIdToPathIfAny(int elementId);
 
+        /// <summary>
+        /// save the dataset in path 'path' in 'LightGBM' format.
+        /// if addTargetColumnAsFirstColumn == true:
+        ///     first column is the label 'y' (to predict)
+        ///     all other columns are the features
+        /// else
+        ///     save only 'x' (feature) tensor
+        /// </summary>
+        /// <param name="path">the path where to save the dataset</param>
+        /// <param name="addTargetColumnAsFirstColumn"></param>
+        /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
+        /// <param name="separator"></param>
+        void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists);
+
 
         string[] FeatureNamesIfAny { get; }
+
+        string[] CategoricalFeatures { get; }
 
         /// <summary>
         /// the name associate with a column (= feature)

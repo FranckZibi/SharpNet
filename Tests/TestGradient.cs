@@ -4,6 +4,7 @@ using NUnit.Framework;
 using SharpNet.Data;
 using SharpNet.GPU;
 using System.Collections.Generic;
+using SharpNet;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation;
 using SharpNet.Layers;
@@ -100,7 +101,7 @@ namespace SharpNetTests
         {
             var yPredicted = (CpuTensor<float>)network.Predict(X, true);
             //we compute gradients
-            network.PropagationManager.Backward(yExpected, yPredicted, NetworkConfig.LossFunctionEnum.CategoricalCrossentropy);
+            network.PropagationManager.Backward(yExpected, yPredicted, LossFunctionEnum.CategoricalCrossentropy);
             double result = 0;
             for (int i = 0; i < yExpected.Count; ++i)
             {
@@ -173,7 +174,7 @@ namespace SharpNetTests
             var resourceIds = new List<int> {-1};
             return new Network(new NetworkConfig
                 {
-                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy, 
+                    LossFunction = LossFunctionEnum.CategoricalCrossentropy, 
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, 
                     WorkingDirectory = "",
                     ResourceIds = resourceIds.ToList()

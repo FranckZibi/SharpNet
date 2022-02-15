@@ -14,14 +14,14 @@ namespace SharpNet.Datasets
         private readonly CpuTensor<float> _x;
         #endregion
 
-        public InMemoryDataSet(
-            [NotNull] CpuTensor<float> x, 
+        public InMemoryDataSet([NotNull] CpuTensor<float> x,
             [CanBeNull] CpuTensor<float> y,
             string name = "",
             Objective_enum? objective = null,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel = null, 
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel = null,
             string[] categoryDescriptions = null,
             string[] featureNames = null,
+            string[] categoricalFeatures = null,
             bool useBackgroundThreadToLoadNextMiniBatch = true)
             : base(name,
                 objective,
@@ -29,7 +29,8 @@ namespace SharpNet.Datasets
                 categoryDescriptions ?? Enumerable.Range(0, y.Shape[1]).Select(i => i.ToString()).ToArray(), 
                 meanAndVolatilityForEachChannel, 
                 ResizeStrategyEnum.None,
-                featureNames, 
+                featureNames,
+                categoricalFeatures??new string[0],
                 useBackgroundThreadToLoadNextMiniBatch)
         {
             Debug.Assert(y==null || AreCompatible_X_Y(x, y));
@@ -99,8 +100,8 @@ namespace SharpNet.Datasets
         public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(int rowsInTrainingSet)
         {
             int rowsInValidationSet = Count - rowsInTrainingSet;
-            var training = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(0, rowsInTrainingSet), (CpuTensor<float>)Y.RowSlice(0, rowsInTrainingSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
-            var test = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(rowsInTrainingSet, rowsInValidationSet), (CpuTensor<float>)Y.RowSlice(rowsInTrainingSet, rowsInValidationSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, _useBackgroundThreadToLoadNextMiniBatch);
+            var training = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(0, rowsInTrainingSet), (CpuTensor<float>)Y.RowSlice(0, rowsInTrainingSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, CategoricalFeatures, _useBackgroundThreadToLoadNextMiniBatch);
+            var test = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(rowsInTrainingSet, rowsInValidationSet), (CpuTensor<float>)Y.RowSlice(rowsInTrainingSet, rowsInValidationSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, CategoricalFeatures, _useBackgroundThreadToLoadNextMiniBatch);
             return new TrainingAndTestDataLoader(training, test, Name);
         }
         public override CpuTensor<float> X_if_available => _x;

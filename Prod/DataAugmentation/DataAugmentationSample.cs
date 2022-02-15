@@ -10,12 +10,6 @@ namespace SharpNet.DataAugmentation
     {
         public DataAugmentationSample() : base(new HashSet<string>()) { }
 
-        public override bool PostBuild()
-        {
-            throw new System.NotImplementedException();
-        }
-
-
         public ImageDataGenerator.DataAugmentationEnum DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
         /// <summary>
         ///randomly shift images horizontally

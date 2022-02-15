@@ -20,6 +20,7 @@ namespace SharpNet.Datasets
             meanAndVolatilityOfEachChannel, 
             resizeStrategy, 
             null, 
+            new string[0],
             true)
         {
             _cocoDirectory = cocoDirectory;

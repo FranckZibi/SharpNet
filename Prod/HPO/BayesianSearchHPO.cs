@@ -4,10 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
+using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
+using SharpNet.Models;
 
 namespace SharpNet.HPO;
 
@@ -20,8 +22,7 @@ public class BayesianSearchHPO : AbstractHpo
     /// <summary>
     /// the model use to predict the objective function score
     /// </summary>
-    private readonly LightGBMModel _surrogateModel;
-    private readonly string _surrogateModelName;
+    private readonly AbstractModel  _surrogateModel;
     /// <summary>
     /// Item1:  the sample
     /// Item2:  the sample as a float vector array
@@ -59,11 +60,18 @@ public class BayesianSearchHPO : AbstractHpo
     {
         _randomSearchOption = randomSearchOption;
         _searchStartTime = DateTime.Now;
+        var surrogateModelName = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
+        //_surrogateModel = BuildRandomForestSurrogateModel(_workingDirectory, surrogateModelName, SurrogateModelCategoricalFeature());
+        _surrogateModel = BuildCatBoostSurrogateModel(_workingDirectory, surrogateModelName);
+    }
 
+    public static AbstractModel BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
+    {
+        surrogateModelCategoricalFeature ??= Array.Empty<string>();
         // the surrogate model will be trained with a LightGBM using random forests (boosting=rf)
-        var surrogateModelParameters = new LightGBMSample();
-        var categoricalFeaturesFieldValue = (SurrogateModelCategoricalFeature().Length>= 1) ? ("name:" + string.Join(',', SurrogateModelCategoricalFeature())) : "";
-        surrogateModelParameters.Set(new Dictionary<string, object> {
+        var surrogateModelSample = new LightGBMSample();
+        var categoricalFeaturesFieldValue = (surrogateModelCategoricalFeature.Length>= 1) ? ("name:" + string.Join(',', surrogateModelCategoricalFeature)) : "";
+        surrogateModelSample.Set(new Dictionary<string, object> {
             { "bagging_fraction", 0.5 },
             { "bagging_freq", 1 },
             { "boosting", "rf" },
@@ -72,7 +80,6 @@ public class BayesianSearchHPO : AbstractHpo
             { "colsample_bynode", 0.9 },
             { "device_type", "cpu" },
             { "early_stopping_round", 0 },
-            { "extra_trees", false },
             { "lambda_l1", 0.15f },
             { "lambda_l2", 0.15f },
             { "learning_rate", 0.05f },
@@ -80,14 +87,46 @@ public class BayesianSearchHPO : AbstractHpo
             { "max_depth", 128},
             { "min_data_in_leaf", 3 },
             { "min_data_in_bin", 20 },
-            { "num_iterations", 100 },
+            { "num_boost_round", 100 },
             { "num_leaves", 50 },
             { "num_threads", 2},
+            { "objective", "regression"},
             { "path_smooth", 1.0f},
             { "verbosity", -1 },
         });
-        _surrogateModelName = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
-        _surrogateModel = new LightGBMModel(surrogateModelParameters, workingDirectory, _surrogateModelName);
+        return new LightGBMModel(surrogateModelSample, workingDirectory, modelName);
+    }
+
+    public static AbstractModel BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
+    {
+        // the surrogate model will be trained with CatBoost
+        CatBoostSample surrogateModelSample = new ()
+        {
+            iterations = 100,
+            loss_function = CatBoostSample.loss_function_enum.RMSE,
+            eval_metric = CatBoostSample.metric_enum.RMSE,
+            allow_writing_files = false,
+            thread_count = 2,
+            logging_level = CatBoostSample.logging_level_enum.Silent
+        };
+
+        surrogateModelSample.set_early_stopping_rounds(surrogateModelSample.iterations/10);
+        return new CatBoostModel(surrogateModelSample, workingDirectory, modelName);
+    }
+    public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, string[] categoricalFeature = null)
+    {
+        var df = Dataframe.Load(dataFramePath, true, ',');
+        var x_df = df.Drop(new[] {"y"});
+        var x = x_df.Tensor;
+        var y_df = df.Keep(new[] {"y"});
+        var y = y_df.Tensor;
+        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, new[] { "NONE" }, x_df.FeatureNames, categoricalFeature??Array.Empty<string>(), false);
+    }
+    public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
+    {
+        var df = Dataframe.Load(dataFramePath, true, ',');
+        var x = df.Tensor;
+        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, df.FeatureNames, categoricalFeature ?? Array.Empty<string>(), false);
     }
 
     protected override (ISample, int, string) Next
@@ -154,8 +193,6 @@ public class BayesianSearchHPO : AbstractHpo
         }
     }
 
-    private string SurrogateModelTrainingDatasetPath => Path.Combine(_workingDirectory, _surrogateModelName+"_dataset.csv");
-    private string SurrogateModelPredictDatasetPath => Path.Combine(_workingDirectory, _surrogateModelName+"_predictions.csv");
     private int CountNextSamplesForObjectiveFunction()
     {
         const int min_count = 5;
@@ -189,18 +226,21 @@ public class BayesianSearchHPO : AbstractHpo
 
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
-        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, SurrogateModelFeatureNames(), false);
+        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), false);
 
         // we compute the estimate cost associated with each random sample (using the surrogate model)
-        LightGBMModel.Save_in_LightGBM_format(dataset, SurrogateModelPredictDatasetPath, LightGBMSample.task_enum.predict, true);
+        if (File.Exists(_surrogateModel.LastDatasetPathUsedForPrediction))
+        {
+            File.Delete(_surrogateModel.LastDatasetPathUsedForPrediction);
+        }
+
         var y = _samplesUsedForModelTraining == 0 
                 
                 // the model has not been trained so far, we can not use it for now
                 ? new CpuTensor<float>(new [] { x.Shape[0], 1 }) 
 
                 // the model has been already trained, we can use it
-                : _surrogateModel.Predict(SurrogateModelPredictDatasetPath);
-        File.Delete(SurrogateModelPredictDatasetPath);
+                : _surrogateModel.Predict(dataset);
         var ySpan = y.AsFloatCpuSpan;
         var estimateRandomSampleCostAndIndex = new List<Tuple<float, int>>();
         for (var index = 0; index < ySpan.Length; index++)
@@ -313,21 +353,25 @@ public class BayesianSearchHPO : AbstractHpo
             Log.Info($"No samples to train the surrogate model");
             return 0;
         }
+
+        // we train the surrogate models with all samples with a computed score
         using var x = NewCpuTensor(xRows);
         var yData = samplesWithScore.Select(t => t.Item4).ToArray();
-        // ReSharper disable once InconsistentNaming
         using var y_true = new CpuTensor<float>(new[] { x.Shape[0], 1 }, yData);
-        using var dataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, null, SurrogateModelFeatureNames(), false);
+        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), false);
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
+        if (File.Exists(_surrogateModel.LastDatasetPathUsedForTraining))
+        {
+            File.Delete(_surrogateModel.LastDatasetPathUsedForTraining);
+        }
+        _surrogateModel.Fit(trainingDataset, null);
 
-        LightGBMModel.Save_in_LightGBM_format(dataset, SurrogateModelTrainingDatasetPath, LightGBMSample.task_enum.train, true);
-        _surrogateModel.Fit(SurrogateModelTrainingDatasetPath, null);
-        //File.Delete(SurrogateModelTrainingDatasetPath);
-
-        LightGBMModel.Save_in_LightGBM_format(dataset, SurrogateModelPredictDatasetPath, LightGBMSample.task_enum.predict, true);
-        var y_pred = _surrogateModel.Predict(SurrogateModelPredictDatasetPath);
-        File.Delete(SurrogateModelPredictDatasetPath);
-
+        // we compute the RMSE of the surrogate model on the training dataset
+        if (File.Exists(_surrogateModel.LastDatasetPathUsedForTraining))
+        {
+            File.Delete(_surrogateModel.LastDatasetPathUsedForTraining);
+        }
+        using var y_pred = _surrogateModel.Predict(trainingDataset);
         double surrogateModelTrainingRmse = _surrogateModel.ComputeScore(y_true, y_pred);
         Log.Info($"Surrogate model Training RMSE: {surrogateModelTrainingRmse} (trained on {x.Shape[0]} samples)");
 

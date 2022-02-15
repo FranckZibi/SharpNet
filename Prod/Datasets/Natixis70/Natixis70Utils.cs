@@ -39,7 +39,7 @@ namespace SharpNet.Datasets.Natixis70
             Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "Natixis70");
 
             // ReSharper disable once ConvertToConstant.Local
-            var num_iterations = 1000;
+            var num_boost_round = 1000;
             var searchSpace = new Dictionary<string, object>
             {
                 { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
@@ -51,7 +51,7 @@ namespace SharpNet.Datasets.Natixis70
 
                 { "device_type", new[] { "cpu" } },
 
-                { "early_stopping_round", new[] {num_iterations/10 } },
+                { "early_stopping_round", new[] {num_boost_round/10 } },
                 { "extra_trees", new[] { true /*, false*/ } }, //bad: false
 
                 { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 1f)},
@@ -67,7 +67,7 @@ namespace SharpNet.Datasets.Natixis70
                 { "MergeHorizonAndMarketIdInSameFeature",new[]{true/*, false*/} },
 
                 //{ "Normalization",new[] { "NONE", "DIVIDE_BY_ABS_MEAN"} },
-                { "num_iterations", new[] { num_iterations } },
+                { "num_boost_round", new[] { num_boost_round } },
                 { "num_leaves", AbstractHyperParameterSearchSpace.Range(5, 60) },
                 { "num_threads", new[] { 1 } },
 
@@ -85,7 +85,7 @@ namespace SharpNet.Datasets.Natixis70
         //public static void DatasetHPO(string dataframePath, 
         //    IList<string> categoricalFeatures,
         //    Parameters.boosting_enum boosting, 
-        //    int num_iterations)
+        //    int num_boost_round)
         //{
         //    if (!Directory.Exists(DatasetHPOPath))
         //    {
@@ -124,7 +124,7 @@ namespace SharpNet.Datasets.Natixis70
 
 
         //        { "device_type", new[] { "cpu" } },
-        //        //{ "early_stopping_round", new[] {num_iterations/10 } },
+        //        //{ "early_stopping_round", new[] {num_boost_round/10 } },
         //        { "extra_trees", new[] { true , false } },
 
         //        { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
@@ -140,7 +140,7 @@ namespace SharpNet.Datasets.Natixis70
         //        { "max_depth", new[]{10, 20, 50, 100, 255} },
         //        { "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 100) },
 
-        //        { "num_iterations", new[]{ num_iterations } },
+        //        { "num_boost_round", new[]{ num_boost_round } },
         //        { "num_threads", new[] { 1 } },
         //        { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 200) },
         //    };
@@ -211,10 +211,6 @@ namespace SharpNet.Datasets.Natixis70
             optimizeWeights.Run();
         }
 
-
-
-
-
         static Natixis70Utils()
         {
             var cpuTensor = Dataframe.Load(YTrainRawFile, true, ',').Drop(new[] { "" }).Tensor;
@@ -226,14 +222,14 @@ namespace SharpNet.Datasets.Natixis70
             var sample = new Natixis70_LightGBM_HyperParameters();
             sample.DatasetHyperParameters.TryToPredictAllHorizonAtTheSameTime = false;
 
-            var lightGbmParameters = sample.LightGbmLightGbmSample;
+            var lightGbmParameters = sample.LightGbmSample;
 
             lightGbmParameters.verbosity = 0;
             lightGbmParameters.objective = LightGBMSample.objective_enum.regression;
             lightGbmParameters.metric = "rmse";
             lightGbmParameters.num_threads = 1;
             lightGbmParameters.device_type = LightGBMSample.device_type_enum.cpu;
-            lightGbmParameters.num_iterations = 1000;
+            lightGbmParameters.num_boost_round = 1000;
 
             //to optimize in HPO
             lightGbmParameters.bagging_fraction = 1.0;
@@ -252,16 +248,13 @@ namespace SharpNet.Datasets.Natixis70
             {
                 throw new Exception($"invalid hyperParameters {lightGbmParameters}");
             }
-
-
             return sample;
-
         }
        
         private static float TrainWithHyperParameters(Natixis70_LightGBM_HyperParameters sample)
         {
             var datasetSample = sample.DatasetHyperParameters;
-            var model = new LightGBMModel(sample.LightGbmLightGbmSample, WorkingDirectory, sample.LightGbmLightGbmSample.ComputeHash());
+            var model = new LightGBMModel(sample.LightGbmSample, WorkingDirectory, sample.ComputeHash());
             using var fullTraining = datasetSample.NewDataSet(XTrainRawFile, YTrainRawFile);
             using var test = datasetSample.NewDataSet(XTestRawFile, null);
 
@@ -295,7 +288,7 @@ namespace SharpNet.Datasets.Natixis70
                 var trainDataset = trainAndValidation.Training;
                 var trainingTimeInSeconds = sw.Elapsed.TotalSeconds;
                 var totalParams = datasetSample.X_Shape(1)[1];
-                int numEpochs = model.LightGbmSample.num_iterations;
+                int numEpochs = model.LightGbmSample.num_boost_round;
                 //We save the results of the net
                 line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
                     + model.ModelName.Replace(';', '_') + ";"

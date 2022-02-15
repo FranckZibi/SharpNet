@@ -79,7 +79,8 @@ namespace SharpNet.Datasets
                 categoryDescriptions, 
                 meanAndVolatilityForEachChannel, 
                 resizeStrategy,
-                featureNamesIfAny, 
+                featureNamesIfAny,
+                new string[0],
                 true)
         {
             _elementIdToPaths.AddRange(elementIdToPaths);

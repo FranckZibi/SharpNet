@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
+using SharpNet.Datasets.AmazonEmployeeAccessChallenge;
 using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Models;
@@ -76,8 +77,10 @@ namespace SharpNetTests
             //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220129.csv", new string[]{}, Parameters.boosting_enum.rf, 100);
             //SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchLightGBMHPO(); return;
 
-            SharpNet.Datasets.Natixis70.Natixis70Utils.SearchForBestWeights(); return;
+            //SharpNet.Datasets.Natixis70.Natixis70Utils.SearchForBestWeights(); return;
+            //new TestCatBoostSample().TestToJson();
 
+            AmazonEmployeeAccessChallengeUtils.Launch_CatBoost_HPO(); return;
 
             //new TestCpuTensor().TestMaxPooling3D();return;
             //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_UnivariateTimeSeries(); return;

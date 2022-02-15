@@ -122,8 +122,7 @@ namespace SharpNet.Networks
         public int BatchSize;
         public LossFunctionEnum LossFunction = LossFunctionEnum.CategoricalCrossentropy;
         public CompatibilityModeEnum CompatibilityMode = CompatibilityModeEnum.SharpNet;
-        public enum Metric { Loss, Accuracy, Mae, Mse };
-        public List<Metric> Metrics = new() { Metric.Loss, Metric.Accuracy };
+        public List<MetricEnum> Metrics = new() { MetricEnum.Loss, MetricEnum.Accuracy };
         public string DataSetName;
         /// <summary>
         /// if true
@@ -287,7 +286,7 @@ namespace SharpNet.Networks
 
         public override bool PostBuild()
         {
-            throw new NotImplementedException();
+            return true; //TODO
         }
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
@@ -347,73 +346,6 @@ namespace SharpNet.Networks
             MXNet
         }
 
-        /// <summary>
-        /// Conventions: 
-        ///   the output layer has a shape of (M, C) where:
-        ///       'M' is the batch size
-        ///       'C' the number of distinct categories
-        /// </summary>
-        public enum LossFunctionEnum
-        {
-            /// <summary>
-            /// To be used with sigmoid activation layer.
-            /// In a single row, each value will be in [0,1] range
-            /// Support of multi labels (one element can belong to several categoryCount at the same time)
-            /// </summary>
-            BinaryCrossentropy,
-
-            /// <summary>
-            /// To be used with softmax activation layer.
-            /// In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
-            /// Do not support multi labels (each element can belong to exactly 1 category)
-            /// </summary>
-            CategoricalCrossentropy,
-
-
-            /* Hierarchical Category:
-                                  Object
-                              /           \
-                             /             \
-                            /               \
-                         Fruit             Flower
-                          75%                25%
-                       /   |   \            |    \
-                 Cherry  Apple  Orange    Rose    Tulip 
-                  70%     20%    10%      50%      50%
-                         /   \            
-                       Fuji  Golden
-                        15%   85%
-            */
-            /// <summary>
-            /// To be used with SoftmaxWithHierarchy activation layer.
-            /// Each category (parent node) can be divided into several sub categories (children nodes)
-            /// For any parent node: all children will have a proba in [0,1] range, and the sum of all children proba will be equal to 1.0 (= 100%)
-            /// </summary>
-            CategoricalCrossentropyWithHierarchy,
-
-            /*
-             * Huber loss, see  https://en.wikipedia.org/wiki/Huber_loss
-             * */
-            Huber,
-
-            /*
-            * Mean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
-            * loss = ( predicted - expected ) ^2
-            * */
-            Mse,
-
-            /*
-            * Mean Squared Error of log loss,
-            * loss = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
-            * */
-            MseOfLog,
-
-            /*
-            * Mean Absolute Error loss, see https://en.wikipedia.org/wiki/Mean_absolute_error
-            * loss = abs( predicted - expected )
-            * */
-            Mae,
-        }
 
         public const float Default_MseOfLog_Loss = 0.0008f;
 

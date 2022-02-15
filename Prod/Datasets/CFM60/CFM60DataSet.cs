@@ -114,6 +114,7 @@ namespace SharpNet.Datasets.CFM60
                 null,
                 ResizeStrategyEnum.None,
                 cfm60NetworkSample.CFM60HyperParameters.ComputeFeatureNames(),
+                new string[0],
                 UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetIfAny))
         {
             _cfm60NetworkSample = cfm60NetworkSample;

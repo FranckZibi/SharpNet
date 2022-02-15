@@ -18,14 +18,101 @@ using SharpNet.Pictures;
 
 namespace SharpNet
 {
-
-    public enum ObjectiveFunction
+    public enum Objective_enum
     {
-        Accuracy,
-        Mse,
-        Rmse,
-        Mae
+        Regression,
+        Classification
     }
+
+    /// <summary>
+    /// the metric used to rank the submission
+    /// </summary>
+    public enum MetricEnum
+    {
+        Loss,       // use the exact metric as the loss function (lower is better)
+        Accuracy,   // higher is better
+        Mae,        // lower is better
+        Mse,        // lower is better
+        Rmse        // lower is better
+    };
+
+
+    /// <summary>
+    /// the loss function (= the objective function)
+    /// the goal of the model will be to reduce the value returned by this loss function
+    /// (lower is always better)
+    /// </summary>
+    public enum LossFunctionEnum
+    {
+        /// <summary>
+        /// To be used with sigmoid activation layer.
+        /// In a single row, each value will be in [0,1] range
+        /// Support of multi labels (one element can belong to several categoryCount at the same time)
+        /// </summary>
+        BinaryCrossentropy,
+
+        /// <summary>
+        /// To be used with softmax activation layer.
+        /// In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
+        /// Do not support multi labels (each element can belong to exactly 1 category)
+        /// </summary>
+        CategoricalCrossentropy,
+
+
+        /* Hierarchical Category:
+                              Object
+                          /           \
+                         /             \
+                        /               \
+                     Fruit             Flower
+                      75%                25%
+                   /   |   \            |    \
+             Cherry  Apple  Orange    Rose    Tulip 
+              70%     20%    10%      50%      50%
+                     /   \            
+                   Fuji  Golden
+                    15%   85%
+        */
+        /// <summary>
+        /// To be used with SoftmaxWithHierarchy activation layer.
+        /// Each category (parent node) can be divided into several sub categories (children nodes)
+        /// For any parent node: all children will have a proba in [0,1] range, and the sum of all children proba will be equal to 1.0 (= 100%)
+        /// </summary>
+        CategoricalCrossentropyWithHierarchy,
+
+        /*
+         * Huber loss, see  https://en.wikipedia.org/wiki/Huber_loss
+         * */
+        Huber,
+
+        /*
+        * Mean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
+        * loss = ( predicted - expected ) ^2
+        * */
+        Mse,
+
+        /*
+        * Mean Squared Error of log loss,
+        * loss = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
+        * */
+        MseOfLog,
+
+        /*
+        * Mean Absolute Error loss, see https://en.wikipedia.org/wiki/Mean_absolute_error
+        * loss = abs( predicted - expected )
+        * */
+        Mae,
+
+     /*
+      * RootMean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
+      * loss = ( predicted - expected ) ^2
+      * */
+        Rmse,
+
+    }
+
+
+
 
     public static class Utils
     {
@@ -876,6 +963,38 @@ namespace SharpNet
             return weights.Length - 1;
         }
 
+
+
+        public static string FieldValueToJsonString(object fieldValue)
+        {
+            if (fieldValue == null)
+            {
+                return "";
+            }
+
+            if (fieldValue is IList)
+            {
+                List<string> elements = new();
+                foreach (var o in (IList)fieldValue)
+                {
+                    elements.Add(FieldValueToJsonString(o));
+                }
+                return "["+string.Join(",", elements)+"]";
+            }
+            if (fieldValue is bool)
+            {
+                return fieldValue.ToString().ToLower();
+            }
+
+            var asString = FieldValueToString(fieldValue);
+            if (fieldValue is string || fieldValue.GetType().IsEnum)
+            {
+                asString = "\""+asString+"\"";
+            }
+            return asString;
+        }
+
+
         public static string FieldValueToString(object fieldValue)
         {
             if (fieldValue == null)
@@ -927,6 +1046,64 @@ namespace SharpNet
         }
         
         public static string LocalApplicationFolderPath => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        public static void Launch(string workingDirectory, string exePath, string arguments, ILog log)
+        {
+            var errorDataReceived = "";
+            var engineName = Path.GetFileNameWithoutExtension(exePath);
+            var psi = new ProcessStartInfo(exePath)
+            {
+                WorkingDirectory = workingDirectory,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                Arguments = arguments,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+            var process = Process.Start(psi);
+            if (process == null)
+            {
+                string errorMsg = "Fail to start " + engineName + " Engine";
+                log.Fatal(errorMsg);
+                throw new Exception(errorMsg);
+            }
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data != null)
+                {
+                    errorDataReceived = e.Data;
+                }
+            };
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (string.IsNullOrEmpty(e.Data))
+                {
+                    return;
+                }
+                if (e.Data.Contains("[Warning] "))
+                {
+                    log.Debug(e.Data.Replace("[Warning] ", ""));
+                }
+                else if (e.Data.Contains("[Info] "))
+                {
+                    log.Info(e.Data.Replace("[Info] ", ""));
+                }
+                else
+                {
+                    log.Info(e.Data);
+                }
+            };
+            process.BeginErrorReadLine();
+            process.BeginOutputReadLine();
+            process.WaitForExit();
+            if (!string.IsNullOrEmpty(errorDataReceived) || process.ExitCode != 0)
+            {
+                var errorMsg = "Error in " + engineName + " " + errorDataReceived;
+                log.Fatal(errorMsg);
+                throw new Exception(errorMsg);
+            }
+        }
+
 
     }
 

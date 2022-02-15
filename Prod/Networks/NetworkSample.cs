@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.HyperParameters;
 
@@ -9,7 +10,7 @@ using SharpNet.HyperParameters;
 
 namespace SharpNet.Networks
 {
-    public class NetworkSample : MultiSamples
+    public class NetworkSample : MultiSamples, IMetricFunction
     {
 
         public NetworkSample(ISample[] samples) : base(samples)
@@ -86,5 +87,28 @@ namespace SharpNet.Networks
             try { return NetworkSample.ValueOfNetworkSample(workingDirectory, modelName); } catch { }
             throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
         }
+
+        public MetricEnum GetMetric()
+        {
+            if (Config.Metrics.Any())
+            {
+                return Config.Metrics[0];
+            }
+            switch (Config.LossFunction)
+            {
+                case LossFunctionEnum.BinaryCrossentropy: return MetricEnum.Loss;
+                case LossFunctionEnum.CategoricalCrossentropy: return MetricEnum.Loss;
+                case LossFunctionEnum.Mse: return MetricEnum.Mse;
+                case LossFunctionEnum.Rmse: return MetricEnum.Rmse;
+                case LossFunctionEnum.Mae: return MetricEnum.Mae;
+                default: throw new NotImplementedException($"can't retrieve metric from {Config.LossFunction}");
+            }
+        }
+
+        public LossFunctionEnum GetLoss()
+        {
+            return Config.LossFunction;
+        }
+
     }
 }

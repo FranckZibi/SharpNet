@@ -30,10 +30,10 @@ namespace SharpNet.Networks
             var config = new NetworkConfig
             {
                 LogFile = "TimeSeries",
-                LossFunction = NetworkConfig.LossFunctionEnum.Mse,
+                LossFunction = LossFunctionEnum.Mse,
                 RandomizeOrder = true,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                Metrics = new List<NetworkConfig.Metric> { NetworkConfig.Metric.Loss },
+                Metrics = new List<MetricEnum> { MetricEnum.Loss },
                 WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "CFM60"),
                 BatchSize = 2048, //validated on 13-june-2021: -0.01
                 NumEpochs = 30, //validated on 20-july-2021: speed up tests
@@ -77,7 +77,7 @@ namespace SharpNet.Networks
                                                             @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\train_predictions\CFM60_30_0_3099_0_3595_20211024_1207_4.csv",
                                                             @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\validation_predictions\CFM60_30_0_3099_0_3595_20211024_1207_4.csv"
                                                         };
-            //builder.Config.LossFunction = NetworkConfig.LossFunctionEnum.Mae;
+            //builder.Config.LossFunction = LossFunctionEnum.Mae;
             //builder.NumEpochs = 10;
             //builder.Use_fraction_of_year = true;
             //builder.Use_year_Cyclical_Encoding = true;

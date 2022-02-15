@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Datasets;
-using SharpNet.Networks;
 
 namespace SharpNet.Models;
 
@@ -11,21 +10,18 @@ public interface IModel
 {
     void Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
     CpuTensor<float> Predict(IDataSet dataset);
+    void Save(string workingDirectory, string modelName);
+    public float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred);
 
     string WorkingDirectory { get; }
     string ModelName { get; }
-
-    void Save(string workingDirectory, string modelName);
-
-
-
-    public static string MetricsToString(IDictionary<NetworkConfig.Metric, double> metrics, string prefix)
+   
+    public static string MetricsToString(IDictionary<MetricEnum, double> metrics, string prefix)
     {
         return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + e.Key + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
     }
-    public static string TrainingAndValidationMetricsToString(IDictionary<NetworkConfig.Metric, double> trainingMetrics, IDictionary<NetworkConfig.Metric, double> validationMetrics)
+    public static string TrainingAndValidationMetricsToString(IDictionary<MetricEnum, double> trainingMetrics, IDictionary<MetricEnum, double> validationMetrics)
     {
         return MetricsToString(trainingMetrics, "") + " - " + MetricsToString(validationMetrics, "val_");
     }
-
 }

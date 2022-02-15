@@ -26,7 +26,8 @@ namespace SharpNet.Datasets
                 categoryDescriptions, 
                 meanAndVolatilityForEachChannel, 
                 ResizeStrategyEnum.None, 
-                null, 
+                null,
+                new string[0],
                 true)
         {
             //Currently only pictures (channels x height x width) are supported

@@ -7,7 +7,6 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Layers;
-using SharpNet.Networks;
 
 namespace SharpNet.GPU
 {
@@ -624,7 +623,7 @@ namespace SharpNet.GPU
         /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public override double ComputeAccuracy([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
+        public override double ComputeAccuracy([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> {yExpected, yPredicted}));
@@ -634,7 +633,7 @@ namespace SharpNet.GPU
             Debug.Assert(yExpected.Dimension >= 2);
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
-            var kernelName = (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
+            var kernelName = (lossFunction == LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
                 ? "ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy"
                 : "ComputeAccuracy";
             _wrapper.RunKernel(kernelName, nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
@@ -745,7 +744,7 @@ namespace SharpNet.GPU
         /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public override double ComputeLoss([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
+        public override double ComputeLoss([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
@@ -754,7 +753,7 @@ namespace SharpNet.GPU
             var kernelName = lossFunction + "Loss";
             int nbRows = yExpected.Shape[0];
             var categoryCount = yExpected.Shape[1];
-            if (lossFunction == NetworkConfig.LossFunctionEnum.Huber)
+            if (lossFunction == LossFunctionEnum.Huber)
             {
                 const float huberDelta = 1.0f;
                 _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });

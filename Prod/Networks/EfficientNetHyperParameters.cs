@@ -26,10 +26,4 @@ public class EfficientNetHyperParameters : AbstractSample
     {
         return (EfficientNetHyperParameters)ISample.LoadConfigIntoSample(() => new EfficientNetHyperParameters(), workingDirectory, modelName);
     }
-
-
-    public override bool PostBuild()
-    {
-        return true; //TODO
-    }
 }

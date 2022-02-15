@@ -1,5 +1,6 @@
 ﻿using System;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNetTests.CPU;

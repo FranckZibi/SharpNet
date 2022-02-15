@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
@@ -15,7 +16,7 @@ namespace SharpNet.Datasets.Natixis70
         public Natixis70_LightGBM_HyperParameters() : this(new ISample[]{new LightGBMSample(), new Natixis70DatasetHyperParameters()}) { }
         public Natixis70_LightGBM_HyperParameters(ISample[] samples) : base(samples) { }
 
-        public LightGBMSample LightGbmLightGbmSample => (LightGBMSample)Samples[0];
+        public LightGBMSample LightGbmSample => (LightGBMSample)Samples[0];
         public Natixis70DatasetHyperParameters DatasetHyperParameters => (Natixis70DatasetHyperParameters)Samples[1];
 
         public static Natixis70_LightGBM_HyperParameters ValueOf(string workingDirectory, string modelName)
@@ -47,10 +48,12 @@ namespace SharpNet.Datasets.Natixis70
             {
                 return false;
             }
-            var categoricalFeaturesFieldValue = (DatasetHyperParameters.CategoricalFeatures().Count >= 1) ? ("name:" + string.Join(',', DatasetHyperParameters.CategoricalFeatures())) : "";
-            LightGbmLightGbmSample.categorical_feature = categoricalFeaturesFieldValue;
+            var categoricalFeaturesFieldValue = (CategoricalFeatures().Count >= 1) ? ("name:" + string.Join(',', DatasetHyperParameters.CategoricalFeatures())) : "";
+            LightGbmSample.categorical_feature = categoricalFeaturesFieldValue;
             return true;
         }
-       
+
+        public List<string> CategoricalFeatures() => DatasetHyperParameters.CategoricalFeatures();
+        public List<string> TargetFeatures() => DatasetHyperParameters.TargetFeatures();
     }
 }

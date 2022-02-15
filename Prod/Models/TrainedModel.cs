@@ -10,6 +10,7 @@ namespace SharpNet.Models;
 
 public class TrainedModel
 {
+    private readonly MetricEnum _metricFunction;
     [NotNull] public string WorkingDirectory { get; }
     [NotNull] public string ModelName { get; }
     /// <summary>
@@ -28,7 +29,11 @@ public class TrainedModel
     /// Hyper-parameters used in the model
     /// </summary>
     [NotNull] public ISample Sample { get; }
-    public ObjectiveFunction ObjectiveFunction { get; }
+
+    public MetricEnum MetricEnum()
+    {
+        return _metricFunction;
+    }
 
 
 
@@ -39,7 +44,7 @@ public class TrainedModel
         [NotNull] ModelPredictions predictions,
         [NotNull] ModelDatasets modelDatasets,
         [NotNull] ISample sample,
-        ObjectiveFunction objectiveFunction
+        MetricEnum metricFunction
         )
     {
         if (!Directory.Exists(workingDirectory))
@@ -51,7 +56,7 @@ public class TrainedModel
         ModelName = modelName;
         Predictions = predictions;
         ModelDatasets = modelDatasets;
-        ObjectiveFunction = objectiveFunction;
+        _metricFunction = metricFunction;
         ModelDescriptionIfAny = modelDescriptionIfAny;
         Sample = sample;
     }
@@ -60,11 +65,11 @@ public class TrainedModel
     public float ComputeLoss(CpuTensor<float> y_true, CpuTensor<float> y_predicted)
     {
         using var buffer = new CpuTensor<float>(new []{y_true.Shape[0]});
-        switch (ObjectiveFunction)
+        switch (MetricEnum())
         {
-            case ObjectiveFunction.Rmse: return (float)y_true.ComputeRmse(y_predicted, buffer);
-            case ObjectiveFunction.Mse: return (float)y_true.ComputeMse(y_predicted, buffer);
-            default: throw new ArgumentException($"can not compute loss for {ObjectiveFunction}");
+            case SharpNet.MetricEnum.Rmse: return (float)y_true.ComputeRmse(y_predicted, buffer);
+            case SharpNet.MetricEnum.Mse: return (float)y_true.ComputeMse(y_predicted, buffer);
+            default: throw new ArgumentException($"can not compute loss for {MetricEnum()}");
         }
     }
 
@@ -87,11 +92,11 @@ public class TrainedModel
         if (sample is Natixis70_LightGBM_HyperParameters natixis70_LightGBM)
         {
             var natixis70DatasetHyperParameters = natixis70_LightGBM.DatasetHyperParameters;
-            var lightGbmParameters = natixis70_LightGBM.LightGbmLightGbmSample;
+            var lightGbmParameters = natixis70_LightGBM.LightGbmSample;
             string xTestDatasetPath = natixis70DatasetHyperParameters.XTestDatasetPath();
             var modelDataset = lightGbmParameters.ToModelDatasets(xTestDatasetPath);
             var modelPredictions = ModelPredictions.ValueOf(workingDirectory, modelName, true, true, ',');
-            return new TrainedModel(workingDirectory,  modelName, lightGbmParameters.output_model, modelPredictions, modelDataset, sample, ObjectiveFunction.Rmse);
+            return new TrainedModel(workingDirectory,  modelName, lightGbmParameters.output_model, modelPredictions, modelDataset, sample, SharpNet.MetricEnum.Rmse);
         }
 
         if (sample is WeightsOptimizerHyperParameters weightsOptimizerSample)
@@ -106,7 +111,7 @@ public class TrainedModel
                 modelPredictions,
                 trainedModels[0].ModelDatasets, 
                 sample,
-                trainedModels[0].ObjectiveFunction);
+                trainedModels[0].MetricEnum());
         }
 
         throw new ArgumentException($"can't extract TrainedModel {modelName} from directory {workingDirectory}");

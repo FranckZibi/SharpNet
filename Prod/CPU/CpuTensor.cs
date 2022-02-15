@@ -1401,7 +1401,7 @@ namespace SharpNet.CPU
             W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float)(w - ( multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) + adamW_l2Regularization*w )));
         }
         //this = yExpected
-        public override double ComputeLoss([NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
+        public override double ComputeLoss([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(!yPredicted.UseGPU);
@@ -1411,27 +1411,27 @@ namespace SharpNet.CPU
             double cost;
             switch (lossFunction)
             {
-                case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
+                case LossFunctionEnum.BinaryCrossentropy:
                     cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction))).NaNSum();
                     break;
-                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
+                case LossFunctionEnum.CategoricalCrossentropy:
                     cost = (-1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction))).NaNSum();
                     break;
-                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
+                case LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
                     Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = ComputeLossCategoricalCrossentropyWithHierarchy(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
                     cost = buffer.AsReadonlyFloatCpuContent.Average();
                     break;
-                case NetworkConfig.LossFunctionEnum.Huber:
+                case LossFunctionEnum.Huber:
                     const double huberDelta = 1.0;
                     cost = (1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float) ( (Math.Abs(expected-prediction)<= huberDelta) ?(0.5*Math.Pow(expected - prediction,2)):(huberDelta* Math.Abs(expected - prediction)-0.5*huberDelta*huberDelta)  )).NaNSum();
                     break;
-                case NetworkConfig.LossFunctionEnum.Mse:
+                case LossFunctionEnum.Mse:
                     cost = (1.0 / (batchSize*yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(expected - prediction, 2))).NaNSum();
                     break;
-                case NetworkConfig.LossFunctionEnum.Mae:
+                case LossFunctionEnum.Mae:
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (Math.Abs(expected - prediction))).NaNSum();
                     break;
-                case NetworkConfig.LossFunctionEnum.MseOfLog:
+                case LossFunctionEnum.MseOfLog:
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(Math.Log(expected) - Math.Log(Math.Max(prediction,NetworkConfig.Default_MseOfLog_Loss)), 2)/ Math.Max(prediction, NetworkConfig.Default_MseOfLog_Loss))).NaNSum();
                     break;
                 default:
@@ -1514,7 +1514,7 @@ namespace SharpNet.CPU
         //this method is only called for display / logging testing
         //this = yExpectedOneHot
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        public override double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer)
+        public override double ComputeAccuracy(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
@@ -1526,7 +1526,7 @@ namespace SharpNet.CPU
             int batchSize = yExpected.Shape[0];
 
             var bufferPointer = (float*)buffer.Pointer;
-            if (lossFunction == NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
+            if (lossFunction == LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
             {
                 var expected = (float*)yExpected.Pointer;
                 var predicted = (float*)yPredicted.Pointer;

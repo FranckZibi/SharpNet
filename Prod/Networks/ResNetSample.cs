@@ -44,7 +44,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
                 {
-                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    LossFunction = LossFunctionEnum.CategoricalCrossentropy,
                     lambdaL2Regularization = 1e-4,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
                     NumEpochs = 160, //64k iterations

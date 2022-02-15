@@ -7,7 +7,6 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.GPU;
 using SharpNet.Layers;
-using SharpNet.Networks;
 
 namespace SharpNet.Data
 {
@@ -713,7 +712,7 @@ namespace SharpNet.Data
         /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public abstract double ComputeAccuracy(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
+        public abstract double ComputeAccuracy(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer);
 
         /// <summary>
         /// this = yExpected
@@ -836,7 +835,34 @@ namespace SharpNet.Data
         /// <param name="lossFunction"></param>
         /// <param name="buffer">a temporary buffer</param>
         /// <returns></returns>
-        public abstract double ComputeLoss(Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction, Tensor buffer);
+        public abstract double ComputeLoss(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer);
+
+        /// <summary>
+        /// this = y_true
+        /// </summary>
+        /// <param name="yPredicted"></param>
+        /// <param name="metricEnum"></param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public double ComputeMetric(Tensor yPredicted, MetricEnum metricEnum, LossFunctionEnum lossFunction, Tensor buffer)
+        {
+            switch (metricEnum)
+            {
+                case MetricEnum.Loss:
+                    return ComputeLoss(yPredicted, lossFunction, buffer);
+                case MetricEnum.Accuracy:
+                    return ComputeAccuracy(yPredicted, lossFunction, buffer);
+                case MetricEnum.Mae:
+                    return ComputeMae(yPredicted, buffer);
+                case MetricEnum.Mse:
+                    return ComputeMse(yPredicted, buffer);
+                case MetricEnum.Rmse:
+                    return Math.Sqrt(ComputeMse(yPredicted, buffer));
+                default: throw new ArgumentException("unknown metric " + metricEnum);
+            }
+        }
 
         public abstract void UniformDistribution(Random rand, double minValue, double maxValue);
         public abstract void NormalDistribution(Random rand, double mean, double stdDev);

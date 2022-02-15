@@ -9,12 +9,7 @@ public class WideResNetHyperParameters : AbstractSample
     public WideResNetHyperParameters() : base(new HashSet<string>())
     {
     }
-
-    public override bool PostBuild()
-    {
-        throw new System.NotImplementedException();
-    }
-
+    
     #region Hyper-Parameters
     /// <summary>
     /// 0 to disable dropout

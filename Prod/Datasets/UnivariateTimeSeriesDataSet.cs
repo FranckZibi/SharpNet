@@ -21,7 +21,8 @@ namespace SharpNet.Datasets
                 new []{"NA"},
                 meanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.None, 
-                null, 
+                null,
+                new string[0],
                 true)
         {
             _univariateTimeSeries = univariateTimeSeries;

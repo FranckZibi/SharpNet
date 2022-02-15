@@ -29,7 +29,8 @@ namespace SharpNet.Datasets
                 _CategoryIndexToDescription, 
                 meanAndVolatilityOfEachChannel, 
                 resizeStrategy, 
-                null, 
+                null,
+                new string[0],
                 true)
         {
             var annotationsDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");

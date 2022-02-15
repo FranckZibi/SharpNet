@@ -10,6 +10,12 @@ using SharpNet.LightGBM;
 
 namespace SharpNet.HyperParameters;
 
+public interface IMetricFunction
+{
+    MetricEnum GetMetric();
+    LossFunctionEnum GetLoss();
+}
+
 public interface ISample
 {
     #region private fields
@@ -58,11 +64,25 @@ public interface ISample
     {
         return Path.Combine(workingDirectory, modelName + ".conf");
     }
+    public static string ToJsonPath(string workingDirectory, string modelName)
+    {
+        return Path.Combine(workingDirectory, modelName + "_conf.json");
+    }
 
     public static IDictionary<string, string> LoadConfig(string workingDirectory, string modelName)
     {
-        var path = ToPath(workingDirectory, modelName);
+        var textPath = ToPath(workingDirectory, modelName);
+        var jsonPath = ToJsonPath(workingDirectory, modelName);
 
+        if (File.Exists(textPath) && File.Exists(jsonPath))
+        {
+            throw new ArgumentException($"both files {textPath} and {jsonPath} exist");
+        }
+        return File.Exists(textPath) ? LoadTextConfig(textPath) : LoadJsonConfig(jsonPath);
+    }
+
+    private static IDictionary<string, string> LoadTextConfig(string path)
+    {
         if (!File.Exists(path))
         {
             throw new ArgumentException($"invalid file path {path}");
@@ -80,6 +100,48 @@ public interface ISample
                 throw new ArgumentException($"invalid line {e}");
             }
             res[splitted[0].Trim()] = splitted[1].Trim();
+        }
+        NormalizePath(res);
+        return res;
+    }
+
+
+    private static IDictionary<string, string> LoadJsonConfig(string path)
+    {
+        if (!File.Exists(path))
+        {
+            throw new ArgumentException($"invalid file path {path}");
+        }
+        var res = new Dictionary<string, string>();
+        foreach (var e in File.ReadAllLines(path))
+        {
+            if (!e.Contains(":"))
+            {
+                continue;
+            }
+            var splitted = e.Split(":").Select(s=>s.Trim()).ToList();
+            if (splitted.Count != 2)
+            {
+                throw new ArgumentException($"invalid line {e}");
+            }
+
+            var strName = splitted[0];
+            if (!strName.StartsWith('"') || !strName.EndsWith('"'))
+            {
+                throw new ArgumentException($"invalid line {e}");
+            }
+
+            strName = strName.Substring(1, strName.Length - 2);
+            var strValue = splitted[1].TrimEnd(' ', ',', '\t');
+            if (strValue.StartsWith('"') && strValue.EndsWith('"'))
+            {
+                strValue = strValue.Substring(1, strValue.Length - 2);
+            }
+            if (strValue.StartsWith('[') && strValue.EndsWith(']'))
+            {
+                strValue = strValue.Substring(1, strValue.Length - 2);
+            }
+            res[strName] = strValue;
         }
         NormalizePath(res);
         return res;

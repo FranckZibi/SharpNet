@@ -51,11 +51,6 @@ public class TestBayesianSearchHPO
                    + " E:" + E
                    + " G:" + G;
         }
-
-        public override bool PostBuild()
-        {
-            return true;
-        }
     }
 
 

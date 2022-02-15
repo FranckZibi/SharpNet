@@ -14,8 +14,9 @@ namespace SharpNet.Datasets
                 original.Channels, 
                 ((AbstractDataSet)original).CategoryDescriptions, 
                 original.MeanAndVolatilityForEachChannel, 
-                original.ResizeStrategy, 
-                null, 
+                original.ResizeStrategy,
+                original.FeatureNamesIfAny,
+                original.CategoricalFeatures,
                 true)
         {
             _original = original;

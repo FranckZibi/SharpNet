@@ -166,9 +166,12 @@ namespace SharpNet
         {
             var targetListType = typeof(List<>).MakeGenericType(new[] { containedType });
             var list = (IList)Activator.CreateInstance(targetListType);
-            foreach (var e in s.Split(','))
+            if (!string.IsNullOrEmpty(s))
             {
-                list.Add(ParseStringToScalar(e, containedType));
+                foreach (var e in s.Split(','))
+                {
+                    list.Add(ParseStringToScalar(e, containedType));
+                }
             }
 
             if (outputIsList)

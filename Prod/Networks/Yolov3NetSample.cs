@@ -44,7 +44,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
                 {
-                    LossFunction = NetworkConfig.LossFunctionEnum.CategoricalCrossentropy,
+                    LossFunction = LossFunctionEnum.CategoricalCrossentropy,
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "YOLO"),

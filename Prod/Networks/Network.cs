@@ -26,7 +26,6 @@ namespace SharpNet.Networks
         #region private fields
         public readonly List<EpochData> EpochData = new();
         private Tensor _buffer;
-        private Tensor _bufferComputeLoss;
         private readonly DateTime _timeStampCreation = DateTime.Now;
         // bytes/batchSize needed for forward & backward propagation
         #endregion
@@ -101,7 +100,6 @@ namespace SharpNet.Networks
             PropagationManager.Dispose();
             EpochData.Clear();
             MemoryPool.FreeFloatTensor(ref _buffer);
-            MemoryPool.FreeFloatTensor(ref _bufferComputeLoss);
             MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
             MemoryPool.FreeFloatTensor(ref _yExpectedForEpoch);
             foreach (var t in all_x_miniBatch)
@@ -499,8 +497,8 @@ namespace SharpNet.Networks
 
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
             {
-                MemoryPool.GetFloatTensor(ref _bufferComputeLoss, new[] { yExpectedMiniBatch.Shape[0] });
-                var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, _bufferComputeLoss);
+                MemoryPool.GetFloatTensor(ref _buffer, new[] { yExpectedMiniBatch.Shape[0] });
+                var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, _buffer);
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
@@ -511,12 +509,6 @@ namespace SharpNet.Networks
             Log.Info("Best learning rate: "+ bestLearningRate+ " (with batch size="+miniBatchSizeForAllWorkers+")");
             ResetWeights(); //restore weights to there original values
             return bestLearningRate;
-        }
-
-
-        public override float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred)
-        {
-            throw new NotImplementedException(); //?D TODO
         }
 
         /// <summary>
@@ -577,7 +569,7 @@ namespace SharpNet.Networks
 
 
                 var lastAutoSaveTime = DateTime.Now; //last time we saved the network
-                IDictionary<NetworkConfig.Metric, double> validationMetrics = null;
+                IDictionary<MetricEnum, double> validationMetrics = null;
                 for (;;)
                 {
                     int epoch = EpochData.Count + 1;
@@ -758,50 +750,30 @@ namespace SharpNet.Networks
         }
 
         #region compute Loss and Accuracy
-        public IDictionary<NetworkConfig.Metric, double> ComputeMetricsForTestDataSet(int miniBatchSize, IDataSet testDataSet)
+        public IDictionary<MetricEnum, double> ComputeMetricsForTestDataSet(int miniBatchSize, IDataSet testDataSet)
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
             return ComputeMetrics(testDataSet.Y, yPredicted);
         }
-        private IDictionary<NetworkConfig.Metric, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
+        private IDictionary<MetricEnum, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
         {
             _swComputeMetrics?.Start();
-            var result = new Dictionary<NetworkConfig.Metric, double>();
+            var result = new Dictionary<MetricEnum, double>();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
             yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
             var batchSize = yExpected.Shape[0];
+            MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
             foreach (var metric in Config.Metrics)
             {
-                if (metric == NetworkConfig.Metric.Loss)
-                {
-                    MemoryPool.GetFloatTensor(ref _bufferComputeLoss, new[] {batchSize});
-                    result[metric] = yExpected.ComputeLoss(yPredicted, Config.LossFunction, _bufferComputeLoss);
-                }
-                else if (metric == NetworkConfig.Metric.Accuracy)
-                {
-                    MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
-                    result[metric] = yExpected.ComputeAccuracy(yPredicted, Config.LossFunction, _buffer);
-                }
-                else if (metric == NetworkConfig.Metric.Mae)
-                {
-                    MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
-                    result[metric] = yExpected.ComputeMae(yPredicted, _buffer);
-                }
-                else if (metric == NetworkConfig.Metric.Mse)
-                {
-                    MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
-                    result[metric] = yExpected.ComputeMse(yPredicted, _buffer);
-                }
-                else
-                {
-                    throw new ArgumentException("unknown metric "+metric);
-                }
+                result[metric] = yExpected.ComputeMetric(yPredicted, metric, Config.LossFunction, _buffer);
             }
             _swComputeMetrics?.Stop();
             return result;
         }
+
+
         #endregion
 
         public void OnLayerAddOrRemove()

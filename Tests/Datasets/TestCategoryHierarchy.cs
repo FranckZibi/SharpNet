@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.Datasets;
 using SharpNet.Layers;
 using SharpNet.Models;

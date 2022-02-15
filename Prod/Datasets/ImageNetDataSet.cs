@@ -17,7 +17,8 @@ namespace SharpNet.Datasets
             _CategoryIndexToDescription, 
             MeanAndVolatilityOfEachChannel, 
             ResizeStrategyEnum.None, 
-            null, 
+            null,
+            new string[0],
             true)
         {
             _directoryDataSet = null;

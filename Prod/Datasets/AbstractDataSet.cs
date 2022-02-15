@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -9,6 +12,7 @@ using log4net;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
+using SharpNet.HyperParameters;
 using SharpNet.Models;
 using SharpNet.Networks;
 using SharpNet.Pictures;
@@ -83,17 +87,19 @@ namespace SharpNet.Datasets
         #region public properties
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
         [CanBeNull] public string[] FeatureNamesIfAny { get; }
+        public string[] CategoricalFeatures { get; }
 
         #endregion
 
         #region constructor
         protected AbstractDataSet(string name,
-            Objective_enum? objective, 
-            int channels, 
+            Objective_enum? objective,
+            int channels,
             string[] categoryDescriptions,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel, 
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
             string[] featureNamesIfAny,
+            string[] categoricalFeatures,
             bool useBackgroundThreadToLoadNextMiniBatch)
         {
             Name = name;
@@ -110,6 +116,7 @@ namespace SharpNet.Datasets
                 _rands[i] = new Random(i);
             }
             FeatureNamesIfAny = featureNamesIfAny;
+            CategoricalFeatures = categoricalFeatures;
             if (_useBackgroundThreadToLoadNextMiniBatch)
             {
                 thread = new Thread(BackgroundThread);
@@ -585,6 +592,55 @@ namespace SharpNet.Datasets
         {
             var rand = _rands[indexInMiniBatch % _rands.Length];
             return rand;
+        }
+
+        public void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        {
+            if (File.Exists(path) && !overwriteIfExists)
+            {
+                Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
+                return;
+            }
+            Log.Debug($"Saving dataset {Name} in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
+            if (X_if_available == null)
+            {
+                throw new NotImplementedException($"Save only works if X_if_available or not null");
+            }
+            var X = X_if_available;
+            Debug.Assert(FeatureNamesIfAny.Length == X.Shape[1]);
+            Debug.Assert(X.Shape.Length == 2);
+            var sb = new StringBuilder();
+            if (addTargetColumnAsFirstColumn)
+            {
+                sb.Append("y" + separator);
+            }
+            sb.Append(string.Join(separator, FeatureNamesIfAny) + Environment.NewLine);
+            var xDataAsSpan = X.AsFloatCpuSpan;
+            // ReSharper disable once PossibleNullReferenceException
+            var yDataAsSpan = (addTargetColumnAsFirstColumn&&Y!=null) ? Y.AsFloatCpuSpan : null;
+
+            for (int row = 0; row < Count; ++row)
+            {
+                if (addTargetColumnAsFirstColumn)
+                {
+                    var yValue = yDataAsSpan==null?AbstractSample.DEFAULT_VALUE:yDataAsSpan[row];
+                    sb.Append(yValue.ToString(CultureInfo.InvariantCulture) + separator);
+                }
+                for (int featureId = 0; featureId < X.Shape[1]; ++featureId)
+                {
+                    sb.Append(xDataAsSpan[row * X.Shape[1] + featureId].ToString(CultureInfo.InvariantCulture));
+                    if (featureId == X.Shape[1] - 1)
+                    {
+                        sb.Append(Environment.NewLine);
+                    }
+                    else
+                    {
+                        sb.Append(separator);
+                    }
+                }
+            }
+            File.WriteAllText(path, sb.ToString());
+            Log.Debug($"Dataset {Name} saved in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
         }
 
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)

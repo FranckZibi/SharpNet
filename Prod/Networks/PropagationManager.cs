@@ -154,7 +154,7 @@ namespace SharpNet.Networks
             return _memoryPool.GetFloatTensor(outputShape);
         }
        
-        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, NetworkConfig.LossFunctionEnum lossFunction)
+        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, LossFunctionEnum lossFunction)
         {
             Debug.Assert(yExpected.SameShape(yPredicted));
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
@@ -164,7 +164,7 @@ namespace SharpNet.Networks
 
             switch (lossFunction)
             {
-                case NetworkConfig.LossFunctionEnum.BinaryCrossentropy:
+                case LossFunctionEnum.BinaryCrossentropy:
                     Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
                     //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
                     yPredicted.CopyTo(dyPredicted);
@@ -172,23 +172,23 @@ namespace SharpNet.Networks
                     var multiplier = 1f / (categoryCount);
                     dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
                     break;
-                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropy:
+                case LossFunctionEnum.CategoricalCrossentropy:
                     Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
                     //we compute: _dyPredicted = (yPredicted - yExpected)
                     yPredicted.CopyTo(dyPredicted);
                     dyPredicted.AddTensor(-1, yExpected, 1);
                     break;
-                case NetworkConfig.LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
+                case LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
                     dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
                     break;
-                case NetworkConfig.LossFunctionEnum.Huber:
+                case LossFunctionEnum.Huber:
                     const float huberDelta = 1.0f;
                     dyPredicted.HuberGradient(yExpected, yPredicted, huberDelta);
                     break;
-                case NetworkConfig.LossFunctionEnum.Mse:
+                case LossFunctionEnum.Mse:
                     dyPredicted.MseGradient(yExpected, yPredicted);
                     break;
-                case NetworkConfig.LossFunctionEnum.Mae:
+                case LossFunctionEnum.Mae:
                     dyPredicted.MaeGradient(yExpected, yPredicted);
                     break;
                 default:
