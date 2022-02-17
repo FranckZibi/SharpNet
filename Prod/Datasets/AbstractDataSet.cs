@@ -88,7 +88,7 @@ namespace SharpNet.Datasets
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
         [CanBeNull] public string[] FeatureNamesIfAny { get; }
         public string[] CategoricalFeatures { get; }
-
+        public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
         #endregion
 
         #region constructor
@@ -109,7 +109,7 @@ namespace SharpNet.Datasets
             CategoryDescriptions = categoryDescriptions;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
-            _useBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
+            UseBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -117,7 +117,7 @@ namespace SharpNet.Datasets
             }
             FeatureNamesIfAny = featureNamesIfAny;
             CategoricalFeatures = categoricalFeatures;
-            if (_useBackgroundThreadToLoadNextMiniBatch)
+            if (UseBackgroundThreadToLoadNextMiniBatch)
             {
                 thread = new Thread(BackgroundThread);
                 thread.Start();
@@ -165,7 +165,7 @@ namespace SharpNet.Datasets
             yMiniBatch.AssertIsNotDisposed();
 
             int elementsActuallyLoaded;
-            if (_useBackgroundThreadToLoadNextMiniBatch)
+            if (UseBackgroundThreadToLoadNextMiniBatch)
             {
                 //if the background thread is working, we'll wait until it finishes
                 backgroundThreadIsIdle.WaitOne();
@@ -217,7 +217,7 @@ namespace SharpNet.Datasets
             //we check if we can start compute the next mini batch content in advance
             int firstIndexInShuffledElementIdForNextMiniBatch = firstIndexInShuffledElementId + all_xMiniBatches[0].Shape[0];
             int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, all_xMiniBatches[0].Shape[0]);
-            if (_useBackgroundThreadToLoadNextMiniBatch && nextMiniBatchSize > 0)
+            if (UseBackgroundThreadToLoadNextMiniBatch && nextMiniBatchSize > 0)
             {
                 //we will ask the background thread to compute the next mini batch
                 backgroundThreadIsIdle.WaitOne();
@@ -239,7 +239,7 @@ namespace SharpNet.Datasets
 
         public static CpuTensor<float> ToXWorkingSet(CpuTensor<byte> x, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
         {
-            var xWorkingSet = x.Select((n, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
+            var xWorkingSet = x.Select((_, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
             return xWorkingSet;
         }
         public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int categoryCount , Func<byte, int> categoryByteToCategoryIndex)
@@ -317,7 +317,6 @@ namespace SharpNet.Datasets
 
 
         public abstract int Count { get; }
-        public virtual CpuTensor<float> X_if_available => null;
         public string Name { get; }
         public ResizeStrategyEnum ResizeStrategy { get; }
         public virtual bool ShouldCreateSnapshotForEpoch(int epoch, Network network)
@@ -392,12 +391,12 @@ namespace SharpNet.Datasets
 
         public virtual IDataSet SubDataSet(double percentageToKeep)
         {
-            return SubDataSet(elementId => _rands[0].NextDouble() < percentageToKeep);
+            return SubDataSet(_ => _rands[0].NextDouble() < percentageToKeep);
         }
 
         public virtual double PercentageToUseForLossAndAccuracyFastEstimate => 0.1;
 
-        private IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet)
+        public IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet)
         {
             var subElementIdToOriginalElementId = new List<int>();
             for (int originalElementId = 0; originalElementId < Count; ++originalElementId)
@@ -433,7 +432,7 @@ namespace SharpNet.Datasets
             all_xBufferForDataAugmentedMiniBatch.ForEach(t => t.Dispose());
             all_xBufferForDataAugmentedMiniBatch.Clear();
             yDataAugmentedMiniBatch?.Dispose();
-            if (_useBackgroundThreadToLoadNextMiniBatch)
+            if (UseBackgroundThreadToLoadNextMiniBatch)
             {
                 //we stop the background thread
                 threadParameters = null;
@@ -469,6 +468,7 @@ namespace SharpNet.Datasets
             var test = SubDataSet(id => id >= countInTrainingSet);
             return new TrainingAndTestDataLoader(training, test, Name);
         }
+
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
         {
             if (X == null && Y == null)
@@ -602,23 +602,20 @@ namespace SharpNet.Datasets
                 return;
             }
             Log.Debug($"Saving dataset {Name} in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
-            if (X_if_available == null)
-            {
-                throw new NotImplementedException($"Save only works if X_if_available or not null");
-            }
-            var X = X_if_available;
-            Debug.Assert(FeatureNamesIfAny.Length == X.Shape[1]);
-            Debug.Assert(X.Shape.Length == 2);
+
+
             var sb = new StringBuilder();
             if (addTargetColumnAsFirstColumn)
             {
                 sb.Append("y" + separator);
             }
             sb.Append(string.Join(separator, FeatureNamesIfAny) + Environment.NewLine);
-            var xDataAsSpan = X.AsFloatCpuSpan;
             // ReSharper disable once PossibleNullReferenceException
             var yDataAsSpan = (addTargetColumnAsFirstColumn&&Y!=null) ? Y.AsFloatCpuSpan : null;
 
+            int cols = FeatureNamesIfAny.Length;
+            using CpuTensor<float> X = new(new[] { 1, cols });
+            var xDataAsSpan = X.AsReadonlyFloatCpuContent;
             for (int row = 0; row < Count; ++row)
             {
                 if (addTargetColumnAsFirstColumn)
@@ -626,10 +623,11 @@ namespace SharpNet.Datasets
                     var yValue = yDataAsSpan==null?AbstractSample.DEFAULT_VALUE:yDataAsSpan[row];
                     sb.Append(yValue.ToString(CultureInfo.InvariantCulture) + separator);
                 }
-                for (int featureId = 0; featureId < X.Shape[1]; ++featureId)
+                LoadAt(row, 0, X, null, false);
+                for (int col = 0; col < cols; ++col)
                 {
-                    sb.Append(xDataAsSpan[row * X.Shape[1] + featureId].ToString(CultureInfo.InvariantCulture));
-                    if (featureId == X.Shape[1] - 1)
+                    sb.Append(xDataAsSpan[col].ToString(CultureInfo.InvariantCulture));
+                    if (col == cols - 1)
                     {
                         sb.Append(Environment.NewLine);
                     }
@@ -639,9 +637,16 @@ namespace SharpNet.Datasets
                     }
                 }
             }
-            File.WriteAllText(path, sb.ToString());
+
+            var fileContent = sb.ToString();
+            lock (Lock_to_csv)
+            {
+                File.WriteAllText(path, fileContent);
+            }
             Log.Debug($"Dataset {Name} saved in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
         }
+
+        private static readonly object Lock_to_csv = new();
 
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {
@@ -658,7 +663,6 @@ namespace SharpNet.Datasets
         /// true if we should use a separate thread to load the content of the next mini batch
         /// while working on the current mini batch
         /// </summary>
-        protected readonly bool _useBackgroundThreadToLoadNextMiniBatch;
         private readonly Thread thread;
         private Tuple<bool, int[], int, DataAugmentationSample, List<int[]>, int[]> threadParameters;
         private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new AutoResetEvent(false);

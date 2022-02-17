@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
@@ -48,12 +47,11 @@ namespace SharpNet.Datasets.Natixis70
             {
                 return false;
             }
-            var categoricalFeaturesFieldValue = (CategoricalFeatures().Count >= 1) ? ("name:" + string.Join(',', DatasetHyperParameters.CategoricalFeatures())) : "";
+
+            var categoricalFeatures = DatasetHyperParameters.CategoricalFeatures();
+            var categoricalFeaturesFieldValue = (categoricalFeatures.Count >= 1) ? ("name:" + string.Join(',', categoricalFeatures)) : "";
             LightGbmSample.categorical_feature = categoricalFeaturesFieldValue;
             return true;
         }
-
-        public List<string> CategoricalFeatures() => DatasetHyperParameters.CategoricalFeatures();
-        public List<string> TargetFeatures() => DatasetHyperParameters.TargetFeatures();
     }
 }

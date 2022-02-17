@@ -47,18 +47,21 @@ namespace SharpNet.Networks
         {
         }
 
+        public Network(NetworkSample sample, string workingDirectory, string modelName) : base(sample, workingDirectory, modelName)
+        {
+        }
 
         /// <param name="sample"></param>
-        /// <param name="masterNetworkIfAny">
-        ///     if the current network is a slave network doing computation for its master network:
-        ///         the reference of the master network
-        ///     else:
-        ///         null
-        /// </param>
-        public Network(NetworkSample sample, Network masterNetworkIfAny = null) : base(sample)
+            /// <param name="masterNetworkIfAny">
+            ///     if the current network is a slave network doing computation for its master network:
+            ///         the reference of the master network
+            ///     else:
+            ///         null
+            /// </param>
+        public Network(NetworkSample sample, Network masterNetworkIfAny = null) : this(sample, sample.Config.WorkingDirectory, sample.Config.ModelName)
         {
             //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
-            Utils.ConfigureThreadLog4netProperties(sample.Config.WorkingDirectory, Config.LogFile);
+            Utils.ConfigureThreadLog4netProperties(sample.Config.WorkingDirectory, Config.ModelName);
 
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
             Debug.Assert(masterNetworkIfAny == null || Config.ResourceIds.Count == 1);
@@ -502,7 +505,7 @@ namespace SharpNet.Networks
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
-            var fileName = Path.Combine(WorkingDirectory, ModelName + "_LearningRateFinder.csv");
+            var fileName = Path.Combine(WorkingDirectory, DynamicModelName + "_LearningRateFinder.csv");
             File.WriteAllText(fileName, learningRateFinder.AsCsv());
             Log.Info("Stats stored in: " + fileName);
             var bestLearningRate = learningRateFinder.BestLearningRate();
@@ -649,14 +652,14 @@ namespace SharpNet.Networks
                         || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds)
                     )
                     {
-                        trainingDataset.Save(this, WorkingDirectory, ModelName);
+                        trainingDataset.Save(this, WorkingDirectory, DynamicModelName);
                         lastAutoSaveTime = DateTime.Now;
                     }
                     #endregion
 
                     if (Config.SaveNetworkStatsAfterEachEpoch)
                     {
-                        var networkStatFileName = Path.Combine(WorkingDirectory, ModelName + "_NetworkStats.txt");
+                        var networkStatFileName = Path.Combine(WorkingDirectory, DynamicModelName + "_NetworkStats.txt");
                         Log.Info("Saving network '" + Description + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
@@ -819,6 +822,22 @@ namespace SharpNet.Networks
         {
             return Predict(dataset, Config.BatchSize);
         }
+
+        public override int GetNumEpochs()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override string GetDeviceName()
+        {
+            throw new NotImplementedException();
+        }
+
+        public override double GetLearningRate()
+        {
+            throw new NotImplementedException();
+        }
+
 
         public CpuTensor<float> Predict(IDataSet dataset, int miniBatchSizeForAllWorkers)
         {
@@ -1052,8 +1071,13 @@ namespace SharpNet.Networks
         }
 
 
-        public override string WorkingDirectory => Config.WorkingDirectory;
-        public override string ModelName
+        private static string ComputeModelName(string description)
+        {
+            var desc = (string.IsNullOrEmpty(description) ? "Network" : Utils.ToValidFileName(description));
+            var timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
+            return desc + "_" + timeStamp + "_" + Thread.CurrentThread.ManagedThreadId;
+        }
+        public string DynamicModelName
         {
             get
             {

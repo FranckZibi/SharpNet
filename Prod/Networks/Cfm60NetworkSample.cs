@@ -29,7 +29,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
             {
-                LogFile = "TimeSeries",
+                ModelName = "TimeSeries",
                 LossFunction = LossFunctionEnum.Mse,
                 RandomizeOrder = true,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,

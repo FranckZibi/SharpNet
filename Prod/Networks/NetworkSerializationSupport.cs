@@ -137,7 +137,7 @@ namespace SharpNet.Networks
         }
 
 
-        protected override List<string> ModelFiles()
+        public override List<string> ModelFiles()
         {
             return new List<string>
             {

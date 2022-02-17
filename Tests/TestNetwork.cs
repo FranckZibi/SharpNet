@@ -42,7 +42,7 @@ namespace SharpNetTests
             var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] { 3, 224, 224 });
 
             //we save the network parameters
-            network.Save(workingDirectory, network.ModelName);
+            network.Save(workingDirectory, network.DynamicModelName);
             var networkFiles = network.AllFiles();
             network.Dispose();
 
@@ -50,7 +50,7 @@ namespace SharpNetTests
             var kerasParametersFile = EfficientNetSample.GetKerasModelPath("efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
             using (var kerasParameters = new H5File(kerasParametersFile))
             {
-                var parametersFile = Network.ToParameterFilePath(workingDirectory, network.ModelName);
+                var parametersFile = Network.ToParameterFilePath(workingDirectory, network.DynamicModelName);
                 using var sharpNetParameters = new H5File(parametersFile);
                 var datasetKeras = kerasParameters.Datasets();
                 var datasetSharpNet = sharpNetParameters.Datasets();

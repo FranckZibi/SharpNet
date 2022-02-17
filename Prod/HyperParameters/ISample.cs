@@ -176,12 +176,8 @@ public interface ISample
     [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
     public static ISample ValueOf(string workingDirectory, string modelName)
     {
-        //var allConstructores = new List<Tuple<Func<string, string, ISample>, IEnumerable<string>>>
-        //{
-        //    Tuple.Create(Natixis70_LightGBM_HyperParameters.ValueOf, ClassFieldSetter.FieldNames(typeof(Natixis70_LightGBM_HyperParameters)))
-        //};
-
         try { return Natixis70_LightGBM_HyperParameters.ValueOf(workingDirectory, modelName); } catch {}
+        try { return Natixis70_CatBoost_HyperParameters.ValueOf(workingDirectory, modelName); } catch {}
         try { return Natixis70DatasetHyperParameters.ValueOf(workingDirectory, modelName); } catch {}
         try { return LightGBMSample.ValueOf(workingDirectory, modelName); } catch {}
         try { return WeightsOptimizerHyperParameters.ValueOf(workingDirectory, modelName); } catch {}

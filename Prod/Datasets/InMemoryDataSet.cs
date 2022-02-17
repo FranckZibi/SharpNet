@@ -100,12 +100,10 @@ namespace SharpNet.Datasets
         public ITrainingAndTestDataSet SplitIntoTrainingAndValidation(int rowsInTrainingSet)
         {
             int rowsInValidationSet = Count - rowsInTrainingSet;
-            var training = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(0, rowsInTrainingSet), (CpuTensor<float>)Y.RowSlice(0, rowsInTrainingSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, CategoricalFeatures, _useBackgroundThreadToLoadNextMiniBatch);
-            var test = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(rowsInTrainingSet, rowsInValidationSet), (CpuTensor<float>)Y.RowSlice(rowsInTrainingSet, rowsInValidationSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, CategoricalFeatures, _useBackgroundThreadToLoadNextMiniBatch);
+            var training = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(0, rowsInTrainingSet), (CpuTensor<float>)Y.RowSlice(0, rowsInTrainingSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, CategoricalFeatures, UseBackgroundThreadToLoadNextMiniBatch);
+            var test = new InMemoryDataSet((CpuTensor<float>)_x.RowSlice(rowsInTrainingSet, rowsInValidationSet), (CpuTensor<float>)Y.RowSlice(rowsInTrainingSet, rowsInValidationSet), Name, Objective, MeanAndVolatilityForEachChannel, CategoryDescriptions, FeatureNamesIfAny, CategoricalFeatures, UseBackgroundThreadToLoadNextMiniBatch);
             return new TrainingAndTestDataLoader(training, test, Name);
         }
-        public override CpuTensor<float> X_if_available => _x;
-
         public override CpuTensor<float> Y { get; }
         public override string ToString()
         {

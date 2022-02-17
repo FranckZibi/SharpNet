@@ -280,7 +280,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                 new NetworkConfig()
                 {
-                    LogFile = "GPUBenchmark",
+                    ModelName = "GPUBenchmark",
                     ResourceIds = new List<int> { 0 },
                     BatchSize = 64,
                     NumEpochs = 5,

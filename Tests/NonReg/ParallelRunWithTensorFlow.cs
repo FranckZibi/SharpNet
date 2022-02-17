@@ -57,17 +57,17 @@ namespace SharpNetTests.NonReg
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredicted, 1e-5));
 
             //we save the network
-            network.Save(network.WorkingDirectory, network.ModelName);
+            network.Save(network.WorkingDirectory, network.DynamicModelName);
             network.Dispose();
 
             //we ensure that the saved version of the network behave the same as the original one
-            var networkFromSavedFile = Network.ValueOf(network.WorkingDirectory, network.ModelName);
+            var networkFromSavedFile = Network.ValueOf(network.WorkingDirectory, network.DynamicModelName);
             var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
 
-            var savedModelFile = Network.ToModelFilePath(network.WorkingDirectory, network.ModelName);
+            var savedModelFile = Network.ToModelFilePath(network.WorkingDirectory, network.DynamicModelName);
             File.Delete(savedModelFile);
-            var saveParametersFile = Network.ToParameterFilePath(network.WorkingDirectory, network.ModelName);
+            var saveParametersFile = Network.ToParameterFilePath(network.WorkingDirectory, network.DynamicModelName);
             File.Delete(saveParametersFile);
         }
 
@@ -238,7 +238,7 @@ namespace SharpNetTests.NonReg
             {
                 new NetworkConfig
                     {
-                        LogFile = "TestParallelRunWithTensorFlow_Convolution",
+                        ModelName = "TestParallelRunWithTensorFlow_Convolution",
                         LossFunction = LossFunctionEnum.CategoricalCrossentropy,
                         RandomizeOrder = false,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
@@ -307,7 +307,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "TestParallelRunWithTensorFlow_Convolution",
+                            ModelName = "TestParallelRunWithTensorFlow_Convolution",
                             LossFunction = LossFunctionEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
@@ -380,7 +380,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "Embedding",
+                            ModelName = "Embedding",
                             LossFunction = LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
@@ -450,7 +450,7 @@ namespace SharpNetTests.NonReg
 
             var networkConfig = new NetworkConfig
             {
-                LogFile = "Embedding_GlobalPooling",
+                ModelName = "Embedding_GlobalPooling",
                 LossFunction = LossFunctionEnum.BinaryCrossentropy,
                 RandomizeOrder = false,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
@@ -556,7 +556,7 @@ namespace SharpNetTests.NonReg
 
             var networkConfig = new NetworkConfig
             {
-                LogFile = "TestParallelRunWithTensorFlow_Sarcasm",
+                ModelName = "TestParallelRunWithTensorFlow_Sarcasm",
                 LossFunction = LossFunctionEnum.BinaryCrossentropy,
                 RandomizeOrder = true,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
@@ -625,7 +625,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "TestParallelRunWithTensorFlow_DownSampling2D",
+                            ModelName = "TestParallelRunWithTensorFlow_DownSampling2D",
                             LossFunction = LossFunctionEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
@@ -697,7 +697,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "Huber",
+                            ModelName = "Huber",
                             LossFunction = LossFunctionEnum.Huber,
                             //LossFunction = LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
@@ -771,7 +771,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "Mse",
+                            ModelName = "Mse",
                             LossFunction = LossFunctionEnum.Mse,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
@@ -882,7 +882,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "GRU",
+                            ModelName = "GRU",
                             LossFunction = LossFunctionEnum.Huber,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
@@ -1007,7 +1007,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                 new NetworkConfig
                     {
-                        LogFile = "TimeSeries",
+                        ModelName = "TimeSeries",
                         LossFunction = LossFunctionEnum.Mse,
                         RandomizeOrder = shuffle,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
@@ -1090,7 +1090,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                         new NetworkConfig
                         {
-                            LogFile = "IMDB",
+                            ModelName = "IMDB",
                             LossFunction = LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = shuffle,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,

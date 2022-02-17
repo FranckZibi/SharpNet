@@ -8,7 +8,7 @@ namespace SharpNet.HyperParameters;
 public abstract class MultiSamples : ISample
 {
     #region protected fields
-    protected ISample[] Samples { get; }
+    public ISample[] Samples { get; }
     #endregion
 
     #region constructor

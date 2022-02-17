@@ -178,7 +178,7 @@ namespace SharpNet.Networks
 
         #region logging
         public string WorkingDirectory = DefaultWorkingDirectory;
-        public string LogFile = "SharpNet";
+        public string ModelName = "SharpNet";
         public static string DefaultWorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath,  "SharpNet");
         public static string DefaultDataDirectory => Path.Combine(DefaultWorkingDirectory, "Data");
         #endregion

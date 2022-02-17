@@ -14,21 +14,27 @@ namespace SharpNet.Models;
 public abstract class AbstractModel : IModel
 {
     #region private & protected fields
-    protected ISample Sample { get; }
+    public ISample Sample { get; }
     #endregion
 
     #region public fields & properties
     public static readonly ILog Log = LogManager.GetLogger(typeof(AbstractModel));
-    public abstract string WorkingDirectory { get; }
-    public abstract string ModelName { get; }
+    public abstract double GetLearningRate();
+    public string WorkingDirectory { get; }
+    public string ModelName { get; }
     public string LastDatasetPathUsedForTraining { get; protected set; } = "";
     public string LastDatasetPathUsedForPrediction { get; protected set; } = "";
+    // ReSharper disable once MemberCanBeProtected.Global
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public string LastDatasetPathUsedForValidation { get; protected set; } = "";
     #endregion
 
     #region constructor
-    protected AbstractModel(ISample sample)
+    protected AbstractModel(ISample sample, string workingDirectory, string modelName)
     {
+        WorkingDirectory = workingDirectory;
+        ModelName = modelName;
+
         if (sample is not IMetricFunction)
         {
             throw new ArgumentException($"Sample {sample.GetType()} must implement {nameof(IMetricFunction)}");
@@ -68,30 +74,30 @@ public abstract class AbstractModel : IModel
         Log.Debug($"Computing Model '{ModelName}' predictions for Training Dataset");
         var trainPredictions = UnNormalizeYIfNeeded(Predict(trainDataset));
         Log.Debug("Computing Model score on Training");
-        var scoreTrain = ComputeScore(UnNormalizeYIfNeeded(trainDataset.Y), trainPredictions);
-        Log.Info($"Model '{ModelName}' score on training: {scoreTrain}");
+        var trainScore = ComputeScore(UnNormalizeYIfNeeded(trainDataset.Y), trainPredictions);
+        Log.Info($"Model '{ModelName}' score on training: {trainScore}");
 
 
         var validationPredictionsPath = "";
-        float scoreValidation = float.NaN;
+        float validationScore = float.NaN;
         CpuTensor<float> validationPredictions = null;
         if (validationDatasetIfAny != null)
         {
             Log.Debug($"Computing Model '{ModelName}' predictions for Validation Dataset");
             validationPredictions = UnNormalizeYIfNeeded(Predict(validationDatasetIfAny));
             Log.Debug($"Computing Model '{ModelName}' score on Validation");
-            scoreValidation = ComputeScore(UnNormalizeYIfNeeded(validationDatasetIfAny.Y), validationPredictions);
-            Log.Info($"Model '{ModelName}' score on Validation: {scoreValidation}");
+            validationScore = ComputeScore(UnNormalizeYIfNeeded(validationDatasetIfAny.Y), validationPredictions);
+            Log.Info($"Model '{ModelName}' score on Validation: {validationScore}");
         }
 
-        var trainPredictionsPath = Path.Combine(WorkingDirectory, ModelName + "_predict_train_" + Math.Round(scoreTrain, 5) + ".csv");
+        var trainPredictionsPath = Path.Combine(WorkingDirectory, ModelName + "_predict_train_" + Math.Round(trainScore, 5) + ".csv");
         Log.Info($"Saving Model '{ModelName}' predictions for Training Dataset");
         savePredictions(trainPredictions, trainPredictionsPath);
 
-        if (!float.IsNaN(scoreValidation))
+        if (!float.IsNaN(validationScore))
         {
             Log.Info($"Saving Model '{ModelName}' predictions for Validation Dataset");
-            validationPredictionsPath = Path.Combine(WorkingDirectory, ModelName + "_predict_valid_" + Math.Round(scoreValidation, 5) + ".csv");
+            validationPredictionsPath = Path.Combine(WorkingDirectory, ModelName + "_predict_valid_" + Math.Round(validationScore, 5) + ".csv");
             savePredictions(validationPredictions, validationPredictionsPath);
         }
 
@@ -105,7 +111,7 @@ public abstract class AbstractModel : IModel
             savePredictions(testPredictions, testPredictionsPath);
         }
 
-        return (trainPredictionsPath, scoreTrain, validationPredictionsPath, scoreValidation, testPredictionsPath);
+        return (trainPredictionsPath, trainScore, validationPredictionsPath, validationScore, testPredictionsPath);
     }
 
     public float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred)
@@ -116,7 +122,27 @@ public abstract class AbstractModel : IModel
         return (float)y_true.ComputeMetric(y_pred, metricEnum, lossFunctionEnum, buffer);
     }
 
-    protected abstract List<string> ModelFiles();
+    public bool NewScoreIsBetterTheReferenceScore(float newScore, float referenceScore)
+    {
+        var metricEnum = ((IMetricFunction)Sample).GetMetric();
+        switch (metricEnum)
+        {
+            case MetricEnum.Accuracy: 
+                return newScore > referenceScore; // highest is better
+            case MetricEnum.Loss:
+            case MetricEnum.Mae:
+            case MetricEnum.Mse:
+            case MetricEnum.Rmse:
+                return newScore < referenceScore; // lowest is better
+            default:
+                throw new NotImplementedException($"unknown metric : {metricEnum}");
+        }
+    }
+
+    public abstract int GetNumEpochs();
+    public abstract string GetDeviceName();
+
+    public abstract List<string> ModelFiles();
 
     private static string ComputeDescription(Tensor tensor)
     {
@@ -135,13 +161,32 @@ public abstract class AbstractModel : IModel
         }
         return desc;
     }
+
+
+    private static string ComputeDescription(IDataSet dataset)
+    {
+        if (dataset == null || dataset.Count == 0)
+        {
+            return "";
+        }
+        var desc = string.Join('_', dataset.Count);
+        int rows = dataset.Count;
+        int cols = dataset.FeatureNamesIfAny.Length;
+        using CpuTensor<float> xBuffer = new (new []{1, cols});
+        var xDataSpan = xBuffer.AsReadonlyFloatCpuContent;
+        for (int col = 0; col < cols; ++col)
+        {
+            int row = ((rows - 1) * col) / Math.Max(1, cols - 1);
+            dataset.LoadAt(row, 0, xBuffer, null, false);
+            var val = xDataSpan[col];
+            desc += '_' + Math.Round(val, 6).ToString(CultureInfo.InvariantCulture);
+        }
+        return desc;
+    }
+
     private static string ComputeUniqueDatasetName(IDataSet dataset, bool addTargetColumnAsFirstColumn)
     {
-        if (dataset.X_if_available == null)
-        {
-            throw new NotImplementedException();
-        }
-        var desc = ComputeDescription(dataset.X_if_available);
+        var desc = ComputeDescription(dataset);
         if (addTargetColumnAsFirstColumn)
         {
             desc += '_' + ComputeDescription(dataset.Y);

@@ -157,7 +157,7 @@ public class Natixis70DatasetHyperParameters : AbstractSample
             null,
             new[] { "NONE" },
             ComputeFeatureNames(),
-            new string[0],
+            CategoricalFeatures().ToArray(),
             false);
     }
     /// <summary>

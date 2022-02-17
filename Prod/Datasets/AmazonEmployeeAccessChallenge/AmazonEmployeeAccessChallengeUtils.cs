@@ -11,22 +11,12 @@ namespace SharpNet.Datasets.AmazonEmployeeAccessChallenge;
 
 public static class AmazonEmployeeAccessChallengeUtils
 {
-
+    #region private fields
     private static readonly object LockUpdateFileObject = new();
-
-
+    #endregion
 
     public static void Launch_CatBoost_HPO()
     {
-        //var workingDirectory007 = AmazonEmployeeAccessChallengeDatasetHyperParameters.WorkingDirectory;
-        //var trainingDataset007 = BayesianSearchHPO.LoadSurrogateTrainingDataset(@"C:\Users\fzibi\AppData\Local\SharpNet\AmazonEmployeeAccessChallenge\surrogate_22676_dataset.csv");
-        //var validationDataset007 = BayesianSearchHPO.LoadSurrogateValidationDataset(@"C:\Users\fzibi\AppData\Local\SharpNet\AmazonEmployeeAccessChallenge\surrogate_22676_predictions.csv");
-        //var model007 = BayesianSearchHPO.BuildCatBoostSurrogateModel(workingDirectory007, "surrogate_22676");
-        ////var model007 = BayesianSearchHPO.BuildRandomForestSurrogateModel(workingDirectory007, "surrogate_22676", Array.Empty<string>());
-        //model007.Fit(trainingDataset007, null);
-        //var res007 = model007.Predict(validationDataset007);
-        //return;
-
         var workingDirectory = AmazonEmployeeAccessChallengeDatasetHyperParameters.WorkingDirectory;
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, "log");
@@ -52,12 +42,10 @@ public static class AmazonEmployeeAccessChallengeUtils
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => new AmazonEmployeeAccessChallenge_CatBoost_HyperParameters(), workingDirectory);
-        float minLossSoFar = float.NaN;
-        hpo.Process(t => TrainWithHyperParameters((AmazonEmployeeAccessChallenge_CatBoost_HyperParameters)t, ref minLossSoFar));
+        float bestScoreSoFar = float.NaN;
+        hpo.Process(t => TrainWithHyperParameters((AmazonEmployeeAccessChallenge_CatBoost_HyperParameters)t, ref bestScoreSoFar));
     }
-
-
-    private static float TrainWithHyperParameters(AmazonEmployeeAccessChallenge_CatBoost_HyperParameters sample, ref float minLossSoFar)
+    private static float TrainWithHyperParameters(AmazonEmployeeAccessChallenge_CatBoost_HyperParameters sample, ref float bestScoreSoFar)
     {
         var sw = Stopwatch.StartNew();
         var datasetSample = sample.DatasetHyperParameters;
@@ -69,25 +57,25 @@ public static class AmazonEmployeeAccessChallengeUtils
 
         model.Fit(trainAndValidation.Training, trainAndValidation.Test);
 
-        var (trainPredictionsFileName, trainScore, validationPredictionsFileName, validationLoss, testPredictionsFileName) = model.ComputePredictions(
+        var (trainPredictionsPath, trainScore, validationPredictionsPath, validationScore, testPredictionsPath) = model.ComputePredictions(
             trainAndValidation.Training,
             trainAndValidation.Test,
             sample.DatasetHyperParameters.Test,
             datasetSample.SavePredictions,
             null);
 
-        if (float.IsNaN(minLossSoFar) || validationLoss < minLossSoFar)
+        if (float.IsNaN(bestScoreSoFar) || model.NewScoreIsBetterTheReferenceScore(validationScore, bestScoreSoFar))
         {
-            AbstractModel.Log.Debug($"Model '{model.ModelName}' has new lowest score: {validationLoss} (was: {minLossSoFar})");
-            minLossSoFar = validationLoss;
+            AbstractModel.Log.Debug($"Model '{model.ModelName}' has new best score: {validationScore} (was: {bestScoreSoFar})");
+            bestScoreSoFar = validationScore;
         }
         else
         {
-            AbstractModel.Log.Debug($"Removing model '{model.ModelName}' files: {Path.GetFileName(model.ModelPath)} and {Path.GetFileName(model.ModelConfigPath)} because of low score ({validationLoss})");
+            AbstractModel.Log.Debug($"Removing model '{model.ModelName}' files: {Path.GetFileName(model.ModelPath)} and {Path.GetFileName(model.ModelConfigPath)} because of low score ({validationScore})");
             model.AllFiles().ForEach(File.Delete);
-            File.Delete(trainPredictionsFileName);
-            File.Delete(validationPredictionsFileName);
-            File.Delete(testPredictionsFileName);
+            File.Delete(trainPredictionsPath);
+            File.Delete(validationPredictionsPath);
+            File.Delete(testPredictionsPath);
         }
 
         string line = "";
@@ -95,7 +83,7 @@ public static class AmazonEmployeeAccessChallengeUtils
         {
             var trainDataset = trainAndValidation.Training;
             var trainingTimeInSeconds = sw.Elapsed.TotalSeconds;
-            var totalParams = -666;
+            const int totalParams = -666;
             int numEpochs = model.CatBoostSample.iterations;
             //We save the results of the net
             line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
@@ -109,7 +97,7 @@ public static class AmazonEmployeeAccessChallengeUtils
                                                                             + (trainingTimeInSeconds / numEpochs) + ";"
                                                                             + trainScore + ";"
                                                                             + "NaN" + ";"
-                                                                            + validationLoss + ";"
+                                                                            + validationScore + ";"
                                                                             + "NaN" + ";"
                                                                             + Environment.NewLine;
             var testsCsv = string.IsNullOrEmpty(trainDataset.Name) ? "Tests.csv" : ("Tests_" + trainDataset.Name + ".csv");
@@ -123,6 +111,6 @@ public static class AmazonEmployeeAccessChallengeUtils
             AbstractModel.Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
         }
 
-        return validationLoss;
+        return validationScore;
     }
 }

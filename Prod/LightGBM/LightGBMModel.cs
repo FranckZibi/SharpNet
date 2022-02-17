@@ -23,8 +23,6 @@ namespace SharpNet.LightGBM
         /// </summary>
         [NotNull] public string ModelPath => Path.Combine(WorkingDirectory, ModelName+".txt");
         [NotNull] public string ModelConfigPath => ISample.ToPath(WorkingDirectory, ModelName);
-        public override string WorkingDirectory { get; }
-        public override string ModelName { get; }
         public LightGBMSample LightGbmSample => (LightGBMSample)Sample;
         #endregion
 
@@ -36,9 +34,8 @@ namespace SharpNet.LightGBM
         /// <param name="workingDirectory"></param>
         /// <param name="modelName">the name of the model to use</param>
         /// <exception cref="Exception"></exception>
-        public LightGBMModel(LightGBMSample lightGBMSample, string workingDirectory, [NotNull] string modelName): base(lightGBMSample)
+        public LightGBMModel(LightGBMSample lightGBMSample, string workingDirectory, [NotNull] string modelName): base(lightGBMSample, workingDirectory, modelName)
         {
-            WorkingDirectory = workingDirectory;
             if (!File.Exists(ExePath))
             {
                 throw new Exception($"Missing exe {ExePath}");
@@ -51,7 +48,6 @@ namespace SharpNet.LightGBM
             {
                 Directory.CreateDirectory(TempPath);
             }
-            ModelName = modelName;
         }
         #endregion
 
@@ -86,9 +82,30 @@ namespace SharpNet.LightGBM
             LightGbmSample.Save(workingDirectory, modelName);
         }
 
-        protected override List<string> ModelFiles()
+        public override int GetNumEpochs()
+        {
+            return LightGbmSample.num_boost_round;
+        }
+
+        public override string GetDeviceName()
+        {
+            return LightGbmSample.DeviceName();
+        }
+
+        public override double GetLearningRate()
+        {
+            return LightGbmSample.learning_rate;
+        }
+
+        public override List<string> ModelFiles()
         {
             return new List<string> { ModelPath };
+        }
+
+        public static LightGBMModel ValueOf(string workingDirectory, string modelName)
+        {
+            var sample = LightGBMSample.ValueOf(workingDirectory, modelName);
+            return new LightGBMModel(sample, workingDirectory, modelName);
         }
 
         private void Fit([NotNull] string trainDatasetPath, [CanBeNull] string validationDatasetPathIfAny)

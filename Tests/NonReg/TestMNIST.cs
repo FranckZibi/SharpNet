@@ -21,7 +21,7 @@ namespace SharpNetTests.NonReg
             var network = new Network(
                 new NetworkConfig
                     {
-                        LogFile = "MNIST",
+                        ModelName = "MNIST",
                         BatchSize = 32,
                         NumEpochs = 1000,
                         DisableReduceLROnPlateau = true,

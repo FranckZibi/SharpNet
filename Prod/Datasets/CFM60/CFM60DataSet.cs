@@ -368,7 +368,7 @@ namespace SharpNet.Datasets.CFM60
                     return;
                 }
                 var cpuTensor = embeddingLayer.Weights.ToCpuFloat();
-                cpuTensor.Save(Path.Combine(network.WorkingDirectory, "pid_features_" + network.ModelName + ".csv"),
+                cpuTensor.Save(Path.Combine(network.WorkingDirectory, "pid_features_" + network.DynamicModelName + ".csv"),
                     row => row>=1&&row<=CFM60Entry.DISTINCT_PID_COUNT, //the first row is not used in word embedding
                     true,
                     "pid;"+string.Join(";", Enumerable.Range(0,cpuTensor.Shape[0]).Select(i=>"feature_"+i))

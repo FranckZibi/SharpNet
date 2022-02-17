@@ -1080,7 +1080,7 @@ namespace SharpNet
                 {
                     return;
                 }
-                if (e.Data.Contains("[Warning] "))
+                if (e.Data.Contains("[Warning] ") || e.Data.Contains("Object info sizes"))
                 {
                     log.Debug(e.Data.Replace("[Warning] ", ""));
                 }

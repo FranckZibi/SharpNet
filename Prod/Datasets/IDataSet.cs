@@ -56,6 +56,7 @@ namespace SharpNet.Datasets
         /// </summary>
         int Count { get; }
         int TypeSize { get; }
+        bool UseBackgroundThreadToLoadNextMiniBatch { get; }
 
         List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
 
@@ -100,7 +101,6 @@ namespace SharpNet.Datasets
         /// </summary>
         Objective_enum Objective { get; }
 
-
         /// <summary>
         /// number of channels of each elements
         /// </summary>
@@ -118,8 +118,6 @@ namespace SharpNet.Datasets
         int[] YMiniBatch_Shape(int miniBatchSize);
         [CanBeNull] CpuTensor<float> Y { get; }
 
-        [CanBeNull] CpuTensor<float> X_if_available { get; }
-
         string Name { get; }
 
         ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet);
@@ -134,6 +132,8 @@ namespace SharpNet.Datasets
         /// <param name="percentageToKeep">percentage to keep between 0 and 1.0</param>
         /// <returns></returns>
         IDataSet SubDataSet(double percentageToKeep);
+
+        IDataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet);
 
         double PercentageToUseForLossAndAccuracyFastEstimate { get; }
 

@@ -21,8 +21,6 @@ namespace SharpNet.CatBoost
         #region public fields & properties
         [NotNull] public string ModelPath => Path.Combine(WorkingDirectory, ModelName+".json");
         [NotNull] public string ModelConfigPath => ISample.ToJsonPath(WorkingDirectory, ModelName);
-        public override string WorkingDirectory { get; }
-        public override string ModelName { get; }
         public CatBoostSample CatBoostSample => (CatBoostSample)Sample;
         #endregion
 
@@ -34,9 +32,8 @@ namespace SharpNet.CatBoost
         /// <param name="workingDirectory"></param>
         /// <param name="modelName">the name of the model to use</param>
         /// <exception cref="Exception"></exception>
-        public CatBoostModel(CatBoostSample CatBoostSample, string workingDirectory, [NotNull] string modelName): base(CatBoostSample)
+        public CatBoostModel(CatBoostSample CatBoostSample, string workingDirectory, [NotNull] string modelName): base(CatBoostSample, workingDirectory, modelName)
         {
-            WorkingDirectory = workingDirectory;
             if (!File.Exists(ExePath))
             {
                 throw new Exception($"Missing exe {ExePath}");
@@ -49,7 +46,6 @@ namespace SharpNet.CatBoost
             {
                 Directory.CreateDirectory(TempPath);
             }
-            ModelName = modelName;
         }
         #endregion
 
@@ -66,7 +62,7 @@ namespace SharpNet.CatBoost
             }
 
             string datasetColumnDescriptionPath = trainDatasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, trainDataset, trainDataset.CategoricalFeatures, true, false);
+            to_column_description(datasetColumnDescriptionPath, trainDataset, true, false);
 
             Log.Info($"Training model {ModelName} with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
 
@@ -77,7 +73,10 @@ namespace SharpNet.CatBoost
                                " --params-file " + ModelConfigPath +
                                " --column-description " + datasetColumnDescriptionPath +
                                " --allow-writing-files false " + //to disable the creation of tmp files
-                               " --model-file " + ModelPath;
+                               " --model-file " + ModelPath +
+                               " --logging-level Silent "+
+                               " --verbose false "
+                             ;
 
             if (!string.IsNullOrEmpty(validationDatasetPath))
             {
@@ -112,7 +111,7 @@ namespace SharpNet.CatBoost
             dataset.to_csv(predictionDatasetPath, separator, targetColumnIsFirstColumn, false);
 
             string datasetColumnDescriptionPath = predictionDatasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, dataset, dataset.CategoricalFeatures, targetColumnIsFirstColumn, true);
+            to_column_description(datasetColumnDescriptionPath, dataset, targetColumnIsFirstColumn, true);
 
 
             if (!File.Exists(ModelPath))
@@ -161,18 +160,42 @@ namespace SharpNet.CatBoost
             //No need to save model : it is already saved in json format
             CatBoostSample.Save(workingDirectory, modelName);
         }
-        protected override List<string> ModelFiles()
+
+        public override int GetNumEpochs()
+        {
+            return CatBoostSample.iterations;
+        }
+
+        public override string GetDeviceName()
+        {
+            return CatBoostSample.DeviceName();
+        }
+
+        public override double GetLearningRate()
+        {
+            return CatBoostSample.learning_rate;
+        }
+
+        public override List<string> ModelFiles()
         {
             return new List<string> { ModelPath };
         }
 
-        private static void to_column_description([NotNull] string path, IDataSet dataset, IList<string> categoricalColumns, bool hasTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        public static CatBoostModel ValueOf(string workingDirectory, string modelName)
+        {
+            var sample = CatBoostSample.ValueOf(workingDirectory, modelName);
+            return new CatBoostModel(sample, workingDirectory, modelName);
+        }
+
+        private static void to_column_description([NotNull] string path, IDataSet dataset, bool hasTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
                 Log.Debug($"No need to save dataset column description in path {path} : it already exists");
                 return;
             }
+
+            var categoricalColumns = dataset.CategoricalFeatures;
             var sb = new StringBuilder();
             var datasetFeatureNamesIfAny = dataset.FeatureNamesIfAny;
             for (int featureId = 0; featureId < datasetFeatureNamesIfAny.Length; ++featureId)

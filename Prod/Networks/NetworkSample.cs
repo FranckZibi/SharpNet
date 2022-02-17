@@ -62,7 +62,7 @@ namespace SharpNet.Networks
 
         public Network BuildEmptyNetwork(string networkName)
         {
-            Config.LogFile = networkName + Config.ExtraDescription;
+            Config.ModelName = networkName + Config.ExtraDescription;
             var network = new Network(this);
             network.Description = networkName + Config.ExtraDescription;
             return network;

@@ -61,11 +61,11 @@ public class BayesianSearchHPO : AbstractHpo
         _randomSearchOption = randomSearchOption;
         _searchStartTime = DateTime.Now;
         var surrogateModelName = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
-        //_surrogateModel = BuildRandomForestSurrogateModel(_workingDirectory, surrogateModelName, SurrogateModelCategoricalFeature());
-        _surrogateModel = BuildCatBoostSurrogateModel(_workingDirectory, surrogateModelName);
+        _surrogateModel = BuildRandomForestSurrogateModel(_workingDirectory, surrogateModelName, SurrogateModelCategoricalFeature());
+        //_surrogateModel = BuildCatBoostSurrogateModel(_workingDirectory, surrogateModelName);
     }
 
-    public static AbstractModel BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
+    private static AbstractModel BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
     {
         surrogateModelCategoricalFeature ??= Array.Empty<string>();
         // the surrogate model will be trained with a LightGBM using random forests (boosting=rf)
@@ -97,7 +97,7 @@ public class BayesianSearchHPO : AbstractHpo
         return new LightGBMModel(surrogateModelSample, workingDirectory, modelName);
     }
 
-    public static AbstractModel BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
+    private static AbstractModel BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
     {
         // the surrogate model will be trained with CatBoost
         CatBoostSample surrogateModelSample = new ()
@@ -364,12 +364,13 @@ public class BayesianSearchHPO : AbstractHpo
         {
             File.Delete(_surrogateModel.LastDatasetPathUsedForTraining);
         }
+        AdjustSurrogateModelSampleForTrainingDatasetCount(trainingDataset.Count);
         _surrogateModel.Fit(trainingDataset, null);
 
         // we compute the RMSE of the surrogate model on the training dataset
-        if (File.Exists(_surrogateModel.LastDatasetPathUsedForTraining))
+        if (File.Exists(_surrogateModel.LastDatasetPathUsedForPrediction))
         {
-            File.Delete(_surrogateModel.LastDatasetPathUsedForTraining);
+            File.Delete(_surrogateModel.LastDatasetPathUsedForPrediction);
         }
         using var y_pred = _surrogateModel.Predict(trainingDataset);
         double surrogateModelTrainingRmse = _surrogateModel.ComputeScore(y_true, y_pred);
@@ -377,6 +378,19 @@ public class BayesianSearchHPO : AbstractHpo
 
         return xRows.Count;
     }
+
+    private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
+    {
+        if (_surrogateModel is LightGBMModel lightGbmModel)
+        {
+            var adjusted_min_data_in_bin = Math.Max(1, trainingDatasetCount / 5);
+            if (adjusted_min_data_in_bin < lightGbmModel.LightGbmSample.min_data_in_bin)
+            {
+                lightGbmModel.LightGbmSample.min_data_in_bin = adjusted_min_data_in_bin;
+            }
+        }
+    }
+
     private string[] SurrogateModelFeatureNames()
     {
         return SearchSpace.OrderBy(t => t.Key).Where(t=>!t.Value.IsConstant).Select(t=>t.Key).ToArray();
