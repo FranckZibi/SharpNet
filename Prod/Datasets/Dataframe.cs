@@ -6,14 +6,20 @@ using System.Linq;
 using System.Text;
 using SharpNet.CPU;
 
-namespace SharpNet.LightGBM
+namespace SharpNet.Datasets
 {
     public class Dataframe
     {
+        #region private fields
+        private string Name { get; }
+        #endregion
+
+        #region public fields
         public CpuTensor<float> Tensor { get; }
         public string[] FeatureNames { get; }
-        private string Name { get; }
+        #endregion
 
+        #region Constructors
         public Dataframe(CpuTensor<float> tensor, IEnumerable<string> featureNames, string name)
         {
             Debug.Assert(tensor.Shape.Length == 2); //Dataframe works only with matrices
@@ -21,23 +27,39 @@ namespace SharpNet.LightGBM
             FeatureNames = featureNames.ToArray();
             Name = name;
         }
-
-
-        private List<int> FeatureNameToIndexes(IEnumerable<string> featureNames)
+        public static Dataframe Load(string path, bool hasHeader, char separator)
         {
-            var indexes = new List<int>();
-            foreach (var f in featureNames)
+            var content = new List<List<float>>();
+            var featureNames = new List<string>();
+
+            foreach (var l in System.IO.File.ReadAllLines(path))
             {
-                int idx = Array.IndexOf(FeatureNames, f);
-                if (idx < 0)
+                var lineContent = l.Split(separator);
+                if (hasHeader && featureNames.Count == 0)
                 {
-                    throw new Exception($"Invalid feature name {f}");
+                    featureNames = lineContent.ToList();
+                    continue;
                 }
-                indexes.Add(idx);
+                content.Add(lineContent.Select(float.Parse).ToList());
             }
 
-            return indexes;
+            if (!hasHeader)
+            {
+                featureNames = Enumerable.Range(0, content[0].Count).Select(t => t.ToString()).ToList();
+            }
+
+            var data = new float[content.Count * featureNames.Count];
+            int idx = 0;
+            foreach (var t in content)
+            foreach (var d in t)
+            {
+                data[idx++] = d;
+            }
+            var tensor = new CpuTensor<float>(new[] { content.Count, featureNames.Count }, data);
+
+            return new Dataframe(tensor, featureNames, path);
         }
+        #endregion
 
         public Dataframe Drop(IList<string> featuresToDrop)
         {
@@ -50,8 +72,6 @@ namespace SharpNet.LightGBM
             
             return new Dataframe(newData, newFeatures.ToArray(), Name+"_drop_"+string.Join("_", featuresToDrop));
         }
-
-
         public Dataframe Keep(IList<string> featuresToKeep)
         {
             var newData = Tensor.KeepColumns(FeatureNameToIndexes(featuresToKeep));
@@ -61,9 +81,6 @@ namespace SharpNet.LightGBM
 
             return new Dataframe(newData, newFeatures, Name + "_keep_" + string.Join("_", featuresToKeep));
         }
-
-
-
         public void Save(string path)
         {
             const char separator = ',';
@@ -85,38 +102,20 @@ namespace SharpNet.LightGBM
             System.IO.File.WriteAllText(path, sb.ToString());
         }
 
-        public static Dataframe Load(string path, bool hasHeader, char separator)
+        private List<int> FeatureNameToIndexes(IEnumerable<string> featureNames)
         {
-            var content=  new List<List<float>>();
-            var featureNames = new List<string>();
-
-            foreach (var l in System.IO.File.ReadAllLines(path))
+            var indexes = new List<int>();
+            foreach (var f in featureNames)
             {
-                var lineContent = l.Split(separator);
-                if (hasHeader && featureNames.Count == 0)
+                int idx = Array.IndexOf(FeatureNames, f);
+                if (idx < 0)
                 {
-                    featureNames = lineContent.ToList();
-                    continue;
+                    throw new Exception($"Invalid feature name {f}");
                 }
-                content.Add(lineContent.Select(float.Parse).ToList());
+                indexes.Add(idx);
             }
 
-            if (!hasHeader)
-            {
-                featureNames = Enumerable.Range(0, content[0].Count).Select(t => t.ToString()).ToList();
-            }
-
-            var data = new float[content.Count * featureNames.Count];
-            int idx = 0;
-            foreach(var t in content)
-            foreach (var d in t)
-            {
-                data[idx++] = d;
-            }
-            var tensor = new CpuTensor<float>(new [] {content.Count, featureNames.Count}, data);
-
-            return new Dataframe(tensor, featureNames, path);
+            return indexes;
         }
-
     }
 }

@@ -594,7 +594,7 @@ namespace SharpNet.Datasets
             return rand;
         }
 
-        public void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        public void to_csv(string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
@@ -602,7 +602,6 @@ namespace SharpNet.Datasets
                 return;
             }
             Log.Debug($"Saving dataset {Name} in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
-
 
             var sb = new StringBuilder();
             if (addTargetColumnAsFirstColumn)

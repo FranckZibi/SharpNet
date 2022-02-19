@@ -14,16 +14,9 @@ namespace SharpNet.CatBoost
     public class CatBoostModel : AbstractModel
     {
         #region prrivate fields & properties
-        private const char separator = ',';
+        private const char Separator = ',';
         private static readonly object LockToColumnDescription = new();
         #endregion
-
-        #region public fields & properties
-        [NotNull] public string ModelPath => Path.Combine(WorkingDirectory, ModelName+".json");
-        [NotNull] public string ModelConfigPath => ISample.ToJsonPath(WorkingDirectory, ModelName);
-        public CatBoostSample CatBoostSample => (CatBoostSample)Sample;
-        #endregion
-
         #region constructor
         /// <summary>
         /// 
@@ -52,13 +45,13 @@ namespace SharpNet.CatBoost
         public override void Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
         {
             string trainDatasetPath = DatasetPath(trainDataset, true);
-            trainDataset.to_csv(trainDatasetPath, separator, true, false);
+            trainDataset.to_csv(trainDatasetPath, Separator, true, false);
 
             string validationDatasetPath = "";
             if (validationDatasetIfAny != null)
             {
                 validationDatasetPath = DatasetPath(validationDatasetIfAny, true);
-                validationDatasetIfAny.to_csv(validationDatasetPath, separator, true, false);
+                validationDatasetIfAny.to_csv(validationDatasetPath, Separator, true, false);
             }
 
             string datasetColumnDescriptionPath = trainDatasetPath + ".co";
@@ -68,7 +61,7 @@ namespace SharpNet.CatBoost
 
             string arguments = "fit " +
                                " --learn-set " + trainDatasetPath +
-                               " --delimiter=\"" + separator + "\"" +
+                               " --delimiter=\"" + Separator + "\"" +
                                " --has-header" +
                                " --params-file " + ModelConfigPath +
                                " --column-description " + datasetColumnDescriptionPath +
@@ -108,7 +101,7 @@ namespace SharpNet.CatBoost
         {
             const bool targetColumnIsFirstColumn = true;
             string predictionDatasetPath = DatasetPath(dataset, targetColumnIsFirstColumn);
-            dataset.to_csv(predictionDatasetPath, separator, targetColumnIsFirstColumn, false);
+            dataset.to_csv(predictionDatasetPath, Separator, targetColumnIsFirstColumn, false);
 
             string datasetColumnDescriptionPath = predictionDatasetPath + ".co";
             to_column_description(datasetColumnDescriptionPath, dataset, targetColumnIsFirstColumn, true);
@@ -126,7 +119,7 @@ namespace SharpNet.CatBoost
             var arguments = "calc " +
                             " --input-path " + predictionDatasetPath +
                             " --output-path " + predictionResultPath +
-                            " --delimiter=\"" + separator + "\"" +
+                            " --delimiter=\"" + Separator + "\"" +
                             " --has-header" +
                             " --column-description " + datasetColumnDescriptionPath +
                             " --model-file " + ModelPath +
@@ -165,22 +158,22 @@ namespace SharpNet.CatBoost
         {
             return CatBoostSample.iterations;
         }
-
-        public override string GetDeviceName()
+        public override string DeviceName()
         {
             return CatBoostSample.DeviceName();
         }
-
+        public override int TotalParams()
+        {
+            return -1; //TODO
+        }
         public override double GetLearningRate()
         {
             return CatBoostSample.learning_rate;
         }
-
         public override List<string> ModelFiles()
         {
             return new List<string> { ModelPath };
         }
-
         public static CatBoostModel ValueOf(string workingDirectory, string modelName)
         {
             var sample = CatBoostSample.ValueOf(workingDirectory, modelName);
@@ -224,5 +217,9 @@ namespace SharpNet.CatBoost
         private string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");
         private string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn) => DatasetPath(dataset, addTargetColumnAsFirstColumn, RootDatasetPath);
+        [NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".json");
+        [NotNull] private string ModelConfigPath => ISample.ToJsonPath(WorkingDirectory, ModelName);
+        private CatBoostSample CatBoostSample => (CatBoostSample)Sample;
     }
 }
+

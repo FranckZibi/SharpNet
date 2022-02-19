@@ -9,45 +9,17 @@ namespace SharpNet.CatBoost
     [SuppressMessage("ReSharper", "UnusedMember.Global")]
     [SuppressMessage("ReSharper", "IdentifierTypo")]
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class CatBoostSample : AbstractSample, IMetricFunction
+    public class CatBoostSample : AbstractSample, IModelSample
     {
-        public CatBoostSample() :base(_categoricalHyperParameters)
+        #region Constructors
+        public CatBoostSample() :base(CategoricalHyperParameters)
         {
         }
-
         public static CatBoostSample ValueOf(string workingDirectory, string modelName)
         {
             return (CatBoostSample) ISample.LoadConfigIntoSample(() => new CatBoostSample(), workingDirectory, modelName);
         }
-
-        public override void Save(string path)
-        {
-            var configContent = ToJsonConfigContent(DefaultAcceptForConfigContent);
-            File.WriteAllText(path, configContent);
-        }
-
-
-        private static readonly HashSet<string> _categoricalHyperParameters = new()
-        {
-            "use_best_model", "approx_on_full_history", "langevin", "loss_function", "eval_metric", "sampling_frequency",  "grow_policy",  "boosting_type", "score_function", "task_type", "od_type"
-        };
-        public override bool PostBuild()
-        {
-            return true; //TODO
-        }
-
-
-        public string DeviceName()
-        {
-            if (task_type == task_type_enum.CPU)
-            {
-                return thread_count + "cpu";
-            }
-            else
-            {
-                return "gpu";
-            }
-        }
+        #endregion
 
         #region Common parameters
 
@@ -207,9 +179,7 @@ namespace SharpNet.CatBoost
         /// The default value -1 is not accepted by the CLI
         /// </summary>
         public int thread_count = DEFAULT_VALUE;
-
         #endregion
-
 
         #region Processing unit settings
         /// <summary>
@@ -286,6 +256,27 @@ namespace SharpNet.CatBoost
         public bool allow_writing_files = true;
         #endregion
 
+
+        public override void Save(string path)
+        {
+            var configContent = ToJsonConfigContent(DefaultAcceptForConfigContent);
+            File.WriteAllText(path, configContent);
+        }
+        public override bool PostBuild()
+        {
+            return true; //TODO
+        }
+        public string DeviceName()
+        {
+            if (task_type == task_type_enum.CPU)
+            {
+                return thread_count + "cpu";
+            }
+            else
+            {
+                return "gpu";
+            }
+        }
         public MetricEnum GetMetric()
         {
             switch (eval_metric)
@@ -319,5 +310,20 @@ namespace SharpNet.CatBoost
                     throw new NotImplementedException($"can't manage metric {loss_function}");
             }
         }
+
+        private static readonly HashSet<string> CategoricalHyperParameters = new()
+        {
+            "use_best_model",
+            "approx_on_full_history",
+            "langevin",
+            "loss_function",
+            "eval_metric",
+            "sampling_frequency",
+            "grow_policy",
+            "boosting_type",
+            "score_function",
+            "task_type",
+            "od_type"
+        };
     }
 }

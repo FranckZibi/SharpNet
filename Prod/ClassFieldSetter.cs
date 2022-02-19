@@ -14,24 +14,14 @@ namespace SharpNet
         private static readonly Dictionary<Type,  Dictionary<string, FieldInfo>> type2name2FieldInfo = new Dictionary<Type, Dictionary<string, FieldInfo>>();
         #endregion
 
-        private static void Set(object o, IDictionary<string, object> dico)
-        {
-            Type objectType = o.GetType();
-            foreach (var e in dico)
-            {
-                Set(o, objectType, e.Key, e.Value);
-            }
-        }
         public static void Set(object o, string fieldName, object fieldValue)
         {
             Set(o, o.GetType(), fieldName, fieldValue);
         }
-
         public static object Get(object o, string fieldName)
         {
             return GetFieldInfo(o.GetType(), fieldName).GetValue(o);
         }
-
         /// <summary>
         /// public for testing purpose only
         /// </summary>
@@ -47,17 +37,14 @@ namespace SharpNet
             }
             return string.Join(Environment.NewLine, result) + Environment.NewLine;
         }
-
         public static Type GetFieldType(Type t, string fieldName)
         {
             return GetFieldName2FieldInfo(t)[fieldName].FieldType;
         }
-
         public static IEnumerable<string> FieldNames(Type t)
         {
             return GetFieldName2FieldInfo(t).Keys;
         }
-
 
 
         #region private methods
@@ -117,7 +104,6 @@ namespace SharpNet
         {
             return GetFieldName2FieldInfo(t)[fieldName];
         }
-
         private static IDictionary<string,FieldInfo> GetFieldName2FieldInfo(Type t)
         {
             if (!type2name2FieldInfo.ContainsKey(t))
@@ -160,7 +146,6 @@ namespace SharpNet
             }
             f.SetValue(o, value);
         }
-
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         private static object ParseStringToListOrArray(string s, Type containedType, bool outputIsList)
         {
@@ -186,8 +171,6 @@ namespace SharpNet
                 return array;
             }
         }
-
-
         private static object ParseStringToScalar(string s, Type targetScalarType)
         {
             if (targetScalarType == typeof(bool))
@@ -239,27 +222,6 @@ namespace SharpNet
         {
             var f = GetFieldInfo(objectType, fieldName);
             f.SetValue(o, value);
-        }
-
-        private static T LoadFromConfigContent<T>(string configContent) where T : new()
-        {
-            var t = new T();
-            var dico = new Dictionary<string, object>();
-            foreach (var l in configContent.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
-            {
-                var fieldAndValue = l.Split('=', StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToArray();
-                if (fieldAndValue.Length == 0)
-                {
-                    continue;
-                }
-                if (fieldAndValue.Length >= 3)
-                {
-                    throw new Exception($"Invalid config line {l}");
-                }
-                dico[fieldAndValue[0]] = fieldAndValue.Length == 2 ? fieldAndValue[1] : "";
-            }
-            Set(t, dico);
-            return t;
         }
         #endregion
     }

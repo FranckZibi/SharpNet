@@ -6,7 +6,8 @@ using System.Text;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.LightGBM;
+using SharpNet.Datasets;
+
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Models;

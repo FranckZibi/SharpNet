@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
+using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
@@ -14,7 +14,7 @@ namespace SharpNet.Datasets.Natixis70
 {
     public static class Natixis70Utils
     {
-        private const string NAME = "Natixis70";
+        public const string NAME = "Natixis70";
 
         public static DoubleAccumulator[] Y_RAW_statistics { get; }
         public static DoubleAccumulator[] Y_RAW_abs_statistics { get; }
@@ -27,29 +27,22 @@ namespace SharpNet.Datasets.Natixis70
         public static string WorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath, "SharpNet", NAME);
         public static string NatixisDatasetDirectory => Path.Combine(WorkingDirectory, "Dataset");
         // ReSharper disable once MemberCanBePrivate.Global
-        public static string XTrainRawFile => Path.Combine(WorkingDirectory, "Data", "x_train_ACFqOMF.csv");
-        // ReSharper disable once MemberCanBePrivate.Global
-        public static string YTrainRawFile => Path.Combine(WorkingDirectory, "Data", "y_train_HNMbC27.csv");
-        public static string XTestRawFile => Path.Combine(WorkingDirectory, "Data", "x_test_pf4T2aK.csv");
         #endregion
 
 
         // ReSharper disable once UnusedMember.Global
         public static void LaunchLightGBMHPO()
         {
-            Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
-            Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
-
             // ReSharper disable once ConvertToConstant.Local
-            var num_boost_round = 1000;
+            var num_iterations = 1000;
             var searchSpace = new Dictionary<string, object>
             {
                 { "metric", "rmse" },
                 { "objective", "regression" },
                 { "verbosity", "0" },
                 { "num_threads", 1},
-                { "num_boost_round", num_boost_round },
-                { "early_stopping_round", num_boost_round/10 },
+                { "num_iterations", num_iterations },
+                { "early_stopping_round", num_iterations/10 },
                 { "TryToPredictAllHorizonAtTheSameTime", false},
 
                 { "MergeHorizonAndMarketIdInSameFeature",new[]{true/*, false*/} },
@@ -73,18 +66,69 @@ namespace SharpNet.Datasets.Natixis70
                 { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
             };
 
-            var hpo = new BayesianSearchHPO(searchSpace, () => new Natixis70_LightGBM_HyperParameters(), WorkingDirectory);
+            var hpo = new BayesianSearchHPO(searchSpace, () => new Model_and_Dataset_Sample(new LightGBMSample(), new Natixis70DatasetSample()), WorkingDirectory);
             float bestScoreSoFar = float.NaN;
-            hpo.Process(t => TrainWithHyperParameters(t, ref bestScoreSoFar) );
+            var csvPath = Path.Combine(WorkingDirectory, "Tests_" + NAME + ".csv");
+            hpo.Process(t => SampleUtils.TrainWithHyperParameters(t, WorkingDirectory, csvPath, ref bestScoreSoFar) );
+        }
+
+
+        //        public KFoldModel(ISample sample, string workingDirectory, string modelName, int n_splits) : base(sample, workingDirectory, modelName + "_kfold")
+
+        // ReSharper disable once UnusedMember.Global
+        public static void LaunchKfold(string workingDirectory, string modelName, int n_splits)
+        {
+            var sample = ISample.ValueOf(workingDirectory, modelName);
+            IModelSample modelSample;
+            AbstractDatasetSample datasetSample;
+            if (sample is Model_and_Dataset_Sample modelAndDatasetSample)
+            {
+                modelSample = modelAndDatasetSample.ModelSample;
+                datasetSample = modelAndDatasetSample.DatasetSample;
+            }
+            else
+            {
+                // throw new ArgumentException($"invalid sample {sample.GetType()}");
+                modelSample = (IModelSample)sample;
+                datasetSample = new Natixis70DatasetSample();
+                ((Natixis70DatasetSample)datasetSample).TryToPredictAllHorizonAtTheSameTime = false;
+                ((Natixis70DatasetSample)datasetSample).MergeHorizonAndMarketIdInSameFeature = true;
+            }
+            modelSample.Set_All_Threads();
+            var kfoldModel = new KFoldModel(modelSample, workingDirectory, modelName, n_splits);
+
+            using (var fullTraining = datasetSample.FullTraining())
+            {
+                kfoldModel.Fit(fullTraining, null);
+            }
+
+            //var (trainPredictionsPath, trainScore, validationPredictionsPath, validationScore, testPredictionsPath) = 
+            datasetSample.ComputePredictions(kfoldModel);
+
+        }
+
+
+        // configure the sample to use all available cores of the running computer
+        private static void Set_All_Threads(this ISample sample)
+        {
+            if (sample is CatBoostSample catBoostSample)
+            {
+                catBoostSample.thread_count = Utils.CoreCount;
+            }
+            else if (sample is LightGBMSample lightGBMSample)
+            {
+                lightGBMSample.num_threads = Utils.CoreCount;
+            }
+            else
+            {
+                throw new ArgumentException($"can't set all threads to sample of type {sample.GetType()}");
+            }
         }
 
 
         // ReSharper disable once UnusedMember.Global
         public static void LaunchCatBoostHPO()
         {
-            Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
-            Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
-
             // ReSharper disable once ConvertToConstant.Local
             var iterations = 1000;
             var searchSpace = new Dictionary<string, object>
@@ -109,9 +153,10 @@ namespace SharpNet.Datasets.Natixis70
                 { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
             };
 
-            var hpo = new BayesianSearchHPO(searchSpace, () => new Natixis70_CatBoost_HyperParameters(), WorkingDirectory);
+            var hpo = new BayesianSearchHPO(searchSpace, () => new Model_and_Dataset_Sample(new CatBoostSample(), new Natixis70DatasetSample()), WorkingDirectory);
             float bestScoreSoFar = float.NaN;
-            hpo.Process(t => TrainWithHyperParameters(t, ref bestScoreSoFar));
+            var csvPath = Path.Combine(WorkingDirectory, "Tests_" + NAME + ".csv");
+            hpo.Process(t => SampleUtils.TrainWithHyperParameters(t, WorkingDirectory, csvPath, ref bestScoreSoFar));
         }
 
         //private static string DatasetHPOPath => Path.Combine(WorkingDirectory, "DatasetHPO");
@@ -229,7 +274,7 @@ namespace SharpNet.Datasets.Natixis70
                      {
                          "A8A78BE573",
                          "12ECEF9CB3",
-                         "C24CF9FE92",
+                         //"C24CF9FE92",
                          "9CBFCA0006",
                          "E1373D2F46",
                          "D939AAE448",
@@ -241,104 +286,18 @@ namespace SharpNet.Datasets.Natixis70
             {
                 trainedModels.Add(TrainedModel.ValueOf(workingDirectory, modelName));
             }
+            trainedModels.Add(TrainedModel.ValueOf(Path.Combine(workingDirectory, "5F73F0353D"), "5F73F0353D_kfold"));
+
             var optimizeWeights = new WeightsOptimizer(Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)), trainedModels);
             optimizeWeights.Run();
         }
 
         static Natixis70Utils()
         {
-            var cpuTensor = Dataframe.Load(YTrainRawFile, true, ',').Drop(new[] { "" }).Tensor;
+            var cpuTensor = Dataframe.Load(Natixis70DatasetSample.YTrainRawFile, true, ',').Drop(new[] { "" }).Tensor;
             Y_RAW_statistics = ExtractColumnStatistic(cpuTensor, false);
             Y_RAW_abs_statistics = ExtractColumnStatistic(cpuTensor, true);
         }
-        private static float TrainWithHyperParameters(ISample sample, ref float bestScoreSoFar)
-        {
-            ISample modelSample;
-            Natixis70DatasetHyperParameters datasetSample;
-            if (sample is Natixis70_LightGBM_HyperParameters natixis70_LightGBM_HyperParameters)
-            {
-                modelSample = natixis70_LightGBM_HyperParameters.LightGbmSample;
-                datasetSample = natixis70_LightGBM_HyperParameters.DatasetHyperParameters;
-            }
-            else if (sample is Natixis70_CatBoost_HyperParameters natixis70_CatBoost_HyperParameters)
-            {
-                modelSample = natixis70_CatBoost_HyperParameters.CatBoostSample;
-                datasetSample = natixis70_CatBoost_HyperParameters.DatasetHyperParameters;
-            }
-            else
-            {
-                throw new ArgumentException($"invalid sample {sample.GetType()}");
-            }
-
-            var model = IModel.NewModel(modelSample, WorkingDirectory, sample.ComputeHash());
-            using var fullTraining = datasetSample.NewDataSet(XTrainRawFile, YTrainRawFile);
-            using var test = datasetSample.NewDataSet(XTestRawFile, null);
-
-            int rowsInTrainingSet = (int)(datasetSample.PercentageInTraining * fullTraining.Count + 0.1);
-            rowsInTrainingSet -= rowsInTrainingSet % datasetSample.RawCountToCount(1);
-            using var trainAndValidation = fullTraining.SplitIntoTrainingAndValidation(rowsInTrainingSet);
-
-            var sw = Stopwatch.StartNew();
-            model.Fit(trainAndValidation.Training, trainAndValidation.Test);
-
-            var (trainPredictionsPath, trainScore, validationPredictionsPath, validationScore, testPredictionsPath)= model.ComputePredictions(
-                trainAndValidation.Training,
-                trainAndValidation.Test,
-                test,
-                datasetSample.SavePredictions,
-                datasetSample.UnnormalizeYIfNeeded);
-
-            if (float.IsNaN(bestScoreSoFar) || model.NewScoreIsBetterTheReferenceScore(validationScore, bestScoreSoFar))
-            {
-                AbstractModel.Log.Debug($"Model '{model.ModelName}' has new best score: {validationScore} (was: {bestScoreSoFar})");
-                bestScoreSoFar = validationScore;
-            }
-            else
-            {
-                AbstractModel.Log.Debug($"Removing all model '{model.ModelName}' files because of low score ({validationScore})");
-                model.AllFiles().ForEach(File.Delete);
-                File.Delete(trainPredictionsPath);
-                File.Delete(validationPredictionsPath);
-                File.Delete(testPredictionsPath);
-            }
-
-            string line = "";
-            try
-            {
-                var trainDataset = trainAndValidation.Training;
-                var trainingTimeInSeconds = sw.Elapsed.TotalSeconds;
-                var totalParams = datasetSample.X_Shape(1)[1];
-                int numEpochs = model.GetNumEpochs();
-                //We save the results of the net
-                line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
-                    + model.ModelName.Replace(';', '_') + ";"
-                    + model.GetDeviceName() + ";"
-                    + totalParams + ";"
-                    + numEpochs + ";"
-                    + "-1" + ";"
-                    + model.GetLearningRate() + ";"
-                    + trainingTimeInSeconds + ";"
-                    + (trainingTimeInSeconds / numEpochs) + ";"
-                    + trainScore + ";"
-                    + "NaN" + ";"
-                    + validationScore + ";"
-                    + "NaN" + ";"
-                    + Environment.NewLine;
-                var testsCsv = string.IsNullOrEmpty(trainDataset.Name) ? "Tests.csv" : ("Tests_" + trainDataset.Name + ".csv");
-                lock (LockUpdateFileObject)
-                {
-                    File.AppendAllText(Utils.ConcatenatePathWithFileName(WorkingDirectory, testsCsv), line);
-                }
-            }
-            catch (Exception e)
-            {
-                AbstractModel.Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
-            }
-
-            return validationScore;
-        }
-
-        private static readonly object LockUpdateFileObject = new();
 
         /// <summary>
         /// return the statistics (average/volatility) of each column of the matrix 'y'

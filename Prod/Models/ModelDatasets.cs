@@ -11,9 +11,15 @@ public class ModelDatasets
     {
         /// <summary>
         /// The first column of the dataset is the target, all remaining columns are the features.
-        /// In this case Y_train_dataset_path & Y_validation_dataset_path should be null.
         /// </summary>
         LightGBMTrainingFormat,
+
+        /// <summary>
+        /// The first column of the dataset is the target, all remaining columns are the features.
+        /// A column descriptor file is often added to give more info on the dataset
+        /// </summary>
+        CatBoostTrainingFormat,
+
     };
 
     public ModelDatasets([NotNull] string xTrainDatasetPath, [CanBeNull] string yTrainDatasetPath, [NotNull] string xValidationDatasetPath, [CanBeNull] string yValidationDatasetPath, [NotNull] string xTestDatasetPath, bool header, DatasetType type)

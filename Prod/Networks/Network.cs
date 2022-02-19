@@ -31,8 +31,6 @@ namespace SharpNet.Networks
         #endregion
 
         #region public fields
-
-        public NetworkSample NetworkSample => (NetworkSample)Sample;
         public NetworkConfig Config => NetworkSample.Config;
         public DataAugmentationSample DA => NetworkSample.DA;
         public Random Rand { get; } = new Random(0);
@@ -87,8 +85,6 @@ namespace SharpNet.Networks
             }
         }
         
-        public string DeviceName() { return GpuWrapper?.DeviceName(); }
-
         public void Dispose()
         {
             if (IsMaster)
@@ -481,8 +477,25 @@ namespace SharpNet.Networks
         {
             return Summary();
         }
-      
-        public int TotalParams => Layers.SelectMany(l => l.Parameters).Select(t=> t.Item1.Count).Sum();
+        /// <summary>
+        /// Change the last activation layer from SoftMax to SoftMaxWithHierarchy
+        /// (the output has categories with sub categories)
+        /// </summary>
+        /// <param name="activationParameters"></param>
+        public void SetSoftmaxWithHierarchy(float[] activationParameters)
+        {
+            if (!Layers.Last().IsSoftmaxActivationLayer())
+            {
+                throw new ArgumentException("last layer must be SoftMax Layer");
+            }
+            var layerName = Layers.Last().LayerName;
+            RemoveAndDisposeLastLayer();
+            var shape = new[] { activationParameters.Length };
+            var tensor = MemoryPool.GetFloatTensor(shape);
+            new CpuTensor<float>(shape, activationParameters).CopyTo(tensor);
+            Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, tensor, layerName);
+        }
+
         private int NonTrainableParams => Layers.Select(l => l.NonTrainableParams).Sum();
         // ReSharper disable once UnusedMethodReturnValue.Global
         public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers)
@@ -671,24 +684,24 @@ namespace SharpNet.Networks
                 }
 
                 string line = "";
+                var testsCsv = string.IsNullOrEmpty(trainingDataset.Name) ? "Tests.csv" : ("Tests_" + trainingDataset.Name + ".csv");
                 try
                 {
                     //We save the results of the net
                     line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
                         + Description.Replace(';', '_') + ";"
                         + DeviceName() + ";"
-                        + TotalParams + ";"
-                        + numEpochs + ";"
+                        + TotalParams() + ";"
+                        + GetNumEpochs()+ ";"
                         + miniBatchSizeForAllWorkers + ";"
                         + learningRateComputer.LearningRate(1, 0, 1.0) + ";"
                         + _spInternalFit.Elapsed.TotalSeconds + ";"
-                        + (_spInternalFit.Elapsed.TotalSeconds / numEpochs) + ";"
+                        + (_spInternalFit.Elapsed.TotalSeconds / GetNumEpochs()) + ";"
                         + EpochData.Last().TrainingLoss + ";"
                         + EpochData.Last().TrainingAccuracy + ";"
                         + EpochData.Last().ValidationLoss + ";"
                         + EpochData.Last().ValidationAccuracy + ";"
                         + Environment.NewLine;
-                    var testsCsv = string.IsNullOrEmpty(trainingDataset.Name)?"Tests.csv": ("Tests_"+ trainingDataset.Name + ".csv");
                     File.AppendAllText(Utils.ConcatenatePathWithFileName(WorkingDirectory, testsCsv), line);
                 }
                 catch (Exception e)
@@ -775,8 +788,6 @@ namespace SharpNet.Networks
             _swComputeMetrics?.Stop();
             return result;
         }
-
-
         #endregion
 
         public void OnLayerAddOrRemove()
@@ -790,7 +801,6 @@ namespace SharpNet.Networks
                 throw new InvalidOperationException("_compactedGradientsIfAny is not null");
             }
         }
-
         /// <summary>
         /// = ForwardPropagation
         /// this method is only used for tests
@@ -805,48 +815,32 @@ namespace SharpNet.Networks
         {
             return Predict(new List<Tensor> {X}, isTraining);
         }
-
-        private Tensor Predict(List<Tensor> allX, bool isTraining)
-        {
-            var batchSize = allX[0].Shape[0];
-            var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(batchSize));
-            for(int i= 0;i<allX.Count;++i)
-            {
-                allX[i] = ReformatToCorrectDevice_GPU_or_CPU(allX[i]);
-            }
-            PropagationManager.Forward(allX, yPredicted, isTraining);
-            return yPredicted;
-        }
-
         public override CpuTensor<float> Predict(IDataSet dataset)
         {
             return Predict(dataset, Config.BatchSize);
         }
-
         public override int GetNumEpochs()
         {
-            throw new NotImplementedException();
+            return EpochData.Count + 1;
         }
-
-        public override string GetDeviceName()
+        public override string DeviceName()
         {
-            throw new NotImplementedException();
+            return GpuWrapper?.DeviceName();
         }
-
+        public override int TotalParams()
+        {
+            return Layers.SelectMany(l => l.Parameters).Select(t => t.Item1.Count).Sum();
+        }
         public override double GetLearningRate()
         {
             throw new NotImplementedException();
         }
-
-
         public CpuTensor<float> Predict(IDataSet dataset, int miniBatchSizeForAllWorkers)
         {
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataset, miniBatchSizeForAllWorkers);
             var yPredictedCpu = yPredicted.ToCpuFloat();
             return yPredictedCpu;
         }
-
-
         /// <summary>
         /// Perform a mini batch gradient descent for an entire epoch, each mini batch will have (at most) 'miniBatchSize' elements
         /// </summary>
@@ -1043,13 +1037,10 @@ namespace SharpNet.Networks
             return _yPredictedForEpoch;
         }
         public int LastLayerIndex => Layers.Last().LayerIndex;
-
         public int NbLayerOfType(Type layerType)
         {
             return Layers.Count(l => l.GetType() == layerType);
         }
-
-
         public bool UseGPU => Config.ResourceIds.Max() >= 0;
         private string MemoryInfo()
         {
@@ -1068,14 +1059,6 @@ namespace SharpNet.Networks
                 EpochData.Count >= 1
                 && EpochData.All(e => !double.IsNaN(e.ValidationLoss))
                 && Math.Abs(EpochData.Select(e => e.ValidationLoss).Min() - EpochData.Last().ValidationLoss) < 1e-6;
-        }
-
-
-        private static string ComputeModelName(string description)
-        {
-            var desc = (string.IsNullOrEmpty(description) ? "Network" : Utils.ToValidFileName(description));
-            var timeStamp = DateTime.Now.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
-            return desc + "_" + timeStamp + "_" + Thread.CurrentThread.ManagedThreadId;
         }
         public string DynamicModelName
         {
@@ -1097,6 +1080,12 @@ namespace SharpNet.Networks
                 return desc + "_" + epoch + trainingLoss + validationLoss + "_" + timeStamp + "_" + Thread.CurrentThread.ManagedThreadId;
             }
         }
+        public string Summary()
+        {
+            return Layers.Any(x => x.PreviousLayers.Count >= 2) ? SummaryWithConnectedTo() : SummaryWithoutConnectedTo();
+        }
+
+
         private void CreateWorkingDirectoryIfNeeded()
         {
             if (!string.IsNullOrEmpty(WorkingDirectory) && !Directory.Exists(WorkingDirectory))
@@ -1115,10 +1104,6 @@ namespace SharpNet.Networks
                 throw new NotImplementedException("can not reformat type that are stored in GPU");
             }
             return X.ToGPU<float>(GpuWrapper);
-        }
-        public string Summary()
-        {
-            return Layers.Any(x => x.PreviousLayers.Count >= 2) ? SummaryWithConnectedTo() : SummaryWithoutConnectedTo();
         }
         private string SummaryWithConnectedTo()
         {
@@ -1153,8 +1138,8 @@ namespace SharpNet.Networks
                 }
                 result += (layer.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
-            result += "Total params: " + TotalParams.ToString("N0", CultureInfo.InvariantCulture)+Environment.NewLine;
-            result += "Trainable params: " + (TotalParams-NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
+            result += "Total params: " + TotalParams().ToString("N0", CultureInfo.InvariantCulture)+Environment.NewLine;
+            result += "Trainable params: " + (TotalParams()- NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
             result += "Non-trainable params: " + (NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture);
             return result;
         }
@@ -1184,8 +1169,8 @@ namespace SharpNet.Networks
                 result += ($"{firstColumn,-firstColumnWidth}{outputShape,-secondColumnWidth}{l.TotalParams,-thirdColumnWidth}").TrimEnd() + Environment.NewLine;
                 result += (l.IsOutputLayer ? line1 : line0) + Environment.NewLine;
             }
-            result += "Total params: " + TotalParams.ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
-            result += "Trainable params: " + (TotalParams - NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
+            result += "Total params: " + TotalParams().ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
+            result += "Trainable params: " + (TotalParams() - NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture) + Environment.NewLine;
             result += "Non-trainable params: " + (NonTrainableParams).ToString("N0", CultureInfo.InvariantCulture);
             return result;
         }
@@ -1215,24 +1200,18 @@ namespace SharpNet.Networks
             }
             return sb.ToString();
         }
-
-        /// <summary>
-        /// Change the last activation layer from SoftMax to SoftMaxWithHierarchy
-        /// (the output has categories with sub categories)
-        /// </summary>
-        /// <param name="activationParameters"></param>
-        public void SetSoftmaxWithHierarchy(float[] activationParameters)
+        private Tensor Predict(List<Tensor> allX, bool isTraining)
         {
-            if (!Layers.Last().IsSoftmaxActivationLayer())
+            var batchSize = allX[0].Shape[0];
+            var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(batchSize));
+            for (int i = 0; i < allX.Count; ++i)
             {
-                throw new ArgumentException("last layer must be SoftMax Layer");
+                allX[i] = ReformatToCorrectDevice_GPU_or_CPU(allX[i]);
             }
-            var layerName = Layers.Last().LayerName;
-            RemoveAndDisposeLastLayer();
-            var shape = new []{activationParameters.Length};
-            var tensor = MemoryPool.GetFloatTensor(shape);
-            new CpuTensor<float>(shape, activationParameters).CopyTo(tensor);
-            Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, tensor, layerName);
+            PropagationManager.Forward(allX, yPredicted, isTraining);
+            return yPredicted;
         }
+        private NetworkSample NetworkSample => (NetworkSample)Sample;
+
     }
 }

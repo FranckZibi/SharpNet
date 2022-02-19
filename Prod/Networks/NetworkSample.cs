@@ -10,7 +10,7 @@ using SharpNet.HyperParameters;
 
 namespace SharpNet.Networks
 {
-    public class NetworkSample : MultiSamples, IMetricFunction
+    public class NetworkSample : MultiSamples, IModelSample
     {
 
         public NetworkSample(ISample[] samples) : base(samples)
@@ -109,6 +109,5 @@ namespace SharpNet.Networks
         {
             return Config.LossFunction;
         }
-
     }
 }

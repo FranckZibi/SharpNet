@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
 using JetBrains.Annotations;
+using SharpNet.CatBoost;
 using SharpNet.CPU;
-using SharpNet.Datasets.Natixis70;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 
@@ -19,30 +19,28 @@ public class TrainedModel
     /// for a LightGBM model:
     ///     the description of the trees embedded in the model (txt format)
     /// </summary>
-    [CanBeNull] public string ModelDescriptionIfAny { get; }
+    //[CanBeNull] private string ModelDescriptionIfAny { get; }
 
     [NotNull] public ModelPredictions Predictions { get; }
 
-    [NotNull] public ModelDatasets ModelDatasets { get; }
+    [NotNull] private ModelDatasets ModelDatasets { get; }
 
     /// <summary>
     /// Hyper-parameters used in the model
     /// </summary>
-    [NotNull] public ISample Sample { get; }
+    [NotNull]  private ISample Sample { get; }
 
-    public MetricEnum MetricEnum()
+    private MetricEnum MetricEnum()
     {
         return _metricFunction;
     }
 
 
-
-    public TrainedModel(
+    private TrainedModel(
         [NotNull] string workingDirectory,
         [NotNull] string modelName,
-        [CanBeNull] string modelDescriptionIfAny,
         [NotNull] ModelPredictions predictions,
-        [NotNull] ModelDatasets modelDatasets,
+        ModelDatasets modelDatasets,
         [NotNull] ISample sample,
         MetricEnum metricFunction
         )
@@ -57,7 +55,6 @@ public class TrainedModel
         Predictions = predictions;
         ModelDatasets = modelDatasets;
         _metricFunction = metricFunction;
-        ModelDescriptionIfAny = modelDescriptionIfAny;
         Sample = sample;
     }
 
@@ -89,29 +86,41 @@ public class TrainedModel
     public static TrainedModel ValueOf([NotNull] string workingDirectory, [NotNull] string modelName)
     {
         var sample = ISample.ValueOf(workingDirectory, modelName);
-        if (sample is Natixis70_LightGBM_HyperParameters natixis70_LightGBM)
+        if (sample is Model_and_Dataset_Sample modelAndDatasetSample)
         {
-            var natixis70DatasetHyperParameters = natixis70_LightGBM.DatasetHyperParameters;
-            var lightGbmParameters = natixis70_LightGBM.LightGbmSample;
-            string xTestDatasetPath = natixis70DatasetHyperParameters.XTestDatasetPath();
-            var modelDataset = lightGbmParameters.ToModelDatasets(xTestDatasetPath);
+            var datasetSample = modelAndDatasetSample.DatasetSample;
+            var modelDataset = datasetSample.ToModelDatasets();
             var modelPredictions = ModelPredictions.ValueOf(workingDirectory, modelName, true, true, ',');
-            return new TrainedModel(workingDirectory,  modelName, lightGbmParameters.output_model, modelPredictions, modelDataset, sample, SharpNet.MetricEnum.Rmse);
+            return new TrainedModel(workingDirectory,  modelName, modelPredictions, modelDataset, sample, SharpNet.MetricEnum.Rmse);
         }
-
         if (sample is WeightsOptimizerHyperParameters weightsOptimizerSample)
         {
-            var trainedModels = weightsOptimizerSample.LoadModelDescription(workingDirectory);
-            var modelDescriptionPath = Path.Combine(workingDirectory, modelName + ".txt");
+            var firstTrainedModels = weightsOptimizerSample.LoadModelDescription(workingDirectory)[0];
             var modelPredictions = ModelPredictions.ValueOf(workingDirectory, modelName,
-                trainedModels[0].Predictions.Header,
-                trainedModels[0].Predictions.PredictionsContainIndexColumn,
-                trainedModels[0].Predictions.Separator);
-            return new TrainedModel(workingDirectory, modelName, modelDescriptionPath, 
+                firstTrainedModels.Predictions.Header,
+                firstTrainedModels.Predictions.PredictionsContainIndexColumn,
+                firstTrainedModels.Predictions.Separator);
+            return new TrainedModel(
+                workingDirectory, 
+                modelName, 
                 modelPredictions,
-                trainedModels[0].ModelDatasets, 
+                firstTrainedModels.ModelDatasets,
                 sample,
-                trainedModels[0].MetricEnum());
+                firstTrainedModels.MetricEnum());
+        }
+
+        if (sample is KFoldSample kfoldSample)
+        {
+            var modelPredictions = ModelPredictions.ValueOf(workingDirectory, modelName, true, true, ',');
+            return new TrainedModel(workingDirectory, modelName, modelPredictions, null, sample, kfoldSample.Metric);
+        }
+        if (sample is CatBoostSample)
+        {
+            //var natixis70DatasetHyperParameters = natixis70_CatBoost.DatasetHyperParameters;
+            //string xTestDatasetPath = natixis70DatasetHyperParameters.XTestDatasetPath();
+            //var modelDataset = catBoostSample.ToModelDatasets(xTestDatasetPath);
+            var modelPredictions = ModelPredictions.ValueOf(workingDirectory, modelName, true, true, ',');
+            return new TrainedModel(workingDirectory, modelName, modelPredictions, null, sample, SharpNet.MetricEnum.Rmse);
         }
 
         throw new ArgumentException($"can't extract TrainedModel {modelName} from directory {workingDirectory}");

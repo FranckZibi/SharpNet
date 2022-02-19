@@ -30,6 +30,7 @@ namespace SharpNet.HPO
         /// the best sample (lowest cost) found so far (or null if no sample has been analyzed)
         /// </summary>
         // ReSharper disable once MemberCanBePrivate.Global
+        // ReSharper disable once UnusedAutoPropertyAccessor.Global
         public ISample BestSampleFoundSoFar { get; protected set; }
         /// <summary>
         /// the cost associated with the best sample found sample (or NaN if no sample has been analyzed)

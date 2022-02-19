@@ -315,7 +315,7 @@ namespace SharpNetTests.NonReg
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"
                 +"MNIST;"
                 + network.DeviceName() + ";"
-                + network.TotalParams + ";"
+                + network.TotalParams() + ";"
                 + network.Config.NumEpochs + ";"
                 + network.Config.BatchSize + ";"
                 + learningRate + ";"

@@ -17,12 +17,6 @@ namespace SharpNet.LightGBM
         #endregion
 
         #region public fields & properties
-        /// <summary>
-        /// path of a trained model.
-        /// null if no trained model is available
-        /// </summary>
-        [NotNull] public string ModelPath => Path.Combine(WorkingDirectory, ModelName+".txt");
-        [NotNull] public string ModelConfigPath => ISample.ToPath(WorkingDirectory, ModelName);
         public LightGBMSample LightGbmSample => (LightGBMSample)Sample;
         #endregion
 
@@ -81,27 +75,26 @@ namespace SharpNet.LightGBM
             //No need to save model : it is already saved
             LightGbmSample.Save(workingDirectory, modelName);
         }
-
         public override int GetNumEpochs()
         {
-            return LightGbmSample.num_boost_round;
+            return LightGbmSample.num_iterations;
         }
-
-        public override string GetDeviceName()
+        public override string DeviceName()
         {
             return LightGbmSample.DeviceName();
         }
-
+        public override int TotalParams()
+        {
+            return -1; //TODO
+        }
         public override double GetLearningRate()
         {
             return LightGbmSample.learning_rate;
         }
-
         public override List<string> ModelFiles()
         {
             return new List<string> { ModelPath };
         }
-
         public static LightGBMModel ValueOf(string workingDirectory, string modelName)
         {
             var sample = LightGBMSample.ValueOf(workingDirectory, modelName);
@@ -154,5 +147,12 @@ namespace SharpNet.LightGBM
         private string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");
         private string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn) => DatasetPath(dataset, addTargetColumnAsFirstColumn, RootDatasetPath);
+        /// <summary>
+        /// path of a trained model.
+        /// null if no trained model is available
+        /// </summary>
+        private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".txt");
+        private string ModelConfigPath => ISample.ToPath(WorkingDirectory, ModelName);
+
     }
 }

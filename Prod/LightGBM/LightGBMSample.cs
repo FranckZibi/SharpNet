@@ -12,7 +12,7 @@ using SharpNet.Models;
 namespace SharpNet.LightGBM
 {
     [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-    public class LightGBMSample : AbstractSample, IMetricFunction
+    public class LightGBMSample : AbstractSample, IModelSample
     {
         public LightGBMSample() :base(_categoricalHyperParameters)
         {
@@ -30,7 +30,6 @@ namespace SharpNet.LightGBM
                     throw new NotImplementedException($"can't manage metric {objective}");
             }
         }
-
         public LossFunctionEnum GetLoss()
         {
             switch (objective)
@@ -45,31 +44,14 @@ namespace SharpNet.LightGBM
                     throw new NotImplementedException($"can't manage metric {objective}");
             }
         }
-
-
         public static LightGBMSample ValueOf(string workingDirectory, string modelName)
         {
             return (LightGBMSample) ISample.LoadConfigIntoSample(() => new LightGBMSample(), workingDirectory, modelName);
         }
-
-        private static readonly HashSet<string> _categoricalHyperParameters = new()
-        {
-                "saved_feature_importance_type",
-                "verbosity",
-                "task",
-                "objective",
-                "boosting",
-                "device_type",
-                "tree_learner",
-        };
-
-
-
         public ModelDatasets ToModelDatasets(string testDatasetPath)
         {
             return new ModelDatasets(data, data,  valid, valid, testDatasetPath, true, ModelDatasets.DatasetType.LightGBMTrainingFormat);
         }
-
         public override bool PostBuild()
         {
             if (boosting == boosting_enum.rf)
@@ -100,8 +82,6 @@ namespace SharpNet.LightGBM
             }
             return true;
         }
-
-
         public string DeviceName()
         {
 
@@ -166,9 +146,9 @@ namespace SharpNet.LightGBM
 
         //number of boosting iterations
         //Note: internally, LightGBM constructs num_class* num_boost_round trees for multi-class classification problems
-        //aliases: num_iterations, num_iteration, n_iter, num_tree, num_trees, num_round, num_rounds, nrounds, num_boost_round, n_estimators, max_iter
-        //constraints: num_boost_round >= 0
-        public int num_boost_round = DEFAULT_VALUE;
+        //aliases: num_iteration, n_iter, num_tree, num_trees, num_round, num_rounds, nrounds, num_boost_round, n_estimators, max_iter
+        //constraints: num_iterations >= 0
+        public int num_iterations = DEFAULT_VALUE;
 
         //shrinkage rate
         //in dart, it also affects on normalization weights of dropped trees
@@ -225,7 +205,6 @@ namespace SharpNet.LightGBM
         //public tree_learner_enum tree_learner = tree_learner_enum.serial;
 
         #endregion
-
 
         #region Learning Control Parameters
 
@@ -761,7 +740,6 @@ namespace SharpNet.LightGBM
         public string prediction_result = DEFAULT_VALUE_STR;
         #endregion
 
-
         //#region IO Parameters / Convert Parameters
 
         ////used only in convert_model task
@@ -777,8 +755,6 @@ namespace SharpNet.LightGBM
         //public string convert_model = DEFAULT_VALUE_STR;
 
         //#endregion
-
-
 
         #region Objective Parameters
 
@@ -858,7 +834,6 @@ namespace SharpNet.LightGBM
         //default = 0,1,3,7,15,31,63,...,2^30-1
         //public double[] label_gain = null; 
         #endregion
-
 
         #region Metric Parameters
 
@@ -950,6 +925,16 @@ namespace SharpNet.LightGBM
 
         #endregion
 
-       
+
+        private static readonly HashSet<string> _categoricalHyperParameters = new()
+        {
+            "saved_feature_importance_type",
+            "verbosity",
+            "task",
+            "objective",
+            "boosting",
+            "device_type",
+            "tree_learner",
+        };
     }
 }

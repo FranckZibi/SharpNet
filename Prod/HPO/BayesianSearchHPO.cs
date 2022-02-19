@@ -87,7 +87,7 @@ public class BayesianSearchHPO : AbstractHpo
             { "max_depth", 128},
             { "min_data_in_leaf", 3 },
             { "min_data_in_bin", 20 },
-            { "num_boost_round", 100 },
+            { "num_iterations", 100 },
             { "num_leaves", 50 },
             { "num_threads", 2},
             { "objective", "regression"},
@@ -97,6 +97,7 @@ public class BayesianSearchHPO : AbstractHpo
         return new LightGBMModel(surrogateModelSample, workingDirectory, modelName);
     }
 
+    // ReSharper disable once UnusedMember.Local
     private static AbstractModel BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
     {
         // the surrogate model will be trained with CatBoost
@@ -113,6 +114,7 @@ public class BayesianSearchHPO : AbstractHpo
         surrogateModelSample.set_early_stopping_rounds(surrogateModelSample.iterations/10);
         return new CatBoostModel(surrogateModelSample, workingDirectory, modelName);
     }
+    // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, string[] categoricalFeature = null)
     {
         var df = Dataframe.Load(dataFramePath, true, ',');
@@ -122,6 +124,7 @@ public class BayesianSearchHPO : AbstractHpo
         var y = y_df.Tensor;
         return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, new[] { "NONE" }, x_df.FeatureNames, categoricalFeature??Array.Empty<string>(), false);
     }
+    // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
     {
         var df = Dataframe.Load(dataFramePath, true, ',');

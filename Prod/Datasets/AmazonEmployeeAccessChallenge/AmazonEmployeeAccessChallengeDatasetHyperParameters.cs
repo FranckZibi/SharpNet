@@ -1,22 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
-using SharpNet.LightGBM;
+using SharpNet.Models;
 
 namespace SharpNet.Datasets.AmazonEmployeeAccessChallenge;
 
-public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractSample
+public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractDatasetSample
 {
+    #region private fields
+    private readonly InMemoryDataSet _testDataset;
+    private InMemoryDataSet FullTrain { get; }
+    private const string PredictionHeader = "Id,Action";
+    #endregion
+
+    [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
     public AmazonEmployeeAccessChallengeDatasetHyperParameters() : base(new HashSet<string>())
     {
         var train = Dataframe.Load(TrainRawFile, true, ',');
-        var x_dataframe = train.Drop(TargetFeatures());
+        var targetFeatures = new List<string> { "ACTION" };
+        var x_dataframe = train.Drop(targetFeatures);
         var x_train_full = x_dataframe.Tensor;
-        var y_train_full = train.Keep(TargetFeatures()).Tensor;
+        var y_train_full = train.Keep(targetFeatures).Tensor;
         FullTrain = new InMemoryDataSet(
             x_train_full,
             y_train_full,
@@ -28,7 +37,7 @@ public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractSampl
             CategoricalFeatures().ToArray(),
             false);
 
-        Test = new InMemoryDataSet(
+        _testDataset = new InMemoryDataSet(
             Dataframe.Load(TestRawFile, true, ',').Drop(new []{"id"}).Tensor,
             null,
             nameof(AmazonEmployeeAccessChallengeDatasetHyperParameters),
@@ -41,26 +50,29 @@ public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractSampl
 
     }
 
-    public InMemoryDataSet FullTrain { get; }
-    public InMemoryDataSet Test { get; }
-
     public static string WorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath, "SharpNet", "AmazonEmployeeAccessChallenge");
-    public static string TrainRawFile => Path.Combine(WorkingDirectory, "Data", "train.csv");
-    public static string TestRawFile => Path.Combine(WorkingDirectory, "Data", "test.csv");
-
-    public List<string> CategoricalFeatures()
-    {
-        return new List<string> { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
-    }
-
-    public static AmazonEmployeeAccessChallengeDatasetHyperParameters ValueOf(string workingDirectory, string modelName)
+    public static AmazonEmployeeAccessChallengeDatasetHyperParameters ValueOfAmazonEmployeeAccessChallengeDatasetHyperParameters(string workingDirectory, string modelName)
     {
         return (AmazonEmployeeAccessChallengeDatasetHyperParameters)ISample.LoadConfigIntoSample(() => new AmazonEmployeeAccessChallengeDatasetHyperParameters(), workingDirectory, modelName);
     }
+    public override IDataSet FullTraining()
+    {
+        return FullTrain;
+    }
+    public override CpuTensor<float> ModelPrediction_2_TargetPredictionFormat(string dataframe_path)
+    {
+        throw new NotImplementedException(); //TODO
+    }
+    public override List<string> CategoricalFeatures()
+    {
+        return new List<string> { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
+    }
+    public override ModelDatasets ToModelDatasets()
+    {
+        throw new NotImplementedException();
+    }
 
-    private const string PredictionHeader = "Id,Action";
-
-    public void SavePredictions(CpuTensor<float> y_pred, string path)
+    protected override void SavePredictions(CpuTensor<float> y_pred, string path)
     {
         var sb = new StringBuilder();
         sb.Append(PredictionHeader + Environment.NewLine);
@@ -72,9 +84,15 @@ public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractSampl
         }
         File.WriteAllText(path, sb.ToString().Trim());
     }
-
-    public List<string> TargetFeatures()
+    protected override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {
-        return new List<string> { "ACTION" };
+        throw new NotImplementedException();
     }
+    protected override IDataSet TestDataset()
+    {
+        return _testDataset;
+    }
+
+    private static string TrainRawFile => Path.Combine(WorkingDirectory, "Data", "train.csv");
+    private static string TestRawFile => Path.Combine(WorkingDirectory, "Data", "test.csv");
 }

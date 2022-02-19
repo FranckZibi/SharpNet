@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Datasets;
@@ -9,11 +8,10 @@ using SharpNet.HyperParameters;
 
 namespace SharpNet.Models;
 
-
 /// <summary>
-/// Train 'kfold' distinct models on a the training dataset.
-/// Use Stacked Ensemble Learning to make predictions for the models 
-/// </summary>
+    /// Train 'kfold' distinct models on a the training dataset.
+    /// Use Stacked Ensemble Learning to make predictions for the models 
+    /// </summary>
 public class KFoldModel : AbstractModel
 {
     #region private fields
@@ -21,44 +19,34 @@ public class KFoldModel : AbstractModel
     #endregion
 
     #region constructors
-    public KFoldModel(ISample sample, string workingDirectory, string modelName, int n_splits) : base(sample, workingDirectory, modelName+"_kfold")
+    public KFoldModel(IModelSample embeddedModelSample, string workingDirectory, string modelName, int n_splits) : base(NewKFoldSample(embeddedModelSample, n_splits), workingDirectory, modelName+"_kfold")
     {
         Debug.Assert(n_splits>=2);
         _embeddedModels = new();
         for (int i = 0; i < n_splits; ++i)
         {
-            _embeddedModels.Add(IModel.NewModel(sample, workingDirectory, ToModelNameForKFold(modelName,i,n_splits )));
+            _embeddedModels.Add(NewModel(embeddedModelSample, workingDirectory, ToModelNameForKFold(modelName,i,n_splits )));
         }
     }
+
+
     public static KFoldModel ValueOf(string workingDirectory, string modelName)
     {
-        var modelNameForKFold = ToModelNameForKFold(modelName, 0);
-        string[] files = Directory.GetFiles(workingDirectory, modelNameForKFold+"*.*");
-        var errorMsg = $"can't load a {nameof(KFoldModel)} model from {workingDirectory} with name {modelName}";
-        if (files.Length == 0)
-        {
-            throw new ArgumentException(errorMsg);
-        }
-
-        var splitted = files[0].Replace(modelNameForKFold, "").Split('_');
-        if (splitted.Length < 2 || !int.TryParse(splitted[1], out var n_splits) || n_splits<2)
-        {
-            throw new ArgumentException(errorMsg);
-        }
-
+        var sample = KFoldSample.ValueOf(workingDirectory, modelName);
         List<AbstractModel> embeddedModels = new();
-        for (int i = 0; i < n_splits; ++i)
+        for (int i = 0; i < sample.n_splits; ++i)
         {
-            var m = IModel.ValueOf(workingDirectory, ToModelNameForKFold(modelName, i, n_splits));
+            var m = ValueOfAbstractModel(workingDirectory, ToModelNameForKFold(modelName, i, sample.n_splits));
             embeddedModels.Add(m);
         }
         return new KFoldModel(embeddedModels, workingDirectory, modelName);
     }
-    private KFoldModel(List<AbstractModel> embeddedModels, string workingDirectory, string modelName) : base(embeddedModels[0].Sample, workingDirectory, modelName)
+    private KFoldModel(List<AbstractModel> embeddedModels, string workingDirectory, string modelName) : base(NewKFoldSample(embeddedModels[0].Sample, embeddedModels.Count), workingDirectory, modelName)
     {
         _embeddedModels = embeddedModels;
     }
     #endregion
+
     public override void Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
     {
         if (validationDatasetIfAny != null)
@@ -103,27 +91,28 @@ public class KFoldModel : AbstractModel
     }
     public override void Save(string workingDirectory, string modelName)
     {
+        Sample.Save(workingDirectory, modelName);
         foreach (var m in _embeddedModels)
         {
             m.Save(m.WorkingDirectory, m.ModelName);
         }
     }
-
     public override int GetNumEpochs()
     {
         return _embeddedModels[0].GetNumEpochs();
     }
-
-    public override string GetDeviceName()
+    public override string DeviceName()
     {
-        return _embeddedModels[0].GetDeviceName();
+        return _embeddedModels[0].DeviceName();
     }
-
     public override double GetLearningRate()
     {
         return _embeddedModels[0].GetLearningRate();
     }
-
+    public override int TotalParams()
+    {
+        return -1; //TODO
+    }
     public override List<string> ModelFiles()
     {
         List<string> res = new();
@@ -133,16 +122,12 @@ public class KFoldModel : AbstractModel
         }
         return res;
     }
+    //public KFoldSample KFoldSample => (KFoldSample)Sample;
 
     private static string ToModelNameForKFold(string modelName, int index, int n_splits)
     {
-        return ToModelNameForKFold(modelName, index) + "_" + n_splits + "_split";
+        return modelName+"_"+index + "_" + n_splits + "_splits";
     }
-    private static string ToModelNameForKFold(string modelName, int index)
-    {
-        return modelName + "_kfold_" + index;
-    }
-
     //TODO add tests
     private static List<Tuple<int, int>> KFoldIntervals(int n_splits, int count)
     {
@@ -175,4 +160,9 @@ public class KFoldModel : AbstractModel
         }
         return res;
     }
+    private static KFoldSample NewKFoldSample(IModelSample embeddedModelSample, int n_folds)
+    {
+        return new KFoldSample(n_folds, embeddedModelSample.GetMetric(), embeddedModelSample.GetLoss());
+    }
+
 }

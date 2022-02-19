@@ -24,8 +24,10 @@ public class WeightsOptimizer
     [NotNull] private readonly CpuTensor<float> _perfect_validation_predictions;
     [CanBeNull] private readonly CpuTensor<float> _perfect_train_predictions_if_any;
     private static readonly ILog Log = LogManager.GetLogger(typeof(WeightsOptimizer));
+    private float _bestScore = float.NaN;
     #endregion
 
+    #region Constructor
     public WeightsOptimizer([NotNull] string workingDirectory, List<TrainedModel> trainedModels)
     {
         if (!Directory.Exists(workingDirectory))
@@ -57,14 +59,7 @@ public class WeightsOptimizer
         Debug.Assert(_originalTestPredictionsIfAny.Count == 0 || _originalTestPredictionsIfAny.Count == _originalValidationPredictions.Count);
         Debug.Assert(SameShape(_originalTestPredictionsIfAny));
     }
-
-    private static bool SameShape(IList<CpuTensor<float>> tensors)
-    {
-        return tensors.All(t => t.SameShape(tensors[0]));
-    }
-
-    private float BestScore = float.NaN;
-
+    #endregion
     public void Run()
     {
         var searchSpace = new Dictionary<string, object>();
@@ -83,11 +78,14 @@ public class WeightsOptimizer
         Log.Info($"Score with same weight for all models : {TrainWithHyperParameters(sampleEqualWeights)}");
 
         //var hpo = new RandomSearchHPO(searchSpace,  () => new WeightsOptimizerHyperParameters(), _workingDirectory);
-        var hpo = new BayesianSearchHPO(searchSpace,  () => new WeightsOptimizerHyperParameters(), _workingDirectory);
+        var hpo = new BayesianSearchHPO(searchSpace, () => new WeightsOptimizerHyperParameters(), _workingDirectory);
         hpo.Process(t => TrainWithHyperParameters((WeightsOptimizerHyperParameters)t));
     }
 
-
+    private static bool SameShape(IList<CpuTensor<float>> tensors)
+    {
+        return tensors.All(t => t.SameShape(tensors[0]));
+    }
     private void SaveModelDescription(string path)
     {
         var sb = new StringBuilder();
@@ -98,17 +96,16 @@ public class WeightsOptimizer
         }
         File.WriteAllText(path, sb.ToString());
     }
-   
     private float TrainWithHyperParameters(WeightsOptimizerHyperParameters sample)
     {
         var weightedValidationPrediction = sample.ApplyWeights(_originalValidationPredictions);
         Debug.Assert(_perfect_validation_predictions.SameShape(weightedValidationPrediction));
         float validationRmse = _trainedModels[0].ComputeLoss(_perfect_validation_predictions, weightedValidationPrediction);
 
-        if (float.IsNaN(BestScore) || validationRmse < BestScore)
+        if (float.IsNaN(_bestScore) || validationRmse < _bestScore)
         {
             var sampleHash = sample.ComputeHash();
-            BestScore = validationRmse;
+            _bestScore = validationRmse;
             
             SaveModelDescription(Path.Combine(_workingDirectory, sampleHash + ".txt"));
             sample.Save(_workingDirectory, sampleHash);

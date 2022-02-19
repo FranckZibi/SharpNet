@@ -3,24 +3,24 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using log4net;
+using SharpNet.CatBoost;
 using SharpNet.CPU;
-using SharpNet.Datasets.Natixis70;
 using SharpNet.HPO;
 using SharpNet.LightGBM;
+using SharpNet.Models;
 
 namespace SharpNet.HyperParameters;
-
-public interface IMetricFunction
-{
-    MetricEnum GetMetric();
-    LossFunctionEnum GetLoss();
-}
 
 public interface ISample
 {
     #region private fields
     private static readonly string WrongPath;
     private static readonly string ValidPath;
+    #endregion
+
+    #region public fields & properties
+    public static readonly ILog Log = LogManager.GetLogger(typeof(ISample));
     #endregion
 
     #region constructor
@@ -45,7 +45,6 @@ public interface ISample
     Type GetFieldType(string hyperParameterName);
     bool IsCategoricalHyperParameter(string hyperParameterName);
     void Save(string workingDirectory, string modelName);
-
     /// <summary>
     /// all Hyper-Parameters file associated with the Sample
     /// </summary>
@@ -53,13 +52,9 @@ public interface ISample
     /// <param name="modelName"></param>
     /// <returns></returns>
     List<string> SampleFiles(string workingDirectory, string modelName);
-
     HashSet<string> HyperParameterNames();
     string ComputeHash();
     CpuTensor<float> Y_Train_dataset_to_Perfect_Predictions(string y_train_dataset);
-
-
-
     public static string ToPath(string workingDirectory, string modelName)
     {
         return Path.Combine(workingDirectory, modelName + ".conf");
@@ -68,7 +63,6 @@ public interface ISample
     {
         return Path.Combine(workingDirectory, modelName + "_conf.json");
     }
-
     public static IDictionary<string, string> LoadConfig(string workingDirectory, string modelName)
     {
         var textPath = ToPath(workingDirectory, modelName);
@@ -79,6 +73,34 @@ public interface ISample
             throw new ArgumentException($"both files {textPath} and {jsonPath} exist");
         }
         return File.Exists(textPath) ? LoadTextConfig(textPath) : LoadJsonConfig(jsonPath);
+    }
+    public static string NormalizePath(string field)
+    {
+        return field.Replace(WrongPath, ValidPath);
+    }
+    public static ISample LoadConfigIntoSample(Func<ISample> createDefaultSample, string workingDirectory, string modelName)
+    {
+        var sample = createDefaultSample();
+        var content = LoadConfig(workingDirectory, modelName);
+        sample.Set(Utils.FromString2String_to_String2Object(content));
+        return sample;
+    }
+    [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
+    public static ISample ValueOf(string workingDirectory, string modelName)
+    {
+        try { return Model_and_Dataset_Sample.ValueOf(workingDirectory, modelName); } catch {}
+        try { return AbstractDatasetSample.ValueOf(workingDirectory, modelName); } catch {}
+        try { return ValueOfModelSample(workingDirectory, modelName); } catch {}
+        try { return WeightsOptimizerHyperParameters.ValueOf(workingDirectory, modelName); } catch {}
+        throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
+    }
+    [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
+    public static IModelSample ValueOfModelSample(string workingDirectory, string modelName)
+    {
+        try { return LightGBMSample.ValueOf(workingDirectory, modelName); } catch { }
+        try { return CatBoostSample.ValueOf(workingDirectory, modelName); } catch { }
+        try { return KFoldSample.ValueOf(workingDirectory, modelName); } catch { }
+        throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
     }
 
     private static IDictionary<string, string> LoadTextConfig(string path)
@@ -104,8 +126,6 @@ public interface ISample
         NormalizePath(res);
         return res;
     }
-
-
     private static IDictionary<string, string> LoadJsonConfig(string path)
     {
         if (!File.Exists(path))
@@ -119,7 +139,7 @@ public interface ISample
             {
                 continue;
             }
-            var splitted = e.Split(":").Select(s=>s.Trim()).ToList();
+            var splitted = e.Split(":").Select(s => s.Trim()).ToList();
             if (splitted.Count != 2)
             {
                 throw new ArgumentException($"invalid line {e}");
@@ -146,7 +166,6 @@ public interface ISample
         NormalizePath(res);
         return res;
     }
-
     /// <summary>
     /// the computation are done in 2 different computers (using different path)
     /// Depending on the computer we are currently using, we'll normalize the path for the current computer
@@ -158,30 +177,6 @@ public interface ISample
         {
             config[key] = NormalizePath(config[key]);
         }
-    }
-    public static string NormalizePath(string field)
-    {
-        return field.Replace(WrongPath, ValidPath);
-    }
-
-
-    public static ISample LoadConfigIntoSample(Func<ISample> createDefaultSample, string workingDirectory, string modelName)
-    {
-        var sample = createDefaultSample();
-        var content = LoadConfig(workingDirectory, modelName);
-        sample.Set(Utils.FromString2String_to_String2Object(content));
-        return sample;
-    }
-
-    [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
-    public static ISample ValueOf(string workingDirectory, string modelName)
-    {
-        try { return Natixis70_LightGBM_HyperParameters.ValueOf(workingDirectory, modelName); } catch {}
-        try { return Natixis70_CatBoost_HyperParameters.ValueOf(workingDirectory, modelName); } catch {}
-        try { return Natixis70DatasetHyperParameters.ValueOf(workingDirectory, modelName); } catch {}
-        try { return LightGBMSample.ValueOf(workingDirectory, modelName); } catch {}
-        try { return WeightsOptimizerHyperParameters.ValueOf(workingDirectory, modelName); } catch {}
-        throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
     }
 
 }
