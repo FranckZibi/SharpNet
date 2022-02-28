@@ -19,61 +19,66 @@ public class KFoldModel : AbstractModel
     #endregion
 
     #region constructors
-    public KFoldModel(IModelSample embeddedModelSample, string workingDirectory, string modelName, int n_splits) : base(NewKFoldSample(embeddedModelSample, n_splits), workingDirectory, modelName+"_kfold")
+    private static KFoldModel NewUntrainedModel(IModelSample embeddedModelSample, string workingDirectory, string embeddedModelName, int n_splits, bool useFullTrainingDataset, int countMustBeMultipleOf)
     {
-        Debug.Assert(n_splits>=2);
-        _embeddedModels = new();
-        for (int i = 0; i < n_splits; ++i)
-        {
-            _embeddedModels.Add(NewModel(embeddedModelSample, workingDirectory, ToModelNameForKFold(modelName,i,n_splits )));
-        }
-    }
-
-
-    public static KFoldModel ValueOf(string workingDirectory, string modelName)
-    {
-        var sample = KFoldSample.ValueOf(workingDirectory, modelName);
+        KFoldSample sample = new(n_splits, embeddedModelName, useFullTrainingDataset, countMustBeMultipleOf, embeddedModelSample.GetMetric(), embeddedModelSample.GetLoss());
+        var modelName = sample.ComputeHash();
+        Debug.Assert(sample.n_splits >= 2);
         List<AbstractModel> embeddedModels = new();
         for (int i = 0; i < sample.n_splits; ++i)
         {
-            var m = ValueOfAbstractModel(workingDirectory, ToModelNameForKFold(modelName, i, sample.n_splits));
+            embeddedModels.Add(NewUntrainedModel(embeddedModelSample, workingDirectory, EmbeddedModelName(modelName, i)));
+        }
+        return new KFoldModel(sample, embeddedModels, workingDirectory, modelName);
+
+    }
+
+    public static KFoldModel LoadTrainedKFoldModel(string workingDirectory, string modelName)
+    {
+        var sample = KFoldSample.Load(workingDirectory, modelName);
+        List<AbstractModel> embeddedModels = new();
+        for (int i = 0; i < sample.n_splits; ++i)
+        {
+            var m = LoadTrainedAbstractModel(workingDirectory, EmbeddedModelName(modelName, i));
             embeddedModels.Add(m);
         }
-        return new KFoldModel(embeddedModels, workingDirectory, modelName);
+        return new KFoldModel(sample, embeddedModels, workingDirectory, modelName);
     }
-    private KFoldModel(List<AbstractModel> embeddedModels, string workingDirectory, string modelName) : base(NewKFoldSample(embeddedModels[0].Sample, embeddedModels.Count), workingDirectory, modelName)
+    private KFoldModel(KFoldSample modelSample, List<AbstractModel> embeddedModels, string workingDirectory, string modelName) : base(modelSample, workingDirectory, modelName)
     {
         _embeddedModels = embeddedModels;
     }
     #endregion
 
-    public override void Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+    public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
     {
-        if (validationDatasetIfAny != null)
+        if (validationDatasetIfAny != null && KFoldSample.UseFullTrainingDataset)
         {
-            throw new ArgumentException($"{nameof(validationDatasetIfAny)} must be empty : the full training dataset must be cotained in {nameof(trainDataset)}");
+            throw new ArgumentException($"{nameof(validationDatasetIfAny)} must be empty when using full training dataset or training");
         }
 
-        int n_splits = _embeddedModels.Count;
-        var foldedTrainDataset = KFold(trainDataset, n_splits);
+        Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
+        int n_splits = KFoldSample.n_splits;
+        var foldedTrainDataset = KFold(trainDataset, n_splits, KFoldSample.CountMustBeMultipleOf);
         for(int fold=0;fold<n_splits;++fold)
         {
-            Log.Info($"Training on fold[{fold}/{n_splits}]");
+            Log.Info($"Training model '{ModelName}' on fold[{fold}/{n_splits}]");
             var model = _embeddedModels[fold];
             var trainAndValidation = foldedTrainDataset[fold];
-            //Training on fold[0 / 4]
             model.Fit(trainAndValidation.Training, trainAndValidation.Test);
-            var foldValidationPrediction = model.Predict(trainAndValidation.Test);
-            var foldValidationScore = model.ComputeScore(trainAndValidation.Test.Y, foldValidationPrediction);
+            var validationDataset = validationDatasetIfAny ?? trainAndValidation.Test;
+            var foldValidationPrediction = model.Predict(validationDataset);
+            var foldValidationScore = model.ComputeScore(validationDataset.Y, foldValidationPrediction);
             Log.Info($"Validation score for fold[{fold}/{n_splits}] : {foldValidationScore}");
         }
+        return ("", "", "", "");
     }
     public override CpuTensor<float> Predict(IDataSet dataset)
     {
         CpuTensor<float> res = null;
+        Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
         //each model weight
-        int n_splits = _embeddedModels.Count;
-        var weight = 1.0f/n_splits;
+        var weight = 1.0f/ KFoldSample.n_splits;
         foreach (var m in _embeddedModels)
         {
             var modelPrediction = m.Predict(dataset);
@@ -91,12 +96,13 @@ public class KFoldModel : AbstractModel
     }
     public override void Save(string workingDirectory, string modelName)
     {
-        Sample.Save(workingDirectory, modelName);
+        ModelSample.Save(workingDirectory, modelName);
         foreach (var m in _embeddedModels)
         {
             m.Save(m.WorkingDirectory, m.ModelName);
         }
     }
+
     public override int GetNumEpochs()
     {
         return _embeddedModels[0].GetNumEpochs();
@@ -122,14 +128,43 @@ public class KFoldModel : AbstractModel
         }
         return res;
     }
-    //public KFoldSample KFoldSample => (KFoldSample)Sample;
-
-    private static string ToModelNameForKFold(string modelName, int index, int n_splits)
+    // ReSharper disable once UnusedMember.Global
+    public static void TrainEmbeddedModelWithKFold(string workingDirectory, string embeddedModelName, int n_splits, int countMustBeMultipleOf = 1)
     {
-        return modelName+"_"+index + "_" + n_splits + "_splits";
+        var embeddedTrainableSample = ITrainableSample.ValueOfITrainableSample(workingDirectory, embeddedModelName);
+        var embeddedModelSample = embeddedTrainableSample.ModelSample;
+        var datasetSample = embeddedTrainableSample.DatasetSample;
+        var backupPath = (datasetSample.Train_XDatasetPath, datasetSample.Train_YDatasetPath, datasetSample.Validation_XDatasetPath, datasetSample.Validation_YDatasetPath, datasetSample.Test_DatasetPath);
+        embeddedModelSample.Use_All_Available_Cores();
+
+        //var model007 = KFoldModel.LoadTrainedModel(workingDirectory, "C1610E14E8");
+        //datasetSample.ComputePredictions(model007); return;
+
+        //We first train on part of training dataset
+        var kfoldModelWithPartOfTrainingDataset = NewUntrainedModel(embeddedModelSample, workingDirectory, embeddedModelName, n_splits, false, countMustBeMultipleOf);
+        Log.Info($"Training '{kfoldModelWithPartOfTrainingDataset.ModelName}' (based on model {embeddedModelName}) on part of Training Dataset");
+        datasetSample.Fit(kfoldModelWithPartOfTrainingDataset, true, true, true);
+        (datasetSample.Train_XDatasetPath, datasetSample.Train_YDatasetPath, datasetSample.Validation_XDatasetPath,  datasetSample.Validation_YDatasetPath, datasetSample.Test_DatasetPath) = backupPath;
+        datasetSample.Save(workingDirectory, kfoldModelWithPartOfTrainingDataset.ModelName + "_1");
+
+        //We then train on full training dataset
+        var kfoldModelWithFullTrainingDataset = NewUntrainedModel(embeddedModelSample, workingDirectory, embeddedModelName, n_splits, true, countMustBeMultipleOf);
+        Log.Info($"Training '{kfoldModelWithFullTrainingDataset.ModelName}' (based on model {embeddedModelName}) on full of Training Dataset");
+        using var fullTraining = datasetSample.FullTraining();
+        kfoldModelWithFullTrainingDataset.Fit(fullTraining, null);
+        datasetSample.ComputeAndSavePredictions(kfoldModelWithFullTrainingDataset);
+        kfoldModelWithFullTrainingDataset.Save(kfoldModelWithFullTrainingDataset.WorkingDirectory, kfoldModelWithFullTrainingDataset.ModelName);
+        (datasetSample.Train_XDatasetPath, datasetSample.Train_YDatasetPath, datasetSample.Validation_XDatasetPath, datasetSample.Validation_YDatasetPath, datasetSample.Test_DatasetPath) = backupPath;
+        datasetSample.Save(workingDirectory, kfoldModelWithFullTrainingDataset.ModelName + "_1");
+    }
+
+    private KFoldSample KFoldSample => (KFoldSample)ModelSample;
+    private static string EmbeddedModelName(string modelName, int index)
+    {
+        return modelName+"_kfold_"+index;
     }
     //TODO add tests
-    private static List<Tuple<int, int>> KFoldIntervals(int n_splits, int count)
+    private static List<Tuple<int, int>> KFoldIntervals(int n_splits, int count, int countMustBeMultipleOf)
     {
         Debug.Assert(n_splits >= 1);
         List<Tuple<int, int>> validationIntervalForKfold = new();
@@ -139,6 +174,7 @@ public class KFoldModel : AbstractModel
         {
             var start = validationIntervalForKfold.Count == 0 ? 0 : validationIntervalForKfold.Last().Item2 + 1;
             var end = start + countByFold - 1;
+            end -= (end - start + 1) % countMustBeMultipleOf;
             if (validationIntervalForKfold.Count == n_splits - 1)
             {
                 end = count - 1;
@@ -147,22 +183,17 @@ public class KFoldModel : AbstractModel
         }
         return validationIntervalForKfold;
     }
-    private static List<TrainingAndTestDataLoader> KFold(IDataSet dataset, int kfold)
+    private static List<TrainingAndTestDataset> KFold(IDataSet dataset, int kfold, int countMustBeMultipleOf)
     {
-        var validationIntervalForKfold = KFoldIntervals(kfold, dataset.Count);
-        List<TrainingAndTestDataLoader> res = new();
+        var validationIntervalForKfold = KFoldIntervals(kfold, dataset.Count, countMustBeMultipleOf);
+        List<TrainingAndTestDataset> res = new();
         for (var index = 0; index < validationIntervalForKfold.Count; index++)
         {
             var intervalForValidation = validationIntervalForKfold[index];
             var training = dataset.SubDataSet(id => id < intervalForValidation.Item1 || id > intervalForValidation.Item2);
             var test = dataset.SubDataSet(id => id >= intervalForValidation.Item1 && id <= intervalForValidation.Item2);
-            res.Add(new TrainingAndTestDataLoader(training, test, KFoldModel.ToModelNameForKFold(dataset.Name, index, validationIntervalForKfold.Count)));
+            res.Add(new TrainingAndTestDataset(training, test, EmbeddedModelName(dataset.Name, index)));
         }
         return res;
     }
-    private static KFoldSample NewKFoldSample(IModelSample embeddedModelSample, int n_folds)
-    {
-        return new KFoldSample(n_folds, embeddedModelSample.GetMetric(), embeddedModelSample.GetLoss());
-    }
-
 }

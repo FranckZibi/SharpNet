@@ -4,7 +4,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets.CFM60
 {
-    public class CFM60TrainingAndTestDataSet : AbstractTrainingAndTestDataSet
+    public class Cfm60TrainingAndTestDataset : AbstractTrainingAndTestDataset
     {
         public override IDataSet Training { get; }
         public override IDataSet Test { get; }
@@ -19,7 +19,7 @@ namespace SharpNet.Datasets.CFM60
             return 0;
         }
 
-        public CFM60TrainingAndTestDataSet(Cfm60NetworkSample cfm60NetworkSample, Action<string> log) : base("CFM60")
+        public Cfm60TrainingAndTestDataset(Cfm60NetworkSample cfm60NetworkSample, Action<string> log) : base("CFM60")
         {
             Training = new CFM60DataSet(
                 Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_training.csv"),

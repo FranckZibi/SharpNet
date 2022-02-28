@@ -10,7 +10,7 @@ namespace SharpNetTests.CatBoost
         [Test, Explicit] 
         public void TestToJson()
         {
-            var workingDirectory = AmazonEmployeeAccessChallengeDatasetHyperParameters.WorkingDirectory;
+            var workingDirectory = AmazonEmployeeAccessChallengeDatasetSample.WorkingDirectory;
             if (!Directory.Exists(workingDirectory))
             {
                 Directory.CreateDirectory(workingDirectory);

@@ -26,6 +26,7 @@ namespace SharpNet.HPO
         private DateTime? lastTimeDisplayedStatisticsDateTime;
         #endregion
 
+        #region public fields
         /// <summary>
         /// the best sample (lowest cost) found so far (or null if no sample has been analyzed)
         /// </summary>
@@ -37,7 +38,9 @@ namespace SharpNet.HPO
         /// </summary>
         // ReSharper disable once MemberCanBePrivate.Global
         public float CostOfBestSampleFoundSoFar { get; protected set; } = float.NaN;
+        #endregion
 
+        #region constructor
         protected AbstractHpo(
             IDictionary<string, object> searchSpace, 
             Func<ISample> createDefaultSample,
@@ -63,7 +66,6 @@ namespace SharpNet.HPO
             }
 
             int coreCount = Utils.CoreCount;
-
             // ReSharper disable once ConvertToConstant.Local
             // number of parallel threads in each single training
             int numThreadsForEachModelTraining = 1;//single core
@@ -74,17 +76,7 @@ namespace SharpNet.HPO
                 throw new ArgumentException($"invalid number of threads {numThreadsForEachModelTraining} : core count {coreCount} must be a multiple of it");
             }
         }
-
-
-        private string StatisticsDescription()
-        {
-            string res = "";
-            foreach (var e in SearchSpace.OrderBy(e=>e.Key))
-            {
-                res += "Stats for " + e.Key + ":"+Environment.NewLine+e.Value;
-            }
-            return res;
-        }
+        #endregion
 
         public void Process(Func<ISample, float> objectiveFunction, float maxAllowedSecondsForAllComputation = 0 /* no time limit by default */)
         {
@@ -97,6 +89,32 @@ namespace SharpNet.HPO
             }
             Task.WaitAll(threadTasks);
         }
+
+
+        protected virtual void RegisterSampleCost(ISample sample, int sampleId, float cost, double elapsedTimeInSeconds)
+        {
+            _allCost.Add(cost, 1);
+            RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
+        }
+        protected static void RegisterSampleCost(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, float cost, double elapsedTimeInSeconds)
+        {
+            foreach (var (parameterName, parameterSearchSpace) in searchSpace)
+            {
+                var parameterValue = sample.Get(parameterName);
+                parameterSearchSpace.RegisterCost(parameterValue, cost, elapsedTimeInSeconds);
+            }
+        }
+        protected static string ToSampleDescription(IDictionary<string, string> dico, ISample sample)
+        {
+            var description = "";
+            foreach (var (hyperParameterName, _) in dico.OrderBy(t=>t.Key))
+            {
+                var hyperParameterValueAsString = Utils.FieldValueToString(sample.Get(hyperParameterName));
+                description+= hyperParameterName+ " = "+ hyperParameterValueAsString + Environment.NewLine;
+            }
+            return description.Trim();
+        }
+        protected abstract (ISample,int, string) Next { get; }
 
         /// <summary>
         /// process next available sample
@@ -129,7 +147,7 @@ namespace SharpNet.HPO
                     {
                         BestSampleFoundSoFar = sample;
                         CostOfBestSampleFoundSoFar = cost;
-                        Log.Info($"new lowest cost {CostOfBestSampleFoundSoFar} with sampleId {sampleId}"+Environment.NewLine+ sampleDescription);
+                        Log.Info($"new lowest cost {CostOfBestSampleFoundSoFar} with sampleId {sampleId}" + Environment.NewLine + sampleDescription);
                     }
                     double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
                     RegisterSampleCost(sample, sampleId, cost, elapsedTimeInSeconds);
@@ -137,7 +155,7 @@ namespace SharpNet.HPO
                     Log.Debug("ended new computation");
                     Log.Debug($"{Processed} processed samples");
                     //we display statistics only once every 10s
-                    if (lastTimeDisplayedStatisticsDateTime == null ||  (DateTime.Now - lastTimeDisplayedStatisticsDateTime.Value).TotalSeconds > 10)
+                    if (lastTimeDisplayedStatisticsDateTime == null || (DateTime.Now - lastTimeDisplayedStatisticsDateTime.Value).TotalSeconds > 10)
                     {
                         lastTimeDisplayedStatisticsDateTime = DateTime.Now;
                         Log.Debug(StatisticsDescription());
@@ -156,40 +174,18 @@ namespace SharpNet.HPO
                 }
             }
         }
-
-
-        protected virtual void RegisterSampleCost(ISample sample, int sampleId, float cost, double elapsedTimeInSeconds)
-        {
-            _allCost.Add(cost, 1);
-            RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
-        }
-
-
-        protected static void RegisterSampleCost(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, float cost, double elapsedTimeInSeconds)
-        {
-            foreach (var (parameterName, parameterSearchSpace) in searchSpace)
-            {
-                var parameterValue = sample.Get(parameterName);
-                parameterSearchSpace.RegisterCost(parameterValue, cost, elapsedTimeInSeconds);
-            }
-        }
-
-
         /// <summary>
         /// number of processed search spaces
         /// </summary>
         private int Processed => _allCost.Count;
-
-        protected static string ToSampleDescription(IDictionary<string, string> dico, ISample sample)
+        private string StatisticsDescription()
         {
-            var description = "";
-            foreach (var (hyperParameterName, _) in dico.OrderBy(t=>t.Key))
+            string res = "";
+            foreach (var e in SearchSpace.OrderBy(e => e.Key))
             {
-                var hyperParameterValueAsString = Utils.FieldValueToString(sample.Get(hyperParameterName));
-                description+= hyperParameterName+ " = "+ hyperParameterValueAsString + Environment.NewLine;
+                res += "Stats for " + e.Key + ":" + Environment.NewLine + e.Value;
             }
-            return description.Trim();
+            return res;
         }
-        protected abstract (ISample,int, string) Next { get; }
     }
 }

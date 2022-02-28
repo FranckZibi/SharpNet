@@ -23,7 +23,7 @@ public abstract class MultiSamples : ISample
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)
         {
-            Samples[sampleIndex].Save(workingDirectory, modelName+"_"+sampleIndex);
+            Samples[sampleIndex].Save(workingDirectory, modelName + ((sampleIndex==0)?"":("_"+sampleIndex)) );
         }
     }
     public List<string> SampleFiles(string workingDirectory, string modelName)

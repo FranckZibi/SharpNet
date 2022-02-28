@@ -256,7 +256,11 @@ namespace SharpNet.CatBoost
         public bool allow_writing_files = true;
         #endregion
 
-
+        public override void Save(string workingDirectory, string modelName)
+        {
+            var configFile = ISample.ToJsonPath(workingDirectory, modelName);
+            Save(configFile);
+        }
         public override void Save(string path)
         {
             var configContent = ToJsonConfigContent(DefaultAcceptForConfigContent);
@@ -310,7 +314,10 @@ namespace SharpNet.CatBoost
                     throw new NotImplementedException($"can't manage metric {loss_function}");
             }
         }
-
+        public void Use_All_Available_Cores()
+        {
+            thread_count = Utils.CoreCount;
+        }
         private static readonly HashSet<string> CategoricalHyperParameters = new()
         {
             "use_best_model",

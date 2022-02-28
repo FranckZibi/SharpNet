@@ -51,7 +51,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             if (normalizeInput)
             { 
                 meanAndVolatilityForEachChannel = xOriginalMiniBatch.ComputeMeanAndVolatilityOfEachChannel(x => x);
-                xOriginalMiniBatch = xOriginalMiniBatch.Select((n, c, val) => (float)((val - meanAndVolatilityForEachChannel[c].Item1) / Math.Max(meanAndVolatilityForEachChannel[c].Item2, 1e-9)));
+                xOriginalMiniBatch = xOriginalMiniBatch.Select((_, c, val) => (float)((val - meanAndVolatilityForEachChannel[c].Item1) / Math.Max(meanAndVolatilityForEachChannel[c].Item2, 1e-9)));
             }
 
             var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
@@ -68,7 +68,7 @@ namespace SharpNetTests.DataAugmentation.Operations
 
             if (normalizeInput)
             {
-                xDataAugmentedMiniBatch = xDataAugmentedMiniBatch.Select((n, c, val) => val*meanAndVolatilityForEachChannel[c].Item2+meanAndVolatilityForEachChannel[c].Item1);
+                xDataAugmentedMiniBatch = xDataAugmentedMiniBatch.Select((_, c, val) => val*meanAndVolatilityForEachChannel[c].Item2+meanAndVolatilityForEachChannel[c].Item1);
             }
 
             var t = new BitmapContent(bmp.Shape, xDataAugmentedMiniBatch.ReadonlyContent.Select(x => (byte)Math.Max(0,Math.Min(255,x))).ToArray());

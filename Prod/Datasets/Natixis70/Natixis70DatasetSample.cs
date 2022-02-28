@@ -4,11 +4,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Text;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
-using SharpNet.Models;
+using SharpNet.MathTools;
 
 namespace SharpNet.Datasets.Natixis70;
 
@@ -16,14 +15,19 @@ namespace SharpNet.Datasets.Natixis70;
 public class Natixis70DatasetSample : AbstractDatasetSample
 {
     #region private fields
-    private static string XTrainRawFile => Path.Combine(Natixis70Utils.WorkingDirectory, "Data", "x_train_ACFqOMF.csv");
-    // ReSharper disable once MemberCanBePrivate.Global
-    public static string YTrainRawFile => Path.Combine(Natixis70Utils.WorkingDirectory, "Data", "y_train_HNMbC27.csv");
-    private static string XTestRawFile => Path.Combine(Natixis70Utils.WorkingDirectory, "Data", "x_test_pf4T2aK.csv");
     private static readonly ConcurrentDictionary<string, CpuTensor<float>> CacheDataset = new();
+    private static DoubleAccumulator[] Y_RAW_statistics { get; }
+    private static DoubleAccumulator[] Y_RAW_abs_statistics { get; }
+    private static readonly ConcurrentDictionary<string, CpuTensor<float>> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
     #endregion
 
     #region constructors
+    static Natixis70DatasetSample()
+    {
+        var cpuTensor = Dataframe.Load(YTrainRawFile, true, ',').Drop(new[] { "" }).Tensor;
+        Y_RAW_statistics = ExtractColumnStatistic(cpuTensor, false);
+        Y_RAW_abs_statistics = ExtractColumnStatistic(cpuTensor, true);
+    }
     public Natixis70DatasetSample() : base(new HashSet<string>())
     {
     }
@@ -43,7 +47,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     /// true if we want to predict all markets (VIX, EURUSD, etc.) at the same time
     /// false if we want to predict each market separately 
     /// </summary>
-    // ReSharper disable once MemberCanBePrivate.Global
+    // ReSharper disable once Member6CanBePrivate.Global
     public bool TryToPredictAllMarketsAtTheSameTime = false;
     // ReSharper disable once MemberCanBePrivate.Global
     public bool MergeHorizonAndMarketIdInSameFeature = false;
@@ -57,10 +61,6 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     public double PercentageInTraining = 0.8;
     #endregion
     
-    public override ModelDatasets ToModelDatasets()
-    {
-        return new ModelDatasets("", "", "", "", XTestDatasetPath(), true, ModelDatasets.DatasetType.LightGBMTrainingFormat);
-    }
     public override bool PostBuild()
     {
         if (MergeHorizonAndMarketIdInSameFeature)
@@ -72,32 +72,30 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         return true;
     }
-    public int RawCountToCount(int rawCount)
-    {
-        int count = rawCount;
-        if (!TryToPredictAllHorizonAtTheSameTime)
-        {
-            count *= Natixis70Utils.HorizonNames.Length;
-        }
-        if (!TryToPredictAllMarketsAtTheSameTime)
-        {
-            count *= Natixis70Utils.MarketNames.Length;
-        }
-        return count;
-    }
     /// <summary>
     /// convert a dataset in LightGBM format (first column is the target 'y') to the challenge target format 
     /// </summary>
     /// <param name="dataframe_path">a dataset in LightGBM format</param>
     /// <returns></returns>
-    public override CpuTensor<float> ModelPrediction_2_TargetPredictionFormat(string dataframe_path)
+    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
     {
-        var y_ModelPredictionFormat = Dataframe.Load(dataframe_path, true, ',').Keep(new[] { "y" }).Tensor;
-        var y_TargetPredictionFormat = ModelPrediction_2_TargetPredictionFormat(y_ModelPredictionFormat).DropColumns(new[] { 0 });
-        Debug.Assert(y_TargetPredictionFormat.Shape.Length == 2);
-        Debug.Assert(y_TargetPredictionFormat.Shape[1] == 39);
-        return y_TargetPredictionFormat;
+        if (PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryGetValue(dataframe_path, out var res))
+        {
+            return res;
+        }
+        var predictionsInModelFormat = Dataframe.Load(dataframe_path, true, ',').Keep(new[] { "y" }).Tensor;
+        var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat).DropColumns(new[] { 0 });
+        Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
+        Debug.Assert(predictionInTargetFormat.Shape[1] == 39);
+        PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryAdd(dataframe_path, predictionInTargetFormat);
+        return predictionInTargetFormat;
     }
+
+    public override (CpuTensor<float> trainPredictions, CpuTensor<float> validationPredictions, CpuTensor<float> testPredictions) LoadAllPredictions()
+    {
+        return LoadAllPredictions(true, true, ',');
+    }
+
     public override List<string> CategoricalFeatures()
     {
         var categoricalFeatures = new List<string>();
@@ -123,6 +121,11 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     public override IDataSet FullTraining()
     {
         return NewDataSet(XTrainRawFile, YTrainRawFile);
+    }
+    public override void ComputeAndSavePredictions(CpuTensor<float> predictionsInModelFormat, string path)
+    {
+        var predictionsInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
+        new Dataframe(predictionsInTargetFormat, Natixis70Utils.PredictionHeader.Split(','), "").Save(path);
     }
 
     protected override CpuTensor<float> UnnormalizeYIfNeeded(CpuTensor<float> y)
@@ -150,13 +153,13 @@ public class Natixis70DatasetSample : AbstractDatasetSample
                     var yValue = ySpan[index];
                     if (Normalization == normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
                     {
-                        var colStatistics = Natixis70Utils.Y_RAW_statistics[rawColIndex - 1];
+                        var colStatistics = Y_RAW_statistics[rawColIndex - 1];
                         var yUnnormalizedValue = (float)(yValue * colStatistics.Volatility + colStatistics.Average);
                         YunnormalizedSpan[index] = yUnnormalizedValue;
                     }
                     else if (Normalization == normalize_enum.DIVIDE_BY_ABS_MEAN)
                     {
-                        var absColStatistics = Natixis70Utils.Y_RAW_abs_statistics[rawColIndex - 1];
+                        var absColStatistics = Y_RAW_abs_statistics[rawColIndex - 1];
                         var yUnnormalizedValue = (float)(yValue * absColStatistics.Average);
                         YunnormalizedSpan[index] = yUnnormalizedValue;
                     }
@@ -176,12 +179,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         using var fullTraining = NewDataSet(XTrainRawFile, YTrainRawFile);
         int rowsInTrainingSet = (int)(PercentageInTraining * fullTraining.Count + 0.1);
         rowsInTrainingSet -= rowsInTrainingSet % RawCountToCount(1);
-        return fullTraining.SplitIntoTrainingAndValidation(rowsInTrainingSet);
-    }
-    protected override void SavePredictions(CpuTensor<float> y_lightGBM, string path)
-    {
-        var y_target = ModelPrediction_2_TargetPredictionFormat(y_lightGBM);
-        new Dataframe(y_target, Natixis70Utils.PredictionHeader.Split(','), "").Save(path);
+        return fullTraining.IntSplitIntoTrainingAndValidation(rowsInTrainingSet);
     }
 
     private int[] Y_Shape(int yRawCount)
@@ -201,23 +199,25 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     {
         return new[] { CountToRawCount(yCount), 1 + Natixis70Utils.MarketNames.Length * Natixis70Utils.HorizonNames.Length };
     }
-    private CpuTensor<float> ModelPrediction_2_TargetPredictionFormat(CpuTensor<float> y_lightGBM)
+    private CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
     {
-        var sb = new StringBuilder();
-        sb.Append(Natixis70Utils.PredictionHeader + Environment.NewLine);
+        if (predictionsInModelFormat.Shape[1] == 39)
+        {
+            return CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat, 0);
+        }
 
-        var y_lightGBMSpan = y_lightGBM.AsReadonlyFloatCpuContent;
-        var y_lightGBMSpanIndex = 0;
+        var predictionsInModelFormatSpan = predictionsInModelFormat.AsReadonlyFloatCpuContent;
+        var predictionsInModelFormatSpanIndex = 0;
 
         // the predictions in the expected format for the Natixis70 Challenge
-        var y_target = new CpuTensor<float>(YRaw_Shape(y_lightGBM.Shape[0]));
-        var y_targetSpan = y_target.AsFloatCpuSpan;
+        var predictionsInTargetFormat = new CpuTensor<float>(YRaw_Shape(predictionsInModelFormat.Shape[0]));
+        var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsFloatCpuSpan;
         var divider = RawCountToCount(1);
 
-        for (int row = 0; row < y_lightGBM.Shape[0]; ++row)
+        for (int row = 0; row < predictionsInModelFormat.Shape[0]; ++row)
         {
             var rawRow = row / divider;
-            y_targetSpan[rawRow * y_target.Shape[1]] = rawRow;
+            predictionsInTargetFormatSpan[rawRow * predictionsInTargetFormat.Shape[1]] = rawRow;
             int horizonId = RowToHorizonId(row);
             int marketId = RowToMarketId(row);
             //we load the row 'row' in 'yRaw' tensor
@@ -226,18 +226,18 @@ public class Natixis70DatasetSample : AbstractDatasetSample
                 for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId); ++currentHorizonId)
                 {
                     int rawColIndex = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
-                    var yValue = y_lightGBMSpan[y_lightGBMSpanIndex++];
+                    var yValue = predictionsInModelFormatSpan[predictionsInModelFormatSpanIndex++];
                     if (Math.Abs(yValue) < 1e-4)
                     {
                         yValue = 0;
                     }
-                    y_targetSpan[rawRow * y_target.Shape[1] + rawColIndex] = yValue;
+                    predictionsInTargetFormatSpan[rawRow * predictionsInTargetFormat.Shape[1] + rawColIndex] = yValue;
                 }
             }
         }
-        Debug.Assert(y_target.Shape.Length == 2);
-        Debug.Assert(y_target.Shape[1] == (1 + 39));
-        return y_target;
+        Debug.Assert(predictionsInTargetFormat.Shape.Length == 2);
+        Debug.Assert(predictionsInTargetFormat.Shape[1] == (1 + 39));
+        return predictionsInTargetFormat;
     }
     private int CountToRawCount(int count)
     {
@@ -287,7 +287,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         return new[] { RawCountToCount(xRowCount), xColCount };
     }
-    private InMemoryDataSet NewDataSet([JetBrains.Annotations.NotNull] string xRawFile, [CanBeNull] string yRawFileIfAny)
+    private IDataSet NewDataSet([JetBrains.Annotations.NotNull] string xRawFile, [CanBeNull] string yRawFileIfAny)
     {
         return new InMemoryDataSet(
             Load_X(xRawFile),
@@ -334,16 +334,6 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     /// <summary>
     /// path to the test dataset in LightGBM compatible format
     /// </summary>
-    /// <returns></returns>
-    private string XTestDatasetPath()
-    {
-        using var test = NewDataSet(XTestRawFile, null);
-        return AbstractModel.DatasetPath(test, false, Natixis70Utils.NatixisDatasetDirectory);
-    }
-    /// <summary>
-    /// Load the content of the file  'xRawFile' in a CpuTensor and return it
-    /// </summary>
-    /// <param name="xRawFile"></param>
     /// <returns></returns>
     private CpuTensor<float> Load_X(string xRawFile)
     {
@@ -441,12 +431,12 @@ public class Natixis70DatasetSample : AbstractDatasetSample
                     var yRawValue = yRawSpan[rawRow * yRaw.Shape[1] + rawColIndex];
                     if (Normalization == normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
                     {
-                        var colStatistics = Natixis70Utils.Y_RAW_statistics[rawColIndex - 1];
+                        var colStatistics = Y_RAW_statistics[rawColIndex - 1];
                         yRawValue = (float)((yRawValue - colStatistics.Average) / colStatistics.Volatility);
                     }
                     else if (Normalization == normalize_enum.DIVIDE_BY_ABS_MEAN)
                     {
-                        var absColStatistics = Natixis70Utils.Y_RAW_abs_statistics[rawColIndex - 1];
+                        var absColStatistics = Y_RAW_abs_statistics[rawColIndex - 1];
                         yRawValue = (float)(yRawValue / absColStatistics.Average);
                     }
                     ySpan[ySpanIndex++] = yRawValue;
@@ -463,5 +453,49 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         y.Dispose();
         return CacheDataset[key];
     }
-}
+    private int RawCountToCount(int rawCount)
+    {
+        int count = rawCount;
+        if (!TryToPredictAllHorizonAtTheSameTime)
+        {
+            count *= Natixis70Utils.HorizonNames.Length;
+        }
+        if (!TryToPredictAllMarketsAtTheSameTime)
+        {
+            count *= Natixis70Utils.MarketNames.Length;
+        }
+        return count;
+    }
+    private static string XTrainRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_train_ACFqOMF.csv");
+    // ReSharper disable once MemberCanBePrivate.Global
+    private static string XTestRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_test_pf4T2aK.csv");
+    /// <summary>
+    /// return the statistics (average/volatility) of each column of the matrix 'y'
+    /// </summary>
+    /// <param name="y">a 2D tensor</param>
+    /// <param name="useAbsValues"></param>
+    /// <returns></returns>
+    private static DoubleAccumulator[] ExtractColumnStatistic(CpuTensor<float> y, bool useAbsValues)
+    {
+        Debug.Assert(y.Shape.Length == 2); //only works for matrices
+        var ySpan = y.AsReadonlyFloatCpuContent;
 
+        var result = new List<DoubleAccumulator>();
+        while (result.Count < y.Shape[1])
+        {
+            result.Add(new DoubleAccumulator());
+        }
+
+        for (int i = 0; i < ySpan.Length; ++i)
+        {
+            var yValue = ySpan[i];
+            if (useAbsValues)
+            {
+                yValue = Math.Abs(yValue);
+            }
+            result[i % y.Shape[1]].Add(yValue, 1);
+        }
+        return result.ToArray();
+    }
+    private static string YTrainRawFile => Path.Combine(Natixis70Utils.WorkingDirectory, "Data", "y_train_HNMbC27.csv");
+}

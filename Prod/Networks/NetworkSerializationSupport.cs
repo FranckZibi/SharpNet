@@ -36,7 +36,7 @@ namespace SharpNet.Networks
             return fixedResult.ToArray();
         }
         
-        public static Network ValueOf(string workingDirectory, string modelName)
+        public static Network LoadTrainedNetworkModel(string workingDirectory, string modelName)
         {
             var modelFilePath = Path.Combine(workingDirectory, modelName + ".txt");
             //we load the model (network description)
@@ -170,7 +170,7 @@ namespace SharpNet.Networks
             {
                 File.Delete(modelFilePath);
             }
-            Sample.Save(workingDirectory, modelName);
+            ModelSample.Save(workingDirectory, modelName);
 
 
             var firstLine = new Serializer()

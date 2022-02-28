@@ -1,16 +1,15 @@
-﻿using System;
+﻿using SharpNet.CPU;
+using SharpNet.HyperParameters;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using SharpNet.CPU;
-using SharpNet.HyperParameters;
-using SharpNet.Models;
 
 namespace SharpNet.Datasets.AmazonEmployeeAccessChallenge;
 
-public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractDatasetSample
+public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
 {
     #region private fields
     private readonly InMemoryDataSet _testDataset;
@@ -19,7 +18,7 @@ public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractDatas
     #endregion
 
     [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
-    public AmazonEmployeeAccessChallengeDatasetHyperParameters() : base(new HashSet<string>())
+    public AmazonEmployeeAccessChallengeDatasetSample() : base(new HashSet<string>())
     {
         var train = Dataframe.Load(TrainRawFile, true, ',');
         var targetFeatures = new List<string> { "ACTION" };
@@ -38,9 +37,9 @@ public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractDatas
             false);
 
         _testDataset = new InMemoryDataSet(
-            Dataframe.Load(TestRawFile, true, ',').Drop(new []{"id"}).Tensor,
+            Dataframe.Load(GetXTestDatasetPath(), true, ',').Drop(new[] { "id" }).Tensor,
             null,
-            nameof(AmazonEmployeeAccessChallengeDatasetHyperParameters),
+            nameof(AmazonEmployeeAccessChallengeDatasetSample),
             Objective_enum.Classification,
             null,
             new[] { "NONE" },
@@ -51,33 +50,41 @@ public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractDatas
     }
 
     public static string WorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath, "SharpNet", "AmazonEmployeeAccessChallenge");
-    public static AmazonEmployeeAccessChallengeDatasetHyperParameters ValueOfAmazonEmployeeAccessChallengeDatasetHyperParameters(string workingDirectory, string modelName)
+    public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
+    public static AmazonEmployeeAccessChallengeDatasetSample ValueOfAmazonEmployeeAccessChallengeDatasetHyperParameters(string workingDirectory, string modelName)
     {
-        return (AmazonEmployeeAccessChallengeDatasetHyperParameters)ISample.LoadConfigIntoSample(() => new AmazonEmployeeAccessChallengeDatasetHyperParameters(), workingDirectory, modelName);
+        return (AmazonEmployeeAccessChallengeDatasetSample)ISample.LoadConfigIntoSample(() => new AmazonEmployeeAccessChallengeDatasetSample(), workingDirectory, modelName);
     }
     public override IDataSet FullTraining()
     {
         return FullTrain;
     }
-    public override CpuTensor<float> ModelPrediction_2_TargetPredictionFormat(string dataframe_path)
+    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
     {
         throw new NotImplementedException(); //TODO
     }
+
+    public override (CpuTensor<float> trainPredictions, CpuTensor<float> validationPredictions, CpuTensor<float> testPredictions) LoadAllPredictions()
+    {
+        return LoadAllPredictions(true, false, ',');
+    }
+
+    private static string GetXTestDatasetPath()
+    {
+        return Path.Combine(DataDirectory, "test.csv");
+    }
+
     public override List<string> CategoricalFeatures()
     {
         return new List<string> { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
     }
-    public override ModelDatasets ToModelDatasets()
-    {
-        throw new NotImplementedException();
-    }
 
-    protected override void SavePredictions(CpuTensor<float> y_pred, string path)
+    public override void ComputeAndSavePredictions(CpuTensor<float> predictionsInModelFormat, string path)
     {
         var sb = new StringBuilder();
         sb.Append(PredictionHeader + Environment.NewLine);
 
-        var ySpan = y_pred.AsReadonlyFloatCpuContent;
+        var ySpan = predictionsInModelFormat.AsReadonlyFloatCpuContent;
         for (int i = 0; i < ySpan.Length; ++i)
         {
             sb.Append((i + 1) + "," + ySpan[i].ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
@@ -93,6 +100,5 @@ public class AmazonEmployeeAccessChallengeDatasetHyperParameters : AbstractDatas
         return _testDataset;
     }
 
-    private static string TrainRawFile => Path.Combine(WorkingDirectory, "Data", "train.csv");
-    private static string TestRawFile => Path.Combine(WorkingDirectory, "Data", "test.csv");
+    private static string TrainRawFile => Path.Combine(DataDirectory, "train.csv");
 }

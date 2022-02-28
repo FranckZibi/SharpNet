@@ -182,7 +182,7 @@ namespace SharpNetTests.NonReg
             var p = Cfm60NetworkSample.Default();
             p.Config.BatchSize = miniBatchSize;
 
-            using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(p, s => AbstractModel.Log.Info(s));
+            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => AbstractModel.Log.Info(s));
             var dataset = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
 
             var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Sample.Encoder_TimeSteps, p.CFM60HyperParameters.Encoder_InputSize };
@@ -275,7 +275,7 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void TestGPUBenchmark_Speed()
         {
-            var mnist = new MNISTDataSet();
+            var mnist = new MnistDataset();
             const double learningRate = 0.01;
             var network = new Network(
                 new NetworkConfig()
@@ -291,7 +291,7 @@ namespace SharpNetTests.NonReg
                 new DataAugmentationSample()
                 );
             network
-                .Input(MNISTDataSet.Shape_CHW)
+                .Input(MnistDataset.Shape_CHW)
                 .Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
@@ -304,7 +304,7 @@ namespace SharpNetTests.NonReg
                 .Dense_Activation(1000, 0.0, false, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
 
-                .Output(MNISTDataSet.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Output(MnistDataset.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
             network.Fit(mnist.Training, mnist.Test);

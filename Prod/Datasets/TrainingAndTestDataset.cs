@@ -1,8 +1,8 @@
 ﻿namespace SharpNet.Datasets
 {
-    public class TrainingAndTestDataLoader : AbstractTrainingAndTestDataSet
+    public class TrainingAndTestDataset : AbstractTrainingAndTestDataset
     {
-        public TrainingAndTestDataLoader(IDataSet training, IDataSet test, string name)
+        public TrainingAndTestDataset(IDataSet training, IDataSet test, string name)
             : base(name)
         {
             Training = training;

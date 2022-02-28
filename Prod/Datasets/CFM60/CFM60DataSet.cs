@@ -738,7 +738,7 @@ namespace SharpNet.Datasets.CFM60
             var dayThreshold = CFM60Utils.DayThreshold(Entries, percentageInTrainingSet);
             var training = new CFM60DataSet(Entries.Where(e => e.day <= dayThreshold).ToArray(), _cfm60NetworkSample);
             var validation = new CFM60DataSet(Entries.Where(e => e.day > dayThreshold).ToArray(), _cfm60NetworkSample, training);
-            return new TrainingAndTestDataLoader(training, validation, Name);
+            return new TrainingAndTestDataset(training, validation, Name);
         }
 
 

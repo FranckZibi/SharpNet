@@ -81,7 +81,7 @@ namespace SharpNetTests.NonReg
         public void TestSVHN()
         {
             Console.WriteLine("loading SVHN");
-            var svhn = new SVHNDataSet(true);
+            var svhn = new SvhnDataset(true);
 
             //WRN 16-4 30 epochs
             //98.33<= 98.24 (30 epochs) + 98.18 (10 epochs)

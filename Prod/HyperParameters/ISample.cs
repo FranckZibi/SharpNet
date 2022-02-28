@@ -4,11 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using log4net;
-using SharpNet.CatBoost;
 using SharpNet.CPU;
-using SharpNet.HPO;
-using SharpNet.LightGBM;
-using SharpNet.Models;
 
 namespace SharpNet.HyperParameters;
 
@@ -86,23 +82,6 @@ public interface ISample
         return sample;
     }
     [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
-    public static ISample ValueOf(string workingDirectory, string modelName)
-    {
-        try { return Model_and_Dataset_Sample.ValueOf(workingDirectory, modelName); } catch {}
-        try { return AbstractDatasetSample.ValueOf(workingDirectory, modelName); } catch {}
-        try { return ValueOfModelSample(workingDirectory, modelName); } catch {}
-        try { return WeightsOptimizerHyperParameters.ValueOf(workingDirectory, modelName); } catch {}
-        throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
-    }
-    [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
-    public static IModelSample ValueOfModelSample(string workingDirectory, string modelName)
-    {
-        try { return LightGBMSample.ValueOf(workingDirectory, modelName); } catch { }
-        try { return CatBoostSample.ValueOf(workingDirectory, modelName); } catch { }
-        try { return KFoldSample.ValueOf(workingDirectory, modelName); } catch { }
-        throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
-    }
-
     private static IDictionary<string, string> LoadTextConfig(string path)
     {
         if (!File.Exists(path))

@@ -41,14 +41,14 @@ public abstract class AbstractSample : ISample
         var configFile = ISample.ToPath(workingDirectory, modelName);
         Save(configFile);
     }
-    public virtual List<string> SampleFiles(string workingDirectory, string modelName)
-    {
-        return new List<string> { ISample.ToPath(workingDirectory, modelName) };
-    }
     public virtual void Save(string path)
     {
         var configContent = ToConfigContent(DefaultAcceptForConfigContent);
         File.WriteAllText(path, configContent);
+    }
+    public virtual List<string> SampleFiles(string workingDirectory, string modelName)
+    {
+        return new List<string> { ISample.ToPath(workingDirectory, modelName) };
     }
     public virtual void Set(string fieldName, object fieldValue)
     {

@@ -121,6 +121,7 @@ namespace SharpNet.Datasets
         string Name { get; }
 
         ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet);
+        ITrainingAndTestDataSet IntSplitIntoTrainingAndValidation(int countInTrainingSet);
         // ReSharper disable once UnusedMember.Global
         IDataSet Resize(int targetSize, bool shuffle);
         // ReSharper disable once UnusedMember.Global

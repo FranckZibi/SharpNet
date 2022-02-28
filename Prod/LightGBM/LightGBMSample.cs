@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet.HyperParameters;
-using SharpNet.Models;
 
 namespace SharpNet.LightGBM
 {
@@ -44,13 +43,13 @@ namespace SharpNet.LightGBM
                     throw new NotImplementedException($"can't manage metric {objective}");
             }
         }
+        public void Use_All_Available_Cores()
+        {
+            num_threads = Utils.CoreCount;
+        }
         public static LightGBMSample ValueOf(string workingDirectory, string modelName)
         {
             return (LightGBMSample) ISample.LoadConfigIntoSample(() => new LightGBMSample(), workingDirectory, modelName);
-        }
-        public ModelDatasets ToModelDatasets(string testDatasetPath)
-        {
-            return new ModelDatasets(data, data,  valid, valid, testDatasetPath, true, ModelDatasets.DatasetType.LightGBMTrainingFormat);
         }
         public override bool PostBuild()
         {
@@ -94,6 +93,13 @@ namespace SharpNet.LightGBM
                 return "gpu";
             }
         }
+        //public ModelDatasets ToModelDatasets(string testDatasetPath)
+        //{
+        //    return new ModelDatasets(data, data, valid, valid, testDatasetPath, true, ModelDatasets.DatasetType.LightGBMTrainingFormat);
+        //}
+
+
+
 
         #region Core Parameters
 

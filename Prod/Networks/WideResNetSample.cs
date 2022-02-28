@@ -24,7 +24,7 @@ namespace SharpNet.Networks
         {
             return new WideResNetSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, modelName+"_0"),
+                NetworkConfig.ValueOf(workingDirectory, modelName),
                 DataAugmentationSample.ValueOf(workingDirectory, modelName+"_1"),
                 WideResNetHyperParameters.ValueOf(workingDirectory, modelName+"_2")
             });

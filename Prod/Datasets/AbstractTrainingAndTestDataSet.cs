@@ -1,6 +1,6 @@
 ﻿namespace SharpNet.Datasets
 {
-    public abstract class AbstractTrainingAndTestDataSet : ITrainingAndTestDataSet
+    public abstract class AbstractTrainingAndTestDataset : ITrainingAndTestDataSet
     {
         #region public properties
         public abstract IDataSet Training { get; }
@@ -9,7 +9,7 @@
         #endregion
 
         #region constructor
-        protected AbstractTrainingAndTestDataSet(string name)
+        protected AbstractTrainingAndTestDataset(string name)
         {
             Name = name;
         }

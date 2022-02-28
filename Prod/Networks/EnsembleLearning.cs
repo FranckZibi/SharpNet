@@ -24,7 +24,7 @@ namespace SharpNet.Networks
                 Console.WriteLine("Loading " + modelFilePath + " ...");
                 var workingDirectory = Path.GetDirectoryName(modelFilePath);
                 var modelName = Path.GetFileNameWithoutExtension(modelFilePath);
-                using var network = Network.ValueOf(workingDirectory, modelName);
+                using var network = Network.LoadTrainedNetworkModel(workingDirectory, modelName);
                 Console.WriteLine("File loaded");
                 Console.WriteLine("Computing accuracy for single network...");
                     

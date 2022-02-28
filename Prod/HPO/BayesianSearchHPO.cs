@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CatBoost;
@@ -189,7 +188,7 @@ public class BayesianSearchHPO : AbstractHpo
             _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
             RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
 
-            if (SamplesWithScore.Count >= Math.Max(10, 1.2 * (_samplesUsedForModelTraining)))
+            if (SamplesWithScore.Count >= Math.Max(10, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
             {
                 _samplesUsedForModelTraining = TrainSurrogateModel();
             }
@@ -232,18 +231,14 @@ public class BayesianSearchHPO : AbstractHpo
         using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), false);
 
         // we compute the estimate cost associated with each random sample (using the surrogate model)
-        if (File.Exists(_surrogateModel.LastDatasetPathUsedForPrediction))
-        {
-            File.Delete(_surrogateModel.LastDatasetPathUsedForPrediction);
-        }
-
-        var y = _samplesUsedForModelTraining == 0 
+        Utils.TryDelete(LastDatasetPathUsedForPrediction);
+        (var y, LastDatasetPathUsedForPrediction) = _samplesUsedForModelTraining == 0 
                 
                 // the model has not been trained so far, we can not use it for now
-                ? new CpuTensor<float>(new [] { x.Shape[0], 1 }) 
+                ? (new CpuTensor<float>(new [] { x.Shape[0], 1 }), "") 
 
                 // the model has been already trained, we can use it
-                : _surrogateModel.Predict(dataset);
+                : _surrogateModel.PredictWithPath(dataset);
         var ySpan = y.AsFloatCpuSpan;
         var estimateRandomSampleCostAndIndex = new List<Tuple<float, int>>();
         for (var index = 0; index < ySpan.Length; index++)
@@ -363,24 +358,26 @@ public class BayesianSearchHPO : AbstractHpo
         using var y_true = new CpuTensor<float>(new[] { x.Shape[0], 1 }, yData);
         using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), false);
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
-        if (File.Exists(_surrogateModel.LastDatasetPathUsedForTraining))
-        {
-            File.Delete(_surrogateModel.LastDatasetPathUsedForTraining);
-        }
+        Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
+        Utils.TryDelete(_surrogateTrainedFiles.train_YDatasetPath);
+        Utils.TryDelete(_surrogateTrainedFiles.validation_XDatasetPath);
+        Utils.TryDelete(_surrogateTrainedFiles.validation_YDatasetPath);
         AdjustSurrogateModelSampleForTrainingDatasetCount(trainingDataset.Count);
-        _surrogateModel.Fit(trainingDataset, null);
+        _surrogateTrainedFiles = _surrogateModel.Fit(trainingDataset, null);
 
-        // we compute the RMSE of the surrogate model on the training dataset
-        if (File.Exists(_surrogateModel.LastDatasetPathUsedForPrediction))
-        {
-            File.Delete(_surrogateModel.LastDatasetPathUsedForPrediction);
-        }
-        using var y_pred = _surrogateModel.Predict(trainingDataset);
-        double surrogateModelTrainingRmse = _surrogateModel.ComputeScore(y_true, y_pred);
-        Log.Info($"Surrogate model Training RMSE: {surrogateModelTrainingRmse} (trained on {x.Shape[0]} samples)");
+        // we compute the score of the surrogate model on the training dataset
+        Utils.TryDelete(LastDatasetPathUsedForPrediction);
+        (var y_pred, LastDatasetPathUsedForPrediction) = _surrogateModel.PredictWithPath(trainingDataset);
+        double surrogateModelTrainingScore = _surrogateModel.ComputeScore(y_true, y_pred);
+        Log.Info($"Surrogate model Training score: {surrogateModelTrainingScore} (trained on {x.Shape[0]} samples)");
+        y_pred.Dispose();
 
         return xRows.Count;
     }
+
+
+    private (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) _surrogateTrainedFiles = ("", "", "", "");
+    private string LastDatasetPathUsedForPrediction = "";
 
     private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
     {

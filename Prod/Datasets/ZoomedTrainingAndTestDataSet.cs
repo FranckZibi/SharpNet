@@ -1,10 +1,10 @@
 ﻿namespace SharpNet.Datasets
 {
-    public class ZoomedTrainingAndTestDataSet : AbstractTrainingAndTestDataSet
+    public class ZoomedTrainingAndTestDataset : AbstractTrainingAndTestDataset
     {
-        private readonly AbstractTrainingAndTestDataSet _original;
+        private readonly AbstractTrainingAndTestDataset _original;
 
-        public ZoomedTrainingAndTestDataSet(AbstractTrainingAndTestDataSet original, int[] originalShape_CHW, int heightMultiplier, int widthMultiplier) 
+        public ZoomedTrainingAndTestDataset(AbstractTrainingAndTestDataset original, int[] originalShape_CHW, int heightMultiplier, int widthMultiplier) 
             : base(original.Name)
         {
             _original = original;

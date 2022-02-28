@@ -191,7 +191,7 @@ namespace SharpNet.Datasets
             //}
             //FlushDatabase();return;
 
-            using var network =Network.ValueOf(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), modelName);
+            using var network =Network.LoadTrainedNetworkModel(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), modelName);
 
             //foreach (var e in _database.Values.Where(e => !e.IsRemoved))
             //{
@@ -222,7 +222,7 @@ namespace SharpNet.Datasets
 
         public static Network GetDefaultNetwork()
         {
-            var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), "efficientnet-b0_Cancel_400_470_20200715_2244_630");
+            var network = Network.LoadTrainedNetworkModel(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), "efficientnet-b0_Cancel_400_470_20200715_2244_630");
             return network;
         }
 

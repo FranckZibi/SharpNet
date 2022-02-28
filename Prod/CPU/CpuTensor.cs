@@ -1955,6 +1955,19 @@ namespace SharpNet.CPU
             return new CpuTensor<T>(newShape, newData);
         }
 
+
+        public static CpuTensor<float> AddIndexInFirstColumn(CpuTensor<float> tensor, int startIndex = 0)
+        {
+            Debug.Assert(tensor.Shape.Length == 2);
+            var firstColumn = new float[tensor.Shape[0]];
+            for (int i = 0; i < firstColumn.Length; ++i)
+            {
+                firstColumn[i] = i + startIndex;
+            }
+            var tensorWithIndex = new CpuTensor<float>(new int[]{firstColumn.Length, 1}, firstColumn);
+            return CpuTensor<float>.MergeHorizontally(tensorWithIndex, tensor);
+        }
+
         public static CpuTensor<T> MergeHorizontally(CpuTensor<T> left, CpuTensor<T> right)
         {
             Debug.Assert(left.Shape.Length == 2);

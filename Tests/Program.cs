@@ -75,8 +75,17 @@ namespace SharpNetTests
             //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220122.csv", new []{"bagging_fraction", "max_depth" }, Parameters.boosting_enum.rf, 100);
             //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220129.csv", new string[]{}, Parameters.boosting_enum.rf, 100);
             //SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchLightGBMHPO(); return;
-            SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchCatBoostHPO(); return;
-            //SharpNet.Datasets.Natixis70.Natixis70Utils.SearchForBestWeights(); return;
+            //SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchCatBoostHPO(); return;
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_bis", "5F73F0353D", 5);
+
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 5, 3);
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 10, 3);
+            //var trainableSample = ITrainableSample.ValueOfITrainableSample(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D");
+            //var model007 = AbstractModel.NewModel(trainableSample.ModelSample, @"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D");
+            //trainableSample.DatasetSample.ComputePredictions(model007); return;
+
+
+            SharpNet.Datasets.Natixis70.Natixis70Utils.SearchForBestWeights(); return;
             //new TestCatBoostSample().TestToJson();
 
             //AmazonEmployeeAccessChallengeUtils.Launch_CatBoost_HPO(); return;
@@ -241,7 +250,7 @@ namespace SharpNetTests
             const int zoomFactor = 7;
             using var cifar10Original = new CIFAR10DataSet();
             var zoomedInputShape = new []{CIFAR10DataSet.Shape_CHW[0], zoomFactor * CIFAR10DataSet.Shape_CHW[1],zoomFactor * CIFAR10DataSet.Shape_CHW[2]};
-            using var cifar10Zoomed = new ZoomedTrainingAndTestDataSet(cifar10Original, CIFAR10DataSet.Shape_CHW, zoomFactor, zoomFactor);
+            using var cifar10Zoomed = new ZoomedTrainingAndTestDataset(cifar10Original, CIFAR10DataSet.Shape_CHW, zoomFactor, zoomFactor);
             using var network = p.EfficientNetB0_CIFAR10(p.EfficientNetHyperParameters.WeightForTransferLearning, zoomedInputShape);
             Log.Info(network.ToString());
             //network.FindBestLearningRate(cifar10.Training, 1e-5, 10, p.Config.BatchSize);return;
@@ -372,8 +381,8 @@ namespace SharpNetTests
 
         private static void Train_SVHN_WRN(WideResNetSample p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
-            using var svhn = new SVHNDataSet(loadExtraFileForTraining);
-            using var network = p.WRN(WRN_depth, WRN_k, SVHNDataSet.Shape_CHW, SVHNDataSet.CategoryCount);
+            using var svhn = new SvhnDataset(loadExtraFileForTraining);
+            using var network = p.WRN(WRN_depth, WRN_k, SvhnDataset.Shape_CHW, SvhnDataset.CategoryCount);
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\SVHN\WRN-16-10_30Epochs_MultiGPU_20200501_1147_30.txt");
             network.Fit(svhn.Training, svhn.Test);
         }
@@ -415,7 +424,7 @@ namespace SharpNetTests
         {
             using var network = p.CFM60();
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize4_64_DropoutRate0_2_20210115_1831_10.txt");
-            using var cfm60TrainingAndTestDataSet = new CFM60TrainingAndTestDataSet(p, s=> AbstractModel.Log.Info(s));
+            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s=> AbstractModel.Log.Info(s));
             var cfm60 = (CFM60DataSet) cfm60TrainingAndTestDataSet.Training;
             //To compute feature importances, uncomment the following line
             //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;

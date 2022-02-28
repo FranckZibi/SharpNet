@@ -19,7 +19,7 @@ namespace SharpNet.Networks
         {
             return new Cfm60NetworkSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, modelName+"_0"),
+                NetworkConfig.ValueOf(workingDirectory, modelName),
                 DataAugmentationSample.ValueOf(workingDirectory, modelName+"_1"),
                 CFM60HyperParameters.ValueOf(workingDirectory, modelName+"_2")
             });
@@ -94,7 +94,7 @@ namespace SharpNet.Networks
             {
                 var workingDirectory = Path.GetDirectoryName(CFM60HyperParameters.SerializedNetwork);
                 var modelName = Path.GetFileNameWithoutExtension(CFM60HyperParameters.SerializedNetwork);
-                return Network.ValueOf(workingDirectory, modelName);
+                return Network.LoadTrainedNetworkModel(workingDirectory, modelName);
             }
             var network = BuildEmptyNetwork(CFM60HyperParameters.DatasetName);
             CFM60HyperParameters.Initialize(network);

@@ -7,7 +7,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
-    public class IMDBTrainingAndTestDataSet : AbstractTrainingAndTestDataSet
+    public class ImdbTrainingAndTestDataset : AbstractTrainingAndTestDataset
     {
         //private static readonly string[] CategoryIndexToDescription = new[] { "negative", "positive"};
         //public static int CategoryCount => CategoryIndexToDescription.Length;
@@ -19,7 +19,7 @@ namespace SharpNet.Datasets
         public override IDataSet Test { get; }
 
 
-        public IMDBTrainingAndTestDataSet() : base("IMDB")
+        public ImdbTrainingAndTestDataset() : base("IMDB")
         {
             var (xTrain, yTrain) = ReadImdDataSet(FileNameToPath("x_train.txt"), FileNameToPath("y_train.txt"));
             Training = new InMemoryDataSet(xTrain, yTrain, Name);

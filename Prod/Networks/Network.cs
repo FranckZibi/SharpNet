@@ -45,21 +45,21 @@ namespace SharpNet.Networks
         {
         }
 
-        public Network(NetworkSample sample, string workingDirectory, string modelName) : base(sample, workingDirectory, modelName)
+        public Network(NetworkSample modelSample, string workingDirectory, string modelName) : base(modelSample, workingDirectory, modelName)
         {
         }
 
-        /// <param name="sample"></param>
+        /// <param name="modelSample"></param>
             /// <param name="masterNetworkIfAny">
             ///     if the current network is a slave network doing computation for its master network:
             ///         the reference of the master network
             ///     else:
             ///         null
             /// </param>
-        public Network(NetworkSample sample, Network masterNetworkIfAny = null) : this(sample, sample.Config.WorkingDirectory, sample.Config.ModelName)
+        public Network(NetworkSample modelSample, Network masterNetworkIfAny = null) : this(modelSample, modelSample.Config.WorkingDirectory, modelSample.Config.ModelName)
         {
             //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
-            Utils.ConfigureThreadLog4netProperties(sample.Config.WorkingDirectory, Config.ModelName);
+            Utils.ConfigureThreadLog4netProperties(modelSample.Config.WorkingDirectory, Config.ModelName);
 
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
             Debug.Assert(masterNetworkIfAny == null || Config.ResourceIds.Count == 1);
@@ -545,7 +545,9 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="trainingDataset"></param>
         /// <param name="validationDatasetIfAny"></param>
-        public override void Fit(IDataSet trainingDataset, IDataSet validationDatasetIfAny)
+        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string
+            validation_YDatasetPath) Fit(IDataSet trainingDataset,
+                IDataSet validationDatasetIfAny)
         {
             int miniBatchSizeForAllWorkers = Config.BatchSize;
             int numEpochs = Config.NumEpochs;
@@ -722,6 +724,7 @@ namespace SharpNet.Networks
                 Log.Error(e.ToString());
                 throw;
             }
+            return ("", "", "", "");
         }
 
 
@@ -1211,7 +1214,7 @@ namespace SharpNet.Networks
             PropagationManager.Forward(allX, yPredicted, isTraining);
             return yPredicted;
         }
-        private NetworkSample NetworkSample => (NetworkSample)Sample;
+        private NetworkSample NetworkSample => (NetworkSample)ModelSample;
 
     }
 }

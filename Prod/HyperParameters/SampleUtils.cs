@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
 using JetBrains.Annotations;
 using SharpNet.Models;
 
@@ -8,37 +7,35 @@ namespace SharpNet.HyperParameters;
 
 public static class SampleUtils
 {
-    public static float TrainWithHyperParameters([NotNull] ISample sample, [NotNull] string workingDirectory, [CanBeNull] string csvPathIfAny, ref float bestScoreSoFar)
+    public static float TrainWithHyperParameters([NotNull] ITrainableSample trainableSample, string workingDirectory, [CanBeNull] string csvPathIfAny, ref float bestScoreSoFar)
     {
-        IModelSample modelSample;
         AbstractDatasetSample datasetSample;
-        if (sample is Model_and_Dataset_Sample modelAndDatasetSample)
+        if (trainableSample is TrainableSample modelAndDatasetSample)
         {
-            modelSample = modelAndDatasetSample.ModelSample;
             datasetSample = modelAndDatasetSample.DatasetSample;
         }
         else
         {
-            throw new ArgumentException($"invalid sample {sample.GetType()}");
+            throw new ArgumentException($"invalid sample {trainableSample.GetType()}");
         }
 
         var sw = Stopwatch.StartNew();
-        var model = AbstractModel.NewModel(modelSample, workingDirectory, sample.ComputeHash());
-        var (trainPredictionsPath, trainScore, validationPredictionsPath, validationScore, testPredictionsPath) = datasetSample.Fit(model, true);
+        var model = modelAndDatasetSample.NewUntrainedModel(workingDirectory);
+        var validationScore = datasetSample.Fit(model, false, true, false).validationScore;
+        var trainScore = float.NaN;
+        Debug.Assert(!float.IsNaN(validationScore));
 
         if (float.IsNaN(bestScoreSoFar) || model.NewScoreIsBetterTheReferenceScore(validationScore, bestScoreSoFar))
         {
             AbstractModel.Log.Debug($"Model '{model.ModelName}' has new best score: {validationScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationScore;
-            sample.Save(model.WorkingDirectory, model.ModelName);
+            trainScore = datasetSample.ComputeAndSavePredictions(model).trainScore;
+            trainableSample.Save(model.WorkingDirectory, model.ModelName);
         }
         else
         {
             AbstractModel.Log.Debug($"Removing all model '{model.ModelName}' files because of low score ({validationScore})");
-            model.AllFiles().ForEach(File.Delete);
-            File.Delete(trainPredictionsPath);
-            File.Delete(validationPredictionsPath);
-            File.Delete(testPredictionsPath);
+            model.AllFiles().ForEach(path => Utils.TryDelete(path));
         }
 
         if (!string.IsNullOrEmpty(csvPathIfAny))

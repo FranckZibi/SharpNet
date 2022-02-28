@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -11,102 +12,168 @@ using SharpNet.Models;
 namespace SharpNet.HyperParameters;
 
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
+[SuppressMessage("ReSharper", "MemberCanBeProtected.Global")]
 public abstract class AbstractDatasetSample : AbstractSample
 {
-    protected AbstractDatasetSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(
-        mandatoryCategoricalHyperParameters)
+    #region private fields
+    private static readonly ConcurrentDictionary<string, CpuTensor<float>> LoadPredictionsWithoutIndex_Cache = new();
+    #endregion
+
+
+    #region constructors
+    protected AbstractDatasetSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(mandatoryCategoricalHyperParameters)
     {
     }
+    public static AbstractDatasetSample ValueOf(string workingDirectory, string modelName)
+    {
+        try { return Natixis70DatasetSample.ValueOfNatixis70DatasetSample(workingDirectory, modelName); } catch { }
+        try { return AmazonEmployeeAccessChallengeDatasetSample.ValueOfAmazonEmployeeAccessChallengeDatasetHyperParameters(workingDirectory, modelName); } catch { }
+        throw new ArgumentException($"can't load {nameof(AbstractDatasetSample)} for model {modelName} from {workingDirectory}");
+    }
+    #endregion
 
-    public abstract List<string> CategoricalFeatures();
-    public abstract IDataSet FullTraining();
-    public abstract CpuTensor<float> ModelPrediction_2_TargetPredictionFormat(string dataframe_path);
+    #region Hyper-Parameters
+    public string Train_XDatasetPath = "";
+    public string Train_YDatasetPath = "";
+    public string Train_PredictionsPath = "";
+    public string Validation_XDatasetPath = "";
+    public string Validation_YDatasetPath = "";
+    public string Validation_PredictionsPath = "";
+    public string Test_DatasetPath = "";
+    public string Test_PredictionsPath = "";
+    #endregion
 
-    public (string, float, string, float, string) Fit(IModel model, bool computePredictions)
+    public virtual (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) Fit(AbstractModel model, bool computeAndSavePredictions, bool computeValidationScore, bool saveTrainedModel)
     {
         using var trainingAndValidation = SplitIntoTrainingAndValidation();
-        model.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
-        if (computePredictions)
+        (Train_XDatasetPath, Train_YDatasetPath, Validation_XDatasetPath, Validation_YDatasetPath) = model.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
+        var res = ("", float.NaN, "", float.NaN, "");
+        if (computeAndSavePredictions)
         {
-            return ComputePredictions(model, trainingAndValidation.Training, trainingAndValidation.Test);
+            res =  ComputeAndSavePredictions(model, trainingAndValidation.Training, trainingAndValidation.Test);
         }
-        return ("", float.NaN, "", float.NaN, "");
+        else if (computeValidationScore)
+        {
+            var validationScore = ComputeScoreAndPredictions(model, trainingAndValidation.Test).score;
+            res = ("", float.NaN, "", validationScore, "");
+        }
+        if (saveTrainedModel)
+        {
+            model.Save(model.WorkingDirectory, model.ModelName);
+        }
+        return res;
     }
     /// <param name="model"></param>
     /// <returns>the cost associated with the model</returns>
-    public (string, float, string, float, string) ComputePredictions(IModel model)
+    public virtual (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) ComputeAndSavePredictions(AbstractModel model)
     {
         using var trainAndValidation = SplitIntoTrainingAndValidation();
-        return ComputePredictions(model, trainAndValidation.Training, trainAndValidation.Test);
+        return ComputeAndSavePredictions(model, trainAndValidation.Training, trainAndValidation.Test);
     }
+    public abstract List<string> CategoricalFeatures();
+    public abstract IDataSet FullTraining();
+    public abstract CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path);
+    public abstract (CpuTensor<float> trainPredictions, CpuTensor<float> validationPredictions, CpuTensor<float> testPredictions) LoadAllPredictions();
+    public abstract void ComputeAndSavePredictions(CpuTensor<float> predictionsInModelFormat, string path);
 
+    protected (CpuTensor<float> trainPredictions, CpuTensor<float> validationPredictions, CpuTensor<float> testPredictions) LoadAllPredictions(bool header, bool predictionsContainIndexColumn, char separator)
+    {
+        return
+            (LoadPredictionsWithoutIndex(Train_PredictionsPath, header, predictionsContainIndexColumn, separator),
+             LoadPredictionsWithoutIndex(Validation_PredictionsPath, header, predictionsContainIndexColumn, separator),
+             LoadPredictionsWithoutIndex(Test_PredictionsPath, header, predictionsContainIndexColumn, separator));
+
+    }
     protected virtual CpuTensor<float> UnnormalizeYIfNeeded(CpuTensor<float> y)
     {
         //by default: no normalization
         return y;
     }
-
-    protected abstract void SavePredictions(CpuTensor<float> y_lightGBM, string path);
     protected abstract IDataSet TestDataset();
     protected abstract ITrainingAndTestDataSet SplitIntoTrainingAndValidation();
+    protected void SaveTrainPredictions(AbstractModel model, CpuTensor<float> trainPredictions, float trainScore)
+    {
+        ISample.Log.Debug($"Saving Model '{model.ModelName}' predictions for Training Dataset (score={trainScore})");
+        Train_PredictionsPath = Path.Combine(model.WorkingDirectory, model.ModelName + "_predict_train_" + Math.Round(trainScore, 5) + ".csv");
+        ComputeAndSavePredictions(trainPredictions, Train_PredictionsPath);
+    }
+    protected void SaveValidationPredictions(AbstractModel model, CpuTensor<float> validationPredictions, float validationScore)
+    {
+        ISample.Log.Debug($"Saving Model '{model.ModelName}' predictions for Validation Dataset (score={validationScore})");
+        Validation_PredictionsPath = Path.Combine(model.WorkingDirectory, model.ModelName + "_predict_valid_" + Math.Round(validationScore, 5) + ".csv");
+        ComputeAndSavePredictions(validationPredictions, Validation_PredictionsPath);
+    }
+    protected void SaveTestPredictions(AbstractModel model, CpuTensor<float> testPredictions)
+    {
+        ISample.Log.Debug($"Saving Model '{model.ModelName}' predictions for Test Dataset");
+        Test_PredictionsPath = Path.Combine(model.WorkingDirectory, model.ModelName + "_predict_test_.csv");
+        ComputeAndSavePredictions(testPredictions, Test_PredictionsPath);
+    }
 
-    public abstract ModelDatasets ToModelDatasets();
+    private static CpuTensor<float> LoadPredictionsWithoutIndex(string path, bool header, bool predictionsContainIndexColumn, char separator)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            return null;
+        }
 
+        if (LoadPredictionsWithoutIndex_Cache.TryGetValue(path, out var res))
+        {
+            return res;
+        }
+
+        var y_pred = Dataframe.Load(path, header, separator).Tensor;
+        if (predictionsContainIndexColumn)
+        {
+            y_pred = y_pred.DropColumns(new[] { 0 });
+        }
+
+        LoadPredictionsWithoutIndex_Cache.TryAdd(path, y_pred);
+        return y_pred;
+    }
+    private (float score, CpuTensor<float> predictions) ComputeScoreAndPredictions(IModel model, IDataSet dataset)
+    {
+        var predictions = UnnormalizeYIfNeeded(model.Predict(dataset));
+        var predictionsScore = model.ComputeScore(UnnormalizeYIfNeeded(dataset.Y), predictions);
+        return (predictionsScore, predictions);
+    }
     /// <param name="model"></param>
     /// <param name="trainDataset"></param>
     /// <param name="validationDatasetIfAny"></param>
     /// <returns>the cost associated with the model</returns>
-    private (string, float, string, float, string) ComputePredictions(
-        IModel model,
-        IDataSet trainDataset,
-        IDataSet validationDatasetIfAny
-        )
+    private (string train_PredictionsPath, float trainScore, string  validation_PredictionsPath, float validationScore, string test_PredictionsPath) ComputeAndSavePredictions(AbstractModel model,  IDataSet trainDataset, IDataSet validationDatasetIfAny)
     {
-        ISample.Log.Debug($"Computing Model '{model.ModelName}' predictions for Training Dataset");
-        var trainPredictions = UnnormalizeYIfNeeded(model.Predict(trainDataset));
-        ISample.Log.Debug("Computing Model score on Training");
-        var trainScore = model.ComputeScore(UnnormalizeYIfNeeded(trainDataset.Y), trainPredictions);
-        ISample.Log.Info($"Model '{model.ModelName}' score on training: {trainScore}");
-        var trainPredictionsPath = Path.Combine(model.WorkingDirectory, model.ModelName + "_predict_train_" + Math.Round(trainScore, 5) + ".csv");
-        ISample.Log.Info($"Saving Model '{model.ModelName}' predictions for Training Dataset");
-        SavePredictions(trainPredictions, trainPredictionsPath);
+        Train_PredictionsPath = "";
+        Validation_PredictionsPath = "";
+        Test_PredictionsPath = "";
 
-        var validationPredictionsPath = "";
+        ISample.Log.Debug($"Computing Model '{model.ModelName}' predictions and score for Training Dataset");
+        var (trainScore, trainPredictions) = ComputeScoreAndPredictions(model, trainDataset);
+        ISample.Log.Info($"Model '{model.ModelName}' score on training: {trainScore}");
+
+        SaveTrainPredictions(model, trainPredictions, trainScore);
+
         float validationScore = float.NaN;
         if (validationDatasetIfAny != null)
         {
-            ISample.Log.Debug($"Computing Model '{model.ModelName}' predictions for Validation Dataset");
-            var validationPredictions = UnnormalizeYIfNeeded(model.Predict(validationDatasetIfAny));
-            ISample.Log.Debug($"Computing Model '{model.ModelName}' score on Validation");
-            validationScore = model.ComputeScore(UnnormalizeYIfNeeded(validationDatasetIfAny.Y), validationPredictions);
+            ISample.Log.Debug($"Computing Model '{model.ModelName}' predictions and score for Validation Dataset");
+            (validationScore, var validationPredictions) = ComputeScoreAndPredictions(model, validationDatasetIfAny);
             ISample.Log.Info($"Model '{model.ModelName}' score on Validation: {validationScore}");
             if (!float.IsNaN(validationScore))
             {
-                ISample.Log.Info($"Saving Model '{model.ModelName}' predictions for Validation Dataset");
-                validationPredictionsPath = Path.Combine(model.WorkingDirectory, model.ModelName + "_predict_valid_" + Math.Round(validationScore, 5) + ".csv");
-                SavePredictions(validationPredictions, validationPredictionsPath);
+                SaveValidationPredictions(model, validationPredictions, validationScore);
             }
         }
 
-        var testPredictionsPath = "";
         var testDatasetIfAny = TestDataset();
         if (testDatasetIfAny != null)
         {
             ISample.Log.Debug($"Computing Model '{model.ModelName}' predictions for Test Dataset");
-            var testPredictions = UnnormalizeYIfNeeded(model.Predict(testDatasetIfAny));
-            ISample.Log.Info("Saving predictions for Test Dataset");
-            testPredictionsPath = Path.Combine(model.WorkingDirectory, model.ModelName + "_predict_test_.csv");
-            SavePredictions(testPredictions, testPredictionsPath);
+            (var pred, Test_DatasetPath) = model.PredictWithPath(testDatasetIfAny);
+            var testPredictions = UnnormalizeYIfNeeded(pred);
+            SaveTestPredictions(model, testPredictions);
             testDatasetIfAny.Dispose();
         }
-
-        return (trainPredictionsPath, trainScore, validationPredictionsPath, validationScore, testPredictionsPath);
-    }
-
-    public static AbstractDatasetSample ValueOf(string workingDirectory, string modelName)
-    {
-        try { return Natixis70DatasetSample.ValueOfNatixis70DatasetSample(workingDirectory, modelName); } catch { }
-        try { return AmazonEmployeeAccessChallengeDatasetHyperParameters.ValueOfAmazonEmployeeAccessChallengeDatasetHyperParameters(workingDirectory, modelName); } catch { }
-        throw new ArgumentException($"can't load {nameof(AbstractDatasetSample)} for model {modelName} from {workingDirectory}");
+        return (Train_PredictionsPath, trainScore, Validation_PredictionsPath, validationScore, Test_PredictionsPath);
     }
 }

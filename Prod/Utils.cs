@@ -33,7 +33,8 @@ namespace SharpNet
         Accuracy,   // higher is better
         Mae,        // lower is better
         Mse,        // lower is better
-        Rmse        // lower is better
+        Rmse,       // lower is better
+        DEFAULT     // Not used
     };
 
 
@@ -108,6 +109,8 @@ namespace SharpNet
       * loss = ( predicted - expected ) ^2
       * */
         Rmse,
+
+        DEFAULT // Not used
 
     }
 
@@ -1044,7 +1047,27 @@ namespace SharpNet
             }
             return dicoString2Object;
         }
-        
+
+        public static bool TryDelete(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+            {
+                return false;
+            }
+            if (!File.Exists(filePath))
+            {
+                return false;
+            }
+            try
+            {
+                File.Delete(filePath);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         public static string LocalApplicationFolderPath => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         public static void Launch(string workingDirectory, string exePath, string arguments, ILog log)
         {
@@ -1076,11 +1099,15 @@ namespace SharpNet
             };
             process.OutputDataReceived += (_, e) =>
             {
-                if (string.IsNullOrEmpty(e.Data))
+                if (string.IsNullOrEmpty(e.Data)
+                    || e.Data.Contains("Object info sizes") || e.Data.Contains("Skipping test eval output") || e.Data.Contains(" min passed")
+                    )
                 {
                     return;
                 }
-                if (e.Data.Contains("[Warning] ") || e.Data.Contains("Object info sizes"))
+                if (e.Data.Contains("[Warning] ") 
+                    
+                    )
                 {
                     log.Debug(e.Data.Replace("[Warning] ", ""));
                 }

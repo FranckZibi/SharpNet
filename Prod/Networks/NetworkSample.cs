@@ -71,7 +71,7 @@ namespace SharpNet.Networks
         {
             return new NetworkSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, modelName+"_0"),
+                NetworkConfig.ValueOf(workingDirectory, modelName),
                 DataAugmentationSample.ValueOf(workingDirectory, modelName+"_1"),
             });
         }
@@ -84,7 +84,7 @@ namespace SharpNet.Networks
             try { return EfficientNetSample.ValueOfEfficientNetSample(workingDirectory, modelName); } catch { }
             try { return Cfm60NetworkSample.ValueOfCfm60NetworkSample(workingDirectory, modelName); } catch { }
             try { return WideResNetSample.ValueOfWideResNetSample(workingDirectory, modelName); } catch { }
-            try { return NetworkSample.ValueOfNetworkSample(workingDirectory, modelName); } catch { }
+            try { return ValueOfNetworkSample(workingDirectory, modelName); } catch { }
             throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
         }
 
@@ -108,6 +108,11 @@ namespace SharpNet.Networks
         public LossFunctionEnum GetLoss()
         {
             return Config.LossFunction;
+        }
+
+        public void Use_All_Available_Cores()
+        {
+            throw new NotImplementedException();
         }
     }
 }

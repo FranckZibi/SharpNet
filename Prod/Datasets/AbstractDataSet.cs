@@ -464,9 +464,13 @@ namespace SharpNet.Datasets
         public virtual ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
             int countInTrainingSet = (int)(percentageInTrainingSet * Count+0.1);
+            return IntSplitIntoTrainingAndValidation(countInTrainingSet);
+        }
+        public virtual ITrainingAndTestDataSet IntSplitIntoTrainingAndValidation(int countInTrainingSet)
+        {
             var training = SubDataSet(id => id < countInTrainingSet);
             var test = SubDataSet(id => id >= countInTrainingSet);
-            return new TrainingAndTestDataLoader(training, test, Name);
+            return new TrainingAndTestDataset(training, test, Name);
         }
 
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)

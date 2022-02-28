@@ -21,11 +21,11 @@ namespace SharpNet.CatBoost
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="CatBoostSample"></param>
+        /// <param name="catBoostModelSample"></param>
         /// <param name="workingDirectory"></param>
         /// <param name="modelName">the name of the model to use</param>
         /// <exception cref="Exception"></exception>
-        public CatBoostModel(CatBoostSample CatBoostSample, string workingDirectory, [NotNull] string modelName): base(CatBoostSample, workingDirectory, modelName)
+        public CatBoostModel(CatBoostSample catBoostModelSample, string workingDirectory, [NotNull] string modelName): base(catBoostModelSample, workingDirectory, modelName)
         {
             if (!File.Exists(ExePath))
             {
@@ -42,22 +42,23 @@ namespace SharpNet.CatBoost
         }
         #endregion
 
-        public override void Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string
+            validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
         {
             string trainDatasetPath = DatasetPath(trainDataset, true);
             trainDataset.to_csv(trainDatasetPath, Separator, true, false);
 
-            string validationDatasetPath = "";
+            string validationDatasetPathIfAny = "";
             if (validationDatasetIfAny != null)
             {
-                validationDatasetPath = DatasetPath(validationDatasetIfAny, true);
-                validationDatasetIfAny.to_csv(validationDatasetPath, Separator, true, false);
+                validationDatasetPathIfAny = DatasetPath(validationDatasetIfAny, true);
+                validationDatasetIfAny.to_csv(validationDatasetPathIfAny, Separator, true, false);
             }
 
             string datasetColumnDescriptionPath = trainDatasetPath + ".co";
             to_column_description(datasetColumnDescriptionPath, trainDataset, true, false);
 
-            Log.Info($"Training model {ModelName} with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
+            Log.Info($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
 
             string arguments = "fit " +
                                " --learn-set " + trainDatasetPath +
@@ -71,9 +72,9 @@ namespace SharpNet.CatBoost
                                " --verbose false "
                              ;
 
-            if (!string.IsNullOrEmpty(validationDatasetPath))
+            if (!string.IsNullOrEmpty(validationDatasetPathIfAny))
             {
-                arguments += " --test-set " + validationDatasetPath;
+                arguments += " --test-set " + validationDatasetPathIfAny;
             }
             else
             {
@@ -96,8 +97,16 @@ namespace SharpNet.CatBoost
             //}
 
             Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
+            return (trainDatasetPath, trainDatasetPath, validationDatasetPathIfAny, validationDatasetPathIfAny);
         }
+
         public override CpuTensor<float> Predict(IDataSet dataset)
+        {
+            var (predictions, _) = PredictWithPath(dataset);
+            return predictions;
+        }
+
+        public override (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset)
         {
             const bool targetColumnIsFirstColumn = true;
             string predictionDatasetPath = DatasetPath(dataset, targetColumnIsFirstColumn);
@@ -146,7 +155,7 @@ namespace SharpNet.CatBoost
             {
                 throw new Exception($"Invalid number of predictions, received {predictions.Shape[0]} but expected {dataset.Count}");
             }
-            return predictions;
+            return (predictions, predictionDatasetPath);
         }
         public override void Save(string workingDirectory, string modelName)
         {
@@ -174,7 +183,7 @@ namespace SharpNet.CatBoost
         {
             return new List<string> { ModelPath };
         }
-        public static CatBoostModel ValueOf(string workingDirectory, string modelName)
+        public static CatBoostModel LoadTrainedCatBoostModel(string workingDirectory, string modelName)
         {
             var sample = CatBoostSample.ValueOf(workingDirectory, modelName);
             return new CatBoostModel(sample, workingDirectory, modelName);
@@ -219,7 +228,7 @@ namespace SharpNet.CatBoost
         private string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn) => DatasetPath(dataset, addTargetColumnAsFirstColumn, RootDatasetPath);
         [NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".json");
         [NotNull] private string ModelConfigPath => ISample.ToJsonPath(WorkingDirectory, ModelName);
-        private CatBoostSample CatBoostSample => (CatBoostSample)Sample;
+        private CatBoostSample CatBoostSample => (CatBoostSample)ModelSample;
     }
 }
 

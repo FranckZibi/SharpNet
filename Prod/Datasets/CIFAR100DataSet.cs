@@ -28,7 +28,7 @@ AvgPoolingStride = 2
 
 namespace SharpNet.Datasets
 {
-    public class CIFAR100DataSet : AbstractTrainingAndTestDataSet
+    public class CIFAR100DataSet : AbstractTrainingAndTestDataset
     {
         private static readonly string[] CategoryIndexToDescription = new[] {
             "beaver", "dolphin", "otter", "seal", "whale",

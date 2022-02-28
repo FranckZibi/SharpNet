@@ -9,6 +9,7 @@ using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
+using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.Networks;
@@ -23,49 +24,44 @@ public abstract class AbstractModel : IModel
     #endregion
 
     #region public fields & properties
-    public IModelSample Sample { get; }
     public static readonly ILog Log = LogManager.GetLogger(typeof(AbstractModel));
+    public IModelSample ModelSample { get; }
     public string WorkingDirectory { get; }
     public string ModelName { get; }
-    public string LastDatasetPathUsedForTraining { get; protected set; } = "";
-    public string LastDatasetPathUsedForPrediction { get; protected set; } = "";
-    // ReSharper disable once MemberCanBeProtected.Global
-    // ReSharper disable once UnusedAutoPropertyAccessor.Global
-    public string LastDatasetPathUsedForValidation { get; protected set; } = "";
     #endregion
 
     #region constructor
-    protected AbstractModel(IModelSample sample, string workingDirectory, string modelName)
+    protected AbstractModel(IModelSample modelSample, string workingDirectory, string modelName)
     {
         WorkingDirectory = workingDirectory;
         ModelName = modelName;
-        Sample = sample;
+        ModelSample = modelSample;
     }
     #endregion
 
-    public abstract void Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
-    public abstract CpuTensor<float> Predict(IDataSet dataset);
-    public abstract void Save(string workingDirectory, string modelName);
     public List<string> AllFiles()
     {
-        var res = Sample.SampleFiles(WorkingDirectory, ModelName);
+        var res = ModelSample.SampleFiles(WorkingDirectory, ModelName);
         res.AddRange(ModelFiles());
         return res;
     }
-    public static string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn, string rootDatasetPath) => Path.Combine(rootDatasetPath, ComputeUniqueDatasetName(dataset, addTargetColumnAsFirstColumn) + ".csv");
+    public virtual (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset)
+    {
+        return (Predict(dataset), "");
+    }
     public float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred)
     {
         using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
-        var metricEnum = Sample.GetMetric();
-        var lossFunctionEnum = Sample.GetLoss();
+        var metricEnum = ModelSample.GetMetric();
+        var lossFunctionEnum = ModelSample.GetLoss();
         return (float)y_true.ComputeMetric(y_pred, metricEnum, lossFunctionEnum, buffer);
     }
     public bool NewScoreIsBetterTheReferenceScore(float newScore, float referenceScore)
     {
-        var metricEnum = Sample.GetMetric();
+        var metricEnum = ModelSample.GetMetric();
         switch (metricEnum)
         {
-            case MetricEnum.Accuracy: 
+            case MetricEnum.Accuracy:
                 return newScore > referenceScore; // highest is better
             case MetricEnum.Loss:
             case MetricEnum.Mae:
@@ -76,11 +72,6 @@ public abstract class AbstractModel : IModel
                 throw new NotImplementedException($"unknown metric : {metricEnum}");
         }
     }
-    public abstract int GetNumEpochs();
-    public abstract string DeviceName();
-    public abstract int TotalParams();
-    public abstract double GetLearningRate();
-    public abstract List<string> ModelFiles();
     public void AddResumeToCsv(double trainingTimeInSeconds, float trainScore, float validationScore, string csvPath)
     {
         var line = "";
@@ -112,8 +103,7 @@ public abstract class AbstractModel : IModel
             Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
         }
     }
-
-    public static AbstractModel NewModel(IModelSample sample, string workingDirectory, string modelName)
+    public static AbstractModel NewUntrainedModel(IModelSample sample, string workingDirectory, string modelName)
     {
         if (sample is CatBoostSample catBoostSample)
         {
@@ -123,19 +113,36 @@ public abstract class AbstractModel : IModel
         {
             return new LightGBMModel(lightGBMSample, workingDirectory, modelName);
         }
+        if (sample is WeightsOptimizerSample weightsOptimizerSample)
+        {
+            return new WeightsOptimizerModel(weightsOptimizerSample, workingDirectory, modelName);
+        }
+        if (sample is KFoldSample)
+        {
+            return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName);
+        }
         if (sample is NetworkSample networkSample)
         {
             return new Network(networkSample, workingDirectory, modelName);
         }
         throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");
     }
+    public abstract (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
+    public abstract CpuTensor<float> Predict(IDataSet dataset);
+    public abstract void Save(string workingDirectory, string modelName);
+    public abstract int GetNumEpochs();
+    public abstract string DeviceName();
+    public abstract int TotalParams();
+    public abstract double GetLearningRate();
+    public abstract List<string> ModelFiles();
 
-    protected static AbstractModel ValueOfAbstractModel(string workingDirectory, string modelName)
+    protected static string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn, string rootDatasetPath) => Path.Combine(rootDatasetPath, ComputeUniqueDatasetName(dataset, addTargetColumnAsFirstColumn) + ".csv");
+    protected static AbstractModel LoadTrainedAbstractModel(string workingDirectory, string modelName)
     {
-        try { return KFoldModel.ValueOf(workingDirectory, modelName); } catch { }
-        try { return Network.ValueOf(workingDirectory, modelName); } catch { }
-        try { return LightGBMModel.ValueOf(workingDirectory, modelName); } catch { }
-        try { return CatBoostModel.ValueOf(workingDirectory, modelName); } catch { }
+        try { return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName); } catch { }
+        try { return Network.LoadTrainedNetworkModel(workingDirectory, modelName); } catch { }
+        try { return LightGBMModel.LoadTrainedLightGBMModel(workingDirectory, modelName); } catch { }
+        try { return CatBoostModel.LoadTrainedCatBoostModel(workingDirectory, modelName); } catch { }
         throw new ArgumentException($"cant' load model {modelName} from {workingDirectory}");
     }
 
@@ -162,9 +169,9 @@ public abstract class AbstractModel : IModel
         {
             return "";
         }
-        var desc = string.Join('_', dataset.Count);
         int rows = dataset.Count;
         int cols = dataset.FeatureNamesIfAny.Length;
+        var desc = rows+"_"+cols;
         using CpuTensor<float> xBuffer = new (new []{1, cols});
         var xDataSpan = xBuffer.AsReadonlyFloatCpuContent;
         for (int col = 0; col < cols; ++col)

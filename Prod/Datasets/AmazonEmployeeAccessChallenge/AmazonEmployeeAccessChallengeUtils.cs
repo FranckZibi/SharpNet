@@ -13,7 +13,7 @@ public static class AmazonEmployeeAccessChallengeUtils
     // ReSharper disable once UnusedMember.Global
     public static void Launch_CatBoost_HPO()
     {
-        var workingDirectory = AmazonEmployeeAccessChallengeDatasetHyperParameters.WorkingDirectory;
+        var workingDirectory = AmazonEmployeeAccessChallengeDatasetSample.WorkingDirectory;
 
         // ReSharper disable once ConvertToConstant.Local
         var iterations = 1000;
@@ -34,9 +34,9 @@ public static class AmazonEmployeeAccessChallengeUtils
             { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
         };
 
-        var hpo = new BayesianSearchHPO(searchSpace, () => new Model_and_Dataset_Sample(new CatBoostSample(), new AmazonEmployeeAccessChallengeDatasetHyperParameters()), workingDirectory);
+        var hpo = new BayesianSearchHPO(searchSpace, () => new TrainableSample(new CatBoostSample(), new AmazonEmployeeAccessChallengeDatasetSample()), workingDirectory);
         var bestScoreSoFar = float.NaN;
-        var csvPath = Path.Combine(workingDirectory, "Tests_" + NAME + ".csv");
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters(t, workingDirectory, csvPath, ref bestScoreSoFar));
+        var csvPath = Path.Combine(AmazonEmployeeAccessChallengeDatasetSample.DataDirectory, "Tests_" + NAME + ".csv");
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ITrainableSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
     }
 }

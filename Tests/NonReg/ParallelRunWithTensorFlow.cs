@@ -61,7 +61,7 @@ namespace SharpNetTests.NonReg
             network.Dispose();
 
             //we ensure that the saved version of the network behave the same as the original one
-            var networkFromSavedFile = Network.ValueOf(network.WorkingDirectory, network.DynamicModelName);
+            var networkFromSavedFile = Network.LoadTrainedNetworkModel(network.WorkingDirectory, network.DynamicModelName);
             var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
 
@@ -1084,7 +1084,7 @@ namespace SharpNetTests.NonReg
             const bool shuffle = true;
 
 
-            using var fullTrainingAndTestDataSet = new IMDBTrainingAndTestDataSet();
+            using var fullTrainingAndTestDataSet = new ImdbTrainingAndTestDataset();
             using var trainAndTestDataSet = fullTrainingAndTestDataSet.Training.SplitIntoTrainingAndValidation(0.8);
 
             var network = new Network(
