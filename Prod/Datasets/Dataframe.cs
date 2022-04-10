@@ -81,17 +81,23 @@ namespace SharpNet.Datasets
 
             return new Dataframe(newData, newFeatures, Name + "_keep_" + string.Join("_", featuresToKeep));
         }
-        public void Save(string path)
+        public void Save(string path, int? index = null)
         {
             const char separator = ',';
             var sb = new StringBuilder();
             sb.Append(string.Join(separator, FeatureNames));
             var dataAsSpan = Tensor.SpanContent;
+            int currentIndex = index ?? -1;
             for (int i = 0; i < dataAsSpan.Length; ++i)
             {
                 if (i % Tensor.Shape[1] == 0)
                 {
                     sb.Append(Environment.NewLine);
+                    if (index.HasValue)
+                    {
+                        sb.Append(currentIndex.ToString()+separator);
+                        ++currentIndex;
+                    }
                 }
                 else
                 {

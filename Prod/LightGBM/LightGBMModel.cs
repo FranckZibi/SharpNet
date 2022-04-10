@@ -78,9 +78,11 @@ namespace SharpNet.LightGBM
         public override void Save(string workingDirectory, string modelName)
         {
             //No need to save model : it is already saved
-            LightGbmSample.Save(workingDirectory, modelName);
+            var sampleName = modelName;
+            LightGbmSample.Save(workingDirectory, sampleName);
         }
-        public override int GetNumEpochs()
+
+        protected override int GetNumEpochs()
         {
             return LightGbmSample.num_iterations;
         }
@@ -92,7 +94,8 @@ namespace SharpNet.LightGBM
         {
             return -1; //TODO
         }
-        public override double GetLearningRate()
+
+        protected override double GetLearningRate()
         {
             return LightGbmSample.learning_rate;
         }
@@ -102,7 +105,7 @@ namespace SharpNet.LightGBM
         }
         public static LightGBMModel LoadTrainedLightGBMModel(string workingDirectory, string modelName)
         {
-            var sample = LightGBMSample.ValueOf(workingDirectory, modelName);
+            var sample = LightGBMSample.LoadLightGBMSample(workingDirectory, modelName);
             return new LightGBMModel(sample, workingDirectory, modelName);
         }
 
@@ -119,9 +122,9 @@ namespace SharpNet.LightGBM
                 {"save_binary", false},
             });
             LightGbmSample.Set("output_model", ModelPath);
-            Log.Info($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
+            LogInfo($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
             LightGbmSample.Save(ModelConfigPath);
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + ModelConfigPath, Log);
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + ModelConfigPath, IModel.Log);
             return (trainDatasetPath, trainDatasetPath, validationDatasetPathIfAny, validationDatasetPathIfAny);
         }
         private CpuTensor<float> Predict(string predictionDatasetPath)
@@ -140,7 +143,7 @@ namespace SharpNet.LightGBM
                 {"prediction_result", predictionResultPath},
             });
             LightGbmSample.Save(configFilePath);
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + configFilePath, Log);
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + configFilePath, IModel.Log);
             var predictions = File.ReadAllLines(predictionResultPath).Select(float.Parse).ToArray();
             File.Delete(configFilePath);
             File.Delete(predictionResultPath);

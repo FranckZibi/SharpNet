@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using log4net;
-using SharpNet.CPU;
 
 namespace SharpNet.HyperParameters;
 
@@ -29,40 +28,43 @@ public interface ISample
     #endregion
 
     /// <summary>
-    /// method to be called ofter building a new sample
-    /// it will update it using any needed standardization/ normalization /etc...
-    /// return true if everything working OK
-    /// return false if the sample is invalid and should be discarded
+    /// Try to fix any errors found in the current sample.
+    /// return true if the sample has been fixed successfully (so that it can be used for training)
+    /// return false if we failed to fix the sample: it should be discarded and never used for training
     /// </summary>
-    bool PostBuild();
+    bool FixErrors();
     void Set(IDictionary<string, object> dico);
     void Set(string fieldName, object fieldValue);
     object Get(string fieldName);
     Type GetFieldType(string hyperParameterName);
     bool IsCategoricalHyperParameter(string hyperParameterName);
-    void Save(string workingDirectory, string modelName);
+    void Save(string workingDirectory, string sampleName);
     /// <summary>
     /// all Hyper-Parameters file associated with the Sample
     /// </summary>
     /// <param name="workingDirectory"></param>
-    /// <param name="modelName"></param>
+    /// <param name="sampleName"></param>
     /// <returns></returns>
-    List<string> SampleFiles(string workingDirectory, string modelName);
+    List<string> SampleFiles(string workingDirectory, string sampleName);
+    /// <summary>
+    /// names of all the Hyper-Parameters associated with the sample
+    /// </summary>
+    /// <returns></returns>
     HashSet<string> HyperParameterNames();
     string ComputeHash();
-    CpuTensor<float> Y_Train_dataset_to_Perfect_Predictions(string y_train_dataset);
-    public static string ToPath(string workingDirectory, string modelName)
+
+    public static string ToPath(string workingDirectory, string sampleName)
     {
-        return Path.Combine(workingDirectory, modelName + ".conf");
+        return Path.Combine(workingDirectory, sampleName + ".conf");
     }
-    public static string ToJsonPath(string workingDirectory, string modelName)
+    public static string ToJsonPath(string workingDirectory, string sampleName)
     {
-        return Path.Combine(workingDirectory, modelName + "_conf.json");
+        return Path.Combine(workingDirectory, sampleName + "_conf.json");
     }
-    public static IDictionary<string, string> LoadConfig(string workingDirectory, string modelName)
+    public static IDictionary<string, string> LoadConfig(string workingDirectory, string sampleName)
     {
-        var textPath = ToPath(workingDirectory, modelName);
-        var jsonPath = ToJsonPath(workingDirectory, modelName);
+        var textPath = ToPath(workingDirectory, sampleName);
+        var jsonPath = ToJsonPath(workingDirectory, sampleName);
 
         if (File.Exists(textPath) && File.Exists(jsonPath))
         {
@@ -74,10 +76,10 @@ public interface ISample
     {
         return field.Replace(WrongPath, ValidPath);
     }
-    public static ISample LoadConfigIntoSample(Func<ISample> createDefaultSample, string workingDirectory, string modelName)
+    public static ISample LoadConfigIntoSample(Func<ISample> createDefaultSample, string workingDirectory, string sampleName)
     {
         var sample = createDefaultSample();
-        var content = LoadConfig(workingDirectory, modelName);
+        var content = LoadConfig(workingDirectory, sampleName);
         sample.Set(Utils.FromString2String_to_String2Object(content));
         return sample;
     }

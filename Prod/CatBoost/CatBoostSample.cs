@@ -15,9 +15,9 @@ namespace SharpNet.CatBoost
         public CatBoostSample() :base(CategoricalHyperParameters)
         {
         }
-        public static CatBoostSample ValueOf(string workingDirectory, string modelName)
+        public static CatBoostSample LoadCatBoostSample(string workingDirectory, string sampleName)
         {
-            return (CatBoostSample) ISample.LoadConfigIntoSample(() => new CatBoostSample(), workingDirectory, modelName);
+            return (CatBoostSample) ISample.LoadConfigIntoSample(() => new CatBoostSample(), workingDirectory, sampleName);
         }
         #endregion
 
@@ -256,9 +256,9 @@ namespace SharpNet.CatBoost
         public bool allow_writing_files = true;
         #endregion
 
-        public override void Save(string workingDirectory, string modelName)
+        public override void Save(string workingDirectory, string sampleName)
         {
-            var configFile = ISample.ToJsonPath(workingDirectory, modelName);
+            var configFile = ISample.ToJsonPath(workingDirectory, sampleName);
             Save(configFile);
         }
         public override void Save(string path)
@@ -266,7 +266,7 @@ namespace SharpNet.CatBoost
             var configContent = ToJsonConfigContent(DefaultAcceptForConfigContent);
             File.WriteAllText(path, configContent);
         }
-        public override bool PostBuild()
+        public override bool FixErrors()
         {
             return true; //TODO
         }
@@ -297,9 +297,9 @@ namespace SharpNet.CatBoost
                     return MetricEnum.Loss; //we'll use the same metric as the loss
             }
         }
-        public override List<string> SampleFiles(string workingDirectory, string modelName)
+        public override List<string> SampleFiles(string workingDirectory, string sampleName)
         {
-            return new List<string> { ISample.ToJsonPath(workingDirectory, modelName) };
+            return new List<string> { ISample.ToJsonPath(workingDirectory, sampleName) };
         }
         public LossFunctionEnum GetLoss()
         {

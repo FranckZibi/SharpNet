@@ -259,9 +259,9 @@ namespace SharpNet.Layers
         }
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
-        protected void Log(string msg) {AbstractModel.Log.Info(msg);}
+        protected void Log(string msg) {IModel.Log.Info(msg);}
         // ReSharper disable once MemberCanBeMadeStatic.Global
-        public void LogDebug(string msg) {AbstractModel.Log.Debug(msg);}
+        public void LogDebug(string msg) {IModel.Log.Debug(msg);}
 
         public int n_x
         {

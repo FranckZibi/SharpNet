@@ -40,7 +40,7 @@ namespace SharpNet.HPO
                     }
                     var t = CreateDefaultSample();
                     t.Set(Utils.FromString2String_to_String2Object(sample));
-                    if (t.PostBuild())
+                    if (t.FixErrors())
                     {
                         var sampleDescription = ToSampleDescription(sample, t);
                         return (t, _nextSampleId++, sampleDescription);

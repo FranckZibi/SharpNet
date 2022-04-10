@@ -182,7 +182,7 @@ namespace SharpNetTests.NonReg
             var p = Cfm60NetworkSample.Default();
             p.Config.BatchSize = miniBatchSize;
 
-            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => AbstractModel.Log.Info(s));
+            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => IModel.Log.Info(s));
             var dataset = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
 
             var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Sample.Encoder_TimeSteps, p.CFM60HyperParameters.Encoder_InputSize };

@@ -284,7 +284,7 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        public override bool PostBuild()
+        public override bool FixErrors()
         {
             return true; //TODO
         }

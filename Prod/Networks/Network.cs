@@ -50,12 +50,12 @@ namespace SharpNet.Networks
         }
 
         /// <param name="modelSample"></param>
-            /// <param name="masterNetworkIfAny">
-            ///     if the current network is a slave network doing computation for its master network:
-            ///         the reference of the master network
-            ///     else:
-            ///         null
-            /// </param>
+        /// <param name="masterNetworkIfAny">
+        ///     if the current network is a slave network doing computation for its master network:
+        ///         the reference of the master network
+        ///     else:
+        ///         null
+        /// </param>
         public Network(NetworkSample modelSample, Network masterNetworkIfAny = null) : this(modelSample, modelSample.Config.WorkingDirectory, modelSample.Config.ModelName)
         {
             //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
@@ -75,7 +75,7 @@ namespace SharpNet.Networks
                 //we create the slave networks
                 foreach(var slaveResourceId in Config.ResourceIds.Skip(1))
                 {
-                    Log.Debug("starting thread for network running on deviceId " + slaveResourceId);
+                    LogDebug("starting thread for network running on deviceId " + slaveResourceId);
                     new Thread(() => SlaveThread(this, slaveResourceId)).Start();
                 }
                 while (_slaveNetworks.Count != Config.ResourceIds.Count - 1)
@@ -89,7 +89,7 @@ namespace SharpNet.Networks
         {
             if (IsMaster)
             {
-                Log.Debug("Before clearing memory: " + MemoryInfo());
+                LogDebug("Before clearing memory: " + MemoryInfo());
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect();
                 SetStatusForAllSlaves(SLAVE_NETWORK_STATUS.TO_ABORT);
@@ -119,7 +119,7 @@ namespace SharpNet.Networks
                 _slaveNetworks.Clear();
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
                 GC.Collect();
-                Log.Debug("After clearing memory: " + MemoryInfo());
+                LogDebug("After clearing memory: " + MemoryInfo());
             }
         }
 
@@ -505,10 +505,10 @@ namespace SharpNet.Networks
             Debug.Assert(maxLearningRate > minLearningRate);
             Debug.Assert(miniBatchSizeForAllWorkers >= 1);
 
-            Log.Info(ToString());
-            Log.Info("Looking for best learning rate...");
+            LogInfo(ToString());
+            LogInfo("Looking for best learning rate...");
             ResetWeights(); //restore weights to their original values
-            Log.Debug("BatchSize: "+ miniBatchSizeForAllWorkers);
+            LogDebug("BatchSize: "+ miniBatchSizeForAllWorkers);
             var learningRateFinder = new LearningRateFinder(miniBatchSizeForAllWorkers, trainingDataSet.Count, minLearningRate, maxLearningRate);
 
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
@@ -520,9 +520,9 @@ namespace SharpNet.Networks
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
             var fileName = Path.Combine(WorkingDirectory, DynamicModelName + "_LearningRateFinder.csv");
             File.WriteAllText(fileName, learningRateFinder.AsCsv());
-            Log.Info("Stats stored in: " + fileName);
+            LogInfo("Stats stored in: " + fileName);
             var bestLearningRate = learningRateFinder.BestLearningRate();
-            Log.Info("Best learning rate: "+ bestLearningRate+ " (with batch size="+miniBatchSizeForAllWorkers+")");
+            LogInfo("Best learning rate: "+ bestLearningRate+ " (with batch size="+miniBatchSizeForAllWorkers+")");
             ResetWeights(); //restore weights to there original values
             return bestLearningRate;
         }
@@ -562,23 +562,23 @@ namespace SharpNet.Networks
 
                 FreezeSelectedLayers();
 
-                Log.Debug("Fit( " /*+ Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))*/ +" => " + Tensor.ShapeToString(trainingDataset.YMiniBatch_Shape(trainingDataset.Count))+" )");
-                Log.Info(ToString());
+                LogDebug("Fit( " /*+ Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))*/ +" => " + Tensor.ShapeToString(trainingDataset.YMiniBatch_Shape(trainingDataset.Count))+" )");
+                LogInfo(ToString());
 
 
                 if (UseGPU)
                 {
-                    Log.Debug(GpuWrapper.ToString());
+                    LogDebug(GpuWrapper.ToString());
                 }
-                Log.Debug("Training dataset: " + trainingDataset);
+                LogDebug("Training dataset: " + trainingDataset);
                 if (validationDatasetIfAny != null)
                 {
-                    Log.Debug("Validation dataset: " + validationDatasetIfAny);
+                    LogDebug("Validation dataset: " + validationDatasetIfAny);
                 }
-                Log.Info("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+Description);
+                LogInfo("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+Description);
                 if (Config.DisplayTensorContentStats)
                 {
-                    Log.Debug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
+                    LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
                 }
 
                 //Info(GpuWrapper.ToString());
@@ -601,7 +601,7 @@ namespace SharpNet.Networks
                     var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(EpochData);
                     if (learningRateComputer.ShouldReduceLrOnPlateau(EpochData))
                     {
-                        Log.Info("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
+                        LogInfo("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
                     }
 
                     #region Mini Batch gradient descent
@@ -612,7 +612,7 @@ namespace SharpNet.Networks
                     //We display stats about the just finished epoch
                     if (Config.DisplayTensorContentStats)
                     {
-                        Log.Debug("End of Epoch:" + epoch + " Tensor Content stats" + Environment.NewLine+ContentStats()+Environment.NewLine);
+                        LogDebug("End of Epoch:" + epoch + " Tensor Content stats" + Environment.NewLine+ContentStats()+Environment.NewLine);
                     }
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
@@ -644,12 +644,12 @@ namespace SharpNet.Networks
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                     double nbStepsByEpoch = ((double)trainingDataset.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
-                    Log.Info("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ Description);
-                    Log.Debug(MemoryInfo());
+                    LogInfo("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ Description);
+                    LogDebug(MemoryInfo());
                     //if it is the last epoch, we'll save Layer KPI
                     if (epoch == numEpochs)
                     {
-                        Log.Debug(LayersKpi());
+                        LogDebug(LayersKpi());
                     }
 
                     #region we save stats about the just finished epoch
@@ -675,12 +675,12 @@ namespace SharpNet.Networks
                     if (Config.SaveNetworkStatsAfterEachEpoch)
                     {
                         var networkStatFileName = Path.Combine(WorkingDirectory, DynamicModelName + "_NetworkStats.txt");
-                        Log.Info("Saving network '" + Description + "' stats in " + networkStatFileName);
+                        LogInfo("Saving network '" + Description + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
                     if (ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds))
                     {
-                        Log.Info("Stopping Training because of EarlyStopping");
+                        LogInfo("Stopping Training because of EarlyStopping");
                         break;
                     }
                 }
@@ -708,20 +708,20 @@ namespace SharpNet.Networks
                 }
                 catch (Exception e)
                 {
-                    Log.Info("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
+                    LogInfo("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
                     // ignored
                 }
 
-                Log.Info("Training '"+ Description+"' for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
+                LogInfo("Training '"+ Description+"' for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
                 if (!string.IsNullOrEmpty(Description))
                 {
-                    Log.Debug("Network Name: "+Description);
+                    LogDebug("Network Name: "+Description);
                 }
                 _spInternalFit.Stop();
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString());
+                LogError(e.ToString());
                 throw;
             }
             return ("", "", "", "");
@@ -822,7 +822,8 @@ namespace SharpNet.Networks
         {
             return Predict(dataset, Config.BatchSize);
         }
-        public override int GetNumEpochs()
+
+        protected override int GetNumEpochs()
         {
             return EpochData.Count + 1;
         }
@@ -834,7 +835,8 @@ namespace SharpNet.Networks
         {
             return Layers.SelectMany(l => l.Parameters).Select(t => t.Item1.Count).Sum();
         }
-        public override double GetLearningRate()
+
+        protected override double GetLearningRate()
         {
             throw new NotImplementedException();
         }
@@ -933,7 +935,7 @@ namespace SharpNet.Networks
             var shuffledElementIdMemory = new Memory<int>(shuffledElementId);
             for (int firstIndexInShuffledElementId = 0; firstIndexInShuffledElementId < dataSet.Count; )
             {
-                //Log.Info("Processing epoch " + epoch + " for elements [" + firstIndexInShuffledElementId + ":]");
+                //LogInfo("Processing epoch " + epoch + " for elements [" + firstIndexInShuffledElementId + ":]");
 
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
@@ -1023,8 +1025,8 @@ namespace SharpNet.Networks
                     var percentageDoneInEpoch = ((double) lastIndexInShuffledElementId) / dataSetCountWithExtraBufferAtEnd;
                     var secondsSinceStartOfEpoch = (DateTime.Now - miniBatchGradientDescentStart).TotalSeconds;
                     var expectedSecondsToPerformEntireEpoch = secondsSinceStartOfEpoch / percentageDoneInEpoch;
-                    Log.Info((isTraining ? ("Epoch " + epoch) : "Inference") + " in progress: " + Math.Round(100.0 * percentageDoneInEpoch, 1) + "% performed (" + Math.Round(secondsSinceStartOfEpoch, 0) + "s/" + Math.Round(expectedSecondsToPerformEntireEpoch, 0) + "s)");
-                    Log.Debug(MemoryInfo());
+                    LogInfo((isTraining ? ("Epoch " + epoch) : "Inference") + " in progress: " + Math.Round(100.0 * percentageDoneInEpoch, 1) + "% performed (" + Math.Round(secondsSinceStartOfEpoch, 0) + "s/" + Math.Round(expectedSecondsToPerformEntireEpoch, 0) + "s)");
+                    LogDebug(MemoryInfo());
                     lastStatsUpdate = DateTime.Now;
                 }
                 firstIndexInShuffledElementId += actualNumberOfLoadedItems;

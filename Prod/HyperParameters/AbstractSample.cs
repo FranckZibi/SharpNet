@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using SharpNet.CPU;
 
 namespace SharpNet.HyperParameters;
 
@@ -32,13 +31,9 @@ public abstract class AbstractSample : ISample
     {
         return Utils.ComputeHash(ToConfigContent(DefaultAcceptForConfigContent), 10);
     }
-    public CpuTensor<float> Y_Train_dataset_to_Perfect_Predictions(string y_train_dataset)
+    public virtual void Save(string workingDirectory, string sampleName)
     {
-        throw new NotImplementedException();
-    }
-    public virtual void Save(string workingDirectory, string modelName)
-    {
-        var configFile = ISample.ToPath(workingDirectory, modelName);
+        var configFile = ISample.ToPath(workingDirectory, sampleName);
         Save(configFile);
     }
     public virtual void Save(string path)
@@ -46,9 +41,9 @@ public abstract class AbstractSample : ISample
         var configContent = ToConfigContent(DefaultAcceptForConfigContent);
         File.WriteAllText(path, configContent);
     }
-    public virtual List<string> SampleFiles(string workingDirectory, string modelName)
+    public virtual List<string> SampleFiles(string workingDirectory, string sampleName)
     {
-        return new List<string> { ISample.ToPath(workingDirectory, modelName) };
+        return new List<string> { ISample.ToPath(workingDirectory, sampleName) };
     }
     public virtual void Set(string fieldName, object fieldValue)
     {
@@ -58,7 +53,7 @@ public abstract class AbstractSample : ISample
     {
         return ClassFieldSetter.Get(this, fieldName);
     }
-    public virtual bool PostBuild()
+    public virtual bool FixErrors()
     {
         return true;
     }

@@ -4,15 +4,10 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
-using log4net;
-using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
-using SharpNet.HPO;
 using SharpNet.HyperParameters;
-using SharpNet.LightGBM;
-using SharpNet.Networks;
 
 namespace SharpNet.Models;
 
@@ -24,11 +19,11 @@ public abstract class AbstractModel : IModel
     #endregion
 
     #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(AbstractModel));
     public IModelSample ModelSample { get; }
     public string WorkingDirectory { get; }
     public string ModelName { get; }
     #endregion
+
 
     #region constructor
     protected AbstractModel(IModelSample modelSample, string workingDirectory, string modelName)
@@ -100,51 +95,19 @@ public abstract class AbstractModel : IModel
         }
         catch (Exception e)
         {
-            Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
+            IModel.Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
         }
-    }
-    public static AbstractModel NewUntrainedModel(IModelSample sample, string workingDirectory, string modelName)
-    {
-        if (sample is CatBoostSample catBoostSample)
-        {
-            return new CatBoostModel(catBoostSample, workingDirectory, modelName);
-        }
-        if (sample is LightGBMSample lightGBMSample)
-        {
-            return new LightGBMModel(lightGBMSample, workingDirectory, modelName);
-        }
-        if (sample is WeightsOptimizerSample weightsOptimizerSample)
-        {
-            return new WeightsOptimizerModel(weightsOptimizerSample, workingDirectory, modelName);
-        }
-        if (sample is KFoldSample)
-        {
-            return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName);
-        }
-        if (sample is NetworkSample networkSample)
-        {
-            return new Network(networkSample, workingDirectory, modelName);
-        }
-        throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");
     }
     public abstract (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
     public abstract CpuTensor<float> Predict(IDataSet dataset);
     public abstract void Save(string workingDirectory, string modelName);
-    public abstract int GetNumEpochs();
     public abstract string DeviceName();
     public abstract int TotalParams();
-    public abstract double GetLearningRate();
     public abstract List<string> ModelFiles();
 
+    protected abstract int GetNumEpochs();
     protected static string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn, string rootDatasetPath) => Path.Combine(rootDatasetPath, ComputeUniqueDatasetName(dataset, addTargetColumnAsFirstColumn) + ".csv");
-    protected static AbstractModel LoadTrainedAbstractModel(string workingDirectory, string modelName)
-    {
-        try { return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName); } catch { }
-        try { return Network.LoadTrainedNetworkModel(workingDirectory, modelName); } catch { }
-        try { return LightGBMModel.LoadTrainedLightGBMModel(workingDirectory, modelName); } catch { }
-        try { return CatBoostModel.LoadTrainedCatBoostModel(workingDirectory, modelName); } catch { }
-        throw new ArgumentException($"cant' load model {modelName} from {workingDirectory}");
-    }
+    protected abstract double GetLearningRate();
 
     private static string ComputeDescription(Tensor tensor)
     {
@@ -192,4 +155,9 @@ public abstract class AbstractModel : IModel
         }
         return Utils.ComputeHash(desc, 10);
     }
+
+    protected static void LogDebug(string message) { IModel.Log.Debug(message); }
+    protected static void LogInfo(string message) { IModel.Log.Info(message); }
+    protected static void LogWarn(string message) { IModel.Log.Warn(message); }
+    protected static void LogError(string message) { IModel.Log.Error(message); }
 }

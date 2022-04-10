@@ -34,9 +34,9 @@ public static class AmazonEmployeeAccessChallengeUtils
             { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
         };
 
-        var hpo = new BayesianSearchHPO(searchSpace, () => new TrainableSample(new CatBoostSample(), new AmazonEmployeeAccessChallengeDatasetSample()), workingDirectory);
+        var hpo = new BayesianSearchHPO(searchSpace, () => new ModelAndDatasetSample(new CatBoostSample(), new AmazonEmployeeAccessChallengeDatasetSample()), workingDirectory);
         var bestScoreSoFar = float.NaN;
         var csvPath = Path.Combine(AmazonEmployeeAccessChallengeDatasetSample.DataDirectory, "Tests_" + NAME + ".csv");
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ITrainableSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
     }
 }

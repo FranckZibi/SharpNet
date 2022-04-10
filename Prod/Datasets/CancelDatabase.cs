@@ -382,8 +382,8 @@ namespace SharpNet.Datasets
             }
             var totalSum = totalCount.Values.Sum();
             var totalErrors = countKO.Values.Sum();
-            AbstractModel.Log.Info("Errors (total):" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
-            AbstractModel.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).ThenByDescending(e=>totalCount[e.Item1]).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
+            IModel.Log.Info("Errors (total):" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
+            IModel.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).ThenByDescending(e=>totalCount[e.Item1]).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
 
             File.WriteAllText(outputFile, sb.ToString());
         }

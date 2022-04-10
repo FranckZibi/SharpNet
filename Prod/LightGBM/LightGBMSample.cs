@@ -47,11 +47,11 @@ namespace SharpNet.LightGBM
         {
             num_threads = Utils.CoreCount;
         }
-        public static LightGBMSample ValueOf(string workingDirectory, string modelName)
+        public static LightGBMSample LoadLightGBMSample(string workingDirectory, string sampleName)
         {
-            return (LightGBMSample) ISample.LoadConfigIntoSample(() => new LightGBMSample(), workingDirectory, modelName);
+            return (LightGBMSample) ISample.LoadConfigIntoSample(() => new LightGBMSample(), workingDirectory, sampleName);
         }
-        public override bool PostBuild()
+        public override bool FixErrors()
         {
             if (boosting == boosting_enum.rf)
             {
@@ -73,7 +73,7 @@ namespace SharpNet.LightGBM
             else
             {
                 //bagging is enabled
-                //bagging_fraction must be less then 1.0 (100%)
+                //bagging_fraction must be stricly less then 1.0 (100%)
                 if (bagging_fraction >= 1)
                 {
                     return false;

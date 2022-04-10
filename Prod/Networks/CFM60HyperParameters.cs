@@ -20,7 +20,7 @@ public class CFM60HyperParameters : AbstractSample
     {
     }
 
-    public override bool PostBuild()
+    public override bool FixErrors()
     {
         return true; //TODO
     }

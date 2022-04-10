@@ -31,7 +31,7 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
     {
 
     }
-    public static WeightsOptimizerSample ValueOf(string workingDirectory, string modelName)
+    public static WeightsOptimizerSample LoadWeightsOptimizerSample(string workingDirectory, string modelName)
     {
         return (WeightsOptimizerSample)ISample.LoadConfigIntoSample(() => new WeightsOptimizerSample(), workingDirectory, modelName);
     }
@@ -68,7 +68,7 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
     {
         return _workingDirectoryAndModelNames;
     }
-    public override bool PostBuild()
+    public override bool FixErrors()
     {
         var weights = GetWeights();
         var sum = weights.Sum();

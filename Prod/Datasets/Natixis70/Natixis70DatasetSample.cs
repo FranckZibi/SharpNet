@@ -16,24 +16,24 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 {
     #region private fields
     private static readonly ConcurrentDictionary<string, CpuTensor<float>> CacheDataset = new();
-    private static DoubleAccumulator[] Y_RAW_statistics { get; }
-    private static DoubleAccumulator[] Y_RAW_abs_statistics { get; }
-    private static readonly ConcurrentDictionary<string, CpuTensor<float>> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
+    private static DoubleAccumulator[] YStatsInTargetFormat { get; }
+    private static DoubleAccumulator[] YAbsStatsInTargetFormat { get; }
+    //private static readonly ConcurrentDictionary<string, CpuTensor<float>> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
     #endregion
 
     #region constructors
     static Natixis70DatasetSample()
     {
         var cpuTensor = Dataframe.Load(YTrainRawFile, true, ',').Drop(new[] { "" }).Tensor;
-        Y_RAW_statistics = ExtractColumnStatistic(cpuTensor, false);
-        Y_RAW_abs_statistics = ExtractColumnStatistic(cpuTensor, true);
+        YStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, false);
+        YAbsStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, true);
     }
     public Natixis70DatasetSample() : base(new HashSet<string>())
     {
     }
-    public static Natixis70DatasetSample ValueOfNatixis70DatasetSample(string workingDirectory, string modelName)
+    public static Natixis70DatasetSample ValueOfNatixis70DatasetSample(string workingDirectory, string sampleName)
     {
-        return (Natixis70DatasetSample)ISample.LoadConfigIntoSample(() => new Natixis70DatasetSample(), workingDirectory, modelName);
+        return (Natixis70DatasetSample)ISample.LoadConfigIntoSample(() => new Natixis70DatasetSample(), workingDirectory, sampleName);
     }
     #endregion
 
@@ -60,8 +60,96 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     public enum normalize_enum { NONE, MINUS_MEAN_DIVIDE_BY_VOL, DIVIDE_BY_ABS_MEAN };
     public double PercentageInTraining = 0.8;
     #endregion
-    
-    public override bool PostBuild()
+
+    public override CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat)
+    {
+        var predictionsInModelFormat = new CpuTensor<float>(YShapeInModelFormat(predictionsInTargetFormat.Shape[0]));
+        var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsReadonlyFloatCpuContent;
+        var predictionsInModelFormatSpan = predictionsInModelFormat.AsFloatCpuSpan;
+        int predictionsInModelFormatSpanIndex = 0;
+        var divider = RowsInTargetFormatToRowsInModelFormat(1);
+
+        for (int rowInModelFormat = 0; rowInModelFormat < predictionsInModelFormat.Shape[0]; rowInModelFormat++)
+        {
+            int rowInTargetFormat = rowInModelFormat / divider;
+            int horizonId = RowInModelFormatToHorizonId(rowInModelFormat);
+            int marketId = RowInModelFormatToMarketId(rowInModelFormat);
+
+            //we load the row 'rowInModelFormat' of 'predictionsInModelFormat' tensor
+            for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : marketId); ++currentMarketId)
+            {
+                for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId); ++currentHorizonId)
+                {
+                    int colIndexInTargetFormat = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
+                    var yUnnormalizedValue = predictionsInTargetFormatSpan[rowInTargetFormat * predictionsInTargetFormat.Shape[1] + colIndexInTargetFormat];
+                    var yNormalizedValue = yUnnormalizedValue;
+                    if (Normalization == normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
+                    {
+                        var colStatistics = YStatsInTargetFormat[colIndexInTargetFormat - 1];
+                        yNormalizedValue = (float)((yUnnormalizedValue - colStatistics.Average) / colStatistics.Volatility);
+                    }
+                    else if (Normalization == normalize_enum.DIVIDE_BY_ABS_MEAN)
+                    {
+                        var absColStatistics = YAbsStatsInTargetFormat[colIndexInTargetFormat - 1];
+                        yNormalizedValue = (float)(yUnnormalizedValue / absColStatistics.Average);
+                    }
+                    predictionsInModelFormatSpan[predictionsInModelFormatSpanIndex++] = yNormalizedValue;
+                }
+            }
+        }
+        Debug.Assert(predictionsInModelFormatSpanIndex == predictionsInModelFormat.Count);
+        return predictionsInModelFormat;
+    }
+    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
+    {
+        if (predictionsInModelFormat.Shape[1] == 39)
+        {
+            return CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat, 0);
+        }
+
+        var predictionsInModelFormatSpan = predictionsInModelFormat.AsReadonlyFloatCpuContent;
+        var predictionsInModelFormatSpanIndex = 0;
+
+        // the predictions in the target format for the Natixis70 Challenge
+        var predictionsInTargetFormat = new CpuTensor<float>(YShapeInTargetFormat(predictionsInModelFormat.Shape[0]));
+        var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsFloatCpuSpan;
+        var divider = RowsInTargetFormatToRowsInModelFormat(1);
+
+        for (int rowInModelFormat = 0; rowInModelFormat < predictionsInModelFormat.Shape[0]; ++rowInModelFormat)
+        {
+            var rowInTargetFormat = rowInModelFormat / divider;
+            //the first element of each row in target format is the index of this row (starting from 0)
+            predictionsInTargetFormatSpan[rowInTargetFormat * predictionsInTargetFormat.Shape[1]] = rowInTargetFormat;
+            int horizonId = RowInModelFormatToHorizonId(rowInModelFormat);
+            int marketId = RowInModelFormatToMarketId(rowInModelFormat);
+            //we load the row 'rowInModelFormat' in 'predictionsInTargetFormat' tensor
+            for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : marketId); ++currentMarketId)
+            {
+                for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId); ++currentHorizonId)
+                {
+                    int colIndexInTargetFormat = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
+                    var yNormalizedValue = predictionsInModelFormatSpan[predictionsInModelFormatSpanIndex++];
+                    var yUnnormalizedValue = yNormalizedValue;
+
+                    if (Normalization == normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
+                    {
+                        var colStatistics = YStatsInTargetFormat[colIndexInTargetFormat - 1];
+                        yUnnormalizedValue = (float)(yNormalizedValue * colStatistics.Volatility + colStatistics.Average);
+                    }
+                    else if (Normalization == normalize_enum.DIVIDE_BY_ABS_MEAN)
+                    {
+                        var absColStatistics = YAbsStatsInTargetFormat[colIndexInTargetFormat - 1];
+                        yUnnormalizedValue = (float)(yNormalizedValue * absColStatistics.Average);
+                    }
+                    predictionsInTargetFormatSpan[rowInTargetFormat * predictionsInTargetFormat.Shape[1] + colIndexInTargetFormat] = yUnnormalizedValue;
+                }
+            }
+        }
+        Debug.Assert(predictionsInTargetFormat.Shape.Length == 2);
+        Debug.Assert(predictionsInTargetFormat.Shape[1] == (1 + 39));
+        return predictionsInTargetFormat;
+    }
+    public override bool FixErrors()
     {
         if (MergeHorizonAndMarketIdInSameFeature)
         {
@@ -75,27 +163,27 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     /// <summary>
     /// convert a dataset in LightGBM format (first column is the target 'y') to the challenge target format 
     /// </summary>
-    /// <param name="dataframe_path">a dataset in LightGBM format</param>
+    /// name="dataframe_path">a dataset in LightGBM format
     /// <returns></returns>
-    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
-    {
-        if (PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryGetValue(dataframe_path, out var res))
-        {
-            return res;
-        }
-        var predictionsInModelFormat = Dataframe.Load(dataframe_path, true, ',').Keep(new[] { "y" }).Tensor;
-        var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat).DropColumns(new[] { 0 });
-        Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
-        Debug.Assert(predictionInTargetFormat.Shape[1] == 39);
-        PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryAdd(dataframe_path, predictionInTargetFormat);
-        return predictionInTargetFormat;
-    }
+    //public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
+    //{
+    //    if (PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryGetValue(dataframe_path, out var res))
+    //    {
+    //        return res;
+    //    }
+    //    var predictionsInModelFormat = Dataframe.Load(dataframe_path, true, ',').Keep(new[] { "y" }).Tensor;
+    //    var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat).DropColumns(new[] { 0 });
+    //    Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
+    //    Debug.Assert(predictionInTargetFormat.Shape[1] == 39);
+    //    PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryAdd(dataframe_path, predictionInTargetFormat);
+    //    return predictionInTargetFormat;
+    //}
 
-    public override (CpuTensor<float> trainPredictions, CpuTensor<float> validationPredictions, CpuTensor<float> testPredictions) LoadAllPredictions()
-    {
-        return LoadAllPredictions(true, true, ',');
-    }
-
+    //public override (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) 
+    //    LoadAllPredictionsInTargetFormatWithoutIndex()
+    //{
+    //    return LoadAllPredictionsInTargetFormatWithoutIndex(true, true, ',');
+    //}
     public override List<string> CategoricalFeatures()
     {
         var categoricalFeatures = new List<string>();
@@ -118,141 +206,61 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         return categoricalFeatures;
     }
-    public override IDataSet FullTraining()
+    //public override IDataSet FullTraining()
+    //{
+    //    return NewDataSet(XTrainRawFile, YTrainRawFile);
+    //}
+    public override void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path)
     {
-        return NewDataSet(XTrainRawFile, YTrainRawFile);
-    }
-    public override void ComputeAndSavePredictions(CpuTensor<float> predictionsInModelFormat, string path)
-    {
-        var predictionsInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
+        var start = Stopwatch.StartNew();
         new Dataframe(predictionsInTargetFormat, Natixis70Utils.PredictionHeader.Split(','), "").Save(path);
+        ISample.Log.Debug($"SavePredictionsInTargetFormat in {path} took {start.Elapsed.TotalSeconds}s");
     }
-
-    protected override CpuTensor<float> UnnormalizeYIfNeeded(CpuTensor<float> y)
-    {
-        if (Normalization == normalize_enum.NONE)
-        {
-            return y; //no need to unnormalize y
-        }
-
-        var ySpan = y.AsReadonlyFloatCpuContent;
-        var Yunnormalized = new CpuTensor<float>(y.Shape);
-        var YunnormalizedSpan = Yunnormalized.AsFloatCpuSpan;
-
-        int index = 0;
-        for (int row = 0; row < Yunnormalized.Shape[0]; ++row)
-        {
-            var horizonId = RowToHorizonId(row);
-            var marketId = RowToMarketId(row);
-            //we load the row 'row' in 'y' tensor
-            for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : marketId); ++currentMarketId)
-            {
-                for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId); ++currentHorizonId)
-                {
-                    int rawColIndex = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
-                    var yValue = ySpan[index];
-                    if (Normalization == normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
-                    {
-                        var colStatistics = Y_RAW_statistics[rawColIndex - 1];
-                        var yUnnormalizedValue = (float)(yValue * colStatistics.Volatility + colStatistics.Average);
-                        YunnormalizedSpan[index] = yUnnormalizedValue;
-                    }
-                    else if (Normalization == normalize_enum.DIVIDE_BY_ABS_MEAN)
-                    {
-                        var absColStatistics = Y_RAW_abs_statistics[rawColIndex - 1];
-                        var yUnnormalizedValue = (float)(yValue * absColStatistics.Average);
-                        YunnormalizedSpan[index] = yUnnormalizedValue;
-                    }
-
-                    ++index;
-                }
-            }
-        }
-        return Yunnormalized;
-    }
-    protected override IDataSet TestDataset()
+    public override IDataSet TestDataset()
     {
         return NewDataSet(XTestRawFile, null);
     }
-    protected override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
+    public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {
         using var fullTraining = NewDataSet(XTrainRawFile, YTrainRawFile);
         int rowsInTrainingSet = (int)(PercentageInTraining * fullTraining.Count + 0.1);
-        rowsInTrainingSet -= rowsInTrainingSet % RawCountToCount(1);
+        rowsInTrainingSet -= rowsInTrainingSet % RowsInTargetFormatToRowsInModelFormat(1);
         return fullTraining.IntSplitIntoTrainingAndValidation(rowsInTrainingSet);
     }
 
-    private int[] Y_Shape(int yRawCount)
+
+    private int[] YShapeInModelFormat(int rowsInTargetFormat)
     {
-        int yColCount = 1;
+        int yColCountInModelFormat = 1;
         if (TryToPredictAllHorizonAtTheSameTime)
         {
-            yColCount *= Natixis70Utils.HorizonNames.Length;
+            yColCountInModelFormat *= Natixis70Utils.HorizonNames.Length;
         }
         if (TryToPredictAllMarketsAtTheSameTime)
         {
-            yColCount *= Natixis70Utils.MarketNames.Length;
+            yColCountInModelFormat *= Natixis70Utils.MarketNames.Length;
         }
-        return new[] { RawCountToCount(yRawCount), yColCount };
+        return new[] { RowsInTargetFormatToRowsInModelFormat(rowsInTargetFormat), yColCountInModelFormat };
     }
-    private int[] YRaw_Shape(int yCount)
+    private int[] YShapeInTargetFormat(int rowsInModelFormat)
     {
-        return new[] { CountToRawCount(yCount), 1 + Natixis70Utils.MarketNames.Length * Natixis70Utils.HorizonNames.Length };
+        var divider = RowsInTargetFormatToRowsInModelFormat(1);
+        Debug.Assert(rowsInModelFormat%divider == 0);
+        var rowsInTargetFormat = rowsInModelFormat / divider;
+        return new[] { rowsInTargetFormat, 1 + Natixis70Utils.MarketNames.Length * Natixis70Utils.HorizonNames.Length };
     }
-    private CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
+    private int RowsInTargetFormatToRowsInModelFormat(int rowsInTargetFormat)
     {
-        if (predictionsInModelFormat.Shape[1] == 39)
-        {
-            return CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat, 0);
-        }
-
-        var predictionsInModelFormatSpan = predictionsInModelFormat.AsReadonlyFloatCpuContent;
-        var predictionsInModelFormatSpanIndex = 0;
-
-        // the predictions in the expected format for the Natixis70 Challenge
-        var predictionsInTargetFormat = new CpuTensor<float>(YRaw_Shape(predictionsInModelFormat.Shape[0]));
-        var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsFloatCpuSpan;
-        var divider = RawCountToCount(1);
-
-        for (int row = 0; row < predictionsInModelFormat.Shape[0]; ++row)
-        {
-            var rawRow = row / divider;
-            predictionsInTargetFormatSpan[rawRow * predictionsInTargetFormat.Shape[1]] = rawRow;
-            int horizonId = RowToHorizonId(row);
-            int marketId = RowToMarketId(row);
-            //we load the row 'row' in 'yRaw' tensor
-            for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : marketId); ++currentMarketId)
-            {
-                for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId); ++currentHorizonId)
-                {
-                    int rawColIndex = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
-                    var yValue = predictionsInModelFormatSpan[predictionsInModelFormatSpanIndex++];
-                    if (Math.Abs(yValue) < 1e-4)
-                    {
-                        yValue = 0;
-                    }
-                    predictionsInTargetFormatSpan[rawRow * predictionsInTargetFormat.Shape[1] + rawColIndex] = yValue;
-                }
-            }
-        }
-        Debug.Assert(predictionsInTargetFormat.Shape.Length == 2);
-        Debug.Assert(predictionsInTargetFormat.Shape[1] == (1 + 39));
-        return predictionsInTargetFormat;
-    }
-    private int CountToRawCount(int count)
-    {
-        int rawCount = count;
+        int rowsInModelFormat = rowsInTargetFormat;
         if (!TryToPredictAllHorizonAtTheSameTime)
         {
-            Debug.Assert(count % Natixis70Utils.HorizonNames.Length == 0);
-            rawCount /= Natixis70Utils.HorizonNames.Length;
+            rowsInModelFormat *= Natixis70Utils.HorizonNames.Length;
         }
         if (!TryToPredictAllMarketsAtTheSameTime)
         {
-            Debug.Assert(count % Natixis70Utils.MarketNames.Length == 0);
-            rawCount /= Natixis70Utils.MarketNames.Length;
+            rowsInModelFormat *= Natixis70Utils.MarketNames.Length;
         }
-        return rawCount;
+        return rowsInModelFormat;
     }
     private List<string> FeatureNames()
     {
@@ -264,34 +272,34 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         featureNames.AddRange(CategoricalFeatures());
         return featureNames;
     }
-    private int[] X_Shape(int xRowCount)
+    private int[] XShapeInModelFormat(int rowsInTargetFormat)
     {
-        int xColCount = Natixis70Utils.EmbeddingDimension;
+        int xColCountInModelFormat = Natixis70Utils.EmbeddingDimension;
 
         if (MergeHorizonAndMarketIdInSameFeature)
         {
             Debug.Assert(!TryToPredictAllMarketsAtTheSameTime);
             Debug.Assert(!TryToPredictAllHorizonAtTheSameTime);
-            xColCount += 1; //we'll have one single feature for both market to predict and horizon
+            xColCountInModelFormat += 1; //we'll have one single feature for both market to predict and horizon
         }
         else
         {
             if (!TryToPredictAllHorizonAtTheSameTime)
             {
-                xColCount += 1; //we'll have one more feature : the horizon to predict (1d / 1w / 2w)
+                xColCountInModelFormat += 1; //we'll have one more feature : the horizon to predict (1d / 1w / 2w)
             }
             if (!TryToPredictAllMarketsAtTheSameTime)
             {
-                xColCount += 1; //we'll have one more feature : the market to predict (VIX, EURUSD, etc...)
+                xColCountInModelFormat += 1; //we'll have one more feature : the market to predict (VIX, EURUSD, etc...)
             }
         }
-        return new[] { RawCountToCount(xRowCount), xColCount };
+        return new[] { RowsInTargetFormatToRowsInModelFormat(rowsInTargetFormat), xColCountInModelFormat };
     }
-    private IDataSet NewDataSet([JetBrains.Annotations.NotNull] string xRawFile, [CanBeNull] string yRawFileIfAny)
+    private IDataSet NewDataSet([JetBrains.Annotations.NotNull] string xFileInTargetFormat, [CanBeNull] string yFileInTargetFormatIfAny)
     {
         return new InMemoryDataSet(
-            Load_X(xRawFile),
-            string.IsNullOrEmpty(yRawFileIfAny) ? null : Load_Y(yRawFileIfAny),
+            Load_XInModelFormat(xFileInTargetFormat),
+            string.IsNullOrEmpty(yFileInTargetFormatIfAny) ? null : Load_YInModelFormat(yFileInTargetFormatIfAny),
             Natixis70Utils.NAME,
             Objective_enum.Regression,
             null,
@@ -301,24 +309,24 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             false);
     }
     /// <summary>
-    /// return the horizonId associated with row 'row', or -1 if the row is associated with all horizon ids
+    /// return the horizonId associated with row 'rowInModelFormat', or -1 if the row is associated with all horizon ids
     /// </summary>
-    /// <param name="row"></param>
+    /// <param name="rowInModelFormat"></param>
     /// <returns></returns>
-    private int RowToHorizonId(int row)
+    private int RowInModelFormatToHorizonId(int rowInModelFormat)
     {
         if (TryToPredictAllHorizonAtTheSameTime)
         {
             return -1;
         }
-        return row % Natixis70Utils.HorizonNames.Length;
+        return rowInModelFormat % Natixis70Utils.HorizonNames.Length;
     }
     /// <summary>
-    /// return the marketId associated with row 'row', or -1 if the row is associated with all market ids
+    /// return the marketId associated with row 'rowInModelFormat', or -1 if the row is associated with all market ids
     /// </summary>
-    /// <param name="row"></param>
+    /// <param name="rowInModelFormat"></param>
     /// <returns></returns>
-    private int RowToMarketId(int row)
+    private int RowInModelFormatToMarketId(int rowInModelFormat)
     {
         if (TryToPredictAllMarketsAtTheSameTime)
         {
@@ -326,145 +334,99 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         if (!TryToPredictAllHorizonAtTheSameTime)
         {
-            row /= Natixis70Utils.HorizonNames.Length;
+            rowInModelFormat /= Natixis70Utils.HorizonNames.Length;
         }
 
-        return row % Natixis70Utils.MarketNames.Length;
+        return rowInModelFormat % Natixis70Utils.MarketNames.Length;
     }
     /// <summary>
     /// path to the test dataset in LightGBM compatible format
     /// </summary>
     /// <returns></returns>
-    private CpuTensor<float> Load_X(string xRawFile)
+    private CpuTensor<float> Load_XInModelFormat(string xFileInTargetFormat)
     {
-        var key = xRawFile + "_" + ComputeHash();
+        var key = xFileInTargetFormat + "_" + ComputeHash();
         if (CacheDataset.TryGetValue(key, out var existingValue))
         {
             return existingValue;
         }
 
-        //We load 'xRaw'
-        var xRawDataframe = Dataframe.Load(xRawFile, true, ',');
-        var xRaw = xRawDataframe.Tensor;
-        Debug.Assert(xRaw.Shape[1] == Natixis70Utils.EmbeddingDimension);
-        int count = xRaw.Shape[0];
-        var xRawSpan = xRaw.AsReadonlyFloatCpuContent;
-        var x = new CpuTensor<float>(X_Shape(count));
-        var xSpan = x.AsFloatCpuSpan;
-        int xSpanIndex = 0;
-        var divider = RawCountToCount(1);
+        //We load 'xFileInTargetFormat'
+        var xInTargetFormatDataframe = Dataframe.Load(xFileInTargetFormat, true, ',');
+        var xInTargetFormat = xInTargetFormatDataframe.Tensor;
+        Debug.Assert(xInTargetFormat.Shape[1] == Natixis70Utils.EmbeddingDimension);
+        int rowsInTargetFormat = xInTargetFormat.Shape[0];
+        var xInTargetFormatSpan = xInTargetFormat.AsReadonlyFloatCpuContent;
+        var xInModelFormat = new CpuTensor<float>(XShapeInModelFormat(rowsInTargetFormat));
+        var xInModelFormatSpan = xInModelFormat.AsFloatCpuSpan;
+        int xInModelFormatSpanIndex = 0;
+        var divider = RowsInTargetFormatToRowsInModelFormat(1);
 
-        for (int row = 0; row < x.Shape[0]; row++)
+        for (int rowInModelFormat = 0; rowInModelFormat < xInModelFormat.Shape[0]; rowInModelFormat++)
         {
-            int rawRow = row / divider;
-            int horizonId = RowToHorizonId(row);
-            int marketId = RowToMarketId(row);
+            int rowInTargetFormat = rowInModelFormat / divider;
+            int horizonId = RowInModelFormatToHorizonId(rowInModelFormat);
+            int marketId = RowInModelFormatToMarketId(rowInModelFormat);
 
-            //we load the row 'row' in 'x' tensor
-            for (int col = 0; col < xRaw.Shape[1]; ++col)
+            //we load the row 'row' in 'xInModelFormat' tensor
+            for (int colInTargetFormat = 0; colInTargetFormat < xInTargetFormat.Shape[1]; ++colInTargetFormat)
             {
-                xSpan[xSpanIndex++] = xRawSpan[rawRow * xRaw.Shape[1] + col];
+                xInModelFormatSpan[xInModelFormatSpanIndex++] = xInTargetFormatSpan[rowInTargetFormat * xInTargetFormat.Shape[1] + colInTargetFormat];
             }
 
             if (MergeHorizonAndMarketIdInSameFeature)
             {
                 Debug.Assert(marketId >= 0);
                 Debug.Assert(horizonId >= 0);
-                xSpan[xSpanIndex++] = marketId * Natixis70Utils.HorizonNames.Length + horizonId;
+                xInModelFormatSpan[xInModelFormatSpanIndex++] = marketId * Natixis70Utils.HorizonNames.Length + horizonId;
             }
             else
             {
                 if (marketId >= 0)
                 {
-                    xSpan[xSpanIndex++] = marketId;
+                    xInModelFormatSpan[xInModelFormatSpanIndex++] = marketId;
                 }
                 if (horizonId >= 0)
                 {
-                    xSpan[xSpanIndex++] = horizonId;
+                    xInModelFormatSpan[xInModelFormatSpanIndex++] = horizonId;
                 }
             }
         }
-        Debug.Assert(xSpanIndex == x.Count);
-        xRaw.Dispose();
+        Debug.Assert(xInModelFormatSpanIndex == xInModelFormat.Count);
+        xInTargetFormat.Dispose();
 
-        if (CacheDataset.TryAdd(key, x))
+        if (CacheDataset.TryAdd(key, xInModelFormat))
         {
-            return x;
+            return xInModelFormat;
         }
-        x.Dispose();
+        xInModelFormat.Dispose();
         return CacheDataset[key];
     }
     /// <summary>
-    /// Load the content of the file  'yRawFileIfAny' in a CpuTensor and return it
+    /// Load the content of the file 'yFileInTargetFormat' in a CpuTensor (in model format) and return it
     /// </summary>
-    /// <param name="yRawFileIfAny"></param>
+    /// <param name="yFileInTargetFormat"></param>
     /// <returns></returns>
-    private CpuTensor<float> Load_Y(string yRawFileIfAny)
+    private CpuTensor<float> Load_YInModelFormat(string yFileInTargetFormat)
     {
-        var key = yRawFileIfAny + "_" + ComputeHash();
+        var key = yFileInTargetFormat + "_" + ComputeHash();
         if (CacheDataset.TryGetValue(key, out var existingValue))
         {
             return existingValue;
         }
 
-        Debug.Assert(File.Exists(yRawFileIfAny));
-        var yRawDataframe = Dataframe.Load(yRawFileIfAny, true, ',');
-        var yRaw = yRawDataframe.Tensor;
-        var yRawSpan = yRaw.AsReadonlyFloatCpuContent;
-        var y = new CpuTensor<float>(Y_Shape(yRaw.Shape[0]));
-        var ySpan = y.AsFloatCpuSpan;
-        int ySpanIndex = 0;
-        var divider = RawCountToCount(1);
+        Debug.Assert(File.Exists(yFileInTargetFormat));
+        var yInTargetFormatDataframe = Dataframe.Load(yFileInTargetFormat, true, ',');
+        var yInTargetFormat = yInTargetFormatDataframe.Tensor;
+        var yInModelFormat = PredictionsInTargetFormat_2_PredictionsInModelFormat(yInTargetFormat);
+        yInTargetFormat.Dispose();
 
-        for (int row = 0; row < y.Shape[0]; row++)
+        if (CacheDataset.TryAdd(key, yInModelFormat))
         {
-            int rawRow = row / divider;
-            int horizonId = RowToHorizonId(row);
-            int marketId = RowToMarketId(row);
-
-            //we load the row 'row' in 'y' tensor
-            for (int currentMarketId = (marketId < 0 ? 0 : marketId); currentMarketId <= (marketId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : marketId); ++currentMarketId)
-            {
-                for (int currentHorizonId = (horizonId < 0 ? 0 : horizonId); currentHorizonId <= (horizonId < 0 ? (Natixis70Utils.HorizonNames.Length - 1) : horizonId); ++currentHorizonId)
-                {
-                    int rawColIndex = 1 + Natixis70Utils.HorizonNames.Length * currentMarketId + currentHorizonId;
-                    var yRawValue = yRawSpan[rawRow * yRaw.Shape[1] + rawColIndex];
-                    if (Normalization == normalize_enum.MINUS_MEAN_DIVIDE_BY_VOL)
-                    {
-                        var colStatistics = Y_RAW_statistics[rawColIndex - 1];
-                        yRawValue = (float)((yRawValue - colStatistics.Average) / colStatistics.Volatility);
-                    }
-                    else if (Normalization == normalize_enum.DIVIDE_BY_ABS_MEAN)
-                    {
-                        var absColStatistics = Y_RAW_abs_statistics[rawColIndex - 1];
-                        yRawValue = (float)(yRawValue / absColStatistics.Average);
-                    }
-                    ySpan[ySpanIndex++] = yRawValue;
-                }
-            }
+            return yInModelFormat;
         }
-        Debug.Assert(ySpanIndex == y.Count);
-        yRaw.Dispose();
-
-        if (CacheDataset.TryAdd(key, y))
-        {
-            return y;
-        }
-        y.Dispose();
+        yInModelFormat.Dispose();
         return CacheDataset[key];
-    }
-    private int RawCountToCount(int rawCount)
-    {
-        int count = rawCount;
-        if (!TryToPredictAllHorizonAtTheSameTime)
-        {
-            count *= Natixis70Utils.HorizonNames.Length;
-        }
-        if (!TryToPredictAllMarketsAtTheSameTime)
-        {
-            count *= Natixis70Utils.MarketNames.Length;
-        }
-        return count;
     }
     private static string XTrainRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_train_ACFqOMF.csv");
     // ReSharper disable once MemberCanBePrivate.Global

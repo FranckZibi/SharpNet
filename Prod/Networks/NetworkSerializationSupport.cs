@@ -56,14 +56,14 @@ namespace SharpNet.Networks
             var network = new Network(sample);
             if (!originalResourceIds.SequenceEqual(fixedResourceIds))
             {
-                Log.Warn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
+                LogWarn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
             }
             //on CPU we must use 'GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM'
             if (fixedResourceIds.Max() < 0 && sample.Config.ConvolutionAlgoPreference != GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
             {
-                Log.Warn("only " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + sample.Config.ConvolutionAlgoPreference + " is not supported on CPU)");
+                LogWarn("only " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + sample.Config.ConvolutionAlgoPreference + " is not supported on CPU)");
                 sample.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
-                Log.Warn("force using " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM);
+                LogWarn("force using " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM);
             }
 
             var epochsData = (EpochData[])dicoFirstLine[nameof(EpochData)];
@@ -105,7 +105,7 @@ namespace SharpNet.Networks
                     h5File.Write(p.Key, p.Value);
                 }
             }
-            Log.Info("Network Parameters '" + Description + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");
+            LogInfo("Network Parameters '" + Description + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace SharpNet.Networks
         /// <param name="originFramework"></param>
         public void LoadParametersFromH5File(string h5FilePath, NetworkConfig.CompatibilityModeEnum originFramework)
         {
-            Log.Info("loading weights from " + h5FilePath);
+            LogInfo("loading weights from " + h5FilePath);
             using var h5File = new H5File(h5FilePath);
             var h5FileParameters = h5File.Datasets();
             Layers.ForEach(l => l.LoadParameters(h5FileParameters, originFramework));
@@ -124,14 +124,14 @@ namespace SharpNet.Networks
             var elementMissingInH5Files = networkParametersKeys.Except(h5FileParameters.Keys).ToList();
             if (elementMissingInH5Files.Count != 0)
             {
-                Log.Info(elementMissingInH5Files.Count + " parameters are missing in file " + h5FilePath + ": " +
+                LogInfo(elementMissingInH5Files.Count + " parameters are missing in file " + h5FilePath + ": " +
                          string.Join(", ", elementMissingInH5Files));
             }
 
             var elementMissingInNetwork = h5FileParameters.Keys.Except(networkParametersKeys).ToList();
             if (elementMissingInNetwork.Count != 0)
             {
-                Log.Info(elementMissingInNetwork.Count + " parameters are missing in network " + h5FilePath + ": " +
+                LogInfo(elementMissingInNetwork.Count + " parameters are missing in network " + h5FilePath + ": " +
                          string.Join(", ", elementMissingInNetwork));
             }
         }
@@ -183,13 +183,13 @@ namespace SharpNet.Networks
                 File.AppendAllLines(modelFilePath, new[] { l.Serialize() });
             }
 
-            Log.Info("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
+            LogInfo("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
         }
 
-        public override void Save(string workingDirectory, string modelName)
+        public override void Save(string workingDirectory, string sampleName)
         {
-            SaveModel(workingDirectory, modelName);
-            SaveParameters(workingDirectory, modelName);
+            SaveModel(workingDirectory, sampleName);
+            SaveParameters(workingDirectory, sampleName);
         }
     }
 }

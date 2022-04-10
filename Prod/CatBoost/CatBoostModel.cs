@@ -58,7 +58,7 @@ namespace SharpNet.CatBoost
             string datasetColumnDescriptionPath = trainDatasetPath + ".co";
             to_column_description(datasetColumnDescriptionPath, trainDataset, true, false);
 
-            Log.Info($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
+            IModel.Log.Info($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
 
             string arguments = "fit " +
                                " --learn-set " + trainDatasetPath +
@@ -96,7 +96,7 @@ namespace SharpNet.CatBoost
             //        " --trace-log " + Path.Combine(tmpDirectory, "trace.log");
             //}
 
-            Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
+            Utils.Launch(WorkingDirectory, ExePath, arguments, IModel.Log);
             return (trainDatasetPath, trainDatasetPath, validationDatasetPathIfAny, validationDatasetPathIfAny);
         }
 
@@ -146,7 +146,7 @@ namespace SharpNet.CatBoost
                 arguments += " --prediction-type RawFormulaVal ";
             }
 
-            Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
+            Utils.Launch(WorkingDirectory, ExePath, arguments, IModel.Log);
             var predictions1 = File.ReadAllLines(predictionResultPath).Skip(1).Select(l => l.Split()[1]).Select(float.Parse).ToArray();
             File.Delete(configFilePath);
             File.Delete(predictionResultPath);
@@ -160,10 +160,11 @@ namespace SharpNet.CatBoost
         public override void Save(string workingDirectory, string modelName)
         {
             //No need to save model : it is already saved in json format
-            CatBoostSample.Save(workingDirectory, modelName);
+            var sampleName = modelName;
+            CatBoostSample.Save(workingDirectory, sampleName);
         }
 
-        public override int GetNumEpochs()
+        protected override int GetNumEpochs()
         {
             return CatBoostSample.iterations;
         }
@@ -175,7 +176,8 @@ namespace SharpNet.CatBoost
         {
             return -1; //TODO
         }
-        public override double GetLearningRate()
+
+        protected override double GetLearningRate()
         {
             return CatBoostSample.learning_rate;
         }
@@ -185,7 +187,7 @@ namespace SharpNet.CatBoost
         }
         public static CatBoostModel LoadTrainedCatBoostModel(string workingDirectory, string modelName)
         {
-            var sample = CatBoostSample.ValueOf(workingDirectory, modelName);
+            var sample = CatBoostSample.LoadCatBoostSample(workingDirectory, modelName);
             return new CatBoostModel(sample, workingDirectory, modelName);
         }
 
@@ -193,7 +195,7 @@ namespace SharpNet.CatBoost
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
-                Log.Debug($"No need to save dataset column description in path {path} : it already exists");
+                IModel.Log.Debug($"No need to save dataset column description in path {path} : it already exists");
                 return;
             }
 
@@ -213,13 +215,13 @@ namespace SharpNet.CatBoost
                     sb.Append($"{featureId}\tCateg"+Environment.NewLine);
                 }
             }
-            Log.Debug($"Saving dataset column description in path {path}");
+            IModel.Log.Debug($"Saving dataset column description in path {path}");
             var fileContent = sb.ToString().Trim();
             lock (LockToColumnDescription)
             {
                 File.WriteAllText(path, fileContent);
             }
-            Log.Debug($"Dataset column description saved in path {path}");
+            IModel.Log.Debug($"Dataset column description saved in path {path}");
         }
         private static string ExePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "bin", "catboost.exe");
 

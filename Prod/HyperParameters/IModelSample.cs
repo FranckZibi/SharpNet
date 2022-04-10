@@ -14,13 +14,13 @@ public interface IModelSample : ISample
     LossFunctionEnum GetLoss();
     void Use_All_Available_Cores();
 
-    public static IModelSample ValueOfModelSample(string workingDirectory, string modelName)
+    public static IModelSample LoadModelSample(string workingDirectory, string sampleName)
     {
-        try { return LightGBMSample.ValueOf(workingDirectory, modelName); } catch { }
-        try { return CatBoostSample.ValueOf(workingDirectory, modelName); } catch { }
-        try { return KFoldSample.Load(workingDirectory, modelName); } catch { }
-        try { return WeightsOptimizerSample.ValueOf(workingDirectory, modelName); } catch { }
-        throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
+        try { return LightGBMSample.LoadLightGBMSample(workingDirectory, sampleName); } catch { }
+        try { return CatBoostSample.LoadCatBoostSample(workingDirectory, sampleName); } catch { }
+        try { return KFoldSample.LoadKFoldSample(workingDirectory, sampleName); } catch { }
+        try { return WeightsOptimizerSample.LoadWeightsOptimizerSample(workingDirectory, sampleName); } catch { }
+        throw new Exception($"can't load sample from model {sampleName} in directory {workingDirectory}");
     }
 }
 

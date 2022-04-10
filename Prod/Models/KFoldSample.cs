@@ -22,7 +22,7 @@ public class KFoldSample : AbstractSample, IModelSample
         Metric = metric;
         Loss = loss;
     }
-    public static KFoldSample Load(string workingDirectory, string modelName)
+    public static KFoldSample LoadKFoldSample(string workingDirectory, string modelName)
     {
         return (KFoldSample)ISample.LoadConfigIntoSample(() => new KFoldSample(), workingDirectory, modelName);
     }

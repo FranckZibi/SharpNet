@@ -208,9 +208,9 @@ namespace SharpNet.DataAugmentation
         }
         public bool UseDataAugmentation => DataAugmentationType != ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
 
-        public static DataAugmentationSample ValueOf(string workingDirectory, string modelName)
+        public static DataAugmentationSample ValueOf(string workingDirectory, string sampleName)
         {
-            return (DataAugmentationSample)ISample.LoadConfigIntoSample(() => new DataAugmentationSample(), workingDirectory, modelName);
+            return (DataAugmentationSample)ISample.LoadConfigIntoSample(() => new DataAugmentationSample(), workingDirectory, sampleName);
         }
     }
 }

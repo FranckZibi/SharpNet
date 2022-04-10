@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using SharpNet.CatBoost;
 using SharpNet.HPO;
@@ -62,10 +61,10 @@ namespace SharpNet.Datasets.Natixis70
                 { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
             };
 
-            var hpo = new BayesianSearchHPO(searchSpace, () => new TrainableSample(new LightGBMSample(), new Natixis70DatasetSample()), WorkingDirectory);
+            var hpo = new BayesianSearchHPO(searchSpace, () => new ModelAndDatasetSample(new LightGBMSample(), new Natixis70DatasetSample()), WorkingDirectory);
             float bestScoreSoFar = float.NaN;
             var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ITrainableSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar) );
+            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar) );
         }
 
         // ReSharper disable once UnusedMember.Global
@@ -97,41 +96,41 @@ namespace SharpNet.Datasets.Natixis70
                 { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
             };
 
-            var hpo = new BayesianSearchHPO(searchSpace, () => new TrainableSample(new CatBoostSample(), new Natixis70DatasetSample()), WorkingDirectory);
+            var hpo = new BayesianSearchHPO(searchSpace, () => new ModelAndDatasetSample(new CatBoostSample(), new Natixis70DatasetSample()), WorkingDirectory);
             float bestScoreSoFar = float.NaN;
             var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ITrainableSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
+            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
         }
 
-        // ReSharper disable once UnusedMember.Global
-        public static void SearchForBestWeights()
-        {
+        //// ReSharper disable once UnusedMember.Global
+        //public static void SearchForBestWeights()
+        //{
            
-            WeightsOptimizerModel.SearchForBestWeights(
-                new List<Tuple<string, string>>
-                {
-                    //Tuple.Create(WorkingDirectory, "A8A78BE573"),
-                    //Tuple.Create(WorkingDirectory, "12ECEF9CB3"),
-                    //Tuple.Create(WorkingDirectory, "9CBFCA0006"),
-                    //Tuple.Create(WorkingDirectory, "E1373D2F46"),
-                    //Tuple.Create(WorkingDirectory, "D939AAE448"),
-                    //Tuple.Create(WorkingDirectory, "0BCE79DE2D"),
-                    //Tuple.Create(WorkingDirectory, "3150BA17E9"),
-                    //Tuple.Create(WorkingDirectory, "05A621ABC5"),
-                    //Tuple.Create(WorkingDirectory, "0A1FC3DB8C"),
-                    //Tuple.Create(Path.Combine(WorkingDirectory, "5F73F0353D"), "5F73F0353D"),
+        //    WeightsOptimizer.SearchForBestWeights(
+        //        new List<Tuple<string, string>>
+        //        {
+        //            //Tuple.Create(WorkingDirectory, "A8A78BE573"),
+        //            //Tuple.Create(WorkingDirectory, "12ECEF9CB3"),
+        //            //Tuple.Create(WorkingDirectory, "9CBFCA0006"),
+        //            //Tuple.Create(WorkingDirectory, "E1373D2F46"),
+        //            //Tuple.Create(WorkingDirectory, "D939AAE448"),
+        //            //Tuple.Create(WorkingDirectory, "0BCE79DE2D"),
+        //            //Tuple.Create(WorkingDirectory, "3150BA17E9"),
+        //            //Tuple.Create(WorkingDirectory, "05A621ABC5"),
+        //            //Tuple.Create(WorkingDirectory, "0A1FC3DB8C"),
+        //            //Tuple.Create(Path.Combine(WorkingDirectory, "5F73F0353D"), "5F73F0353D"),
 
-                    //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "7F1CA8E4AE"),
-                    //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "A3699BA7D3"),
-                    //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "ABB2EC09A2")
+        //            //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "7F1CA8E4AE"),
+        //            //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "A3699BA7D3"),
+        //            //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "ABB2EC09A2")
 
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "521D6A0D59"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "46BC2E8A94"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "E43D541012")
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "521D6A0D59"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "46BC2E8A94"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "E43D541012")
 
-                }, 
-                Path.Combine(WorkingDirectory, nameof(WeightsOptimizerModel)), 
-                Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
-        }
+        //        }, 
+        //        Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)), 
+        //        Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
+        //}
     }
 }

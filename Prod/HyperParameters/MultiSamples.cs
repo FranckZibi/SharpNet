@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using SharpNet.CPU;
 
 namespace SharpNet.HyperParameters;
 
@@ -19,23 +18,30 @@ public abstract class MultiSamples : ISample
     #endregion
 
     #region ISample methods
-    public void Save(string workingDirectory, string modelName)
+    public void Save(string workingDirectory, string sampleName)
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)
         {
-            Samples[sampleIndex].Save(workingDirectory, modelName + ((sampleIndex==0)?"":("_"+sampleIndex)) );
+            Samples[sampleIndex].Save(workingDirectory, SampleIndexToSampleName(sampleIndex, Samples.Length, sampleName));
         }
+        
     }
-    public List<string> SampleFiles(string workingDirectory, string modelName)
+    public List<string> SampleFiles(string workingDirectory, string sampleName)
     {
         HashSet<string> res = new();
         for (var sampleIndex = 0; sampleIndex < Samples.Length; sampleIndex++)
         {
             var sample = Samples[sampleIndex];
-            res.UnionWith(sample.SampleFiles(workingDirectory, modelName + "_" + sampleIndex));
+            res.UnionWith(sample.SampleFiles(workingDirectory, SampleIndexToSampleName(sampleIndex, Samples.Length, sampleName)));
         }
         return res.ToList();
     }
+
+    protected static string SampleIndexToSampleName(int sampleIndex, int sampleCount, string samplelName)
+    {
+        return samplelName + "_" + sampleIndex + "_" + sampleCount;
+    }
+
     public HashSet<string> HyperParameterNames()
     {
         HashSet<string> res = new();
@@ -60,11 +66,11 @@ public abstract class MultiSamples : ISample
     {
         return FirstSampleWithField(hyperParameterName).Get(hyperParameterName);
     }
-    public virtual bool PostBuild()
+    public virtual bool FixErrors()
     {
         foreach (var s in Samples)
         {
-            if (!s.PostBuild())
+            if (!s.FixErrors())
             {
                 return false;
             }
@@ -75,10 +81,6 @@ public abstract class MultiSamples : ISample
     {
         var allHash = string.Join("_", Samples.Select(s => s.ComputeHash()));
         return Utils.ComputeHash(allHash, 10);
-    }
-    public virtual CpuTensor<float> Y_Train_dataset_to_Perfect_Predictions(string y_train_dataset)
-    {
-        throw new NotImplementedException();
     }
     public Type GetFieldType(string hyperParameterName)
     {

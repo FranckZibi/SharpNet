@@ -3,9 +3,7 @@ using SharpNet.HyperParameters;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
-using System.Text;
 
 namespace SharpNet.Datasets.AmazonEmployeeAccessChallenge;
 
@@ -14,7 +12,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     #region private fields
     private readonly InMemoryDataSet _testDataset;
     private InMemoryDataSet FullTrain { get; }
-    private const string PredictionHeader = "Id,Action";
+    //private const string PredictionHeader = "Id,Action";
     #endregion
 
     [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
@@ -51,22 +49,32 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
 
     public static string WorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath, "SharpNet", "AmazonEmployeeAccessChallenge");
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    public static AmazonEmployeeAccessChallengeDatasetSample ValueOfAmazonEmployeeAccessChallengeDatasetHyperParameters(string workingDirectory, string modelName)
+    public static AmazonEmployeeAccessChallengeDatasetSample ValueOfAmazonEmployeeAccessChallengeDatasetSample(string workingDirectory, string sampleName)
     {
-        return (AmazonEmployeeAccessChallengeDatasetSample)ISample.LoadConfigIntoSample(() => new AmazonEmployeeAccessChallengeDatasetSample(), workingDirectory, modelName);
+        return (AmazonEmployeeAccessChallengeDatasetSample)ISample.LoadConfigIntoSample(() => new AmazonEmployeeAccessChallengeDatasetSample(), workingDirectory, sampleName);
     }
-    public override IDataSet FullTraining()
+    //public override IDataSet FullTraining()
+    //{
+    //    return FullTrain;
+    //}
+    //public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
+    //{
+    //    throw new NotImplementedException(); //TODO
+    //}
+
+    //public override (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) LoadAllPredictionsInTargetFormatWithoutIndex()
+    //{
+    //    return LoadAllPredictionsInTargetFormatWithoutIndex(true, false, ',');
+    //}
+    
+    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
     {
-        return FullTrain;
-    }
-    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
-    {
-        throw new NotImplementedException(); //TODO
+        throw new NotImplementedException();
     }
 
-    public override (CpuTensor<float> trainPredictions, CpuTensor<float> validationPredictions, CpuTensor<float> testPredictions) LoadAllPredictions()
+    public override CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat)
     {
-        return LoadAllPredictions(true, false, ',');
+        throw new NotImplementedException();
     }
 
     private static string GetXTestDatasetPath()
@@ -79,23 +87,24 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
         return new List<string> { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
     }
 
-    public override void ComputeAndSavePredictions(CpuTensor<float> predictionsInModelFormat, string path)
+    public override void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path)
     {
-        var sb = new StringBuilder();
-        sb.Append(PredictionHeader + Environment.NewLine);
+        throw new NotImplementedException();
+        //var sb = new StringBuilder();
+        //sb.Append(PredictionHeader + Environment.NewLine);
 
-        var ySpan = predictionsInModelFormat.AsReadonlyFloatCpuContent;
-        for (int i = 0; i < ySpan.Length; ++i)
-        {
-            sb.Append((i + 1) + "," + ySpan[i].ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
-        }
-        File.WriteAllText(path, sb.ToString().Trim());
+        //var ySpan = predictionsInTargetFormat.AsReadonlyFloatCpuContent;
+        //for (int i = 0; i < ySpan.Length; ++i)
+        //{
+        //    sb.Append((i + 1) + "," + ySpan[i].ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
+        //}
+        //File.WriteAllText(path, sb.ToString().Trim());
     }
-    protected override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
+    public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {
         throw new NotImplementedException();
     }
-    protected override IDataSet TestDataset()
+    public override IDataSet TestDataset()
     {
         return _testDataset;
     }

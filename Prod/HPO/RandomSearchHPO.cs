@@ -44,7 +44,7 @@ namespace SharpNet.HPO
                             continue; //already processed before
                         }
                     }
-                    if (sample.PostBuild())
+                    if (sample.FixErrors())
                     {
                         var sampleDescription = ToSampleDescription(searchSpaceHyperParameters, sample);
                         return (sample, _nextSampleId++, sampleDescription);
