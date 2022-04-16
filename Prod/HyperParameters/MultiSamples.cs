@@ -18,28 +18,28 @@ public abstract class MultiSamples : ISample
     #endregion
 
     #region ISample methods
-    public void Save(string workingDirectory, string sampleName)
+    public void Save(string workingDirectory, string modelName)
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)
         {
-            Samples[sampleIndex].Save(workingDirectory, SampleIndexToSampleName(sampleIndex, Samples.Length, sampleName));
+            Samples[sampleIndex].Save(workingDirectory, SampleIndexToSampleName(modelName, sampleIndex));
         }
-        
     }
-    public List<string> SampleFiles(string workingDirectory, string sampleName)
+    public List<string> SampleFiles(string workingDirectory, string modelName)
     {
         HashSet<string> res = new();
         for (var sampleIndex = 0; sampleIndex < Samples.Length; sampleIndex++)
         {
             var sample = Samples[sampleIndex];
-            res.UnionWith(sample.SampleFiles(workingDirectory, SampleIndexToSampleName(sampleIndex, Samples.Length, sampleName)));
+            res.UnionWith(sample.SampleFiles(workingDirectory, SampleIndexToSampleName(modelName, sampleIndex)));
         }
         return res.ToList();
     }
+    
 
-    protected static string SampleIndexToSampleName(int sampleIndex, int sampleCount, string samplelName)
+    protected virtual string SampleIndexToSampleName(string modelName, int sampleIndex)
     {
-        return samplelName + "_" + sampleIndex + "_" + sampleCount;
+        return ISample.SampleName(modelName, sampleIndex);
     }
 
     public HashSet<string> HyperParameterNames()

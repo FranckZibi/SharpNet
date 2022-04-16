@@ -186,10 +186,10 @@ namespace SharpNet.Networks
             LogInfo("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
         }
 
-        public override void Save(string workingDirectory, string sampleName)
+        public override void Save(string workingDirectory, string modelName)
         {
-            SaveModel(workingDirectory, sampleName);
-            SaveParameters(workingDirectory, sampleName);
+            SaveModel(workingDirectory, modelName);
+            SaveParameters(workingDirectory, modelName);
         }
     }
 }

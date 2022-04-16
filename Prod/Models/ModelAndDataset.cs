@@ -12,7 +12,7 @@ public class ModelAndDataset
 {
     #region public fields
     public IModel Model {get; }
-    public ModelAndDatasetSample ModelAndDatasetSample { get; }
+    private ModelAndDatasetSample ModelAndDatasetSample { get; }
     #endregion
 
     #region constructor
@@ -38,13 +38,14 @@ public class ModelAndDataset
         Fit(bool computeAndSavePredictionsInTargetFormat, bool computeValidationScore, bool saveTrainedModel)
     {
         using var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
-        (DatasetSample.Train_XDatasetPath, DatasetSample.Train_YDatasetPath, DatasetSample.Validation_XDatasetPath, DatasetSample.Validation_YDatasetPath) = Model.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
+        (DatasetSample.Train_XDatasetPath, DatasetSample.Train_YDatasetPath, DatasetSample.Validation_XDatasetPath, DatasetSample.Validation_YDatasetPath) = 
+            Model.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
         var res = ("", float.NaN, "", float.NaN, "");
         if (computeAndSavePredictionsInTargetFormat)
         {
             var start = Stopwatch.StartNew();
             res = ComputeAndSavePredictionsInTargetFormat(trainingAndValidation.Training, trainingAndValidation.Test);
-            ISample.Log.Debug($"ComputeAndSavePredictionsInTargetFormat took '{start.Elapsed.TotalSeconds}'s");
+            ISample.Log.Debug($"{nameof(ComputeAndSavePredictionsInTargetFormat)} took '{start.Elapsed.TotalSeconds}'s");
         }
         else if (computeValidationScore)
         {
@@ -53,9 +54,7 @@ public class ModelAndDataset
         }
         if (saveTrainedModel)
         {
-            var start = Stopwatch.StartNew();
-            Model.Save(Model.WorkingDirectory, Model.ModelName);
-            ISample.Log.Debug($"Model.Save took '{start.Elapsed.TotalSeconds}'s");
+            Save(Model.WorkingDirectory, Model.ModelName);
         }
         return res;
     }
@@ -77,8 +76,10 @@ public class ModelAndDataset
     }
     public void Save(string workingDirectory, string modelName)
     {
+        var start = Stopwatch.StartNew();
         ModelAndDatasetSample.Save(workingDirectory, modelName);
         Model.Save(workingDirectory, modelName);
+        ISample.Log.Debug($"{nameof(ModelAndDatasetSample)}.Save took '{start.Elapsed.TotalSeconds}'s");
     }
 
     private (CpuTensor<float> predictionsInTargetFormat, string predictionPath) PredictWithPath(IDataSet dataset)

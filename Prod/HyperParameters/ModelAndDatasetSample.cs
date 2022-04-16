@@ -1,4 +1,5 @@
-﻿using SharpNet.LightGBM;
+﻿using System;
+using SharpNet.LightGBM;
 
 namespace SharpNet.HyperParameters
 {
@@ -12,10 +13,25 @@ namespace SharpNet.HyperParameters
         public static ModelAndDatasetSample LoadModelAndDatasetSample(string workingDirectory, string modelName)
         {
             return new ModelAndDatasetSample(
-                IModelSample.LoadModelSample(workingDirectory, SampleIndexToSampleName(0, 2, modelName)),
-                AbstractDatasetSample.ValueOf(workingDirectory, SampleIndexToSampleName(1, 2, modelName)));
+                IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0)),
+                AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1)));
         }
         #endregion
+
+        private static string ModelAndDatasetSampleIndexToSampleName(string modelName, int sampleIndex)
+        {
+            switch (sampleIndex)
+            {
+                case 0: return modelName;
+                case 1: return modelName + "_dataset";
+                default: throw new ArgumentException($"invalid index {sampleIndex} for {nameof(ModelAndDatasetSample)}");
+            }
+        }
+
+        protected override string SampleIndexToSampleName(string modelName, int sampleIndex)
+        {
+            return ModelAndDatasetSampleIndexToSampleName(modelName, sampleIndex);
+        }
 
         public IModelSample ModelSample => (IModelSample)Samples[0];
         public AbstractDatasetSample DatasetSample => (AbstractDatasetSample)Samples[1];

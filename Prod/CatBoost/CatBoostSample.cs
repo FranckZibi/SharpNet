@@ -256,9 +256,9 @@ namespace SharpNet.CatBoost
         public bool allow_writing_files = true;
         #endregion
 
-        public override void Save(string workingDirectory, string sampleName)
+        public override void Save(string workingDirectory, string modelName)
         {
-            var configFile = ISample.ToJsonPath(workingDirectory, sampleName);
+            var configFile = ISample.ToJsonPath(workingDirectory, modelName);
             Save(configFile);
         }
         public override void Save(string path)
@@ -297,9 +297,9 @@ namespace SharpNet.CatBoost
                     return MetricEnum.Loss; //we'll use the same metric as the loss
             }
         }
-        public override List<string> SampleFiles(string workingDirectory, string sampleName)
+        public override List<string> SampleFiles(string workingDirectory, string modelName)
         {
-            return new List<string> { ISample.ToJsonPath(workingDirectory, sampleName) };
+            return new List<string> { ISample.ToJsonPath(workingDirectory, modelName) };
         }
         public LossFunctionEnum GetLoss()
         {

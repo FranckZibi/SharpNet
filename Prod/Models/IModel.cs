@@ -17,6 +17,9 @@ public interface IModel
 {
     #region public fields & properties
     public static readonly ILog Log = LogManager.GetLogger(typeof(IModel));
+    IModelSample ModelSample { get; }
+    string WorkingDirectory { get; }
+    string ModelName { get; }
     #endregion
 
 
@@ -45,7 +48,6 @@ public interface IModel
         }
         throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");
     }
-
     protected static IModel LoadTrainedAbstractModel(string workingDirectory, string modelName)
     {
         //try { return ModelAndDataset.LoadAutoTrainableModel(workingDirectory, modelName); } catch { }
@@ -53,7 +55,7 @@ public interface IModel
         try { return Network.LoadTrainedNetworkModel(workingDirectory, modelName); } catch { }
         try { return LightGBMModel.LoadTrainedLightGBMModel(workingDirectory, modelName); } catch { }
         try { return CatBoostModel.LoadTrainedCatBoostModel(workingDirectory, modelName); } catch { }
-        throw new ArgumentException($"cant' load model {modelName} from {workingDirectory}");
+        throw new ArgumentException($"can't load model {modelName} from {workingDirectory}");
     }
     #endregion
 
@@ -65,10 +67,6 @@ public interface IModel
     List<string> ModelFiles();
     bool NewScoreIsBetterTheReferenceScore(float newScore, float referenceScore);
     void AddResumeToCsv(double trainingTimeInSeconds, float trainScore, float validationScore, string csvPath);
-
-    IModelSample ModelSample { get; }
-    string WorkingDirectory { get; }
-    string ModelName { get; }
 
     public static string MetricsToString(IDictionary<MetricEnum, double> metrics, string prefix)
     {

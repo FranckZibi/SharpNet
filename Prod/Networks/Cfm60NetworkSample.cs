@@ -19,11 +19,14 @@ namespace SharpNet.Networks
         {
             return new Cfm60NetworkSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, modelName),
-                DataAugmentationSample.ValueOf(workingDirectory, modelName+"_1"),
-                CFM60HyperParameters.ValueOf(workingDirectory, modelName+"_2")
-            });
+                NetworkConfig.ValueOf(workingDirectory, ISample.SampleName(modelName, 0)),
+                DataAugmentationSample.ValueOf(workingDirectory, ISample.SampleName(modelName, 1)),
+                CFM60HyperParameters.ValueOf(workingDirectory, ISample.SampleName(modelName, 2))
+        });
         }
+
+
+
 
         public static Cfm60NetworkSample Default()
         {

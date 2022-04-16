@@ -42,8 +42,8 @@ namespace SharpNet.CatBoost
         }
         #endregion
 
-        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string
-            validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) 
+            Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
         {
             string trainDatasetPath = DatasetPath(trainDataset, true);
             trainDataset.to_csv(trainDatasetPath, Separator, true, false);
@@ -60,11 +60,12 @@ namespace SharpNet.CatBoost
 
             IModel.Log.Info($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
 
+            var tempModelSamplePath = ISample.ToJsonPath(TempPath, ModelName);
             string arguments = "fit " +
                                " --learn-set " + trainDatasetPath +
                                " --delimiter=\"" + Separator + "\"" +
                                " --has-header" +
-                               " --params-file " + ModelConfigPath +
+                               " --params-file " + tempModelSamplePath +
                                " --column-description " + datasetColumnDescriptionPath +
                                " --allow-writing-files false " + //to disable the creation of tmp files
                                " --model-file " + ModelPath +
@@ -81,7 +82,7 @@ namespace SharpNet.CatBoost
                 CatBoostSample.use_best_model = false;
             }
 
-            CatBoostSample.Save(ModelConfigPath);
+            CatBoostSample.Save(tempModelSamplePath);
 
 
             //if (CatBoostSample.allow_writing_files)
@@ -160,8 +161,7 @@ namespace SharpNet.CatBoost
         public override void Save(string workingDirectory, string modelName)
         {
             //No need to save model : it is already saved in json format
-            var sampleName = modelName;
-            CatBoostSample.Save(workingDirectory, sampleName);
+            CatBoostSample.Save(workingDirectory, modelName);
         }
 
         protected override int GetNumEpochs()
@@ -229,7 +229,6 @@ namespace SharpNet.CatBoost
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");
         private string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn) => DatasetPath(dataset, addTargetColumnAsFirstColumn, RootDatasetPath);
         [NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".json");
-        [NotNull] private string ModelConfigPath => ISample.ToJsonPath(WorkingDirectory, ModelName);
         private CatBoostSample CatBoostSample => (CatBoostSample)ModelSample;
     }
 }

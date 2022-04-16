@@ -45,7 +45,8 @@ namespace SharpNet.LightGBM
         }
         #endregion
 
-        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) 
+            Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
         {
             string trainDatasetPath = DatasetPath(trainDataset, true);
             trainDataset.to_csv(trainDatasetPath, separator, true, false);
@@ -78,8 +79,7 @@ namespace SharpNet.LightGBM
         public override void Save(string workingDirectory, string modelName)
         {
             //No need to save model : it is already saved
-            var sampleName = modelName;
-            LightGbmSample.Save(workingDirectory, sampleName);
+            LightGbmSample.Save(workingDirectory, modelName);
         }
 
         protected override int GetNumEpochs()
@@ -109,7 +109,8 @@ namespace SharpNet.LightGBM
             return new LightGBMModel(sample, workingDirectory, modelName);
         }
 
-        private (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit([NotNull] string trainDatasetPath, [CanBeNull] string validationDatasetPathIfAny)
+        private (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) 
+            Fit([NotNull] string trainDatasetPath, [CanBeNull] string validationDatasetPathIfAny)
         {
             LightGbmSample.Set(new Dictionary<string, object> {
                 {"task", LightGBMSample.task_enum.train},
@@ -123,8 +124,10 @@ namespace SharpNet.LightGBM
             });
             LightGbmSample.Set("output_model", ModelPath);
             LogInfo($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
-            LightGbmSample.Save(ModelConfigPath);
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + ModelConfigPath, IModel.Log);
+
+            var tempModelSamplePath = ISample.ToPath(TempPath, ModelName);
+            LightGbmSample.Save(tempModelSamplePath);
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + tempModelSamplePath, IModel.Log);
             return (trainDatasetPath, trainDatasetPath, validationDatasetPathIfAny, validationDatasetPathIfAny);
         }
         private CpuTensor<float> Predict(string predictionDatasetPath)
@@ -158,7 +161,5 @@ namespace SharpNet.LightGBM
         /// null if no trained model is available
         /// </summary>
         private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".txt");
-        private string ModelConfigPath => ISample.ToPath(WorkingDirectory, ModelName);
-
     }
 }

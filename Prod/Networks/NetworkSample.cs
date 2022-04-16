@@ -71,8 +71,8 @@ namespace SharpNet.Networks
         {
             return new NetworkSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, modelName),
-                DataAugmentationSample.ValueOf(workingDirectory, modelName+"_1"),
+                NetworkConfig.ValueOf(workingDirectory, ISample.SampleName(modelName, 0)),
+                DataAugmentationSample.ValueOf(workingDirectory, ISample.SampleName(modelName, 1)),
             });
         }
 

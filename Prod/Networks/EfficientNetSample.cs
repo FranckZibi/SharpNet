@@ -452,11 +452,12 @@ namespace SharpNet.Networks
         {
             return new EfficientNetSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, modelName),
-                DataAugmentationSample.ValueOf(workingDirectory, modelName+"_1"),
-                EfficientNetHyperParameters.ValueOf(workingDirectory, modelName+"_2")
+                NetworkConfig.ValueOf(workingDirectory, ISample.SampleName(modelName, 0)),
+                DataAugmentationSample.ValueOf(workingDirectory, ISample.SampleName(modelName, 1)),
+                EfficientNetHyperParameters.ValueOf(workingDirectory, ISample.SampleName(modelName, 2))
             });
         }
+        
 
         public static string GetKerasModelPath(string modelFileName)
         {

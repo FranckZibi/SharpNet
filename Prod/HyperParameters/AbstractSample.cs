@@ -31,9 +31,9 @@ public abstract class AbstractSample : ISample
     {
         return Utils.ComputeHash(ToConfigContent(DefaultAcceptForConfigContent), 10);
     }
-    public virtual void Save(string workingDirectory, string sampleName)
+    public virtual void Save(string workingDirectory, string modelName)
     {
-        var configFile = ISample.ToPath(workingDirectory, sampleName);
+        var configFile = ISample.ToPath(workingDirectory, modelName);
         Save(configFile);
     }
     public virtual void Save(string path)
@@ -41,9 +41,9 @@ public abstract class AbstractSample : ISample
         var configContent = ToConfigContent(DefaultAcceptForConfigContent);
         File.WriteAllText(path, configContent);
     }
-    public virtual List<string> SampleFiles(string workingDirectory, string sampleName)
+    public virtual List<string> SampleFiles(string workingDirectory, string modelName)
     {
-        return new List<string> { ISample.ToPath(workingDirectory, sampleName) };
+        return new List<string> { ISample.ToPath(workingDirectory, modelName) };
     }
     public virtual void Set(string fieldName, object fieldValue)
     {

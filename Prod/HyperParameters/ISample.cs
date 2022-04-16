@@ -38,14 +38,14 @@ public interface ISample
     object Get(string fieldName);
     Type GetFieldType(string hyperParameterName);
     bool IsCategoricalHyperParameter(string hyperParameterName);
-    void Save(string workingDirectory, string sampleName);
+    void Save(string workingDirectory, string modelName);
     /// <summary>
     /// all Hyper-Parameters file associated with the Sample
     /// </summary>
     /// <param name="workingDirectory"></param>
-    /// <param name="sampleName"></param>
+    /// <param name="modelName"></param>
     /// <returns></returns>
-    List<string> SampleFiles(string workingDirectory, string sampleName);
+    List<string> SampleFiles(string workingDirectory, string modelName);
     /// <summary>
     /// names of all the Hyper-Parameters associated with the sample
     /// </summary>
@@ -60,6 +60,14 @@ public interface ISample
     public static string ToJsonPath(string workingDirectory, string sampleName)
     {
         return Path.Combine(workingDirectory, sampleName + "_conf.json");
+    }
+    public static string SampleName(string modelName, int sampleIndex)
+    {
+        if (sampleIndex == 0)
+        {
+            return modelName;
+        }
+        return modelName + "_" + sampleIndex;
     }
     public static IDictionary<string, string> LoadConfig(string workingDirectory, string sampleName)
     {
