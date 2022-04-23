@@ -31,16 +31,30 @@ public abstract class AbstractSample : ISample
     {
         return Utils.ComputeHash(ToConfigContent(DefaultAcceptForConfigContent), 10);
     }
+
+    public virtual ISample Clone()
+    {
+        var clonedInstance = (ISample)Activator.CreateInstance(GetType(), true);
+        clonedInstance?.Set(ToDictionaryConfigContent(DefaultAcceptForConfigContent));
+        return clonedInstance;
+    }
+
     public virtual void Save(string workingDirectory, string modelName)
     {
         var configFile = ISample.ToPath(workingDirectory, modelName);
         Save(configFile);
     }
-    public virtual void Save(string path)
+    public void Save(string path)
     {
-        var configContent = ToConfigContent(DefaultAcceptForConfigContent);
-        File.WriteAllText(path, configContent);
+        File.WriteAllText(path, GetContent());
     }
+
+    public virtual string GetContent()
+    {
+        return ToConfigContent(DefaultAcceptForConfigContent);
+    }
+
+
     public virtual List<string> SampleFiles(string workingDirectory, string modelName)
     {
         return new List<string> { ISample.ToPath(workingDirectory, modelName) };
@@ -109,14 +123,10 @@ public abstract class AbstractSample : ISample
     protected string ToJsonConfigContent(Func<string,object, bool> accept)
     {
         var result = new List<string>();
-        foreach (var parameterName in HyperParameterNames().OrderBy(f => f))
+        foreach (var (parameterName, fieldValue) in ToDictionaryConfigContent(accept).OrderBy(f => f.Key))
         {
-            var fieldValue = Get(parameterName);
-            if (accept == null || accept(parameterName, fieldValue))
-            {
-                var fieldValueAsJsonString = Utils.FieldValueToJsonString(fieldValue);
-                result.Add($"\t\"{parameterName}\": {fieldValueAsJsonString}");
-            }
+            var fieldValueAsJsonString = Utils.FieldValueToJsonString(fieldValue);
+            result.Add($"\t\"{parameterName}\": {fieldValueAsJsonString}");
         }
         return "{"+Environment.NewLine+string.Join(","+Environment.NewLine, result) + Environment.NewLine+"}";
     }
@@ -124,16 +134,28 @@ public abstract class AbstractSample : ISample
     private string ToConfigContent(Func<string, object, bool> accept)
     {
         var result = new List<string>();
-        foreach (var parameterName in HyperParameterNames().OrderBy(f => f))
+        foreach (var (parameterName,fieldValue) in ToDictionaryConfigContent(accept).OrderBy(f => f.Key))
+        {
+            var fieldValueToString = Utils.FieldValueToString(fieldValue);
+            result.Add($"{parameterName} = {fieldValueToString}");
+        }
+        return string.Join(Environment.NewLine, result) + Environment.NewLine;
+    }
+
+    private IDictionary<string,object> ToDictionaryConfigContent(Func<string, object, bool> accept)
+    {
+        var result = new Dictionary<string, object>();
+        foreach (var parameterName in HyperParameterNames())
         {
             var fieldValue = Get(parameterName);
             if (accept == null || accept(parameterName, fieldValue))
             {
-                result.Add($"{parameterName} = {Utils.FieldValueToString(fieldValue)}");
+                result[parameterName] = fieldValue;
             }
         }
-        return string.Join(Environment.NewLine, result) + Environment.NewLine;
+        return result;
     }
+
     /// <summary>
     /// TODO : add tests
     /// </summary>

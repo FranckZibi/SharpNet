@@ -17,7 +17,6 @@ public interface IModel
 {
     #region public fields & properties
     public static readonly ILog Log = LogManager.GetLogger(typeof(IModel));
-    IModelSample ModelSample { get; }
     string WorkingDirectory { get; }
     string ModelName { get; }
     #endregion
@@ -38,10 +37,10 @@ public interface IModel
         //{
         //    return new WeightsOptimizer(weightsOptimizerSample, workingDirectory, modelName);
         //}
-        //if (sample is KFoldSample)
-        //{
-        //    return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName);
-        //}
+        if (sample is KFoldSample kFoldSample)
+        {
+            return new KFoldModel(kFoldSample, workingDirectory, modelName);
+        }
         if (sample is NetworkSample networkSample)
         {
             return new Network(networkSample, workingDirectory, modelName);
@@ -67,6 +66,11 @@ public interface IModel
     List<string> ModelFiles();
     bool NewScoreIsBetterTheReferenceScore(float newScore, float referenceScore);
     void AddResumeToCsv(double trainingTimeInSeconds, float trainScore, float validationScore, string csvPath);
+    int GetNumEpochs();
+    string DeviceName();
+    double GetLearningRate();
+    void Use_All_Available_Cores();
+
 
     public static string MetricsToString(IDictionary<MetricEnum, double> metrics, string prefix)
     {

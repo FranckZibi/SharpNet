@@ -19,9 +19,4 @@ public class WideResNetHyperParameters : AbstractSample
     public double WRN_DropOutAfterDenseLayer;
     public NetworkSample.POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeDenseLayer = NetworkSample.POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;
     #endregion
-
-    public static WideResNetHyperParameters ValueOf(string workingDirectory, string modelName)
-    {
-        return (WideResNetHyperParameters)ISample.LoadConfigIntoSample(() => new WideResNetHyperParameters(), workingDirectory, modelName);
-    }
 }

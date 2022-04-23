@@ -24,13 +24,15 @@ public abstract class AbstractDatasetSample : AbstractSample
     }
     public static AbstractDatasetSample ValueOf(string workingDirectory, string sampleName)
     {
-        try { return Natixis70DatasetSample.ValueOfNatixis70DatasetSample(workingDirectory, sampleName); } catch { }
-        try { return AmazonEmployeeAccessChallengeDatasetSample.ValueOfAmazonEmployeeAccessChallengeDatasetSample(workingDirectory, sampleName); } catch { }
-        throw new ArgumentException($"can't load {nameof(AbstractDatasetSample)} for sample {sampleName} from {workingDirectory}");
+        try { return ISample.LoadSample<Natixis70DatasetSample>(workingDirectory, sampleName); } catch { }
+        try { return ISample.LoadSample<AmazonEmployeeAccessChallengeDatasetSample>(workingDirectory, sampleName); } catch { }
+        throw new ArgumentException($"can't load a {nameof(AbstractDatasetSample)} with name {sampleName} from directory {workingDirectory}");
     }
     #endregion
 
     #region Hyper-Parameters
+    public double PercentageInTraining = 0.8;
+
     public string Train_XDatasetPath = "";
     public string Train_YDatasetPath = "";
     public string Train_PredictionsPath = "";
@@ -43,6 +45,14 @@ public abstract class AbstractDatasetSample : AbstractSample
     public string Test_PredictionsPath = "";
     #endregion
 
+    public AbstractDatasetSample CopyWithNewPercentageInTraining(double newPercentageInTraining)
+    {
+        var cloned = (AbstractDatasetSample)Clone();
+        cloned.PercentageInTraining = newPercentageInTraining;
+        cloned.Train_XDatasetPath = cloned.Train_YDatasetPath = cloned.Train_PredictionsPath = "";
+        cloned.Validation_XDatasetPath = cloned.Validation_YDatasetPath = cloned.Validation_PredictionsPath = "";
+        return cloned;
+    }
  
     public abstract List<string> CategoricalFeatures();
     public abstract void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path);

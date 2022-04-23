@@ -43,14 +43,6 @@ namespace SharpNet.LightGBM
                     throw new NotImplementedException($"can't manage metric {objective}");
             }
         }
-        public void Use_All_Available_Cores()
-        {
-            num_threads = Utils.CoreCount;
-        }
-        public static LightGBMSample LoadLightGBMSample(string workingDirectory, string sampleName)
-        {
-            return (LightGBMSample) ISample.LoadConfigIntoSample(() => new LightGBMSample(), workingDirectory, sampleName);
-        }
         public override bool FixErrors()
         {
             if (boosting == boosting_enum.rf)

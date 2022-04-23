@@ -17,7 +17,6 @@ public abstract class MultiSamples : ISample
     }
     #endregion
 
-    #region ISample methods
     public void Save(string workingDirectory, string modelName)
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)
@@ -35,13 +34,6 @@ public abstract class MultiSamples : ISample
         }
         return res.ToList();
     }
-    
-
-    protected virtual string SampleIndexToSampleName(string modelName, int sampleIndex)
-    {
-        return ISample.SampleName(modelName, sampleIndex);
-    }
-
     public HashSet<string> HyperParameterNames()
     {
         HashSet<string> res = new();
@@ -82,6 +74,13 @@ public abstract class MultiSamples : ISample
         var allHash = string.Join("_", Samples.Select(s => s.ComputeHash()));
         return Utils.ComputeHash(allHash, 10);
     }
+    public virtual ISample Clone()
+    {
+        var clonedSamples = Samples.Select(s => s.Clone()).ToArray();
+        var ctor = GetType().GetConstructor(new []{clonedSamples.GetType()});
+        var clonedInstance = (ISample)ctor?.Invoke(new object[] {clonedSamples});
+        return clonedInstance;
+    }
     public Type GetFieldType(string hyperParameterName)
     {
         return FirstSampleWithField(hyperParameterName).GetFieldType(hyperParameterName);
@@ -90,7 +89,11 @@ public abstract class MultiSamples : ISample
     {
         return FirstSampleWithField(hyperParameterName).IsCategoricalHyperParameter(hyperParameterName);
     }
-    #endregion
+
+    protected virtual string SampleIndexToSampleName(string modelName, int sampleIndex)
+    {
+        return ISample.SampleName(modelName, sampleIndex);
+    }
 
     private ISample FirstSampleWithField(string hyperParameterName)
     {

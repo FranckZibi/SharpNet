@@ -19,9 +19,9 @@ namespace SharpNet.Networks
         {
             return new Cfm60NetworkSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, ISample.SampleName(modelName, 0)),
-                DataAugmentationSample.ValueOf(workingDirectory, ISample.SampleName(modelName, 1)),
-                CFM60HyperParameters.ValueOf(workingDirectory, ISample.SampleName(modelName, 2))
+                ISample.LoadSample<NetworkConfig>(workingDirectory, ISample.SampleName(modelName, 0)),
+                ISample.LoadSample<DataAugmentationSample>(workingDirectory, ISample.SampleName(modelName, 1)),
+                ISample.LoadSample<CFM60HyperParameters>(workingDirectory, ISample.SampleName(modelName, 2))
         });
         }
 

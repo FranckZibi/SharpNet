@@ -163,8 +163,7 @@ namespace SharpNet.CatBoost
             //No need to save model : it is already saved in json format
             CatBoostSample.Save(workingDirectory, modelName);
         }
-
-        protected override int GetNumEpochs()
+        public override int GetNumEpochs()
         {
             return CatBoostSample.iterations;
         }
@@ -176,8 +175,7 @@ namespace SharpNet.CatBoost
         {
             return -1; //TODO
         }
-
-        protected override double GetLearningRate()
+        public override double GetLearningRate()
         {
             return CatBoostSample.learning_rate;
         }
@@ -185,9 +183,14 @@ namespace SharpNet.CatBoost
         {
             return new List<string> { ModelPath };
         }
+        public override void Use_All_Available_Cores()
+        {
+            CatBoostSample.thread_count = Utils.CoreCount;
+        }
+
         public static CatBoostModel LoadTrainedCatBoostModel(string workingDirectory, string modelName)
         {
-            var sample = CatBoostSample.LoadCatBoostSample(workingDirectory, modelName);
+            var sample = ISample.LoadSample<CatBoostSample>(workingDirectory, modelName);
             return new CatBoostModel(sample, workingDirectory, modelName);
         }
 
@@ -223,7 +226,7 @@ namespace SharpNet.CatBoost
             }
             IModel.Log.Debug($"Dataset column description saved in path {path}");
         }
-        private static string ExePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "bin", "catboost.exe");
+        private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "catboost.exe");
 
         private string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");

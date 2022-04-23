@@ -25,8 +25,6 @@ namespace SharpNet.Networks
             return new NetworkSample(newSamples);
         }
 
-
-
         public NetworkConfig Config => (NetworkConfig)Samples[0];
         public DataAugmentationSample DA => (DataAugmentationSample)Samples[1];
 
@@ -71,12 +69,10 @@ namespace SharpNet.Networks
         {
             return new NetworkSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, ISample.SampleName(modelName, 0)),
-                DataAugmentationSample.ValueOf(workingDirectory, ISample.SampleName(modelName, 1)),
+                ISample.LoadSample<NetworkConfig>(workingDirectory, ISample.SampleName(modelName, 0)),
+                ISample.LoadSample<DataAugmentationSample>(workingDirectory, ISample.SampleName(modelName, 1)),
             });
         }
-
-
 
         [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
         public static NetworkSample ValueOf(string workingDirectory, string modelName)
@@ -108,11 +104,6 @@ namespace SharpNet.Networks
         public LossFunctionEnum GetLoss()
         {
             return Config.LossFunction;
-        }
-
-        public void Use_All_Available_Cores()
-        {
-            throw new NotImplementedException();
         }
     }
 }

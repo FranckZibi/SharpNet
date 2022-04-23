@@ -20,10 +20,4 @@ public class EfficientNetHyperParameters : AbstractSample
     /// </summary>
     public string WeightForTransferLearning = "";
     #endregion
-
-
-    public static EfficientNetHyperParameters ValueOf(string workingDirectory, string modelName)
-    {
-        return (EfficientNetHyperParameters)ISample.LoadConfigIntoSample(() => new EfficientNetHyperParameters(), workingDirectory, modelName);
-    }
 }

@@ -1,53 +1,52 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using SharpNet.HyperParameters;
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Models;
 
-[SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Global")]
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-[SuppressMessage("ReSharper", "NotAccessedField.Global")]
 public class KFoldSample : AbstractSample, IModelSample
 {
+    #region private fields
+    private IModelSample _embeddedModelSample;
+    #endregion
+
     #region constructors
+    // ReSharper disable once UnusedMember.Local
     private KFoldSample() : base(new HashSet<string>())
     {
     }
-    public KFoldSample(int nSplits, string embeddedModelName, bool useFullTrainingDataset, int countMustBeMultipleOf, MetricEnum metric, LossFunctionEnum loss) : base(new HashSet<string>())
+    public KFoldSample(int nSplits, string embeddedModelName, string embeddedModelDirectory, int countMustBeMultipleOf) : base(new HashSet<string>())
     {
-        this.n_splits = nSplits;
+        n_splits = nSplits;
         EmbeddedModelName = embeddedModelName;
-        UseFullTrainingDataset = useFullTrainingDataset;
+        EmbeddedModelDirectory = embeddedModelDirectory;
         CountMustBeMultipleOf = countMustBeMultipleOf;
-        Metric = metric;
-        Loss = loss;
-    }
-    public static KFoldSample LoadKFoldSample(string workingDirectory, string modelName)
-    {
-        return (KFoldSample)ISample.LoadConfigIntoSample(() => new KFoldSample(), workingDirectory, modelName);
+        _embeddedModelSample = IModelSample.LoadModelSample(EmbeddedModelDirectory, EmbeddedModelName);
     }
     #endregion
 
     #region Hyper-Parameters
     public int n_splits = 5;
-    public string EmbeddedModelName = DEFAULT_VALUE_STR;
-    public bool UseFullTrainingDataset;
-    public int CountMustBeMultipleOf = 1;
-    public MetricEnum Metric = MetricEnum.Rmse;
     // ReSharper disable once MemberCanBePrivate.Global
-    public LossFunctionEnum Loss = LossFunctionEnum.Rmse;
+    public string EmbeddedModelName = DEFAULT_VALUE_STR;
+    // ReSharper disable once MemberCanBePrivate.Global
+    public string EmbeddedModelDirectory = DEFAULT_VALUE_STR;
+    public int CountMustBeMultipleOf = 1;
     #endregion
-
     public MetricEnum GetMetric()
     {
-        return Metric;
+        return GetEmbeddedModelSample().GetMetric();
     }
     public LossFunctionEnum GetLoss()
     {
-        return Loss;
+        return GetEmbeddedModelSample().GetLoss();
     }
-    public void Use_All_Available_Cores()
+    public IModelSample GetEmbeddedModelSample()
     {
+        if (_embeddedModelSample == null)
+        {
+            _embeddedModelSample = IModelSample.LoadModelSample(EmbeddedModelDirectory, EmbeddedModelName);
+        }
+        return _embeddedModelSample;
     }
 }
-

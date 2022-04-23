@@ -16,10 +16,10 @@ public abstract class AbstractModel : IModel
 {
     #region private & protected fields
     private static readonly object LockUpdateFileObject = new();
+    protected IModelSample ModelSample { get; }
     #endregion
 
     #region public fields & properties
-    public IModelSample ModelSample { get; }
     public string WorkingDirectory { get; }
     public string ModelName { get; }
     #endregion
@@ -105,10 +105,11 @@ public abstract class AbstractModel : IModel
     public abstract int TotalParams();
     public abstract List<string> ModelFiles();
 
-    protected abstract int GetNumEpochs();
+    public abstract int GetNumEpochs();
     protected static string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn, string rootDatasetPath) => Path.Combine(rootDatasetPath, ComputeUniqueDatasetName(dataset, addTargetColumnAsFirstColumn) + ".csv");
-    protected abstract double GetLearningRate();
-
+    public abstract double GetLearningRate();
+    public abstract void Use_All_Available_Cores();
+    
     private static string ComputeDescription(Tensor tensor)
     {
         if (tensor == null || tensor.Count == 0)

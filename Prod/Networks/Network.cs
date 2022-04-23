@@ -823,7 +823,7 @@ namespace SharpNet.Networks
             return Predict(dataset, Config.BatchSize);
         }
 
-        protected override int GetNumEpochs()
+        public override int GetNumEpochs()
         {
             return EpochData.Count + 1;
         }
@@ -835,11 +835,16 @@ namespace SharpNet.Networks
         {
             return Layers.SelectMany(l => l.Parameters).Select(t => t.Item1.Count).Sum();
         }
-
-        protected override double GetLearningRate()
+        public override double GetLearningRate()
         {
             throw new NotImplementedException();
         }
+
+        public override void Use_All_Available_Cores()
+        {
+            throw new NotImplementedException();
+        }
+
         public CpuTensor<float> Predict(IDataSet dataset, int miniBatchSizeForAllWorkers)
         {
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataset, miniBatchSizeForAllWorkers);

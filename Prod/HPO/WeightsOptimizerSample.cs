@@ -15,7 +15,7 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
     #endregion
 
     #region constructors
-    private WeightsOptimizerSample() : base(new HashSet<string>())
+    public WeightsOptimizerSample() : base(new HashSet<string>())
     {
     }
     public WeightsOptimizerSample(string workingDirectoryAndModelNames, MetricEnum metric, LossFunctionEnum loss) : base(new HashSet<string>())
@@ -30,10 +30,6 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
         : this(string.Join(";",workingDirectoryAndModelNames.Select(t=>t.Item1+";"+t.Item2)), metric, loss)
     {
 
-    }
-    public static WeightsOptimizerSample LoadWeightsOptimizerSample(string workingDirectory, string modelName)
-    {
-        return (WeightsOptimizerSample)ISample.LoadConfigIntoSample(() => new WeightsOptimizerSample(), workingDirectory, modelName);
     }
     #endregion
 
@@ -118,10 +114,6 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
     {
         return Loss;
     }
-    public void Use_All_Available_Cores()
-    {
-    }
-
     private float[] GetWeights()
     {
 

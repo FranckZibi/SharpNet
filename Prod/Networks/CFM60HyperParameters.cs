@@ -466,9 +466,4 @@ public class CFM60HyperParameters : AbstractSample
     {
         return Decoder_FeatureNames[featureId];
     }
-
-    public static CFM60HyperParameters ValueOf(string workingDirectory, string modelName)
-    {
-        return (CFM60HyperParameters)ISample.LoadConfigIntoSample(() => new CFM60HyperParameters(), workingDirectory, modelName);
-    }
 }

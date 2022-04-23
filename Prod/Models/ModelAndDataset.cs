@@ -11,8 +11,8 @@ namespace SharpNet.Models;
 public class ModelAndDataset
 {
     #region public fields
-    public IModel Model {get; }
-    private ModelAndDatasetSample ModelAndDatasetSample { get; }
+    public IModel Model { get; }
+    public ModelAndDatasetSample ModelAndDatasetSample { get; }
     #endregion
 
     #region constructor
@@ -25,7 +25,7 @@ public class ModelAndDataset
     {
         return new ModelAndDataset(modelAndDatasetSample, workingDirectory, modelAndDatasetSample.ComputeHash());
     }
-    public static ModelAndDataset LoadTrainedModelAndDataset(string workingDirectory, string modelName)
+    public static ModelAndDataset LoadModelAndDataset(string workingDirectory, string modelName)
     {
         var start = Stopwatch.StartNew();
         var modelAndDatasetSample = ModelAndDatasetSample.LoadModelAndDatasetSample(workingDirectory, modelName);
@@ -81,6 +81,7 @@ public class ModelAndDataset
         Model.Save(workingDirectory, modelName);
         ISample.Log.Debug($"{nameof(ModelAndDatasetSample)}.Save took '{start.Elapsed.TotalSeconds}'s");
     }
+    public string ModelName => Model.ModelName;
 
     private (CpuTensor<float> predictionsInTargetFormat, string predictionPath) PredictWithPath(IDataSet dataset)
     {

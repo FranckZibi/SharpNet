@@ -82,7 +82,7 @@ namespace SharpNet.LightGBM
             LightGbmSample.Save(workingDirectory, modelName);
         }
 
-        protected override int GetNumEpochs()
+        public override int GetNumEpochs()
         {
             return LightGbmSample.num_iterations;
         }
@@ -95,39 +95,48 @@ namespace SharpNet.LightGBM
             return -1; //TODO
         }
 
-        protected override double GetLearningRate()
+        public override double GetLearningRate()
         {
             return LightGbmSample.learning_rate;
         }
+
+        public override void Use_All_Available_Cores()
+        {
+            LightGbmSample.num_threads = Utils.CoreCount;
+        }
+
         public override List<string> ModelFiles()
         {
             return new List<string> { ModelPath };
         }
         public static LightGBMModel LoadTrainedLightGBMModel(string workingDirectory, string modelName)
         {
-            var sample = LightGBMSample.LoadLightGBMSample(workingDirectory, modelName);
+            var sample = ISample.LoadSample<LightGBMSample>(workingDirectory, modelName);
             return new LightGBMModel(sample, workingDirectory, modelName);
         }
 
         private (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) 
             Fit([NotNull] string trainDatasetPath, [CanBeNull] string validationDatasetPathIfAny)
         {
-            LightGbmSample.Set(new Dictionary<string, object> {
+            //we save in 'tmpLightGBMSamplePath' the model sample used for training
+            var tmpLightGBMSamplePath = ISample.ToPath(TempPath, ModelName);
+            var tmpLightGBMSample = (LightGBMSample)LightGbmSample.Clone();
+            tmpLightGBMSample.Set(new Dictionary<string, object> {
                 {"task", LightGBMSample.task_enum.train},
                 {"data", trainDatasetPath},
                 {"valid", validationDatasetPathIfAny??""},
-                {"output_model", ""}, //this will be set below
+                {"output_model", ModelPath},
                 {"input_model", ""},
                 {"prediction_result", ""},
                 {"header", true},
                 {"save_binary", false},
             });
-            LightGbmSample.Set("output_model", ModelPath);
-            LogInfo($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
+            LogInfo($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}" + (string.IsNullOrEmpty(validationDatasetPathIfAny)?"":$" and validation dataset {Path.GetFileNameWithoutExtension(validationDatasetPathIfAny)}")
+            );
+            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
 
-            var tempModelSamplePath = ISample.ToPath(TempPath, ModelName);
-            LightGbmSample.Save(tempModelSamplePath);
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + tempModelSamplePath, IModel.Log);
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
+            File.Delete(tmpLightGBMSamplePath);
             return (trainDatasetPath, trainDatasetPath, validationDatasetPathIfAny, validationDatasetPathIfAny);
         }
         private CpuTensor<float> Predict(string predictionDatasetPath)
@@ -136,23 +145,26 @@ namespace SharpNet.LightGBM
             {
                 throw new Exception($"missing model {ModelPath} for inference");
             }
-            const LightGBMSample.task_enum task = LightGBMSample.task_enum.predict;
             var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(predictionDatasetPath) + ".txt");
-            var configFilePath = predictionResultPath.Replace(".txt", ".conf");
-            LightGbmSample.Set(new Dictionary<string, object> {
-                {"task", task},
+
+            //we save in 'tmpLightGbmSamplePath' the model sample used for prediction
+            var tmpLightGBMSamplePath = predictionResultPath.Replace(".txt", ".conf");
+            var tmpLightGBMSample = (LightGBMSample)LightGbmSample.Clone();
+            tmpLightGBMSample.Set(new Dictionary<string, object> {
+                {"task", LightGBMSample.task_enum.predict},
                 {"data", predictionDatasetPath},
                 {"input_model", ModelPath},
                 {"prediction_result", predictionResultPath},
             });
-            LightGbmSample.Save(configFilePath);
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + configFilePath, IModel.Log);
+            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
+
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
             var predictions = File.ReadAllLines(predictionResultPath).Select(float.Parse).ToArray();
-            File.Delete(configFilePath);
+            File.Delete(tmpLightGBMSamplePath);
             File.Delete(predictionResultPath);
             return new CpuTensor<float>(new[] { predictions.Length, 1 }, predictions);
         }
-        private static string ExePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SharpNet", "bin", "lightgbm.exe");
+        private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "lightgbm.exe");
         private string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");
         private string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn) => DatasetPath(dataset, addTargetColumnAsFirstColumn, RootDatasetPath);

@@ -179,7 +179,7 @@ namespace SharpNet.Networks
         #region logging
         public string WorkingDirectory = DefaultWorkingDirectory;
         public string ModelName = "SharpNet";
-        public static string DefaultWorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath,  "SharpNet");
+        public static string DefaultWorkingDirectory => Utils.ChallengesPath;
         public static string DefaultDataDirectory => Path.Combine(DefaultWorkingDirectory, "Data");
         #endregion
 
@@ -331,11 +331,6 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public NetworkConfig Clone()
-        {
-            throw new NotImplementedException();
-        }
-
         public enum CompatibilityModeEnum
         {
             SharpNet,
@@ -346,12 +341,6 @@ namespace SharpNet.Networks
             MXNet
         }
 
-
         public const float Default_MseOfLog_Loss = 0.0008f;
-
-        public static NetworkConfig ValueOf(string workingDirectory, string modelName)
-        {
-            return (NetworkConfig)ISample.LoadConfigIntoSample(() => new NetworkConfig(), workingDirectory, modelName);
-        }
     }
 }

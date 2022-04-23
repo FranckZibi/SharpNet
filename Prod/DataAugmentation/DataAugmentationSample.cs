@@ -210,7 +210,7 @@ namespace SharpNet.DataAugmentation
 
         public static DataAugmentationSample ValueOf(string workingDirectory, string sampleName)
         {
-            return (DataAugmentationSample)ISample.LoadConfigIntoSample(() => new DataAugmentationSample(), workingDirectory, sampleName);
+            return ISample.LoadSample<DataAugmentationSample>(workingDirectory, sampleName);
         }
     }
 }

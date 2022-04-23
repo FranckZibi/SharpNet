@@ -9,11 +9,6 @@ namespace SharpNet.HyperParameters;
 
 public interface ISample
 {
-    #region private fields
-    private static readonly string WrongPath;
-    private static readonly string ValidPath;
-    #endregion
-
     #region public fields & properties
     public static readonly ILog Log = LogManager.GetLogger(typeof(ISample));
     #endregion
@@ -21,9 +16,6 @@ public interface ISample
     #region constructor
     static ISample()
     {
-        var localApplicationFolderPath = Utils.LocalApplicationFolderPath;
-        WrongPath = localApplicationFolderPath.Contains("fzibi") ? localApplicationFolderPath.Replace("fzibi", "Franck") : localApplicationFolderPath.Replace("Franck", "fzibi");
-        ValidPath = localApplicationFolderPath;
     }
     #endregion
 
@@ -52,6 +44,7 @@ public interface ISample
     /// <returns></returns>
     HashSet<string> HyperParameterNames();
     string ComputeHash();
+    ISample Clone();
 
     public static string ToPath(string workingDirectory, string sampleName)
     {
@@ -80,17 +73,14 @@ public interface ISample
         }
         return File.Exists(textPath) ? LoadTextConfig(textPath) : LoadJsonConfig(jsonPath);
     }
-    public static string NormalizePath(string field)
+    public static T LoadSample<T>(string workingDirectory, string sampleName) where T:ISample
     {
-        return field.Replace(WrongPath, ValidPath);
-    }
-    public static ISample LoadConfigIntoSample(Func<ISample> createDefaultSample, string workingDirectory, string sampleName)
-    {
-        var sample = createDefaultSample();
+        var sample = (T)Activator.CreateInstance(typeof(T), true);
         var content = LoadConfig(workingDirectory, sampleName);
         sample.Set(Utils.FromString2String_to_String2Object(content));
         return sample;
     }
+
     [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
     private static IDictionary<string, string> LoadTextConfig(string path)
     {
@@ -112,7 +102,6 @@ public interface ISample
             }
             res[splitted[0].Trim()] = splitted[1].Trim();
         }
-        NormalizePath(res);
         return res;
     }
     private static IDictionary<string, string> LoadJsonConfig(string path)
@@ -152,20 +141,6 @@ public interface ISample
             }
             res[strName] = strValue;
         }
-        NormalizePath(res);
         return res;
     }
-    /// <summary>
-    /// the computation are done in 2 different computers (using different path)
-    /// Depending on the computer we are currently using, we'll normalize the path for the current computer
-    /// </summary>
-    /// <param name="config"></param>
-    private static void NormalizePath(IDictionary<string, string> config)
-    {
-        foreach (var key in config.Keys.ToList())
-        {
-            config[key] = NormalizePath(config[key]);
-        }
-    }
-
 }

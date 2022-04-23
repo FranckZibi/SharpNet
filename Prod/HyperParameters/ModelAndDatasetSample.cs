@@ -6,8 +6,11 @@ namespace SharpNet.HyperParameters
     public class ModelAndDatasetSample : MultiSamples
     {
         #region Constructor
+
+        // ReSharper disable once MemberCanBePrivate.Global
+        public ModelAndDatasetSample(ISample[] samples) : base(samples) { }
         public ModelAndDatasetSample(IModelSample modelSample, AbstractDatasetSample abstractDatasetSample)
-            : base(new ISample[] { modelSample, abstractDatasetSample })
+            : this(new ISample[] { modelSample, abstractDatasetSample })
         {
         }
         public static ModelAndDatasetSample LoadModelAndDatasetSample(string workingDirectory, string modelName)

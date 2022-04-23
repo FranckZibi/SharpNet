@@ -860,7 +860,7 @@ namespace SharpNet
 
 
         /// <summary>
-        /// Compute the % time to invest on each use case, knowing the error associated with each use case
+        /// Compute the % of time to invest on each use case, knowing the error associated with each use case
         /// </summary>
         /// <param name="errors">
         /// each use case is a tuple with 3 values:
@@ -871,7 +871,7 @@ namespace SharpNet
         /// <returns>
         /// For each use case, the % of time (between 0 and 1.0) we are willing to invest to explore this use case
         ///  => a value close to 1 means we want to invest most of our time on this use case (because it seems very promising
-        ///  => a value close to 0 means we want to invest very little time on this usecase (because it doesn't seem use full)
+        ///  => a value close to 0 means we want to invest very little time on this use case (because it doesn't seem use full)
         /// </returns>
         public static double[] TargetCpuInvestmentTime(List<Tuple<double, double, int>> errors)
         {
@@ -1068,7 +1068,9 @@ namespace SharpNet
                 return false;
             }
         }
-        public static string LocalApplicationFolderPath => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        public static string ChallengesPath => @"C:\Projects\Challenges";
+
+
         public static void Launch(string workingDirectory, string exePath, string arguments, ILog log)
         {
             var errorDataReceived = "";
@@ -1100,13 +1102,16 @@ namespace SharpNet
             process.OutputDataReceived += (_, e) =>
             {
                 if (string.IsNullOrEmpty(e.Data)
-                    || e.Data.Contains("Object info sizes") || e.Data.Contains("Skipping test eval output") || e.Data.Contains(" min passed")
+                    || e.Data.Contains("Object info sizes") 
+                    || e.Data.Contains("Skipping test eval output") 
+                    || e.Data.Contains(" min passed")
                     )
                 {
                     return;
                 }
                 if (e.Data.Contains("[Warning] ") 
-                    
+                    ||e.Data.Contains("to remove the overhead")
+                    ||e.Data.Contains("And if memory is not enough, you can set")
                     )
                 {
                     log.Debug(e.Data.Replace("[Warning] ", ""));

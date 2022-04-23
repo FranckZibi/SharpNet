@@ -406,6 +406,10 @@ namespace SharpNet.Datasets
                     subElementIdToOriginalElementId.Add(originalElementId);
                 }
             }
+            if (subElementIdToOriginalElementId.Count == 0)
+            {
+                return null;
+            }
             return new MappedDataSet(this, subElementIdToOriginalElementId);
         }
 

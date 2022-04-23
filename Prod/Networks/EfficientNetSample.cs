@@ -452,9 +452,9 @@ namespace SharpNet.Networks
         {
             return new EfficientNetSample(new ISample[]
             {
-                NetworkConfig.ValueOf(workingDirectory, ISample.SampleName(modelName, 0)),
-                DataAugmentationSample.ValueOf(workingDirectory, ISample.SampleName(modelName, 1)),
-                EfficientNetHyperParameters.ValueOf(workingDirectory, ISample.SampleName(modelName, 2))
+                ISample.LoadSample<NetworkConfig>(workingDirectory, ISample.SampleName(modelName, 0)),
+                ISample.LoadSample<DataAugmentationSample>(workingDirectory, ISample.SampleName(modelName, 1)),
+                ISample.LoadSample<EfficientNetHyperParameters>(workingDirectory, ISample.SampleName(modelName, 2))
             });
         }
         

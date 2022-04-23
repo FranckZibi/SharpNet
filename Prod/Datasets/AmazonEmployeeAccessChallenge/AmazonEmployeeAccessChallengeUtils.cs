@@ -8,7 +8,7 @@ namespace SharpNet.Datasets.AmazonEmployeeAccessChallenge;
 
 public static class AmazonEmployeeAccessChallengeUtils
 {
-    private const string NAME = "AmazonEmployeeAccessChallenge";
+    public const string NAME = "AmazonEmployeeAccessChallenge";
 
     // ReSharper disable once UnusedMember.Global
     public static void Launch_CatBoost_HPO()

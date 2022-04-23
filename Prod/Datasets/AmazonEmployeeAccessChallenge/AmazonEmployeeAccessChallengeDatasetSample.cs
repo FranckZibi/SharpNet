@@ -47,12 +47,8 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
 
     }
 
-    public static string WorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath, "SharpNet", "AmazonEmployeeAccessChallenge");
+    public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, AmazonEmployeeAccessChallengeUtils.NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    public static AmazonEmployeeAccessChallengeDatasetSample ValueOfAmazonEmployeeAccessChallengeDatasetSample(string workingDirectory, string sampleName)
-    {
-        return (AmazonEmployeeAccessChallengeDatasetSample)ISample.LoadConfigIntoSample(() => new AmazonEmployeeAccessChallengeDatasetSample(), workingDirectory, sampleName);
-    }
     //public override IDataSet FullTraining()
     //{
     //    return FullTrain;

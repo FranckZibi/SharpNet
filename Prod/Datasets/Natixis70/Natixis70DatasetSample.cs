@@ -31,10 +31,6 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     public Natixis70DatasetSample() : base(new HashSet<string>())
     {
     }
-    public static Natixis70DatasetSample ValueOfNatixis70DatasetSample(string workingDirectory, string sampleName)
-    {
-        return (Natixis70DatasetSample)ISample.LoadConfigIntoSample(() => new Natixis70DatasetSample(), workingDirectory, sampleName);
-    }
     #endregion
 
     #region Hyper-parameters
@@ -58,7 +54,6 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     // ReSharper disable once MemberCanBePrivate.Global
     public normalize_enum Normalization = normalize_enum.NONE;
     public enum normalize_enum { NONE, MINUS_MEAN_DIVIDE_BY_VOL, DIVIDE_BY_ABS_MEAN };
-    public double PercentageInTraining = 0.8;
     #endregion
 
     public override CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat)
@@ -428,9 +423,13 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         yInModelFormat.Dispose();
         return CacheDataset[key];
     }
-    private static string XTrainRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_train_ACFqOMF.csv");
-    // ReSharper disable once MemberCanBePrivate.Global
-    private static string XTestRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_test_pf4T2aK.csv");
+
+    private const string FILE_SUFFIX = "";
+    //private const string FILE_SUFFIX = "_small";
+
+    private static string XTrainRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_train_ACFqOMF"+ FILE_SUFFIX+".csv");
+    private static string XTestRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_test_pf4T2aK" + FILE_SUFFIX + ".csv");
+    private static string YTrainRawFile => Path.Combine(Natixis70Utils.WorkingDirectory, "Data", "y_train_HNMbC27" + FILE_SUFFIX + ".csv");
     /// <summary>
     /// return the statistics (average/volatility) of each column of the matrix 'y'
     /// </summary>
@@ -459,5 +458,4 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         return result.ToArray();
     }
-    private static string YTrainRawFile => Path.Combine(Natixis70Utils.WorkingDirectory, "Data", "y_train_HNMbC27.csv");
 }

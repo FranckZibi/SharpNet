@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using SharpNet.HyperParameters;
 
 namespace SharpNet.CatBoost
@@ -14,10 +13,6 @@ namespace SharpNet.CatBoost
         #region Constructors
         public CatBoostSample() :base(CategoricalHyperParameters)
         {
-        }
-        public static CatBoostSample LoadCatBoostSample(string workingDirectory, string sampleName)
-        {
-            return (CatBoostSample) ISample.LoadConfigIntoSample(() => new CatBoostSample(), workingDirectory, sampleName);
         }
         #endregion
 
@@ -261,11 +256,12 @@ namespace SharpNet.CatBoost
             var configFile = ISample.ToJsonPath(workingDirectory, modelName);
             Save(configFile);
         }
-        public override void Save(string path)
+        public override string GetContent()
         {
-            var configContent = ToJsonConfigContent(DefaultAcceptForConfigContent);
-            File.WriteAllText(path, configContent);
+            return ToJsonConfigContent(DefaultAcceptForConfigContent);
         }
+
+
         public override bool FixErrors()
         {
             return true; //TODO
@@ -313,10 +309,6 @@ namespace SharpNet.CatBoost
                 case loss_function_enum.DEFAULT_VALUE:
                     throw new NotImplementedException($"can't manage metric {loss_function}");
             }
-        }
-        public void Use_All_Available_Cores()
-        {
-            thread_count = Utils.CoreCount;
         }
         private static readonly HashSet<string> CategoricalHyperParameters = new()
         {

@@ -17,7 +17,7 @@ namespace SharpNet.Datasets.Natixis70
         public static readonly string[] HorizonNames = { "1d", "1w", "2w" };
 
         #region load of datasets
-        public static string WorkingDirectory => Path.Combine(Utils.LocalApplicationFolderPath, "SharpNet", NAME);
+        public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
         public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
         // ReSharper disable once MemberCanBePrivate.Global
         #endregion
