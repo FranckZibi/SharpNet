@@ -1,167 +1,170 @@
-﻿//using System;
-//using System.Collections.Generic;
-//using System.Diagnostics;
-//using System.IO;
-//using System.Linq;
-//using JetBrains.Annotations;
-//using SharpNet.CPU;
-//using SharpNet.HyperParameters;
-//using SharpNet.Models;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using JetBrains.Annotations;
+using SharpNet.CPU;
+using SharpNet.HyperParameters;
+using SharpNet.Models;
 
-//namespace SharpNet.HPO;
+namespace SharpNet.HPO;
 
-//public class WeightsOptimizer /*: AbstractModel*/
-//{
-//    #region private fields
-//    private readonly List<ModelAndDataset> _embeddedModels = new();
-//    private readonly List<CpuTensor<float>> _originalTrainPredictions = new();
-//    private readonly List<CpuTensor<float>> _originalValidationPredictions = new();
-//    private readonly List<CpuTensor<float>> _originalTestPredictions = new();
-//    private readonly CpuTensor<float> _perfectTrainPredictions;
-//    private readonly CpuTensor<float> _perfectValidationPredictions;
-//    private WeightsOptimizerSample WeightsOptimizerSample { get; }
-//    #endregion
-
-
-//    private IModel FirstModel => _embeddedModels[0].Model;
-//    #region constructor
-//    public WeightsOptimizer(WeightsOptimizerSample weightsOptimizerSample, [NotNull] string workingDirectory, string modelName) /*: base(weightsOptimizerSample, workingDirectory, modelName)*/
-//    {
-//        if (!Directory.Exists(workingDirectory))
-//        {
-//            Directory.CreateDirectory(workingDirectory);
-//        }
-
-//        WeightsOptimizerSample = weightsOptimizerSample;
-
-//        var workingDirectoryAndModelNames = WeightsOptimizerSample.GetWorkingDirectoryAndModelNames();
-//        for (int i = 0; i < workingDirectoryAndModelNames.Count; ++i)
-//        {
-//            var (embeddedModelWorkingDirectory, embeddedModelName) = workingDirectoryAndModelNames[i];
-//            var embeddedModel = ModelAndDataset.LoadTrainedModelAndDataset(embeddedModelWorkingDirectory, embeddedModelName);
-//            var embeddedModelSample = embeddedModel.ModelAndDatasetSample;
-//            _embeddedModels.Add(embeddedModel);
-//            if (i == 0)
-//            {
-//                _datasetSample = embeddedModelSample.DatasetSample;
-//                _perfectTrainPredictions = embeddedModel.PredictionsInModelFormat_2_PredictionsInTargetFormat(_datasetSample.Train_YDatasetPath);
-//                _perfectValidationPredictions = embeddedModel.PredictionsInModelFormat_2_PredictionsInTargetFormat(_datasetSample.Validation_YDatasetPath);
-//            }
-
-//            var (trainPredictions, validationPredictions, testPredictions) = 
-//                embeddedModelSample.DatasetSample.LoadAllPredictions();
-
-//            _originalTrainPredictions.Add(trainPredictions);
-//            _originalValidationPredictions.Add(validationPredictions);
-//            _originalTestPredictions.Add(testPredictions);
-//        }
-
-//        //_perfect_validation_predictions = trainedModels[0].Perfect_Validation_Predictions_if_any();
-//        Debug.Assert(_perfectValidationPredictions != null);
-//        //_perfect_train_predictions_if_any = trainedModels[0].Perfect_Train_Predictions_if_any();
-
-//        //we load the train predictions done by the source models (if any)
-//        _originalTrainPredictions.RemoveAll(t => t == null);
-//        Debug.Assert(_originalTrainPredictions.Count == 0 || _originalTrainPredictions.Count == _originalValidationPredictions.Count);
-//        Debug.Assert(SameShape(_originalTrainPredictions));
-
-//        //we load the validation predictions done by the source models
-//        _originalValidationPredictions.RemoveAll(t => t == null);
-//        Debug.Assert(_originalValidationPredictions.All(t => t != null));
-//        Debug.Assert(SameShape(_originalValidationPredictions));
+public class WeightsOptimizer /*: AbstractModel*/
+{
+    #region private fields
+    private readonly List<ModelAndDatasetPredictions> _embeddedModelsAndDataset = new();
+    private readonly List<CpuTensor<float>> _embeddedModelsTrainPredictions = new();
+    private readonly List<CpuTensor<float>> _embeddedModelsValidationPredictions = new();
+    private readonly List<CpuTensor<float>> _embeddedModelsTestPredictions = new();
+    
+    private readonly CpuTensor<float> _perfectTrainPredictions;
+    private readonly CpuTensor<float> _perfectValidationPredictions;
+    private readonly CpuTensor<float> _perfectTestPredictions;
+    #endregion
 
 
-//        //we load the test predictions done by the source models (if any)
-//        _originalTestPredictions.RemoveAll(t => t == null);
-//        Debug.Assert(_originalTestPredictions.Count == 0 || _originalTestPredictions.Count == _originalValidationPredictions.Count);
-//        Debug.Assert(SameShape(_originalTestPredictions));
-//    }
-//    #endregion
+    private IModel FirstModel => _embeddedModelsAndDataset[0].Model;
+    private AbstractDatasetSample FirstDatasetSample => _embeddedModelsAndDataset[0].ModelAndDatasetPredictionsSample.DatasetSample;
 
-//    public static void SearchForBestWeights(List<Tuple<string, string>> workingDirectoryAndModelNames, string workingDirectory, string csvPath)
-//    {
-//        Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log");
-//        Utils.ConfigureThreadLog4netProperties(workingDirectory, "log");
 
-//        var sample = new WeightsOptimizerSample(workingDirectoryAndModelNames, MetricEnum.DEFAULT, LossFunctionEnum.DEFAULT);
-//        var weightsOptimizer = new WeightsOptimizer(sample, workingDirectory, sample.ComputeHash());
-//        var metric = weightsOptimizer._embeddedModels[0].Model.ModelSample.GetMetric();
-//        var loss = weightsOptimizer._embeddedModels[0].Model.ModelSample.GetLoss();
-//        sample.Metric = metric;
-//        sample.Loss = loss;
+    #region constructor
 
-//        var searchSpace = new Dictionary<string, object>();
-//        for (int i = 0; i < weightsOptimizer._originalTrainPredictions.Count; ++i)
-//        {
-//            searchSpace["w_" + i.ToString("D2")] = AbstractHyperParameterSearchSpace.Range(0.0f, 1.0f);
-//            IModel.Log.Info($"Original validation score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) : {weightsOptimizer._embeddedModels[i].ComputeScore(weightsOptimizer._perfectValidationPredictions, weightsOptimizer._originalValidationPredictions[i])}");
-//            if (weightsOptimizer._originalTrainPredictions[i] != null)
-//            {
-//                IModel.Log.Info($"Original train score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) : {weightsOptimizer._embeddedModels[i].ComputeScore(weightsOptimizer._perfectTrainPredictions, weightsOptimizer._originalTrainPredictions[i])}");
-//            }
-//        }
+    private WeightsOptimizer(List<Tuple<string, string>> workingDirectoryAndModelNames, [NotNull] string workingDirectory)
+    {
+        if (!Directory.Exists(workingDirectory))
+        {
+            Directory.CreateDirectory(workingDirectory);
+        }
+        
+        for (int i = 0; i < workingDirectoryAndModelNames.Count; ++i)
+        {
+            var (embeddedModelWorkingDirectory, embeddedModelName) = workingDirectoryAndModelNames[i];
+            var embeddedModelAndDatasetPredictions = ModelAndDatasetPredictions.Load(embeddedModelWorkingDirectory, embeddedModelName);
+            var datasetSample = embeddedModelAndDatasetPredictions.ModelAndDatasetPredictionsSample.DatasetSample;
+            _embeddedModelsAndDataset.Add(embeddedModelAndDatasetPredictions);
 
-//        sample.SetEqualWeights();
-//        IModel.Log.Info($"Validation score if Equal Weights: {weightsOptimizer.Predictions().validationScore}");
+            var (trainPredictions, validationPredictions, testPredictions) = embeddedModelAndDatasetPredictions.LoadAllPredictionsInTargetFormat();
 
-//        var hpo = new BayesianSearchHPO(searchSpace, () => new ModelAndDatasetSample(new WeightsOptimizerSample(weightsOptimizer.WeightsOptimizerSample.WorkingDirectoryAndModelNames, metric, loss), new WeightsOptimizerDatasetSample(weightsOptimizer._datasetSample)), workingDirectory);
-//        float bestScoreSoFar = float.NaN;
-//        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
-//    }
-//    //public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
-//    //{
-//    //    return ("", "", "", "");
-//    //}
-//    //public override CpuTensor<float> Predict(IDataSet dataset)
-//    //{
-//    //    var predictions = _embeddedModels.Select(m => m.Model.Predict(dataset)).ToList();
-//    //    return WeightsOptimizerSample.ApplyWeights(predictions);
-//    //}
-//    public (CpuTensor<float> trainPredictions, float trainScore, CpuTensor<float> validationPredictions, float validationScore, CpuTensor<float> testPredictions) 
-//        Predictions()
-//    {
-//        var trainPredictions = WeightsOptimizerSample.ApplyWeights(_originalTrainPredictions);
-//        float trainScore = (trainPredictions != null && _perfectTrainPredictions != null)
-//                ? _embeddedModels[0].Model.ComputeScore(_perfectTrainPredictions, trainPredictions)
-//                : float.NaN;
+            _embeddedModelsTrainPredictions.Add(trainPredictions);
+            _embeddedModelsValidationPredictions.Add(validationPredictions);
+            _embeddedModelsTestPredictions.Add(testPredictions);
 
-//        var validationPredictions = WeightsOptimizerSample.ApplyWeights(_originalValidationPredictions);
-//        float validationScore = (validationPredictions != null && _perfectValidationPredictions != null)
-//            ? _embeddedModels[0].Model.ComputeScore(_perfectValidationPredictions, validationPredictions)
-//            : float.NaN;
+            if (i == 0)
+            {
+                _perfectTrainPredictions = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(datasetSample.Train_YDatasetPath);
+                _perfectValidationPredictions = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(datasetSample.Validation_YDatasetPath);
+                _perfectTestPredictions = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(datasetSample.Test_YDatasetPath);
+            }
+        }
 
-//        var testPredictions = WeightsOptimizerSample.ApplyWeights(_originalTestPredictions);
+        Debug.Assert(_perfectValidationPredictions != null);
 
-//        return (trainPredictions, trainScore, validationPredictions, validationScore, testPredictions);
-//    }
-//    //public override void Save(string workingDirectory, string modelName)
-//    //{
-//    //    throw new NotImplementedException();
-//    //}
-//    //public override int GetNumEpochs()
-//    //{
-//    //    return _embeddedModels.Select(m => m.GetNumEpochs()).Sum();
-//    //}
-//    //public override string DeviceName()
-//    //{
-//    //    var distinct = new HashSet<string>(_embeddedModels.Select(m => m.DeviceName()));
-//    //    return string.Join(" / ", distinct);
-//    //}
-//    //public override int TotalParams()
-//    //{
-//    //    return _embeddedModels.Select(m=>m.TotalParams()).Sum();
-//    //}
-//    //public override double GetLearningRate()
-//    //{
-//    //    return _embeddedModels[0].GetLearningRate();
-//    //}
-//    //public override List<string> ModelFiles()
-//    //{
-//    //    return new List<string>();
-//    //}
+        //we load the train predictions done by the source models (if any)
+        _embeddedModelsTrainPredictions.RemoveAll(t => t == null);
+        Debug.Assert(_embeddedModelsTrainPredictions.Count == 0 || _embeddedModelsTrainPredictions.Count == _embeddedModelsValidationPredictions.Count);
+        Debug.Assert(SameShape(_embeddedModelsTrainPredictions));
 
-//    private static bool SameShape(IList<CpuTensor<float>> tensors)
-//    {
-//        return tensors.All(t => t.SameShape(tensors[0]));
-//    }
-//}
+        //we load the validation predictions done by the source models
+        _embeddedModelsValidationPredictions.RemoveAll(t => t == null);
+        Debug.Assert(_embeddedModelsValidationPredictions.All(t => t != null));
+        Debug.Assert(SameShape(_embeddedModelsValidationPredictions));
+
+        //we load the test predictions done by the source models (if any)
+        _embeddedModelsTestPredictions.RemoveAll(t => t == null);
+        Debug.Assert(_embeddedModelsTestPredictions.Count == 0 || _embeddedModelsTestPredictions.Count == _embeddedModelsValidationPredictions.Count);
+        Debug.Assert(SameShape(_embeddedModelsTestPredictions));
+    }
+    #endregion
+
+    public static void SearchForBestWeights(List<Tuple<string, string>> workingDirectoryAndModelNames, string workingDirectory, string csvPath)
+    {
+        Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log");
+        Utils.ConfigureThreadLog4netProperties(workingDirectory, "log");
+
+        var weightsOptimizer = new WeightsOptimizer(workingDirectoryAndModelNames, workingDirectory);
+        var firstDatasetSample = weightsOptimizer.FirstDatasetSample;
+
+        var searchSpace = new Dictionary<string, object>();
+        for (int i = 0; i < weightsOptimizer._embeddedModelsTrainPredictions.Count; ++i)
+        {
+            searchSpace["w_" + i.ToString("D2")] = AbstractHyperParameterSearchSpace.Range(0.0f, 1.0f);
+            IModel.Log.Info($"Original validation score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) :{firstDatasetSample.ComputeScore(weightsOptimizer._perfectValidationPredictions, weightsOptimizer._embeddedModelsValidationPredictions[i])}");
+            if (weightsOptimizer._embeddedModelsTrainPredictions[i] != null)
+            {
+                IModel.Log.Info($"Original train score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) : {firstDatasetSample.ComputeScore(weightsOptimizer._perfectTrainPredictions, weightsOptimizer._embeddedModelsTrainPredictions[i])}");
+            }
+        }
+        var equalWeightedModelSample = new WeightedModelSample(workingDirectoryAndModelNames);
+        equalWeightedModelSample.SetEqualWeights();
+        var validationScore = weightsOptimizer.ComputePredictionsAndScore(weightsOptimizer._perfectValidationPredictions, weightsOptimizer._embeddedModelsValidationPredictions, equalWeightedModelSample).score;
+        IModel.Log.Info($"Validation score if Equal Weights: {validationScore}");
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => new WeightedModelSample(workingDirectoryAndModelNames), workingDirectory);
+        float bestScoreSoFar = float.NaN;
+        hpo.Process(t => weightsOptimizer.TrainWithHyperParameters((WeightedModelSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
+    }
+
+    private (CpuTensor<float> predictionsInTargetFormat, float score) ComputePredictionsAndScore(CpuTensor<float> true_predictions_in_target_format, List<CpuTensor<float>> t, WeightedModelSample weightedModelSample)
+    {
+        var weightedModelPredictions = weightedModelSample.ApplyWeights(t, FirstDatasetSample.IndexColumnsInPredictionsInTargetFormat());
+        var score = FirstDatasetSample.ComputeScore(true_predictions_in_target_format, weightedModelPredictions);
+        return (weightedModelPredictions, score);
+    }
+
+    private float TrainWithHyperParameters([NotNull] WeightedModelSample weightedModelSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref float bestScoreSoFar)
+    {
+        var sw = Stopwatch.StartNew();
+        var (weightedModelValidationPrediction, validationScore) = ComputePredictionsAndScore(_perfectValidationPredictions, _embeddedModelsValidationPredictions, weightedModelSample);
+
+        Debug.Assert(!float.IsNaN(validationScore));
+
+        if (float.IsNaN(bestScoreSoFar) || FirstModel.NewScoreIsBetterTheReferenceScore(validationScore, bestScoreSoFar))
+        {
+            var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(weightedModelSample, (AbstractDatasetSample)_embeddedModelsAndDataset[0].ModelAndDatasetPredictionsSample.DatasetSample.Clone());
+            var modelAndDatasetPredictions = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash());
+            IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} has new best score: {validationScore} (was: {bestScoreSoFar})");
+            bestScoreSoFar = validationScore;
+
+            var trainScore = float.NaN;
+            if (_embeddedModelsTrainPredictions != null)
+            {
+                (var weightedModelTrainPrediction, trainScore) = ComputePredictionsAndScore(_perfectTrainPredictions, _embeddedModelsTrainPredictions, weightedModelSample);
+                if (!float.IsNaN(trainScore))
+                {
+                    IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} train score: {trainScore}");
+                }
+                modelAndDatasetPredictions.SaveTrainPredictionsInTargetFormat(weightedModelTrainPrediction, trainScore);
+            }
+
+            if (_embeddedModelsTestPredictions != null)
+            {
+                var (weightedModelTestPrediction, testScore)  = ComputePredictionsAndScore(_perfectTestPredictions, _embeddedModelsTestPredictions, weightedModelSample);
+                if (!float.IsNaN(testScore))
+                {
+                    IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} test score: {testScore}");
+                }
+                modelAndDatasetPredictions.SaveTestPredictionsInTargetFormat(weightedModelTestPrediction, testScore);
+            }
+
+            modelAndDatasetPredictions.SaveValidationPredictionsInTargetFormat(weightedModelValidationPrediction, validationScore);
+            modelAndDatasetPredictions.Save(workingDirectory, modelAndDatasetPredictions.Name);
+
+
+            //var trainScore = modelAndDataset.ComputeAndSavePredictionsInTargetFormat().trainScore;
+            if (!string.IsNullOrEmpty(resumeCsvPathIfAny))
+            {
+                var trainingTimeInSeconds = sw.Elapsed.TotalSeconds;
+                modelAndDatasetPredictions.Model.AddResumeToCsv(trainingTimeInSeconds, trainScore, validationScore, resumeCsvPathIfAny);
+            }
+
+        }
+
+
+        return validationScore;
+    }
+    private static bool SameShape(IList<CpuTensor<float>> tensors)
+    {
+        return tensors.All(t => t.SameShape(tensors[0]));
+    }
+}

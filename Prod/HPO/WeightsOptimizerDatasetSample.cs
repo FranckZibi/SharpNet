@@ -6,7 +6,7 @@
 //using SharpNet.Models;
 
 //namespace SharpNet.HPO;
-  
+
 //public class WeightsOptimizerDatasetSample : AbstractDatasetSample
 //{
 //    #region private fields
@@ -24,7 +24,8 @@
 //        Validation_YDatasetPath = embeddedDatasetSample.Validation_YDatasetPath;
 //    }
 
-//    public override (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) Fit(IModel model, bool computeAndSavePredictions, bool computeValidationScore, bool saveTrainedModel)
+//    public override (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath)
+//        Fit(IModel model, bool computeAndSavePredictions, bool computeValidationScore, bool saveTrainedModel)
 //    {
 //        var weightsOptimizer = (WeightsOptimizer)model;
 //        var res = ("", float.NaN, "", float.NaN, "");
@@ -46,7 +47,8 @@
 //    public override (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) ComputeAndSavePredictions(IModel model)
 //    {
 //        var weightsOptimizerModel = (WeightsOptimizer)model;
-//        var (trainPredictions, trainScore, validationPredictions, validationScore, testPredictions) = weightsOptimizerModel.Predictions();
+//        var (trainPredictions, trainScore, validationPredictions, validationScore, testPredictions, testScore) =
+//            weightsOptimizerModel.Predictions();
 
 //        Train_PredictionsPath = "";
 //        Validation_PredictionsPath = "";
@@ -72,10 +74,7 @@
 //    {
 //        return _embeddedDatasetSample.CategoricalFeatures();
 //    }
-//    public override IDataSet FullTraining()
-//    {
-//        return _embeddedDatasetSample.FullTraining();
-//    }
+
 //    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
 //    {
 //        return _embeddedDatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(dataframe_path);
@@ -91,6 +90,7 @@
 //        _embeddedDatasetSample.SavePredictionsInTargetFormat(predictionsInModelFormat, path);
 //    }
 
+
 //    public override IDataSet TestDataset()
 //    {
 //        throw new NotImplementedException();
@@ -100,4 +100,21 @@
 //    {
 //        throw new NotImplementedException();
 //    }
+
+//    public override (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex,
+//        CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) LoadAllPredictionsInTargetFormatWithoutIndex()
+//    {
+//        throw new NotImplementedException();
+//    }
+
+//    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
+//    {
+//        throw new NotImplementedException();
+//    }
+
+//    public override CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat)
+//    {
+//        throw new NotImplementedException();
+//    }
+
 //}

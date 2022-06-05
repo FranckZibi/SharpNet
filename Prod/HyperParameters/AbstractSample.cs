@@ -12,7 +12,6 @@ public abstract class AbstractSample : ISample
     #endregion
 
     public const int DEFAULT_VALUE = -6666;
-    protected const string DEFAULT_VALUE_STR = nameof(DEFAULT_VALUE);
 
     #region constructors
     protected AbstractSample(HashSet<string> mandatoryCategoricalHyperParameters)
@@ -29,16 +28,19 @@ public abstract class AbstractSample : ISample
     }
     public string ComputeHash()
     {
-        return Utils.ComputeHash(ToConfigContent(DefaultAcceptForConfigContent), 10);
+        var fieldsToDiscardInComputeHash = FieldsToDiscardInComputeHash();
+        bool Accept(string fieldName, object fieldValue)
+        {
+            return DefaultAcceptForConfigContent(fieldName, fieldValue) && !fieldsToDiscardInComputeHash.Contains(fieldName);
+        }
+        return Utils.ComputeHash(ToConfigContent(Accept), 10);
     }
-
     public virtual ISample Clone()
     {
         var clonedInstance = (ISample)Activator.CreateInstance(GetType(), true);
         clonedInstance?.Set(ToDictionaryConfigContent(DefaultAcceptForConfigContent));
         return clonedInstance;
     }
-
     public virtual void Save(string workingDirectory, string modelName)
     {
         var configFile = ISample.ToPath(workingDirectory, modelName);
@@ -48,13 +50,6 @@ public abstract class AbstractSample : ISample
     {
         File.WriteAllText(path, GetContent());
     }
-
-    public virtual string GetContent()
-    {
-        return ToConfigContent(DefaultAcceptForConfigContent);
-    }
-
-
     public virtual List<string> SampleFiles(string workingDirectory, string modelName)
     {
         return new List<string> { ISample.ToPath(workingDirectory, modelName) };
@@ -116,6 +111,14 @@ public abstract class AbstractSample : ISample
     }
     #endregion
 
+    protected virtual string GetContent()
+    {
+        return ToConfigContent(DefaultAcceptForConfigContent);
+    }
+    protected virtual HashSet<string> FieldsToDiscardInComputeHash()
+    {
+        return new HashSet<string>();
+    }
     protected static bool DefaultAcceptForConfigContent(string fieldName, object fieldValue)
     {
         return !IsDefaultValue(fieldValue);
@@ -141,7 +144,6 @@ public abstract class AbstractSample : ISample
         }
         return string.Join(Environment.NewLine, result) + Environment.NewLine;
     }
-
     private IDictionary<string,object> ToDictionaryConfigContent(Func<string, object, bool> accept)
     {
         var result = new Dictionary<string, object>();
@@ -155,7 +157,6 @@ public abstract class AbstractSample : ISample
         }
         return result;
     }
-
     /// <summary>
     /// TODO : add tests
     /// </summary>
@@ -167,8 +168,7 @@ public abstract class AbstractSample : ISample
         {
             return true;
         }
-        if ((fieldValue is string fieldValueStr && Equals(fieldValueStr, DEFAULT_VALUE_STR))
-            || (fieldValue.GetType().IsEnum && Equals(fieldValue.ToString(), DEFAULT_VALUE_STR))
+        if (   (fieldValue.GetType().IsEnum && ((int)fieldValue ==  DEFAULT_VALUE) )
             || (fieldValue is int fieldValueInt && (fieldValueInt == DEFAULT_VALUE))
             || (fieldValue is float fieldValueFloat && Math.Abs(fieldValueFloat - DEFAULT_VALUE) < 1e-6)
             || (fieldValue is double fieldValueDouble && Math.Abs(fieldValueDouble - DEFAULT_VALUE) < 1e-6)

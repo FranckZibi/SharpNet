@@ -31,10 +31,10 @@ public class KFoldModel : AbstractModel
     }
     #endregion
 
-    public static void TrainEmbeddedModelWithKFold(string kfoldModelWorkingDirectory, string embeddedModelWorkingDirectory, string embeddedModelName, int n_splits, int countMustBeMultipleOf = 1)
+    public static void TrainEmbeddedModelWithKFold(string kfoldModelWorkingDirectory, string embeddedModelAndDatasetPredictionsWorkingDirectory, string embeddedModelAndDatasetPredictionsName, int n_splits)
     {
-        var embeddedModelAndDataset = ModelAndDataset.LoadModelAndDataset(embeddedModelWorkingDirectory, embeddedModelName);
-        var datasetSample = embeddedModelAndDataset.ModelAndDatasetSample.DatasetSample;
+        var embeddedModelAndDatasetPredictions = ModelAndDatasetPredictions.Load(embeddedModelAndDatasetPredictionsWorkingDirectory, embeddedModelAndDatasetPredictionsName);
+        var datasetSample = embeddedModelAndDatasetPredictions.ModelAndDatasetPredictionsSample.DatasetSample;
 
         //We first train on part of training dataset, then on full training dataset
         foreach(var useFullTraining in new[]{false, true})
@@ -42,20 +42,28 @@ public class KFoldModel : AbstractModel
             var currentDatasetSample = useFullTraining
                 ? datasetSample.CopyWithNewPercentageInTraining(1.0)
                 : (AbstractDatasetSample)datasetSample.Clone();
-            var kfoldSample = new KFoldSample(n_splits, embeddedModelName, embeddedModelWorkingDirectory, countMustBeMultipleOf);
-            var kfoldModelAndDatasetSample = new ModelAndDatasetSample(kfoldSample, currentDatasetSample);
-            var kfoldModelAndDataset = ModelAndDataset.NewUntrainedModelAndDataset(kfoldModelAndDatasetSample, kfoldModelWorkingDirectory);
-            kfoldModelAndDataset.Model.Use_All_Available_Cores();
-            LogInfo($"Training '{kfoldModelAndDataset.ModelName}' (based on model {embeddedModelName}) using {Math.Round(100* currentDatasetSample.PercentageInTraining,0)}% of Training Dataset");
-            kfoldModelAndDataset.Fit(true, true, true);
+            var kfoldSample = new KFoldSample(n_splits, embeddedModelAndDatasetPredictionsName, embeddedModelAndDatasetPredictionsWorkingDirectory, currentDatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+            var kfoldModelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(kfoldSample, currentDatasetSample);
+            var kfoldModelAndDatasetPredictions = ModelAndDatasetPredictions.New(kfoldModelAndDatasetPredictionsSample, kfoldModelWorkingDirectory);
+            kfoldModelAndDatasetPredictions.Model.Use_All_Available_Cores();
+            LogInfo($"Training '{kfoldModelAndDatasetPredictions.Name}' (based on model {embeddedModelAndDatasetPredictionsName}) using {Math.Round(100* currentDatasetSample.PercentageInTraining,0)}% of Training Dataset");
+            kfoldModelAndDatasetPredictions.Fit(true, true, true);
         }
     }
 
-    public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) 
+    public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
         Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
     {
         int n_splits = KFoldSample.n_splits;
         var foldedTrainAndValidationDataset = KFold(trainDataset, n_splits, KFoldSample.CountMustBeMultipleOf);
+
+        var train_XYDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, true, false);
+        string validation_XYDatasetPath = "";
+        if (validationDatasetIfAny != null)
+        {
+            validation_XYDatasetPath = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, true, false);
+        }
+
         for (int fold = 0; fold < n_splits; ++fold)
         {
             var embeddedModel = _embeddedModels[fold];
@@ -67,7 +75,7 @@ public class KFoldModel : AbstractModel
             var foldValidationScore = embeddedModel.ComputeScore(validationDataset.Y, foldValidationPrediction);
             LogInfo($"Validation score for fold[{fold}/{n_splits}] : {foldValidationScore}");
         }
-        return ("", "", "", "");
+        return (null, null, train_XYDatasetPath, null, null, validation_XYDatasetPath);
     }
     public override CpuTensor<float> Predict(IDataSet dataset)
     {

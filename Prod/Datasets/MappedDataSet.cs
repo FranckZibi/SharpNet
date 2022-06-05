@@ -17,7 +17,8 @@ namespace SharpNet.Datasets
                 original.ResizeStrategy,
                 original.FeatureNamesIfAny,
                 original.CategoricalFeatures,
-                original.UseBackgroundThreadToLoadNextMiniBatch)
+                original.UseBackgroundThreadToLoadNextMiniBatch,
+                original.DatasetSample)
         {
             _original = original;
             this._elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);

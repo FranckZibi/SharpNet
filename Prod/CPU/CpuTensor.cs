@@ -1917,6 +1917,10 @@ namespace SharpNet.CPU
             {
                 throw new Exception($"{nameof(DropColumns)} only works with matrix");
             }
+            if (columnIndexesToRemove == null || !columnIndexesToRemove.Any())
+            {
+                return (CpuTensor<T>)Clone();
+            }
             var columnIndexesToKeep = Enumerable.Range(0, Shape[1]).ToList();
             foreach (var col in columnIndexesToRemove)
             {
@@ -1970,30 +1974,66 @@ namespace SharpNet.CPU
 
         public static CpuTensor<T> MergeHorizontally(CpuTensor<T> left, CpuTensor<T> right)
         {
-            Debug.Assert(left.Shape.Length == 2);
-            Debug.Assert(right.Shape.Length == 2);
-            //same number of rows
-            Debug.Assert(left.Shape[0] == right.Shape[0]);
-            var newShape = new [] {left.Shape[0], left.Shape[1] + right.Shape[1]};
+            return InsertAtColumnIndex(left, right, left.Shape[1]);
+        }
 
-            var leftSpan = left.SpanContent;
-            var rightSpan = right.SpanContent;
+        public static CpuTensor<T> InsertAtColumnIndex(CpuTensor<T> source, CpuTensor<T> toAddAtColumnIndex, int columnIndex)
+        {
+            Debug.Assert(source.Shape.Length == 2);
+            Debug.Assert(toAddAtColumnIndex.Shape.Length == 2);
+            //same number of rows
+            Debug.Assert(source.Shape[0] == toAddAtColumnIndex.Shape[0]);
+            Debug.Assert(columnIndex <= source.Shape[1]);
+            var newShape = new[] { source.Shape[0], source.Shape[1] + toAddAtColumnIndex.Shape[1] };
+
+            var sourceSpan = source.SpanContent;
+            var toAddSpan = toAddAtColumnIndex.SpanContent;
 
             var newData = new T[newShape[0] * newShape[1]];
+            int nextIndexInSourceSpan = 0;
+            int nextIndexInToAddAtColumnIndex = 0;
+            int nextIndexInNewData = 0;
             for (int row = 0; row < newShape[0]; ++row)
             {
-                int idx = newShape[1] * row;
-                for (int col = 0; col < left.Shape[1]; ++col)
+                for (int col = 0; col < columnIndex; ++col)
                 {
-                    newData[idx++] = leftSpan[row * left.Shape[1] + col];
+                    newData[nextIndexInNewData++] = sourceSpan[nextIndexInSourceSpan++];
                 }
-                for (int col = 0; col < right.Shape[1]; ++col)
+                for (int col = 0; col < toAddAtColumnIndex.Shape[1]; ++col)
                 {
-                    newData[idx++] = rightSpan[row * right.Shape[1] + col];
+                    newData[nextIndexInNewData++] = toAddSpan[nextIndexInToAddAtColumnIndex++];
+                }
+                for (int col = columnIndex; col < source.Shape[1]; ++col)
+                {
+                    newData[nextIndexInNewData++] = sourceSpan[nextIndexInSourceSpan++];
                 }
             }
             return new CpuTensor<T>(newShape, newData);
         }
+
+
+        /// <summary>
+        /// copy the columns at indexes 'columnsToLoadFromSource' from 'source' tensor to 'this' tensor
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="columnsToLoadFromSource"></param>
+
+        public void LoadColumnsFromSource(CpuTensor<T> source, IList<int> columnsToLoadFromSource)
+        {
+            Debug.Assert(SameShape(source));
+            Debug.Assert(Shape.Length == 2);
+            var sourceSpan = source.SpanContent;
+            var thisSpan = SpanContent;
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                int firstIndex = row * Shape[1];
+                foreach (var columnIndex in columnsToLoadFromSource)
+                {
+                    thisSpan[firstIndex+ columnIndex] = sourceSpan[firstIndex + columnIndex];
+                }
+            }
+        }
+
 
 
         public override void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount)

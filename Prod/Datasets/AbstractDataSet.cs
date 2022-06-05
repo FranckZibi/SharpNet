@@ -85,6 +85,8 @@ namespace SharpNet.Datasets
         #endregion
 
         #region public properties
+
+        public AbstractDatasetSample DatasetSample { get; }
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
         [CanBeNull] public string[] FeatureNamesIfAny { get; }
         public string[] CategoricalFeatures { get; }
@@ -100,7 +102,8 @@ namespace SharpNet.Datasets
             ResizeStrategyEnum resizeStrategy,
             string[] featureNamesIfAny,
             string[] categoricalFeatures,
-            bool useBackgroundThreadToLoadNextMiniBatch)
+            bool useBackgroundThreadToLoadNextMiniBatch, 
+            AbstractDatasetSample datasetSample)
         {
             Name = name;
             Objective = objective ?? (categoryDescriptions==null?Objective_enum.Regression:Objective_enum.Classification);
@@ -110,6 +113,7 @@ namespace SharpNet.Datasets
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
             UseBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
+            DatasetSample = datasetSample;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -489,7 +493,8 @@ namespace SharpNet.Datasets
                                && (X.Shape[0] == Y.Shape[0]); //same number of tests
         }
         public abstract CpuTensor<float> Y { get; }
-        
+
+
         protected void UpdateStatus(ref int nbPerformed)
         {
             int delta = Math.Max(Count / 100, 1);
@@ -602,7 +607,19 @@ namespace SharpNet.Datasets
             return rand;
         }
 
-        public void to_csv(string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        /// <summary>
+        /// save the dataset in path 'path' in 'LightGBM' format.
+        /// if addTargetColumnAsFirstColumn == true:
+        ///     first column is the label 'y' (to predict)
+        ///     all other columns are the features
+        /// else
+        ///     save only 'x' (feature) tensor
+        /// </summary>
+        /// <param name="path">the path where to save the dataset (it contains both the directory and the filename)</param>
+        /// <param name="addTargetColumnAsFirstColumn"></param>
+        /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
+        /// <param name="separator"></param>
+        private void to_csv(string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
@@ -653,7 +670,18 @@ namespace SharpNet.Datasets
             Log.Debug($"Dataset {Name} saved in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
         }
 
-        private static readonly object Lock_to_csv = new();
+        public string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool overwriteIfExists)
+        {
+            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn) + ".csv");
+            char separator = DatasetSample?.GetSeparator() ?? ',';
+            to_csv(datasetPath, separator, addTargetColumnAsFirstColumn, overwriteIfExists);
+            return datasetPath;
+        }
+
+
+
+
+    private static readonly object Lock_to_csv = new();
 
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {
@@ -663,6 +691,52 @@ namespace SharpNet.Datasets
                 result += (i + 1) * shuffledElementId[i%shuffledElementId.Length];
             }
             return result;
+        }
+        private static string ComputeUniqueDatasetName(IDataSet dataset, bool addTargetColumnAsFirstColumn)
+        {
+            var desc = ComputeDescription(dataset);
+            if (addTargetColumnAsFirstColumn)
+            {
+                desc += '_' + ComputeDescription(dataset.Y);
+            }
+            return Utils.ComputeHash(desc, 10);
+        }
+        private static string ComputeDescription(Tensor tensor)
+        {
+            if (tensor == null || tensor.Count == 0)
+            {
+                return "";
+            }
+            Debug.Assert(tensor.Shape.Length == 2);
+            var xDataSpan = tensor.AsReadonlyFloatCpuContent;
+            var desc = string.Join('_', tensor.Shape);
+            for (int col = 0; col < tensor.Shape[1]; ++col)
+            {
+                int row = ((tensor.Shape[0] - 1) * col) / Math.Max(1, tensor.Shape[1] - 1);
+                var val = xDataSpan[row * tensor.Shape[1] + col];
+                desc += '_' + Math.Round(val, 6).ToString(CultureInfo.InvariantCulture);
+            }
+            return desc;
+        }
+        private static string ComputeDescription(IDataSet dataset)
+        {
+            if (dataset == null || dataset.Count == 0)
+            {
+                return "";
+            }
+            int rows = dataset.Count;
+            int cols = dataset.FeatureNamesIfAny.Length;
+            var desc = rows + "_" + cols;
+            using CpuTensor<float> xBuffer = new(new[] { 1, cols });
+            var xDataSpan = xBuffer.AsReadonlyFloatCpuContent;
+            for (int col = 0; col < cols; ++col)
+            {
+                int row = ((rows - 1) * col) / Math.Max(1, cols - 1);
+                dataset.LoadAt(row, 0, xBuffer, null, false);
+                var val = xDataSpan[col];
+                desc += '_' + Math.Round(val, 6).ToString(CultureInfo.InvariantCulture);
+            }
+            return desc;
         }
 
         #region Processing Thread management

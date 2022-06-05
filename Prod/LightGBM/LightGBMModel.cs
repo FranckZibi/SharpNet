@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
@@ -12,10 +13,6 @@ namespace SharpNet.LightGBM
 {
     public class LightGBMModel : AbstractModel
     {
-        #region private fields & properties
-        private const char separator = ',';
-        #endregion
-
         #region public fields & properties
         public LightGBMSample LightGbmSample => (LightGBMSample)ModelSample;
         #endregion
@@ -28,7 +25,8 @@ namespace SharpNet.LightGBM
         /// <param name="workingDirectory"></param>
         /// <param name="modelName">the name of the model to use</param>
         /// <exception cref="Exception"></exception>
-        public LightGBMModel(LightGBMSample lightGbmModelSample, string workingDirectory, [NotNull] string modelName): base(lightGbmModelSample, workingDirectory, modelName)
+        [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
+        public LightGBMModel(LightGBMSample lightGbmModelSample, string workingDirectory, [JetBrains.Annotations.NotNull] string modelName): base(lightGbmModelSample, workingDirectory, modelName)
         {
             if (!File.Exists(ExePath))
             {
@@ -45,16 +43,14 @@ namespace SharpNet.LightGBM
         }
         #endregion
 
-        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) 
+        public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
             Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
         {
-            string trainDatasetPath = DatasetPath(trainDataset, true);
-            trainDataset.to_csv(trainDatasetPath, separator, true, false);
+            string trainDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, true, false);
             string validationDatasetPath = "";
             if (validationDatasetIfAny != null)
             {
-                validationDatasetPath = DatasetPath(validationDatasetIfAny, true);
-                validationDatasetIfAny.to_csv(validationDatasetPath, separator, true, false);
+                validationDatasetPath = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, true, false);
             }
             return Fit(trainDatasetPath, validationDatasetPath);
         }
@@ -67,8 +63,7 @@ namespace SharpNet.LightGBM
         public override (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset)
         {
             const bool addTargetColumnAsFirstColumn = false;
-            string predictionDatasetPath = DatasetPath(dataset, addTargetColumnAsFirstColumn);
-            dataset.to_csv(predictionDatasetPath, separator, addTargetColumnAsFirstColumn, addTargetColumnAsFirstColumn);
+            string predictionDatasetPath = dataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, addTargetColumnAsFirstColumn);
             var predictions = Predict(predictionDatasetPath);
             if (predictions.Shape[0]!= dataset.Count)
             {
@@ -109,14 +104,14 @@ namespace SharpNet.LightGBM
         {
             return new List<string> { ModelPath };
         }
-        public static LightGBMModel LoadTrainedLightGBMModel(string workingDirectory, string modelName)
-        {
-            var sample = ISample.LoadSample<LightGBMSample>(workingDirectory, modelName);
-            return new LightGBMModel(sample, workingDirectory, modelName);
-        }
+        //public static LightGBMModel LoadTrainedLightGBMModel(string workingDirectory, string modelName)
+        //{
+        //    var sample = ISample.LoadSample<LightGBMSample>(workingDirectory, modelName);
+        //    return new LightGBMModel(sample, workingDirectory, modelName);
+        //}
 
-        private (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) 
-            Fit([NotNull] string trainDatasetPath, [CanBeNull] string validationDatasetPathIfAny)
+        private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+            Fit([JetBrains.Annotations.NotNull] string trainDatasetPath, [CanBeNull] string validationDatasetPathIfAny)
         {
             //we save in 'tmpLightGBMSamplePath' the model sample used for training
             var tmpLightGBMSamplePath = ISample.ToPath(TempPath, ModelName);
@@ -137,7 +132,7 @@ namespace SharpNet.LightGBM
 
             Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
             File.Delete(tmpLightGBMSamplePath);
-            return (trainDatasetPath, trainDatasetPath, validationDatasetPathIfAny, validationDatasetPathIfAny);
+            return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
         }
         private CpuTensor<float> Predict(string predictionDatasetPath)
         {
@@ -155,6 +150,7 @@ namespace SharpNet.LightGBM
                 {"data", predictionDatasetPath},
                 {"input_model", ModelPath},
                 {"prediction_result", predictionResultPath},
+                {"header", true}
             });
             tmpLightGBMSample.Save(tmpLightGBMSamplePath);
 
@@ -165,9 +161,8 @@ namespace SharpNet.LightGBM
             return new CpuTensor<float>(new[] { predictions.Length, 1 }, predictions);
         }
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "lightgbm.exe");
-        private string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");
-        private string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn) => DatasetPath(dataset, addTargetColumnAsFirstColumn, RootDatasetPath);
+
         /// <summary>
         /// path of a trained model.
         /// null if no trained model is available

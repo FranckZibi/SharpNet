@@ -101,7 +101,7 @@ namespace SharpNet.LightGBM
         /// path of config file
         /// aliases: config_file
         /// </summary>
-        public string config = DEFAULT_VALUE_STR;
+        public string config;
 
         /// <summary>
         ///  train: for training, aliases: training
@@ -111,30 +111,30 @@ namespace SharpNet.LightGBM
         ///         save_binary, load train(and validation) data then save dataset to binary file.Typical usage: save_binary first, then run multiple train tasks in parallel using the saved binary file
         /// aliases: task_type
         /// </summary>
-        public enum task_enum { train, predict, convert_model, refit, DEFAULT_VALUE };
+        public enum task_enum { train, predict, convert_model, refit, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } ;
         // ReSharper disable once MemberCanBePrivate.Global
         public task_enum task = task_enum.DEFAULT_VALUE;
 
         //path of training data, LightGBM will train from this data
         //aliases: train, train_data, train_data_file, data_filename
-        public string data = DEFAULT_VALUE_STR;
+        public string data;
 
         //path(s) of validation/test data, LightGBM will output metrics for these data
         //support multiple validation data, separated by ,
         //aliases: test, valid_data, valid_data_file, test_data, test_data_file, valid_filenames
-        public string valid = DEFAULT_VALUE_STR;
+        public string valid;
         #endregion
 
 
    
 
-        public enum objective_enum { regression, regression_l1, huber, fair, poisson, quantile, mape, gamma, tweedie, binary, multiclass, multiclassova, cross_entropy, cross_entropy_lambda, lambdarank, rank_xendcg, DEFAULT_VALUE }
+        public enum objective_enum { regression, regression_l1, huber, fair, poisson, quantile, mape, gamma, tweedie, binary, multiclass, multiclassova, cross_entropy, cross_entropy_lambda, lambdarank, rank_xendcg, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         //aliases: objective_type, app, application, loss
         // ReSharper disable once MemberCanBePrivate.Global
         public objective_enum objective = objective_enum.DEFAULT_VALUE;
 
 
-        public enum boosting_enum { gbdt, rf, dart, goss, DEFAULT_VALUE }
+        public enum boosting_enum { gbdt, rf, dart, goss, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         //gbdt:  traditional Gradient Boosting Decision Tree, aliases: gbrt
         //rf:    Random Forest, aliases: random_forest
         //dart:  Dropouts meet Multiple Additive Regression Trees
@@ -175,7 +175,7 @@ namespace SharpNet.LightGBM
         //Note: for the faster speed, GPU uses 32-bit float point to sum up by default, so this may affect the accuracy for some tasks.You can set gpu_use_dp= true to enable 64-bit float point, but it will slow down the training
         //Note: refer to Installation Guide to build LightGBM with GPU support
         //aliases: device
-        public enum device_type_enum {cpu,gpu,DEFAULT_VALUE}
+        public enum device_type_enum {cpu,gpu, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE}
         public device_type_enum device_type = device_type_enum.DEFAULT_VALUE;
 
 
@@ -211,11 +211,11 @@ namespace SharpNet.LightGBM
         //for prediction task, this model will be applied to prediction data
         //for train task, training will be continued from this model
         //aliases: model_input, model_in
-        public string input_model = DEFAULT_VALUE_STR;
+        public string input_model;
 
         //filename of output model in training
         //aliases: model_output, model_out
-        public string output_model = DEFAULT_VALUE_STR;
+        public string output_model;
 
         //the feature importance type in the saved model file
         //0: count-based feature importance (numbers of splits are counted);
@@ -481,7 +481,7 @@ namespace SharpNet.LightGBM
         ////Note: the forced split logic will be ignored, if the split makes gain worse
         ////see this file as an example
         //// aliases: fs, forced_splits_filename, forced_splits_file, forced_splits
-        //public string forcedsplits_filename = DEFAULT_VALUE_STR;
+        //public string forcedsplits_filename;
 
         ////decay rate of refit task, will use leaf_output = refit_decay_rate * old_leaf_output + (1.0 - refit_decay_rate) * new_leaf_output to refit trees
         ////used only in refit task in CLI version or as argument in refit function in language-specific package
@@ -617,7 +617,7 @@ namespace SharpNet.LightGBM
         //if omitted, the first column in the training data is used as the label
         //Note: works only in case of loading data directly from text file
         // aliases: label
-        public string label_column = DEFAULT_VALUE_STR;
+        public string label_column;
 
         //used to specify the weight column
         //use number for index, e.g. weight=0 means column_0 is the weight
@@ -625,7 +625,7 @@ namespace SharpNet.LightGBM
         //Note: works only in case of loading data directly from text file
         //Note: index starts from 0 and it doesn’t count the label column when passing type is int, e.g. when label is column_0, and weight is column_1, the correct parameter is weight=0
         //aliases: weight
-        public string weight_column = DEFAULT_VALUE_STR;
+        public string weight_column;
 
         //used to specify the query/group id column
         //use number for index, e.g. query=0 means column_0 is the query id
@@ -634,7 +634,7 @@ namespace SharpNet.LightGBM
         //Note: data should be grouped by query_id, for more information, see Query Data
         //Note: index starts from 0 and it doesn’t count the label column when passing type is int, e.g. when label is column_0 and query_id is column_1, the correct parameter is query=0
         //aliases: group, group_id, query_column, query, query_id
-        public string group_column = DEFAULT_VALUE_STR;
+        public string group_column;
 
         //used to specify some ignoring columns in training
         //use number for index, e.g. ignore_column=0,1,2 means column_0, column_1 and column_2 will be ignored
@@ -643,7 +643,7 @@ namespace SharpNet.LightGBM
         //Note: index starts from 0 and it doesn’t count the label column when passing type is int
         //Note: despite the fact that specified columns will be completely ignored during the training, they still should have a valid format allowing LightGBM to load file successfully
         //aliases: ignore_feature, blacklist
-        public string ignore_column = DEFAULT_VALUE_STR;
+        public string ignore_column;
 
         //used to specify categorical features
         //use number for index, e.g. categorical_feature=0,1,2 means column_0, column_1 and column_2 are categorical features
@@ -655,12 +655,12 @@ namespace SharpNet.LightGBM
         //Note: all negative values will be treated as missing values
         //Note: the output cannot be monotonically constrained with respect to a categorical feature
         //aliases: cat_feature, categorical_column, cat_column, categorical_features
-        public string categorical_feature = DEFAULT_VALUE_STR;
+        public string categorical_feature;
 
         ////path to a .json file that specifies bin upper bounds for some or all features
         ////.json file should contain an array of objects, each containing the word feature (integer feature index) and bin_upper_bound (array of thresholds for binning)
         ////see this file as an example
-        //public string forcedbins_filename = DEFAULT_VALUE_STR;
+        //public string forcedbins_filename;
 
         ////use precise floating point number parsing for text parser (e.g. CSV, TSV, LibSVM input)
         ////Note: setting this to true may lead to much slower text parsing
@@ -670,7 +670,7 @@ namespace SharpNet.LightGBM
         ////see lightgbm-transform for usage examples
         ////Note: lightgbm-transform is not maintained by LightGBM’s maintainers. 
         ////B.ug reports or feature requests should go to issues page
-        //public string parser_config_file = DEFAULT_VALUE_STR;
+        //public string parser_config_file;
 
         //fit piecewise linear gradient boosting tree
         //tree splits are chosen in the usual way, but the model at each leaf is linear instead of constant
@@ -735,7 +735,7 @@ namespace SharpNet.LightGBM
         //filename of prediction result
         //Note: can be used only in CLI version
         //aliases: predict_result, output_result , predict_name, prediction_name, pred_name, name_pred
-        public string prediction_result = DEFAULT_VALUE_STR;
+        public string prediction_result;
         #endregion
 
         //#region IO Parameters / Convert Parameters
@@ -744,13 +744,13 @@ namespace SharpNet.LightGBM
         ////only cpp is supported yet; for conversion model to other languages consider using m2cgen utility
         ////if convert_model_language is set and task=train, the model will be also converted
         ////Note: can be used only in CLI version    
-        //public string convert_model_language = DEFAULT_VALUE_STR;
+        //public string convert_model_language;
 
         ////used only in convert_model task
         ////output filename of converted model
         ////Note: can be used only in CLI version
         ////aliases: convert_model_file
-        //public string convert_model = DEFAULT_VALUE_STR;
+        //public string convert_model;
 
         //#endregion
 
@@ -840,7 +840,7 @@ namespace SharpNet.LightGBM
         //support multiple metrics, separated by ,
         //type = multi-enum
         //aliases: metrics, metric_types
-        public string metric = DEFAULT_VALUE_STR;
+        public string metric;
 
         #region CLI specific
         //frequency for metric output
@@ -856,7 +856,7 @@ namespace SharpNet.LightGBM
         //used only with ndcg and map metrics
         //NDCG and MAP evaluation positions, separated by ,
         //aliases: ndcg_eval_at, ndcg_at, map_eval_at, map_at
-        //public string eval_at = DEFAULT_VALUE_STR; 
+        //public string eval_at; 
 
         //used only with multi_error metric
         //threshold for top-k multi-error metric
@@ -893,11 +893,11 @@ namespace SharpNet.LightGBM
         ////each line contains one IP and one port for one machine. The format is ip port (space as a separator)
         ////Note: can be used only in CLI version
         //// aliases: machine_list_file, machine_list, mlist
-        //public string machine_list_filename = DEFAULT_VALUE_STR;
+        //public string machine_list_filename;
 
         ////list of machines in the following format: ip1:port1,ip2:port2
         //// aliases: workers, nodes
-        //public string machines = DEFAULT_VALUE_STR;
+        //public string machines;
         //#endregion
 
         #region GPU Parameters

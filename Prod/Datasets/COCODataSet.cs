@@ -21,7 +21,8 @@ namespace SharpNet.Datasets
             resizeStrategy, 
             null, 
             new string[0],
-            true)
+            true, 
+            null)
         {
             _cocoDirectory = cocoDirectory;
             throw new NotImplementedException();

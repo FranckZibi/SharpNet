@@ -33,10 +33,10 @@ public interface IModel
         {
             return new LightGBMModel(lightGBMSample, workingDirectory, modelName);
         }
-        //if (sample is WeightsOptimizerSample weightsOptimizerSample)
-        //{
-        //    return new WeightsOptimizer(weightsOptimizerSample, workingDirectory, modelName);
-        //}
+        if (sample is WeightedModelSample weightedModelSample)
+        {
+            return new WeightedModel(weightedModelSample, workingDirectory, modelName);
+        }
         if (sample is KFoldSample kFoldSample)
         {
             return new KFoldModel(kFoldSample, workingDirectory, modelName);
@@ -47,18 +47,19 @@ public interface IModel
         }
         throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");
     }
-    protected static IModel LoadTrainedAbstractModel(string workingDirectory, string modelName)
-    {
-        //try { return ModelAndDataset.LoadAutoTrainableModel(workingDirectory, modelName); } catch { }
-        //try { return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName); } catch { }
-        try { return Network.LoadTrainedNetworkModel(workingDirectory, modelName); } catch { }
-        try { return LightGBMModel.LoadTrainedLightGBMModel(workingDirectory, modelName); } catch { }
-        try { return CatBoostModel.LoadTrainedCatBoostModel(workingDirectory, modelName); } catch { }
-        throw new ArgumentException($"can't load model {modelName} from {workingDirectory}");
-    }
+    //protected static IModel LoadTrainedAbstractModel(string workingDirectory, string modelName)
+    //{
+    //    //try { return ModelAndDataset.LoadAutoTrainableModel(workingDirectory, modelName); } catch { }
+    //    //try { return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName); } catch { }
+    //    try { return Network.LoadTrainedNetworkModel(workingDirectory, modelName); } catch { }
+    //    try { return LightGBMModel.LoadTrainedLightGBMModel(workingDirectory, modelName); } catch { }
+    //    try { return CatBoostModel.LoadTrainedCatBoostModel(workingDirectory, modelName); } catch { }
+    //    throw new ArgumentException($"can't load model {modelName} from {workingDirectory}");
+    //}
     #endregion
 
-    (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
+    (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+        Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
     CpuTensor<float> Predict(IDataSet dataset);
     (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset);
     void Save(string workingDirectory, string modelName);
@@ -71,6 +72,7 @@ public interface IModel
     double GetLearningRate();
     void Use_All_Available_Cores();
 
+    string RootDatasetPath { get; }
 
     public static string MetricsToString(IDictionary<MetricEnum, double> metrics, string prefix)
     {

@@ -22,7 +22,8 @@ namespace SharpNet.Datasets
                 original.ResizeStrategy, 
                 original.FeatureNamesIfAny,
                 original.CategoricalFeatures,
-                true)
+                true,
+                original.DatasetSample)
         {
             _original = original;
             _originalShape_CHW = originalShape_CHW;

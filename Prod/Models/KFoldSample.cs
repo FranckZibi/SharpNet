@@ -21,16 +21,16 @@ public class KFoldSample : AbstractSample, IModelSample
         EmbeddedModelName = embeddedModelName;
         EmbeddedModelDirectory = embeddedModelDirectory;
         CountMustBeMultipleOf = countMustBeMultipleOf;
-        _embeddedModelSample = IModelSample.LoadModelSample(EmbeddedModelDirectory, EmbeddedModelName);
+        _embeddedModelSample = GetEmbeddedModelSample();
     }
     #endregion
 
     #region Hyper-Parameters
     public int n_splits = 5;
     // ReSharper disable once MemberCanBePrivate.Global
-    public string EmbeddedModelName = DEFAULT_VALUE_STR;
+    public string EmbeddedModelName;
     // ReSharper disable once MemberCanBePrivate.Global
-    public string EmbeddedModelDirectory = DEFAULT_VALUE_STR;
+    public string EmbeddedModelDirectory;
     public int CountMustBeMultipleOf = 1;
     #endregion
     public MetricEnum GetMetric()

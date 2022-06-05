@@ -188,7 +188,8 @@ public class BayesianSearchHPO : AbstractHpo
             _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
             RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
 
-            if (SamplesWithScore.Count >= Math.Max(10, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
+            //if (SamplesWithScore.Count >= Math.Max(10, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
+            if (SamplesWithScore.Count >= Math.Max(10, 2*_samplesUsedForModelTraining))
             {
                 _samplesUsedForModelTraining = TrainSurrogateModel();
             }
@@ -360,8 +361,10 @@ public class BayesianSearchHPO : AbstractHpo
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
         Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.train_YDatasetPath);
+        Utils.TryDelete(_surrogateTrainedFiles.train_XYDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.validation_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.validation_YDatasetPath);
+        Utils.TryDelete(_surrogateTrainedFiles.validation_XYDatasetPath);
         AdjustSurrogateModelSampleForTrainingDatasetCount(trainingDataset.Count);
         _surrogateTrainedFiles = _surrogateModel.Fit(trainingDataset, null);
 
@@ -376,7 +379,7 @@ public class BayesianSearchHPO : AbstractHpo
     }
 
 
-    private (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) _surrogateTrainedFiles = ("", "", "", "");
+    private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) _surrogateTrainedFiles = (null, null, null, null, null, null);
     private string LastDatasetPathUsedForPrediction = "";
 
     private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)

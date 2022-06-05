@@ -53,22 +53,8 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     //{
     //    return FullTrain;
     //}
-    //public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
-    //{
-    //    throw new NotImplementedException(); //TODO
-    //}
-
-    //public override (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) LoadAllPredictionsInTargetFormatWithoutIndex()
-    //{
-    //    return LoadAllPredictionsInTargetFormatWithoutIndex(true, false, ',');
-    //}
-    
+   
     public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat)
     {
         throw new NotImplementedException();
     }

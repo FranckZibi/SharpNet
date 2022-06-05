@@ -19,7 +19,8 @@ namespace SharpNet.Datasets
             ResizeStrategyEnum.None, 
             null,
             new string[0],
-            true)
+            true,
+            null)
         {
             _directoryDataSet = null;
         }

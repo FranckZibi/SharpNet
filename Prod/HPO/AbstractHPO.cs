@@ -66,6 +66,7 @@ namespace SharpNet.HPO
             }
 
             int coreCount = Utils.CoreCount;
+
             // ReSharper disable once ConvertToConstant.Local
             // number of parallel threads in each single training
             int numThreadsForEachModelTraining = 1;//single core
@@ -151,7 +152,6 @@ namespace SharpNet.HPO
                     }
                     double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
                     RegisterSampleCost(sample, sampleId, cost, elapsedTimeInSeconds);
-                    Log.Debug("ended new computation");
                     Log.Debug("ended new computation");
                     Log.Debug($"{Processed} processed samples");
                     //we display statistics only once every 10s

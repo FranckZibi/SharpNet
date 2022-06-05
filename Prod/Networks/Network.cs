@@ -545,9 +545,8 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="trainingDataset"></param>
         /// <param name="validationDatasetIfAny"></param>
-        public override (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string
-            validation_YDatasetPath) Fit(IDataSet trainingDataset,
-                IDataSet validationDatasetIfAny)
+        public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+            Fit(IDataSet trainingDataset, IDataSet validationDatasetIfAny)
         {
             int miniBatchSizeForAllWorkers = Config.BatchSize;
             int numEpochs = Config.NumEpochs;
@@ -724,7 +723,7 @@ namespace SharpNet.Networks
                 LogError(e.ToString());
                 throw;
             }
-            return ("", "", "", "");
+            return (null, null, null, null, null, null);
         }
 
 
@@ -1041,6 +1040,7 @@ namespace SharpNet.Networks
             all_x_miniBatch_cpu_allWorkers.Clear();
             yExpected_miniBatch_cpu_allWorkers.Dispose();
 
+            // ReSharper disable once PossibleNullReferenceException
             _yPredictedForEpoch.Reshape(dataSet.Y.Shape);
             _yExpectedForEpoch.Reshape(dataSet.Y.Shape);
 

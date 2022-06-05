@@ -97,6 +97,57 @@ namespace SharpNetTests.CPU
             Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
         }
 
+
+
+        [Test]
+        public void TestInsertAtColumnIndex()
+        {
+            var source = new CpuTensor<float>(new[] { 2, 3 }, new float[] { 1, 2, 3, 4, 5, 6});
+            var toAdd = new CpuTensor<float>(new[] { 2, 2 }, new float[] { 100, 200, 300, 400});
+            
+            var result = CpuTensor<float>.InsertAtColumnIndex(source, toAdd, 1);
+            var expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 1, 100, 200, 2, 3, 4, 300, 400, 5, 6});
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+
+            result = CpuTensor<float>.InsertAtColumnIndex(source, toAdd, 3);
+            expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 1, 2, 3, 100, 200, 4, 5, 6, 300, 400});
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+
+            result = CpuTensor<float>.InsertAtColumnIndex(source, toAdd, 0);
+            expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 100, 200, 1, 2, 3, 300, 400, 4, 5, 6});
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+        }
+
+        [Test]
+        public void TestLoadColumnsFromSource()
+        {
+            var toUpdate = new CpuTensor<float>(new[] { 2, 4 }, new float[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+            var source = new CpuTensor<float>(new[] { 2, 4 }, new float[] { 101, 102, 103, 104, 105, 106, 107, 108 });
+
+            var toUpdateCopy = (CpuTensor<float>)toUpdate.Clone();
+            toUpdateCopy.LoadColumnsFromSource(source, new int[] { });
+            Assert.IsTrue(TestTensor.SameContent(toUpdate, toUpdateCopy, 1e-6));
+
+            toUpdate.LoadColumnsFromSource(source, new[]{1,3});
+            var expectedResult = new CpuTensor<float>(new[] { 2, 4 }, new float[] { 1, 102, 3, 104, 5, 106, 7, 108 });
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, toUpdate, 1e-6));
+        }
+
+        
+
+
+        [Test]
+        public void TestMergeHorizontally()
+        {
+            var source = new CpuTensor<float>(new[] { 2, 3 }, new float[] { 1, 2, 3, 4, 5, 6 });
+            var toAdd = new CpuTensor<float>(new[] { 2, 2 }, new float[] { 100, 200, 300, 400 });
+
+            var result = CpuTensor<float>.MergeHorizontally(source, toAdd);
+            var expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 1, 2, 3, 100, 200, 4, 5, 6, 300, 400 });
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+        }
+        
+
         [Test]
         public void TestChangeAxis()
         {

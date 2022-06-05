@@ -3,21 +3,26 @@ using SharpNet.LightGBM;
 
 namespace SharpNet.HyperParameters
 {
-    public class ModelAndDatasetSample : MultiSamples
+    public class ModelAndDatasetPredictionsSample : MultiSamples
     {
         #region Constructor
 
         // ReSharper disable once MemberCanBePrivate.Global
-        public ModelAndDatasetSample(ISample[] samples) : base(samples) { }
-        public ModelAndDatasetSample(IModelSample modelSample, AbstractDatasetSample abstractDatasetSample)
-            : this(new ISample[] { modelSample, abstractDatasetSample })
+        public ModelAndDatasetPredictionsSample(ISample[] samples) : base(samples) { }
+
+        public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName)
         {
-        }
-        public static ModelAndDatasetSample LoadModelAndDatasetSample(string workingDirectory, string modelName)
-        {
-            return new ModelAndDatasetSample(
+            return new ModelAndDatasetPredictionsSample(
+                new ISample[]{
                 IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0)),
-                AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1)));
+                AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1)),
+                ISample.LoadSample<PredictionsSample>(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2))
+                });
+        }
+
+        public static ModelAndDatasetPredictionsSample New(IModelSample modelSample, AbstractDatasetSample abstractDatasetSample)
+        {
+            return new ModelAndDatasetPredictionsSample(new ISample[]{ modelSample, abstractDatasetSample, new PredictionsSample()});
         }
         #endregion
 
@@ -27,7 +32,8 @@ namespace SharpNet.HyperParameters
             {
                 case 0: return modelName;
                 case 1: return modelName + "_dataset";
-                default: throw new ArgumentException($"invalid index {sampleIndex} for {nameof(ModelAndDatasetSample)}");
+                case 2: return modelName + "_predictions";
+                default: throw new ArgumentException($"invalid index {sampleIndex} for {nameof(ModelAndDatasetPredictionsSample)}");
             }
         }
 
@@ -38,7 +44,7 @@ namespace SharpNet.HyperParameters
 
         public IModelSample ModelSample => (IModelSample)Samples[0];
         public AbstractDatasetSample DatasetSample => (AbstractDatasetSample)Samples[1];
-
+        public PredictionsSample PredictionsSample  => (PredictionsSample) Samples[2];
         public override bool FixErrors()
         {
             if (!base.FixErrors())

@@ -4,6 +4,7 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
+using SharpNet.HyperParameters;
 using SharpNet.Models;
 using SharpNet.Networks;
 
@@ -58,6 +59,8 @@ namespace SharpNet.Datasets
         int TypeSize { get; }
         bool UseBackgroundThreadToLoadNextMiniBatch { get; }
 
+        AbstractDatasetSample DatasetSample { get; }
+
         List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
 
         /// <summary>
@@ -70,20 +73,19 @@ namespace SharpNet.Datasets
         string ElementIdToDescription(int elementId);
         string ElementIdToPathIfAny(int elementId);
 
-        /// <summary>
-        /// save the dataset in path 'path' in 'LightGBM' format.
+       /// <summary>
+        /// save the dataset in directory 'directory' in 'LightGBM' format.
         /// if addTargetColumnAsFirstColumn == true:
         ///     first column is the label 'y' (to predict)
         ///     all other columns are the features
         /// else
         ///     save only 'x' (feature) tensor
         /// </summary>
-        /// <param name="path">the path where to save the dataset</param>
+        /// <param name="directory">the directory where to save to dataset</param>
         /// <param name="addTargetColumnAsFirstColumn"></param>
-        /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
-        /// <param name="separator"></param>
-        void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists);
-
+        /// <param name="overwriteIfExists"></param>
+        /// <returns>the path (directory+filename) where the dataset has been saved</returns>
+        string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool overwriteIfExists);
 
         string[] FeatureNamesIfAny { get; }
 

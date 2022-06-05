@@ -28,7 +28,8 @@ namespace SharpNet.Datasets
                 ResizeStrategyEnum.None, 
                 null,
                 new string[0],
-                true)
+                true,
+                null)
         {
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);

@@ -81,7 +81,8 @@ namespace SharpNet.Datasets
                 resizeStrategy,
                 featureNamesIfAny,
                 new string[0],
-                true)
+                true,
+                null)
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
             _elementIdToDescription.AddRange(elementIdToDescription);

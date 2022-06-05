@@ -16,15 +16,15 @@ public static class SampleUtils
     /// If 'resumeCsvPathIfAny' is not null
     ///     store train statistics of the model in CSV file 'resumeCsvPathIfAny'
     /// </summary>
-    /// <param name="modelAndDatasetSample">the 'model sample' and dataset to use for training the model</param>
+    /// <param name="modelAndDatasetPredictionsSample">the 'model sample' and dataset to use for training the model</param>
     /// <param name="workingDirectory">the directory where the 'model sample' and 'dataset description' is located</param>
     /// <param name="resumeCsvPathIfAny">(optional) the CSV file where to store statistics about the trained model</param>
     /// <param name="bestScoreSoFar">the best score associated with the best sample found so far for the model</param>
     /// <returns></returns>
-    public static float TrainWithHyperParameters([NotNull] ModelAndDatasetSample modelAndDatasetSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref float bestScoreSoFar)
+    public static float TrainWithHyperParameters([NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref float bestScoreSoFar)
     {
         var sw = Stopwatch.StartNew();
-        var modelAndDataset = ModelAndDataset.NewUntrainedModelAndDataset(modelAndDatasetSample, workingDirectory);
+        var modelAndDataset = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, workingDirectory);
         var model = modelAndDataset.Model;
         var validationScore = modelAndDataset.Fit(false, true, false).validationScore;
         var trainScore = float.NaN;
@@ -34,7 +34,7 @@ public static class SampleUtils
         {
             IModel.Log.Debug($"Model '{model.ModelName}' has new best score: {validationScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationScore;
-            trainScore = modelAndDataset.ComputeAndSavePredictionsInTargetFormat().trainScore;
+            trainScore = modelAndDataset.SavePredictionsInTargetFormat().trainScore;
             modelAndDataset.Save(workingDirectory, model.ModelName);
         }
         else

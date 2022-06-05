@@ -45,7 +45,7 @@ namespace SharpNet.HPO
                         var sampleDescription = ToSampleDescription(sample, t);
                         return (t, _nextSampleId++, sampleDescription);
                     }
-                };
+                }
             }
         }
 

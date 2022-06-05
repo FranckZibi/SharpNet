@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
+using SharpNet.HyperParameters;
 
 namespace SharpNet.Datasets
 {
@@ -22,7 +23,8 @@ namespace SharpNet.Datasets
             string[] categoryDescriptions = null,
             string[] featureNames = null,
             string[] categoricalFeatures = null,
-            bool useBackgroundThreadToLoadNextMiniBatch = true)
+            bool useBackgroundThreadToLoadNextMiniBatch = true, 
+            AbstractDatasetSample datasetSample = null)
             : base(name,
                 objective,
                 x.Shape[1], 
@@ -31,7 +33,8 @@ namespace SharpNet.Datasets
                 ResizeStrategyEnum.None,
                 featureNames,
                 categoricalFeatures??new string[0],
-                useBackgroundThreadToLoadNextMiniBatch)
+                useBackgroundThreadToLoadNextMiniBatch, 
+                datasetSample)
         {
             Debug.Assert(y==null || AreCompatible_X_Y(x, y));
 

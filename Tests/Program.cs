@@ -76,16 +76,36 @@ namespace SharpNetTests
             //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220129.csv", new string[]{}, Parameters.boosting_enum.rf, 100);
             //SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchLightGBMHPO(); return;
             //SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchCatBoostHPO(); return;
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_bis", "5F73F0353D", 5);
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_bis", "5F73F0353D", 5);
 
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 5, 3);
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 10, 3);
-            //var trainableSample = ITrainableSample.ValueOfITrainableSample(@"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D");
-            //var model007 = AbstractModel.NewModel(trainableSample.ModelSample, @"C:\Users\fzibi\AppData\Local\SharpNet\Natixis70\submit\5F73F0353D_ter", "5F73F0353D");
+
+            //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
+
+
+
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "A3699BA7D3", 5, 3);
+
+            //ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\Natixis70\embeddedModel", "ABB2EC09A2").Fit(true, true, false); return;
+
+            //Utils.ConfigureGlobalLog4netProperties(Natixis70Utils.WorkingDirectory, "TrainEmbeddedModelWithKFold");
+            //Utils.ConfigureThreadLog4netProperties(Natixis70Utils.WorkingDirectory, "TrainEmbeddedModelWithKFold");
+            //foreach(var kfold in new []{3,5})
+            //{
+            //    KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa6", @"C:\Projects\Challenges\Natixis70\embeddedModel", "ABB2EC09A2", kfold);
+            //}
+            //return;
+
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 5, 3);
+            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 10, 3);
+            //var modelAndDataset = ModelAndDataset.LoadModelAndDataset(@"C:\Projects\Challenges\Natixis70\submit\v2", "A8A78BE573");
+            //modelAndDataset.Model.ModelSample.Use_All_Available_Cores();
+            //modelAndDataset.Fit(true, false, true);
+            //return;
             //trainableSample.DatasetSample.ComputePredictions(model007); return;
 
 
-            SharpNet.Datasets.Natixis70.Natixis70Utils.SearchForBestWeights(); return;
+            //Natixis70Utils.SearchForBestWeights_full_Dataset(); return;
             //new TestCatBoostSample().TestToJson();
 
             //AmazonEmployeeAccessChallengeUtils.Launch_CatBoost_HPO(); return;
@@ -212,7 +232,7 @@ namespace SharpNetTests
             //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Cancel_400_470_20200713_1809_580.txt"));
 
             //network.FindBestLearningRate(cancelDataset, 1e-5, 10, p.Config.BatchSize);return;
-            AbstractModel.Log.Debug(database.Summary());
+            IModel.Log.Debug(database.Summary());
             network.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
         }
         #endregion
@@ -424,7 +444,7 @@ namespace SharpNetTests
         {
             using var network = p.CFM60();
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize4_64_DropoutRate0_2_20210115_1831_10.txt");
-            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s=> AbstractModel.Log.Info(s));
+            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s=> IModel.Log.Info(s));
             var cfm60 = (CFM60DataSet) cfm60TrainingAndTestDataSet.Training;
             //To compute feature importances, uncomment the following line
             //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;

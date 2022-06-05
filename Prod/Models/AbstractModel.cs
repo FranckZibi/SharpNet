@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 
@@ -16,12 +14,12 @@ public abstract class AbstractModel : IModel
 {
     #region private & protected fields
     private static readonly object LockUpdateFileObject = new();
-    protected IModelSample ModelSample { get; }
     #endregion
 
     #region public fields & properties
     public string WorkingDirectory { get; }
     public string ModelName { get; }
+    public IModelSample ModelSample { get; }
     #endregion
 
 
@@ -46,6 +44,10 @@ public abstract class AbstractModel : IModel
     }
     public float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred)
     {
+        if (y_true == null || y_pred == null)
+        {
+            return float.NaN;
+        }
         using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
         var metricEnum = ModelSample.GetMetric();
         var lossFunctionEnum = ModelSample.GetLoss();
@@ -98,65 +100,21 @@ public abstract class AbstractModel : IModel
             IModel.Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
         }
     }
-    public abstract (string train_XDatasetPath, string train_YDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath) Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
-    public abstract CpuTensor<float> Predict(IDataSet dataset);
+    public virtual string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
+
+    public abstract (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+        Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
+    public abstract CpuTensor<float> 
+        Predict(IDataSet dataset);
     public abstract void Save(string workingDirectory, string modelName);
     public abstract string DeviceName();
     public abstract int TotalParams();
     public abstract List<string> ModelFiles();
 
     public abstract int GetNumEpochs();
-    protected static string DatasetPath(IDataSet dataset, bool addTargetColumnAsFirstColumn, string rootDatasetPath) => Path.Combine(rootDatasetPath, ComputeUniqueDatasetName(dataset, addTargetColumnAsFirstColumn) + ".csv");
     public abstract double GetLearningRate();
     public abstract void Use_All_Available_Cores();
     
-    private static string ComputeDescription(Tensor tensor)
-    {
-        if (tensor == null || tensor.Count == 0)
-        {
-            return "";
-        }
-        Debug.Assert(tensor.Shape.Length == 2);
-        var xDataSpan = tensor.AsReadonlyFloatCpuContent;
-        var desc = string.Join('_', tensor.Shape);
-        for (int col = 0; col < tensor.Shape[1]; ++col)
-        {
-            int row = ((tensor.Shape[0] - 1) * col) / Math.Max(1, tensor.Shape[1] - 1);
-            var val = xDataSpan[row * tensor.Shape[1] + col];
-            desc += '_' + Math.Round(val, 6).ToString(CultureInfo.InvariantCulture);
-        }
-        return desc;
-    }
-    private static string ComputeDescription(IDataSet dataset)
-    {
-        if (dataset == null || dataset.Count == 0)
-        {
-            return "";
-        }
-        int rows = dataset.Count;
-        int cols = dataset.FeatureNamesIfAny.Length;
-        var desc = rows+"_"+cols;
-        using CpuTensor<float> xBuffer = new (new []{1, cols});
-        var xDataSpan = xBuffer.AsReadonlyFloatCpuContent;
-        for (int col = 0; col < cols; ++col)
-        {
-            int row = ((rows - 1) * col) / Math.Max(1, cols - 1);
-            dataset.LoadAt(row, 0, xBuffer, null, false);
-            var val = xDataSpan[col];
-            desc += '_' + Math.Round(val, 6).ToString(CultureInfo.InvariantCulture);
-        }
-        return desc;
-    }
-    private static string ComputeUniqueDatasetName(IDataSet dataset, bool addTargetColumnAsFirstColumn)
-    {
-        var desc = ComputeDescription(dataset);
-        if (addTargetColumnAsFirstColumn)
-        {
-            desc += '_' + ComputeDescription(dataset.Y);
-        }
-        return Utils.ComputeHash(desc, 10);
-    }
-
     protected static void LogDebug(string message) { IModel.Log.Debug(message); }
     protected static void LogInfo(string message) { IModel.Log.Info(message); }
     protected static void LogWarn(string message) { IModel.Log.Warn(message); }

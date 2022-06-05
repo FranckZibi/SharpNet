@@ -18,7 +18,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     private static readonly ConcurrentDictionary<string, CpuTensor<float>> CacheDataset = new();
     private static DoubleAccumulator[] YStatsInTargetFormat { get; }
     private static DoubleAccumulator[] YAbsStatsInTargetFormat { get; }
-    //private static readonly ConcurrentDictionary<string, CpuTensor<float>> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
+    private static readonly ConcurrentDictionary<string, CpuTensor<float>> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
     #endregion
 
     #region constructors
@@ -56,8 +56,12 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     public enum normalize_enum { NONE, MINUS_MEAN_DIVIDE_BY_VOL, DIVIDE_BY_ABS_MEAN };
     #endregion
 
-    public override CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat)
+    private CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat)
     {
+        if (predictionsInTargetFormat == null)
+        {
+            return null;
+        }
         var predictionsInModelFormat = new CpuTensor<float>(YShapeInModelFormat(predictionsInTargetFormat.Shape[0]));
         var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsReadonlyFloatCpuContent;
         var predictionsInModelFormatSpan = predictionsInModelFormat.AsFloatCpuSpan;
@@ -95,8 +99,13 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         Debug.Assert(predictionsInModelFormatSpanIndex == predictionsInModelFormat.Count);
         return predictionsInModelFormat;
     }
+
     public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
     {
+        if (predictionsInModelFormat == null)
+        {
+            return null;
+        }
         if (predictionsInModelFormat.Shape[1] == 39)
         {
             return CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat, 0);
@@ -160,19 +169,19 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     /// </summary>
     /// name="dataframe_path">a dataset in LightGBM format
     /// <returns></returns>
-    //public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
-    //{
-    //    if (PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryGetValue(dataframe_path, out var res))
-    //    {
-    //        return res;
-    //    }
-    //    var predictionsInModelFormat = Dataframe.Load(dataframe_path, true, ',').Keep(new[] { "y" }).Tensor;
-    //    var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat).DropColumns(new[] { 0 });
-    //    Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
-    //    Debug.Assert(predictionInTargetFormat.Shape[1] == 39);
-    //    PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryAdd(dataframe_path, predictionInTargetFormat);
-    //    return predictionInTargetFormat;
-    //}
+    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
+    {
+        if (PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryGetValue(dataframe_path, out var res))
+        {
+            return res;
+        }
+        var predictionsInModelFormat = Dataframe.Load(dataframe_path, true, ',').Keep(new[] { "y" }).Tensor;
+        var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
+        Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
+        Debug.Assert(predictionInTargetFormat.Shape[1] == (1+39));
+        PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryAdd(dataframe_path, predictionInTargetFormat);
+        return predictionInTargetFormat;
+    }
 
     //public override (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) 
     //    LoadAllPredictionsInTargetFormatWithoutIndex()
@@ -211,16 +220,77 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         new Dataframe(predictionsInTargetFormat, Natixis70Utils.PredictionHeader.Split(','), "").Save(path);
         ISample.Log.Debug($"SavePredictionsInTargetFormat in {path} took {start.Elapsed.TotalSeconds}s");
     }
+
+
+    /// <summary>
+    /// true if the test dataset must also have associated labels (so that we can compute a score for it)
+    /// </summary>
+    public static bool TestDatasetMustHaveLabels = false;
+
+    
     public override IDataSet TestDataset()
     {
-        return NewDataSet(XTestRawFile, null);
+        if (TestDatasetMustHaveLabels)
+        {
+            using var trainingAndValidationAndTestDataset = NewDataSet(XTrainRawFile, YTrainRawFile);
+            var percentageInTraining = PercentageInTraining;
+            if (PercentageInTraining >= 1.0)
+            {
+                percentageInTraining = 0.8;
+            }
+            int rowsForTrainingAndValidation = (int)(percentageInTraining * trainingAndValidationAndTestDataset.Count + 0.1);
+            rowsForTrainingAndValidation -= rowsForTrainingAndValidation % DatasetRowsInModelFormatMustBeMultipleOf();
+            return trainingAndValidationAndTestDataset.IntSplitIntoTrainingAndValidation(rowsForTrainingAndValidation).Test;
+        }
+        else
+        {
+            return NewDataSet(XTestRawFile, null);
+        }
     }
+
+    public override int DatasetRowsInModelFormatMustBeMultipleOf()
+    {
+        return RowsInTargetFormatToRowsInModelFormat(1);
+    }
+
     public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {
-        using var fullTraining = NewDataSet(XTrainRawFile, YTrainRawFile);
-        int rowsInTrainingSet = (int)(PercentageInTraining * fullTraining.Count + 0.1);
-        rowsInTrainingSet -= rowsInTrainingSet % RowsInTargetFormatToRowsInModelFormat(1);
-        return fullTraining.IntSplitIntoTrainingAndValidation(rowsInTrainingSet);
+        var percentageInTraining = PercentageInTraining;
+        if (TestDatasetMustHaveLabels)
+        {
+            using var trainingAndValidationAndTestDataset = NewDataSet(XTrainRawFile, YTrainRawFile);
+            if (PercentageInTraining >= 1.0)
+            {
+                percentageInTraining = 0.8;
+            }
+            int rowsForTrainingAndValidation = (int)(percentageInTraining * trainingAndValidationAndTestDataset.Count + 0.1);
+            rowsForTrainingAndValidation -= rowsForTrainingAndValidation % DatasetRowsInModelFormatMustBeMultipleOf();
+            var trainingAndValidationDataset = trainingAndValidationAndTestDataset.IntSplitIntoTrainingAndValidation(rowsForTrainingAndValidation).Training;
+            if (PercentageInTraining >= 1.0)
+            {
+                return new TrainingAndTestDataset(trainingAndValidationDataset, null, trainingAndValidationAndTestDataset.Name);
+            }
+            int rowsForTraining = (int)(percentageInTraining * trainingAndValidationDataset.Count + 0.1);
+            rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
+            return trainingAndValidationDataset.IntSplitIntoTrainingAndValidation(rowsForTraining);
+        }
+        else
+        {
+            using var trainingAndValidationDataset = NewDataSet(XTrainRawFile, YTrainRawFile);
+            int rowsForTraining = (int)(percentageInTraining * trainingAndValidationDataset.Count + 0.1);
+            rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
+            return trainingAndValidationDataset.IntSplitIntoTrainingAndValidation(rowsForTraining);
+        }
+    }
+
+    protected override MetricEnum GetMetric()
+    {
+        return MetricEnum.Rmse;
+    }
+
+    protected override LossFunctionEnum GetLoss()
+    {
+        return LossFunctionEnum.Rmse;
     }
 
 
@@ -301,7 +371,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             new[] { "NONE" },
             FeatureNames().ToArray(),
             CategoricalFeatures().ToArray(),
-            false);
+            false,
+            this);
     }
     /// <summary>
     /// return the horizonId associated with row 'rowInModelFormat', or -1 if the row is associated with all horizon ids

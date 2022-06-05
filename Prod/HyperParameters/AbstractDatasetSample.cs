@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using SharpNet.CPU;
@@ -14,7 +15,7 @@ namespace SharpNet.HyperParameters;
 public abstract class AbstractDatasetSample : AbstractSample
 {
     #region private fields
-    private static readonly ConcurrentDictionary<string, CpuTensor<float>> LoadPredictionsInTargetFormatWithoutIndex_Cache = new();
+    private static readonly ConcurrentDictionary<string, CpuTensor<float>> LoadPredictionsInTargetFormat_Cache = new();
     #endregion
 
 
@@ -33,30 +34,83 @@ public abstract class AbstractDatasetSample : AbstractSample
     #region Hyper-Parameters
     public double PercentageInTraining = 0.8;
 
-    public string Train_XDatasetPath = "";
-    public string Train_YDatasetPath = "";
-    public string Train_PredictionsPath = "";
+    public string Train_XDatasetPath;
+    public string Train_YDatasetPath;
+    public string Train_XYDatasetPath;
 
-    public string Validation_XDatasetPath = "";
-    public string Validation_YDatasetPath = "";
-    public string Validation_PredictionsPath = "";
+    public string Validation_XDatasetPath;
+    public string Validation_YDatasetPath;
+    public string Validation_XYDatasetPath;
 
-    public string Test_DatasetPath = "";
-    public string Test_PredictionsPath = "";
+    public string Test_XDatasetPath;
+    public string Test_YDatasetPath;
+    public string Test_XYDatasetPath;
     #endregion
 
     public AbstractDatasetSample CopyWithNewPercentageInTraining(double newPercentageInTraining)
     {
         var cloned = (AbstractDatasetSample)Clone();
         cloned.PercentageInTraining = newPercentageInTraining;
-        cloned.Train_XDatasetPath = cloned.Train_YDatasetPath = cloned.Train_PredictionsPath = "";
-        cloned.Validation_XDatasetPath = cloned.Validation_YDatasetPath = cloned.Validation_PredictionsPath = "";
+        cloned.Train_XDatasetPath = cloned.Train_YDatasetPath = null;
+        cloned.Validation_XDatasetPath = cloned.Validation_YDatasetPath = null;
         return cloned;
     }
- 
+
+
+    protected virtual MetricEnum GetMetric()
+    {
+        throw new NotImplementedException();
+    }
+
+    protected virtual LossFunctionEnum GetLoss()
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override HashSet<string> FieldsToDiscardInComputeHash()
+    {
+        return new HashSet<string>{nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
+    }
+
+    public float ComputeScore(CpuTensor<float> true_predictions_true_in_target_format, CpuTensor<float> predictions_in_target_format)
+    {
+        if (true_predictions_true_in_target_format == null || predictions_in_target_format == null)
+        {
+            return float.NaN;
+        }
+        Debug.Assert(true_predictions_true_in_target_format.SameShape(predictions_in_target_format));
+        var y_true = true_predictions_true_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
+        var y_pred = predictions_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
+
+        using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
+        return (float)y_true.ComputeMetric(y_pred, GetMetric(), GetLoss(), buffer);
+    }
+
+
+    /// <summary>
+    /// in some cases, the Dataset (in Model Format) must have a number of rows that is a multiple of some constant
+    /// </summary>
+    /// <returns></returns>
+    public virtual int DatasetRowsInModelFormatMustBeMultipleOf()
+    {
+        return 1;
+    }
     public abstract List<string> CategoricalFeatures();
+    public virtual char GetSeparator() { return ',';}
+    /// <summary>
+    /// true if predictions files have header
+    /// </summary>
+    /// <returns></returns>
+    // ReSharper disable once MemberCanBeProtected.Global
+    // ReSharper disable once VirtualMemberNeverOverridden.Global
+    public virtual bool HeaderInPredictionFile() { return true;}
     public abstract void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path);
     public abstract IDataSet TestDataset();
+    
+    /// <summary>
+    /// returns the train and validation dataset
+    /// </summary>
+    /// <returns></returns>
     public abstract ITrainingAndTestDataSet SplitIntoTrainingAndValidation();
     //public abstract IDataSet FullTraining();
     //public abstract CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path);
@@ -72,39 +126,27 @@ public abstract class AbstractDatasetSample : AbstractSample
         return new[] { 0 };
     }
 
-    protected (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) 
-        LoadAllPredictionsInTargetFormatWithoutIndex(bool header, char separator)
+    public abstract CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat);
+    public virtual CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
     {
-        return
-            (LoadPredictionsInTargetFormatWithoutIndex(Train_PredictionsPath, header, separator),
-             LoadPredictionsInTargetFormatWithoutIndex(Validation_PredictionsPath, header, separator),
-             LoadPredictionsInTargetFormatWithoutIndex(Test_PredictionsPath, header, separator));
+        throw new NotImplementedException();
     }
 
-
-
-    public abstract CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat);
-    public abstract CpuTensor<float> PredictionsInTargetFormat_2_PredictionsInModelFormat(CpuTensor<float> predictionsInTargetFormat);
-
-    private CpuTensor<float> LoadPredictionsInTargetFormatWithoutIndex(string path, bool header, char separator)
+    public CpuTensor<float> LoadPredictionsInTargetFormat(string path)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
         {
             return null;
         }
 
-        if (LoadPredictionsInTargetFormatWithoutIndex_Cache.TryGetValue(path, out var res))
+        if (LoadPredictionsInTargetFormat_Cache.TryGetValue(path, out var res))
         {
             return res;
         }
 
-        var y_pred = Dataframe.Load(path, header, separator).Tensor;
-        if (IndexColumnsInPredictionsInTargetFormat().Count != 0)
-        {
-            y_pred = y_pred.DropColumns(IndexColumnsInPredictionsInTargetFormat());
-        }
-
-        LoadPredictionsInTargetFormatWithoutIndex_Cache.TryAdd(path, y_pred);
+        var y_pred = Dataframe.Load(path, HeaderInPredictionFile(), GetSeparator()).Tensor;
+        LoadPredictionsInTargetFormat_Cache.TryAdd(path, y_pred);
         return y_pred;
     }
+
 }

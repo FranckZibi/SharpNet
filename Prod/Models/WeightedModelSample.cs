@@ -6,28 +6,29 @@ using SharpNet.HyperParameters;
 
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace SharpNet.HPO;
+namespace SharpNet.Models;
 
-public class WeightsOptimizerSample : AbstractSample, IModelSample
+public class WeightedModelSample : AbstractSample, IModelSample
 {
     #region private fields
     private readonly List<Tuple<string, string>> _workingDirectoryAndModelNames = new();
+    private IModelSample _firstEmbeddedModelSample;
+    private int FixErrors_calls = 0;
     #endregion
 
     #region constructors
-    public WeightsOptimizerSample() : base(new HashSet<string>())
+    public WeightedModelSample() : base(new HashSet<string>())
     {
     }
-    public WeightsOptimizerSample(string workingDirectoryAndModelNames, MetricEnum metric, LossFunctionEnum loss) : base(new HashSet<string>())
+    public WeightedModelSample(string workingDirectoryAndModelNames) : base(new HashSet<string>())
     {
         WorkingDirectoryAndModelNames = workingDirectoryAndModelNames;
-        Metric = metric;
-        Loss = loss;
         _workingDirectoryAndModelNames = Split(workingDirectoryAndModelNames);
+        _firstEmbeddedModelSample = GetFirstEmbeddedModelSample();
         SetZeroWeights();
     }
-    public WeightsOptimizerSample(List<Tuple<string,string>> workingDirectoryAndModelNames, MetricEnum metric, LossFunctionEnum loss) 
-        : this(string.Join(";",workingDirectoryAndModelNames.Select(t=>t.Item1+";"+t.Item2)), metric, loss)
+    public WeightedModelSample(List<Tuple<string,string>> workingDirectoryAndModelNames) 
+        : this(string.Join(";",workingDirectoryAndModelNames.Select(t=>t.Item1+";"+t.Item2)))
     {
 
     }
@@ -56,8 +57,6 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
     public float w_19;
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public string WorkingDirectoryAndModelNames;
-    public MetricEnum Metric;
-    public LossFunctionEnum Loss;
     #endregion
 
     public List<Tuple<string, string>> GetWorkingDirectoryAndModelNames()
@@ -73,6 +72,21 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
             return false;
         }
         NormalizeWeightsToSum_One(weights);
+
+        ++FixErrors_calls;
+        if (FixErrors_calls%2 != 0)
+        {
+            var threshold = 0.5f * weights.Max();
+            for (int i = 0; i < _workingDirectoryAndModelNames.Count; ++i)
+            {
+                if (weights[i] > threshold)
+                {
+                    weights[i] = threshold + 20 * (weights[i] - threshold);
+                }
+            }
+            NormalizeWeightsToSum_One(weights);
+        }
+
         SetWeights(weights);
         return true;
     }
@@ -86,7 +100,8 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
         }
         SetWeights(weights);
     }
-    public CpuTensor<float> ApplyWeights(List<CpuTensor<float>> t)
+
+    public CpuTensor<float> ApplyWeights(List<CpuTensor<float>> t, IList<int> indexColumnsNotToUse)
     {
         if (t == null || t.Count == 0)
         {
@@ -104,15 +119,16 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
         {
             res.Update_Adding_Alpha_X(weights[i] / sumWeights, t[i]);
         }
+        res.LoadColumnsFromSource(t[0], indexColumnsNotToUse);
         return res;
     }
     public MetricEnum GetMetric()
     {
-        return Metric;
+        return GetFirstEmbeddedModelSample().GetMetric();
     }
     public LossFunctionEnum GetLoss()
     {
-        return Loss;
+        return GetFirstEmbeddedModelSample().GetLoss();
     }
     private float[] GetWeights()
     {
@@ -173,5 +189,14 @@ public class WeightsOptimizerSample : AbstractSample, IModelSample
         }
 
         return result;
+    }
+
+    private IModelSample GetFirstEmbeddedModelSample()
+    {
+        if (_firstEmbeddedModelSample == null)
+        {
+            _firstEmbeddedModelSample = IModelSample.LoadModelSample(_workingDirectoryAndModelNames[0].Item1, _workingDirectoryAndModelNames[1].Item2);
+        }
+        return _firstEmbeddedModelSample;
     }
 }

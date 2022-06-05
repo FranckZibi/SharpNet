@@ -22,10 +22,10 @@ namespace SharpNet.CatBoost
         /// The metric to use in training. The specified value also determines the machine learning problem to solve.
         /// aliases: objective
         /// </summary>
-        public enum loss_function_enum { RMSE, Logloss, MAE, CrossEntropy, Quantile, LogLinQuantile, Lq, MultiRMSE, MultiClass, MultiClassOneVsAll, MultiLogloss, MultiCrossEntropy, MAPE, Poisson, PairLogit, PairLogitPairwise, QueryRMSE, QuerySoftMax, Tweedie, YetiRank, YetiRankPairwise, StochasticFilter, StochasticRank, DEFAULT_VALUE }
+        public enum loss_function_enum { RMSE, Logloss, MAE, CrossEntropy, Quantile, LogLinQuantile, Lq, MultiRMSE, MultiClass, MultiClassOneVsAll, MultiLogloss, MultiCrossEntropy, MAPE, Poisson, PairLogit, PairLogitPairwise, QueryRMSE, QuerySoftMax, Tweedie, YetiRank, YetiRankPairwise, StochasticFilter, StochasticRank, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE}
         public loss_function_enum loss_function = loss_function_enum.DEFAULT_VALUE;
 
-        public enum metric_enum { RMSE, Logloss, MAE, CrossEntropy, Quantile, LogLinQuantile, Lq, MultiClass, MultiClassOneVsAll, ultiLogloss, MultiCrossEntropy, MAPE, Poisson, PairLogit, PairLogitPairwise, QueryRMSE, QuerySoftMax, Tweedie, SMAPE, Recall, Precision, F1, TotalF1, Accuracy, BalancedAccuracy, BalancedErrorRate, Kappa, WKappa, LogLikelihoodOfPrediction, AUC, QueryAUC, R2, FairLoss, NumErrors, MCC, BrierScore, HingeLoss, HammingLoss, ZeroOneLoss, MSLE, edianAbsoluteError, Huber, Expectile, MultiRMSE, PairAccuracy, AverageGain, PFound, NDCG, DCG, FilteredDCG, NormalizedGini, PrecisionAt, RecallAt, MAP, CtrFactor, DEFAULT_VALUE }
+        public enum metric_enum { RMSE, Logloss, MAE, CrossEntropy, Quantile, LogLinQuantile, Lq, MultiClass, MultiClassOneVsAll, ultiLogloss, MultiCrossEntropy, MAPE, Poisson, PairLogit, PairLogitPairwise, QueryRMSE, QuerySoftMax, Tweedie, SMAPE, Recall, Precision, F1, TotalF1, Accuracy, BalancedAccuracy, BalancedErrorRate, Kappa, WKappa, LogLikelihoodOfPrediction, AUC, QueryAUC, R2, FairLoss, NumErrors, MCC, BrierScore, HingeLoss, HammingLoss, ZeroOneLoss, MSLE, edianAbsoluteError, Huber, Expectile, MultiRMSE, PairAccuracy, AverageGain, PFound, NDCG, DCG, FilteredDCG, NormalizedGini, PrecisionAt, RecallAt, MAP, CtrFactor, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         public metric_enum eval_metric = metric_enum.DEFAULT_VALUE;
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace SharpNet.CatBoost
         /// <summary>
         /// Frequency to sample weights and objects when building trees.
         /// </summary>
-        public enum sampling_frequency_enum { PerTree, PerTreeLevel, DEFAULT_VALUE }
+        public enum sampling_frequency_enum { PerTree, PerTreeLevel, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         public sampling_frequency_enum sampling_frequency = sampling_frequency_enum.DEFAULT_VALUE;
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace SharpNet.CatBoost
         /// <summary>
         /// The tree growing policy. Defines how to perform greedy tree construction.
         /// </summary>
-        public enum grow_policy_enum { SymmetricTree, Depthwise, Lossguide, DEFAULT_VALUE }
+        public enum grow_policy_enum { SymmetricTree, Depthwise, Lossguide, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         public grow_policy_enum grow_policy = grow_policy_enum.DEFAULT_VALUE;
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace SharpNet.CatBoost
         ///     Ordered — Usually provides better quality on small datasets, but it may be slower than the Plain scheme.
         ///     Plain — The classic gradient boosting scheme.
         /// </summary>
-        public enum boosting_type_enum { Ordered, Plain, DEFAULT_VALUE }
+        public enum boosting_type_enum { Ordered, Plain, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         public boosting_type_enum boosting_type = boosting_type_enum.DEFAULT_VALUE;
 
         /// <summary>
@@ -163,7 +163,7 @@ namespace SharpNet.CatBoost
         /// <summary>
         /// The score type used to select the next split during the tree construction.
         /// </summary>
-        public enum score_function_enum { Cosine, L2, NewtonCosine, NewtonL2, DEFAULT_VALUE }
+        public enum score_function_enum { Cosine, L2, NewtonCosine, NewtonL2, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         public score_function_enum score_function = score_function_enum.DEFAULT_VALUE;
         #endregion
 
@@ -186,7 +186,7 @@ namespace SharpNet.CatBoost
         /// <summary>
         /// IDs of the GPU devices to use for training (indices are zero-based).
         /// </summary>
-        public string devices = DEFAULT_VALUE_STR;
+        public string devices;
         #endregion
 
         #region Overfitting detection settings
@@ -203,7 +203,7 @@ namespace SharpNet.CatBoost
         /// <summary>
         /// The type of the over fitting detector to use.
         /// </summary>
-        public enum od_type_enum {IncToDec, Iter, DEFAULT_VALUE}
+        public enum od_type_enum {IncToDec, Iter, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE }
         public od_type_enum od_type = od_type_enum.DEFAULT_VALUE;
 
 
@@ -224,7 +224,7 @@ namespace SharpNet.CatBoost
         #endregion
 
         #region Output settings
-        public enum logging_level_enum { Silent, Verbose, Info, Debug, DEFAULT_VALUE }
+        public enum logging_level_enum { Silent, Verbose, Info, Debug, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         public logging_level_enum logging_level = logging_level_enum.DEFAULT_VALUE;
 
         /// <summary>
@@ -236,7 +236,7 @@ namespace SharpNet.CatBoost
         /// <summary>
         /// The directory for storing the files generated during training.
         /// </summary>
-        public string train_dir = DEFAULT_VALUE_STR;
+        public string train_dir;
 
         /// <summary>
         /// The model size regularization coefficient.
@@ -256,7 +256,8 @@ namespace SharpNet.CatBoost
             var configFile = ISample.ToJsonPath(workingDirectory, modelName);
             Save(configFile);
         }
-        public override string GetContent()
+
+        protected override string GetContent()
         {
             return ToJsonConfigContent(DefaultAcceptForConfigContent);
         }

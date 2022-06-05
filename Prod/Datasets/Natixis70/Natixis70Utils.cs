@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using SharpNet.CatBoost;
 using SharpNet.HPO;
@@ -27,6 +28,9 @@ namespace SharpNet.Datasets.Natixis70
         {
             // ReSharper disable once ConvertToConstant.Local
             var num_iterations = 1000;
+            
+            num_iterations = 10;
+
             var searchSpace = new Dictionary<string, object>
             {
                 //related to Dataset 
@@ -61,10 +65,11 @@ namespace SharpNet.Datasets.Natixis70
                 { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
             };
 
-            var hpo = new BayesianSearchHPO(searchSpace, () => new ModelAndDatasetSample(new LightGBMSample(), new Natixis70DatasetSample()), WorkingDirectory);
+            var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new Natixis70DatasetSample()), WorkingDirectory);
             float bestScoreSoFar = float.NaN;
             var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar) );
+            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar)
+            );
         }
 
         // ReSharper disable once UnusedMember.Global
@@ -96,41 +101,49 @@ namespace SharpNet.Datasets.Natixis70
                 { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
             };
 
-            var hpo = new BayesianSearchHPO(searchSpace, () => new ModelAndDatasetSample(new CatBoostSample(), new Natixis70DatasetSample()), WorkingDirectory);
+            var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new Natixis70DatasetSample()), WorkingDirectory);
             float bestScoreSoFar = float.NaN;
             var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
+            hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
         }
 
-        //// ReSharper disable once UnusedMember.Global
-        //public static void SearchForBestWeights()
-        //{
-           
-        //    WeightsOptimizer.SearchForBestWeights(
-        //        new List<Tuple<string, string>>
-        //        {
-        //            //Tuple.Create(WorkingDirectory, "A8A78BE573"),
-        //            //Tuple.Create(WorkingDirectory, "12ECEF9CB3"),
-        //            //Tuple.Create(WorkingDirectory, "9CBFCA0006"),
-        //            //Tuple.Create(WorkingDirectory, "E1373D2F46"),
-        //            //Tuple.Create(WorkingDirectory, "D939AAE448"),
-        //            //Tuple.Create(WorkingDirectory, "0BCE79DE2D"),
-        //            //Tuple.Create(WorkingDirectory, "3150BA17E9"),
-        //            //Tuple.Create(WorkingDirectory, "05A621ABC5"),
-        //            //Tuple.Create(WorkingDirectory, "0A1FC3DB8C"),
-        //            //Tuple.Create(Path.Combine(WorkingDirectory, "5F73F0353D"), "5F73F0353D"),
+        // ReSharper disable once UnusedMember.Global
+        public static void SearchForBestWeights()
+        {
+            WeightsOptimizer.SearchForBestWeights(
+                new List<Tuple<string, string>>
+                {
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "9736A5F52A"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "6301C10A9E"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "C8909AE935"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "D805551FDC"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "94648F9CA7"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "32AB0D5D2F"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "FD056E8CA9"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "60E67A6BCF"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "0F24432913"),
+                },
+                Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)),
+                Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
+        }
 
-        //            //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "7F1CA8E4AE"),
-        //            //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "A3699BA7D3"),
-        //            //Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "ABB2EC09A2")
-
-        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "521D6A0D59"),
-        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "46BC2E8A94"),
-        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa"), "E43D541012")
-
-        //        }, 
-        //        Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)), 
-        //        Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
-        //}
+        public static void SearchForBestWeights_full_Dataset()
+        {
+            WeightsOptimizer.SearchForBestWeights(
+                new List<Tuple<string, string>>
+                {
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "41C776CB10"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "D324191822"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "E9F2139538"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "FC18503756"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "2DAA3D22BD"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "832172A5DB"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "89D2FB42ED"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "22FD7C720F"),
+                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "604A1690F4"),
+                },
+                Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)),
+                Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
+        }
     }
 }
