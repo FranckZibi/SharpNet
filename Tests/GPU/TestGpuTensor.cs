@@ -13,6 +13,40 @@ namespace SharpNetTests.GPU
         public static GPUWrapper GpuWrapper => GPUWrapper.FromDeviceId(0);
 
 
+
+        [Test]
+        public void TestQRFactorization()
+        {
+            //This test is coming from: https://rosettacode.org/wiki/QR_decomposition#C.23
+            var data = new[] { 12.0f, -51, 4, 6, 167, -68, -4, 24, -41,-1, 1, 0, 2, 0, 3 };
+            // the A matrix (in row major order) of shape (m, n) (with m>=n)
+            var A = new GPUTensor<float>(new[] { 5, 3}, data, GpuWrapper);
+            //A = new GPUTensor<float>(new[] { 250, 10 }, null, GpuWrapper);
+            //TestCpuTensor.RandomFloatTensor(A.Shape, new Random(0), -1, 1).CopyTo(A);
+            int m = A.Shape[0];
+            int n = A.Shape[1];
+            // the orthogonal 'Q' matrix of shape (m, m)
+            var Q = new GPUTensor<float>(new[] { m, m }, null, GpuWrapper);
+            // the upper triangular matrix 'R' of shape (m, n)
+            var R = new GPUTensor<float>(new[] { m, n }, null, GpuWrapper);
+            var floatBuffer = new GPUTensor<float>(new [] { A.QRFactorization_FloatBufferLength() }, null, GpuWrapper);
+            A.QRFactorization(Q, R, floatBuffer);
+
+            //var sw = System.Diagnostics.Stopwatch.StartNew();
+            //int count = 1000;
+            //for (int i = 0; i < count; ++i)
+            //{
+            //    A.QRFactorization(Q, R, floatBuffer);
+            //}
+            //Console.WriteLine("took " + (sw.Elapsed.TotalMilliseconds / count) + "ms");
+            //return;
+
+            var a_clone = A.Clone();
+            a_clone.Dot(Q, R);
+            Assert.IsTrue(TestTensor.SameContent(a_clone, A, 1e-4));
+        }
+
+
         [Test]
         public void TestDot()
         {

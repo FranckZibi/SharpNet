@@ -73,8 +73,10 @@ namespace SharpNet.GPU
                     "LinearFunction",
                     "ComputeLn",
                     "LnGradient",
-                    "Clip"
-        },
+                    "Clip",
+                    "SetToZeroAllElementsBelowMainDiagonal",
+                    "Set1InMainDiagonal"
+                },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);
             if (!success)

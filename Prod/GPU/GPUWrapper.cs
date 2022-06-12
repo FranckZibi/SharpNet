@@ -37,6 +37,7 @@ namespace SharpNet.GPU
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
         private cudnnHandle_t _cudnnHandle;
+        private cusolverDnHandle_t _cusolverDnHandle;
         private int _copyHostToDeviceCalls;
         private ulong _bytesCopiedHostToDevice;
         private int _copyDeviceToSameDeviceCalls;
@@ -126,6 +127,10 @@ namespace SharpNet.GPU
             DefaultStream = new StreamWrapper();
             var cudnnRes = CudnnWrapper.cudnnCreate(out _cudnnHandle);
             CheckStatus(cudnnRes);
+
+            var cusolverRes = CusolverWrapper.cusolverDnCreate(out _cusolverDnHandle);
+            CheckStatus(cusolverRes);
+
             _kernelManager = new KernelManager(this);
         }
         #endregion
@@ -142,6 +147,7 @@ namespace SharpNet.GPU
             }
         }
         public cudnnHandle_t CudnnHandle => _cudnnHandle;
+        public cusolverDnHandle_t CusolverDnHandle => _cusolverDnHandle;
 
 
         public void RunKernel(string kernelName, int count, object[] parameterLists)
@@ -643,6 +649,13 @@ namespace SharpNet.GPU
                 throw new Exception(status.ToString());
             }
         }
+        public static void CheckStatus(cusolverStatus_t status)
+        {
+            if (status != cusolverStatus_t.CUSOLVER_STATUS_SUCCESS)
+            {
+                throw new Exception(status.ToString());
+            }
+        }
         public static void CheckStatus(CUresult status)
         {
             if (status != CUresult.CUDA_SUCCESS)
@@ -726,6 +739,9 @@ namespace SharpNet.GPU
             var cudnnRes = CudnnWrapper.cudnnDestroy(_cudnnHandle);
             //CheckStatus(cudnnRes);
             _cudnnHandle = new cudnnHandle_t();
+            var cusolverRes = CusolverWrapper.cusolverDnDestroy(_cusolverDnHandle);
+            //CheckStatus(cusolverRes);
+            _cusolverDnHandle = new cusolverDnHandle_t();
             //var cuRes = NVCudaWrapper.cuCtxDestroy_v2(_contextHandle);
             var cuRes = NVCudaWrapper.cuDevicePrimaryCtxRelease(_contextHandle);
             //CheckStatus(cuRes);

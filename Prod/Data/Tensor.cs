@@ -60,6 +60,47 @@ namespace SharpNet.Data
         // this = a*b
         public void Dot(Tensor a, Tensor b) { Dot(a, false, b, false, 1, 0); }
 
+
+        /// <summary>
+        /// compute the transpose of 'this' tensor and stores it in 'output'
+        /// </summary>
+        /// <param name="transposed"></param>
+        public abstract void Transpose(Tensor transposed);
+
+        /// <summary>
+        /// length of the buffer needed to compute the QR Factorization of 'this' tensor
+        /// </summary>
+        /// <returns></returns>
+        public abstract int QRFactorization_FloatBufferLength();
+
+        /// <summary>
+        /// compute A (= this) = Q R factorization
+        /// this : the A matrix (in row major order) of shape (m, n) (with m>=n)
+        /// </summary>
+        /// <param name="Q">the orthogonal 'Q' matrix of shape
+        ///     (m, m) for GPU factorization
+        ///     (m, n) for CPU factorization
+        /// </param>
+        /// <param name="R">the upper triangular matrix 'R' of shape
+        ///     (m, n) for GPU factorization
+        ///     (n, n) for CPU factorization
+        /// </param>
+        /// <param name="buffer">a float tensor of length returned by 'QRFactorization_FloatBufferLength'</param>
+        public abstract void QRFactorization(Tensor Q, Tensor R, Tensor buffer);
+
+
+        /// <summary>
+        /// set to 0 all the elements below the main diagonal of the matrix
+        /// (all elements with row index strictly les then column index)
+        /// </summary>
+        public abstract void SetToZeroAllElementsBelowMainDiagonal();
+
+        /// <summary>
+        /// set the 'this' square matrix to an identity matrix (1 on diagonals, 0 everywhere else)
+        /// constraints: 'this must be a squared matrix (rows == cols)
+        /// </summary>
+        public abstract void SetIdentityMatrix();
+
         /// <summary>
         /// this (= 'y') shape :
         ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1

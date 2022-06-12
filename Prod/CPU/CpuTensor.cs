@@ -895,6 +895,22 @@ namespace SharpNet.CPU
             return result;
         }
 
+        /// <summary>
+        /// return a (square) diagonal matrix of length (rowCount, rowCount)
+        /// each element in the diagonal will be 1, all other will be 0
+        /// </summary>
+        /// <param name="rowCount">number of rows and columns of the diagonal matrix</param>
+        /// <returns></returns>
+        public static CpuTensor<float> NewFloatDiagonalMatrix(int rowCount)
+        {
+            var data = new float[rowCount * rowCount];
+            for (int row = 0; row < rowCount; ++row)
+            {
+                data[row * rowCount + row] = 1f;
+            }
+            return new CpuTensor<float>(new[] { rowCount, rowCount }, data);
+        }
+
 
         // compute:     this = alpha * this
         public override void Update_Multiplying_By_Alpha(float alpha)
@@ -1483,7 +1499,7 @@ namespace SharpNet.CPU
         public override void Orthogonal(Random rand)
         {
             NormalDistribution(rand, 0, 1);
-            Utils.ToOrthogonalMatrix(AsFloatCpuSpan, Shape[0], MultDim0);
+            Q_Factorization();
         }
 
         public override void UniformDistribution(Random rand, double minValue, double maxValue)
@@ -2121,6 +2137,138 @@ namespace SharpNet.CPU
             //MathServices.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
             //var tmpTranspose = new double[b.Count];
             //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
+        }
+
+        public override void SetToZeroAllElementsBelowMainDiagonal()
+        {
+            var spanContent = AsFloatCpuSpan;
+            for (int row = 0; row < Shape[0]; ++row)
+                for (int col = 0; col < Math.Min(Shape[1], row); ++col)
+                {
+                    spanContent[row*Shape[1]+col] = 0;
+                }
+        }
+
+        public override void SetIdentityMatrix()
+        {
+            Debug.Assert(Shape.Length == 2);
+            Debug.Assert(Shape[0] == Shape[1]);
+            ZeroMemory();
+            var spanContent = AsFloatCpuSpan;
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                spanContent[row * Shape[1] + row] = 1f;
+            }
+        }
+
+        public override int QRFactorization_FloatBufferLength()
+        {
+            return 1;
+        }
+
+        /// <summary>
+        /// compute A (= this) = Q R factorization
+        /// 'this' : a matrix of shape (rows, cols) with rows >= cols
+        /// </summary>
+        /// <param name="Q">an orthogonal matrix of shape (rows, col)</param>
+        /// <param name="R">a diagonal matrix of shape (col, col)</param>
+        /// <param name="buffer"></param>
+        public override void QRFactorization(Tensor Q, Tensor R, Tensor buffer)
+        {
+            Q_Factorization(Q);
+            R.Dot(Q, true, this, false, 1.0f, 0.0f);
+        }
+
+        /// <summary>
+        /// Make input 'this' an orthogonal matrix using Gram–Schmidt process
+        /// this: A matrix with shape: (rows, cols)
+        /// See: https://en.wikipedia.org/wiki/QR_decomposition
+        /// </summary>
+        /// <param name="Q">An orthogonal Matrix of shape (rows, col)</param>
+        public void Q_Factorization(Tensor Q = null)
+        {
+            //Debug.Assert(matrix.Length == rows * cols);
+
+            //var aSpan = AsFloatCpuSpan;
+            int rows = Shape[0];
+            int cols = MultDim0;
+
+            int rowsTransposed = cols;
+            int colsTransposed = rows;
+            var aTransposed = new CpuTensor<float>(new[] { rowsTransposed, colsTransposed });
+
+            Transpose(aTransposed);
+            var aTransposedSpan = aTransposed.AsFloatCpuSpan;
+
+            //We compute the U matrix as described in: https://en.wikipedia.org/wiki/QR_decomposition 
+            var U = new Span<float>(new float[aTransposedSpan.Length]);
+            aTransposedSpan.CopyTo(U);
+            for (int row = 1; row < rowsTransposed; ++row)
+            {
+                //we compute row 'row' of 'U' matrix
+                var aRow = aTransposedSpan.Slice(colsTransposed * row, colsTransposed);
+                var uRow = U.Slice(colsTransposed * row, colsTransposed);
+                for (int subRow = 0; subRow < row; ++subRow)
+                {
+                    var uSubRow = U.Slice(colsTransposed * subRow, colsTransposed);
+                    float multiplier = InnerProduct(uSubRow, aRow) / InnerProduct(uSubRow, uSubRow);
+                    for (int col = 0; col < uSubRow.Length; ++col)
+                    {
+                        uRow[col] -= multiplier * uSubRow[col];
+                    }
+                }
+            }
+
+            //We compute the Q (= rectangularMatrix) matrix:
+            //  it is an orthogonal matrix that we can compute from the U matrix
+            //  (by normalizing each row of the U matrix)
+            U.CopyTo(aTransposedSpan);
+            for (int row = 0; row < rowsTransposed; ++row)
+            {
+                var aTransposedRow = aTransposedSpan.Slice(colsTransposed * row, colsTransposed);
+                float normalizer = (float)Math.Sqrt(InnerProduct(aTransposedRow, aTransposedRow));
+                for (int col = 0; col < aTransposedRow.Length; ++col)
+                {
+                    aTransposedRow[col] /= normalizer;
+                }
+            }
+
+            aTransposed.Transpose(Q??this);
+        }
+
+
+        private static float InnerProduct(ReadOnlySpan<float> a, ReadOnlySpan<float> b)
+        {
+            Debug.Assert(a.Length == b.Length);
+            float result = 0;
+            for (int i = 0; i < a.Length; ++i)
+            {
+                result += a[i] * b[i];
+            }
+
+            return result;
+        }
+
+
+
+
+        public override void Transpose(Tensor transposed)
+        {
+            Debug.Assert(Dimension == 2);
+            Debug.Assert(transposed.Dimension == Dimension);
+            Debug.Assert(transposed.Shape[0] == Shape[1]);
+            Debug.Assert(transposed.Shape[1] == Shape[0]);
+
+            var inputSpan = AsReadonlyFloatCpuContent;
+            var outputSpan = transposed.AsFloatCpuSpan;
+            for(int row = 0; row < Shape[0];++row)
+                for (int col = 0; col < Shape[1]; ++col)
+                {
+                    var srcIndex = row * Shape[1] + col;
+                    var srcValue = inputSpan[srcIndex];
+                    var targetIndex = col * Shape[0] + row;
+                    outputSpan[targetIndex] = srcValue;
+                }
         }
 
         #endregion

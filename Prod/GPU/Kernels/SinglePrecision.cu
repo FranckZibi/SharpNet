@@ -257,7 +257,28 @@
 			dX[row] = dY[row] / x;
 		}
 	}
-    
+
+	__global__ void Set1InMainDiagonal(int nbRows, int nbCols, float *result) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < nbRows && row < nbCols) {
+			result[row*nbCols+row] = 1.0f;
+		}
+	}
+
+	__global__ void SetToZeroAllElementsBelowMainDiagonal(int nbRows, int nbCols, float *result) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < nbRows) {
+			result += row*nbCols;
+			int last_i = min(row, nbCols);
+			for(int i=0;i<last_i;++i)
+			{
+				result[i] = 0.0f;
+			}
+		}
+	}
+
 	__global__ void MultiplyEachRowIntoSingleValue(int nbRows, int nbCols, float *result, const float* __restrict a, const float* __restrict b) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;

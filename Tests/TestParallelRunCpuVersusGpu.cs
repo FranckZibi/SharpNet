@@ -376,6 +376,46 @@ namespace SharpNetTests
         }
 
         [Test]
+        public void TestTranspose()
+        {
+            foreach (int height in new[] { 1, 2, 5, 10 })
+            {
+                foreach (int weight in new[] { 1, 2, 5, 10 })
+                {
+                    var a = RandomTensor(new[] { height, weight});
+                    var transposed = RandomTensor(new[] { weight , height });
+                    TestAll(new[] { a, transposed }, tensors => tensors[0].Transpose(tensors[1]));
+                }
+            }
+        }
+
+
+        [Test]
+        public void TestSetToZeroAllElementsBelowMainDiagonal()
+        {
+            foreach (int height in new[] { 1, 2, 5, 10 })
+            {
+                foreach (int weight in new[] { 1, 2, 5, 10 })
+                {
+                    var a = RandomTensor(new[] { height, weight });
+                    TestAll(new[] { a }, tensors => tensors[0].SetToZeroAllElementsBelowMainDiagonal());
+                }
+            }
+        }
+
+
+
+        [Test]
+        public void TestSetIdentityMatrix()
+        {
+            foreach (int height in new[] { 1, 2, 5, 10 })
+            {
+                var a = RandomTensor(new[] { height, height});
+                TestAll(new[] { a }, tensors => tensors[0].SetIdentityMatrix());
+            }
+        }
+
+        [Test]
         public void TestMultiplyTensorDifferentShape()
         {
             var result = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });

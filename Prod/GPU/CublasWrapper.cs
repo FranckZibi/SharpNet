@@ -106,6 +106,23 @@ namespace SharpNet.GPU
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public cublasStatus_t cublasSgeam(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, ref float alpha, IntPtr A, int lda, ref float beta, IntPtr B, int ldb, IntPtr C, int ldc)
+        {
+            switch (_cudaVersion)
+            {
+                case CUDA_Versions.CUDA_10_1:
+                case CUDA_Versions.CUDA_10_2:
+                    return CublasWrapper_cublas64_10.cublasSgeam(cublasHandle, transa, transb, m, n, ref alpha, A, lda, ref beta, B, ldb, C, ldc);
+                case CUDA_Versions.CUDA_11_0:
+                case CUDA_Versions.CUDA_11_4:
+                    return CublasWrapper_cublas64_11.cublasSgeam(cublasHandle, transa, transb, m, n, ref alpha, A, lda, ref beta, B, ldb, C, ldc);
+                default:
+                    throw new ArgumentException("invalid cuda version " + _cudaVersion);
+            }
+        }
+        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc)
         {
             switch (_cudaVersion)
@@ -153,6 +170,8 @@ namespace SharpNet.GPU
         public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
         [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasSgeam(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, ref float alpha, IntPtr A, int lda, ref float beta, IntPtr B, int ldb, IntPtr C, int ldc);
     }
 
 
@@ -171,6 +190,8 @@ namespace SharpNet.GPU
         public static extern cublasStatus_t cublasSdgmm(IntPtr cublasHandle, cublasSideMode_t mode, int m, int n, IntPtr A, int lda, IntPtr x, int incx, IntPtr C, int ldc);
         [DllImport(DLL_NAME)]
         public static extern cublasStatus_t cublasGetVersion_v2(IntPtr cublasHandle, out int cublasVersion);
+        [DllImport(DLL_NAME)]
+        public static extern cublasStatus_t cublasSgeam(IntPtr cublasHandle, cublasOperation_t transa, cublasOperation_t transb, int m, int n, ref float alpha, IntPtr A, int lda, ref float beta, IntPtr B, int ldb, IntPtr C, int ldc);
     }
 
 }

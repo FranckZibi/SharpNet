@@ -4,8 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using SharpNet;
-using SharpNetTests.Data;
-using SharpNetTests.NonReg;
 
 namespace SharpNetTests
 {
@@ -68,18 +66,7 @@ namespace SharpNetTests
             Assert.AreEqual(new Version(7,6,0), Utils.NewVersion(7600));
         }
 
-        //This test is coming from: https://en.wikipedia.org/wiki/QR_decomposition
-        [TestCase("[[12,6,-4],[-51,167,24],[4,-68,-41]]", "[[0.857142866,0.428571433,-0.285714298],[-0.394285709,0.902857125,0.171428576],[-0.331428587,0.0342857353,-0.942857146]]")]
-        //This test is coming from: https://rosettacode.org/wiki/QR_decomposition#C.23
-        [TestCase("[[12,6,-4,-1,2],[-51,167,24,1,0],[4,-68,-41,0,3]]", "[[0.846414685,0.423207343,-0.282138228,-0.0705345571,0.141069114],[-0.391290814,0.904087186,0.170420542,0.0140406527,-0.0166555103],[-0.343124002,0.0292699095,-0.932856023,0.00109936972,0.105771616]]")]
-        public void TestToOrthogonalMatrix(string input, string expectedOutput)
-        {
-            var inputMatrix = TestNetworkPropagation.FromNumpyArray(input);
-            var expectedMatrix = TestNetworkPropagation.FromNumpyArray(expectedOutput);
-            Utils.ToOrthogonalMatrix(inputMatrix.AsFloatCpuSpan, inputMatrix.Shape[0], inputMatrix.MultDim0);
-            Assert.IsTrue(TestTensor.SameContent(expectedMatrix, inputMatrix, 1e-6));
-        }
-
+        
         [Test]
         public void TestNewVersionXXYY0()
         {

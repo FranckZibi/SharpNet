@@ -70,6 +70,79 @@ namespace SharpNetTests.CPU
         }
 
         [Test]
+        public void TestTranspose()
+        {
+            var src = new CpuTensor<float>(new[] { 1, 1 }, new [] { 1f });
+            var output = new CpuTensor<float>(src.Shape);
+            src.Transpose(output);
+            Assert.IsTrue(TestTensor.SameContent(src, output, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 1, 6 }, new[] { 0f, 1f, 2f, 3f, 4f, 5f });
+            output = new CpuTensor<float>(new[] { 6, 1 });
+            src.Transpose(output);
+            var expectedTranspose = new CpuTensor<float>(new[] { 6, 1 }, new[] { 0f, 1f, 2f, 3f, 4f, 5f });
+            Assert.IsTrue(TestTensor.SameContent(expectedTranspose, output, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 2, 3 }, new[] { 0f, 1f, 2f, 3f, 4f, 5f });
+            output = new CpuTensor<float>(new[] { 3, 2 });
+            src.Transpose(output);
+            expectedTranspose = new CpuTensor<float>(new[] { 3, 2 }, new[] { 0f, 3f, 1f, 4f, 2f, 5f });
+            Assert.IsTrue(TestTensor.SameContent(expectedTranspose, output, 1e-6));
+        }
+
+        [Test]
+        public void TestSetToZeroAllElementsBelowMainDiagonal()
+        {
+            var src = new CpuTensor<float>(new[] { 1, 1 }, new[] { 1f });
+            src.SetToZeroAllElementsBelowMainDiagonal();
+            var expected = new CpuTensor<float>(src.Shape, new[] { 1f });
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+
+            var data = new[] { 0.5f, 1f, 2f, 3f, 4f, 5f };
+            src = new CpuTensor<float>(new[] { 1, 6 }, (float[])data.Clone());
+            src.SetToZeroAllElementsBelowMainDiagonal();
+            expected = new CpuTensor<float>(src.Shape, (float[])data.Clone());
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 6, 1 }, (float[])data.Clone());
+            src.SetToZeroAllElementsBelowMainDiagonal();
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 0, 0, 0, 0, 0});
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 2, 3 }, (float[])data.Clone());
+            src.SetToZeroAllElementsBelowMainDiagonal();
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 1f, 2f, 0f, 4f, 5f });
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 3, 2 }, (float[])data.Clone());
+            src.SetToZeroAllElementsBelowMainDiagonal();
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 1f, 0f, 3f, 0f, 0f });
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 3, 3 }, new[] { 0.5f, 1, 2, 3, 4, 5, 6, 7, 8 });
+            src.SetToZeroAllElementsBelowMainDiagonal();
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 1, 2, 0, 4, 5, 0, 0, 8 });
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+        }
+
+        [Test]
+        public void TestSetIdentityMatrix()
+        {
+            var rand = new Random(0);
+            const double maxValue = 10.0;
+            var src = RandomFloatTensor(new []{1, 1}, rand, -maxValue, maxValue);
+            src.SetIdentityMatrix();
+            var expected = new CpuTensor<float>(src.Shape, new[] { 1f });
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+
+            src = RandomFloatTensor(new[] { 3, 3 }, rand, -maxValue, maxValue);
+            src.SetIdentityMatrix();
+            expected = new CpuTensor<float>(src.Shape, new[] { 1f,0,0,0,1,0,0,0,1 });
+            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+        }
+
+
+        [Test]
         public void TestMultiplyTensor()
         {
             var rand = new Random(0);
@@ -511,6 +584,58 @@ namespace SharpNetTests.CPU
             dwPredicted.WordEmbeddingBackwardPropagation(x, dxPredicted, dy, 1);
             TestTensor.SameContent(dwExpected, dwPredicted, 1e-6);
             TestTensor.SameContent(dxExpected, dxPredicted, 1e-6);
+        }
+
+
+
+        [Test]
+        public void TestQRFactorization()
+        {
+            //This test is coming from: https://rosettacode.org/wiki/QR_decomposition#C.23
+            var data = new[] { 12.0f, -51, 4, 6, 167, -68, -4, 24, -41, -1, 1, 0, 2, 0, 3 };
+            // the A matrix (in row major order) of shape (m, n) (with m>=n)
+            var A = new CpuTensor<float>(new[] { 5, 3}, data);
+            //A = new CpuTensor<float>(new[] { 250, 10 });
+            //RandomFloatTensor(A.Shape, new Random(0), -1, 1).CopyTo(A);
+
+            int m = A.Shape[0];
+            int n = A.Shape[1];
+            // the orthogonal 'Q' matrix of shape (m, n)
+            var Q = new CpuTensor<float>(new[] { m, n }, null);
+            // the upper triangular matrix 'R' of shape (n, n)
+            var R = new CpuTensor<float>(new[] { n, n }, null);
+            var floatBuffer = new CpuTensor<float>(new[] { A.QRFactorization_FloatBufferLength() }, null);
+            A.QRFactorization(Q, R, floatBuffer);
+
+            //var sw = System.Diagnostics.Stopwatch.StartNew();
+            //int count = 1000;
+            //for (int i = 0; i < count; ++i)
+            //{
+            //    A.QRFactorization(Q, R, floatBuffer);
+            //}
+            //Console.WriteLine("took " + (sw.Elapsed.TotalMilliseconds / count) + "ms");
+            //return;
+
+            var a_clone = A.Clone();
+            a_clone.Dot(Q, R);
+            Assert.IsTrue(TestTensor.SameContent(a_clone, A, 1e-4));
+        }
+
+
+        //This test is coming from: https://en.wikipedia.org/wiki/QR_decomposition
+        [TestCase("[[12,-51,4],[6,167,-68],[-4,24,-41]]", "[[0.857142866,-0.394285709,-0.331428587],[0.428571433,0.902857125,0.0342857353],[-0.285714298,0.171428576,-0.942857146]]")]
+        //This test is coming from: https://rosettacode.org/wiki/QR_decomposition#C.23
+        [TestCase("[[12,-51,4],[6,167,-68],[-4,24,-41],[-1,1,0],[2,0,3]]", " [[0.846414685,-0.391290814,-0.343124002],[0.423207343,0.904087186,0.0292699095],[-0.282138228,0.170420542,-0.932856023],[-0.0705345571,0.0140406527,0.00109936972],[0.141069114,-0.0166555103,0.105771616]]")]
+        public void TestQ_Factorization(string input, string expectedOutput)
+        {
+            var A = TestNetworkPropagation.FromNumpyArray(input);
+            var expected_Q = TestNetworkPropagation.FromNumpyArray(expectedOutput);
+            var observed_Q = A.Clone();
+            A.Q_Factorization(observed_Q);
+            Assert.IsTrue(TestTensor.SameContent(expected_Q, observed_Q, 1e-6), observed_Q.ToNumpy());
+            A.Q_Factorization();
+            Assert.IsTrue(TestTensor.SameContent(expected_Q, A, 1e-6), A.ToNumpy());
+
         }
 
         public static CpuTensor<float> RandomFloatTensor(int[] shape, Random rand, double minValue, double maxValue)

@@ -589,7 +589,8 @@ namespace SharpNet.GPU
         {
             var array = new float[Count];
             Utils.NormalDistribution(array, rand, 0, 1);
-            Utils.ToOrthogonalMatrix(array, Shape[0], MultDim0);
+            var Q = new CpuTensor<float>(new[] { Shape[0], MultDim0 }, array);
+            Q.Q_Factorization();
             InitializeFromHostMemory(array as T[]);
         }
 
@@ -856,7 +857,119 @@ namespace SharpNet.GPU
 
             GPUWrapper.CheckStatus(res);
         }
-        
+
+        public override void SetIdentityMatrix()
+        {
+            Debug.Assert(Shape.Length == 2);
+            Debug.Assert(Shape[0] == Shape[1]);
+            int nbRows = Shape[0];
+            ZeroMemory();
+            _wrapper.RunKernel("Set1InMainDiagonal", nbRows, new object[] { nbRows, this });
+        }
+
+
+        public override void SetToZeroAllElementsBelowMainDiagonal()
+        {
+            Debug.Assert(Shape.Length == 2);
+            int nbRows = Shape[0];
+            int nbColumns = Shape[1];
+            _wrapper.RunKernel("SetToZeroAllElementsBelowMainDiagonal", nbRows, new object[] { nbColumns , this });
+        }
+
+        public override void Transpose(Tensor transposed)
+        {
+            AssertIsNotDisposed();
+            transposed.AssertIsNotDisposed();
+            Debug.Assert(AreCompatible(new List<Tensor> { this, transposed }));
+            Debug.Assert(Dimension == 2);
+            Debug.Assert(transposed.Dimension == Dimension);
+            Debug.Assert(transposed.Shape[0] == Shape[1]);
+            Debug.Assert(transposed.Shape[1] == Shape[0]);
+
+            // because cublas is column major:
+            //  (*) the 'this' tensor (=A) is seen (from cublas) as a matrix of shape (Shape[1], Shape[0]) = (lda, M)
+            //      =>  lda = Shape[1]
+            //          M = Shape[0]
+            //  (*) the transpose of the 'this' tensor (=C) is seen as a matrix of shape (Shape[0], Shape[1]) = (M, N) = (ldc, N)
+            //          ldc = M = Shape[0]
+            //          N = Shape[1]
+            //  (*) B is a matrix of same dimension as transposed matrix = (ldb, N) = (M, N) = (ldc, N)
+            //          ldb = M = ldc = Shape[0]
+
+            int M = Shape[0];
+            int N = Shape[1];
+            int lda = N;
+            int ldc = M;
+            int ldb = ldc;
+            float alpha = 1f;
+            float beta = 0f;
+
+            var res = CublasWrapper.cublasSgeam(CublasHandle, cublasOperation_t.CUBLAS_OP_T, cublasOperation_t.CUBLAS_OP_N, M, N, ref alpha, this, lda, ref beta, IntPtr.Zero, ldb, transposed, ldc);
+            GPUWrapper.CheckStatus(res);
+        }
+
+
+        public override int QRFactorization_FloatBufferLength()
+        {
+            int m = Shape[0];
+            int n = Shape[1];
+            int lda = m;
+            int k = m; //TO CHECK
+
+            // we compute the workSpace size needed for the computation
+            var res = CusolverWrapper.cusolverDnSgetrf_bufferSize(_wrapper.CusolverDnHandle, m, n, this, lda, out var workSpaceLength_geqrf);
+            GPUWrapper.CheckStatus(res);
+            res = CusolverWrapper.cusolverDnSormqr_bufferSize(_wrapper.CusolverDnHandle, cublasSideMode_t.CUBLAS_SIDE_LEFT, cublasOperation_t.CUBLAS_OP_T, m, n, k, this, lda, this /*TAU*/, this /*Q*/, m, out var workSpaceLength_ormqr);
+            GPUWrapper.CheckStatus(res);
+
+            var A_columnMajorLength = m*n;
+            var tauLength = m;
+            const int devInfoIntLength = 1;
+            var workSpaceLength = Math.Max(workSpaceLength_ormqr, workSpaceLength_geqrf);
+            return A_columnMajorLength
+                   + tauLength
+                   + devInfoIntLength
+                   + workSpaceLength;
+        }
+
+
+        /// <summary>
+        /// 'this' : a matrix of shape (rows, cols) with rows >= cols
+        /// </summary>
+        /// <param name="Q">an orthogonal matrix of shape (rows, rows)</param>
+        /// <param name="R">a diagonal matrix of shape (rows, col)</param>
+        /// <param name="buffer"></param>
+        public override void QRFactorization(Tensor Q, Tensor R, Tensor buffer)
+        {
+            var A = this;
+            int m = A.Shape[0];
+            int n = A.Shape[1];
+            Debug.Assert(m >= n);
+            int lda = m;
+            int k = m; //TO CHECK
+
+            var A_columnMajor = new GPUTensor<float>(new []{n, m}, buffer.Pointer, _wrapper);
+            var A_columnMajorLength = m * n;
+            var tauLength = m;
+            const int devInfoIntLength = 1;
+            var workSpaceLength = buffer.Count- A_columnMajorLength- tauLength- devInfoIntLength;
+            var TAU = buffer.Pointer + A_columnMajorLength * sizeof(float);
+            var devInfoInt = TAU + tauLength * sizeof(float);
+            var workSpace = devInfoInt + devInfoIntLength * sizeof(float); ;
+
+            // we compute 'R' matrix using geqrf method (around 25% of GPU Time)
+            A.Transpose(A_columnMajor);
+            var res = CusolverWrapper.cusolverDnSgeqrf(CusolverDnHandle, m, n, A_columnMajor, lda, TAU, workSpace, workSpaceLength, devInfoInt);
+            GPUWrapper.CheckStatus(res);
+            A_columnMajor.Transpose(R);
+            R.SetToZeroAllElementsBelowMainDiagonal();
+
+            // we compute 'Q' matrix using ormqr method (around 75% of GPU Time)
+            Q.SetIdentityMatrix();
+            res = CusolverWrapper.cusolverDnSormqr(CusolverDnHandle, cublasSideMode_t.CUBLAS_SIDE_LEFT, cublasOperation_t.CUBLAS_OP_T, m, m, k, A_columnMajor, lda, TAU, Q, m, workSpace, workSpaceLength, devInfoInt);
+            GPUWrapper.CheckStatus(res);
+        }
+
         public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
             AddTensor(alpha, x, 1);
@@ -1145,6 +1258,7 @@ namespace SharpNet.GPU
         private cudnnDataType_t CudaType { get; } = cudnnDataType_t.CUDNN_DATA_FLOAT;
         private cudnnHandle_t CudnnHandle => _wrapper.CudnnHandle;
         private IntPtr CublasHandle => _wrapper.CudaBlasHandle;
+        private cusolverDnHandle_t CusolverDnHandle => _wrapper.CusolverDnHandle;
         private CudartWrapper CudartWrapper => _wrapper.CudartWrapper;
         //private CudnnWrapper CudnnWrapper => _wrapper.CudnnWrapper;
         private CublasWrapper CublasWrapper => _wrapper.CublasWrapper;
