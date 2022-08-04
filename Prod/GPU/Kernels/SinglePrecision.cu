@@ -46,36 +46,7 @@
 		}
 	}
 
-	__global__ void ComputeMae(int N, int nbCols, float* mae, const float* __restrict yExpected, const float* __restrict yPredicted)
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			int startIndex = i * nbCols;
-			int endIndexExcluded = startIndex + nbCols;
-			mae[i] = 0;
-			for (int j = i * nbCols; j < endIndexExcluded; ++j)
-			{
-				mae[i] += fabsf(yPredicted[j] - yExpected[j]);
-			}
-			mae[i] /= nbCols;
-		}
-	}
 
-	__global__ void ComputeMse(int N, int nbCols, float* mse, const float* __restrict yExpected, const float* __restrict yPredicted)
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			int startIndex = i * nbCols;
-			int endIndexExcluded = startIndex + nbCols;
-			mse[i] = 0;
-			for (int j = i * nbCols; j < endIndexExcluded; ++j)
-			{
-				float diff = yPredicted[j] - yExpected[j];
-				mse[i] += diff*diff;
-			}
-			mse[i] /= nbCols;
-		}
-	}
 
 	__device__  bool IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(const float* __restrict expected, const float* __restrict predicted, int endIndexExcluded, int *pNexIndexToCheck, int subCategoriesCount)
 	{
@@ -640,6 +611,53 @@
 		}
 	}
 
+	__global__ void CosineSimilarityLoss(int timeSeriesLength, int yExpectedLength, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int day = blockIdx.x * blockDim.x + threadIdx.x;
+		if (day < timeSeriesLength) {
+			float top = 0.0f;
+            float expectedSquares = 0.0f;
+            float predictedSquares = 0.0f;
+            for (int t = day; t < yExpectedLength; t+= timeSeriesLength)
+            {
+                float pred = yPredicted[t];
+                float exp = yExpected[t];
+                top += pred * exp;
+                expectedSquares += exp * exp;
+                predictedSquares += pred * pred;
+            }
+            float l2_norm_expected = sqrtf(expectedSquares);
+            float l2_norm_predicted = sqrtf(predictedSquares);
+            losses[day] = top / (l2_norm_expected * l2_norm_predicted);
+		}
+	}
+
+	__global__ void CosineSimilarityGradient(int timeSeriesLength, int yExpectedLength, float* cosineSimilarityGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int day = blockIdx.x * blockDim.x + threadIdx.x;
+		if (day < timeSeriesLength) {
+			double top = 0.0;
+            double expectedSquares = 0.0;
+            double predictedSquares = 0.0;
+            for (int t = day; t < yExpectedLength; t+= timeSeriesLength)
+            {
+                double pred = yPredicted[t];
+                double exp = yExpected[t];
+                top += pred * exp;
+                expectedSquares += exp * exp;
+                predictedSquares += pred * pred;
+            }
+            double l2_norm_expected = sqrt(expectedSquares);
+            double l2_norm_predicted = sqrt(predictedSquares);
+            double multiplier1 = 1.0/(l2_norm_expected * l2_norm_predicted);
+            double mutliplier2 = (-top)/(l2_norm_predicted* l2_norm_predicted * l2_norm_predicted * l2_norm_expected);
+            for (int t = day; t < yExpectedLength; t += timeSeriesLength)
+            {
+                cosineSimilarityGradient[t] = - (float)(multiplier1*yExpected[t] + mutliplier2*yPredicted[t]);
+            }
+		}
+	}
+
 	__global__ void MseGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -653,7 +671,6 @@
 			}
 		}
 	}
-
 
 	__global__ void MseOfLogLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted, float epsilon)
 	{

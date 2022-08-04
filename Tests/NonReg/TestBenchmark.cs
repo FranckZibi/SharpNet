@@ -277,7 +277,7 @@ namespace SharpNetTests.NonReg
         {
             var mnist = new MnistDataset();
             const double learningRate = 0.01;
-            var network = new Network(
+            var network = Network.NewForTests(
                 new NetworkConfig()
                 {
                     ModelName = "GPUBenchmark",

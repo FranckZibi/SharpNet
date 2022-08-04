@@ -48,9 +48,9 @@ public abstract class AbstractModel : IModel
         {
             return float.NaN;
         }
-        using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
         var metricEnum = ModelSample.GetMetric();
         var lossFunctionEnum = ModelSample.GetLoss();
+        using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(metricEnum));
         return (float)y_true.ComputeMetric(y_pred, metricEnum, lossFunctionEnum, buffer);
     }
     public bool NewScoreIsBetterTheReferenceScore(float newScore, float referenceScore)
@@ -59,6 +59,7 @@ public abstract class AbstractModel : IModel
         switch (metricEnum)
         {
             case MetricEnum.Accuracy:
+            case MetricEnum.CosineSimilarity504:
                 return newScore > referenceScore; // highest is better
             case MetricEnum.Loss:
             case MetricEnum.Mae:

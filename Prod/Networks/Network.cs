@@ -41,22 +41,28 @@ namespace SharpNet.Networks
         public GPUWrapper GpuWrapper { get; }
         #endregion
 
-        public Network(NetworkConfig config, DataAugmentationSample da) : this(new NetworkSample(new ISample[]{config, da}))
+        /// <summary>
+        /// used for tests only
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="da"></param>
+        /// <returns></returns>
+        public static Network NewForTests(NetworkConfig config, DataAugmentationSample da)
         {
-        }
-
-        public Network(NetworkSample modelSample, string workingDirectory, string modelName) : base(modelSample, workingDirectory, modelName)
-        {
+            var modelSample = new NetworkSample(new ISample[] { config, da });
+            return new Network(modelSample, config.WorkingDirectory, config.ModelName);
         }
 
         /// <param name="modelSample"></param>
+        /// <param name="modelName"></param>
         /// <param name="masterNetworkIfAny">
         ///     if the current network is a slave network doing computation for its master network:
         ///         the reference of the master network
         ///     else:
         ///         null
         /// </param>
-        public Network(NetworkSample modelSample, Network masterNetworkIfAny = null) : this(modelSample, modelSample.Config.WorkingDirectory, modelSample.Config.ModelName)
+        /// <param name="workingDirectory"></param>
+        public Network(NetworkSample modelSample, string workingDirectory, string modelName, Network masterNetworkIfAny = null) : base(modelSample, workingDirectory, modelName)
         {
             //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
             Utils.ConfigureThreadLog4netProperties(modelSample.Config.WorkingDirectory, Config.ModelName);
@@ -70,10 +76,11 @@ namespace SharpNet.Networks
             CreateWorkingDirectoryIfNeeded();
             MemoryPool = new TensorMemoryPool(GpuWrapper);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-            if (IsMaster && Config.ResourceIds.Count>=2)
+            modelSample.BuildNetwork(this);
+            if (IsMaster && Config.ResourceIds.Count >= 2)
             {
                 //we create the slave networks
-                foreach(var slaveResourceId in Config.ResourceIds.Skip(1))
+                foreach (var slaveResourceId in Config.ResourceIds.Skip(1))
                 {
                     LogDebug("starting thread for network running on deviceId " + slaveResourceId);
                     new Thread(() => SlaveThread(this, slaveResourceId)).Start();
@@ -239,11 +246,18 @@ namespace SharpNet.Networks
 
         public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
         {
+            return Dense(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, Config.OptimizerType, layerName);
+        }
+
+        public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, Optimizer.OptimizationEnum optimizerType, string layerName = "")
+        {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
+            var fullyConnectedLayer = new DenseLayer(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, optimizerType, true, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
+
+
         // ReSharper disable once UnusedMethodReturnValue.Global
         public Network Linear(float slope, float intercept, string layerName = "")
         {
@@ -781,10 +795,9 @@ namespace SharpNet.Networks
             var result = new Dictionary<MetricEnum, double>();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
             yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
-            var batchSize = yExpected.Shape[0];
-            MemoryPool.GetFloatTensor(ref _buffer, new[] { batchSize });
             foreach (var metric in Config.Metrics)
             {
+                MemoryPool.GetFloatTensor(ref _buffer, yExpected.ComputeMetricBufferShape(metric));
                 result[metric] = yExpected.ComputeMetric(yPredicted, metric, Config.LossFunction, _buffer);
             }
             _swComputeMetrics?.Stop();
@@ -898,7 +911,8 @@ namespace SharpNet.Networks
             // Length of the tensors used to store the expected (_yExpectedForEpoch) & predicted values (_yPredictedForEpoch)
             // Those tensors contains an extra buffer of 'miniBatchSizeForAllWorkers-1' elements at the end
             // to make sure we can always split the dataSet in batch of exactly 'miniBatchSizeForAllWorkers' elements
-            int dataSetCountWithExtraBufferAtEnd = dataSet.Count + miniBatchSizeForAllWorkers - 1;
+            int multiplier = (dataSet.Count + miniBatchSizeForAllWorkers - 1) / miniBatchSizeForAllWorkers;
+            int dataSetCountWithExtraBufferAtEnd = miniBatchSizeForAllWorkers* multiplier;
             var YShapeAsMultipleOfMiniBatchSize = dataSet.YMiniBatch_Shape(dataSetCountWithExtraBufferAtEnd);
             MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, YShapeAsMultipleOfMiniBatchSize);
             MemoryPool.GetFloatTensor(ref _yExpectedForEpoch, YShapeAsMultipleOfMiniBatchSize);
@@ -912,7 +926,14 @@ namespace SharpNet.Networks
 
             if ( (epoch >= 2||dataSet is ITimeSeriesDataSet) && Config.RandomizeOrder && isTraining)
             {
-                Utils.Shuffle(shuffledElementId, Rand);
+                if (Config.RandomizeOrderBlockSize <= 1)
+                {
+                    Utils.Shuffle(shuffledElementId, Rand);
+                }
+                else
+                {
+                    Utils.Shuffle(shuffledElementId, Rand, Config.RandomizeOrderBlockSize);
+                }
             }
 
             //we ensure that all slaves are on Idle state

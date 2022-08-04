@@ -39,6 +39,8 @@ namespace SharpNet.Networks
         public double lambdaL2Regularization;
         public bool SGD_usenesterov;
         public bool RandomizeOrder = true;
+        //when RandomizeOrder is true, consider that the dataset is built from block of 'RandomizeOrderBlockSize' element (that must be kept in same order)
+        public int RandomizeOrderBlockSize = 1;
         public Optimizer.OptimizationEnum OptimizerType = Optimizer.OptimizationEnum.VanillaSGD;
         #endregion
 

@@ -71,7 +71,7 @@ namespace SharpNet.Layers
         #endregion
 
         #region constructor
-        public DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, Optimizer.OptimizationEnum optimizerType, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension;
             Units = units;
@@ -86,9 +86,15 @@ namespace SharpNet.Layers
             _weightGradients = GetFloatTensor(_weights.Shape);
             _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
 
-            _optimizer = GetOptimizer(_weights.Shape, _bias?.Shape);
+            _optimizer = GetOptimizer(optimizerType, _weights.Shape, _bias?.Shape);
             ResetParameters(false);
         }
+
+        private DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) 
+            : this(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, network.Config.OptimizerType, trainable, network, layerName)
+        {
+        }
+
         #endregion
 
         private int[] WeightShape
@@ -130,6 +136,7 @@ namespace SharpNet.Layers
             {
                 multiplier = 1f; //used only for tests and parallel run
             }
+
             _weightGradients.Dot(xAs2DMatrix, true, dyAs2DMatrix, false, multiplier, 0);
 
             //L2 regularization on dW
@@ -145,7 +152,7 @@ namespace SharpNet.Layers
                 dyAs2DMatrix.Compute_BiasGradient_from_dy(_biasGradients);
             }
 
-            //no need to compute dx (= PrevLayer.dy) if previous Layer it is the input layer
+            //no need to compute dx (= PrevLayer.dy) if previous Layer is the input layer
             if (PrevLayer.IsInputLayer)
             {
                 return;
@@ -213,6 +220,11 @@ namespace SharpNet.Layers
         {
             //trainable params
             _weights.NormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+            if (_optimizer.IsOrthogonal)
+            {
+                _weights.Orthogonal(Rand);
+            }
+
             _bias?.ZeroMemory();
 
             if (resetAlsoOptimizerWeights)

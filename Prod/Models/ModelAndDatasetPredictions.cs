@@ -125,11 +125,11 @@ public class ModelAndDatasetPredictions
     {
         var start = Stopwatch.StartNew();
 
-        var predictionsInTargetFormat = Predict(dataset);
-        var true_predictionsInTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(dataset.Y);
-        var score = DatasetSample.ComputeScore(true_predictionsInTargetFormat, predictionsInTargetFormat);
+        var y_pred_InTargetFormat = Predict(dataset);
+        var y_true_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(dataset.Y);
+        var score = DatasetSample.ComputeScore(y_true_InTargetFormat, y_pred_InTargetFormat);
         ISample.Log.Debug($"{nameof(ComputePredictionsAndScore)} took {start.Elapsed.TotalSeconds}s");
-        return (predictionsInTargetFormat, score);
+        return (y_pred_InTargetFormat, score);
     }
     private (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) 
         SavePredictionsInTargetFormat(IDataSet trainDataset, IDataSet validationDatasetIfAny)

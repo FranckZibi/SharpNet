@@ -1157,7 +1157,7 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(LossFunctionEnum lossFunction, List<int> resourceIds)
         {
-            return new Network(
+            return Network.NewForTests(
                 new NetworkConfig{ 
                     LossFunction = lossFunction, 
                     RandomizeOrder = false, 

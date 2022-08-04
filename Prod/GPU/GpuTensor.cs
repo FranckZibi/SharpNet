@@ -585,15 +585,6 @@ namespace SharpNet.GPU
             InitializeFromHostMemory(array as T[]);
         }
 
-        public override void Orthogonal(Random rand)
-        {
-            var array = new float[Count];
-            Utils.NormalDistribution(array, rand, 0, 1);
-            var Q = new CpuTensor<float>(new[] { Shape[0], MultDim0 }, array);
-            Q.Q_Factorization();
-            InitializeFromHostMemory(array as T[]);
-        }
-
         public override void SetValue(float sameValue)
         {
             var array = new float[Count];
@@ -616,6 +607,41 @@ namespace SharpNet.GPU
             return cloned;
         }
 
+        #region Compute of Loss and Metrics
+
+        /// <summary>
+        /// this = yExpectedOneHot
+        /// </summary>
+        /// <param name="yPredicted"></param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
+        public override double ComputeLoss([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
+        {
+            var yExpected = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
+            Debug.Assert(yPredicted.SameShape(yExpected));
+            Debug.Assert(yExpected.Dimension >= 2);
+            var kernelName = lossFunction + "Loss";
+            int nbRows = yExpected.Shape[0];
+            var categoryCount = yExpected.MultDim0;
+            if (lossFunction == LossFunctionEnum.Huber)
+            {
+                const float huberDelta = 1.0f;
+                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });
+            }
+            else if (lossFunction == LossFunctionEnum.CosineSimilarity504)
+            {
+                Debug.Assert(yPredicted.Count % CosineSimilarity504_TimeSeries_Length == 0);
+                buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
+            }
+            else
+            {
+                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpected, yPredicted });
+            }
+
+            return buffer.ContentAsFloatArray().Average();
+        }
 
         /// <summary>
         /// this = yExpectedOneHot
@@ -640,38 +666,22 @@ namespace SharpNet.GPU
             _wrapper.RunKernel(kernelName, nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
             return buffer.ContentAsFloatArray().Average();
         }
-
-        public override double ComputeMae(Tensor yPredicted, Tensor buffer)
+      
+        public override void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
         {
-            return ComputeMetric(yPredicted, buffer, "ComputeMae");
-        }
-
-        public override double ComputeMse(Tensor yPredicted, Tensor buffer)
-        {
-            return ComputeMetric(yPredicted, buffer, "ComputeMse");
-        }
-
-        private double ComputeMetric([NotNull] Tensor yPredicted, [NotNull] Tensor buffer, string kernelName)
-        {
-            var yExpected = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
-            Debug.Assert(buffer.Shape.Length == 1);
-            Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
+            var mseLoss = this;
+            int batchSize = yExpected.Shape[0];
+            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            Debug.Assert(yExpected.Dimension >= 2);
-            int nbRows = yExpected.Shape[0];
-            var nbCols = yExpected.MultDim0;
-            _wrapper.RunKernel(kernelName, nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
-            return buffer.ContentAsFloatArray().Average();
+            _wrapper.RunKernel("MseOfLogLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted, epsilon });
         }
 
-        public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted)
+        public override void CosineSimilarityLoss(Tensor yExpected, Tensor yPredicted, int timeSeriesLength)
         {
-            var loss = this;
-            int nbRows = yExpected.Shape[0];
-            var nbCols = yExpected.Shape[1];
-            loss.ZeroMemory();
-            _wrapper.RunKernel("CategoricalCrossentropyWithHierarchyGradient", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
+            var cosineSimilarityLoss = this;
+            Debug.Assert(cosineSimilarityLoss.SameShape(new[] { timeSeriesLength }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            _wrapper.RunKernel("CosineSimilarityLoss", timeSeriesLength, new object[] { yExpected.Count, cosineSimilarityLoss, yExpected, yPredicted });
         }
 
         public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
@@ -683,6 +693,26 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("HuberLoss", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
         }
 
+        #endregion
+
+        #region Compute of Gradients (for backward propagation)
+        public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var loss = this;
+            int nbRows = yExpected.Shape[0];
+            var nbCols = yExpected.Shape[1];
+            loss.ZeroMemory();
+            _wrapper.RunKernel("CategoricalCrossentropyWithHierarchyGradient", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
+        }
+
+        public override void CosineSimilarityGradient(Tensor yExpected, Tensor yPredicted, int timeSeriesLength)
+        {
+            var cosineSimilarityGradient = this;
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(cosineSimilarityGradient.SameShape(yPredicted));
+            _wrapper.RunKernel("CosineSimilarityGradient", timeSeriesLength, new object[] { yExpected.Count, cosineSimilarityGradient, yExpected, yPredicted });
+        }
+
         public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var huberGradient = this;
@@ -690,29 +720,11 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("HuberGradient", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberGradient, yExpected, yPredicted });
         }
 
-        public override void MseLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            var mseLoss = this;
-            int batchSize = yExpected.Shape[0];
-            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
-            Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("MseLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted });
-        }
-
         public override void MseGradient(Tensor yExpected, Tensor yPredicted)
         {
             var mseGradient = this;
             int batchSize = yExpected.Shape[0];
             _wrapper.RunKernel("MseGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
-        }
-
-        public override void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
-        {
-            var mseLoss = this;
-            int batchSize = yExpected.Shape[0];
-            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
-            Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("MseOfLogLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted, epsilon });
         }
 
         public override void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon)
@@ -728,44 +740,9 @@ namespace SharpNet.GPU
             int batchSize = yExpected.Shape[0];
             _wrapper.RunKernel("MaeGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
         }
+        #endregion
 
-        public override void MaeLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            var mseLoss = this;
-            int batchSize = yExpected.Shape[0];
-            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
-            Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("MaeLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted });
-        }
 
-        /// <summary>
-        /// this = yExpectedOneHot
-        /// </summary>
-        /// <param name="yPredicted"></param>
-        /// <param name="lossFunction"></param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        public override double ComputeLoss([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
-        {
-            var yExpected = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
-            Debug.Assert(yPredicted.SameShape(yExpected));
-            Debug.Assert(yExpected.Dimension >= 2);
-            var kernelName = lossFunction + "Loss";
-            int nbRows = yExpected.Shape[0];
-            var categoryCount = yExpected.Shape[1];
-            if (lossFunction == LossFunctionEnum.Huber)
-            {
-                const float huberDelta = 1.0f;
-                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });
-            }
-            else
-            {
-                _wrapper.RunKernel(kernelName, nbRows, new object[] {categoryCount, buffer, yExpected, yPredicted});
-            }
-
-            return buffer.ContentAsFloatArray().Average();
-        }
         public override void DropoutForward(Tensor y, double dropoutRate, bool isTraining, Random dropoutRandom, [NotNull] Tensor dropoutReservedSpaceForTraining) 
         {
             var x = this;
@@ -909,36 +886,14 @@ namespace SharpNet.GPU
         }
 
 
-        public override int QRFactorization_FloatBufferLength()
+        public override void Orthogonal(Random rand)
         {
-            int m = Shape[0];
-            int n = Shape[1];
-            int lda = m;
-            int k = m; //TO CHECK
-
-            // we compute the workSpace size needed for the computation
-            var res = CusolverWrapper.cusolverDnSgetrf_bufferSize(_wrapper.CusolverDnHandle, m, n, this, lda, out var workSpaceLength_geqrf);
-            GPUWrapper.CheckStatus(res);
-            res = CusolverWrapper.cusolverDnSormqr_bufferSize(_wrapper.CusolverDnHandle, cublasSideMode_t.CUBLAS_SIDE_LEFT, cublasOperation_t.CUBLAS_OP_T, m, n, k, this, lda, this /*TAU*/, this /*Q*/, m, out var workSpaceLength_ormqr);
-            GPUWrapper.CheckStatus(res);
-
-            var A_columnMajorLength = m*n;
-            var tauLength = m;
-            const int devInfoIntLength = 1;
-            var workSpaceLength = Math.Max(workSpaceLength_ormqr, workSpaceLength_geqrf);
-            return A_columnMajorLength
-                   + tauLength
-                   + devInfoIntLength
-                   + workSpaceLength;
+            var array = new float[Count];
+            Utils.NormalDistribution(array, rand, 0, 1);
+            var Q = new CpuTensor<float>(new[] { Shape[0], MultDim0 }, array);
+            Q.Q_Factorization();
+            InitializeFromHostMemory(array as T[]);
         }
-
-
-        /// <summary>
-        /// 'this' : a matrix of shape (rows, cols) with rows >= cols
-        /// </summary>
-        /// <param name="Q">an orthogonal matrix of shape (rows, rows)</param>
-        /// <param name="R">a diagonal matrix of shape (rows, col)</param>
-        /// <param name="buffer"></param>
         public override void QRFactorization(Tensor Q, Tensor R, Tensor buffer)
         {
             var A = this;
@@ -946,29 +901,55 @@ namespace SharpNet.GPU
             int n = A.Shape[1];
             Debug.Assert(m >= n);
             int lda = m;
-            int k = m; //TO CHECK
+            int k = n;
 
-            var A_columnMajor = new GPUTensor<float>(new []{n, m}, buffer.Pointer, _wrapper);
-            var A_columnMajorLength = m * n;
-            var tauLength = m;
+            var A_columnMajor = new GPUTensor<float>(new[] { n, m }, buffer.Pointer, _wrapper);
+            var A_columnMajorLength = n * m;
+            var tauLength = k;
             const int devInfoIntLength = 1;
-            var workSpaceLength = buffer.Count- A_columnMajorLength- tauLength- devInfoIntLength;
+            var workSpaceLength = buffer.Count - A_columnMajorLength - tauLength - devInfoIntLength;
             var TAU = buffer.Pointer + A_columnMajorLength * sizeof(float);
             var devInfoInt = TAU + tauLength * sizeof(float);
             var workSpace = devInfoInt + devInfoIntLength * sizeof(float); ;
 
-            // we compute 'R' matrix using geqrf method (around 25% of GPU Time)
+            // 1st step involving geqrf method
             A.Transpose(A_columnMajor);
             var res = CusolverWrapper.cusolverDnSgeqrf(CusolverDnHandle, m, n, A_columnMajor, lda, TAU, workSpace, workSpaceLength, devInfoInt);
             GPUWrapper.CheckStatus(res);
-            A_columnMajor.Transpose(R);
-            R.SetToZeroAllElementsBelowMainDiagonal();
 
-            // we compute 'Q' matrix using ormqr method (around 75% of GPU Time)
-            Q.SetIdentityMatrix();
-            res = CusolverWrapper.cusolverDnSormqr(CusolverDnHandle, cublasSideMode_t.CUBLAS_SIDE_LEFT, cublasOperation_t.CUBLAS_OP_T, m, m, k, A_columnMajor, lda, TAU, Q, m, workSpace, workSpaceLength, devInfoInt);
+            // 2nd step involving orgqr method
+            res = CusolverWrapper.cusolverDnSorgqr(CusolverDnHandle, m, n, k, A_columnMajor, lda, TAU, workSpace, workSpaceLength, devInfoInt);
             GPUWrapper.CheckStatus(res);
+            // we compute 'Q' matrix (of shape (m, n))
+            A_columnMajor.Transpose(Q);
+
+            // we compute 'R' matrix (of shape (n, n))
+            R.Dot(Q, true, this, false, 1.0f, 0.0f);
         }
+        public override int QRFactorization_FloatBufferLength()
+        {
+            int m = Shape[0];
+            int n = Shape[1];
+            int lda = m;
+            int k = n;
+
+            // we compute the workSpace size needed for the computation
+            var res = CusolverWrapper.cusolverDnSgetrf_bufferSize(_wrapper.CusolverDnHandle, m, n, this, lda, out var workSpaceLength_geqrf);
+            GPUWrapper.CheckStatus(res);
+            //res = CusolverWrapper.cusolverDnSormqr_bufferSize(_wrapper.CusolverDnHandle, cublasSideMode_t.CUBLAS_SIDE_LEFT, cublasOperation_t.CUBLAS_OP_T, m, n, k, this, lda, this /*TAU*/, this /*Q*/, m, out var workSpaceLength_ormqr);
+            res = CusolverWrapper.cusolverDnSorgqr_bufferSize(_wrapper.CusolverDnHandle, m, n, k, this /* A */, lda, IntPtr.Zero, out var workSpaceLength_orgqr);
+            GPUWrapper.CheckStatus(res);
+
+            var A_columnMajorLength = n * m;
+            var tauLength = k;
+            const int devInfoIntLength = 1;
+            var workSpaceLength = Math.Max(workSpaceLength_orgqr, workSpaceLength_geqrf);
+            return A_columnMajorLength
+                   + tauLength
+                   + devInfoIntLength
+                   + workSpaceLength;
+        }
+
 
         public override void Update_Adding_Alpha_X(float alpha, Tensor x)
         {
@@ -1038,7 +1019,6 @@ namespace SharpNet.GPU
             int nbColumns_in_a_and_b = a.Count / nbRows;
             _wrapper.RunKernel("MultiplyEachRowIntoSingleValue", nbRows, new object[] { nbColumns_in_a_and_b, this, a, b });
         }
-
         public override void Clip(float lower, float upper)
         {
             Debug.Assert(upper>=lower);
@@ -1116,7 +1096,6 @@ namespace SharpNet.GPU
             //var res = CublasWrapper.cublasScopy_v2(CublasHandle, elementCount, srcPointer, 1, destPointer, 1);
             GPUWrapper.CheckStatus(res);
         }
-
         public override void YOLOV3Forward(Tensor x, int inputImageHeight, int inputImageWidth, int[] anchors)
         {
             var y = this;
@@ -1131,7 +1110,6 @@ namespace SharpNet.GPU
             int predictionLength = x.Shape[1] / nbAnchors;
             _wrapper.RunKernel("YOLOV3Forward", x.Count/predictionLength, new object[] { y, x, x.Shape[1], x.Shape[2], x.Shape[3], inputImageHeight, inputImageWidth, anchors[0], anchors[1], anchors[2], anchors[3], anchors[4], anchors[5] });
         }
-
         public override Tensor Slice(int startIndex, int[] sliceShape)
         {
             return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);

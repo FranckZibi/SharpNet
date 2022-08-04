@@ -97,6 +97,29 @@ namespace SharpNet.GPU
             int Lwork,
             IntPtr devInfo);
 
+        [DllImport(DLL_NAME)]
+        public static extern cusolverStatus_t cusolverDnSorgqr_bufferSize(
+            cusolverDnHandle_t handle,
+            int m,
+            int n,
+            int k,
+            IntPtr A,
+            int lda,
+            IntPtr tau,
+            out int lwork);
+
+        [DllImport(DLL_NAME)]
+        public static extern cusolverStatus_t cusolverDnSorgqr(
+                cusolverDnHandle_t handle,
+                int m,
+                int n,
+                int k,
+                IntPtr A,
+                int lda,
+                IntPtr tau,
+                IntPtr workSpace,
+                int lwork,
+                IntPtr devInfo);
 
         [DllImport(DLL_NAME)]
         public static extern cusolverStatus_t cusolverDnSormqr_bufferSize(

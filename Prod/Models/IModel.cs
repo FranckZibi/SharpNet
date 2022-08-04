@@ -43,6 +43,8 @@ public interface IModel
         }
         if (sample is NetworkSample networkSample)
         {
+            networkSample.Config.WorkingDirectory = workingDirectory;
+            networkSample.Config.ModelName = modelName;
             return new Network(networkSample, workingDirectory, modelName);
         }
         throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");

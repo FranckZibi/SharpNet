@@ -72,17 +72,17 @@ public abstract class AbstractDatasetSample : AbstractSample
         return new HashSet<string>{nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
     }
 
-    public float ComputeScore(CpuTensor<float> true_predictions_true_in_target_format, CpuTensor<float> predictions_in_target_format)
+    public float ComputeScore(CpuTensor<float> y_true_in_target_format, CpuTensor<float> y_pred_in_target_format)
     {
-        if (true_predictions_true_in_target_format == null || predictions_in_target_format == null)
+        if (y_true_in_target_format == null || y_pred_in_target_format == null)
         {
             return float.NaN;
         }
-        Debug.Assert(true_predictions_true_in_target_format.SameShape(predictions_in_target_format));
-        var y_true = true_predictions_true_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
-        var y_pred = predictions_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
+        Debug.Assert(y_true_in_target_format.SameShape(y_pred_in_target_format));
+        var y_true = y_true_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
+        var y_pred = y_pred_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
 
-        using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
+        using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(GetMetric()));
         return (float)y_true.ComputeMetric(y_pred, GetMetric(), GetLoss(), buffer);
     }
 

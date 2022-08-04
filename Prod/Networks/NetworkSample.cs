@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.HyperParameters;
+using SharpNet.Models;
 
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -28,6 +29,10 @@ namespace SharpNet.Networks
         public NetworkConfig Config => (NetworkConfig)Samples[0];
         public DataAugmentationSample DA => (DataAugmentationSample)Samples[1];
 
+
+        public virtual void SaveExtraModelInfos(IModel model, string workingDirectory, string modelName)
+        {
+        }
 
         public enum POOLING_BEFORE_DENSE_LAYER
         {
@@ -61,10 +66,21 @@ namespace SharpNet.Networks
         public Network BuildEmptyNetwork(string networkName)
         {
             Config.ModelName = networkName + Config.ExtraDescription;
-            var network = new Network(this);
-            network.Description = networkName + Config.ExtraDescription;
+            var network = new Network(this, Config.WorkingDirectory, Config.ModelName);
+            network.Description = Config.ModelName;
             return network;
         }
+
+
+        public virtual void BuildNetwork(Network network)
+        {
+            network.Description = Config.ModelName;
+        }
+
+
+
+
+
         private static NetworkSample ValueOfNetworkSample(string workingDirectory, string modelName)
         {
             return new NetworkSample(new ISample[]

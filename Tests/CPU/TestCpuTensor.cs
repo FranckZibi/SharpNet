@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using SharpNet;
@@ -512,6 +513,33 @@ namespace SharpNetTests.CPU
             Assert.AreEqual(owner.ContentAsFloatArray(), new float[] { 10, 11, 12, 13, 24, 25, 26, 27, 28, 29 });
         }
 
+
+        [Test]
+        public void TestCosineSimilarityLoss()
+        {
+            //?D
+            var yExpected = TestNetworkPropagation.FromNumpyArray( "[3, 1, 2, 1, 0, 0, 5, 1]");
+            var yPredicted = TestNetworkPropagation.FromNumpyArray("[1, 1, 0, 1, 0, 1, 0, 0]");
+            var expectedLoss = TestNetworkPropagation.FromNumpyArray("[0.486664265, 0.66666667]");
+            int timeSeriesLength = 2;
+            Debug.Assert(yPredicted.Count% timeSeriesLength == 0);
+            var observedLoss = new CpuTensor<float>(new []{ timeSeriesLength });
+            observedLoss.CosineSimilarityLoss(yExpected, yPredicted, timeSeriesLength);
+            Assert.IsTrue(TestTensor.SameContent(expectedLoss, observedLoss, 1e-6));
+        }
+
+        [Test]
+        public void TestCosineSimilarityGradient()
+        {
+            //?D
+            var yExpected = TestNetworkPropagation.FromNumpyArray("[[[0, 1], [0, 0]]]");
+            var yPredicted = TestNetworkPropagation.FromNumpyArray("[[[0.6, 0.4], [0.4, 0.6]]]");
+            var expectedGradient = TestNetworkPropagation.FromNumpyArray("[[[0.15, -0.15], [0.1, 0.15]]]");
+            var observedGradient = new CpuTensor<float>(expectedGradient.Shape);
+            observedGradient.CosineSimilarityGradient(yExpected, yPredicted, 2);
+            Assert.IsTrue(TestTensor.SameContent(expectedGradient, observedGradient, 1e-6));
+        }
+
         [Test]
         public void TestHuberGradient()
         {
@@ -520,7 +548,7 @@ namespace SharpNetTests.CPU
             var expectedGradient = TestNetworkPropagation.FromNumpyArray("[[[0.15, -0.15], [0.1, 0.15]]]");
             var observedGradient = new CpuTensor<float>(expectedGradient.Shape);
             observedGradient.HuberGradient(yExpected, yPredicted, 1f);
-            TestTensor.SameContent(expectedGradient, observedGradient, 1e-6);
+            Assert.IsTrue(TestTensor.SameContent(expectedGradient, observedGradient, 1e-6));
         }
 
 
@@ -535,7 +563,7 @@ namespace SharpNetTests.CPU
             var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[301,302,303],[101,102,103]], [ [201,202,203],[101,102,103]], [ [201,202,203],[301,302,303]], [[101,102,103],[201,202,203]] ]");
             var yPredicted = RandomTensor(yExpected.Shape);
             yPredicted.WordEmbeddingForwardPropagation(x, wordEmbedding, -1);
-            TestTensor.SameContent(yExpected, yPredicted, 1e-6);
+            Assert.IsTrue(TestTensor.SameContent(yExpected, yPredicted, 1e-6));
         }
 
         [Test]
@@ -549,7 +577,7 @@ namespace SharpNetTests.CPU
             var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[3000,301,302,303,3001],[1000,101,102,103,1001]], [[2000,201,202,203,2001],[1002,101,102,103,1003]], [[2002,201,202,203,2003],[3002,301,302,303,3003]], [[1003,101,102,103,1004], [2004,201,202,203,2005]] ]");
             var yPredicted = RandomTensor(yExpected.Shape);
             yPredicted.WordEmbeddingForwardPropagation(x, wordEmbedding, 1);
-            TestTensor.SameContent(yExpected, yPredicted, 1e-6);
+            Assert.IsTrue(TestTensor.SameContent(yExpected, yPredicted, 1e-6));
         }
 
         [Test]
@@ -565,8 +593,8 @@ namespace SharpNetTests.CPU
             var dwExpected = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [3.9,4.2,4.5], [7.2,7.5,7.8], [6.5,6.7,6.9]]");
             var dwPredicted = RandomTensor(dwExpected.Shape);
             dwPredicted.WordEmbeddingBackwardPropagation(x, dxPredicted, dy, -1);
-            TestTensor.SameContent(dwExpected, dwPredicted, 1e-6);
-            TestTensor.SameContent(dxExpected, dxPredicted, 1e-6);
+            Assert.IsTrue(TestTensor.SameContent(dwExpected, dwPredicted, 1e-6));
+            Assert.IsTrue(TestTensor.SameContent(dxExpected, dxPredicted, 1e-6));
         }
 
         [Test]
@@ -582,8 +610,8 @@ namespace SharpNetTests.CPU
             var dwExpected = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [3.9,4.2,4.5], [7.2,7.5,7.8], [6.5,6.7,6.9]]");
             var dwPredicted = RandomTensor(dwExpected.Shape);
             dwPredicted.WordEmbeddingBackwardPropagation(x, dxPredicted, dy, 1);
-            TestTensor.SameContent(dwExpected, dwPredicted, 1e-6);
-            TestTensor.SameContent(dxExpected, dxPredicted, 1e-6);
+            Assert.IsTrue(TestTensor.SameContent(dwExpected, dwPredicted, 1e-6));
+            Assert.IsTrue(TestTensor.SameContent(dxExpected, dxPredicted, 1e-6));
         }
 
 
@@ -592,11 +620,8 @@ namespace SharpNetTests.CPU
         public void TestQRFactorization()
         {
             //This test is coming from: https://rosettacode.org/wiki/QR_decomposition#C.23
-            var data = new[] { 12.0f, -51, 4, 6, 167, -68, -4, 24, -41, -1, 1, 0, 2, 0, 3 };
-            // the A matrix (in row major order) of shape (m, n) (with m>=n)
-            var A = new CpuTensor<float>(new[] { 5, 3}, data);
-            //A = new CpuTensor<float>(new[] { 250, 10 });
-            //RandomFloatTensor(A.Shape, new Random(0), -1, 1).CopyTo(A);
+            var A = new CpuTensor<float>(new[] { 5, 3}, new[] { 12.0f, -51, 4, 6, 167, -68, -4, 24, -41, -1, 1, 0, 2, 0, 3 });
+            //var A = new CpuTensor<float>(new[] { 250, 10 });RandomFloatTensor(A.Shape, new Random(0), -1, 1).CopyTo(A);
 
             int m = A.Shape[0];
             int n = A.Shape[1];
@@ -616,9 +641,12 @@ namespace SharpNetTests.CPU
             //Console.WriteLine("took " + (sw.Elapsed.TotalMilliseconds / count) + "ms");
             //return;
 
+
             var a_clone = A.Clone();
             a_clone.Dot(Q, R);
             Assert.IsTrue(TestTensor.SameContent(a_clone, A, 1e-4));
+            var maxError = Q.MaxErrorIfOrthogonalMatrix();
+            Assert.IsTrue(Math.Abs(maxError)<1e-6);
         }
 
 

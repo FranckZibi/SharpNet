@@ -182,17 +182,7 @@ namespace SharpNet.Data
             }
             return true;
         }
-
-
-        public static double ComputeRmse(CpuTensor<float> y_true, CpuTensor<float> y_pred)
-        {
-            return Math.Sqrt(ComputeMse(y_true, y_pred));
-        }
-        public static double ComputeMse(CpuTensor<float> y_true, CpuTensor<float> y_pred)
-        {
-            using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
-            return y_true.ComputeMse(y_pred, buffer);
-        }
+     
         public static double ComputeAccuracy(CpuTensor<float> y_true, CpuTensor<float> y_pred)
         {
             using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });

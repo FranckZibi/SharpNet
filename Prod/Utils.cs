@@ -34,7 +34,8 @@ namespace SharpNet
         Mae,        // lower is better
         Mse,        // lower is better
         Rmse,       // lower is better
-        DEFAULT     // Not used
+        DEFAULT,     // Not used
+        CosineSimilarity504,     // higher is better
     };
 
 
@@ -109,6 +110,8 @@ namespace SharpNet
       * loss = ( predicted - expected ) ^2
       * */
         Rmse,
+
+        CosineSimilarity504,
 
         DEFAULT // Not used
 
@@ -339,6 +342,21 @@ namespace SharpNet
                 T value = list[k];
                 list[k] = list[n];
                 list[n] = value;
+            }
+        }
+
+        public static void Shuffle<T>(IList<T> list, Random rand, int blockSize)
+        {
+            Debug.Assert(list.Count%blockSize == 0);
+            var blockIds =Enumerable.Range(0, list.Count / blockSize).ToList();
+            Shuffle(blockIds, rand);
+            var listCopy = new List<T>(list);
+            foreach (var t in blockIds)
+            {
+                for (int j = 0; j < blockSize; ++j)
+                {
+                    list[t*blockSize + j] = listCopy[t*blockSize + j];
+                }
             }
         }
 

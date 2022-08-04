@@ -68,6 +68,14 @@ namespace SharpNet.Data
         public abstract void Transpose(Tensor transposed);
 
         /// <summary>
+        /// Orthogonal initializer for Weights
+        /// See: https://www.tensorflow.org/api_docs/python/tf/keras/initializers/Orthogonal
+        /// </summary>
+        /// <param name="rand"></param>
+        public abstract void Orthogonal(Random rand);
+
+
+        /// <summary>
         /// length of the buffer needed to compute the QR Factorization of 'this' tensor
         /// </summary>
         /// <returns></returns>
@@ -77,17 +85,35 @@ namespace SharpNet.Data
         /// compute A (= this) = Q R factorization
         /// this : the A matrix (in row major order) of shape (m, n) (with m>=n)
         /// </summary>
-        /// <param name="Q">the orthogonal 'Q' matrix of shape
-        ///     (m, m) for GPU factorization
-        ///     (m, n) for CPU factorization
-        /// </param>
-        /// <param name="R">the upper triangular matrix 'R' of shape
-        ///     (m, n) for GPU factorization
-        ///     (n, n) for CPU factorization
-        /// </param>
+        /// <param name="Q">the orthogonal 'Q' matrix of shape (m, n)</param>
+        /// <param name="R">the upper triangular matrix 'R' of shape (n, n)</param>
         /// <param name="buffer">a float tensor of length returned by 'QRFactorization_FloatBufferLength'</param>
         public abstract void QRFactorization(Tensor Q, Tensor R, Tensor buffer);
 
+
+        /// <summary>
+        /// if the 'this' matrix is an orthogonal matrix, then transpose(this) * this = Identity matrix
+        /// return the max error between the expected result (identity matrix) and the observed result of transpose(this) * this
+        /// </summary>
+        /// <returns></returns>
+        public float MaxErrorIfOrthogonalMatrix()
+        {
+            var n = MultDim0;
+            var a = ToCpuFloat();
+            //var aTranspose = new CpuTensor<float>(new [] { n, m });
+            var multResult =  new CpuTensor<float>(new [] { n, n });
+            multResult.Dot(a, true, a, false, 1.0f, 0.0f);
+            var spanResult = multResult.AsReadonlyFloatCpuContent;
+            float maxError = 0.0f;
+            for(int row=0;row<n;++row )
+            for (int col = 0; col < n; ++col)
+            {
+                var expectedResult = (col == row) ? 1.0f : 0.0f;
+                var observedError = Math.Abs(spanResult[col + n * row] - expectedResult);
+                maxError = Math.Max(maxError, observedError);
+            }
+            return maxError;
+        }
 
         /// <summary>
         /// set to 0 all the elements below the main diagonal of the matrix
@@ -746,128 +772,8 @@ namespace SharpNet.Data
         /// <param name="dropoutReserveSpace"></param>
         public abstract void DropoutBackward(Tensor dy, Tensor dx, double dropoutRate, Tensor dropoutReserveSpace);
 
-        /// <summary>
-        /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
-        /// </summary>
-        /// <param name="yPredicted">what has been predicted by the NN (in each row the biggest value is the NN favorite)</param>
-        /// <param name="lossFunction"></param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        public abstract double ComputeAccuracy(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer);
 
-        /// <summary>
-        /// this = yExpected
-        /// </summary>
-        /// <param name="yPredicted">what has been predicted by the NN</param>
-        /// <param name="buffer"></param>
-        /// <returns> The Mean Absolute Error (mae) between 'yExpected'( =this) and 'yPredicted'  </returns>
-        public abstract double ComputeMae(Tensor yPredicted, Tensor buffer);
-
-        /// <summary>
-        /// this = yExpected
-        /// </summary>
-        /// <param name="yPredicted">what has been predicted by the NN</param>
-        /// <param name="buffer"></param>
-        /// <returns> The Mean Squared Error (mse) between 'yExpected'( =this) and 'yPredicted'  </returns>
-        public abstract double ComputeMse(Tensor yPredicted, Tensor buffer);
-
-        /// <summary>
-        /// this = yExpected
-        /// </summary>
-        /// <param name="yPredicted">what has been predicted by the model</param>
-        /// <param name="buffer"></param>
-        /// <returns> The Root Mean Squared Error (rmse) between 'yExpected'( =this) and 'yPredicted'  </returns>
-        public double ComputeRmse(Tensor yPredicted, Tensor buffer)
-        {
-            return Math.Sqrt(ComputeMse(yPredicted, buffer));
-        }
-
-
-        /// <summary>
-        /// Compute the output gradient when we are using categorical hierarchy for categories
-        /// and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        public abstract void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted);
-
-        /// <summary>
-        /// Compute the output gradient when are using Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
-        /// and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="huberDelta"></param>
-        public abstract void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta);
-
-        /// <summary>
-        /// Compute the Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
-        /// and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="huberDelta"></param>
-        public abstract void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta);
-
-
-        /// <summary>
-        /// Compute the Mean Squared Error loss (see https://en.wikipedia.org/wiki/Mean_squared_error)
-        /// and stores it in the 'this' tensor
-        /// This loss is defined by:
-        ///     loss  = ( predicted - expected ) ^2
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        public abstract void MseLoss(Tensor yExpected, Tensor yPredicted);
-
-        /// <summary>
-        /// Compute the output gradient when are using Mean Squared Error loss
-        /// and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        public abstract void MseGradient(Tensor yExpected, Tensor yPredicted);
-
-        /// <summary>
-        /// Compute the Mean Absolute Error loss
-        /// and stores it in the 'this' tensor
-        /// This loss is defined by:
-        ///     loss  = abs( predicted - expected )
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        public abstract void MaeLoss(Tensor yExpected, Tensor yPredicted);
-
-        /// <summary>
-        /// Compute the output gradient when are using Mean Absolute Error loss
-        /// and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        public abstract void MaeGradient(Tensor yExpected, Tensor yPredicted);
-
-        /// <summary>
-        /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
-        /// This loss is defined by:
-        ///     loss  = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="epsilon">minimum allowed value for a prediction</param>
-        public abstract void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon);
-
-        /// <summary>
-        /// Compute the output gradient when we are using MseOfLog loss (see above) and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="epsilon">minimum allowed value for a prediction</param>
-        public abstract void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon);
-
-        /// <summary>
-        /// pointer to (device or host) pinned memory
-        /// </summary>
-        public abstract IntPtr Pointer { get; }
+        #region Compute of Loss and Metrics
 
         /// <summary>
         /// this = expected (true) values
@@ -877,6 +783,21 @@ namespace SharpNet.Data
         /// <param name="buffer">a temporary buffer</param>
         /// <returns></returns>
         public abstract double ComputeLoss(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer);
+
+
+        public int[] ComputeMetricBufferShape(MetricEnum metricEnum)
+        {
+            if (metricEnum == MetricEnum.CosineSimilarity504)
+            {
+                return new[] { CosineSimilarity504_TimeSeries_Length };
+                
+            }
+            return new[] { Shape[0] };
+        }
+
+
+        public const int CosineSimilarity504_TimeSeries_Length = 504;
+
 
         /// <summary>
         /// this = y_true
@@ -893,28 +814,123 @@ namespace SharpNet.Data
             {
                 case MetricEnum.Loss:
                     return ComputeLoss(yPredicted, lossFunction, buffer);
+                case MetricEnum.Mae:
+                    return ComputeLoss(yPredicted, LossFunctionEnum.Mae, buffer);
+                case MetricEnum.Mse:
+                    return ComputeLoss(yPredicted, LossFunctionEnum.Mse, buffer);
+                case MetricEnum.CosineSimilarity504:
+                    return ComputeLoss(yPredicted, LossFunctionEnum.CosineSimilarity504, buffer);
                 case MetricEnum.Accuracy:
                     return ComputeAccuracy(yPredicted, lossFunction, buffer);
-                case MetricEnum.Mae:
-                    return ComputeMae(yPredicted, buffer);
-                case MetricEnum.Mse:
-                    return ComputeMse(yPredicted, buffer);
                 case MetricEnum.Rmse:
-                    return Math.Sqrt(ComputeMse(yPredicted, buffer));
+                    return Math.Sqrt(ComputeLoss(yPredicted, LossFunctionEnum.Mse, buffer));
                 default: throw new ArgumentException("unknown metric " + metricEnum);
             }
         }
 
-        public abstract void UniformDistribution(Random rand, double minValue, double maxValue);
-        public abstract void NormalDistribution(Random rand, double mean, double stdDev);
+
+        /// <summary>
+        /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
+        /// </summary>
+        /// <param name="yPredicted">what has been predicted by the NN (in each row the biggest value is the NN favorite)</param>
+        /// <param name="lossFunction"></param>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
+        public abstract double ComputeAccuracy(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer);
+
+        /// <summary>
+        /// Compute the Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="huberDelta"></param>
+        public abstract void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta);
 
 
         /// <summary>
-        /// Orthogonal initializer for Weights
-        /// See: https://www.tensorflow.org/api_docs/python/tf/keras/initializers/Orthogonal
+        /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
+        /// This loss is defined by:
+        ///     loss  = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
         /// </summary>
-        /// <param name="rand"></param>
-        public abstract void Orthogonal(Random rand);
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="epsilon">minimum allowed value for a prediction</param>
+        public abstract void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon);
+
+
+
+        /// <summary>
+        /// Compute the Cosine Similarity Loss (see https://en.wikipedia.org/wiki/Cosine_similarity)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="timeSeriesLength"></param>
+        public abstract void CosineSimilarityLoss(Tensor yExpected, Tensor yPredicted, int timeSeriesLength);
+
+        #endregion
+
+
+        #region Compute of Gradients (for backward propagation)
+        /// <summary>
+        /// Compute the output gradient when we are using categorical hierarchy for categories
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted);
+
+        /// <summary>
+        /// Compute the output gradient when using Cosine Similarity Loss
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="timeSeriesLength"></param>
+        public abstract void CosineSimilarityGradient(Tensor yExpected, Tensor yPredicted, int timeSeriesLength);
+
+        /// <summary>
+        /// Compute the output gradient when using Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="huberDelta"></param>
+        public abstract void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta);
+
+              /// <summary>
+        /// Compute the output gradient when are using Mean Squared Error loss
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void MseGradient(Tensor yExpected, Tensor yPredicted);
+                
+        /// <summary>
+        /// Compute the output gradient when are using Mean Absolute Error loss
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        public abstract void MaeGradient(Tensor yExpected, Tensor yPredicted);
+
+        /// <summary>
+        /// Compute the output gradient when we are using MseOfLog loss (see above) and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="epsilon">minimum allowed value for a prediction</param>
+        public abstract void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon);
+        #endregion
+
+        /// <summary>
+        /// pointer to (device or host) pinned memory
+        /// </summary>
+        public abstract IntPtr Pointer { get; }
+        
+        public abstract void UniformDistribution(Random rand, double minValue, double maxValue);
+        public abstract void NormalDistribution(Random rand, double mean, double stdDev);
 
         /// <summary>
         /// Glorot Uniform Initializer for Weights

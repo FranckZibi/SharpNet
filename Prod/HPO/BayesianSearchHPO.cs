@@ -321,24 +321,9 @@ public class BayesianSearchHPO : AbstractHpo
         {
             rows.Add(NextRandomSamplesForPrediction());
         }
-        return NewCpuTensor(rows);
+        return CpuTensor<float>.NewCpuTensor(rows);
     }
-    private static CpuTensor<float> NewCpuTensor(IList<float[]> rows)
-    {
-        var x = new CpuTensor<float>(new[] { rows.Count, rows[0].Length });
-        var xSpan = x.AsFloatCpuSpan;
-        int xSpanIndex = 0;
-        foreach(var row in rows)
-        {
-            Debug.Assert(row.Length == x.Shape[1]);
-            foreach (var t in row)
-            {
-                xSpan[xSpanIndex++] = t;
-            }
-        }
-        Debug.Assert(xSpanIndex == x.Count);
-        return x;
-    }
+
     /// <summary>
     /// train the model with all samples with an associated score
     /// </summary>
@@ -354,7 +339,7 @@ public class BayesianSearchHPO : AbstractHpo
         }
 
         // we train the surrogate models with all samples with a computed score
-        using var x = NewCpuTensor(xRows);
+        using var x = CpuTensor<float>.NewCpuTensor(xRows);
         var yData = samplesWithScore.Select(t => t.Item4).ToArray();
         using var y_true = new CpuTensor<float>(new[] { x.Shape[0], 1 }, yData);
         using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), false);

@@ -481,9 +481,15 @@ namespace SharpNet.Layers
         protected TensorMemoryPool MemoryPool => Network.MemoryPool;
         protected List<Layer> Layers => Network.Layers;
         protected NetworkConfig Config => Network.Config;
+
+
         protected Optimizer GetOptimizer(int[] weightShape, int[] biasShape)
         {
-            switch (Config.OptimizerType)
+            return GetOptimizer(Config.OptimizerType, weightShape, biasShape);
+        }
+        protected Optimizer GetOptimizer(Optimizer.OptimizationEnum optimizerType, int[] weightShape, int[] biasShape)
+        {
+            switch (optimizerType)
             {
                 case Optimizer.OptimizationEnum.Adam:
                     if (Math.Abs(Config.AdamW_L2Regularization) > 1e-6)
@@ -501,8 +507,13 @@ namespace SharpNet.Layers
                         throw new Exception("Invalid AdamW_L2Regularization (" + Config.AdamW_L2Regularization + ") for AdamW: should be > 0");
                     }
                     return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, Config.AdamW_L2Regularization, weightShape, biasShape);
-                case Optimizer.OptimizationEnum.SGD: return new Sgd(MemoryPool, Config.SGD_momentum, Config.SGD_usenesterov, weightShape, biasShape);
-                default: return VanillaSgd.Instance;
+                case Optimizer.OptimizationEnum.SGD: 
+                    return new Sgd(MemoryPool, Config.SGD_momentum, Config.SGD_usenesterov, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.VanillaSGDOrtho: 
+                    return new VanillaSgdOrtho(MemoryPool, weightShape);
+                case Optimizer.OptimizationEnum.VanillaSGD:
+                default: 
+                    return VanillaSgd.Instance;
             }
         }
 

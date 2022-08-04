@@ -7,7 +7,7 @@ namespace SharpNet.Optimizers
     public abstract class Optimizer : IDisposable
     {
         //for AdamW, see: https://www.fast.ai/2018/07/02/adam-weight-decay/
-        public enum OptimizationEnum { VanillaSGD, Adam, SGD, AdamW }
+        public enum OptimizationEnum { VanillaSGD, Adam, SGD, AdamW, VanillaSGDOrtho}
         protected bool _isDisposed;
 
         public static Optimizer ValueOf(IDictionary<string, object> serialized)
@@ -22,6 +22,11 @@ namespace SharpNet.Optimizers
             {
                 return adam;
             }
+            var vanillaSgdOrtho = VanillaSgdOrtho.DeserializeVanillaSgdOrtho(serialized);
+            if (vanillaSgdOrtho != null)
+            {
+                return vanillaSgdOrtho;
+            }
             return VanillaSgd.Instance;
         }
         public abstract List<Tensor> EmbeddedTensors { get; }
@@ -35,6 +40,8 @@ namespace SharpNet.Optimizers
             EmbeddedTensors.ForEach(t => t.ZeroMemory());
         }
         public abstract string Serialize();
+
+        public virtual bool IsOrthogonal => false;
 
         protected static float PonderedLearning(double learningRate, int batchSize)
         {

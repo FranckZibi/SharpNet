@@ -248,7 +248,7 @@ namespace SharpNetTests.NonReg
                 new DataAugmentationSample()
             });
 
-            var network = new Network(sample);
+            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName);
 
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
@@ -304,7 +304,7 @@ namespace SharpNetTests.NonReg
             int batchSize = X.Shape[0];
             //const int  gpuDeviceId = -1;
             const int gpuDeviceId = 0;
-            var network = new Network(
+            var network = Network.NewForTests(
                         new NetworkConfig
                         {
                             ModelName = "TestParallelRunWithTensorFlow_Convolution",
@@ -377,7 +377,7 @@ namespace SharpNetTests.NonReg
             int batchSize = X.Shape[0];
             const int deviceId = -1;
             //var deviceId = 0;
-            var network = new Network(
+            var network = Network.NewForTests(
                         new NetworkConfig
                         {
                             ModelName = "Embedding",
@@ -457,7 +457,7 @@ namespace SharpNetTests.NonReg
                 ResourceIds = new List<int> { deviceId }
             };
 
-            var network = new Network(
+            var network = Network.NewForTests(
                         networkConfig
                        .WithAdam(0.9, 0.999, 1e-7),
                         //.WithSGD(momentum, false),
@@ -563,7 +563,7 @@ namespace SharpNetTests.NonReg
                 ResourceIds = new List<int> { deviceId }
             };
 
-            var network = new Network(
+            var network = Network.NewForTests(
                         networkConfig
                         .WithAdam(0.9, 0.999, 1e-7),
                         new DataAugmentationSample()
@@ -622,7 +622,7 @@ namespace SharpNetTests.NonReg
             int batchSize = X.Shape[0];
             const int gpuDeviceId = -1;
             //var gpuDeviceId = 0;
-            var network = new Network(
+            var network = Network.NewForTests(
                         new NetworkConfig
                         {
                             ModelName = "TestParallelRunWithTensorFlow_DownSampling2D",
@@ -694,7 +694,7 @@ namespace SharpNetTests.NonReg
 
             const int deviceId = -1;
             //var deviceId = 0;
-            var network = new Network(
+            var network = Network.NewForTests(
                         new NetworkConfig
                         {
                             ModelName = "Huber",
@@ -768,7 +768,7 @@ namespace SharpNetTests.NonReg
 
 
             const int deviceId = 0;
-            var network = new Network(
+            var network = Network.NewForTests(
                         new NetworkConfig
                         {
                             ModelName = "Mse",
@@ -879,7 +879,7 @@ namespace SharpNetTests.NonReg
             const int deviceId = 0;
             const int hiddenSize = 2;
 
-            var network = new Network(
+            var network = Network.NewForTests(
                         new NetworkConfig
                         {
                             ModelName = "GRU",
@@ -1004,7 +1004,7 @@ namespace SharpNetTests.NonReg
             using var fullDataSet = new UnivariateTimeSeriesDataSet(series.Content, timeSteps, 1);
             using var trainAndTestDataSet = fullDataSet.SplitIntoTrainingAndValidation(trainingDataSetCount / (double)fullDataSet.Count);
 
-            var network = new Network(
+            var network = Network.NewForTests(
                 new NetworkConfig
                     {
                         ModelName = "TimeSeries",
@@ -1087,7 +1087,7 @@ namespace SharpNetTests.NonReg
             using var fullTrainingAndTestDataSet = new ImdbTrainingAndTestDataset();
             using var trainAndTestDataSet = fullTrainingAndTestDataSet.Training.SplitIntoTrainingAndValidation(0.8);
 
-            var network = new Network(
+            var network = Network.NewForTests(
                         new NetworkConfig
                         {
                             ModelName = "IMDB",

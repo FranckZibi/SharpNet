@@ -818,6 +818,35 @@ namespace SharpNetTests
             TestAll(new[] { loss, expected, predicted}, tensors => tensors[0].CategoricalCrossentropyWithHierarchyGradient(tensors[1], tensors[2]));
         }
 
+
+        [TestCase(1, 1)]
+        [TestCase(50, 1)]
+        [TestCase(1, 50)]
+        [TestCase(50, 504)]
+        public void TestCosineSimilarityLoss(int itemCount, int timeSeriesLength)
+        {
+            var shape = new int[] { itemCount * timeSeriesLength };
+            var predicted = RandomTensor(shape);
+            var expected = RandomTensor(predicted.Shape);
+            var cosineSimilarityLoss = RandomTensor(new[] { timeSeriesLength });
+            TestAll(new[] { cosineSimilarityLoss, expected, predicted }, tensors => tensors[0].CosineSimilarityLoss(tensors[1], tensors[2], timeSeriesLength));
+        }
+
+        [TestCase(1, 1)]
+        [TestCase(50, 1)]
+        [TestCase(1, 50)]
+        [TestCase(50, 504)]
+
+        public void TestCosineSimilarityGradient(int itemCount, int timeSeriesLength)
+        {
+            var shape = new int[] { itemCount * timeSeriesLength };
+            var predicted = RandomTensor(shape);
+            var expected = RandomTensor(predicted.Shape);
+            var cosineSimilarityGradient = RandomTensor(expected.Shape);
+            TestAll(new[] { cosineSimilarityGradient, expected, predicted }, tensors => tensors[0].CosineSimilarityGradient(tensors[1], tensors[2], timeSeriesLength));
+        }
+
+
         [TestCase(new[] { 10000, 10 })]
         [TestCase(new[] { 10000, 1 })]
         [TestCase(new[] { 5000, 3, 10 })]
@@ -847,20 +876,20 @@ namespace SharpNetTests
             TestAll(new[] { huberGradient, expected, predicted}, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
         }
 
-        [TestCase(new[] { 10000, 1 })]
-        [TestCase(new[] { 10000, 10 })]
-        [TestCase(new[] { 5000, 3, 10 })]
-        [TestCase(new[] { 5000, 3, 1 })]
-        [TestCase(new[] { 3000, 3, 2, 10 })]
-        [TestCase(new[] { 3000, 3, 2, 1 })]
-        public void TestMseLoss(int[] shape)
-        {
-            var predicted = RandomTensor(shape);
-            var expected = RandomTensor(predicted.Shape);
-            var batchSize = shape[0];
-            var huberLoss = RandomTensor(new[] { batchSize });
-            TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].MseLoss(tensors[1], tensors[2]));
-        }
+        //[TestCase(new[] { 10000, 1 })]
+        //[TestCase(new[] { 10000, 10 })]
+        //[TestCase(new[] { 5000, 3, 10 })]
+        //[TestCase(new[] { 5000, 3, 1 })]
+        //[TestCase(new[] { 3000, 3, 2, 10 })]
+        //[TestCase(new[] { 3000, 3, 2, 1 })]
+        //public void TestMseLoss(int[] shape)
+        //{
+        //    var predicted = RandomTensor(shape);
+        //    var expected = RandomTensor(predicted.Shape);
+        //    var batchSize = shape[0];
+        //    var huberLoss = RandomTensor(new[] { batchSize });
+        //    TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].MseLoss(tensors[1], tensors[2]));
+        //}
 
         [TestCase(new[] { 10000, 1 })]
         [TestCase(new[] { 10000, 10 })]
@@ -908,21 +937,6 @@ namespace SharpNetTests
             var mseOfLogGradient = RandomTensor(expected.Shape);
             const float epsilon = 0.001f;
             TestAll(new[] { mseOfLogGradient, expected, predicted }, tensors => tensors[0].MseOfLogGradient(tensors[1], tensors[2], epsilon));
-        }
-
-        [TestCase(new[] { 10000, 1 })]
-        [TestCase(new[] { 10000, 10 })]
-        [TestCase(new[] { 5000, 3, 10 })]
-        [TestCase(new[] { 5000, 3, 1 })]
-        [TestCase(new[] { 3000, 3, 2, 10 })]
-        [TestCase(new[] { 3000, 3, 2, 1 })]
-        public void TestMaeLoss(int[] shape)
-        {
-            var predicted = RandomTensor(shape);
-            var expected = RandomTensor(predicted.Shape);
-            var batchSize = shape[0];
-            var huberLoss = RandomTensor(new[] { batchSize });
-            TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].MaeLoss(tensors[1], tensors[2]));
         }
 
         [TestCase(new[] { 10000, 1 })]
@@ -984,19 +998,6 @@ namespace SharpNetTests
             var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], LossFunctionEnum.CategoricalCrossentropy, tensors[2]), new List<int> { 2 });
-        }
-
-        [TestCase(new []{1,1,1})]
-        [TestCase(new[] {1, 10 })]
-        [TestCase(new []{1,7,2})]
-        [TestCase(new []{33,10})]
-        [TestCase(new []{33,5,10})]
-        public void TestComputeMae(int[] shape)
-        {
-            var yPredicted = RandomTensor(shape);
-            var yExpected = RandomTensor(shape);
-            var buffer = RandomTensor(new[] {shape[0] });
-            TestAllForReturnValue(new[] { yExpected, yPredicted, buffer }, tensors => tensors[0].ComputeMae(tensors[1], tensors[2]));
         }
 
         [Test]

@@ -191,6 +191,9 @@ namespace SharpNet.Networks
                 case LossFunctionEnum.Mae:
                     dyPredicted.MaeGradient(yExpected, yPredicted);
                     break;
+                case LossFunctionEnum.CosineSimilarity504:
+                    dyPredicted.CosineSimilarityGradient(yExpected, yPredicted, Tensor.CosineSimilarity504_TimeSeries_Length);
+                    break;
                 default:
                     throw new Exception("Invalid loss function " + lossFunction);
             }

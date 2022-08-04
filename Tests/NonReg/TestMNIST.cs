@@ -18,7 +18,7 @@ namespace SharpNetTests.NonReg
         {
             const bool useGpu = true;
 
-            var network = new Network(
+            var network = Network.NewForTests(
                 new NetworkConfig
                     {
                         ModelName = "MNIST",

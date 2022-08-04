@@ -53,7 +53,7 @@ namespace SharpNet.Networks
             int[] fixedResourceIds = AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
             sample.Config.ResourceIds = fixedResourceIds.ToList();
 
-            var network = new Network(sample);
+            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName);
             if (!originalResourceIds.SequenceEqual(fixedResourceIds))
             {
                 LogWarn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
@@ -171,8 +171,6 @@ namespace SharpNet.Networks
                 File.Delete(modelFilePath);
             }
             ModelSample.Save(workingDirectory, modelName);
-
-
             var firstLine = new Serializer()
                 .Add(nameof(Description), Description)
                 .Add(nameof(EpochData), EpochData.ToArray())
@@ -183,7 +181,9 @@ namespace SharpNet.Networks
                 File.AppendAllLines(modelFilePath, new[] { l.Serialize() });
             }
 
+            NetworkSample.SaveExtraModelInfos(this, workingDirectory, modelName);
             LogInfo("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
+
         }
 
         public override void Save(string workingDirectory, string modelName)
