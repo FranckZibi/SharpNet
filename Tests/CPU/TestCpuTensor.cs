@@ -517,7 +517,6 @@ namespace SharpNetTests.CPU
         [Test]
         public void TestCosineSimilarityLoss()
         {
-            //?D
             var yExpected = TestNetworkPropagation.FromNumpyArray( "[3, 1, 2, 1, 0, 0, 5, 1]");
             var yPredicted = TestNetworkPropagation.FromNumpyArray("[1, 1, 0, 1, 0, 1, 0, 0]");
             var expectedLoss = TestNetworkPropagation.FromNumpyArray("[0.486664265, 0.66666667]");

@@ -394,6 +394,43 @@ namespace SharpNet
             return result;
         }
 
+        /// <summary>
+        /// Read all rows of a CSV file
+        /// if the separator (parameter: mandatorySeparator) is not provided, it will be detected automatically
+        /// </summary>
+        /// <param name="csvPath"></param>
+        /// <param name="mandatorySeparator">the separator to use (if provided)
+        /// if it is not provided, the CSV separator will be detected automatically (preferred method)
+        /// </param>
+        /// <returns></returns>
+        public static IEnumerable<string[]> ReadCsv(string csvPath, char? mandatorySeparator = null)
+        {
+            using System.IO.TextReader fileReader = System.IO.File.OpenText(csvPath);
+            var csvConfig = new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                TrimOptions = CsvHelper.Configuration.TrimOptions.InsideQuotes | CsvHelper.Configuration.TrimOptions.Trim
+            };
+            if (mandatorySeparator.HasValue)
+            {
+                csvConfig.DetectDelimiter = false;
+                csvConfig.Delimiter = mandatorySeparator.Value.ToString();
+            }
+            else
+            {
+                csvConfig.DetectDelimiter = true;
+            }
+            var csvParser = new CsvHelper.CsvParser(fileReader, csvConfig);
+            while (csvParser.Read())
+            {
+                string[] row = csvParser.Record;
+                if (row == null)
+                {
+                    break;
+                }
+                yield return row;
+            }
+        }
+
         public static long FileLength(string path)
         {
             return new FileInfo(path).Length;
