@@ -499,7 +499,7 @@ namespace SharpNet.Datasets
                         _database[sha1] = entry;
                     }
                     var destFileName = entry.Path(_rootPath);
-                    var destDirectory = Path.GetDirectoryName(destFileName);
+                    var destDirectory = Path.GetDirectoryName(destFileName)??"";
                     if (!Directory.Exists(destDirectory))
                     {
                         Directory.CreateDirectory(destDirectory);

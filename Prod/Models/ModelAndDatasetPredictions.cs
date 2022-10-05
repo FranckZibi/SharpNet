@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 
@@ -85,31 +84,31 @@ public class ModelAndDatasetPredictions
     }
     public string Name => Model.ModelName;
 
-    private (CpuTensor<float> predictionsInTargetFormat, string predictionPath) PredictWithPath(IDataSet dataset)
+    private (DataFrame predictionsInTargetFormat, string predictionPath) PredictWithPath(IDataSet dataset)
     {
         var (predictionsInModelFormat, predictionPath) = Model.PredictWithPath(dataset);
         var predictionsInTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
         return (predictionsInTargetFormat, predictionPath);
     }
-    private CpuTensor<float> Predict(IDataSet dataset)
+    private DataFrame Predict(IDataSet dataset)
     {
         return PredictWithPath(dataset).predictionsInTargetFormat;
     }
     private PredictionsSample PredictionsSample => ModelAndDatasetPredictionsSample.PredictionsSample;
     private AbstractDatasetSample DatasetSample => ModelAndDatasetPredictionsSample.DatasetSample;
-    public void SaveTrainPredictionsInTargetFormat(CpuTensor<float> trainPredictionsInModelFormat, float trainScore)
+    public void SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, float trainScore)
     {
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Training Dataset (score={trainScore})");
         PredictionsSample.Train_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_train_" + ScoreToStringForPredictionFile(trainScore) + ".csv");
-        DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInModelFormat, PredictionsSample.Train_PredictionsPath);
+        DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInTargetFormat, PredictionsSample.Train_PredictionsPath);
     }
-    public void SaveValidationPredictionsInTargetFormat(CpuTensor<float> validationPredictionsInTargetFormat, float validationScore)
+    public void SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, float validationScore)
     {
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Validation Dataset (score={validationScore})");
         PredictionsSample.Validation_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_valid_" + ScoreToStringForPredictionFile(validationScore) + ".csv");
         DatasetSample.SavePredictionsInTargetFormat(validationPredictionsInTargetFormat, PredictionsSample.Validation_PredictionsPath);
     }
-    public void SaveTestPredictionsInTargetFormat(CpuTensor<float> testPredictionsInTargetFormat, float testScore)
+    public void SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, float testScore)
     {
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Test Dataset");
         PredictionsSample.Test_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_test_" + ScoreToStringForPredictionFile(testScore) + ".csv");
@@ -121,12 +120,12 @@ public class ModelAndDatasetPredictions
         return float.IsNaN(score) ? "" : Math.Round(score, 5).ToString(CultureInfo.InvariantCulture);
     }
 
-    private (CpuTensor<float> predictions, float score) ComputePredictionsAndScore(IDataSet dataset)
+    private (DataFrame predictions, float score) ComputePredictionsAndScore(IDataSet dataset)
     {
         var start = Stopwatch.StartNew();
 
         var y_pred_InTargetFormat = Predict(dataset);
-        var y_true_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(dataset.Y);
+        var y_true_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(dataset.Y_as_DataFrame());
         var score = DatasetSample.ComputeScore(y_true_InTargetFormat, y_pred_InTargetFormat);
         ISample.Log.Debug($"{nameof(ComputePredictionsAndScore)} took {start.Elapsed.TotalSeconds}s");
         return (y_pred_InTargetFormat, score);
@@ -176,7 +175,7 @@ public class ModelAndDatasetPredictions
         return (PredictionsSample.Train_PredictionsPath, trainScore, PredictionsSample.Validation_PredictionsPath, validationScore, PredictionsSample.Test_PredictionsPath);
     }
 
-    public (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex)
+    public (DataFrame trainPredictionsInTargetFormatWithoutIndex, DataFrame validationPredictionsInTargetFormatWithoutIndex, DataFrame testPredictionsInTargetFormatWithoutIndex)
         LoadAllPredictionsInTargetFormat()
     {
         return

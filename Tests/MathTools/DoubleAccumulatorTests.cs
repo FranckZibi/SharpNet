@@ -6,6 +6,7 @@ namespace SharpNetTests.MathTools
     [TestFixture]
     public class DoubleAccumulatorTests
     {
+
         [Test]
         public void Test_0_element()
         {

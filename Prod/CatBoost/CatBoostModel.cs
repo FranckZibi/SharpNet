@@ -55,7 +55,7 @@ namespace SharpNet.CatBoost
             }
 
             string datasetColumnDescriptionPath = trainDatasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, trainDataset, true, false);
+            to_column_description(datasetColumnDescriptionPath, trainDataset, false);
 
             IModel.Log.Info($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
 
@@ -100,19 +100,19 @@ namespace SharpNet.CatBoost
             return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
         }
 
-        public override CpuTensor<float> Predict(IDataSet dataset)
+        public override DataFrame Predict(IDataSet dataset)
         {
             var (predictions, _) = PredictWithPath(dataset);
             return predictions;
         }
-        public override (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset)
+        public override (DataFrame predictions, string predictionPath) PredictWithPath(IDataSet dataset)
         {
             const bool targetColumnIsFirstColumn = true;
             string predictionDatasetPath = dataset.to_csv_in_directory(RootDatasetPath, targetColumnIsFirstColumn, false);
             char separator = dataset.DatasetSample?.GetSeparator() ?? ',';
 
             string datasetColumnDescriptionPath = predictionDatasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, dataset, targetColumnIsFirstColumn, true);
+            to_column_description(datasetColumnDescriptionPath, dataset, true);
 
 
             if (!File.Exists(ModelPath))
@@ -148,7 +148,7 @@ namespace SharpNet.CatBoost
             var predictions1 = File.ReadAllLines(predictionResultPath).Skip(1).Select(l => l.Split()[1]).Select(float.Parse).ToArray();
             File.Delete(configFilePath);
             File.Delete(predictionResultPath);
-            var predictions = new CpuTensor<float>(new[] { predictions1.Length, 1 }, predictions1);
+            var predictions = DataFrame.New(new CpuTensor<float>(new[] { predictions1.Length, 1 }, predictions1), dataset.FeatureNames, dataset.CategoricalFeatures);
             if (predictions.Shape[0]!= dataset.Count)
             {
                 throw new Exception($"Invalid number of predictions, received {predictions.Shape[0]} but expected {dataset.Count}");
@@ -190,7 +190,7 @@ namespace SharpNet.CatBoost
         //    return new CatBoostModel(sample, workingDirectory, modelName);
         //}
 
-        private static void to_column_description([JetBrains.Annotations.NotNull] string path, IDataSet dataset, bool hasTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        private static void to_column_description([JetBrains.Annotations.NotNull] string path, IDataSet dataset, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
@@ -200,17 +200,17 @@ namespace SharpNet.CatBoost
 
             var categoricalColumns = dataset.CategoricalFeatures;
             var sb = new StringBuilder();
-            var datasetFeatureNamesIfAny = dataset.FeatureNamesIfAny;
-            for (int featureId = 0; featureId < datasetFeatureNamesIfAny.Length; ++featureId)
+            for (int featureId = 0; featureId < dataset.FeatureNames.Length; ++featureId)
             {
-                var featureName = datasetFeatureNamesIfAny[featureId];
-                if (featureId == 0 && hasTargetColumnAsFirstColumn)
+                var featureName = dataset.FeatureNames[featureId];
+                if (dataset.TargetFeatures.Contains(featureName))
                 {
-                    //the first column contains the target
+                    //this feature is the target
                     sb.Append($"{featureId}\tLabel" + Environment.NewLine);
                 }
                 else if (categoricalColumns.Contains(featureName))
                 {
+                    //this feature is a categorical feature
                     sb.Append($"{featureId}\tCateg"+Environment.NewLine);
                 }
             }

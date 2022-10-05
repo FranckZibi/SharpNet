@@ -1,114 +1,45 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class Dataframe
+    public abstract class DataFrame
     {
-        #region private fields
-        private string Name { get; }
+        #region private and protected fields
         #endregion
 
         #region public fields
-        public CpuTensor<float> Tensor { get; }
         public string[] FeatureNames { get; }
+        public string[] CategoricalFeatures{ get; }
+        private Type[] Dtypes { get; }
+        public abstract int[] Shape { get; }
+        public CpuTensor<float> FloatCpuTensor() => ((DataFrameT<float>)this).Tensor;
+
         #endregion
 
         #region Constructors
-        public Dataframe(CpuTensor<float> tensor, IEnumerable<string> featureNames, string name)
+
+        protected DataFrame(IEnumerable<string> featureNames, IEnumerable<string> categoricalFeatures, IEnumerable<Type> dtypes)
         {
-            Debug.Assert(tensor.Shape.Length == 2); //Dataframe works only with matrices
-            Tensor = tensor;
             FeatureNames = featureNames.ToArray();
-            Name = name;
-        }
-        public static Dataframe Load(string path, bool hasHeader, char separator)
-        {
-            var content = new List<List<float>>();
-            var featureNames = new List<string>();
-
-            foreach (var l in System.IO.File.ReadAllLines(path))
-            {
-                var lineContent = l.Split(separator);
-                if (hasHeader && featureNames.Count == 0)
-                {
-                    featureNames = lineContent.ToList();
-                    continue;
-                }
-                content.Add(lineContent.Select(float.Parse).ToList());
-            }
-
-            if (!hasHeader)
-            {
-                featureNames = Enumerable.Range(0, content[0].Count).Select(t => t.ToString()).ToList();
-            }
-
-            var data = new float[content.Count * featureNames.Count];
-            int idx = 0;
-            foreach (var t in content)
-            foreach (var d in t)
-            {
-                data[idx++] = d;
-            }
-            var tensor = new CpuTensor<float>(new[] { content.Count, featureNames.Count }, data);
-
-            return new Dataframe(tensor, featureNames, path);
+            CategoricalFeatures = categoricalFeatures.ToArray();
+            Dtypes = dtypes.ToArray();
         }
         #endregion
 
-        public Dataframe Drop(IList<string> featuresToDrop)
+        public static string Float2String(float f) => f.ToString(CultureInfo.InvariantCulture);
+
+
+        public static bool SameShape(IList<DataFrame> tensors)
         {
-            var indexes = new HashSet<int>(FeatureNameToIndexes(featuresToDrop));
-            
-            var newData = Tensor.DropColumns(indexes);
-
-            var newFeatures = FeatureNames.ToList();
-            newFeatures.RemoveAll(featuresToDrop.Contains);
-            
-            return new Dataframe(newData, newFeatures.ToArray(), Name+"_drop_"+string.Join("_", featuresToDrop));
+            return tensors.All(t => t.Shape.SequenceEqual(tensors[0].Shape));
         }
-        public Dataframe Keep(IList<string> featuresToKeep)
-        {
-            var newData = Tensor.KeepColumns(FeatureNameToIndexes(featuresToKeep));
+        public abstract void Save(string path, int? index = null);
 
-            var newFeatures = FeatureNames.ToList();
-            newFeatures.RemoveAll(f => !featuresToKeep.Contains(f));
-
-            return new Dataframe(newData, newFeatures, Name + "_keep_" + string.Join("_", featuresToKeep));
-        }
-        public void Save(string path, int? index = null)
-        {
-            const char separator = ',';
-            var sb = new StringBuilder();
-            sb.Append(string.Join(separator, FeatureNames));
-            var dataAsSpan = Tensor.SpanContent;
-            int currentIndex = index ?? -1;
-            for (int i = 0; i < dataAsSpan.Length; ++i)
-            {
-                if (i % Tensor.Shape[1] == 0)
-                {
-                    sb.Append(Environment.NewLine);
-                    if (index.HasValue)
-                    {
-                        sb.Append(currentIndex.ToString()+separator);
-                        ++currentIndex;
-                    }
-                }
-                else
-                {
-                    sb.Append(separator);
-                }
-                sb.Append(dataAsSpan[i].ToString(CultureInfo.InvariantCulture));
-            }
-            System.IO.File.WriteAllText(path, sb.ToString());
-        }
-
-        private List<int> FeatureNameToIndexes(IEnumerable<string> featureNames)
+        protected List<int> FeatureNameToIndexes(IEnumerable<string> featureNames)
         {
             var indexes = new List<int>();
             foreach (var f in featureNames)
@@ -123,5 +54,11 @@ namespace SharpNet.Datasets
 
             return indexes;
         }
+
+        public static DataFrameT<float> New(CpuTensor<float> tensor, IEnumerable<string> featureNames, IEnumerable<string> categoricalFeatures)
+        {
+            return new DataFrameT<float>(tensor, featureNames, categoricalFeatures, Float2String);
+        }
+
     }
 }

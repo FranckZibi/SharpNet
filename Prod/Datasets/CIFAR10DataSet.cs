@@ -71,8 +71,8 @@ namespace SharpNet.Datasets
             //Uncomment the following line to take only the first 'count' elements
             //const int count = 1000;xTrain = (CpuTensor<float>)xTrain.RowSlice(0, count);yTrain = (CpuTensor<float>)yTrain.RowSlice(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.RowSlice(0, count); ; yTest = (CpuTensor<float>)yTest.RowSlice(0, xTest.Shape[0]);
 
-            Training = new InMemoryDataSet(xTrain, yTrain, Name, Objective_enum.Classification, meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
-            Test = new InMemoryDataSet(xTest, yTest, Name, Objective_enum.Classification, meanAndVolatilityOfEachChannelInTrainingSet, CategoryIndexToDescription);
+            Training = new InMemoryDataSet(xTrain, yTrain, Name, Objective_enum.Classification, meanAndVolatilityOfEachChannelInTrainingSet);
+            Test = new InMemoryDataSet(xTest, yTest, Name, Objective_enum.Classification, meanAndVolatilityOfEachChannelInTrainingSet);
         }
 
         private static void LoaAllFileAt(string path, CpuTensor<byte> x, CpuTensor<byte> categoryBytes, int indexFirst)

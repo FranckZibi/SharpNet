@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 
@@ -29,14 +28,14 @@ public class WeightedModel: AbstractModel
         throw new System.NotImplementedException();
     }
 
-    public override CpuTensor<float> Predict(IDataSet dataset)
+    public override DataFrame Predict(IDataSet dataset)
     {
         return WeightedModelSample.ApplyWeights(PredictForEachEmbeddedModel(dataset),  new List<int>() );
     }
 
-    private List<CpuTensor<float>> PredictForEachEmbeddedModel(IDataSet dataset)
+    private List<DataFrame> PredictForEachEmbeddedModel(IDataSet dataset)
     {
-        var allModelPredictions = new List<CpuTensor<float>>();
+        var allModelPredictions = new List<DataFrame>();
         foreach (var m in _embeddedModels)
         {
             var modelPrediction = m.Predict(dataset);

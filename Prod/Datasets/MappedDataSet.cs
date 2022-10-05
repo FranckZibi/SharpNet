@@ -12,11 +12,12 @@ namespace SharpNet.Datasets
             : base(original.Name, 
                 original.Objective, 
                 original.Channels, 
-                ((AbstractDataSet)original).CategoryDescriptions, 
                 original.MeanAndVolatilityForEachChannel, 
                 original.ResizeStrategy,
-                original.FeatureNamesIfAny,
-                original.CategoricalFeatures,
+                original.FeatureNames,
+                original.CategoricalFeatures, 
+                original.IdFeatures, 
+                original.TargetFeatures, 
                 original.UseBackgroundThreadToLoadNextMiniBatch,
                 original.DatasetSample)
         {
@@ -37,11 +38,6 @@ namespace SharpNet.Datasets
             _original.LoadAt(_elementIdToOriginalElementId[subElementId], indexInBuffer, xBuffer, yBuffer, withDataAugmentation);
         }
         public override int Count => _elementIdToOriginalElementId.Count;
-
-        public override string ColIdToFeatureName(int colId)
-        {
-            return _original.ColIdToFeatureName(colId);
-        }
 
         public override int ElementIdToCategoryIndex(int elementId)
         {

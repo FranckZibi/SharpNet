@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.HyperParameters;
@@ -40,20 +38,23 @@ public class QRT72DatasetSample : AbstractDatasetSample
 
     public override List<string> CategoricalFeatures()
     {
+        //only numerical features
         return new List<string>();
     }
-    public override void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path)
+
+    public override List<string> IdFeatures()
     {
-        var sb = new StringBuilder();
-        sb.Append("PredictionHeader" + Environment.NewLine);
+        throw new NotImplementedException();
+    }
 
-        var ySpan = predictionsInTargetFormat.AsReadonlyFloatCpuContent;
-        for (int i = 0; i < ySpan.Length; ++i)
-        {
-            sb.Append((i + 1) + "," + ySpan[i].ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
-        }
-        File.WriteAllText(path, sb.ToString().Trim());
+    public override List<string> TargetFeatures()
+    {
+        throw new NotImplementedException();
+    }
 
+    public override List<string> PredictionInTargetFormatFeatures()
+    {
+        return new List<string>{"", "0"};
     }
 
     public override IDataSet TestDataset()
@@ -76,9 +77,9 @@ public class QRT72DatasetSample : AbstractDatasetSample
         return Tensor.CosineSimilarity504_TimeSeries_Length;
     }
 
-    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
     {
-        return predictionsInModelFormat;
+        return DataFrame.New(predictionsInModelFormat.FloatCpuTensor(), PredictionInTargetFormatFeatures(), CategoricalFeatures());
     }
 
     protected override MetricEnum GetMetric()
@@ -102,11 +103,10 @@ public class QRT72DatasetSample : AbstractDatasetSample
             QRT72Utils.NAME,
             Objective_enum.Regression,
             null,
-            new[] { "NONE" },
-            featureNames,
-            CategoricalFeatures().ToArray(),
-            false,
-            this);
+            featureNames: featureNames,
+            categoricalFeatures: CategoricalFeatures().ToArray(),
+            useBackgroundThreadToLoadNextMiniBatch: false,
+            datasetSample: this);
     }
     /// <summary>
     /// path to the test dataset in LightGBM compatible format

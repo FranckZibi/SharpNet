@@ -72,31 +72,35 @@ public class KFoldModel : AbstractModel
             embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
             var validationDataset = validationDatasetIfAny ?? trainAndValidation.Test;
             var foldValidationPrediction = embeddedModel.Predict(validationDataset);
-            var foldValidationScore = embeddedModel.ComputeScore(validationDataset.Y, foldValidationPrediction);
+            var foldValidationScore = embeddedModel.ComputeScore(validationDataset.Y, foldValidationPrediction.FloatCpuTensor());
             LogInfo($"Validation score for fold[{fold}/{n_splits}] : {foldValidationScore}");
         }
         return (null, null, train_XYDatasetPath, null, null, validation_XYDatasetPath);
     }
-    public override CpuTensor<float> Predict(IDataSet dataset)
+    public override DataFrame Predict(IDataSet dataset)
     {
         CpuTensor<float> res = null;
         Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
         //each model weight
         var weight = 1.0f / KFoldSample.n_splits;
+        var featuresNames = new List<string>();
+        var categoricalFeatures = new List<string>();
         foreach (var m in _embeddedModels)
         {
             var modelPrediction = m.Predict(dataset);
+            featuresNames = modelPrediction.FeatureNames.ToList();
+            categoricalFeatures = modelPrediction.CategoricalFeatures.ToList();
             if (res == null)
             {
-                res = modelPrediction;
+                res = modelPrediction.FloatCpuTensor();
                 res.Update_Multiplying_By_Alpha(weight);
             }
             else
             {
-                res.AddTensor(weight, modelPrediction, 1.0f);
+                res.AddTensor(weight, modelPrediction.FloatCpuTensor(), 1.0f);
             }
         }
-        return res;
+        return DataFrame.New(res, featuresNames, categoricalFeatures);
     }
     public override void Save(string workingDirectory, string modelName)
     {

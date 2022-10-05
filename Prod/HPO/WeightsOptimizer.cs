@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
-using SharpNet.CPU;
+using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
 
@@ -14,13 +14,13 @@ public class WeightsOptimizer /*: AbstractModel*/
 {
     #region private fields
     private readonly List<ModelAndDatasetPredictions> _embeddedModelsAndDataset = new();
-    private readonly List<CpuTensor<float>> _embeddedModelsTrainPredictions = new();
-    private readonly List<CpuTensor<float>> _embeddedModelsValidationPredictions = new();
-    private readonly List<CpuTensor<float>> _embeddedModelsTestPredictions = new();
+    private readonly List<DataFrame> _embeddedModelsTrainPredictions = new();
+    private readonly List<DataFrame> _embeddedModelsValidationPredictions = new();
+    private readonly List<DataFrame> _embeddedModelsTestPredictions = new();
     
-    private readonly CpuTensor<float> _perfectTrainPredictions;
-    private readonly CpuTensor<float> _perfectValidationPredictions;
-    private readonly CpuTensor<float> _perfectTestPredictions;
+    private readonly DataFrame _perfectTrainPredictions;
+    private readonly DataFrame _perfectValidationPredictions;
+    private readonly DataFrame _perfectTestPredictions;
     #endregion
 
 
@@ -63,17 +63,17 @@ public class WeightsOptimizer /*: AbstractModel*/
         //we load the train predictions done by the source models (if any)
         _embeddedModelsTrainPredictions.RemoveAll(t => t == null);
         Debug.Assert(_embeddedModelsTrainPredictions.Count == 0 || _embeddedModelsTrainPredictions.Count == _embeddedModelsValidationPredictions.Count);
-        Debug.Assert(SameShape(_embeddedModelsTrainPredictions));
+        Debug.Assert(DataFrame.SameShape(_embeddedModelsTrainPredictions));
 
         //we load the validation predictions done by the source models
         _embeddedModelsValidationPredictions.RemoveAll(t => t == null);
         Debug.Assert(_embeddedModelsValidationPredictions.All(t => t != null));
-        Debug.Assert(SameShape(_embeddedModelsValidationPredictions));
+        Debug.Assert(DataFrame.SameShape(_embeddedModelsValidationPredictions));
 
         //we load the test predictions done by the source models (if any)
         _embeddedModelsTestPredictions.RemoveAll(t => t == null);
         Debug.Assert(_embeddedModelsTestPredictions.Count == 0 || _embeddedModelsTestPredictions.Count == _embeddedModelsValidationPredictions.Count);
-        Debug.Assert(SameShape(_embeddedModelsTestPredictions));
+        Debug.Assert(DataFrame.SameShape(_embeddedModelsTestPredictions));
     }
     #endregion
 
@@ -105,7 +105,7 @@ public class WeightsOptimizer /*: AbstractModel*/
         hpo.Process(t => weightsOptimizer.TrainWithHyperParameters((WeightedModelSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
     }
 
-    private (CpuTensor<float> predictionsInTargetFormat, float score) ComputePredictionsAndScore(CpuTensor<float> true_predictions_in_target_format, List<CpuTensor<float>> t, WeightedModelSample weightedModelSample)
+    private (DataFrame predictionsInTargetFormat, float score) ComputePredictionsAndScore(DataFrame true_predictions_in_target_format, List<DataFrame> t, WeightedModelSample weightedModelSample)
     {
         var weightedModelPredictions = weightedModelSample.ApplyWeights(t, FirstDatasetSample.IndexColumnsInPredictionsInTargetFormat());
         var score = FirstDatasetSample.ComputeScore(true_predictions_in_target_format, weightedModelPredictions);
@@ -162,9 +162,5 @@ public class WeightsOptimizer /*: AbstractModel*/
 
 
         return validationScore;
-    }
-    private static bool SameShape(IList<CpuTensor<float>> tensors)
-    {
-        return tensors.All(t => t.SameShape(tensors[0]));
     }
 }

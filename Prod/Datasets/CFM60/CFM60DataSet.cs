@@ -110,10 +110,11 @@ namespace SharpNet.Datasets.CFM60
             : base(cfm60NetworkSample.CFM60HyperParameters.IsTryingToPredictErrors? "CFM60Errors":"CFM60", 
                 Objective_enum.Regression,
                 cfm60NetworkSample.CFM60HyperParameters.Encoder_TimeSteps,
-                new[] {"NONE"},
                 null,
                 ResizeStrategyEnum.None,
                 cfm60NetworkSample.CFM60HyperParameters.ComputeFeatureNames(),
+                new string[0],
+                new string[0],
                 new string[0],
                 UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetIfAny), 
                 null)
@@ -383,7 +384,7 @@ namespace SharpNet.Datasets.CFM60
         {
             var res = model.Predict(this);
             var CFM60EntryIDToPrediction = new Dictionary<int, double>();
-            var spanResult = res.ReadonlyContent;
+            var spanResult = res.FloatCpuTensor().ReadonlyContent;
             for (int elementId = 0; elementId < Count; ++elementId)
             {
                 var id = _elementIdToLastAssociateCFM60Entry[elementId].ID;

@@ -1,5 +1,4 @@
-﻿using SharpNet.CPU;
-using SharpNet.HyperParameters;
+﻿using SharpNet.HyperParameters;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -18,7 +17,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
     public AmazonEmployeeAccessChallengeDatasetSample() : base(new HashSet<string>())
     {
-        var train = Dataframe.Load(TrainRawFile, true, ',');
+        var train = DataFrameT<float>.Load(TrainRawFile, true, float.Parse, CategoricalFeatures(), DataFrame.Float2String);
         var targetFeatures = new List<string> { "ACTION" };
         var x_dataframe = train.Drop(targetFeatures);
         var x_train_full = x_dataframe.Tensor;
@@ -29,21 +28,19 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
             "AmazonEmployeeAccessChallenge",
             Objective_enum.Classification,
             null,
-            new[] { "NONE" },
-            x_dataframe.FeatureNames,
-            CategoricalFeatures().ToArray(),
-            false);
+            featureNames: x_dataframe.FeatureNames,
+            categoricalFeatures: CategoricalFeatures().ToArray(),
+            useBackgroundThreadToLoadNextMiniBatch: false);
 
         _testDataset = new InMemoryDataSet(
-            Dataframe.Load(GetXTestDatasetPath(), true, ',').Drop(new[] { "id" }).Tensor,
+            LoadNumericalDataFrame(GetXTestDatasetPath(), true).Drop(new[] { "id" }).Tensor,
             null,
             nameof(AmazonEmployeeAccessChallengeDatasetSample),
             Objective_enum.Classification,
             null,
-            new[] { "NONE" },
-            x_dataframe.FeatureNames,
-            CategoricalFeatures().ToArray(),
-            false);
+            featureNames: x_dataframe.FeatureNames,
+            categoricalFeatures: CategoricalFeatures().ToArray(),
+            useBackgroundThreadToLoadNextMiniBatch: false);
 
     }
 
@@ -54,7 +51,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     //    return FullTrain;
     //}
    
-    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
     {
         throw new NotImplementedException();
     }
@@ -69,19 +66,16 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
         return new List<string> { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
     }
 
-    public override void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path)
+    public override List<string> IdFeatures()
     {
-        throw new NotImplementedException();
-        //var sb = new StringBuilder();
-        //sb.Append(PredictionHeader + Environment.NewLine);
-
-        //var ySpan = predictionsInTargetFormat.AsReadonlyFloatCpuContent;
-        //for (int i = 0; i < ySpan.Length; ++i)
-        //{
-        //    sb.Append((i + 1) + "," + ySpan[i].ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
-        //}
-        //File.WriteAllText(path, sb.ToString().Trim());
+        return new List<string> { "id" };
     }
+
+    public override List<string> TargetFeatures()
+    {
+        return new List<string> { "ACTION" };
+    }
+
     public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {
         throw new NotImplementedException();

@@ -55,16 +55,39 @@ namespace SharpNet.LightGBM
             return Fit(trainDatasetPath, validationDatasetPath);
         }
 
-        public override CpuTensor<float> Predict(IDataSet dataset)
+        public override DataFrame Predict(IDataSet dataset)
         {
             return PredictWithPath(dataset).predictions;
         }
 
-        public override (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset)
+        public override (DataFrame predictions, string predictionPath) PredictWithPath(IDataSet dataset)
         {
             const bool addTargetColumnAsFirstColumn = false;
             string predictionDatasetPath = dataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, addTargetColumnAsFirstColumn);
-            var predictions = Predict(predictionDatasetPath);
+            if (!File.Exists(ModelPath))
+            {
+                throw new Exception($"missing model {ModelPath} for inference");
+            }
+            var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(predictionDatasetPath) + ".txt");
+
+            //we save in 'tmpLightGbmSamplePath' the model sample used for prediction
+            var tmpLightGBMSamplePath = predictionResultPath.Replace(".txt", ".conf");
+            var tmpLightGBMSample = (LightGBMSample)LightGbmSample.Clone();
+            tmpLightGBMSample.Set(new Dictionary<string, object> {
+                {"task", LightGBMSample.task_enum.predict},
+                {"data", predictionDatasetPath},
+                {"input_model", ModelPath},
+                {"prediction_result", predictionResultPath},
+                {"header", true}
+            });
+            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
+
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
+            var predictions1 = File.ReadAllLines(predictionResultPath).Select(float.Parse).ToArray();
+            File.Delete(tmpLightGBMSamplePath);
+            File.Delete(predictionResultPath);
+            var cpuTensor =  new CpuTensor<float>(new[] { predictions1.Length, 1 }, predictions1);
+            var predictions = DataFrame.New(cpuTensor, dataset.FeatureNames, dataset.CategoricalFeatures);
             if (predictions.Shape[0]!= dataset.Count)
             {
                 throw new Exception($"Invalid number of predictions, received {predictions.Shape[0]} but expected {dataset.Count}");
@@ -134,32 +157,7 @@ namespace SharpNet.LightGBM
             File.Delete(tmpLightGBMSamplePath);
             return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
         }
-        private CpuTensor<float> Predict(string predictionDatasetPath)
-        {
-            if (!File.Exists(ModelPath))
-            {
-                throw new Exception($"missing model {ModelPath} for inference");
-            }
-            var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(predictionDatasetPath) + ".txt");
 
-            //we save in 'tmpLightGbmSamplePath' the model sample used for prediction
-            var tmpLightGBMSamplePath = predictionResultPath.Replace(".txt", ".conf");
-            var tmpLightGBMSample = (LightGBMSample)LightGbmSample.Clone();
-            tmpLightGBMSample.Set(new Dictionary<string, object> {
-                {"task", LightGBMSample.task_enum.predict},
-                {"data", predictionDatasetPath},
-                {"input_model", ModelPath},
-                {"prediction_result", predictionResultPath},
-                {"header", true}
-            });
-            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
-
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
-            var predictions = File.ReadAllLines(predictionResultPath).Select(float.Parse).ToArray();
-            File.Delete(tmpLightGBMSamplePath);
-            File.Delete(predictionResultPath);
-            return new CpuTensor<float>(new[] { predictions.Length, 1 }, predictions);
-        }
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "lightgbm.exe");
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");
 

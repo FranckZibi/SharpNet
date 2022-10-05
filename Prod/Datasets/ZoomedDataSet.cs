@@ -17,11 +17,12 @@ namespace SharpNet.Datasets
             : base(original.Name, 
                 original.Objective, 
                 original.Channels, 
-                ((AbstractDataSet)original).CategoryDescriptions, 
                 original.MeanAndVolatilityForEachChannel, 
                 original.ResizeStrategy, 
-                original.FeatureNamesIfAny,
+                original.FeatureNames,
                 original.CategoricalFeatures,
+                original.IdFeatures,
+                original.TargetFeatures,
                 true,
                 original.DatasetSample)
         {
@@ -48,11 +49,6 @@ namespace SharpNet.Datasets
         public override string ElementIdToDescription(int elementId)
         {
             return _original.ElementIdToDescription(elementId);
-        }
-
-        public override string ColIdToFeatureName(int colId)
-        {
-            return _original.ColIdToFeatureName(colId);
         }
 
         public override string ElementIdToPathIfAny(int elementId)

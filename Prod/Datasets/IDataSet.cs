@@ -87,16 +87,11 @@ namespace SharpNet.Datasets
         /// <returns>the path (directory+filename) where the dataset has been saved</returns>
         string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool overwriteIfExists);
 
-        string[] FeatureNamesIfAny { get; }
+        string[] FeatureNames { get; }
 
         string[] CategoricalFeatures { get; }
-
-        /// <summary>
-        /// the name associate with a column (= feature)
-        /// </summary>
-        /// <param name="colId"></param>
-        /// <returns></returns>
-        string ColIdToFeatureName(int colId);
+        string[] IdFeatures { get; }
+        string[] TargetFeatures { get; }
 
         /// <summary>
         /// the type of use of the dataset : Regression or Classification
@@ -119,6 +114,9 @@ namespace SharpNet.Datasets
         List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
         [CanBeNull] CpuTensor<float> Y { get; }
+
+        [CanBeNull] DataFrame Y_as_DataFrame() => DataFrame.New(Y, new []{"y"}, Array.Empty<string>());
+
 
         string Name { get; }
 

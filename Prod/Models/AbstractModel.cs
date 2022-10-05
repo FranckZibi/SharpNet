@@ -38,7 +38,7 @@ public abstract class AbstractModel : IModel
         res.AddRange(ModelFiles());
         return res;
     }
-    public virtual (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset)
+    public virtual (DataFrame predictions, string predictionPath) PredictWithPath(IDataSet dataset)
     {
         return (Predict(dataset), "");
     }
@@ -105,8 +105,7 @@ public abstract class AbstractModel : IModel
 
     public abstract (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
         Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
-    public abstract CpuTensor<float> 
-        Predict(IDataSet dataset);
+    public abstract DataFrame Predict(IDataSet dataset);
     public abstract void Save(string workingDirectory, string modelName);
     public abstract string DeviceName();
     public abstract int TotalParams();

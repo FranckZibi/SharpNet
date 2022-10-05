@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.Datasets.AmazonEmployeeAccessChallenge;
@@ -15,7 +16,7 @@ namespace SharpNet.HyperParameters;
 public abstract class AbstractDatasetSample : AbstractSample
 {
     #region private fields
-    private static readonly ConcurrentDictionary<string, CpuTensor<float>> LoadPredictionsInTargetFormat_Cache = new();
+    private static readonly ConcurrentDictionary<string, DataFrame> LoadPredictionsInTargetFormat_Cache = new();
     #endregion
 
 
@@ -72,15 +73,15 @@ public abstract class AbstractDatasetSample : AbstractSample
         return new HashSet<string>{nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
     }
 
-    public float ComputeScore(CpuTensor<float> y_true_in_target_format, CpuTensor<float> y_pred_in_target_format)
+    public float ComputeScore(DataFrame y_true_in_target_format, DataFrame y_pred_in_target_format)
     {
         if (y_true_in_target_format == null || y_pred_in_target_format == null)
         {
             return float.NaN;
         }
-        Debug.Assert(y_true_in_target_format.SameShape(y_pred_in_target_format));
-        var y_true = y_true_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
-        var y_pred = y_pred_in_target_format.DropColumns(IndexColumnsInPredictionsInTargetFormat());
+        Debug.Assert(y_true_in_target_format.Shape.SequenceEqual(y_pred_in_target_format.Shape));
+        var y_true = y_true_in_target_format.FloatCpuTensor().DropColumns(IndexColumnsInPredictionsInTargetFormat());
+        var y_pred = y_pred_in_target_format.FloatCpuTensor().DropColumns(IndexColumnsInPredictionsInTargetFormat());
 
         using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(GetMetric()));
         return (float)y_true.ComputeMetric(y_pred, GetMetric(), GetLoss(), buffer);
@@ -96,6 +97,33 @@ public abstract class AbstractDatasetSample : AbstractSample
         return 1;
     }
     public abstract List<string> CategoricalFeatures();
+
+    /// <summary>
+    /// features used to identify a row in the dataset
+    /// such features should be ignored during the training
+    /// </summary>
+    /// <returns>list of id features </returns>
+    public abstract List<string> IdFeatures();
+
+    /// <summary>
+    /// list of target feature names (usually a single element)
+    /// </summary>
+    /// <returns>list of target feature names </returns>
+    public abstract List<string> TargetFeatures();
+
+    
+    /// <summary>
+    /// by default, the prediction file starts first with the ids columns, then with the target columns
+    /// </summary>
+    /// <returns></returns>
+    public virtual List<string> PredictionInTargetFormatFeatures()
+    {
+        var res = IdFeatures().ToList();
+        res.AddRange(TargetFeatures());
+        return res;
+    }
+
+
     public virtual char GetSeparator() { return ',';}
     /// <summary>
     /// true if predictions files have header
@@ -104,7 +132,16 @@ public abstract class AbstractDatasetSample : AbstractSample
     // ReSharper disable once MemberCanBeProtected.Global
     // ReSharper disable once VirtualMemberNeverOverridden.Global
     public virtual bool HeaderInPredictionFile() { return true;}
-    public abstract void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path);
+    public virtual void SavePredictionsInTargetFormat(DataFrame predictionsInTargetFormat, string path)
+    {
+        //var start = Stopwatch.StartNew();
+        predictionsInTargetFormat.Save(path);
+        //ISample.Log.Debug($"SavePredictionsInTargetFormat in {path} took {start.Elapsed.TotalSeconds}s");
+    }
+
+
+
+
     public abstract IDataSet TestDataset();
     
     /// <summary>
@@ -126,13 +163,13 @@ public abstract class AbstractDatasetSample : AbstractSample
         return new[] { 0 };
     }
 
-    public abstract CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat);
-    public virtual CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
+    public abstract DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat);
+    public virtual DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
     {
         throw new NotImplementedException();
     }
 
-    public CpuTensor<float> LoadPredictionsInTargetFormat(string path)
+    public DataFrame LoadPredictionsInTargetFormat(string path)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
         {
@@ -144,9 +181,13 @@ public abstract class AbstractDatasetSample : AbstractSample
             return res;
         }
 
-        var y_pred = Dataframe.Load(path, HeaderInPredictionFile(), GetSeparator()).Tensor;
+        var y_pred = LoadNumericalDataFrame(path, HeaderInPredictionFile());
         LoadPredictionsInTargetFormat_Cache.TryAdd(path, y_pred);
         return y_pred;
+    }
+    public static DataFrameT<float> LoadNumericalDataFrame(string path, bool hasHeader)
+    {
+        return DataFrameT<float>.Load(path, hasHeader, float.Parse, null, DataFrame.Float2String);
     }
 
 }

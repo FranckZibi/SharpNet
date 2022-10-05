@@ -182,7 +182,7 @@ namespace SharpNetTests.NonReg
 
             //network.LogContent();
 
-            using var trainingDataSet = new InMemoryDataSet(X, Y, "", Objective_enum.Classification, null, ImageNetDataSet._CategoryIndexToDescription);
+            using var trainingDataSet = new InMemoryDataSet(X, Y, "", Objective_enum.Classification, null);
             var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");

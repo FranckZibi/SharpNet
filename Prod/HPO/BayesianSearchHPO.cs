@@ -116,19 +116,19 @@ public class BayesianSearchHPO : AbstractHpo
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, string[] categoricalFeature = null)
     {
-        var df = Dataframe.Load(dataFramePath, true, ',');
+        var df = AbstractDatasetSample.LoadNumericalDataFrame(dataFramePath, true);
         var x_df = df.Drop(new[] {"y"});
         var x = x_df.Tensor;
         var y_df = df.Keep(new[] {"y"});
         var y = y_df.Tensor;
-        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, new[] { "NONE" }, x_df.FeatureNames, categoricalFeature??Array.Empty<string>(), false);
+        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, featureNames: x_df.FeatureNames, categoricalFeatures: categoricalFeature??Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
     {
-        var df = Dataframe.Load(dataFramePath, true, ',');
+        var df = AbstractDatasetSample.LoadNumericalDataFrame(dataFramePath, true);
         var x = df.Tensor;
-        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, df.FeatureNames, categoricalFeature ?? Array.Empty<string>(), false);
+        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: df.FeatureNames, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
 
     protected override (ISample, int, string) Next
@@ -229,18 +229,18 @@ public class BayesianSearchHPO : AbstractHpo
 
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
-        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, new[] { "NONE" }, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), false);
+        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);
 
         // we compute the estimate cost associated with each random sample (using the surrogate model)
         Utils.TryDelete(LastDatasetPathUsedForPrediction);
         (var y, LastDatasetPathUsedForPrediction) = _samplesUsedForModelTraining == 0 
                 
                 // the model has not been trained so far, we can not use it for now
-                ? (new CpuTensor<float>(new [] { x.Shape[0], 1 }), "") 
+                ? ( DataFrame.New(new CpuTensor<float>(new [] { x.Shape[0], 1 }), new List<string>{"y"}, Array.Empty<string>()), "")
 
                 // the model has been already trained, we can use it
                 : _surrogateModel.PredictWithPath(dataset);
-        var ySpan = y.AsFloatCpuSpan;
+        var ySpan = y.FloatCpuTensor().AsFloatCpuSpan;
         var estimateRandomSampleCostAndIndex = new List<Tuple<float, int>>();
         for (var index = 0; index < ySpan.Length; index++)
         {
@@ -342,7 +342,7 @@ public class BayesianSearchHPO : AbstractHpo
         using var x = CpuTensor<float>.NewCpuTensor(xRows);
         var yData = samplesWithScore.Select(t => t.Item4).ToArray();
         using var y_true = new CpuTensor<float>(new[] { x.Shape[0], 1 }, yData);
-        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), false);
+        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
         Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.train_YDatasetPath);
@@ -356,10 +356,10 @@ public class BayesianSearchHPO : AbstractHpo
         // we compute the score of the surrogate model on the training dataset
         Utils.TryDelete(LastDatasetPathUsedForPrediction);
         (var y_pred, LastDatasetPathUsedForPrediction) = _surrogateModel.PredictWithPath(trainingDataset);
-        double surrogateModelTrainingScore = _surrogateModel.ComputeScore(y_true, y_pred);
+        double surrogateModelTrainingScore = _surrogateModel.ComputeScore(y_true, y_pred.FloatCpuTensor());
         Log.Info($"Surrogate model Training score: {surrogateModelTrainingScore} (trained on {x.Shape[0]} samples)");
-        y_pred.Dispose();
-
+        y_pred.FloatCpuTensor().Dispose();
+        y_pred = null;
         return xRows.Count;
     }
 

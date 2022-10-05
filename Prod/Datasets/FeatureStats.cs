@@ -11,9 +11,9 @@ public class FeatureStats
 {
     #region private fields
     // true if the '_subSum' field is outdated and needs to be recomputed
-    private readonly Dictionary<string, int> _categoricalFeatureNameToCount = new();
-    private readonly List<string> _categoricalFeatureNames = new();
-    private readonly Dictionary<string, int> _categoricalFeatureNameToIndex = new();
+    private readonly Dictionary<string, int> _categoricalFeatureToCount = new();
+    private readonly List<string> _categoricalFeatures = new();
+    private readonly Dictionary<string, int> _categoricalFeatureToIndex = new();
     private readonly DoubleAccumulator _numericalValues = new();
     /// <summary>
     /// true if the feature is categorical (non numerical)
@@ -56,24 +56,24 @@ public class FeatureStats
         ++Count;
         if (IsCategoricalFeature)
         {
-            var categoricalFeatureName = NormalizeCategoricalFeatureValue(featureValue);
-            if (categoricalFeatureName.Length == 0)
+            var categoricalFeatures = NormalizeCategoricalFeatureValue(featureValue);
+            if (categoricalFeatures.Length == 0)
             {
                 ++CountEmptyFeatures;
                 return -1;
             }
             //it is a categorical feature, we add it to the dictionary
-            if (!_categoricalFeatureNameToCount.ContainsKey(categoricalFeatureName))
+            if (!_categoricalFeatureToCount.ContainsKey(categoricalFeatures))
             {
-                _categoricalFeatureNameToCount[categoricalFeatureName] = 1;
-                _categoricalFeatureNames.Add(categoricalFeatureName);
-                _categoricalFeatureNameToIndex[categoricalFeatureName] = _categoricalFeatureNames.Count - 1;
+                _categoricalFeatureToCount[categoricalFeatures] = 1;
+                _categoricalFeatures.Add(categoricalFeatures);
+                _categoricalFeatureToIndex[categoricalFeatures] = _categoricalFeatures.Count - 1;
             }
             else
             {
-                ++_categoricalFeatureNameToCount[categoricalFeatureName];
+                ++_categoricalFeatureToCount[categoricalFeatures];
             }
-            return _categoricalFeatureNameToIndex[categoricalFeatureName];
+            return _categoricalFeatureToIndex[categoricalFeatures];
         }
         else
         {
@@ -95,7 +95,7 @@ public class FeatureStats
         if (IsCategoricalFeature)
         {
             var categoricalFeatureIndex = (int)Math.Round(numericalEncodedFeatureValue);
-            return categoricalFeatureIndex<0?"": _categoricalFeatureNames[categoricalFeatureIndex];
+            return categoricalFeatureIndex<0?"": _categoricalFeatures[categoricalFeatureIndex];
         }
 
         if (double.IsNaN(numericalEncodedFeatureValue))

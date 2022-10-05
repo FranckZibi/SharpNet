@@ -85,11 +85,6 @@
 //        return _embeddedDatasetSample.LoadAllPredictions();
 //    }
 
-//    public override void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat, string path)
-//    {
-//        _embeddedDatasetSample.SavePredictionsInTargetFormat(predictionsInModelFormat, path);
-//    }
-
 
 //    public override IDataSet TestDataset()
 //    {

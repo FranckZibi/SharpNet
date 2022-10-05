@@ -68,21 +68,22 @@ public class DatasetEncoder
     }
 
     /// <summary>
-    /// load the dataset 'csvDataset' adn encode all categorical features into numerical values
+    /// load the dataset 'csvDataset' and encode all categorical features into numerical values
     /// (so that it can be processed by LightGBM)
     /// </summary>
     /// <param name="csvDataset"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public Dataframe NumericalEncoding(string csvDataset)
+    public DataFrameT<float> NumericalEncoding(string csvDataset)
     {
         var rows = Utils.ReadCsv(csvDataset).ToList();
         return NumericalEncoding(rows, csvDataset);
     }
 
-    public Dataframe NumericalEncoding(List<string[]> rows, string datasetName)
+    public DataFrameT<float> NumericalEncoding(List<string[]> rows, string datasetName)
     {
+        //the 1st row contains the header
         if (rows.Count < 2)
         {
             var errorMsg = $"fail to encode dataset '{datasetName}', too few rows {rows.Count}";
@@ -116,18 +117,27 @@ public class DatasetEncoder
             }
         }
         var cpuTensor = new CpuTensor<float>(new [] { rows.Count - 1, headerRow.Length }, content);
-        var df = new Dataframe(cpuTensor, headerRow, datasetName);
+        foreach (var f in _categoricalFeatures)
+        {
+            if (!headerRow.Contains(f))
+            {
+                var errorMsg = $"invalid categorical feature {f}";
+                Log.Error(errorMsg);
+                throw new Exception(errorMsg);
+            }
+        }
+        var df = DataFrame.New(cpuTensor, headerRow, _categoricalFeatures);
         return df;
     }
 
     /// <summary>
-    /// Decode the dataframe 'df' (replacing numerical values by their categorical values) and return the content of the decoded Dataframe
+    /// Decode the dataframe 'df' (replacing numerical values by their categorical values) and return the content of the decoded DataFrame
     /// </summary>
     /// <param name="df"></param>
     /// <param name="separator"></param>
     /// <param name="missingNumberValue"></param>
     /// <returns></returns>
-    public string NumericalDecoding(Dataframe df, char separator, string missingNumberValue = "")
+    public string NumericalDecoding(DataFrameT<float> df, char separator, string missingNumberValue = "")
     {
         var featureNames = df.FeatureNames;
 

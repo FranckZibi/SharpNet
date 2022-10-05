@@ -62,8 +62,8 @@ public interface IModel
 
     (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
         Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
-    CpuTensor<float> Predict(IDataSet dataset);
-    (CpuTensor<float> predictions, string predictionPath) PredictWithPath(IDataSet dataset);
+    DataFrame Predict(IDataSet dataset);
+    (DataFrame predictions, string predictionPath) PredictWithPath(IDataSet dataset);
     void Save(string workingDirectory, string modelName);
     float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred);
     List<string> ModelFiles();

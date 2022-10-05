@@ -830,9 +830,10 @@ namespace SharpNet.Networks
         {
             return Predict(new List<Tensor> {X}, isTraining);
         }
-        public override CpuTensor<float> Predict(IDataSet dataset)
+        public override DataFrame Predict(IDataSet dataset)
         {
-            return Predict(dataset, Config.BatchSize);
+            var cpuTensor = Predict(dataset, Config.BatchSize);
+            return DataFrame.New(cpuTensor, dataset.FeatureNames, dataset.CategoricalFeatures);
         }
 
         public override int GetNumEpochs()

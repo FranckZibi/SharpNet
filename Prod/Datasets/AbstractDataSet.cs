@@ -88,28 +88,29 @@ namespace SharpNet.Datasets
 
         public AbstractDatasetSample DatasetSample { get; }
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
-        [CanBeNull] public string[] FeatureNamesIfAny { get; }
-        public string[] CategoricalFeatures { get; }
+        [NotNull] public string[] FeatureNames { get; }
+        [NotNull] public string[] CategoricalFeatures { get; }
+        [NotNull] public string[] IdFeatures { get; }
+        [NotNull] public string[] TargetFeatures { get; }
         public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
         #endregion
 
         #region constructor
         protected AbstractDataSet(string name,
-            Objective_enum? objective,
+            Objective_enum objective,
             int channels,
-            string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
-            string[] featureNamesIfAny,
-            string[] categoricalFeatures,
-            bool useBackgroundThreadToLoadNextMiniBatch, 
+            [NotNull] string[] featureNames,
+            [NotNull] string[] categoricalFeatures,
+            [NotNull] string[] idFeatures,
+            [NotNull] string[] targetFeatures,
+            bool useBackgroundThreadToLoadNextMiniBatch,
             AbstractDatasetSample datasetSample)
         {
             Name = name;
-            Objective = objective ?? (categoryDescriptions==null?Objective_enum.Regression:Objective_enum.Classification);
+            Objective = objective;
             Channels = channels;
-            Debug.Assert(categoryDescriptions != null);
-            CategoryDescriptions = categoryDescriptions;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
             UseBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
@@ -119,8 +120,10 @@ namespace SharpNet.Datasets
             {
                 _rands[i] = new Random(i);
             }
-            FeatureNamesIfAny = featureNamesIfAny;
+            FeatureNames = featureNames;
             CategoricalFeatures = categoricalFeatures;
+            IdFeatures = idFeatures;
+            TargetFeatures = targetFeatures;
             if (UseBackgroundThreadToLoadNextMiniBatch)
             {
                 thread = new Thread(BackgroundThread);
@@ -129,17 +132,12 @@ namespace SharpNet.Datasets
         }
         #endregion
 
-        public virtual string ColIdToFeatureName(int colId)
-        {
-            return FeatureNamesIfAny == null ? colId.ToString() : FeatureNamesIfAny[colId];
-        }
-
         /// <summary>
         /// the type of use of the dataset : Regression or Classification
         /// </summary>
         public Objective_enum Objective { get; }
 
-        public string[] CategoryDescriptions { get; }
+        public string[] CategoryDescriptions00 { get; }
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,[CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
 
@@ -360,16 +358,6 @@ namespace SharpNet.Datasets
         /// true if the current data set is normalized (with mean=0 and volatility=1 in each channel)
         /// </summary>
         private bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
-
-        // ReSharper disable once UnusedMember.Global
-        public string CategoryDescription(int categoryIndex)
-        {
-            if (CategoryDescriptions == null || categoryIndex < 0 || categoryIndex >= CategoryDescriptions.Length)
-            {
-                return "";
-            }
-            return CategoryDescriptions[categoryIndex];
-        }
 
         // ReSharper disable once UnusedMember.Global
         public IDataSet Resize(int targetSize, bool shuffle)
@@ -619,7 +607,7 @@ namespace SharpNet.Datasets
         /// <param name="addTargetColumnAsFirstColumn"></param>
         /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
         /// <param name="separator"></param>
-        private void to_csv(string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        private void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
@@ -631,13 +619,19 @@ namespace SharpNet.Datasets
             var sb = new StringBuilder();
             if (addTargetColumnAsFirstColumn)
             {
-                sb.Append("y" + separator);
+                if (TargetFeatures.Length != 1)
+                {
+                    var errorMsg = $"invalid number of tagret features, expecting 1, found {TargetFeatures.Length}: {string.Join(' ', TargetFeatures)}";
+                    Log.Error(errorMsg);
+                    throw new Exception(errorMsg);
+                }
+                sb.Append(TargetFeatures[0] + separator);
             }
-            sb.Append(string.Join(separator, FeatureNamesIfAny) + Environment.NewLine);
+            sb.Append(string.Join(separator, FeatureNames) + Environment.NewLine);
             // ReSharper disable once PossibleNullReferenceException
             var yDataAsSpan = (addTargetColumnAsFirstColumn&&Y!=null) ? Y.AsFloatCpuSpan : null;
 
-            int cols = FeatureNamesIfAny.Length;
+            int cols = FeatureNames.Length;
             using CpuTensor<float> X = new(new[] { 1, cols });
             var xDataAsSpan = X.AsReadonlyFloatCpuContent;
             for (int row = 0; row < Count; ++row)
@@ -725,7 +719,7 @@ namespace SharpNet.Datasets
                 return "";
             }
             int rows = dataset.Count;
-            int cols = dataset.FeatureNamesIfAny.Length;
+            int cols = dataset.FeatureNames.Length;
             var desc = rows + "_" + cols;
             using CpuTensor<float> xBuffer = new(new[] { 1, cols });
             var xDataSpan = xBuffer.AsReadonlyFloatCpuContent;

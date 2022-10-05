@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
@@ -18,13 +19,13 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     private static readonly ConcurrentDictionary<string, CpuTensor<float>> CacheDataset = new();
     private static DoubleAccumulator[] YStatsInTargetFormat { get; }
     private static DoubleAccumulator[] YAbsStatsInTargetFormat { get; }
-    private static readonly ConcurrentDictionary<string, CpuTensor<float>> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
+    private static readonly ConcurrentDictionary<string, DataFrame> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
     #endregion
 
     #region constructors
     static Natixis70DatasetSample()
     {
-        var cpuTensor = Dataframe.Load(YTrainRawFile, true, ',').Drop(new[] { "" }).Tensor;
+        var cpuTensor = LoadNumericalDataFrame(YTrainRawFile, true).Drop(new[] { "" }).Tensor;
         YStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, false);
         YAbsStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, true);
     }
@@ -100,7 +101,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         return predictionsInModelFormat;
     }
 
-    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(CpuTensor<float> predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
     {
         if (predictionsInModelFormat == null)
         {
@@ -108,10 +109,11 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         if (predictionsInModelFormat.Shape[1] == 39)
         {
-            return CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat, 0);
+            var cpuTensor = CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat.FloatCpuTensor(), 0);
+            return DataFrame.New(cpuTensor, PredictionInTargetFormatFeatures(), CategoricalFeatures());
         }
 
-        var predictionsInModelFormatSpan = predictionsInModelFormat.AsReadonlyFloatCpuContent;
+        var predictionsInModelFormatSpan = predictionsInModelFormat.FloatCpuTensor().AsReadonlyFloatCpuContent;
         var predictionsInModelFormatSpanIndex = 0;
 
         // the predictions in the target format for the Natixis70 Challenge
@@ -151,7 +153,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         Debug.Assert(predictionsInTargetFormat.Shape.Length == 2);
         Debug.Assert(predictionsInTargetFormat.Shape[1] == (1 + 39));
-        return predictionsInTargetFormat;
+        return DataFrame.New(predictionsInTargetFormat, PredictionInTargetFormatFeatures(), CategoricalFeatures());
     }
     public override bool FixErrors()
     {
@@ -169,13 +171,13 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     /// </summary>
     /// name="dataframe_path">a dataset in LightGBM format
     /// <returns></returns>
-    public override CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
     {
         if (PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryGetValue(dataframe_path, out var res))
         {
             return res;
         }
-        var predictionsInModelFormat = Dataframe.Load(dataframe_path, true, ',').Keep(new[] { "y" }).Tensor;
+        var predictionsInModelFormat = LoadNumericalDataFrame(dataframe_path, true).Keep(new[] { "y" });
         var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
         Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
         Debug.Assert(predictionInTargetFormat.Shape[1] == (1+39));
@@ -210,17 +212,15 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         return categoricalFeatures;
     }
-    //public override IDataSet FullTraining()
-    //{
-    //    return NewDataSet(XTrainRawFile, YTrainRawFile);
-    //}
-    public override void SavePredictionsInTargetFormat(CpuTensor<float> predictionsInTargetFormat, string path)
-    {
-        var start = Stopwatch.StartNew();
-        new Dataframe(predictionsInTargetFormat, Natixis70Utils.PredictionHeader.Split(','), "").Save(path);
-        ISample.Log.Debug($"SavePredictionsInTargetFormat in {path} took {start.Elapsed.TotalSeconds}s");
-    }
 
+    public override List<string> IdFeatures()
+    {
+        return new List<string>{""};
+    }
+    public override List<string> TargetFeatures()
+    {
+        return Natixis70Utils.PredictionHeader.Trim(',').Split(',').ToList();
+    }
 
     /// <summary>
     /// true if the test dataset must also have associated labels (so that we can compute a score for it)
@@ -368,11 +368,10 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             Natixis70Utils.NAME,
             Objective_enum.Regression,
             null,
-            new[] { "NONE" },
-            FeatureNames().ToArray(),
-            CategoricalFeatures().ToArray(),
-            false,
-            this);
+            featureNames: FeatureNames().ToArray(),
+            categoricalFeatures: CategoricalFeatures().ToArray(),
+            useBackgroundThreadToLoadNextMiniBatch: false,
+            datasetSample: this);
     }
     /// <summary>
     /// return the horizonId associated with row 'rowInModelFormat', or -1 if the row is associated with all horizon ids
@@ -418,8 +417,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
         //We load 'xFileInTargetFormat'
-        var xInTargetFormatDataframe = Dataframe.Load(xFileInTargetFormat, true, ',');
-        var xInTargetFormat = xInTargetFormatDataframe.Tensor;
+        var xInTargetFormatDataFrame = LoadNumericalDataFrame(xFileInTargetFormat, true);
+        var xInTargetFormat = xInTargetFormatDataFrame.Tensor;
         Debug.Assert(xInTargetFormat.Shape[1] == Natixis70Utils.EmbeddingDimension);
         int rowsInTargetFormat = xInTargetFormat.Shape[0];
         var xInTargetFormatSpan = xInTargetFormat.AsReadonlyFloatCpuContent;
@@ -482,8 +481,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
         Debug.Assert(File.Exists(yFileInTargetFormat));
-        var yInTargetFormatDataframe = Dataframe.Load(yFileInTargetFormat, true, ',');
-        var yInTargetFormat = yInTargetFormatDataframe.Tensor;
+        var yInTargetFormatDataFrame = LoadNumericalDataFrame(yFileInTargetFormat, true);
+        var yInTargetFormat = yInTargetFormatDataFrame.Tensor;
         var yInModelFormat = PredictionsInTargetFormat_2_PredictionsInModelFormat(yInTargetFormat);
         yInTargetFormat.Dispose();
 

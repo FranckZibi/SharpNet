@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using SharpNet.CPU;
+using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -101,7 +102,7 @@ public class WeightedModelSample : AbstractSample, IModelSample
         SetWeights(weights);
     }
 
-    public CpuTensor<float> ApplyWeights(List<CpuTensor<float>> t, IList<int> indexColumnsNotToUse)
+    public DataFrameT<float> ApplyWeights(List<DataFrame> t, IList<int> indexColumnsNotToUse)
     {
         if (t == null || t.Count == 0)
         {
@@ -115,12 +116,13 @@ public class WeightedModelSample : AbstractSample, IModelSample
         var sumWeights = weights.Take(t.Count).Sum();
         var res = new CpuTensor<float>(t[0].Shape);
         res.SetValue(0.0f);
+
         for (int i = 0; i < t.Count; ++i)
         {
-            res.Update_Adding_Alpha_X(weights[i] / sumWeights, t[i]);
+            res.Update_Adding_Alpha_X(weights[i] / sumWeights, t[i].FloatCpuTensor());
         }
-        res.LoadColumnsFromSource(t[0], indexColumnsNotToUse);
-        return res;
+        res.LoadColumnsFromSource(t[0].FloatCpuTensor(), indexColumnsNotToUse);
+        return DataFrame.New(res, t[0].FeatureNames, t[0].CategoricalFeatures);
     }
     public MetricEnum GetMetric()
     {

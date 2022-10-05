@@ -71,15 +71,16 @@ namespace SharpNet.Datasets
             string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
-            string[] featureNamesIfAny
+            string[] featureNames
             )
             : base(name,
                 objective, 
                 channels, 
-                categoryDescriptions, 
                 meanAndVolatilityForEachChannel, 
                 resizeStrategy,
-                featureNamesIfAny,
+                featureNames,
+                new string[0],
+                new string[0],
                 new string[0],
                 true,
                 null)

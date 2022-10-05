@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
@@ -18,21 +17,23 @@ namespace SharpNet.Datasets
         public InMemoryDataSet([NotNull] CpuTensor<float> x,
             [CanBeNull] CpuTensor<float> y,
             string name = "",
-            Objective_enum? objective = null,
+            Objective_enum objective = Objective_enum.Regression,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel = null,
-            string[] categoryDescriptions = null,
             string[] featureNames = null,
             string[] categoricalFeatures = null,
-            bool useBackgroundThreadToLoadNextMiniBatch = true, 
+            string[] idFeatures = null, 
+            string[] targetFeatures = null,
+            bool useBackgroundThreadToLoadNextMiniBatch = true,
             AbstractDatasetSample datasetSample = null)
             : base(name,
                 objective,
                 x.Shape[1], 
-                categoryDescriptions ?? Enumerable.Range(0, y.Shape[1]).Select(i => i.ToString()).ToArray(), 
                 meanAndVolatilityForEachChannel, 
                 ResizeStrategyEnum.None,
-                featureNames,
-                categoricalFeatures??new string[0],
+                featureNames ?? new string[0],
+                categoricalFeatures ??new string[0],
+                idFeatures ?? new string[0],
+                targetFeatures ?? new string[0],
                 useBackgroundThreadToLoadNextMiniBatch, 
                 datasetSample)
         {
