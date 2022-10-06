@@ -21,16 +21,22 @@ public class DataFrameT<T> : DataFrame
 
 
     #region Constructors
-    public DataFrameT(CpuTensor<T> tensor, IEnumerable<string> featureNames, IEnumerable<string> categoricalFeatures, Func<T, string> toString) : base(featureNames, categoricalFeatures, Enumerable.Repeat(typeof(T), tensor.Shape[1]))
+    public DataFrameT(CpuTensor<T> tensor, IList<string> featureNames, IList<string> categoricalFeatures, Func<T, string> toString) : base(featureNames, categoricalFeatures, Enumerable.Repeat(typeof(T), tensor.Shape[1]).ToList())
     {
         _toString = toString;
         Debug.Assert(tensor.Shape.Length == 2); //DataFrame works only with matrices
+        if (tensor.Shape[1] != featureNames.Count)
+        {
+            var errorMsg = $"Invalid tensor columns count {tensor.Shape[1]}: should be {featureNames.Count} / {string.Join(' ', featureNames)} ";
+            throw new Exception(errorMsg);
+        }
+
         Tensor = tensor;
     }
 
     public override int[] Shape => Tensor.Shape;
 
-    public static DataFrameT<T> Load(string path, bool hasHeader, Func<string, T> parser, IEnumerable<string> categoricalFeatures, Func<T, string> toString)
+    public static DataFrameT<T> Load(string path, bool hasHeader, Func<string, T> parser, IList<string> categoricalFeatures, Func<T, string> toString)
     {
         var content = new List<List<T>>();
         var featureNames = new List<string>();
@@ -76,24 +82,28 @@ public class DataFrameT<T> : DataFrame
     }
     #endregion
 
-    public DataFrameT<T> Drop(IList<string> featuresToDrop)
-    {
-        var indexes = new HashSet<int>(FeatureNameToIndexes(featuresToDrop));
-            
-        var newData = Tensor.DropColumns(indexes);
 
+
+    public override (DataFrame first, DataFrame second) Split(IList<string> featuresForSecondDataFrame)
+    {
+        var first = Drop(featuresForSecondDataFrame);
+        var second = Keep(featuresForSecondDataFrame);
+        return (first, second);
+    }
+
+    public override DataFrameT<T> Drop(IList<string> featuresToDrop)
+    {
+        var newData = Tensor.DropColumns(FeatureNamesToIndexes(featuresToDrop));
         var newFeatures = FeatureNames.ToList();
         newFeatures.RemoveAll(featuresToDrop.Contains);
         var newCategoricalFeatures = CategoricalFeatures.ToList();
         newCategoricalFeatures.RemoveAll(featuresToDrop.Contains);
-
-
         return new DataFrameT<T>(newData, newFeatures.ToArray(), newCategoricalFeatures, _toString);
     }
-    public DataFrameT<T> Keep(IList<string> featuresToKeep)
-    {
-        var newData = Tensor.KeepColumns(FeatureNameToIndexes(featuresToKeep));
 
+    public override DataFrameT<T> Keep(IList<string> featuresToKeep)
+    {
+        var newData = Tensor.KeepColumns(FeatureNamesToIndexes(featuresToKeep));
         var newFeatures = FeatureNames.ToList();
         newFeatures.RemoveAll(f => !featuresToKeep.Contains(f));
         var newCategoricalFeatures = CategoricalFeatures.ToList();
@@ -101,27 +111,32 @@ public class DataFrameT<T> : DataFrame
 
         return new DataFrameT<T>(newData, newFeatures, newCategoricalFeatures, _toString);
     }
-    public override void Save(string path, int? index = null)
+    public override void to_csv(string path, string sep = ",", bool addHeader = false, int? index = null)
     {
-        const char separator = ',';
         var sb = new StringBuilder();
-        sb.Append(string.Join(separator, FeatureNames));
+        if (addHeader)
+        {
+            sb.Append(string.Join(sep, FeatureNames));
+        }
         var dataAsSpan = Tensor.SpanContent;
         int currentIndex = index ?? -1;
         for (int i = 0; i < dataAsSpan.Length; ++i)
         {
             if (i % Tensor.Shape[1] == 0)
             {
-                sb.Append(Environment.NewLine);
+                if (i != 0 || addHeader)
+                {
+                    sb.Append(Environment.NewLine);
+                }
                 if (index.HasValue)
                 {
-                    sb.Append(currentIndex.ToString()+separator);
+                    sb.Append(currentIndex+sep);
                     ++currentIndex;
                 }
             }
             else
             {
-                sb.Append(separator);
+                sb.Append(sep);
             }
             sb.Append(_toString(dataAsSpan[i]));
         }

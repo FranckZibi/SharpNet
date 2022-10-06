@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using JetBrains.Annotations;
 using SharpNet.CPU;
-using SharpNet.HyperParameters;
 
 namespace SharpNet.Datasets
 {
@@ -22,9 +21,9 @@ namespace SharpNet.Datasets
             string[] featureNames = null,
             string[] categoricalFeatures = null,
             string[] idFeatures = null, 
-            string[] targetFeatures = null,
+            string[] targetLabels = null,
             bool useBackgroundThreadToLoadNextMiniBatch = true,
-            AbstractDatasetSample datasetSample = null)
+            char separator = ',')
             : base(name,
                 objective,
                 x.Shape[1], 
@@ -33,9 +32,9 @@ namespace SharpNet.Datasets
                 featureNames ?? new string[0],
                 categoricalFeatures ??new string[0],
                 idFeatures ?? new string[0],
-                targetFeatures ?? new string[0],
-                useBackgroundThreadToLoadNextMiniBatch, 
-                datasetSample)
+                targetLabels ?? new string[0],
+                useBackgroundThreadToLoadNextMiniBatch,
+                separator)
         {
             Debug.Assert(y==null || AreCompatible_X_Y(x, y));
 

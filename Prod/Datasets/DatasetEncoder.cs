@@ -5,6 +5,7 @@ using System.Text;
 using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
+using SharpNet.HyperParameters;
 
 namespace SharpNet.Datasets;
 
@@ -15,29 +16,28 @@ namespace SharpNet.Datasets;
 /// </summary>
 public class DatasetEncoder
 {
+    private readonly AbstractDatasetSample _datasetSample;
+
     /// <summary>
     /// list of all categorical features in the dataset
     /// </summary>
-    private readonly List<string> _categoricalFeatures;
+    private List<string> CategoricalFeatures => _datasetSample.CategoricalFeatures();
     /// <summary>
     /// name of the target features (to predict)
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private readonly List<string> _targetFeatures;
+    [NotNull] private List<string> Targets => _datasetSample.TargetLabels();
     /// <summary>
     /// the list of features that will be used to uniquely identify a row
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private readonly List<string> _idFeatures;
+    [NotNull] private List<string> IdFeatures => _datasetSample.IdFeatures();
     [NotNull] private readonly Dictionary<string, FeatureStats> _featureStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
 
-
-    public DatasetEncoder(List<string> categoricalFeatures, [NotNull] List<string> idFeatures, [NotNull] List<string> targetFeatures)
+    public DatasetEncoder(AbstractDatasetSample datasetSample)
     {
-        _categoricalFeatures = categoricalFeatures;
-        _idFeatures = idFeatures;
-        _targetFeatures = targetFeatures;
+        _datasetSample = datasetSample;
     }
 
     public FeatureStats this[string featureName]
@@ -47,46 +47,123 @@ public class DatasetEncoder
             return _featureStats[featureName];
         }
     }
-    
-    /// <summary>
-    /// true if the problem is a regression problem
-    /// false if it is a categorization problem
-    /// </summary>
-    public bool IsRegressionProblem
-    {
-        get
-        {
-            foreach (var targetFeature in _targetFeatures)
-            {
-                if (_categoricalFeatures.Contains(targetFeature))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
 
     /// <summary>
-    /// load the dataset 'csvDataset' and encode all categorical features into numerical values
+    /// load the dataset 'xyDataset' and encode all categorical features into numerical values
     /// (so that it can be processed by LightGBM)
+    /// this dataset contains both features (the 'x') and target columns (the 'y')
     /// </summary>
-    /// <param name="csvDataset"></param>
+    /// <param name="xyDataset"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public DataFrameT<float> NumericalEncoding(string csvDataset)
+    public InMemoryDataSet NumericalEncoding(string xyDataset)
     {
-        var rows = Utils.ReadCsv(csvDataset).ToList();
-        return NumericalEncoding(rows, csvDataset);
+        var rows = Utils.ReadCsv(xyDataset).ToList();
+        var df = NumericalEncoding(rows);
+        var (xTrainEncoded, yTrainEncoded) = df.Split(Targets);
+
+        var x = xTrainEncoded.FloatCpuTensor();
+        var y = yTrainEncoded.FloatCpuTensor();
+        return new InMemoryDataSet(
+            x,
+            y,
+            _datasetSample.Name,
+            _datasetSample.GetObjective(),
+            null,
+            xTrainEncoded.FeatureNames,
+            CategoricalFeatures.ToArray(),
+            IdFeatures.ToArray(),
+            Targets.ToArray(),
+            false,
+            _datasetSample.GetSeparator());
     }
 
-    public DataFrameT<float> NumericalEncoding(List<string[]> rows, string datasetName)
+    /// <summary>
+    /// load the dataset 'xDataset' and encode all categorical features into numerical values
+    /// (so that it can be processed by LightGBM)
+    /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
+    /// </summary>
+    public InMemoryDataSet NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
+    {
+        var xRows = Utils.ReadCsv(xDataset).ToList();
+        DataFrameT<float> xEncoding = NumericalEncoding(xRows);
+
+        //we load the y file if any
+        DataFrameT<float> yEncoding = null;
+        if (!string.IsNullOrEmpty(yDataset))
+        {
+            var yRows = Utils.ReadCsv(yDataset).ToList();
+            yEncoding = NumericalEncoding(yRows);
+        }
+
+        return new InMemoryDataSet(
+            xEncoding.FloatCpuTensor(),
+            yEncoding?.Tensor,
+            _datasetSample.Name,
+            _datasetSample.GetObjective(),
+            null,
+            xEncoding.FeatureNames,
+            CategoricalFeatures.ToArray(),
+            IdFeatures.ToArray(),
+            Targets.ToArray(),
+            false,
+            _datasetSample.GetSeparator());
+    }
+
+    /// <summary>
+    /// for classification problems, the number of distinct class to identify
+    /// 1 if it is a regression problem
+    /// </summary>
+    /// <returns></returns>
+    public int NumClasses()
+    {
+        if (_datasetSample.IsRegressionProblem)
+        {
+            return 1;
+        }
+        if (_datasetSample.TargetLabels().Count != 1)
+        {
+            throw new NotImplementedException($"invalid number of target labels {_datasetSample.TargetLabels().Count}, only 1 is supported");
+        }
+        var targetLabel = _datasetSample.TargetLabels()[0];
+        var allValues = GetAllCategoricalFeatureValues(targetLabel);
+        if (allValues == null || allValues.Count == 0)
+        {
+            return 1;
+        }
+        return allValues.Count;
+    }
+
+    public IList<string> GetAllCategoricalFeatureValues(string columnName)
+    {
+        if (!_featureStats.ContainsKey(columnName))
+        {
+            return null;
+        }
+        return _featureStats[columnName].GetCategoricalFeatures();
+    }
+
+    private bool IsCategoricalFeatureOrTarget(string columnName)
+    {
+        if (CategoricalFeatures.Contains(columnName))
+        {
+            return true;
+        }
+
+        if (_datasetSample.IsClassificationProblem && Targets.Contains(columnName))
+        {
+            return true;
+        }
+
+        return false;
+    }
+    public DataFrameT<float> NumericalEncoding(List<string[]> rows)
     {
         //the 1st row contains the header
         if (rows.Count < 2)
         {
-            var errorMsg = $"fail to encode dataset '{datasetName}', too few rows {rows.Count}";
+            var errorMsg = $"fail to encode dataset '{_datasetSample.Name}', too few rows {rows.Count}";
             Log.Error(errorMsg);
             throw new Exception(errorMsg);
         }
@@ -96,7 +173,7 @@ public class DatasetEncoder
         {
             if (!_featureStats.ContainsKey(featureName))
             {
-                _featureStats[featureName] = new FeatureStats(_categoricalFeatures.Contains(featureName), _targetFeatures.Contains(featureName), _idFeatures.Contains(featureName));
+                _featureStats[featureName] = new FeatureStats(IsCategoricalFeatureOrTarget(featureName), Targets.Contains(featureName), IdFeatures.Contains(featureName));
             }
         }
 
@@ -117,18 +194,11 @@ public class DatasetEncoder
             }
         }
         var cpuTensor = new CpuTensor<float>(new [] { rows.Count - 1, headerRow.Length }, content);
-        foreach (var f in _categoricalFeatures)
-        {
-            if (!headerRow.Contains(f))
-            {
-                var errorMsg = $"invalid categorical feature {f}";
-                Log.Error(errorMsg);
-                throw new Exception(errorMsg);
-            }
-        }
-        var df = DataFrame.New(cpuTensor, headerRow, _categoricalFeatures);
-        return df;
+        var foundCategoricalFeatures = Utils.Intersect(headerRow, CategoricalFeatures);
+        var df = DataFrame.New(cpuTensor, headerRow, foundCategoricalFeatures);
+        return (DataFrameT<float>)df;
     }
+
 
     /// <summary>
     /// Decode the dataframe 'df' (replacing numerical values by their categorical values) and return the content of the decoded DataFrame
@@ -137,7 +207,7 @@ public class DatasetEncoder
     /// <param name="separator"></param>
     /// <param name="missingNumberValue"></param>
     /// <returns></returns>
-    public string NumericalDecoding(DataFrameT<float> df, char separator, string missingNumberValue = "")
+    public string NumericalDecoding(DataFrame df, char separator, string missingNumberValue = "")
     {
         var featureNames = df.FeatureNames;
 
@@ -154,11 +224,12 @@ public class DatasetEncoder
 
         var sb = new StringBuilder();
         sb.Append(string.Join(separator, featureNames) + Environment.NewLine);
-        int nbRows = df.Tensor.Shape[0];
-        int nbColumns = df.Tensor.Shape[1];
+        int nbRows = df.Shape[0];
+        int nbColumns = df.Shape[1];
+        var memoryContent = df.FloatCpuTensor().Content;
         for (int rowIndex = 0; rowIndex < nbRows; rowIndex++)
         {
-            var rowContent = df.Tensor.Content.Slice(rowIndex * nbColumns, nbColumns).Span;
+            var rowContent = memoryContent.Slice(rowIndex * nbColumns, nbColumns).Span;
             for (int colIndex = 0; colIndex < nbColumns; ++colIndex)
             {
                 var e = rowContent[colIndex];

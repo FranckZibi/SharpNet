@@ -25,7 +25,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     #region constructors
     static Natixis70DatasetSample()
     {
-        var cpuTensor = LoadNumericalDataFrame(YTrainRawFile, true).Drop(new[] { "" }).Tensor;
+        var cpuTensor = DataFrame.LoadFloatDataFrame(YTrainRawFile, true).Drop(new[] { "" }).Tensor;
         YStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, false);
         YAbsStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, true);
     }
@@ -177,7 +177,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         {
             return res;
         }
-        var predictionsInModelFormat = LoadNumericalDataFrame(dataframe_path, true).Keep(new[] { "y" });
+        var predictionsInModelFormat = DataFrame.LoadFloatDataFrame(dataframe_path, true).Keep(new[] { "y" });
         var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
         Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
         Debug.Assert(predictionInTargetFormat.Shape[1] == (1+39));
@@ -217,7 +217,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     {
         return new List<string>{""};
     }
-    public override List<string> TargetFeatures()
+    public override List<string> TargetLabels()
     {
         return Natixis70Utils.PredictionHeader.Trim(',').Split(',').ToList();
     }
@@ -283,15 +283,17 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
     }
 
-    protected override MetricEnum GetMetric()
+    public override MetricEnum GetMetric()
     {
         return MetricEnum.Rmse;
     }
 
-    protected override LossFunctionEnum GetLoss()
+    public override LossFunctionEnum GetLoss()
     {
         return LossFunctionEnum.Rmse;
     }
+
+    public override Objective_enum GetObjective() => Objective_enum.Regression;
 
 
     private int[] YShapeInModelFormat(int rowsInTargetFormat)
@@ -366,12 +368,12 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             Load_XInModelFormat(xFileInTargetFormat),
             string.IsNullOrEmpty(yFileInTargetFormatIfAny) ? null : Load_YInModelFormat(yFileInTargetFormatIfAny),
             Natixis70Utils.NAME,
-            Objective_enum.Regression,
+            GetObjective(),
             null,
             featureNames: FeatureNames().ToArray(),
             categoricalFeatures: CategoricalFeatures().ToArray(),
             useBackgroundThreadToLoadNextMiniBatch: false,
-            datasetSample: this);
+            separator: GetSeparator());
     }
     /// <summary>
     /// return the horizonId associated with row 'rowInModelFormat', or -1 if the row is associated with all horizon ids
@@ -417,7 +419,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
         //We load 'xFileInTargetFormat'
-        var xInTargetFormatDataFrame = LoadNumericalDataFrame(xFileInTargetFormat, true);
+        var xInTargetFormatDataFrame = DataFrame.LoadFloatDataFrame(xFileInTargetFormat, true);
         var xInTargetFormat = xInTargetFormatDataFrame.Tensor;
         Debug.Assert(xInTargetFormat.Shape[1] == Natixis70Utils.EmbeddingDimension);
         int rowsInTargetFormat = xInTargetFormat.Shape[0];
@@ -481,7 +483,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
         Debug.Assert(File.Exists(yFileInTargetFormat));
-        var yInTargetFormatDataFrame = LoadNumericalDataFrame(yFileInTargetFormat, true);
+        var yInTargetFormatDataFrame = DataFrame.LoadFloatDataFrame(yFileInTargetFormat, true);
         var yInTargetFormat = yInTargetFormatDataFrame.Tensor;
         var yInModelFormat = PredictionsInTargetFormat_2_PredictionsInModelFormat(yInTargetFormat);
         yInTargetFormat.Dispose();

@@ -1572,6 +1572,9 @@ namespace SharpNet.CPU
                     buffer.HuberLoss(yExpected, yPredicted, huberDelta);
                     cost = buffer.AsReadonlyFloatCpuContent.Average();
                     break;
+                case LossFunctionEnum.F1Micro:
+                    cost = buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
+                    break;
                 case LossFunctionEnum.Mse:
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(expected - prediction, 2))).NaNSum();
                     break;
@@ -1662,6 +1665,30 @@ namespace SharpNet.CPU
             Debug.Assert(yExpected.SameShape(yPredicted));
             Parallel.For(0, batchSize, batchId => { MseOfLogLoss(batchId, mseLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, epsilon); });
         }
+
+        public override (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted)
+        {
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            var y_true_span = yExpected.AsReadonlyFloatCpuContent;
+            var y_pred_span = yPredicted.AsReadonlyFloatCpuContent;
+            int true_count = 0;
+
+            for (int row = 0; row < y_true_span.Length; ++row)
+            {
+                var idxTrue = Utils.NearestInt(y_true_span[row]);
+                var idxPred = Utils.NearestInt(y_pred_span[row]);
+                if (idxTrue == idxPred)
+                {
+                    ++true_count;
+                }
+            }
+
+            var precisionMicro = true_count/(float)y_true_span.Length;
+            var recallMicro = precisionMicro;
+            var f1Micro = (2 * precisionMicro * recallMicro) / (precisionMicro + recallMicro);
+            return (f1Micro, precisionMicro, recallMicro);
+        }
+
         private static void MseOfLogLoss(int batchId, Span<float> mseLoss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float epsilon)
         {
             Debug.Assert(expected.Length == predicted.Length);
@@ -1909,7 +1936,7 @@ namespace SharpNet.CPU
         /// <summary>
         /// return a new Tensor keeping only columns at index 'columnIndexesToKeep'
         /// </summary>
-        /// <param name="columnIndexesToRemove">the columnindexes to keep</param>
+        /// <param name="columnIndexesToRemove">the column indexes to remove</param>
         /// <returns></returns>
         public CpuTensor<T> DropColumns(IEnumerable<int> columnIndexesToRemove)
         {
@@ -1957,6 +1984,59 @@ namespace SharpNet.CPU
                 }
             }
             return new CpuTensor<T>(newShape, newData);
+        }
+
+
+        /// <summary>
+        /// transform a tensor with class indexes to a tensor with a probability distribution of each class
+        /// </summary>
+        /// <param name="argMax">for each row, the index of the class associated with the row</param>
+        /// <param name="numClasses">total number of distinct classes</param>
+        /// <returns>a new tensor of shape (rows, numClasses) with for each row a 1 at the idx of the associated class and 0 elsewhere </returns>
+        public static CpuTensor<float> FromClassIndexToProba(CpuTensor<float> argMax, int numClasses)
+        {
+            var argMaxContent = argMax.ReadonlyContent;
+            int rows = argMax.Shape[0];
+            var content = new float[rows * numClasses];
+            for (int row = 0; row < rows; ++row)
+            {
+                int idx = Utils.NearestInt(argMaxContent[row]);
+                if (idx >= numClasses)
+                {
+                    throw new Exception($"invalid index {idx} at row {row}, must be less than {numClasses}");
+                }
+                content[row * numClasses + idx] = 1; //100% for being class 'idx', 0% for all other classes
+            }
+            return new CpuTensor<float>(new[] { rows, numClasses }, content);
+        }
+
+        /// <summary>
+        /// for each row of the input tensor, find the index of the max element of the row
+        /// and store it in the output tensor
+        /// </summary>
+        /// <param name="input">a tensor of shape (rows, columns) </param>
+        /// <returns>a tensor of shape (rows, 1), each row contains the index of the max element of the row 'row' in 'inpute</returns>
+        public static CpuTensor<float> ArgMax(CpuTensor<float> input)
+        {
+            Debug.Assert(input.Shape.Length == 2);
+            var inputContent = input.ReadonlyContent;
+            int rows = input.Shape[0];
+            int columns = input.Shape[1];
+            var argMaxContent = new float[rows];
+            for (int row = 0; row < rows; row++)
+            {
+                int startIdx = row * columns;
+                int colMax = 0;
+                for (int col = 1; col < columns; col++)
+                {
+                    if (inputContent[startIdx + col] > inputContent[startIdx+ colMax])
+                    {
+                        colMax = col;
+                    }
+                }
+                argMaxContent[row] = colMax;
+            }
+            return new CpuTensor<float>(new[] { rows, 1 }, argMaxContent);
         }
 
 

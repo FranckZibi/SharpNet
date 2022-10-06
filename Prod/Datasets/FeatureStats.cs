@@ -25,7 +25,7 @@ public class FeatureStats
     /// <summary>
     /// true if the feature is the target of the dataset
     /// </summary>
-    public bool IsTargetFeature { get; }
+    public bool IsTargetLabel { get; }
     /// <summary>
     /// true if the feature is (among) the ids needed to identify a unique row
     /// </summary>
@@ -38,14 +38,17 @@ public class FeatureStats
     /// number of empty elements in the DataSet for this feature
     /// </summary>
     public int CountEmptyFeatures { get; private set; }
+
+    public IList<string> GetCategoricalFeatures() => _categoricalFeatures;
+
     #endregion
 
 
     #region constructors
-    public FeatureStats(bool isCategoricalFeature, bool isTargetFeature, bool isId)
+    public FeatureStats(bool isCategoricalFeature, bool isTargetLabel, bool isId)
     {
         IsCategoricalFeature = isCategoricalFeature;
-        IsTargetFeature = isTargetFeature;
+        IsTargetLabel = isTargetLabel;
         IsId = isId;
     }
     #endregion

@@ -21,16 +21,17 @@ public static class SampleUtils
     /// <param name="resumeCsvPathIfAny">(optional) the CSV file where to store statistics about the trained model</param>
     /// <param name="bestScoreSoFar">the best score associated with the best sample found so far for the model</param>
     /// <returns></returns>
-    public static float TrainWithHyperParameters([NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref float bestScoreSoFar)
+    public static IScore TrainWithHyperParameters([NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref IScore bestScoreSoFar)
     {
         var sw = Stopwatch.StartNew();
         var modelAndDataset = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, workingDirectory);
         var model = modelAndDataset.Model;
         var validationScore = modelAndDataset.Fit(false, true, false).validationScore;
-        var trainScore = float.NaN;
-        Debug.Assert(!float.IsNaN(validationScore));
 
-        if (float.IsNaN(bestScoreSoFar) || model.NewScoreIsBetterTheReferenceScore(validationScore, bestScoreSoFar))
+        IScore trainScore = null;
+        Debug.Assert(validationScore != null);
+
+        if (validationScore.IsBetterThan(bestScoreSoFar))
         {
             IModel.Log.Debug($"Model '{model.ModelName}' has new best score: {validationScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationScore;

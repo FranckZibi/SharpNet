@@ -117,7 +117,7 @@ namespace SharpNet.Datasets.CFM60
                 new string[0],
                 new string[0],
                 UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetIfAny), 
-                null)
+                ',')
         {
             _cfm60NetworkSample = cfm60NetworkSample;
             TrainingDataSetIfAny = trainingDataSetIfAny;

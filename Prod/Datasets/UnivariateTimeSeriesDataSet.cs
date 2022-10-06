@@ -25,7 +25,7 @@ namespace SharpNet.Datasets
                 new string[0],
                 new string[0],
                 true,
-                null)
+                ',')
         {
             _univariateTimeSeries = univariateTimeSeries;
             _timeSteps = timeSteps;

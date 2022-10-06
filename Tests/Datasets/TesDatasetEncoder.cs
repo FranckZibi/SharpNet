@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.Datasets;
+using SharpNet.HyperParameters;
 
 namespace SharpNetTests.Datasets;
 
@@ -25,24 +27,37 @@ public class TesDatasetEncoder
     [Test]
     public void TestEncodingDecoding()
     {
-        var encoder = new DatasetEncoder(new List<string> { "cat2" }, new List<string> { "id" }, new List<string> { "y" });
+        var testDatasetSample = new TestDatasetSample(new List<string> { "cat2" }, new List<string> { "id" }, new List<string> { "y" });
+        var encoder = new DatasetEncoder(testDatasetSample);
 
         var rows = SimpleTestDataset();
-        var df = encoder.NumericalEncoding(rows, "");
+        var df = encoder.NumericalEncoding(rows);
         var observedResult = encoder.NumericalDecoding(df, ',', "NA" );
         var expectedResult = string.Join(',', rows[0]) + Environment.NewLine + "12,NA,25,cat,1" + Environment.NewLine + "13,1.5,1025,dog,0" + Environment.NewLine + "14,NA,5555,,5";
         Assert.AreEqual(expectedResult, observedResult);
     }
 
-    [Test]
-    public void TestIsRegressionProblem()
-    {
-        var encoder = new DatasetEncoder(new List<string> { "cat2" }, new List<string> { "id" }, new List<string> { "y" });
-        //the target is not among the categorical features: so the target is a numerical feature and it is a regression problem
-        Assert.IsTrue(encoder.IsRegressionProblem);
 
-        encoder = new DatasetEncoder(new List<string> { "cat2", "y" }, new List<string> { "id" }, new List<string> { "y" });
-        //the target is among the categorical features: it is a regression problem
-        Assert.IsFalse(encoder.IsRegressionProblem);
+    public class TestDatasetSample : AbstractDatasetSample
+    {
+        private readonly List<string> _categoricalFeatures;
+        private readonly List<string> _idFeatures;
+        private readonly List<string> _targetLabels;
+
+        public TestDatasetSample(List<string> categoricalFeatures, List<string> idFeatures, List<string> targetLabels) : base(new HashSet<string>())
+        {
+            _categoricalFeatures = categoricalFeatures;
+            _idFeatures = idFeatures;
+            _targetLabels = targetLabels;
+        }
+
+        public override Objective_enum GetObjective() => Objective_enum.Regression;
+
+        public override List<string> CategoricalFeatures() => _categoricalFeatures;
+        public override List<string> IdFeatures() => _idFeatures;
+        public override List<string> TargetLabels() => _targetLabels;
+        public override IDataSet TestDataset() { throw new NotImplementedException(); }
+        public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation() { throw new NotImplementedException(); }
+        public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat) { throw new NotImplementedException(); }
     }
 }

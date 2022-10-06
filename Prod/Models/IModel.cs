@@ -19,7 +19,9 @@ public interface IModel
     public static readonly ILog Log = LogManager.GetLogger(typeof(IModel));
     string WorkingDirectory { get; }
     string ModelName { get; }
+    IModelSample ModelSample { get; }
     #endregion
+
 
 
     #region constructor
@@ -67,8 +69,7 @@ public interface IModel
     void Save(string workingDirectory, string modelName);
     float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred);
     List<string> ModelFiles();
-    bool NewScoreIsBetterTheReferenceScore(float newScore, float referenceScore);
-    void AddResumeToCsv(double trainingTimeInSeconds, float trainScore, float validationScore, string csvPath);
+    void AddResumeToCsv(double trainingTimeInSeconds, IScore trainScore, IScore validationScore, string csvPath);
     int GetNumEpochs();
     string DeviceName();
     double GetLearningRate();

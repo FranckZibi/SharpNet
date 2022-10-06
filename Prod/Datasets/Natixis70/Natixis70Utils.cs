@@ -66,7 +66,7 @@ namespace SharpNet.Datasets.Natixis70
             };
 
             var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new Natixis70DatasetSample()), WorkingDirectory);
-            float bestScoreSoFar = float.NaN;
+            IScore bestScoreSoFar = null;
             var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
             hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar)
             );
@@ -102,7 +102,7 @@ namespace SharpNet.Datasets.Natixis70
             };
 
             var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new Natixis70DatasetSample()), WorkingDirectory);
-            float bestScoreSoFar = float.NaN;
+            IScore bestScoreSoFar = null;
             var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
             hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
         }

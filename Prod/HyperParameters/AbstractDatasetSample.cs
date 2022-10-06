@@ -23,6 +23,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     #region constructors
     protected AbstractDatasetSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(mandatoryCategoricalHyperParameters)
     {
+        Name = GetType().Name.Replace("DatasetSample", "");
     }
     public static AbstractDatasetSample ValueOf(string workingDirectory, string sampleName)
     {
@@ -57,34 +58,40 @@ public abstract class AbstractDatasetSample : AbstractSample
         return cloned;
     }
 
+    public string Name { get; }
 
-    protected virtual MetricEnum GetMetric()
+    public virtual MetricEnum GetMetric()
     {
         throw new NotImplementedException();
     }
 
-    protected virtual LossFunctionEnum GetLoss()
+    public virtual LossFunctionEnum GetLoss()
     {
         throw new NotImplementedException();
     }
+
+    public abstract Objective_enum GetObjective();
+
+    public bool IsRegressionProblem => GetObjective() == Objective_enum.Regression;
+    public bool IsClassificationProblem => GetObjective() == Objective_enum.Classification;
 
     protected override HashSet<string> FieldsToDiscardInComputeHash()
     {
         return new HashSet<string>{nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
     }
 
-    public float ComputeScore(DataFrame y_true_in_target_format, DataFrame y_pred_in_target_format)
+    public IScore ComputeMetricScore(DataFrame y_true_in_target_format, DataFrame y_pred_in_target_format)
     {
         if (y_true_in_target_format == null || y_pred_in_target_format == null)
         {
-            return float.NaN;
+            return null;
         }
         Debug.Assert(y_true_in_target_format.Shape.SequenceEqual(y_pred_in_target_format.Shape));
         var y_true = y_true_in_target_format.FloatCpuTensor().DropColumns(IndexColumnsInPredictionsInTargetFormat());
         var y_pred = y_pred_in_target_format.FloatCpuTensor().DropColumns(IndexColumnsInPredictionsInTargetFormat());
 
         using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(GetMetric()));
-        return (float)y_true.ComputeMetric(y_pred, GetMetric(), GetLoss(), buffer);
+        return new Score ( (float)y_true.ComputeMetric(y_pred, GetMetric(), GetLoss(), buffer) , GetMetric());
     }
 
 
@@ -109,7 +116,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// list of target feature names (usually a single element)
     /// </summary>
     /// <returns>list of target feature names </returns>
-    public abstract List<string> TargetFeatures();
+    public abstract List<string> TargetLabels();
 
     
     /// <summary>
@@ -119,7 +126,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     public virtual List<string> PredictionInTargetFormatFeatures()
     {
         var res = IdFeatures().ToList();
-        res.AddRange(TargetFeatures());
+        res.AddRange(TargetLabels());
         return res;
     }
 
@@ -135,7 +142,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     public virtual void SavePredictionsInTargetFormat(DataFrame predictionsInTargetFormat, string path)
     {
         //var start = Stopwatch.StartNew();
-        predictionsInTargetFormat.Save(path);
+        predictionsInTargetFormat.to_csv(path);
         //ISample.Log.Debug($"SavePredictionsInTargetFormat in {path} took {start.Elapsed.TotalSeconds}s");
     }
 
@@ -181,13 +188,8 @@ public abstract class AbstractDatasetSample : AbstractSample
             return res;
         }
 
-        var y_pred = LoadNumericalDataFrame(path, HeaderInPredictionFile());
+        var y_pred = DataFrame.LoadFloatDataFrame(path, HeaderInPredictionFile());
         LoadPredictionsInTargetFormat_Cache.TryAdd(path, y_pred);
         return y_pred;
     }
-    public static DataFrameT<float> LoadNumericalDataFrame(string path, bool hasHeader)
-    {
-        return DataFrameT<float>.Load(path, hasHeader, float.Parse, null, DataFrame.Float2String);
-    }
-
 }

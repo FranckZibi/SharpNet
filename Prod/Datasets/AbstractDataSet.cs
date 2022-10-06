@@ -86,13 +86,14 @@ namespace SharpNet.Datasets
 
         #region public properties
 
-        public AbstractDatasetSample DatasetSample { get; }
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
         [NotNull] public string[] FeatureNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
         [NotNull] public string[] IdFeatures { get; }
-        [NotNull] public string[] TargetFeatures { get; }
+        [NotNull] public string[] TargetLabels { get; }
         public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
+        public char Separator { get; }
+
         #endregion
 
         #region constructor
@@ -104,17 +105,17 @@ namespace SharpNet.Datasets
             [NotNull] string[] featureNames,
             [NotNull] string[] categoricalFeatures,
             [NotNull] string[] idFeatures,
-            [NotNull] string[] targetFeatures,
+            [NotNull] string[] targetLabels,
             bool useBackgroundThreadToLoadNextMiniBatch,
-            AbstractDatasetSample datasetSample)
+            char separator)
         {
+            Separator = separator;
             Name = name;
             Objective = objective;
             Channels = channels;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
             UseBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
-            DatasetSample = datasetSample;
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
@@ -123,7 +124,7 @@ namespace SharpNet.Datasets
             FeatureNames = featureNames;
             CategoricalFeatures = categoricalFeatures;
             IdFeatures = idFeatures;
-            TargetFeatures = targetFeatures;
+            TargetLabels = targetLabels;
             if (UseBackgroundThreadToLoadNextMiniBatch)
             {
                 thread = new Thread(BackgroundThread);
@@ -136,8 +137,6 @@ namespace SharpNet.Datasets
         /// the type of use of the dataset : Regression or Classification
         /// </summary>
         public Objective_enum Objective { get; }
-
-        public string[] CategoryDescriptions00 { get; }
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,[CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
 
@@ -329,6 +328,32 @@ namespace SharpNet.Datasets
         public virtual void Save(IModel model, string workingDirectory, string modelName)
         {
             model.Save(workingDirectory, modelName);
+        }
+
+        public virtual DataFrame ExtractIdDataFrame()
+        {
+            if (IdFeatures.Length == 0)
+            {
+                throw new ArgumentException($"can't extract id columns because the DataFrame doesn't contain any");
+            }
+            var columnIndexesOfIds = IdFeatures.Select(id => Array.IndexOf(FeatureNames, id)).ToList();
+            columnIndexesOfIds.Sort();
+
+            var content = new float[Count * IdFeatures.Length];
+            int cols = FeatureNames.Length;
+            using CpuTensor<float> singleRow = new(new[] { 1, cols });
+            var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
+            int nextIdx = 0;
+            for (int row = 0; row < Count; ++row)
+            {
+                LoadAt(row, 0, singleRow, null, false);
+                foreach (var colIdx in columnIndexesOfIds)
+                {
+                    content[nextIdx++] = singleRowAsSpan[colIdx];
+                }
+            }
+            var idCpuTensor = new CpuTensor<float>(new[] { Count, IdFeatures.Length }, content);
+            return DataFrame.New(idCpuTensor, IdFeatures, Array.Empty<string>());
         }
 
         public int Channels { get; }
@@ -607,7 +632,7 @@ namespace SharpNet.Datasets
         /// <param name="addTargetColumnAsFirstColumn"></param>
         /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
         /// <param name="separator"></param>
-        private void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        public void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
@@ -619,21 +644,21 @@ namespace SharpNet.Datasets
             var sb = new StringBuilder();
             if (addTargetColumnAsFirstColumn)
             {
-                if (TargetFeatures.Length != 1)
+                if (TargetLabels.Length != 1)
                 {
-                    var errorMsg = $"invalid number of tagret features, expecting 1, found {TargetFeatures.Length}: {string.Join(' ', TargetFeatures)}";
+                    var errorMsg = $"invalid number of target features, expecting 1, found {TargetLabels.Length}: {string.Join(' ', TargetLabels)}";
                     Log.Error(errorMsg);
                     throw new Exception(errorMsg);
                 }
-                sb.Append(TargetFeatures[0] + separator);
+                sb.Append(TargetLabels[0] + separator);
             }
             sb.Append(string.Join(separator, FeatureNames) + Environment.NewLine);
             // ReSharper disable once PossibleNullReferenceException
             var yDataAsSpan = (addTargetColumnAsFirstColumn&&Y!=null) ? Y.AsFloatCpuSpan : null;
 
             int cols = FeatureNames.Length;
-            using CpuTensor<float> X = new(new[] { 1, cols });
-            var xDataAsSpan = X.AsReadonlyFloatCpuContent;
+            using CpuTensor<float> singleRow = new(new[] { 1, cols });
+            var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
             for (int row = 0; row < Count; ++row)
             {
                 if (addTargetColumnAsFirstColumn)
@@ -641,10 +666,10 @@ namespace SharpNet.Datasets
                     var yValue = yDataAsSpan==null?AbstractSample.DEFAULT_VALUE:yDataAsSpan[row];
                     sb.Append(yValue.ToString(CultureInfo.InvariantCulture) + separator);
                 }
-                LoadAt(row, 0, X, null, false);
+                LoadAt(row, 0, singleRow, null, false);
                 for (int col = 0; col < cols; ++col)
                 {
-                    sb.Append(xDataAsSpan[col].ToString(CultureInfo.InvariantCulture));
+                    sb.Append(singleRowAsSpan[col].ToString(CultureInfo.InvariantCulture));
                     if (col == cols - 1)
                     {
                         sb.Append(Environment.NewLine);
@@ -667,8 +692,7 @@ namespace SharpNet.Datasets
         public string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool overwriteIfExists)
         {
             var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn) + ".csv");
-            char separator = DatasetSample?.GetSeparator() ?? ',';
-            to_csv(datasetPath, separator, addTargetColumnAsFirstColumn, overwriteIfExists);
+            to_csv(datasetPath, Separator, addTargetColumnAsFirstColumn, overwriteIfExists);
             return datasetPath;
         }
 

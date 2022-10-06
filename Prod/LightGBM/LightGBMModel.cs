@@ -83,11 +83,37 @@ namespace SharpNet.LightGBM
             tmpLightGBMSample.Save(tmpLightGBMSamplePath);
 
             Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
-            var predictions1 = File.ReadAllLines(predictionResultPath).Select(float.Parse).ToArray();
+            float[][] predictionResultContent = File.ReadAllLines(predictionResultPath).Select(l => l.Split().Select(float.Parse).ToArray()).ToArray();
             File.Delete(tmpLightGBMSamplePath);
             File.Delete(predictionResultPath);
-            var cpuTensor =  new CpuTensor<float>(new[] { predictions1.Length, 1 }, predictions1);
-            var predictions = DataFrame.New(cpuTensor, dataset.FeatureNames, dataset.CategoricalFeatures);
+            int rows = predictionResultContent.Length;
+            int columns = predictionResultContent[0].Length;
+            var content = new float[rows*columns];
+            for (int row = 0; row < rows; row++)
+            {
+                if (columns != predictionResultContent[row].Length)
+                {
+                    var errorMsg = $"invalid number of predictions in line {row} of file {predictionResultPath}, expecting {columns} ";
+                    LogError(errorMsg);
+                    throw new Exception(errorMsg);
+                }
+                Array.Copy(predictionResultContent[row], 0, content, row* columns, columns);
+            }
+
+            var cpuTensor =  new CpuTensor<float>(new[] { rows, columns}, content);
+            string[] predictionLabels = dataset.TargetLabels;
+            if (predictionLabels.Length != columns)
+            {
+                predictionLabels = Enumerable.Range(0, columns).Select(x => x.ToString()).ToArray();
+            }
+
+            var predictions = DataFrame.New(cpuTensor, predictionLabels, Array.Empty<string>());
+            if (dataset.IdFeatures.Length != 0)
+            {
+                var idDataFrame = (DataFrameT<float>)dataset.ExtractIdDataFrame();
+                predictions = (DataFrameT<float>)DataFrame.MergeHorizontally(idDataFrame, predictions);
+            }
+
             if (predictions.Shape[0]!= dataset.Count)
             {
                 throw new Exception($"Invalid number of predictions, received {predictions.Shape[0]} but expected {dataset.Count}");

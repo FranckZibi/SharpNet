@@ -676,6 +676,11 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("MseOfLogLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted, epsilon });
         }
 
+        public override (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted)
+        {
+            throw new NotImplementedException();
+        }
+
         public override void CosineSimilarityLoss(Tensor yExpected, Tensor yPredicted, int timeSeriesLength)
         {
             var cosineSimilarityLoss = this;

@@ -34,43 +34,44 @@ public class TestFeatureStats
     [Test]
     public void TestProperties()
     {
-        var encoder = new DatasetEncoder(new List<string> { "cat2", "id"}, new List<string> { "id" }, new List<string> { "y" });
+        var testDatasetSample = new TesDatasetEncoder.TestDatasetSample(new List<string> { "cat2", "id" }, new List<string> { "id" }, new List<string> { "y" });
+        var encoder = new DatasetEncoder(testDatasetSample);
         var rows = TesDatasetEncoder.SimpleTestDataset();
-        encoder.NumericalEncoding(rows, "");
+        encoder.NumericalEncoding(rows);
 
         var idStats = encoder["id"];
         Assert.AreEqual(3, idStats.Count);
         Assert.AreEqual(0, idStats.CountEmptyFeatures);
         Assert.IsTrue(idStats.IsCategoricalFeature);
         Assert.IsTrue(idStats.IsId);
-        Assert.IsFalse(idStats.IsTargetFeature);
+        Assert.IsFalse(idStats.IsTargetLabel);
 
         var num1Stats = encoder["num1"];
         Assert.AreEqual(3, num1Stats.Count);
         Assert.AreEqual(2, num1Stats.CountEmptyFeatures);
         Assert.IsFalse(num1Stats.IsCategoricalFeature);
         Assert.IsFalse(num1Stats.IsId);
-        Assert.IsFalse(num1Stats.IsTargetFeature);
+        Assert.IsFalse(num1Stats.IsTargetLabel);
 
         var num2Stats = encoder["num2"];
         Assert.AreEqual(3, num2Stats.Count);
         Assert.AreEqual(0, num2Stats.CountEmptyFeatures);
         Assert.IsFalse(num2Stats.IsCategoricalFeature);
         Assert.IsFalse(num2Stats.IsId);
-        Assert.IsFalse(num2Stats.IsTargetFeature);
+        Assert.IsFalse(num2Stats.IsTargetLabel);
 
         var cat2Stats = encoder["cat2"];
         Assert.AreEqual(3, cat2Stats.Count);
         Assert.AreEqual(1, cat2Stats.CountEmptyFeatures);
         Assert.IsTrue(cat2Stats.IsCategoricalFeature);
         Assert.IsFalse(cat2Stats.IsId);
-        Assert.IsFalse(cat2Stats.IsTargetFeature);
+        Assert.IsFalse(cat2Stats.IsTargetLabel);
 
         var yStats = encoder["y"];
         Assert.AreEqual(3, yStats.Count);
         Assert.AreEqual(0, yStats.CountEmptyFeatures);
         Assert.IsFalse(yStats.IsCategoricalFeature);
         Assert.IsFalse(yStats.IsId);
-        Assert.IsTrue(yStats.IsTargetFeature);
+        Assert.IsTrue(yStats.IsTargetLabel);
     }
 }

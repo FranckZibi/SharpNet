@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.Datasets.Natixis70;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
@@ -30,7 +31,7 @@ public class TestBayesianSearchHPO
         public float E = 0;
         public float G = 0;
 
-        public float Cost()
+        public IScore Cost()
         {
             var cost = A * A
                        + Math.Pow(B - 1, 2)
@@ -39,7 +40,7 @@ public class TestBayesianSearchHPO
                        + Math.Abs(E - 4)
                        + Math.Abs((E - 4) * (D - 3))
                        + Math.Abs(G);  
-            return (float)cost;
+            return new Score((float)cost,MetricEnum.Mae);
         }
 
         public override string ToString()

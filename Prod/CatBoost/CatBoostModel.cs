@@ -46,7 +46,7 @@ namespace SharpNet.CatBoost
             Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
         {
             string trainDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, true, false);
-            char separator = trainDataset.DatasetSample?.GetSeparator() ?? ',';
+            char separator = trainDataset.Separator;
 
             string validationDatasetPathIfAny = "";
             if (validationDatasetIfAny != null)
@@ -109,7 +109,6 @@ namespace SharpNet.CatBoost
         {
             const bool targetColumnIsFirstColumn = true;
             string predictionDatasetPath = dataset.to_csv_in_directory(RootDatasetPath, targetColumnIsFirstColumn, false);
-            char separator = dataset.DatasetSample?.GetSeparator() ?? ',';
 
             string datasetColumnDescriptionPath = predictionDatasetPath + ".co";
             to_column_description(datasetColumnDescriptionPath, dataset, true);
@@ -127,7 +126,7 @@ namespace SharpNet.CatBoost
             var arguments = "calc " +
                             " --input-path " + predictionDatasetPath +
                             " --output-path " + predictionResultPath +
-                            " --delimiter=\"" + separator + "\"" +
+                            " --delimiter=\"" + dataset.Separator + "\"" +
                             " --has-header" +
                             " --column-description " + datasetColumnDescriptionPath +
                             " --model-file " + ModelPath +
@@ -203,7 +202,7 @@ namespace SharpNet.CatBoost
             for (int featureId = 0; featureId < dataset.FeatureNames.Length; ++featureId)
             {
                 var featureName = dataset.FeatureNames[featureId];
-                if (dataset.TargetFeatures.Contains(featureName))
+                if (dataset.TargetLabels.Contains(featureName))
                 {
                     //this feature is the target
                     sb.Append($"{featureId}\tLabel" + Environment.NewLine);

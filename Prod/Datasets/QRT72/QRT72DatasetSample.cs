@@ -47,7 +47,7 @@ public class QRT72DatasetSample : AbstractDatasetSample
         throw new NotImplementedException();
     }
 
-    public override List<string> TargetFeatures()
+    public override List<string> TargetLabels()
     {
         throw new NotImplementedException();
     }
@@ -82,15 +82,17 @@ public class QRT72DatasetSample : AbstractDatasetSample
         return DataFrame.New(predictionsInModelFormat.FloatCpuTensor(), PredictionInTargetFormatFeatures(), CategoricalFeatures());
     }
 
-    protected override MetricEnum GetMetric()
+    public override MetricEnum GetMetric()
     {
         return MetricEnum.CosineSimilarity504;
     }
 
-    protected override LossFunctionEnum GetLoss()
+    public override LossFunctionEnum GetLoss()
     {
         return LossFunctionEnum.CosineSimilarity504;
     }
+
+    public override Objective_enum GetObjective() => Objective_enum.Regression;
 
 
     private IDataSet NewDataSet([JetBrains.Annotations.NotNull] string xFileInTargetFormat)
@@ -101,12 +103,12 @@ public class QRT72DatasetSample : AbstractDatasetSample
             xTensor,
             yTensor,
             QRT72Utils.NAME,
-            Objective_enum.Regression,
+            GetObjective(),
             null,
             featureNames: featureNames,
             categoricalFeatures: CategoricalFeatures().ToArray(),
             useBackgroundThreadToLoadNextMiniBatch: false,
-            datasetSample: this);
+            separator: GetSeparator());
     }
     /// <summary>
     /// path to the test dataset in LightGBM compatible format

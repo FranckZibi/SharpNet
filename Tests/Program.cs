@@ -79,6 +79,8 @@ namespace SharpNetTests
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
 
+            WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(); //?D
+            //new WasYouStayWorthItsPriceDatasetSample(); //?D
 
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "A3699BA7D3", 5, 3);

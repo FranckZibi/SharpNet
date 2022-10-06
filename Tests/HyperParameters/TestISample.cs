@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
@@ -18,9 +19,11 @@ public class TestISample
     private class TestClass : AbstractDatasetSample
     {
         public TestClass() : base(new HashSet<string>()) { }
+        public override Objective_enum GetObjective() => Objective_enum.Regression;
+
         public override List<string> CategoricalFeatures() { return new List<string>(); }
         public override List<string> IdFeatures() { throw new NotImplementedException(); }
-        public override List<string> TargetFeatures() { throw new NotImplementedException(); }
+        public override List<string> TargetLabels() { throw new NotImplementedException(); }
         public override IDataSet TestDataset() { throw new NotImplementedException(); }
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()  { throw new NotImplementedException(); }
         public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat) { throw new NotImplementedException(); }

@@ -22,6 +22,7 @@ public class BayesianSearchHPO : AbstractHpo
     /// the model use to predict the objective function score
     /// </summary>
     private readonly IModel  _surrogateModel;
+    private bool? _higherScoreIsBetter = null;
     /// <summary>
     /// Item1:  the sample
     /// Item2:  the sample as a float vector array
@@ -116,7 +117,7 @@ public class BayesianSearchHPO : AbstractHpo
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, string[] categoricalFeature = null)
     {
-        var df = AbstractDatasetSample.LoadNumericalDataFrame(dataFramePath, true);
+        var df = DataFrame.LoadFloatDataFrame(dataFramePath, true);
         var x_df = df.Drop(new[] {"y"});
         var x = x_df.Tensor;
         var y_df = df.Keep(new[] {"y"});
@@ -126,7 +127,7 @@ public class BayesianSearchHPO : AbstractHpo
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
     {
-        var df = AbstractDatasetSample.LoadNumericalDataFrame(dataFramePath, true);
+        var df = DataFrame.LoadFloatDataFrame(dataFramePath, true);
         var x = df.Tensor;
         return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: df.FeatureNames, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
@@ -159,11 +160,18 @@ public class BayesianSearchHPO : AbstractHpo
             }
         }
     }
-    protected override void RegisterSampleCost(ISample sample, int sampleId, float cost, double elapsedTimeInSeconds)
+
+
+    protected override void RegisterSampleCost(ISample sample, int sampleId, [NotNull] IScore score, double elapsedTimeInSeconds)
     {
         lock (_lockObject)
         {
-            _allCost.Add(cost, 1);
+            if (!_higherScoreIsBetter.HasValue)
+            {
+                _higherScoreIsBetter = Utils.HigherScoreIsBetterForMetric(score.Metric);
+                Log.Info($"Higher Score Is Better = {_higherScoreIsBetter}");
+            }
+            _allCost.Add(score.Value, 1);
             var sampleTuple = _samplesWithScoreIfAvailable[sampleId];
             var surrogateCostEstimate = sampleTuple.Item3;
             var sampleDescription = sampleTuple.Item6;
@@ -179,14 +187,14 @@ public class BayesianSearchHPO : AbstractHpo
             {
                 throw new Exception($"invalid sampleId {sampleTuple.Item5} , should be {sampleId}");
             }
-            if (float.IsNaN(cost))
+            if (score == null)
             {
                 throw new Exception($"cost can not be NaN for sampleId {sampleId}");
             }
 
-            Log.Debug($"Registering actual cost ({cost}) of sample {sampleId} (surrogate cost estimate: {surrogateCostEstimate})");
-            _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, cost, sampleId, sampleDescription);
-            RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
+            Log.Debug($"Registering actual cost ({score}) of sample {sampleId} (surrogate cost estimate: {surrogateCostEstimate})");
+            _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, score.Value, sampleId, sampleDescription);
+            RegisterSampleCost(SearchSpace, sample, score, elapsedTimeInSeconds);
 
             //if (SamplesWithScore.Count >= Math.Max(10, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
             if (SamplesWithScore.Count >= Math.Max(10, 2*_samplesUsedForModelTraining))
@@ -247,8 +255,13 @@ public class BayesianSearchHPO : AbstractHpo
             estimateRandomSampleCostAndIndex.Add(Tuple.Create(ySpan[index], index));
         }
 
-        //we sort all random samples from more promising (lowest cost) to less interesting (highest cost)
-        foreach (var (estimateRandomSampleCost, index) in estimateRandomSampleCostAndIndex.OrderBy(e => e.Item1))
+        //we sort all random samples from more promising to less interesting
+        var orderedSamples = (_higherScoreIsBetter.HasValue && _higherScoreIsBetter.Value)
+            //higher score is better : the most promising sample is the one with the highest score
+            ? estimateRandomSampleCostAndIndex.OrderByDescending(e => e.Item1)
+            //lower score is better : the most promising sample is the one with the lowest score
+            : estimateRandomSampleCostAndIndex.OrderBy(e => e.Item1);
+        foreach (var (estimateRandomSampleCost, index) in orderedSamples)
         {
             var sampleAsFloatArray = x.RowSlice(index, 1).ContentAsFloatArray();
             var (randomSample,randomSampleDescription) = FromFloatVectorToSampleAndDescription(sampleAsFloatArray);
@@ -342,7 +355,7 @@ public class BayesianSearchHPO : AbstractHpo
         using var x = CpuTensor<float>.NewCpuTensor(xRows);
         var yData = samplesWithScore.Select(t => t.Item4).ToArray();
         using var y_true = new CpuTensor<float>(new[] { x.Shape[0], 1 }, yData);
-        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);
+        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), Array.Empty<string>(), new []{"y"},false, ',');
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
         Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.train_YDatasetPath);

@@ -33,7 +33,7 @@ namespace SharpNet.Datasets
                 new string[0],
                 new string[0],
                 true,
-                null)
+                ',')
         {
             var annotationsDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
             var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");

@@ -36,6 +36,7 @@ namespace SharpNet
         Rmse,       // lower is better
         DEFAULT,     // Not used
         CosineSimilarity504,     // higher is better
+        F1Micro, // higher is better
     };
 
 
@@ -113,11 +114,11 @@ namespace SharpNet
 
         CosineSimilarity504,
 
+        F1Micro,
+
         DEFAULT // Not used
 
     }
-
-
 
 
     public static class Utils
@@ -160,6 +161,53 @@ namespace SharpNet
             return result;
         }
 
+
+        public static bool HigherScoreIsBetterForMetric(MetricEnum metricEnum)
+        {
+            switch (metricEnum)
+            {
+                case MetricEnum.Accuracy:
+                case MetricEnum.CosineSimilarity504:
+                case MetricEnum.F1Micro:
+                    return true; // highest is better
+                case MetricEnum.Loss:
+                case MetricEnum.Mae:
+                case MetricEnum.Mse:
+                case MetricEnum.Rmse:
+                    return false; // lowest is better
+                default:
+                    throw new NotImplementedException($"unknown metric : {metricEnum}");
+            }
+        }
+
+
+        //?D add tests
+        /// <summary>
+        /// true if score 'a' is better then score 'b'
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <param name="metricEnum"></param>
+        /// <returns></returns>
+        public static bool IsBetterScore(float a, float b, MetricEnum metricEnum)
+        {
+            if (float.IsNaN(a))
+            {
+                return false;
+            }
+            if (float.IsNaN(b))
+            {
+                return true;
+            }
+            if (HigherScoreIsBetterForMetric(metricEnum))
+            {
+                return a > b;
+            }
+            else
+            {
+                return a < b;
+            }
+        }
 
         /// <summary>
         /// duplicate the input list 'data' by 'repeatCount' time:
@@ -429,6 +477,51 @@ namespace SharpNet
                 }
                 yield return row;
             }
+        }
+
+
+        /// <summary>
+        /// return the intersection of list a and b
+        /// (elements that are in both 'a' and 'b')
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static List<string> Intersect(IEnumerable<string> a, IEnumerable<string> b)
+        {
+            var result = new List<string>();
+            if (a == null || b == null)
+            {
+                return result;
+            }
+            var bHash = new HashSet<string>(b);
+
+            foreach (var e in a)
+            {
+                if (bHash.Contains(e))
+                {
+                    result.Add(e);
+                }
+            }
+            return result;
+        }
+
+        public static List<string> Join(IEnumerable<string> a, IEnumerable<string> b)
+        {
+            var result = new List<string>();
+            if (a == null)
+            {
+                return b == null ? result : b.ToList();
+            }
+
+            if (b == null)
+            {
+                return a.ToList();
+            }
+
+            var first = a.ToList();
+            first.AddRange(b);
+            return first;
         }
 
         public static long FileLength(string path)

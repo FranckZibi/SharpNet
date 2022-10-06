@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
@@ -35,13 +34,13 @@ public class ModelAndDatasetPredictions
     #endregion
 
 
-    public (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) 
+    public (string train_PredictionsPath, IScore trainScore, string validation_PredictionsPath, IScore validationScore, string test_PredictionsPath) 
         Fit(bool savePredictionsInTargetFormat, bool computeValidationScore, bool saveTrainedModel)
     {
         using var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
         (DatasetSample.Train_XDatasetPath, DatasetSample.Train_YDatasetPath, DatasetSample.Train_XYDatasetPath, DatasetSample.Validation_XDatasetPath, DatasetSample.Validation_YDatasetPath, DatasetSample.Validation_XYDatasetPath) = 
             Model.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
-        var res = ("", float.NaN, "", float.NaN, "");
+        var res = ("", (IScore)null, "", (IScore)null, "");
         if (savePredictionsInTargetFormat)
         {
             var start = Stopwatch.StartNew();
@@ -50,8 +49,8 @@ public class ModelAndDatasetPredictions
         }
         else if (computeValidationScore)
         {
-            var validationScore = ComputePredictionsAndScore(trainingAndValidation.Test).score;
-            res = ("", float.NaN, "", validationScore, "");
+            var validationScore = ComputePredictionsAndMetricScore(trainingAndValidation.Test).metricScore;
+            res = ("", (IScore)null, "", validationScore, "");
         }
         if (saveTrainedModel)
         {
@@ -59,7 +58,7 @@ public class ModelAndDatasetPredictions
         }
         return res;
     }
-    public (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) 
+    public (string train_PredictionsPath, IScore trainScore, string validation_PredictionsPath, IScore validationScore, string test_PredictionsPath) 
         SavePredictionsInTargetFormat()
     {
         using var trainAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
@@ -96,41 +95,47 @@ public class ModelAndDatasetPredictions
     }
     private PredictionsSample PredictionsSample => ModelAndDatasetPredictionsSample.PredictionsSample;
     private AbstractDatasetSample DatasetSample => ModelAndDatasetPredictionsSample.DatasetSample;
-    public void SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, float trainScore)
+    public void SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, IScore trainScore)
     {
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Training Dataset (score={trainScore})");
-        PredictionsSample.Train_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_train_" + ScoreToStringForPredictionFile(trainScore) + ".csv");
+        PredictionsSample.Train_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_train_" + IScore.ToString(trainScore, 5) + ".csv");
         DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInTargetFormat, PredictionsSample.Train_PredictionsPath);
     }
-    public void SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, float validationScore)
+    public void SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, IScore validationScore)
     {
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Validation Dataset (score={validationScore})");
-        PredictionsSample.Validation_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_valid_" + ScoreToStringForPredictionFile(validationScore) + ".csv");
+        PredictionsSample.Validation_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_valid_" + IScore.ToString(validationScore, 5) + ".csv");
         DatasetSample.SavePredictionsInTargetFormat(validationPredictionsInTargetFormat, PredictionsSample.Validation_PredictionsPath);
     }
-    public void SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, float testScore)
+    public void SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, IScore testScore)
     {
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Test Dataset");
-        PredictionsSample.Test_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_test_" + ScoreToStringForPredictionFile(testScore) + ".csv");
+        PredictionsSample.Test_PredictionsPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_predict_test_" + IScore.ToString(testScore, 5) + ".csv");
         DatasetSample.SavePredictionsInTargetFormat(testPredictionsInTargetFormat, PredictionsSample.Test_PredictionsPath);
     }
 
-    private static string ScoreToStringForPredictionFile(float score)
-    {
-        return float.IsNaN(score) ? "" : Math.Round(score, 5).ToString(CultureInfo.InvariantCulture);
-    }
-
-    private (DataFrame predictions, float score) ComputePredictionsAndScore(IDataSet dataset)
+    private (DataFrame predictions, IScore metricScore) ComputePredictionsAndMetricScore(IDataSet dataset)
     {
         var start = Stopwatch.StartNew();
-
         var y_pred_InTargetFormat = Predict(dataset);
-        var y_true_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(dataset.Y_as_DataFrame());
-        var score = DatasetSample.ComputeScore(y_true_InTargetFormat, y_pred_InTargetFormat);
-        ISample.Log.Debug($"{nameof(ComputePredictionsAndScore)} took {start.Elapsed.TotalSeconds}s");
-        return (y_pred_InTargetFormat, score);
+        IScore metricScore = null;
+        if (dataset.Y != null)
+        {
+            var y_true_InTargetFormat = DataFrame.New(dataset.Y, dataset.TargetLabels, Array.Empty<string>());
+            if (dataset.IdFeatures.Length != 0)
+            {
+                var idDataFrame = y_pred_InTargetFormat.Keep(dataset.IdFeatures);
+                y_true_InTargetFormat = DataFrame.MergeHorizontally(idDataFrame, y_true_InTargetFormat);
+            }
+
+
+            //var y_true_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(y_true_InModelFormat);
+            metricScore = DatasetSample.ComputeMetricScore(y_true_InTargetFormat, y_pred_InTargetFormat);
+        }
+        ISample.Log.Debug($"{nameof(ComputePredictionsAndMetricScore)} took {start.Elapsed.TotalSeconds}s");
+        return (y_pred_InTargetFormat, metricScore);
     }
-    private (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) 
+    private (string train_PredictionsPath, IScore trainScore, string validation_PredictionsPath, IScore validationScore, string test_PredictionsPath) 
         SavePredictionsInTargetFormat(IDataSet trainDataset, IDataSet validationDatasetIfAny)
     {
         PredictionsSample.Train_PredictionsPath = null;
@@ -138,16 +143,16 @@ public class ModelAndDatasetPredictions
         PredictionsSample.Test_PredictionsPath = null;
 
         ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions and score for Training Dataset");
-        var (trainPredictionsInTargetFormat, trainScore) = ComputePredictionsAndScore(trainDataset);
+        var (trainPredictionsInTargetFormat, trainScore) = ComputePredictionsAndMetricScore(trainDataset);
         ISample.Log.Info($"Model '{Model.ModelName}' score on Training: {trainScore}");
         DatasetSample.Train_XYDatasetPath = trainDataset.to_csv_in_directory(Model.RootDatasetPath, true, false);
         SaveTrainPredictionsInTargetFormat(trainPredictionsInTargetFormat, trainScore);
 
-        float validationScore = float.NaN;
+        IScore validationScore = null;
         if (validationDatasetIfAny != null)
         {
             ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions and score for Validation Dataset");
-            (var validationPredictionsInTargetFormat, validationScore) = ComputePredictionsAndScore(validationDatasetIfAny);
+            (var validationPredictionsInTargetFormat, validationScore) = ComputePredictionsAndMetricScore(validationDatasetIfAny);
             ISample.Log.Info($"Model '{Model.ModelName}' score on Validation: {validationScore}");
             DatasetSample.Validation_XYDatasetPath = validationDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, true, false);
             SaveValidationPredictionsInTargetFormat(validationPredictionsInTargetFormat, validationScore);
@@ -157,8 +162,8 @@ public class ModelAndDatasetPredictions
         if (testDatasetIfAny != null)
         {
             ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Test Dataset");
-            var (testPredictionsInTargetFormat, testScore) = ComputePredictionsAndScore(testDatasetIfAny);
-            if (float.IsNaN(testScore))
+            var (testPredictionsInTargetFormat, testScore) = ComputePredictionsAndMetricScore(testDatasetIfAny);
+            if (testScore == null)
             {
                 DatasetSample.Test_XDatasetPath = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, false, false);
                 DatasetSample.Test_YDatasetPath = DatasetSample.Test_XYDatasetPath = null;

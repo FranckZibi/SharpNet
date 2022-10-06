@@ -102,7 +102,7 @@ public class WeightedModelSample : AbstractSample, IModelSample
         SetWeights(weights);
     }
 
-    public DataFrameT<float> ApplyWeights(List<DataFrame> t, IList<int> indexColumnsNotToUse)
+    public DataFrame ApplyWeights(List<DataFrame> t, IList<int> indexColumnsNotToUse)
     {
         if (t == null || t.Count == 0)
         {

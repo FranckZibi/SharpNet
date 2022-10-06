@@ -25,6 +25,8 @@ namespace SharpNet.LightGBM
                     return MetricEnum.Rmse;
                 case objective_enum.binary:
                     return MetricEnum.Loss;
+                case objective_enum.multiclass:
+                    return MetricEnum.Loss;
                 default:
                     throw new NotImplementedException($"can't manage metric {objective}");
             }
@@ -51,6 +53,19 @@ namespace SharpNet.LightGBM
                 {
                     return false;
                 }
+            }
+
+            if (objective == objective_enum.multiclass || objective == objective_enum.multiclassova)
+            {
+                if (num_class < 2)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                //no need of 'num_class' field
+                num_class = DEFAULT_VALUE;
             }
 
             if (bagging_freq <= 0)
@@ -133,6 +148,13 @@ namespace SharpNet.LightGBM
         // ReSharper disable once MemberCanBePrivate.Global
         public objective_enum objective = objective_enum.DEFAULT_VALUE;
 
+        /// <summary>
+        /// true if we face a classification problem
+        /// </summary>
+        public bool IsClassification => 
+                 objective == objective_enum.binary
+              || objective == objective_enum.multiclass
+              || objective == objective_enum.multiclassova;
 
         public enum boosting_enum { gbdt, rf, dart, goss, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
         //gbdt:  traditional Gradient Boosting Decision Tree, aliases: gbrt

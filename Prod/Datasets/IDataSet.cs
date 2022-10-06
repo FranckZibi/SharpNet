@@ -4,7 +4,6 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
-using SharpNet.HyperParameters;
 using SharpNet.Models;
 using SharpNet.Networks;
 
@@ -59,8 +58,6 @@ namespace SharpNet.Datasets
         int TypeSize { get; }
         bool UseBackgroundThreadToLoadNextMiniBatch { get; }
 
-        AbstractDatasetSample DatasetSample { get; }
-
         List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
 
         /// <summary>
@@ -91,7 +88,8 @@ namespace SharpNet.Datasets
 
         string[] CategoricalFeatures { get; }
         string[] IdFeatures { get; }
-        string[] TargetFeatures { get; }
+        string[] TargetLabels { get; }
+        char Separator { get; }
 
         /// <summary>
         /// the type of use of the dataset : Regression or Classification
@@ -114,10 +112,6 @@ namespace SharpNet.Datasets
         List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
         [CanBeNull] CpuTensor<float> Y { get; }
-
-        [CanBeNull] DataFrame Y_as_DataFrame() => DataFrame.New(Y, new []{"y"}, Array.Empty<string>());
-
-
         string Name { get; }
 
         ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet);
@@ -145,5 +139,6 @@ namespace SharpNet.Datasets
         /// </summary>
         bool ShouldCreateSnapshotForEpoch(int epoch, Network network);
         void Save(IModel network, string workingDirectory, string modelName);
+        DataFrame ExtractIdDataFrame();
     }
 }

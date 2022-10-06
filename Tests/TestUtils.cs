@@ -39,6 +39,20 @@ namespace SharpNetTests
             Assert.AreEqual(expectedResult, Utils.Product(data));
         }
 
+        [TestCase(true, 0f, float.NaN, MetricEnum.Mae)]
+        [TestCase(false, float.NaN, 0, MetricEnum.Mae)]
+        [TestCase(false, float.NaN, float.NaN, MetricEnum.Mae)]
+        [TestCase(true, 0f, 1f, MetricEnum.Mae)]
+        [TestCase(false, 1f, 0f, MetricEnum.Mae)]
+        [TestCase(false, 0f, 0f, MetricEnum.Mae)]
+        [TestCase(true, 1f, 0f, MetricEnum.Accuracy)]
+        [TestCase(false, 0f, 1f, MetricEnum.Accuracy)]
+        [TestCase(false, 0f, 0f, MetricEnum.Accuracy)]
+        public void TestIsBetterScore(bool expectedResult, float a, float b, MetricEnum metric)
+        {
+            Assert.AreEqual(expectedResult, Utils.IsBetterScore(a, b, metric));
+        }
+
         [Test]
         public void TestBetaDistribution()
         {

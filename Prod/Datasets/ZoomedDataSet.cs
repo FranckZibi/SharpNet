@@ -22,9 +22,9 @@ namespace SharpNet.Datasets
                 original.FeatureNames,
                 original.CategoricalFeatures,
                 original.IdFeatures,
-                original.TargetFeatures,
+                original.TargetLabels,
                 true,
-                original.DatasetSample)
+                original.Separator)
         {
             _original = original;
             _originalShape_CHW = originalShape_CHW;

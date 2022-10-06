@@ -820,6 +820,8 @@ namespace SharpNet.Data
                     return ComputeLoss(yPredicted, LossFunctionEnum.Mse, buffer);
                 case MetricEnum.CosineSimilarity504:
                     return ComputeLoss(yPredicted, LossFunctionEnum.CosineSimilarity504, buffer);
+                case MetricEnum.F1Micro:
+                    return ComputeLoss(yPredicted, LossFunctionEnum.F1Micro, buffer);
                 case MetricEnum.Accuracy:
                     return ComputeAccuracy(yPredicted, lossFunction, buffer);
                 case MetricEnum.Rmse:
@@ -858,7 +860,7 @@ namespace SharpNet.Data
         /// <param name="epsilon">minimum allowed value for a prediction</param>
         public abstract void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon);
 
-
+        public abstract (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted);
 
         /// <summary>
         /// Compute the Cosine Similarity Loss (see https://en.wikipedia.org/wiki/Cosine_similarity)

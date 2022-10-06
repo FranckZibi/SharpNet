@@ -53,24 +53,7 @@ public abstract class AbstractModel : IModel
         using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(metricEnum));
         return (float)y_true.ComputeMetric(y_pred, metricEnum, lossFunctionEnum, buffer);
     }
-    public bool NewScoreIsBetterTheReferenceScore(float newScore, float referenceScore)
-    {
-        var metricEnum = ModelSample.GetMetric();
-        switch (metricEnum)
-        {
-            case MetricEnum.Accuracy:
-            case MetricEnum.CosineSimilarity504:
-                return newScore > referenceScore; // highest is better
-            case MetricEnum.Loss:
-            case MetricEnum.Mae:
-            case MetricEnum.Mse:
-            case MetricEnum.Rmse:
-                return newScore < referenceScore; // lowest is better
-            default:
-                throw new NotImplementedException($"unknown metric : {metricEnum}");
-        }
-    }
-    public void AddResumeToCsv(double trainingTimeInSeconds, float trainScore, float validationScore, string csvPath)
+    public void AddResumeToCsv(double trainingTimeInSeconds, IScore trainScore, IScore validationScore, string csvPath)
     {
         var line = "";
         try
@@ -86,9 +69,9 @@ public abstract class AbstractModel : IModel
                 + GetLearningRate() + ";"
                 + trainingTimeInSeconds + ";"
                 + (trainingTimeInSeconds / numEpochs) + ";"
-                + trainScore + ";"
+                + IScore.ToString(trainScore) + ";"
                 + "NaN" + ";"
-                + validationScore + ";"
+                + IScore.ToString(validationScore) + ";"
                 + "NaN" + ";"
                 + Environment.NewLine;
             lock (LockUpdateFileObject)

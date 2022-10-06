@@ -37,7 +37,7 @@ namespace SharpNet.HPO
         /// the cost associated with the best sample found sample (or NaN if no sample has been analyzed)
         /// </summary>
         // ReSharper disable once MemberCanBePrivate.Global
-        public float CostOfBestSampleFoundSoFar { get; protected set; } = float.NaN;
+        public IScore ScoreOfBestSampleFoundSoFar { get; protected set; }
         #endregion
 
         #region constructor
@@ -79,7 +79,7 @@ namespace SharpNet.HPO
         }
         #endregion
 
-        public void Process(Func<ISample, float> objectiveFunction, float maxAllowedSecondsForAllComputation = 0 /* no time limit by default */)
+        public void Process(Func<ISample, IScore> objectiveFunction, float maxAllowedSecondsForAllComputation = 0 /* no time limit by default */)
         {
             Log.Info("Computation(s) will be done on " + numModelTrainingInParallel + " cores");
             var threadTasks = new Task[numModelTrainingInParallel];
@@ -92,17 +92,17 @@ namespace SharpNet.HPO
         }
 
 
-        protected virtual void RegisterSampleCost(ISample sample, int sampleId, float cost, double elapsedTimeInSeconds)
+        protected virtual void RegisterSampleCost(ISample sample, int sampleId, IScore score, double elapsedTimeInSeconds)
         {
-            _allCost.Add(cost, 1);
-            RegisterSampleCost(SearchSpace, sample, cost, elapsedTimeInSeconds);
+            _allCost.Add(score.Value, 1);
+            RegisterSampleCost(SearchSpace, sample, score, elapsedTimeInSeconds);
         }
-        protected static void RegisterSampleCost(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, float cost, double elapsedTimeInSeconds)
+        protected static void RegisterSampleCost(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, [NotNull] IScore score, double elapsedTimeInSeconds)
         {
             foreach (var (parameterName, parameterSearchSpace) in searchSpace)
             {
                 var parameterValue = sample.Get(parameterName);
-                parameterSearchSpace.RegisterCost(parameterValue, cost, elapsedTimeInSeconds);
+                parameterSearchSpace.RegisterCost(parameterValue, score.Value, elapsedTimeInSeconds);
             }
         }
         protected static string ToSampleDescription(IDictionary<string, string> dico, ISample sample)
@@ -122,7 +122,7 @@ namespace SharpNet.HPO
         /// </summary>
         /// <param name="objectiveFunction"></param>
         /// <param name="maxAllowedSecondsForAllComputation"></param>
-        private void ProcessNextSample([NotNull] Func<ISample, float> objectiveFunction, float maxAllowedSecondsForAllComputation)
+        private void ProcessNextSample([NotNull] Func<ISample, IScore> objectiveFunction, float maxAllowedSecondsForAllComputation)
         {
             for (; ; )
             {
@@ -143,15 +143,15 @@ namespace SharpNet.HPO
                     Log.Debug($"starting computation of sampleId {sampleId}");
 
                     var sw = Stopwatch.StartNew();
-                    float cost = objectiveFunction(sample);
-                    if (float.IsNaN(CostOfBestSampleFoundSoFar) || cost < CostOfBestSampleFoundSoFar)
+                    var score = objectiveFunction(sample);
+                    if (score != null && score.IsBetterThan(ScoreOfBestSampleFoundSoFar))
                     {
+                        Log.Info($"new best score {score} with sampleId {sampleId} (was {ScoreOfBestSampleFoundSoFar})" + Environment.NewLine + sampleDescription);
                         BestSampleFoundSoFar = sample;
-                        CostOfBestSampleFoundSoFar = cost;
-                        Log.Info($"new lowest cost {CostOfBestSampleFoundSoFar} with sampleId {sampleId}" + Environment.NewLine + sampleDescription);
+                        ScoreOfBestSampleFoundSoFar = score;
                     }
                     double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
-                    RegisterSampleCost(sample, sampleId, cost, elapsedTimeInSeconds);
+                    RegisterSampleCost(sample, sampleId, score, elapsedTimeInSeconds);
                     Log.Debug("ended new computation");
                     Log.Debug($"{Processed} processed samples");
                     //we display statistics only once every 10s

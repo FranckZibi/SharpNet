@@ -17,9 +17,9 @@ namespace SharpNet.Datasets
                 original.FeatureNames,
                 original.CategoricalFeatures, 
                 original.IdFeatures, 
-                original.TargetFeatures, 
+                original.TargetLabels, 
                 original.UseBackgroundThreadToLoadNextMiniBatch,
-                original.DatasetSample)
+                original.Separator)
         {
             _original = original;
             this._elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);

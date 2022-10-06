@@ -30,7 +30,7 @@ namespace SharpNet.Datasets
                 new string[0],
                 new string[0],
                 true,
-                null)
+                ',')
         {
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);
