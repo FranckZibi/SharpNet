@@ -101,8 +101,8 @@ namespace SharpNet.Optimizers
             }
             return sb.ToString();
         }
-        public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData) {return false;}
-        public double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData) {return 1.0;}
+        public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData, EvaluationMetricEnum loss) {return false;}
+        public double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData, EvaluationMetricEnum loss) {return 1.0;}
         public bool ShouldCreateSnapshotForEpoch(int epoch)
         {
             return false;

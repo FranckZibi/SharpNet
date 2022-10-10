@@ -613,44 +613,49 @@ namespace SharpNet.GPU
         /// this = yExpectedOneHot
         /// </summary>
         /// <param name="yPredicted"></param>
-        /// <param name="lossFunction"></param>
+        /// <param name="evaluationMetric"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public override double ComputeLoss([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
+        public override double ComputeEvaluationMetric([NotNull] Tensor yPredicted, EvaluationMetricEnum evaluationMetric, [NotNull] Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
             Debug.Assert(yPredicted.SameShape(yExpected));
             Debug.Assert(yExpected.Dimension >= 2);
-            var kernelName = lossFunction + "Loss";
             int nbRows = yExpected.Shape[0];
             var categoryCount = yExpected.MultDim0;
-            if (lossFunction == LossFunctionEnum.Huber)
+
+            switch (evaluationMetric)
             {
-                const float huberDelta = 1.0f;
-                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });
-            }
-            else if (lossFunction == LossFunctionEnum.CosineSimilarity504)
-            {
-                Debug.Assert(yPredicted.Count % CosineSimilarity504_TimeSeries_Length == 0);
-                buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
-            }
-            else
-            {
-                _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpected, yPredicted });
+                case EvaluationMetricEnum.Accuracy:
+                    return ComputeAccuracy(yPredicted, buffer);
+                case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
+                    return ComputeAccuracyCategoricalCrossentropyWithHierarchy(yPredicted, buffer);
+                case EvaluationMetricEnum.Huber:
+                    const float huberDelta = 1.0f;
+                    _wrapper.RunKernel("HuberLoss", nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });
+                    return buffer.ContentAsFloatArray().Average();
+                case EvaluationMetricEnum.CosineSimilarity504:
+                    Debug.Assert(yPredicted.Count % CosineSimilarity504_TimeSeries_Length == 0);
+                    buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
+                    return buffer.ContentAsFloatArray().Average();
+                case EvaluationMetricEnum.Rmse:
+                    return Math.Sqrt(ComputeEvaluationMetric(yPredicted, EvaluationMetricEnum.Mse, buffer));
+                default:
+                    var kernelName = evaluationMetric + "Loss";
+                    _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpected, yPredicted });
+                    return buffer.ContentAsFloatArray().Average();
             }
 
-            return buffer.ContentAsFloatArray().Average();
         }
 
         /// <summary>
         /// this = yExpectedOneHot
         /// </summary>
         /// <param name="yPredicted"></param>
-        /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public override double ComputeAccuracy([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, [NotNull] Tensor buffer)
+        public override double ComputeAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> {yExpected, yPredicted}));
@@ -660,13 +665,23 @@ namespace SharpNet.GPU
             Debug.Assert(yExpected.Dimension >= 2);
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
-            var kernelName = (lossFunction == LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
-                ? "ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy"
-                : "ComputeAccuracy";
-            _wrapper.RunKernel(kernelName, nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
+            _wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
             return buffer.ContentAsFloatArray().Average();
         }
-      
+
+        public override double ComputeAccuracyCategoricalCrossentropyWithHierarchy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer)
+        {
+            var yExpected = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
+            Debug.Assert(buffer.Shape.Length == 1);
+            Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(yExpected.Dimension >= 2);
+            int nbRows = yExpected.Shape[0];
+            var nbCols = yExpected.Shape[1];
+            _wrapper.RunKernel("ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
+            return buffer.ContentAsFloatArray().Average();
+        }
         public override void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
         {
             var mseLoss = this;

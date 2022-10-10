@@ -31,22 +31,23 @@ namespace SharpNet.Optimizers
         /// return the distance (# epochs) between the last epoch and the best epoch found so far (in term of training loss)
         /// </summary>
         /// <param name="epochData"></param>
+        /// <param name="loss"></param>
         /// <param name="maxNbConsecutiveEpochsToReport">stops as soon as the returned result is >= 'maxNbConsecutiveEpochsToReport'</param>
         /// <returns>distance (in number of epochs) between the last epoch and the best epoch found so far (in term of training loss)
         /// it will return 0 if the best epoch was the last processed, 1 if the best epoch was just before the last epoch, etc...</returns>
-        public static int NbConsecutiveEpochsWithoutProgress(List<EpochData> epochData, int maxNbConsecutiveEpochsToReport = int.MaxValue)
+        public static int NbConsecutiveEpochsWithoutProgress(List<EpochData> epochData, EvaluationMetricEnum loss, int maxNbConsecutiveEpochsToReport = int.MaxValue)
         {
             Debug.Assert(maxNbConsecutiveEpochsToReport>=1);
             if (epochData.Count <= 1)
             {
                 return 0;
             }
-            var minLoss = epochData.Select(x => x.TrainingLoss).Min();
+            var minLoss = epochData.Select(x => x.GetTrainingLoss(loss)).Min();
             int nbConsecutiveEpochsWithoutProgress = 0;
             for (int i = epochData.Count - 1; i >= 0; --i)
             {
                 //if progress observed
-                if (epochData[i].TrainingLoss <= minLoss+1e-8)
+                if (epochData[i].GetTrainingLoss(loss) <= minLoss+1e-8)
                 {
                     break;
                 }
@@ -75,10 +76,11 @@ namespace SharpNet.Optimizers
         /// (a plateau: no improvement in several epochs in a row)
         /// </summary>
         /// <param name="previousEpochData">stats associated with the previous computed epochs</param>
+        /// <param name="loss"></param>
         /// <returns>true if we should reduce the learning rate</returns>
-        public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochData)
+        public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochData, EvaluationMetricEnum loss)
         {
-            var nbConsecutiveEpochWithoutProgress = NbConsecutiveEpochsWithoutProgress(previousEpochData, _patienceForReduceLrOnPlateau+1);
+            var nbConsecutiveEpochWithoutProgress = NbConsecutiveEpochsWithoutProgress(previousEpochData, loss, _patienceForReduceLrOnPlateau+1);
             if (_patienceForReduceLrOnPlateau <= 0 || nbConsecutiveEpochWithoutProgress <= _patienceForReduceLrOnPlateau || FactorForReduceLrOnPlateau <= 0.0)
             {
                 return false;

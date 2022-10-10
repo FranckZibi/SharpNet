@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
 using log4net;
@@ -31,7 +30,7 @@ public class DatasetEncoder
     /// the list of features that will be used to uniquely identify a row
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private List<string> IdFeatures => _datasetSample.IdFeatures();
+    [NotNull] private List<string> IdColumns => _datasetSample.IdColumns();
     [NotNull] private readonly Dictionary<string, FeatureStats> _featureStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
 
@@ -57,9 +56,9 @@ public class DatasetEncoder
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public InMemoryDataSet NumericalEncoding(string xyDataset)
+    public IDataSet NumericalEncoding(string xyDataset)
     {
-        var rows = Utils.ReadCsv(xyDataset).ToList();
+        var rows = Utils.ReadCsvWithCache(xyDataset);
         var df = NumericalEncoding(rows);
         var (xTrainEncoded, yTrainEncoded) = df.Split(Targets);
 
@@ -71,29 +70,30 @@ public class DatasetEncoder
             _datasetSample.Name,
             _datasetSample.GetObjective(),
             null,
-            xTrainEncoded.FeatureNames,
+            xTrainEncoded.ColumnNames,
             CategoricalFeatures.ToArray(),
-            IdFeatures.ToArray(),
+            IdColumns.ToArray(),
             Targets.ToArray(),
             false,
             _datasetSample.GetSeparator());
     }
 
+    
     /// <summary>
     /// load the dataset 'xDataset' and encode all categorical features into numerical values
     /// (so that it can be processed by LightGBM)
     /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
     /// </summary>
-    public InMemoryDataSet NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
+    public IDataSet NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
     {
-        var xRows = Utils.ReadCsv(xDataset).ToList();
-        DataFrameT<float> xEncoding = NumericalEncoding(xRows);
+        var xRows = Utils.ReadCsvWithCache(xDataset);
+        var xEncoding = NumericalEncoding(xRows);
 
         //we load the y file if any
         DataFrameT<float> yEncoding = null;
         if (!string.IsNullOrEmpty(yDataset))
         {
-            var yRows = Utils.ReadCsv(yDataset).ToList();
+            var yRows = Utils.ReadCsvWithCache(yDataset);
             yEncoding = NumericalEncoding(yRows);
         }
 
@@ -103,9 +103,9 @@ public class DatasetEncoder
             _datasetSample.Name,
             _datasetSample.GetObjective(),
             null,
-            xEncoding.FeatureNames,
+            xEncoding.ColumnNames,
             CategoricalFeatures.ToArray(),
-            IdFeatures.ToArray(),
+            IdColumns.ToArray(),
             Targets.ToArray(),
             false,
             _datasetSample.GetSeparator());
@@ -127,7 +127,7 @@ public class DatasetEncoder
             throw new NotImplementedException($"invalid number of target labels {_datasetSample.TargetLabels().Count}, only 1 is supported");
         }
         var targetLabel = _datasetSample.TargetLabels()[0];
-        var allValues = GetAllCategoricalFeatureValues(targetLabel);
+        var allValues = GetDistinctCategoricalValues(targetLabel);
         if (allValues == null || allValues.Count == 0)
         {
             return 1;
@@ -135,18 +135,40 @@ public class DatasetEncoder
         return allValues.Count;
     }
 
-    public IList<string> GetAllCategoricalFeatureValues(string columnName)
+    /// <summary>
+    /// return the distinct values of a 'categorical feature' or of a 'categorical target label '
+    /// </summary>
+    /// <param name="categoricalColumn"></param>
+    /// <returns></returns>
+    public IList<string> GetDistinctCategoricalValues(string categoricalColumn)
     {
-        if (!_featureStats.ContainsKey(columnName))
+        if (!IsCategoricalColumn(categoricalColumn))
+        {
+            throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
+        }
+        if (!_featureStats.ContainsKey(categoricalColumn))
         {
             return null;
         }
-        return _featureStats[columnName].GetCategoricalFeatures();
+        return _featureStats[categoricalColumn].GetDistinctCategoricalValues();
     }
 
-    private bool IsCategoricalFeatureOrTarget(string columnName)
+    public IList<int> GetDistinctCategoricalCount(string categoricalColumn)
     {
-        if (CategoricalFeatures.Contains(columnName))
+        if (!IsCategoricalColumn(categoricalColumn))
+        {
+            throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
+        }
+        if (!_featureStats.ContainsKey(categoricalColumn))
+        {
+            return null;
+        }
+        return _featureStats[categoricalColumn].GetDistinctCategoricalCount();
+    }
+
+    private bool IsCategoricalColumn(string columnName)
+    {
+        if (CategoricalFeatures.Contains(columnName)||IdColumns.Contains(columnName))
         {
             return true;
         }
@@ -158,7 +180,7 @@ public class DatasetEncoder
 
         return false;
     }
-    public DataFrameT<float> NumericalEncoding(List<string[]> rows)
+    public DataFrameT<float> NumericalEncoding(IReadOnlyList<string[]> rows)
     {
         //the 1st row contains the header
         if (rows.Count < 2)
@@ -173,7 +195,7 @@ public class DatasetEncoder
         {
             if (!_featureStats.ContainsKey(featureName))
             {
-                _featureStats[featureName] = new FeatureStats(IsCategoricalFeatureOrTarget(featureName), Targets.Contains(featureName), IdFeatures.Contains(featureName));
+                _featureStats[featureName] = new FeatureStats(IsCategoricalColumn(featureName), Targets.Contains(featureName), IdColumns.Contains(featureName));
             }
         }
 
@@ -194,8 +216,7 @@ public class DatasetEncoder
             }
         }
         var cpuTensor = new CpuTensor<float>(new [] { rows.Count - 1, headerRow.Length }, content);
-        var foundCategoricalFeatures = Utils.Intersect(headerRow, CategoricalFeatures);
-        var df = DataFrame.New(cpuTensor, headerRow, foundCategoricalFeatures);
+        var df = DataFrame.New(cpuTensor, headerRow);
         return (DataFrameT<float>)df;
     }
 
@@ -209,7 +230,7 @@ public class DatasetEncoder
     /// <returns></returns>
     public string NumericalDecoding(DataFrame df, char separator, string missingNumberValue = "")
     {
-        var featureNames = df.FeatureNames;
+        var featureNames = df.ColumnNames;
 
         //we ensure that categorical feature names are valid
         foreach (var featureName in featureNames)

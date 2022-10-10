@@ -39,7 +39,7 @@ public abstract class AbstractHyperParameterSearchSpace
     }
     public abstract float Next_BayesianSearchFloatValue(Random rand, RANDOM_SEARCH_OPTION randomSearchOption);
     public abstract string BayesianSearchFloatValue_to_SampleStringValue(float f);
-    public abstract void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds);
+    public abstract void RegisterScore(object sampleValue, IScore score, double elapsedTimeInSeconds);
     public abstract bool IsConstant { get; }
     public abstract int LengthForGridSearch { get; }
     public abstract string SampleStringValue_at_Index_For_GridSearch(int index);
@@ -50,7 +50,7 @@ public abstract class AbstractHyperParameterSearchSpace
         {
             return Tuple.Create(acc.Average, acc.Volatility, acc.Count);
         }
-        var allUseCases = t.Select(a => ToTuple(a.Cost)).ToList();
+        var allUseCases = t.Select(a => ToTuple(a.CostToDecrease)).ToList();
         return Utils.TargetCpuInvestmentTime(allUseCases);
     }
 

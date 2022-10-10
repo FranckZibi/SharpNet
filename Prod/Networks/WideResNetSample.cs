@@ -38,7 +38,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
                 {
-                    LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
@@ -92,7 +92,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
                 {
-                    LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR100DataSet.NAME),
@@ -132,7 +132,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
                 {
-                    LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "SVHN"),

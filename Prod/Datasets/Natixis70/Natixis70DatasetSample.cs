@@ -101,27 +101,27 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         return predictionsInModelFormat;
     }
 
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
     {
-        if (predictionsInModelFormat == null)
+        if (predictionsInModelFormat_with_IdColumns == null)
         {
             return null;
         }
-        if (predictionsInModelFormat.Shape[1] == 39)
+        if (predictionsInModelFormat_with_IdColumns.Shape[1] == 39)
         {
-            var cpuTensor = CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat.FloatCpuTensor(), 0);
-            return DataFrame.New(cpuTensor, PredictionInTargetFormatFeatures(), CategoricalFeatures());
+            var cpuTensor = CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat_with_IdColumns.FloatCpuTensor(), 0);
+            return DataFrame.New(cpuTensor, PredictionInTargetFormatHeader());
         }
 
-        var predictionsInModelFormatSpan = predictionsInModelFormat.FloatCpuTensor().AsReadonlyFloatCpuContent;
+        var predictionsInModelFormatSpan = predictionsInModelFormat_with_IdColumns.FloatCpuTensor().AsReadonlyFloatCpuContent;
         var predictionsInModelFormatSpanIndex = 0;
 
         // the predictions in the target format for the Natixis70 Challenge
-        var predictionsInTargetFormat = new CpuTensor<float>(YShapeInTargetFormat(predictionsInModelFormat.Shape[0]));
+        var predictionsInTargetFormat = new CpuTensor<float>(YShapeInTargetFormat(predictionsInModelFormat_with_IdColumns.Shape[0]));
         var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsFloatCpuSpan;
         var divider = RowsInTargetFormatToRowsInModelFormat(1);
 
-        for (int rowInModelFormat = 0; rowInModelFormat < predictionsInModelFormat.Shape[0]; ++rowInModelFormat)
+        for (int rowInModelFormat = 0; rowInModelFormat < predictionsInModelFormat_with_IdColumns.Shape[0]; ++rowInModelFormat)
         {
             var rowInTargetFormat = rowInModelFormat / divider;
             //the first element of each row in target format is the index of this row (starting from 0)
@@ -153,7 +153,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         Debug.Assert(predictionsInTargetFormat.Shape.Length == 2);
         Debug.Assert(predictionsInTargetFormat.Shape[1] == (1 + 39));
-        return DataFrame.New(predictionsInTargetFormat, PredictionInTargetFormatFeatures(), CategoricalFeatures());
+        return DataFrame.New(predictionsInTargetFormat, PredictionInTargetFormatHeader());
     }
     public override bool FixErrors()
     {
@@ -213,7 +213,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         return categoricalFeatures;
     }
 
-    public override List<string> IdFeatures()
+    public override List<string> IdColumns()
     {
         return new List<string>{""};
     }
@@ -283,14 +283,9 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
     }
 
-    public override MetricEnum GetMetric()
+    protected override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
-        return MetricEnum.Rmse;
-    }
-
-    public override LossFunctionEnum GetLoss()
-    {
-        return LossFunctionEnum.Rmse;
+        return EvaluationMetricEnum.Rmse;
     }
 
     public override Objective_enum GetObjective() => Objective_enum.Regression;

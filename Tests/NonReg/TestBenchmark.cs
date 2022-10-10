@@ -325,8 +325,8 @@ namespace SharpNetTests.NonReg
                 + "RELEASE;"
 #endif
                 +elapsedMs+";"
-                +lossAndAccuracy[MetricEnum.Loss]+";"
-                +lossAndAccuracy[MetricEnum.Accuracy]
+                +lossAndAccuracy[EvaluationMetricEnum.CategoricalCrossentropy] +";"
+                +lossAndAccuracy[EvaluationMetricEnum.Accuracy]
                 +Environment.NewLine
                 );
         }

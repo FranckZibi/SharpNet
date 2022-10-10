@@ -89,15 +89,15 @@ public class WeightsOptimizer /*: AbstractModel*/
         for (int i = 0; i < weightsOptimizer._embeddedModelsTrainPredictions.Count; ++i)
         {
             searchSpace["w_" + i.ToString("D2")] = AbstractHyperParameterSearchSpace.Range(0.0f, 1.0f);
-            IModel.Log.Info($"Original validation score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) :{firstDatasetSample.ComputeMetricScore(weightsOptimizer._perfectValidationPredictions, weightsOptimizer._embeddedModelsValidationPredictions[i])}");
+            IModel.Log.Info($"Original validation score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) :{firstDatasetSample.ComputeRankingEvaluationMetric(weightsOptimizer._perfectValidationPredictions, weightsOptimizer._embeddedModelsValidationPredictions[i])}");
             if (weightsOptimizer._embeddedModelsTrainPredictions[i] != null)
             {
-                IModel.Log.Info($"Original train score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) : {firstDatasetSample.ComputeMetricScore(weightsOptimizer._perfectTrainPredictions, weightsOptimizer._embeddedModelsTrainPredictions[i])}");
+                IModel.Log.Info($"Original train score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) : {firstDatasetSample.ComputeRankingEvaluationMetric(weightsOptimizer._perfectTrainPredictions, weightsOptimizer._embeddedModelsTrainPredictions[i])}");
             }
         }
         var equalWeightedModelSample = new WeightedModelSample(workingDirectoryAndModelNames);
         equalWeightedModelSample.SetEqualWeights();
-        var validationScore = weightsOptimizer.ComputePredictionsAndMetricScore(weightsOptimizer._perfectValidationPredictions, weightsOptimizer._embeddedModelsValidationPredictions, equalWeightedModelSample).metricScore;
+        var validationScore = weightsOptimizer.ComputePredictionsAndRankingEvaluationMetric(weightsOptimizer._perfectValidationPredictions, weightsOptimizer._embeddedModelsValidationPredictions, equalWeightedModelSample).metricScore;
         IModel.Log.Info($"Validation score if Equal Weights: {validationScore}");
 
         var hpo = new BayesianSearchHPO(searchSpace, () => new WeightedModelSample(workingDirectoryAndModelNames), workingDirectory);
@@ -105,17 +105,18 @@ public class WeightsOptimizer /*: AbstractModel*/
         hpo.Process(t => weightsOptimizer.TrainWithHyperParameters((WeightedModelSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
     }
 
-    private (DataFrame predictionsInTargetFormat, IScore metricScore) ComputePredictionsAndMetricScore(DataFrame true_predictions_in_target_format, List<DataFrame> t, WeightedModelSample weightedModelSample)
+    private (DataFrame predictionsInTargetFormat, IScore metricScore) ComputePredictionsAndRankingEvaluationMetric(DataFrame true_predictions_in_target_format, List<DataFrame> t, WeightedModelSample weightedModelSample)
     {
-        var weightedModelPredictions = weightedModelSample.ApplyWeights(t, FirstDatasetSample.IndexColumnsInPredictionsInTargetFormat());
-        var metricScore = FirstDatasetSample.ComputeMetricScore(true_predictions_in_target_format, weightedModelPredictions);
+        var idxOfIdColumns = true_predictions_in_target_format.ColumnNamesToIndexes(FirstDatasetSample.IdColumns());
+        var weightedModelPredictions = weightedModelSample.ApplyWeights(t, idxOfIdColumns);
+        var metricScore = FirstDatasetSample.ComputeRankingEvaluationMetric(true_predictions_in_target_format, weightedModelPredictions);
         return (weightedModelPredictions, metricScore);
     }
 
     private IScore TrainWithHyperParameters([NotNull] WeightedModelSample weightedModelSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref IScore bestScoreSoFar)
     {
         var sw = Stopwatch.StartNew();
-        var (weightedModelValidationPrediction, validationScore) = ComputePredictionsAndMetricScore(_perfectValidationPredictions, _embeddedModelsValidationPredictions, weightedModelSample);
+        var (weightedModelValidationPrediction, validationScore) = ComputePredictionsAndRankingEvaluationMetric(_perfectValidationPredictions, _embeddedModelsValidationPredictions, weightedModelSample);
         Debug.Assert(validationScore != null);
 
         if (validationScore.IsBetterThan(bestScoreSoFar))
@@ -128,7 +129,7 @@ public class WeightsOptimizer /*: AbstractModel*/
             IScore trainScore = null;
             if (_embeddedModelsTrainPredictions != null)
             {
-                (var weightedModelTrainPrediction, trainScore) = ComputePredictionsAndMetricScore(_perfectTrainPredictions, _embeddedModelsTrainPredictions, weightedModelSample);
+                (var weightedModelTrainPrediction, trainScore) = ComputePredictionsAndRankingEvaluationMetric(_perfectTrainPredictions, _embeddedModelsTrainPredictions, weightedModelSample);
                 if (trainScore != null)
                 {
                     IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} train score: {trainScore}");
@@ -138,7 +139,7 @@ public class WeightsOptimizer /*: AbstractModel*/
 
             if (_embeddedModelsTestPredictions != null)
             {
-                var (weightedModelTestPrediction, testScore)  = ComputePredictionsAndMetricScore(_perfectTestPredictions, _embeddedModelsTestPredictions, weightedModelSample);
+                var (weightedModelTestPrediction, testScore)  = ComputePredictionsAndRankingEvaluationMetric(_perfectTestPredictions, _embeddedModelsTestPredictions, weightedModelSample);
                 if (testScore != null)
                 {
                     IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} test score: {testScore}");

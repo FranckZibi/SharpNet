@@ -313,7 +313,7 @@ namespace SharpNetTests.CPU
             var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = new CpuTensor<float>(new[]{expected.Shape[0]});
-            var observedLoss = expected.ComputeLoss(predicted, LossFunctionEnum.CategoricalCrossentropyWithHierarchy, buffer);
+            var observedLoss = expected.ComputeEvaluationMetric(predicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy, buffer);
             var expectedLossBuffer = new []
             {
                 //no clue
@@ -340,7 +340,7 @@ namespace SharpNetTests.CPU
             var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = new CpuTensor<float>(new[] { expected.Shape[0] });
-            var acc = expected.ComputeAccuracy(predicted, LossFunctionEnum.CategoricalCrossentropyWithHierarchy, buffer);
+            var acc = expected.ComputeAccuracyCategoricalCrossentropyWithHierarchy(predicted, buffer);
             Assert.IsTrue(Utils.SameContent(new []{1f,1,0,0,0,0}, buffer.ContentAsFloatArray(), 1e-6));
             Assert.AreEqual(2.0/6, acc, 1e-6);
         }

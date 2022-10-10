@@ -31,18 +31,13 @@ public class QRT72DatasetSample : AbstractDatasetSample
         return true;
     }
 
-    public override IList<int> IndexColumnsInPredictionsInTargetFormat()
-    {
-        return new int[0];
-    }
-
     public override List<string> CategoricalFeatures()
     {
         //only numerical features
         return new List<string>();
     }
 
-    public override List<string> IdFeatures()
+    public override List<string> IdColumns()
     {
         throw new NotImplementedException();
     }
@@ -52,7 +47,7 @@ public class QRT72DatasetSample : AbstractDatasetSample
         throw new NotImplementedException();
     }
 
-    public override List<string> PredictionInTargetFormatFeatures()
+    protected override List<string> PredictionInTargetFormatHeader()
     {
         return new List<string>{"", "0"};
     }
@@ -77,20 +72,20 @@ public class QRT72DatasetSample : AbstractDatasetSample
         return Tensor.CosineSimilarity504_TimeSeries_Length;
     }
 
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
     {
-        return DataFrame.New(predictionsInModelFormat.FloatCpuTensor(), PredictionInTargetFormatFeatures(), CategoricalFeatures());
+        return DataFrame.New(predictionsInModelFormat_with_IdColumns.FloatCpuTensor(), PredictionInTargetFormatHeader());
     }
 
-    public override MetricEnum GetMetric()
+    protected override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
-        return MetricEnum.CosineSimilarity504;
+        return EvaluationMetricEnum.CosineSimilarity504;
     }
 
-    public override LossFunctionEnum GetLoss()
-    {
-        return LossFunctionEnum.CosineSimilarity504;
-    }
+    //public override EvaluationMetricEnum GetLossFunction()
+    //{
+    //    return EvaluationMetricEnum.CosineSimilarity504;
+    //}
 
     public override Objective_enum GetObjective() => Objective_enum.Regression;
 

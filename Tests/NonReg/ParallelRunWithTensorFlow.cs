@@ -239,7 +239,7 @@ namespace SharpNetTests.NonReg
                 new NetworkConfig
                     {
                         ModelName = "TestParallelRunWithTensorFlow_Convolution",
-                        LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                        LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                         RandomizeOrder = false,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                         ResourceIds = new List<int> { gpuDeviceId }
@@ -308,7 +308,7 @@ namespace SharpNetTests.NonReg
                         new NetworkConfig
                         {
                             ModelName = "TestParallelRunWithTensorFlow_Convolution",
-                            LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                            LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                             ResourceIds = new List<int> { gpuDeviceId }
@@ -381,7 +381,7 @@ namespace SharpNetTests.NonReg
                         new NetworkConfig
                         {
                             ModelName = "Embedding",
-                            LossFunction = LossFunctionEnum.BinaryCrossentropy,
+                            LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
                             ResourceIds = new List<int> { deviceId }
@@ -451,7 +451,7 @@ namespace SharpNetTests.NonReg
             var networkConfig = new NetworkConfig
             {
                 ModelName = "Embedding_GlobalPooling",
-                LossFunction = LossFunctionEnum.BinaryCrossentropy,
+                LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = false,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
                 ResourceIds = new List<int> { deviceId }
@@ -557,7 +557,7 @@ namespace SharpNetTests.NonReg
             var networkConfig = new NetworkConfig
             {
                 ModelName = "TestParallelRunWithTensorFlow_Sarcasm",
-                LossFunction = LossFunctionEnum.BinaryCrossentropy,
+                LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = true,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
                 ResourceIds = new List<int> { deviceId }
@@ -626,7 +626,7 @@ namespace SharpNetTests.NonReg
                         new NetworkConfig
                         {
                             ModelName = "TestParallelRunWithTensorFlow_DownSampling2D",
-                            LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                            LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
@@ -698,7 +698,7 @@ namespace SharpNetTests.NonReg
                         new NetworkConfig
                         {
                             ModelName = "Huber",
-                            LossFunction = LossFunctionEnum.Huber,
+                            LossFunction = EvaluationMetricEnum.Huber,
                             //LossFunction = LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
@@ -772,10 +772,10 @@ namespace SharpNetTests.NonReg
                         new NetworkConfig
                         {
                             ModelName = "Mse",
-                            LossFunction = LossFunctionEnum.Mse,
+                            LossFunction = EvaluationMetricEnum.Mse,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                            Metrics = new List<MetricEnum> {MetricEnum.Loss, MetricEnum.Mae, MetricEnum.Mse},
+                            Metrics = new List<EvaluationMetricEnum> {EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
@@ -883,10 +883,10 @@ namespace SharpNetTests.NonReg
                         new NetworkConfig
                         {
                             ModelName = "GRU",
-                            LossFunction = LossFunctionEnum.Huber,
+                            LossFunction = EvaluationMetricEnum.Huber,
                             RandomizeOrder = false,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                            Metrics = new List<MetricEnum> { MetricEnum.Loss, MetricEnum.Mae},
+                            Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Huber, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
@@ -1008,10 +1008,10 @@ namespace SharpNetTests.NonReg
                 new NetworkConfig
                     {
                         ModelName = "TimeSeries",
-                        LossFunction = LossFunctionEnum.Mse,
+                        LossFunction = EvaluationMetricEnum.Mse,
                         RandomizeOrder = shuffle,
                         CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                        Metrics = new List<MetricEnum> { MetricEnum.Loss, MetricEnum.Mae },
+                        Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae },
                         ResourceIds = new List<int> { deviceId }
                     }
                     .WithSGD(momentum, false)
@@ -1091,10 +1091,10 @@ namespace SharpNetTests.NonReg
                         new NetworkConfig
                         {
                             ModelName = "IMDB",
-                            LossFunction = LossFunctionEnum.BinaryCrossentropy,
+                            LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                             RandomizeOrder = shuffle,
                             CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
-                            Metrics = new List<MetricEnum> { MetricEnum.Loss, MetricEnum.Accuracy},
+                            Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.BinaryCrossentropy, EvaluationMetricEnum.Accuracy},
                             ResourceIds = new List<int> { deviceId }
                         }
                        //.WithSGD(momentum, false),

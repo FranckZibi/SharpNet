@@ -46,26 +46,28 @@ namespace SharpNet.Optimizers
         /// this method is called at the beginning of each new epoch
         /// </summary>
         /// <param name="previousEpochsData">stats associated with the previous computed epochs</param>
+        /// <param name="loss"></param>
         /// <returns>true if we should reduce the learning rate</returns>
-        public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData)
+        public bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData, EvaluationMetricEnum loss)
         {
-            return _reduceLrOnPlateauIfAny != null && _reduceLrOnPlateauIfAny.ShouldReduceLrOnPlateau(previousEpochsData);
+            return _reduceLrOnPlateauIfAny != null && _reduceLrOnPlateauIfAny.ShouldReduceLrOnPlateau(previousEpochsData, loss);
         }
 
         /// <summary>
         /// The multiplier we should use that take into account all plateaus reached from the beginning of the search
         /// </summary>
         /// <param name="previousEpochsData">stats associated with the previous computed epochs</param>
+        /// <param name="loss"></param>
         /// <returns>
         /// a value strictly less then 1.0 if we should reduce the learning rate because of several previous plateaux
         /// 1.0 is we should not reduce the learning rate
         /// </returns>
-        public double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData)
+        public double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData, EvaluationMetricEnum loss)
         {
             var result = previousEpochsData.Count >= 1
                 ? previousEpochsData.Last().LearningRateMultiplicativeFactorFromReduceLrOnPlateau
                 : 1.0;
-            if (ShouldReduceLrOnPlateau(previousEpochsData))
+            if (ShouldReduceLrOnPlateau(previousEpochsData, loss))
             {
                 result *= _reduceLrOnPlateauIfAny.FactorForReduceLrOnPlateau;
             }

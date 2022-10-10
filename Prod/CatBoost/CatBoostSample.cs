@@ -278,34 +278,20 @@ namespace SharpNet.CatBoost
                 return "gpu";
             }
         }
-        public MetricEnum GetMetric()
-        {
-            switch (eval_metric)
-            {
-                case metric_enum.Accuracy:
-                    return MetricEnum.Accuracy;
-                case metric_enum.RMSE:
-                    return MetricEnum.Rmse;
-                case metric_enum.Logloss:
-                    return MetricEnum.Loss; //we'll use the same metric as the loss
-                case metric_enum.AUC:
-                    return MetricEnum.Accuracy; //AUC is not implemented : we use accuracy instead
-                default:
-                    return MetricEnum.Loss; //we'll use the same metric as the loss
-            }
-        }
         public override List<string> SampleFiles(string workingDirectory, string modelName)
         {
             return new List<string> { ISample.ToJsonPath(workingDirectory, modelName) };
         }
-        public LossFunctionEnum GetLoss()
+        public EvaluationMetricEnum GetLoss()
         {
             switch (loss_function)
             {
                 case loss_function_enum.RMSE:
-                    return LossFunctionEnum.Rmse;
+                    return EvaluationMetricEnum.Rmse;
                 case loss_function_enum.Logloss:
-                    return LossFunctionEnum.BinaryCrossentropy;
+                    return EvaluationMetricEnum.BinaryCrossentropy;
+                case loss_function_enum.MultiClass:
+                    return EvaluationMetricEnum.CategoricalCrossentropy;
                 default:
                 case loss_function_enum.DEFAULT_VALUE:
                     throw new NotImplementedException($"can't manage metric {loss_function}");

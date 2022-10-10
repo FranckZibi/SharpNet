@@ -16,31 +16,17 @@ namespace SharpNet.LightGBM
         public LightGBMSample() :base(_categoricalHyperParameters)
         {
         }
-
-        public MetricEnum GetMetric()
+        public EvaluationMetricEnum GetLoss()
         {
             switch (objective)
             {
                 case objective_enum.regression:
-                    return MetricEnum.Rmse;
+                    return EvaluationMetricEnum.Rmse;
                 case objective_enum.binary:
-                    return MetricEnum.Loss;
+                    return EvaluationMetricEnum.BinaryCrossentropy;
                 case objective_enum.multiclass:
-                    return MetricEnum.Loss;
-                default:
-                    throw new NotImplementedException($"can't manage metric {objective}");
-            }
-        }
-        public LossFunctionEnum GetLoss()
-        {
-            switch (objective)
-            {
-                case objective_enum.regression:
-                    return LossFunctionEnum.Rmse;
-                case objective_enum.binary:
-                    return LossFunctionEnum.BinaryCrossentropy;
                 case objective_enum.cross_entropy: //TODO to check
-                    return LossFunctionEnum.CategoricalCrossentropy; 
+                    return EvaluationMetricEnum.CategoricalCrossentropy; 
                 default:
                     throw new NotImplementedException($"can't manage metric {objective}");
             }
@@ -54,6 +40,21 @@ namespace SharpNet.LightGBM
                     return false;
                 }
             }
+            if (boosting != boosting_enum.dart)
+            {
+                drop_rate = DEFAULT_VALUE;
+                max_drop = DEFAULT_VALUE;
+                skip_drop = DEFAULT_VALUE;
+                xgboost_dart_mode = false;
+                uniform_drop = false;
+                drop_seed = DEFAULT_VALUE;
+            }
+
+            if (path_smooth > 0 && min_data_in_leaf<2)
+            {
+                min_data_in_leaf = 2;
+            }
+
 
             if (objective == objective_enum.multiclass || objective == objective_enum.multiclassova)
             {

@@ -64,10 +64,31 @@ public interface IModel
 
     (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
         Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
-    DataFrame Predict(IDataSet dataset);
-    (DataFrame predictions, string predictionPath) PredictWithPath(IDataSet dataset);
+
+
+    /// <summary>
+    /// do Model inference for dataset 'dataset' and returns the predictions
+    /// </summary>
+    /// <param name="dataset">teh dataset we want to make the inference</param>
+    /// <param name="addIdColumnsAtLeft">
+    /// if true
+    ///     the returned Dataframe will contain in the 1st columns the Id Columns
+    /// else
+    ///     the Id Column will be discarded in the prediction Dataframe</param>
+    /// <param name="removeAllTemporaryFilesAtEnd">
+    /// if true:
+    ///     all temporary files needed by the model for inference will be deleted</param>
+    /// <returns>
+    /// predictions: the model inferences
+    /// datasetPath:
+    ///     if the model has needed to store the dataset into a file (ex: LightGBM, CatBoost)
+    ///         the associated path
+    ///     else
+    ///         an empty string
+    /// </returns>
+    DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd);
     void Save(string workingDirectory, string modelName);
-    float ComputeScore(CpuTensor<float> y_true, CpuTensor<float> y_pred);
+    IScore ComputeLoss(CpuTensor<float> y_true, CpuTensor<float> y_pred);
     List<string> ModelFiles();
     void AddResumeToCsv(double trainingTimeInSeconds, IScore trainScore, IScore validationScore, string csvPath);
     int GetNumEpochs();
@@ -77,11 +98,11 @@ public interface IModel
 
     string RootDatasetPath { get; }
 
-    public static string MetricsToString(IDictionary<MetricEnum, double> metrics, string prefix)
+    public static string MetricsToString(IDictionary<EvaluationMetricEnum, double> metrics, string prefix)
     {
         return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + e.Key + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
     }
-    public static string TrainingAndValidationMetricsToString(IDictionary<MetricEnum, double> trainingMetrics, IDictionary<MetricEnum, double> validationMetrics)
+    public static string TrainingAndValidationMetricsToString(IDictionary<EvaluationMetricEnum, double> trainingMetrics, IDictionary<EvaluationMetricEnum, double> validationMetrics)
     {
         return MetricsToString(trainingMetrics, "") + " - " + MetricsToString(validationMetrics, "val_");
     }

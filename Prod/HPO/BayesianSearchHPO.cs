@@ -26,8 +26,8 @@ public class BayesianSearchHPO : AbstractHpo
     /// <summary>
     /// Item1:  the sample
     /// Item2:  the sample as a float vector array
-    /// Item3:  the cost predicted by the surrogate model
-    /// Item4:  the actual cost of the sample (or NaN if it has not been computed yet)
+    /// Item3:  the score predicted by the surrogate model
+    /// Item4:  the actual score of the sample (or NaN if it has not been computed yet)
     /// Item5:  the sample id
     /// Item6:  the sample description
     /// </summary>
@@ -122,14 +122,14 @@ public class BayesianSearchHPO : AbstractHpo
         var x = x_df.Tensor;
         var y_df = df.Keep(new[] {"y"});
         var y = y_df.Tensor;
-        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, featureNames: x_df.FeatureNames, categoricalFeatures: categoricalFeature??Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
+        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, featureNames: x_df.ColumnNames, categoricalFeatures: categoricalFeature??Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
     {
         var df = DataFrame.LoadFloatDataFrame(dataFramePath, true);
         var x = df.Tensor;
-        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: df.FeatureNames, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
+        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: df.ColumnNames, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
 
     protected override (ISample, int, string) Next
@@ -151,10 +151,10 @@ public class BayesianSearchHPO : AbstractHpo
 
                 var sample = _nextSamplesToCompute[0].Item1;
                 var sampleAsFloatVector = _nextSamplesToCompute[0].Item2;
-                var surrogateCostEstimate = _nextSamplesToCompute[0].Item3;
+                var surrogateScoreEstimate = _nextSamplesToCompute[0].Item3;
                 var sampleDescription = _nextSamplesToCompute[0].Item4;
                 int sampleId = _samplesWithScoreIfAvailable.Count;
-                _samplesWithScoreIfAvailable.Add(Tuple.Create(sample, sampleAsFloatVector, surrogateCostEstimate, float.NaN, sampleId, sampleDescription));
+                _samplesWithScoreIfAvailable.Add(Tuple.Create(sample, sampleAsFloatVector, surrogateScoreEstimate, float.NaN, sampleId, sampleDescription));
                 _nextSamplesToCompute.RemoveAt(0);
                 return (sample, sampleId, sampleDescription);
             }
@@ -162,39 +162,51 @@ public class BayesianSearchHPO : AbstractHpo
     }
 
 
-    protected override void RegisterSampleCost(ISample sample, int sampleId, [NotNull] IScore score, double elapsedTimeInSeconds)
+    protected override void RegisterSampleScore(ISample sample, int sampleId, [NotNull] IScore actualScore, double elapsedTimeInSeconds)
     {
         lock (_lockObject)
         {
             if (!_higherScoreIsBetter.HasValue)
             {
-                _higherScoreIsBetter = Utils.HigherScoreIsBetterForMetric(score.Metric);
+                _higherScoreIsBetter = Utils.HigherScoreIsBetter(actualScore.Metric);
                 Log.Info($"Higher Score Is Better = {_higherScoreIsBetter}");
             }
-            _allCost.Add(score.Value, 1);
+            _allAsctualScores.Add(actualScore.Value, 1);
             var sampleTuple = _samplesWithScoreIfAvailable[sampleId];
-            var surrogateCostEstimate = sampleTuple.Item3;
-            var sampleDescription = sampleTuple.Item6;
-            if (float.IsNaN(surrogateCostEstimate))
+            var sampleAsFloatVector = sampleTuple.Item2;
+
+            //we update the values used to train the surrogate model: they may have been modified during the training
+            var surrogateModelFeatureNames = SurrogateModelFeatureNames();
+            for (int i = 0; i < surrogateModelFeatureNames.Length; i++)
             {
-                throw new Exception($"surrogate cost is missing from sampleId {sampleId}");
+                var fieldValue = sample.Get(surrogateModelFeatureNames[i]);
+                if (fieldValue is float floatValue && !float.IsNaN(floatValue)) { sampleAsFloatVector[i] = floatValue; }
+                else if (fieldValue is double doubleValue &&!double.IsNaN(doubleValue)) { sampleAsFloatVector[i] = (float)doubleValue; }
+                else if (fieldValue is int intValue) { sampleAsFloatVector[i] = intValue; }
+            }
+
+            var surrogateScorePrediction = sampleTuple.Item3;
+            var sampleDescription = sampleTuple.Item6;
+            if (float.IsNaN(surrogateScorePrediction))
+            {
+                throw new Exception($"surrogate score prediction is missing from sampleId {sampleId}");
             }
             if (!float.IsNaN(sampleTuple.Item4))
             {
-                throw new Exception($"cost has been already registered for sampleId {sampleId}");
+                throw new Exception($"score has been already registered for sampleId {sampleId}");
             }
             if (sampleTuple.Item5 != sampleId)
             {
                 throw new Exception($"invalid sampleId {sampleTuple.Item5} , should be {sampleId}");
             }
-            if (score == null)
+            if (actualScore == null)
             {
-                throw new Exception($"cost can not be NaN for sampleId {sampleId}");
+                throw new Exception($"score can not be NaN for sampleId {sampleId}");
             }
 
-            Log.Debug($"Registering actual cost ({score}) of sample {sampleId} (surrogate cost estimate: {surrogateCostEstimate})");
-            _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleTuple.Item2, surrogateCostEstimate, score.Value, sampleId, sampleDescription);
-            RegisterSampleCost(SearchSpace, sample, score, elapsedTimeInSeconds);
+            Log.Debug($"Registering actual sore ({actualScore}) of sample {sampleId} (surrogate score prediction: {surrogateScorePrediction})");
+            _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleAsFloatVector, surrogateScorePrediction, actualScore.Value, sampleId, sampleDescription);
+            RegisterSampleScore(SearchSpace, sample, actualScore, elapsedTimeInSeconds);
 
             //if (SamplesWithScore.Count >= Math.Max(10, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
             if (SamplesWithScore.Count >= Math.Max(10, 2*_samplesUsedForModelTraining))
@@ -226,7 +238,8 @@ public class BayesianSearchHPO : AbstractHpo
         return count;
     }
     /// <summary>
-    /// retrieve 'count' promising samples based on their estimate associated cost (computed with the surrogate model)
+    /// retrieve 'CountNextSamplesForObjectiveFunction()' promising samples based on their estimate associated score
+    /// (computed with the surrogate model)
     /// </summary>
     /// <returns></returns>
     private IEnumerable<Tuple<ISample, float[], float, string>> NextSamplesForObjectiveFunction()
@@ -239,29 +252,28 @@ public class BayesianSearchHPO : AbstractHpo
         using var x = RandomSamplesForPrediction(count*100);
         using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);
 
-        // we compute the estimate cost associated with each random sample (using the surrogate model)
-        Utils.TryDelete(LastDatasetPathUsedForPrediction);
-        (var y, LastDatasetPathUsedForPrediction) = _samplesUsedForModelTraining == 0 
+        // we compute the estimate score associated with each random sample (using the surrogate model)
+        var y = _samplesUsedForModelTraining == 0 
                 
                 // the model has not been trained so far, we can not use it for now
-                ? ( DataFrame.New(new CpuTensor<float>(new [] { x.Shape[0], 1 }), new List<string>{"y"}, Array.Empty<string>()), "")
+                ? DataFrame.New(new CpuTensor<float>(new [] { x.Shape[0], 1 }), new List<string>{"y"})
 
                 // the model has been already trained, we can use it
-                : _surrogateModel.PredictWithPath(dataset);
+                : _surrogateModel.Predict(dataset, false, true); //no id columns for surrogate model
         var ySpan = y.FloatCpuTensor().AsFloatCpuSpan;
-        var estimateRandomSampleCostAndIndex = new List<Tuple<float, int>>();
+        var estimateRandomSampleScoreAndIndex = new List<Tuple<float, int>>();
         for (var index = 0; index < ySpan.Length; index++)
         {
-            estimateRandomSampleCostAndIndex.Add(Tuple.Create(ySpan[index], index));
+            estimateRandomSampleScoreAndIndex.Add(Tuple.Create(ySpan[index], index));
         }
 
         //we sort all random samples from more promising to less interesting
         var orderedSamples = (_higherScoreIsBetter.HasValue && _higherScoreIsBetter.Value)
             //higher score is better : the most promising sample is the one with the highest score
-            ? estimateRandomSampleCostAndIndex.OrderByDescending(e => e.Item1)
+            ? estimateRandomSampleScoreAndIndex.OrderByDescending(e => e.Item1)
             //lower score is better : the most promising sample is the one with the lowest score
-            : estimateRandomSampleCostAndIndex.OrderBy(e => e.Item1);
-        foreach (var (estimateRandomSampleCost, index) in orderedSamples)
+            : estimateRandomSampleScoreAndIndex.OrderBy(e => e.Item1);
+        foreach (var (estimateRandomSampleScore, index) in orderedSamples)
         {
             var sampleAsFloatArray = x.RowSlice(index, 1).ContentAsFloatArray();
             var (randomSample,randomSampleDescription) = FromFloatVectorToSampleAndDescription(sampleAsFloatArray);
@@ -269,7 +281,7 @@ public class BayesianSearchHPO : AbstractHpo
             {
                 continue;
             }
-            result.Add(Tuple.Create(randomSample, sampleAsFloatArray, estimateRandomSampleCost, randomSampleDescription));
+            result.Add(Tuple.Create(randomSample, sampleAsFloatArray, estimateRandomSampleScore, randomSampleDescription));
             if (result.Count >= count)
             {
                 break;
@@ -277,6 +289,7 @@ public class BayesianSearchHPO : AbstractHpo
         }
         return result;
     }
+
     private (ISample, string) FromFloatVectorToSampleAndDescription(float[] sampleAsFloatVector)
     {
         var searchSpaceHyperParameters = new Dictionary<string, string>();
@@ -345,6 +358,7 @@ public class BayesianSearchHPO : AbstractHpo
     {
         var samplesWithScore = SamplesWithScore;
         var xRows = samplesWithScore.Select(t => t.Item2).ToList();
+
         if (xRows.Count == 0)
         {
             Log.Info($"No samples to train the surrogate model");
@@ -355,6 +369,11 @@ public class BayesianSearchHPO : AbstractHpo
         using var x = CpuTensor<float>.NewCpuTensor(xRows);
         var yData = samplesWithScore.Select(t => t.Item4).ToArray();
         using var y_true = new CpuTensor<float>(new[] { x.Shape[0], 1 }, yData);
+
+        //var (df1, df2) = DataFrame.LoadFloatDataFrame("C:/Projects/Challenges/WasYouStayWorthItsPrice/Dataset/7C84EFF429.csv", true).Split(new[] { "y" });
+        //var x = df1.FloatCpuTensor();
+        //var y_true = df2.FloatCpuTensor();
+        
         using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), Array.Empty<string>(), new []{"y"},false, ',');
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
         Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
@@ -363,14 +382,21 @@ public class BayesianSearchHPO : AbstractHpo
         Utils.TryDelete(_surrogateTrainedFiles.validation_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.validation_YDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.validation_XYDatasetPath);
-        AdjustSurrogateModelSampleForTrainingDatasetCount(trainingDataset.Count);
-        _surrogateTrainedFiles = _surrogateModel.Fit(trainingDataset, null);
+        
+        //AdjustSurrogateModelSampleForTrainingDatasetCount(trainingDataset.Count);
+
+        IDataSet resizedTrainingDataset = trainingDataset;
+        const int minimumRowsForTraining = 400;
+        if (trainingDataset.Count < minimumRowsForTraining)
+        {
+            resizedTrainingDataset = trainingDataset.Resize(minimumRowsForTraining, false);
+        }
+        _surrogateTrainedFiles = _surrogateModel.Fit(resizedTrainingDataset, null);
 
         // we compute the score of the surrogate model on the training dataset
-        Utils.TryDelete(LastDatasetPathUsedForPrediction);
-        (var y_pred, LastDatasetPathUsedForPrediction) = _surrogateModel.PredictWithPath(trainingDataset);
-        double surrogateModelTrainingScore = _surrogateModel.ComputeScore(y_true, y_pred.FloatCpuTensor());
-        Log.Info($"Surrogate model Training score: {surrogateModelTrainingScore} (trained on {x.Shape[0]} samples)");
+        var y_pred = _surrogateModel.Predict(trainingDataset, false, true); // no id columns for surrogate model
+        var surrogateModelTrainingLoss = _surrogateModel.ComputeLoss(y_true, y_pred.FloatCpuTensor());
+        Log.Info($"Surrogate model Training Loss: {surrogateModelTrainingLoss} (trained on {x.Shape[0]} samples)");
         y_pred.FloatCpuTensor().Dispose();
         y_pred = null;
         return xRows.Count;
@@ -378,19 +404,18 @@ public class BayesianSearchHPO : AbstractHpo
 
 
     private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) _surrogateTrainedFiles = (null, null, null, null, null, null);
-    private string LastDatasetPathUsedForPrediction = "";
 
-    private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
-    {
-        if (_surrogateModel is LightGBMModel lightGbmModel)
-        {
-            var adjusted_min_data_in_bin = Math.Max(1, trainingDatasetCount / 5);
-            if (adjusted_min_data_in_bin < lightGbmModel.LightGbmSample.min_data_in_bin)
-            {
-                lightGbmModel.LightGbmSample.min_data_in_bin = adjusted_min_data_in_bin;
-            }
-        }
-    }
+    //private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
+    //{
+    //    if (_surrogateModel is LightGBMModel lightGbmModel)
+    //    {
+    //        var adjusted_min_data_in_bin = Math.Max(1, trainingDatasetCount / 5);
+    //        if (adjusted_min_data_in_bin < lightGbmModel.LightGbmSample.min_data_in_bin)
+    //        {
+    //            lightGbmModel.LightGbmSample.min_data_in_bin = adjusted_min_data_in_bin;
+    //        }
+    //    }
+    //}
 
     private string[] SurrogateModelFeatureNames()
     {

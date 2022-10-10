@@ -70,7 +70,9 @@ namespace SharpNet.Datasets
         string ElementIdToDescription(int elementId);
         string ElementIdToPathIfAny(int elementId);
 
-       /// <summary>
+        bool IsRegressionProblem {get;}
+        
+        /// <summary>
         /// save the dataset in directory 'directory' in 'LightGBM' format.
         /// if addTargetColumnAsFirstColumn == true:
         ///     first column is the label 'y' (to predict)
@@ -80,14 +82,15 @@ namespace SharpNet.Datasets
         /// </summary>
         /// <param name="directory">the directory where to save to dataset</param>
         /// <param name="addTargetColumnAsFirstColumn"></param>
+        /// <param name="includeIdColumns"></param>
         /// <param name="overwriteIfExists"></param>
         /// <returns>the path (directory+filename) where the dataset has been saved</returns>
-        string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool overwriteIfExists);
+        string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists);
 
         string[] FeatureNames { get; }
 
         string[] CategoricalFeatures { get; }
-        string[] IdFeatures { get; }
+        string[] IdColumns { get; }
         string[] TargetLabels { get; }
         char Separator { get; }
 
@@ -112,6 +115,9 @@ namespace SharpNet.Datasets
         List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
         [CanBeNull] CpuTensor<float> Y { get; }
+        CpuTensor<float> Y_InModelFormat(int numClasses);
+        DataFrame Y_InTargetFormat();
+
         string Name { get; }
 
         ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet);

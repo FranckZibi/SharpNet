@@ -29,7 +29,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     {
         var res = "";
         var targetInvestmentTime = TargetCpuInvestmentTime();
-        foreach (var e in _statistics.OrderBy(e=>(e.Value.Cost.Count==0)?double.MaxValue:e.Value.Cost.Average))
+        foreach (var e in _statistics.OrderBy(e=>(e.Value.CostToDecrease.Count==0)?double.MaxValue:e.Value.CostToDecrease.Average))
         {
             res += " "+e.Key + ":" + e.Value;
 
@@ -79,23 +79,20 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
 
 
     public override int LengthForGridSearch => _allHyperParameterValuesAsString.Length;
-    public override void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds)
+    public override void RegisterScore(object sampleValue, IScore score, double elapsedTimeInSeconds)
     {
-        SampleValueToStatistics(sampleValue).RegisterCost(cost, elapsedTimeInSeconds);
+        var parameterValueAsString = Utils.FieldValueToString(sampleValue);
+        if (_statistics.TryGetValue(parameterValueAsString, out var key))
+        {
+            key.RegisterScore(score, elapsedTimeInSeconds);
+            //throw new Exception($"invalid value {parameterValueAsString} : can not be found among {string.Join(' ', _statistics.Keys)}");
+        }
     }
     public override string SampleStringValue_at_Index_For_GridSearch(int index)
     {
         return _allHyperParameterValuesAsString[index];
     }
-    private SingleHyperParameterValueStatistics SampleValueToStatistics(object sampleValue)
-    {
-        var parameterValueAsString = Utils.FieldValueToString(sampleValue);
-        if (!_statistics.ContainsKey(parameterValueAsString))
-        {
-            throw new Exception($"invalid value {parameterValueAsString} : can not be found among {string.Join(' ', _statistics.Keys)}");
-        }
-        return _statistics[parameterValueAsString];
-    }
+
     /// <summary>
     /// for each possible value of the Hyper-Parameter '_hyperParameterName'
     /// the % of time (between 0 and 1.0) we are willing to invest on search this specif value.

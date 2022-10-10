@@ -101,7 +101,7 @@ namespace SharpNetTests
         {
             var yPredicted = (CpuTensor<float>)network.Predict(X, true);
             //we compute gradients
-            network.PropagationManager.Backward(yExpected, yPredicted, LossFunctionEnum.CategoricalCrossentropy);
+            network.PropagationManager.Backward(yExpected, yPredicted, EvaluationMetricEnum.CategoricalCrossentropy);
             double result = 0;
             for (int i = 0; i < yExpected.Count; ++i)
             {
@@ -174,7 +174,7 @@ namespace SharpNetTests
             var resourceIds = new List<int> {-1};
             return Network.NewForTests(new NetworkConfig
                 {
-                    LossFunction = LossFunctionEnum.CategoricalCrossentropy, 
+                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy, 
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, 
                     WorkingDirectory = "",
                     ResourceIds = resourceIds.ToList()

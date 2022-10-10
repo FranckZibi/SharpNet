@@ -18,7 +18,7 @@ namespace SharpNet.Networks
         {
             var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y.Shape);
             var buffer = new CpuTensor<float>(new []{ testDataSet.Count});
-            var lossFunction = LossFunctionEnum.CategoricalCrossentropy;
+            var lossFunction = EvaluationMetricEnum.CategoricalCrossentropy;
             foreach (var modelFilePath in _modelFilesPath)
             {
                 Console.WriteLine("Loading " + modelFilePath + " ...");
@@ -31,11 +31,15 @@ namespace SharpNet.Networks
                 var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
                 var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
                 lossFunction = network.Config.LossFunction;
-                var accuracy = testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, lossFunction, buffer);
+                var accuracy = (lossFunction == EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)
+                    ?testDataSet.Y.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedSingleNetwork, buffer)
+                    :testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, buffer);
                 Console.WriteLine("Single Network Accuracy=" + accuracy);
                 yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _modelFilesPath.Length, yCpuPredictedSingleNetwork);
             }
-            var accuracyEnsembleNetwork = testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, lossFunction, buffer);
+            var accuracyEnsembleNetwork = (lossFunction == EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)
+                ?testDataSet.Y.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedAllNetworks, buffer)
+                :testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, buffer);
 
             Console.WriteLine("Ensemble Network Accuracy=" + accuracyEnsembleNetwork);
             return Tuple.Create(yCpuPredictedAllNetworks, accuracyEnsembleNetwork);

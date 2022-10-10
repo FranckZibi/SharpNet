@@ -31,65 +31,103 @@ public class KFoldModel : AbstractModel
     }
     #endregion
 
-    public static void TrainEmbeddedModelWithKFold(string kfoldModelWorkingDirectory, string embeddedModelAndDatasetPredictionsWorkingDirectory, string embeddedModelAndDatasetPredictionsName, int n_splits)
-    {
-        var embeddedModelAndDatasetPredictions = ModelAndDatasetPredictions.Load(embeddedModelAndDatasetPredictionsWorkingDirectory, embeddedModelAndDatasetPredictionsName);
-        var datasetSample = embeddedModelAndDatasetPredictions.ModelAndDatasetPredictionsSample.DatasetSample;
+    //public static void TrainEmbeddedModelWithKFold(string kfoldModelWorkingDirectory, string embeddedModelAndDatasetPredictionsWorkingDirectory, string embeddedModelAndDatasetPredictionsName, int n_splits)
+    //{
+    //    var embeddedModelAndDatasetPredictions = ModelAndDatasetPredictions.Load(embeddedModelAndDatasetPredictionsWorkingDirectory, embeddedModelAndDatasetPredictionsName);
+    //    var datasetSample = embeddedModelAndDatasetPredictions.ModelAndDatasetPredictionsSample.DatasetSample;
 
-        //We first train on part of training dataset, then on full training dataset
-        foreach(var useFullTraining in new[]{false, true})
-        {
-            var currentDatasetSample = useFullTraining
-                ? datasetSample.CopyWithNewPercentageInTraining(1.0)
-                : (AbstractDatasetSample)datasetSample.Clone();
-            var kfoldSample = new KFoldSample(n_splits, embeddedModelAndDatasetPredictionsName, embeddedModelAndDatasetPredictionsWorkingDirectory, currentDatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
-            var kfoldModelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(kfoldSample, currentDatasetSample);
-            var kfoldModelAndDatasetPredictions = ModelAndDatasetPredictions.New(kfoldModelAndDatasetPredictionsSample, kfoldModelWorkingDirectory);
-            kfoldModelAndDatasetPredictions.Model.Use_All_Available_Cores();
-            LogInfo($"Training '{kfoldModelAndDatasetPredictions.Name}' (based on model {embeddedModelAndDatasetPredictionsName}) using {Math.Round(100* currentDatasetSample.PercentageInTraining,0)}% of Training Dataset");
-            kfoldModelAndDatasetPredictions.Fit(true, true, true);
-        }
-    }
+    //    //We first train on part of training dataset, then on full training dataset
+    //    foreach(var useFullTraining in new[]{false, true})
+    //    {
+    //        var currentDatasetSample = useFullTraining
+    //            ? datasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, datasetSample.KFold)
+    //            : (AbstractDatasetSample)datasetSample.Clone();
+    //        var kfoldSample = new KFoldSample(n_splits, embeddedModelAndDatasetPredictionsName, embeddedModelAndDatasetPredictionsWorkingDirectory, currentDatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+    //        var kfoldModelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(kfoldSample, currentDatasetSample);
+    //        var kfoldModelAndDatasetPredictions = ModelAndDatasetPredictions.New(kfoldModelAndDatasetPredictionsSample, kfoldModelWorkingDirectory);
+    //        kfoldModelAndDatasetPredictions.Model.Use_All_Available_Cores();
+    //        LogInfo($"Training '{kfoldModelAndDatasetPredictions.Name}' (based on model {embeddedModelAndDatasetPredictionsName}) using {Math.Round(100* currentDatasetSample.PercentageInTraining,0)}% of Training Dataset");
+    //        kfoldModelAndDatasetPredictions.Fit(true, true, true);
+    //    }
+    //}
 
     public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
-        Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+        Fit(IDataSet trainDataset, IDataSet nullValidationDataset)
     {
+        if (nullValidationDataset != null)
+        {
+            throw new ArgumentException($"Validation Dataset must be null for KFold");
+        }
+
+        const bool includeIdColumns = false;
+        const bool overwriteIfExists = false;
         int n_splits = KFoldSample.n_splits;
         var foldedTrainAndValidationDataset = KFold(trainDataset, n_splits, KFoldSample.CountMustBeMultipleOf);
 
-        var train_XYDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, true, false);
-        string validation_XYDatasetPath = "";
-        if (validationDatasetIfAny != null)
-        {
-            validation_XYDatasetPath = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, true, false);
-        }
+        var train_XYDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, true, includeIdColumns, overwriteIfExists);
 
         for (int fold = 0; fold < n_splits; ++fold)
         {
             var embeddedModel = _embeddedModels[fold];
-            LogInfo($"Training embedded model '{embeddedModel.ModelName}' on fold[{fold}/{n_splits}]");
+            LogDebug($"Training embedded model '{embeddedModel.ModelName}' on fold[{fold}/{n_splits}]");
             var trainAndValidation = foldedTrainAndValidationDataset[fold];
             embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
-            var validationDataset = validationDatasetIfAny ?? trainAndValidation.Test;
-            var foldValidationPrediction = embeddedModel.Predict(validationDataset);
-            var foldValidationScore = embeddedModel.ComputeScore(validationDataset.Y, foldValidationPrediction.FloatCpuTensor());
-            LogInfo($"Validation score for fold[{fold}/{n_splits}] : {foldValidationScore}");
+            var validationDataset = trainAndValidation.Test;
+            var foldValidationPrediction = embeddedModel.Predict(validationDataset, false, false);
+            var foldValidationLoss = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat(foldValidationPrediction.Shape[1]), foldValidationPrediction.FloatCpuTensor());
+            LogDebug($"Validation Loss for fold[{fold}/{n_splits}] : {foldValidationLoss}");
         }
-        return (null, null, train_XYDatasetPath, null, null, validation_XYDatasetPath);
+        return (null, null, train_XYDatasetPath, null, null, train_XYDatasetPath);
     }
-    public override DataFrame Predict(IDataSet dataset)
+
+    public (IScore trainingScore, IScore validationScore) ComputeEvaluationMetricOnFullDataset(IDataSet trainDataset, AbstractDatasetSample datasetSample)
+    {
+
+        int n_splits = KFoldSample.n_splits;
+        var foldedTrainAndValidationDataset = KFold(trainDataset, n_splits, KFoldSample.CountMustBeMultipleOf);
+
+        List<IScore> trainingScore = new();
+        List<IScore> validationScore = new();
+        for (int fold = 0; fold < n_splits; ++fold)
+        {
+            var embeddedModel = _embeddedModels[fold];
+            LogDebug($"Computing embedded model '{embeddedModel.ModelName}' predictions on fold[{fold}/{n_splits}]");
+            var trainAndValidation = foldedTrainAndValidationDataset[fold];
+            var train_predictionsInModelFormat_with_IdColumns = embeddedModel.Predict(trainAndValidation.Training, true, false);
+            var y_pred_train_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(train_predictionsInModelFormat_with_IdColumns);
+            var y_true_train_InTargetFormat = trainAndValidation.Training.Y_InTargetFormat();
+            if (y_true_train_InTargetFormat != null)
+            {
+                var foldTrainingScore = datasetSample.ComputeRankingEvaluationMetric(y_true_train_InTargetFormat, y_pred_train_InTargetFormat);
+                LogDebug($"Model '{embeddedModel.ModelName}' Training ranking score for fold[{fold}/{n_splits}] : {foldTrainingScore}");
+                trainingScore.Add(foldTrainingScore);
+            }
+
+            var validation_predictionsInModelFormat_with_IdColumns = embeddedModel.Predict(trainAndValidation.Test, true, false);
+            var y_pred_valid_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(validation_predictionsInModelFormat_with_IdColumns);
+            var y_true_valid_InTargetFormat = trainAndValidation.Test.Y_InTargetFormat();
+            if (y_true_valid_InTargetFormat != null)
+            {
+                var foldValidationScore = datasetSample.ComputeRankingEvaluationMetric(y_true_valid_InTargetFormat, y_pred_valid_InTargetFormat);
+                LogDebug($"Model '{embeddedModel.ModelName}' Validation ranking score for fold[{fold}/{n_splits}] : {foldValidationScore}");
+                validationScore.Add(foldValidationScore);
+            }
+        }
+        return (IScore.Average(trainingScore), IScore.Average(validationScore));
+    }
+
+
+    public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
     {
         CpuTensor<float> res = null;
         Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
         //each model weight
         var weight = 1.0f / KFoldSample.n_splits;
         var featuresNames = new List<string>();
-        var categoricalFeatures = new List<string>();
         foreach (var m in _embeddedModels)
         {
-            var modelPrediction = m.Predict(dataset);
-            featuresNames = modelPrediction.FeatureNames.ToList();
-            categoricalFeatures = modelPrediction.CategoricalFeatures.ToList();
+            var modelPrediction = m.Predict(dataset, false, removeAllTemporaryFilesAtEnd);
+            featuresNames = modelPrediction.ColumnNames.ToList();
             if (res == null)
             {
                 res = modelPrediction.FloatCpuTensor();
@@ -100,7 +138,12 @@ public class KFoldModel : AbstractModel
                 res.AddTensor(weight, modelPrediction.FloatCpuTensor(), 1.0f);
             }
         }
-        return DataFrame.New(res, featuresNames, categoricalFeatures);
+        var df = DataFrame.New(res, featuresNames);
+        if (addIdColumnsAtLeft && dataset.IdColumns.Length != 0)
+        {
+            df = DataFrame.MergeHorizontally(dataset.ExtractIdDataFrame(), df);
+        }
+        return df;
     }
     public override void Save(string workingDirectory, string modelName)
     {

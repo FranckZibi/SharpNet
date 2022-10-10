@@ -12,8 +12,7 @@ namespace SharpNet.Datasets
         #endregion
 
         #region public fields
-        public string[] FeatureNames { get; }
-        public string[] CategoricalFeatures{ get; }
+        public string[] ColumnNames { get; }
         private Type[] Dtypes { get; }
         public abstract int[] Shape { get; }
         public CpuTensor<float> FloatCpuTensor() => ((DataFrameT<float>)this).Tensor;
@@ -22,35 +21,30 @@ namespace SharpNet.Datasets
 
         #region Constructors
 
-        protected DataFrame(IList<string> featureNames, IList<string> categoricalFeatures, IList<Type> dtypes)
+        protected DataFrame(IList<string> columnsNames, IList<Type> dtypes)
         {
-            FeatureNames = featureNames.ToArray();
-            CategoricalFeatures = categoricalFeatures.ToArray();
+            ColumnNames = columnsNames.ToArray();
             Dtypes = dtypes.ToArray();
-
-            foreach (var f in CategoricalFeatures)
+            if (Dtypes.Length != columnsNames.Count())
             {
-                if (!FeatureNames.Contains(f))
-                {
-                    var errorMsg = $"invalid categorical feature {f}, not among {string.Join(' ', FeatureNames)}";
-                    throw new Exception(errorMsg);
-                }
-            }
-            if (Dtypes.Length != featureNames.Count())
-            {
-                var errorMsg = $"invalid Dtypes length {Dtypes.Length}, should be {FeatureNames.Length}";
+                var errorMsg = $"invalid Dtypes length {Dtypes.Length}, should be {ColumnNames.Length}";
                 throw new Exception(errorMsg);
 
             }
-
         }
         #endregion
 
+
+        public override string ToString()
+        {
+            return "(" + string.Join(", ", Shape) + ")";
+        }
+
         public static string Float2String(float f) => f.ToString(CultureInfo.InvariantCulture);
 
-        public abstract DataFrame Drop(IList<string> featuresToDrop);
-        public abstract DataFrame Keep(IList<string> featuresToKeep);
-        public abstract (DataFrame first, DataFrame second) Split(IList<string> featuresForSecondDataFrame);
+        public abstract DataFrame Drop(IList<string> columnsToDrop);
+        public abstract DataFrame Keep(IList<string> columnsToKeep);
+        public abstract (DataFrame first, DataFrame second) Split(IList<string> columnsForSecondDataFrame);
 
         public static bool SameShape(IList<DataFrame> tensors)
         {
@@ -58,15 +52,15 @@ namespace SharpNet.Datasets
         }
         public abstract void to_csv(string path, string sep = ",", bool addHeader = false, int? index = null);
 
-        protected List<int> FeatureNamesToIndexes(IEnumerable<string> featureNames)
+        public List<int> ColumnNamesToIndexes(IEnumerable<string> columnNames)
         {
             var indexes = new List<int>();
-            foreach (var f in featureNames)
+            foreach (var f in columnNames)
             {
-                int idx = Array.IndexOf(FeatureNames, f);
+                int idx = Array.IndexOf(ColumnNames, f);
                 if (idx < 0)
                 {
-                    throw new Exception($"Invalid feature name {f}");
+                    throw new Exception($"Invalid {nameof(ColumnNames)} name {f}");
                 }
                 indexes.Add(idx);
             }
@@ -74,22 +68,21 @@ namespace SharpNet.Datasets
             return indexes;
         }
 
-        public static DataFrame New(CpuTensor<float> tensor, IList<string> featureNames, IList<string> categoricalFeatures)
+        public static DataFrame New(CpuTensor<float> tensor, IList<string> columnsNames)
         {
-            return new DataFrameT<float>(tensor, featureNames, categoricalFeatures, Float2String);
+            return new DataFrameT<float>(tensor, columnsNames, Float2String);
         }
 
         public static DataFrameT<float> LoadFloatDataFrame(string path, bool hasHeader)
         {
-            return DataFrameT<float>.Load(path, hasHeader, float.Parse, null, Float2String);
+            return DataFrameT<float>.Load(path, hasHeader, float.Parse, Float2String);
         }
 
         public static DataFrame MergeHorizontally(DataFrame left, DataFrame right)
         {
             var mergedTensor = CpuTensor<float>.MergeHorizontally(left.FloatCpuTensor(), right.FloatCpuTensor());
-            var mergedFeatureNames = Utils.Join(left.FeatureNames, right.FeatureNames);
-            var mergedCategoricalFeatures = Utils.Join(left.CategoricalFeatures, right.CategoricalFeatures);
-            return New(mergedTensor, mergedFeatureNames, mergedCategoricalFeatures);
+            var mergedColumnNames = Utils.Join(left.ColumnNames, right.ColumnNames);
+            return New(mergedTensor, mergedColumnNames);
         }
     }
 }

@@ -779,15 +779,15 @@ namespace SharpNet.Data
         /// this = expected (true) values
         /// </summary>
         /// <param name="yPredicted">what has been predicted by the ML</param>
-        /// <param name="lossFunction"></param>
+        /// <param name="evaluationMetric"></param>
         /// <param name="buffer">a temporary buffer</param>
         /// <returns></returns>
-        public abstract double ComputeLoss(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer);
+        public abstract double ComputeEvaluationMetric(Tensor yPredicted, EvaluationMetricEnum evaluationMetric, Tensor buffer);
 
 
-        public int[] ComputeMetricBufferShape(MetricEnum metricEnum)
+        public int[] ComputeMetricBufferShape(EvaluationMetricEnum metricEnum)
         {
-            if (metricEnum == MetricEnum.CosineSimilarity504)
+            if (metricEnum == EvaluationMetricEnum.CosineSimilarity504)
             {
                 return new[] { CosineSimilarity504_TimeSeries_Length };
                 
@@ -800,45 +800,15 @@ namespace SharpNet.Data
 
 
         /// <summary>
-        /// this = y_true
-        /// </summary>
-        /// <param name="yPredicted"></param>
-        /// <param name="metricEnum"></param>
-        /// <param name="lossFunction"></param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        public double ComputeMetric(Tensor yPredicted, MetricEnum metricEnum, LossFunctionEnum lossFunction, Tensor buffer)
-        {
-            switch (metricEnum)
-            {
-                case MetricEnum.Loss:
-                    return ComputeLoss(yPredicted, lossFunction, buffer);
-                case MetricEnum.Mae:
-                    return ComputeLoss(yPredicted, LossFunctionEnum.Mae, buffer);
-                case MetricEnum.Mse:
-                    return ComputeLoss(yPredicted, LossFunctionEnum.Mse, buffer);
-                case MetricEnum.CosineSimilarity504:
-                    return ComputeLoss(yPredicted, LossFunctionEnum.CosineSimilarity504, buffer);
-                case MetricEnum.F1Micro:
-                    return ComputeLoss(yPredicted, LossFunctionEnum.F1Micro, buffer);
-                case MetricEnum.Accuracy:
-                    return ComputeAccuracy(yPredicted, lossFunction, buffer);
-                case MetricEnum.Rmse:
-                    return Math.Sqrt(ComputeLoss(yPredicted, LossFunctionEnum.Mse, buffer));
-                default: throw new ArgumentException("unknown metric " + metricEnum);
-            }
-        }
-
-
-        /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
         /// </summary>
         /// <param name="yPredicted">what has been predicted by the NN (in each row the biggest value is the NN favorite)</param>
-        /// <param name="lossFunction"></param>
         /// <param name="buffer"></param>
         /// <returns></returns>
-        public abstract double ComputeAccuracy(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer);
+        public abstract double ComputeAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
+
+        public abstract double ComputeAccuracyCategoricalCrossentropyWithHierarchy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
+
 
         /// <summary>
         /// Compute the Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)

@@ -20,7 +20,7 @@ namespace SharpNet.Datasets
             List<Tuple<float, float>> meanAndVolatilityForEachChannel = null,
             string[] featureNames = null,
             string[] categoricalFeatures = null,
-            string[] idFeatures = null, 
+            string[] idColumns = null, 
             string[] targetLabels = null,
             bool useBackgroundThreadToLoadNextMiniBatch = true,
             char separator = ',')
@@ -31,7 +31,7 @@ namespace SharpNet.Datasets
                 ResizeStrategyEnum.None,
                 featureNames ?? new string[0],
                 categoricalFeatures ??new string[0],
-                idFeatures ?? new string[0],
+                idColumns ?? new string[0],
                 targetLabels ?? new string[0],
                 useBackgroundThreadToLoadNextMiniBatch,
                 separator)
@@ -41,7 +41,7 @@ namespace SharpNet.Datasets
             _x = x;
             Y = y;
 
-            if (Objective == Objective_enum.Regression || y == null)
+            if (IsRegressionProblem || y == null)
             {
                 _elementIdToCategoryIndex = null;
             }
@@ -80,11 +80,10 @@ namespace SharpNet.Datasets
 
         public override int ElementIdToCategoryIndex(int elementId)
         {
-            if (Objective == Objective_enum.Regression)
+            if (IsRegressionProblem)
             {
                 throw new Exception("can't return a category index for regression");
             }
-
             return _elementIdToCategoryIndex[elementId];
         }
 

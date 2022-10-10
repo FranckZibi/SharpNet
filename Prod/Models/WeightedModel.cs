@@ -28,17 +28,17 @@ public class WeightedModel: AbstractModel
         throw new System.NotImplementedException();
     }
 
-    public override DataFrame Predict(IDataSet dataset)
+    public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
     {
-        return WeightedModelSample.ApplyWeights(PredictForEachEmbeddedModel(dataset),  new List<int>() );
+        return WeightedModelSample.ApplyWeights(PredictForEachEmbeddedModel(dataset, addIdColumnsAtLeft),  new List<int>() );
     }
 
-    private List<DataFrame> PredictForEachEmbeddedModel(IDataSet dataset)
+    private List<DataFrame> PredictForEachEmbeddedModel(IDataSet dataset, bool addIdColumnsAtLeft)
     {
         var allModelPredictions = new List<DataFrame>();
         foreach (var m in _embeddedModels)
         {
-            var modelPrediction = m.Predict(dataset);
+            var modelPrediction = m.Predict(dataset, addIdColumnsAtLeft, false);
             allModelPredictions.Add(modelPrediction);
         }
         return allModelPredictions;

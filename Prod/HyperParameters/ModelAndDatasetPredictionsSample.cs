@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SharpNet.LightGBM;
 
 namespace SharpNet.HyperParameters
@@ -18,6 +19,23 @@ namespace SharpNet.HyperParameters
                 AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1)),
                 ISample.LoadSample<PredictionsSample>(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2))
                 });
+        }
+
+        public ModelAndDatasetPredictionsSample CopyWithNewPercentageInTrainingAndKFold(double newPercentageInTraining, int newKFold)
+        {
+            var clonedSamples = new List<ISample>();
+            foreach (var s in Samples)
+            {
+                if (s is AbstractDatasetSample datasetSample)
+                {
+                    clonedSamples.Add(datasetSample.CopyWithNewPercentageInTrainingAndKFold(newPercentageInTraining, newKFold));
+                }
+                else
+                {
+                    clonedSamples.Add(s.Clone());
+                }
+            }
+            return new ModelAndDatasetPredictionsSample(clonedSamples.ToArray());
         }
 
         public static ModelAndDatasetPredictionsSample New(IModelSample modelSample, AbstractDatasetSample abstractDatasetSample)

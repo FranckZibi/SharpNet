@@ -22,10 +22,10 @@ public class IntRangeHyperParameterSearchSpace : AbstractRangeHyperParameterSear
         var floatValue = Next_BayesianSearchFloatValue(_min, _max, rand, _rangeType, randomSearchOption, StatsByBucket);
         return Utils.NearestInt(floatValue);
     }
-    public override void RegisterCost(object sampleValue, float cost, double elapsedTimeInSeconds)
+    public override void RegisterScore(object sampleValue, IScore score, double elapsedTimeInSeconds)
     {
         int bucketIndex = SampleValueToBucketIndex(SampleValueToFloat(sampleValue), _min, _max, _rangeType);
-        StatsByBucket[bucketIndex].RegisterCost(cost, elapsedTimeInSeconds);
+        StatsByBucket[bucketIndex].RegisterScore(score, elapsedTimeInSeconds);
     }
     public override string SampleStringValue_at_Index_For_GridSearch(int index)
     {

@@ -9,8 +9,7 @@ namespace SharpNet.HyperParameters;
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public interface IModelSample : ISample
 {
-    MetricEnum GetMetric();
-    LossFunctionEnum GetLoss();
+    EvaluationMetricEnum GetLoss();
 
     public static IModelSample LoadModelSample(string workingDirectory, string sampleName)
     {

@@ -777,36 +777,36 @@ namespace SharpNetTests
             TestAll(new[] { W, dW, velocity }, tensors => tensors[0].UpdateSGDOptimizer(learningRate, momentum, usenesterov, tensors[1], tensors[2]));
         }
 
-        [TestCase(1, LossFunctionEnum.CategoricalCrossentropy)]
-        [TestCase(1, LossFunctionEnum.BinaryCrossentropy)]
-        [TestCase(1, LossFunctionEnum.Huber)]
-        [TestCase(1, LossFunctionEnum.Mse)]
-        [TestCase(1, LossFunctionEnum.Mae)]
-        [TestCase(2, LossFunctionEnum.CategoricalCrossentropy)]
-        [TestCase(2, LossFunctionEnum.BinaryCrossentropy)]
-        [TestCase(2, LossFunctionEnum.Huber)]
-        [TestCase(2, LossFunctionEnum.Mse)]
-        [TestCase(2, LossFunctionEnum.Mae)]
-        [TestCase(10, LossFunctionEnum.CategoricalCrossentropy)]
-        [TestCase(10, LossFunctionEnum.Huber)]
-        [TestCase(10, LossFunctionEnum.Mse)]
-        [TestCase(10, LossFunctionEnum.Mae)]
-        public void TestComputeLoss(int categoryCount, LossFunctionEnum lossFunction)
+        [TestCase(1, EvaluationMetricEnum.CategoricalCrossentropy)]
+        [TestCase(1, EvaluationMetricEnum.BinaryCrossentropy)]
+        [TestCase(1, EvaluationMetricEnum.Huber)]
+        [TestCase(1, EvaluationMetricEnum.Mse)]
+        [TestCase(1, EvaluationMetricEnum.Mae)]
+        [TestCase(2, EvaluationMetricEnum.CategoricalCrossentropy)]
+        [TestCase(2, EvaluationMetricEnum.BinaryCrossentropy)]
+        [TestCase(2, EvaluationMetricEnum.Huber)]
+        [TestCase(2, EvaluationMetricEnum.Mse)]
+        [TestCase(2, EvaluationMetricEnum.Mae)]
+        [TestCase(10, EvaluationMetricEnum.CategoricalCrossentropy)]
+        [TestCase(10, EvaluationMetricEnum.Huber)]
+        [TestCase(10, EvaluationMetricEnum.Mse)]
+        [TestCase(10, EvaluationMetricEnum.Mae)]
+        public void TestComputeEvaluationMetric(int categoryCount, EvaluationMetricEnum evaluationMetric)
         {
             const int nbRows = 1000;
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpected = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
-            TestAllForReturnValue(new[] { yExpected, yPredicted, buffer}, tensors => tensors[0].ComputeLoss(tensors[1], lossFunction, tensors[2]), new List<int>{2});
+            TestAllForReturnValue(new[] { yExpected, yPredicted, buffer}, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], evaluationMetric, tensors[2]), new List<int>{2});
         }
 
         [Test]
-        public void TestComputeCategoricalCrossentropyWithHierarchyLoss()
+        public void TestComputeCategoricalCrossentropyWithHierarchyEvaluationMetric()
         {
             var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = RandomTensor(new[] { expected.Shape[0] });
-            TestAllForReturnValue(new[] { expected, predicted, buffer }, tensors => tensors[0].ComputeLoss(tensors[1], LossFunctionEnum.CategoricalCrossentropyWithHierarchy,tensors[2]));
+            TestAllForReturnValue(new[] { expected, predicted, buffer }, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy,tensors[2]));
         }
 
         [Test]
@@ -986,7 +986,7 @@ namespace SharpNetTests
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows});
-            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], LossFunctionEnum.CategoricalCrossentropy, tensors[2]), new List<int> { 2 });
+            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
 
         [TestCase(10)]
@@ -997,7 +997,7 @@ namespace SharpNetTests
             var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
             var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand);
             var buffer = RandomTensor(new[] { nbRows });
-            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], LossFunctionEnum.CategoricalCrossentropy, tensors[2]), new List<int> { 2 });
+            TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
 
         [Test]
@@ -1006,7 +1006,7 @@ namespace SharpNetTests
             var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = RandomTensor(new[] { expected.Shape[0] });
-            TestAllForReturnValue(new[] { expected, predicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], LossFunctionEnum.CategoricalCrossentropyWithHierarchy, tensors[2]));
+            TestAllForReturnValue(new[] { expected, predicted, buffer }, tensors => tensors[0].ComputeAccuracyCategoricalCrossentropyWithHierarchy(tensors[1], tensors[2]));
         }
 
 

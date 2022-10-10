@@ -36,6 +36,17 @@ public abstract class AbstractDatasetSample : AbstractSample
     #region Hyper-Parameters
     public double PercentageInTraining = 0.8;
 
+    /// <summary>
+    /// number of splits for KFold
+    /// a value less or equal 1 will disable KFold
+    /// a value of 2 or more will enable KFold
+    ///  1/ the dataset will be splitted into 'KFold' part:
+    ///  2/ we'll perform 'KFold' distinct training
+    ///     in each training we'll use a distinct 'Kfold' part for validation,
+    ///     and all the remaining 'Kfold-1' parts for training
+    /// </summary>
+    public int KFold = 1;
+
     public string Train_XDatasetPath;
     public string Train_YDatasetPath;
     public string Train_XYDatasetPath;
@@ -49,10 +60,11 @@ public abstract class AbstractDatasetSample : AbstractSample
     public string Test_XYDatasetPath;
     #endregion
 
-    public AbstractDatasetSample CopyWithNewPercentageInTraining(double newPercentageInTraining)
+    public AbstractDatasetSample CopyWithNewPercentageInTrainingAndKFold(double newPercentageInTraining, int newKFold)
     {
         var cloned = (AbstractDatasetSample)Clone();
         cloned.PercentageInTraining = newPercentageInTraining;
+        cloned.KFold = newKFold;
         cloned.Train_XDatasetPath = cloned.Train_YDatasetPath = null;
         cloned.Validation_XDatasetPath = cloned.Validation_YDatasetPath = null;
         return cloned;
@@ -60,15 +72,12 @@ public abstract class AbstractDatasetSample : AbstractSample
 
     public string Name { get; }
 
-    public virtual MetricEnum GetMetric()
-    {
-        throw new NotImplementedException();
-    }
-
-    public virtual LossFunctionEnum GetLoss()
-    {
-        throw new NotImplementedException();
-    }
+    /// <summary>
+    /// the evaluation metric used to rank the final submission
+    /// depending on the evaluation metric, higher (ex: Accuracy) or lower (ex: Rmse) may be better
+    /// </summary>
+    /// <returns></returns>
+    protected abstract EvaluationMetricEnum GetRankingEvaluationMetric();
 
     public abstract Objective_enum GetObjective();
 
@@ -80,18 +89,21 @@ public abstract class AbstractDatasetSample : AbstractSample
         return new HashSet<string>{nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
     }
 
-    public IScore ComputeMetricScore(DataFrame y_true_in_target_format, DataFrame y_pred_in_target_format)
+    public IScore ComputeRankingEvaluationMetric(DataFrame y_true_in_target_format, DataFrame y_pred_in_target_format)
     {
         if (y_true_in_target_format == null || y_pred_in_target_format == null)
         {
             return null;
         }
         Debug.Assert(y_true_in_target_format.Shape.SequenceEqual(y_pred_in_target_format.Shape));
-        var y_true = y_true_in_target_format.FloatCpuTensor().DropColumns(IndexColumnsInPredictionsInTargetFormat());
-        var y_pred = y_pred_in_target_format.FloatCpuTensor().DropColumns(IndexColumnsInPredictionsInTargetFormat());
+        var idxOfIdColumns = y_true_in_target_format.ColumnNamesToIndexes(IdColumns());
+        var y_true = y_true_in_target_format.FloatCpuTensor().DropColumns(idxOfIdColumns);
+        var y_pred = y_pred_in_target_format.FloatCpuTensor().DropColumns(idxOfIdColumns);
 
-        using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(GetMetric()));
-        return new Score ( (float)y_true.ComputeMetric(y_pred, GetMetric(), GetLoss(), buffer) , GetMetric());
+        var rankingEvaluationMetric = GetRankingEvaluationMetric();
+        using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(rankingEvaluationMetric));
+        var evaluationMetric = y_true.ComputeEvaluationMetric(y_pred, rankingEvaluationMetric, buffer);
+        return new Score ( (float)evaluationMetric , rankingEvaluationMetric);
     }
 
 
@@ -110,7 +122,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// such features should be ignored during the training
     /// </summary>
     /// <returns>list of id features </returns>
-    public abstract List<string> IdFeatures();
+    public abstract List<string> IdColumns();
 
     /// <summary>
     /// list of target feature names (usually a single element)
@@ -123,9 +135,9 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// by default, the prediction file starts first with the ids columns, then with the target columns
     /// </summary>
     /// <returns></returns>
-    public virtual List<string> PredictionInTargetFormatFeatures()
+    protected virtual List<string> PredictionInTargetFormatHeader()
     {
-        var res = IdFeatures().ToList();
+        var res = IdColumns().ToList();
         res.AddRange(TargetLabels());
         return res;
     }
@@ -141,11 +153,12 @@ public abstract class AbstractDatasetSample : AbstractSample
     public virtual bool HeaderInPredictionFile() { return true;}
     public virtual void SavePredictionsInTargetFormat(DataFrame predictionsInTargetFormat, string path)
     {
-        //var start = Stopwatch.StartNew();
-        predictionsInTargetFormat.to_csv(path);
-        //ISample.Log.Debug($"SavePredictionsInTargetFormat in {path} took {start.Elapsed.TotalSeconds}s");
+        predictionsInTargetFormat.to_csv(path, GetSeparator().ToString(), true);
     }
-
+    public virtual void SavePredictionsInModelFormat(DataFrame predictionsInTargetFormat, string path)
+    {
+        predictionsInTargetFormat.to_csv(path, GetSeparator().ToString(), true);
+    }
 
 
 
@@ -161,19 +174,28 @@ public abstract class AbstractDatasetSample : AbstractSample
     //public abstract (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) LoadAllPredictionsInTargetFormatWithoutIndex();
 
     /// <summary>
-    /// list of indexes of columns in the prediction file that are indexes, not actual predicted values
+    /// transform a DataFrame of prediction in model format (with the Id Columns at left)
+    /// to a DataFrame in Challenge expected format (also with the Id Column at left)
     /// </summary>
+    /// <param name="predictionsInModelFormat_with_IdColumns"></param>
     /// <returns></returns>
-    public virtual IList<int> IndexColumnsInPredictionsInTargetFormat()
-    {
-        //by default, we'll consider that the first column of the predicted file contains an index
-        return new[] { 0 };
-    }
-
-    public abstract DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat);
+    public abstract DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns);
     public virtual DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
     {
         throw new NotImplementedException();
+    }
+
+    public override bool FixErrors()
+    {
+        if (!base.FixErrors())
+        {
+            return false;
+        }
+        if (KFold>=2 && PercentageInTraining != 1.0)
+        {
+            PercentageInTraining = 1.0;
+        }
+        return true;
     }
 
     public DataFrame LoadPredictionsInTargetFormat(string path)
@@ -187,7 +209,6 @@ public abstract class AbstractDatasetSample : AbstractSample
         {
             return res;
         }
-
         var y_pred = DataFrame.LoadFloatDataFrame(path, HeaderInPredictionFile());
         LoadPredictionsInTargetFormat_Cache.TryAdd(path, y_pred);
         return y_pred;

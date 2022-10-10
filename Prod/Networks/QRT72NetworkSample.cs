@@ -3,7 +3,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets.QRT72;
 using SharpNet.HyperParameters;
@@ -21,10 +20,10 @@ public class QRT72NetworkSample : NetworkSample
     {
     }
 
-    private QRT72NetworkSample(QRT72HyperParameters hyperParameters):
-        this(new ISample[] { GetNetworkConfig(hyperParameters), new DataAugmentationSample(), hyperParameters })
-    {
-    }
+    //private QRT72NetworkSample(QRT72HyperParameters hyperParameters):
+    //    this(new ISample[] { GetNetworkConfig(hyperParameters), new DataAugmentationSample(), hyperParameters })
+    //{
+    //}
 
 
     public QRT72HyperParameters QRT72HyperParameters => (QRT72HyperParameters)Samples[2];
@@ -74,14 +73,14 @@ public class QRT72NetworkSample : NetworkSample
     }
 
 
-    public static void Run(QRT72HyperParameters hyperParameters)
-    {
-        var networkSample = new QRT72NetworkSample(hyperParameters);
-        var datasetSample = new QRT72DatasetSample(hyperParameters);
-        var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(networkSample, datasetSample);
-        var modelAndDatasetPredictions = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, QRT72Utils.WorkingDirectory);
-        modelAndDatasetPredictions.Fit(true, true, true);
-    }
+    //public static void Run(QRT72HyperParameters hyperParameters)
+    //{
+    //    var networkSample = new QRT72NetworkSample(hyperParameters);
+    //    var datasetSample = new QRT72DatasetSample(hyperParameters);
+    //    var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(networkSample, datasetSample);
+    //    var modelAndDatasetPredictions = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, QRT72Utils.WorkingDirectory);
+    //    modelAndDatasetPredictions.Fit(true, true, true);
+    //}
 
 
     public override void BuildNetwork(Network network)
@@ -102,41 +101,41 @@ public class QRT72NetworkSample : NetworkSample
         //network.PropagationManager.LogPropagation = true;
     }
 
-    private static NetworkConfig GetNetworkConfig(QRT72HyperParameters hyperParameters)
-    {
-        //!D
-        hyperParameters.InitialLearningRate = 0.1 * hyperParameters.BatchSize;
-        var config = new NetworkConfig
-                {
-                    LossFunction = LossFunctionEnum.CosineSimilarity504,
-                    //lambdaL2Regularization = hyperParameters.lambdaL2Regularization_matrix,
-                    lambdaL2Regularization = 0,
-                    WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, QRT72Utils.NAME),
-                    NumEpochs = hyperParameters.NumEpochs, //64k iterations
-                    BatchSize = hyperParameters.BatchSize,
-                    InitialLearningRate = hyperParameters.InitialLearningRate,
-                    Metrics = new() { MetricEnum.CosineSimilarity504 },
-                    RandomizeOrder = hyperParameters.RandomizeOrder,
-                    RandomizeOrderBlockSize = Tensor.CosineSimilarity504_TimeSeries_Length,
-                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
+    //private static NetworkConfig GetNetworkConfig(QRT72HyperParameters hyperParameters)
+    //{
+    //    //!D
+    //    hyperParameters.InitialLearningRate = 0.1 * hyperParameters.BatchSize;
+    //    var config = new NetworkConfig
+    //            {
+    //                LossFunction = EvaluationMetricEnum.CosineSimilarity504,
+    //                //lambdaL2Regularization = hyperParameters.lambdaL2Regularization_matrix,
+    //                lambdaL2Regularization = 0,
+    //                WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, QRT72Utils.NAME),
+    //                NumEpochs = hyperParameters.NumEpochs, //64k iterations
+    //                BatchSize = hyperParameters.BatchSize,
+    //                InitialLearningRate = hyperParameters.InitialLearningRate,
+    //                Metrics = new() { EvaluationMetricEnum.CosineSimilarity504 },
+    //                RandomizeOrder = hyperParameters.RandomizeOrder,
+    //                RandomizeOrderBlockSize = Tensor.CosineSimilarity504_TimeSeries_Length,
+    //                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1
 
-        }
-                //.WithSGD()
-                //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-                //.WithAdamW(1e-5)
+    //    }
+    //            //.WithSGD()
+    //            //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
+    //            //.WithAdamW(1e-5)
 
-            //.WithOneCycleLearningRateScheduler(200, 0.1)
-            //.WithCifar10ResNetLearningRateScheduler(true, true, false);
-            //.WithConstantLearningRateScheduler(hyperParameters.InitialLearningRate)
-            .WithLinearLearningRateScheduler(100)
-            ;
-        config.ModelName = hyperParameters.ComputeHash();
-        //config.DisplayTensorContentStats = config.SaveNetworkStatsAfterEachEpoch = true;
+    //        //.WithOneCycleLearningRateScheduler(200, 0.1)
+    //        //.WithCifar10ResNetLearningRateScheduler(true, true, false);
+    //        //.WithConstantLearningRateScheduler(hyperParameters.InitialLearningRate)
+    //        .WithLinearLearningRateScheduler(100)
+    //        ;
+    //    config.ModelName = hyperParameters.ComputeHash();
+    //    //config.DisplayTensorContentStats = config.SaveNetworkStatsAfterEachEpoch = true;
 
-        config.ResourceIds = new() { -1 }; //use CPU
+    //    config.ResourceIds = new() { -1 }; //use CPU
 
-        return config;
-    }
+    //    return config;
+    //}
 
     //private const string FILE_SUFFIX = "";
     //private const string FILE_SUFFIX = "_small";

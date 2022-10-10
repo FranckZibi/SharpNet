@@ -6,8 +6,8 @@ namespace SharpNet.Optimizers
     public interface ILearningRateComputer
     {
         double LearningRate(int epoch, double percentagePerformedInEpoch, double learningRateMultiplicativeFactorFromReduceLrOnPlateau);
-        bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData);
-        double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData);
+        bool ShouldReduceLrOnPlateau(List<EpochData> previousEpochsData, EvaluationMetricEnum loss);
+        double MultiplicativeFactorFromReduceLrOnPlateau(List<EpochData> previousEpochsData, EvaluationMetricEnum loss);
         bool ShouldCreateSnapshotForEpoch(int epoch);
         double MaxLearningRate { get;  }
 

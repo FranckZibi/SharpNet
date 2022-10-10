@@ -40,7 +40,7 @@ public class TestBayesianSearchHPO
                        + Math.Abs(E - 4)
                        + Math.Abs((E - 4) * (D - 3))
                        + Math.Abs(G);  
-            return new Score((float)cost,MetricEnum.Mae);
+            return new Score((float)cost,EvaluationMetricEnum.Mae);
         }
 
         public override string ToString()

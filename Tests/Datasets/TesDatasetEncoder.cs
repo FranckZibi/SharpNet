@@ -10,7 +10,6 @@ namespace SharpNetTests.Datasets;
 [TestFixture]
 public class TesDatasetEncoder
 {
-
     public static List<string[]> SimpleTestDataset()
     {
         List<string[]> rows = new()
@@ -41,23 +40,24 @@ public class TesDatasetEncoder
     public class TestDatasetSample : AbstractDatasetSample
     {
         private readonly List<string> _categoricalFeatures;
-        private readonly List<string> _idFeatures;
+        private readonly List<string> _idColumns;
         private readonly List<string> _targetLabels;
 
-        public TestDatasetSample(List<string> categoricalFeatures, List<string> idFeatures, List<string> targetLabels) : base(new HashSet<string>())
+        public TestDatasetSample(List<string> categoricalFeatures, List<string> idColumns, List<string> targetLabels) : base(new HashSet<string>())
         {
             _categoricalFeatures = categoricalFeatures;
-            _idFeatures = idFeatures;
+            _idColumns = idColumns;
             _targetLabels = targetLabels;
         }
 
         public override Objective_enum GetObjective() => Objective_enum.Regression;
-
         public override List<string> CategoricalFeatures() => _categoricalFeatures;
-        public override List<string> IdFeatures() => _idFeatures;
+        public override List<string> IdColumns() => _idColumns;
         public override List<string> TargetLabels() => _targetLabels;
         public override IDataSet TestDataset() { throw new NotImplementedException(); }
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation() { throw new NotImplementedException(); }
-        public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat) { throw new NotImplementedException(); }
+        public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns) { throw new NotImplementedException(); }
+
+        protected override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     }
 }

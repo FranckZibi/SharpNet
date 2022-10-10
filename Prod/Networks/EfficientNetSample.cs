@@ -33,7 +33,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
                 {
-                    LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "ImageNet"),
@@ -61,7 +61,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
             {
-                LossFunction = LossFunctionEnum.CategoricalCrossentropyWithHierarchy,
+                LossFunction = EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy,
                 CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                 lambdaL2Regularization = 0.0005,
                 WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"),
@@ -106,7 +106,7 @@ namespace SharpNet.Networks
         {
             var config = new NetworkConfig
                 {
-                    LossFunction = LossFunctionEnum.CategoricalCrossentropy,
+                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),

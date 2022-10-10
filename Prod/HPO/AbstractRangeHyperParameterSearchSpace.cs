@@ -23,7 +23,7 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
         var targetInvestmentTime = TargetCpuInvestmentTime(StatsByBucket);
 
         var stats = StatsByBucket.Select((t, i) => Tuple.Create(t, i)).ToList();
-        foreach (var e in stats.OrderBy(e => (e.Item1.Cost.Count == 0) ? double.MaxValue : e.Item1.Cost.Average))
+        foreach (var e in stats.OrderBy(e => (e.Item1.CostToDecrease.Count == 0) ? double.MaxValue : e.Item1.CostToDecrease.Average))
         {
             int bucketIndex = e.Item2;
             res += BucketDescription(bucketIndex) + ":" + e.Item1;

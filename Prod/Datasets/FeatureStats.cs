@@ -12,7 +12,7 @@ public class FeatureStats
     #region private fields
     // true if the '_subSum' field is outdated and needs to be recomputed
     private readonly Dictionary<string, int> _categoricalFeatureToCount = new();
-    private readonly List<string> _categoricalFeatures = new();
+    private readonly List<string> _distinctCategoricalValues = new();
     private readonly Dictionary<string, int> _categoricalFeatureToIndex = new();
     private readonly DoubleAccumulator _numericalValues = new();
     /// <summary>
@@ -39,7 +39,17 @@ public class FeatureStats
     /// </summary>
     public int CountEmptyFeatures { get; private set; }
 
-    public IList<string> GetCategoricalFeatures() => _categoricalFeatures;
+    public IList<string> GetDistinctCategoricalValues() => _distinctCategoricalValues;
+
+    public IList<int> GetDistinctCategoricalCount()
+    {
+        var result = new List<int>();
+        foreach (var c in GetDistinctCategoricalValues())
+        {
+            result.Add(_categoricalFeatureToCount.ContainsKey(c)? _categoricalFeatureToCount[c]:0);
+        }
+        return result;
+    }
 
     #endregion
 
@@ -69,8 +79,8 @@ public class FeatureStats
             if (!_categoricalFeatureToCount.ContainsKey(categoricalFeatures))
             {
                 _categoricalFeatureToCount[categoricalFeatures] = 1;
-                _categoricalFeatures.Add(categoricalFeatures);
-                _categoricalFeatureToIndex[categoricalFeatures] = _categoricalFeatures.Count - 1;
+                _distinctCategoricalValues.Add(categoricalFeatures);
+                _categoricalFeatureToIndex[categoricalFeatures] = _distinctCategoricalValues.Count - 1;
             }
             else
             {
@@ -98,7 +108,7 @@ public class FeatureStats
         if (IsCategoricalFeature)
         {
             var categoricalFeatureIndex = (int)Math.Round(numericalEncodedFeatureValue);
-            return categoricalFeatureIndex<0?"": _categoricalFeatures[categoricalFeatureIndex];
+            return categoricalFeatureIndex<0?"": _distinctCategoricalValues[categoricalFeatureIndex];
         }
 
         if (double.IsNaN(numericalEncodedFeatureValue))
@@ -188,6 +198,11 @@ public class FeatureStats
 
     private static string NormalizeCategoricalFeatureValue(string value)
     {
+        value = value.Trim();
+        if (!value.Any(CharToBeRemovedInStartOrEnd))
+        {
+            return value;
+        }
         int nbToRemoveStart = 0;
         foreach (var c in value)
         {

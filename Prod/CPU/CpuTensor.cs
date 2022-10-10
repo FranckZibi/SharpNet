@@ -1417,7 +1417,7 @@ namespace SharpNet.CPU
             W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float)(w - ( multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) + adamW_l2Regularization*w )));
         }
 
-        private static float ComputeLossCategoricalCrossentropyWithHierarchy(ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        private static float CategoricalCrossentropyWithHierarchyLoss(ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
             Debug.Assert(expected.Length == predicted.Length);
             double loss = 0;
@@ -1542,12 +1542,12 @@ namespace SharpNet.CPU
         // ReSharper disable once InconsistentNaming
         private static float fabsf(float f) {return Math.Abs(f);}
 
-        #region Compute of Loss and Metrics
+        #region Compute of Evaluation Metrics
         //this method is only called for display / logging testing
         //this = yExpectedOneHot
 
         //this = yExpected
-        public override double ComputeLoss([NotNull] Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer)
+        public override double ComputeEvaluationMetric([NotNull] Tensor yPredicted, EvaluationMetricEnum evaluationMetric, Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(!yPredicted.UseGPU);
@@ -1555,77 +1555,93 @@ namespace SharpNet.CPU
             var batchSize = yExpected.Shape[0];
             var categoryCount = yExpected.Shape[1];
             double cost;
-            switch (lossFunction)
+            switch (evaluationMetric)
             {
-                case LossFunctionEnum.BinaryCrossentropy:
+                case EvaluationMetricEnum.Accuracy:
+                    cost = ComputeAccuracy(yPredicted, buffer);
+                    break;
+                case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
+                    cost = ComputeAccuracyCategoricalCrossentropyWithHierarchy(yPredicted, buffer);
+                    break;
+                case EvaluationMetricEnum.BinaryCrossentropy:
                     cost = (-1.0 / (batchSize * categoryCount)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction) + (1 - expected) * Math.Log(1 - prediction))).NaNSum();
                     break;
-                case LossFunctionEnum.CategoricalCrossentropy:
+                case EvaluationMetricEnum.CategoricalCrossentropy:
                     cost = (-1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction))).NaNSum();
                     break;
-                case LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
-                    Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = ComputeLossCategoricalCrossentropyWithHierarchy(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+                case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
+                    Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = CategoricalCrossentropyWithHierarchyLoss(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
                     cost = buffer.AsReadonlyFloatCpuContent.Average();
                     break;
-                case LossFunctionEnum.Huber:
+                case EvaluationMetricEnum.Huber:
                     const float huberDelta = 1.0f;
                     buffer.HuberLoss(yExpected, yPredicted, huberDelta);
                     cost = buffer.AsReadonlyFloatCpuContent.Average();
                     break;
-                case LossFunctionEnum.F1Micro:
+                case EvaluationMetricEnum.F1Micro:
                     cost = buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
                     break;
-                case LossFunctionEnum.Mse:
+                case EvaluationMetricEnum.Mse:
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(expected - prediction, 2))).NaNSum();
                     break;
-                case LossFunctionEnum.Mae:
+                case EvaluationMetricEnum.Rmse:
+                    return Math.Sqrt(ComputeEvaluationMetric(yPredicted, EvaluationMetricEnum.Mse, buffer));
+                case EvaluationMetricEnum.Mae:
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (Math.Abs(expected - prediction))).NaNSum();
                     break;
-                case LossFunctionEnum.MseOfLog:
+                case EvaluationMetricEnum.MseOfLog:
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(Math.Log(expected) - Math.Log(Math.Max(prediction, NetworkConfig.Default_MseOfLog_Loss)), 2) / Math.Max(prediction, NetworkConfig.Default_MseOfLog_Loss))).NaNSum();
                     break;
-                case LossFunctionEnum.CosineSimilarity504:
+                case EvaluationMetricEnum.CosineSimilarity504:
                     Debug.Assert(yPredicted.Count%CosineSimilarity504_TimeSeries_Length == 0);
                     buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
                     cost = buffer.AsReadonlyFloatCpuContent.Average();
                     break;
                 default:
-                    throw new NotImplementedException("don't know how to calculate cost for " + lossFunction);
+                    throw new NotImplementedException("don't know how to calculate cost for " + evaluationMetric);
             }
 
             return cost;
         }
 
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        public override double ComputeAccuracy(Tensor yPredicted, LossFunctionEnum lossFunction, Tensor buffer)
+        public override double ComputeAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer)
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
             Debug.Assert(yExpected.SameShape(yPredicted));
             Debug.Assert(!yExpected.UseGPU);
-            Debug.Assert(buffer != null);
             Debug.Assert(buffer.Shape.Length == 1);
             Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
             int batchSize = yExpected.Shape[0];
 
             var bufferPointer = (float*)buffer.Pointer;
-            if (lossFunction == LossFunctionEnum.CategoricalCrossentropyWithHierarchy)
+            var yExpectedCpu = yExpected.AsFloatCpu;
+            var yPredictedCpu = yPredicted.AsFloatCpu;
+            Parallel.For(0, batchSize, row => bufferPointer[row] = ComputeSingleAccuracy(yExpectedCpu, yPredictedCpu, row, out _));
+            return buffer.AsReadonlyFloatCpuContent.Average();
+        }
+        
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
+        public override double ComputeAccuracyCategoricalCrossentropyWithHierarchy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer)
+        {
+            var yExpected = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(!yExpected.UseGPU);
+            Debug.Assert(buffer.Shape.Length == 1);
+            Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
+            int batchSize = yExpected.Shape[0];
+
+            var bufferPointer = (float*)buffer.Pointer;
+            var expected = (float*)yExpected.Pointer;
+            var predicted = (float*)yPredicted.Pointer;
+            int nbCols = yExpected.Shape[1];
+            Parallel.For(0, batchSize, i =>
             {
-                var expected = (float*)yExpected.Pointer;
-                var predicted = (float*)yPredicted.Pointer;
-                int nbCols = yExpected.Shape[1];
-                Parallel.For(0, batchSize, i =>
-                {
-                    int nexIndexToCheck = 0;
-                    bufferPointer[i] = IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(expected + i * nbCols, predicted + i * nbCols, nbCols, &nexIndexToCheck, int.MaxValue, new List<int>()) ? 1f : 0f;
-                });
-            }
-            else
-            {
-                var yExpectedCpu = yExpected.AsFloatCpu;
-                var yPredictedCpu = yPredicted.AsFloatCpu;
-                Parallel.For(0, batchSize, row => bufferPointer[row] = ComputeSingleAccuracy(yExpectedCpu, yPredictedCpu, row, out _));
-            }
+                int nexIndexToCheck = 0;
+                bufferPointer[i] = IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(expected + i * nbCols, predicted + i * nbCols, nbCols, &nexIndexToCheck, int.MaxValue, new List<int>()) ? 1f : 0f;
+            });
             return buffer.AsReadonlyFloatCpuContent.Average();
         }
         private static float ComputeSingleAccuracy(CpuTensor<float> yExpected, CpuTensor<float> yPredicted, int row, out int maxIndexPredicted)

@@ -25,41 +25,29 @@ namespace SharpNet
     }
 
     /// <summary>
-    /// the metric used to rank the submission
-    /// </summary>
-    public enum MetricEnum
-    {
-        Loss,       // use the exact metric as the loss function (lower is better)
-        Accuracy,   // higher is better
-        Mae,        // lower is better
-        Mse,        // lower is better
-        Rmse,       // lower is better
-        DEFAULT,     // Not used
-        CosineSimilarity504,     // higher is better
-        F1Micro, // higher is better
-    };
-
-
-    /// <summary>
     /// the loss function (= the objective function)
     /// the goal of the model will be to reduce the value returned by this loss function
     /// (lower is always better)
     /// </summary>
-    public enum LossFunctionEnum
+    public enum EvaluationMetricEnum
     {
+        Accuracy,   // works only for metric (to rank submission), do not work as a loss function, higher s better
+
+        AccuracyCategoricalCrossentropyWithHierarchy,   // works only for metric (to rank submission), do not work as a loss function, higher s better
+
         /// <summary>
         /// To be used with sigmoid activation layer.
         /// In a single row, each value will be in [0,1] range
         /// Support of multi labels (one element can belong to several categoryCount at the same time)
         /// </summary>
-        BinaryCrossentropy,
+        BinaryCrossentropy, // ok for loss, lower is better
 
         /// <summary>
         /// To be used with softmax activation layer.
         /// In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
         /// Do not support multi labels (each element can belong to exactly 1 category)
         /// </summary>
-        CategoricalCrossentropy,
+        CategoricalCrossentropy, // ok for loss, lower is better
 
 
         /* Hierarchical Category:
@@ -81,43 +69,40 @@ namespace SharpNet
         /// Each category (parent node) can be divided into several sub categories (children nodes)
         /// For any parent node: all children will have a proba in [0,1] range, and the sum of all children proba will be equal to 1.0 (= 100%)
         /// </summary>
-        CategoricalCrossentropyWithHierarchy,
+        CategoricalCrossentropyWithHierarchy, // ok for loss, lower is better
 
         /*
          * Huber loss, see  https://en.wikipedia.org/wiki/Huber_loss
          * */
-        Huber,
+        Huber, // ok for loss, lower is better
 
         /*
         * Mean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
         * loss = ( predicted - expected ) ^2
         * */
-        Mse,
+        Mse, // ok for loss, lower is better
 
         /*
         * Mean Squared Error of log loss,
         * loss = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
         * */
-        MseOfLog,
+        MseOfLog, // ok for loss, lower is better
 
         /*
         * Mean Absolute Error loss, see https://en.wikipedia.org/wiki/Mean_absolute_error
         * loss = abs( predicted - expected )
         * */
-        Mae,
+        Mae, // ok for loss, lower is better
 
-     /*
-      * RootMean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
-      * loss = ( predicted - expected ) ^2
-      * */
-        Rmse,
+        /*
+         * RootMean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
+         * loss = ( predicted - expected ) ^2
+         * */
+        Rmse, // ok for loss, lower is better
 
-        CosineSimilarity504,
+        CosineSimilarity504, // ok for loss, higher is better
 
-        F1Micro,
-
-        DEFAULT // Not used
-
+        F1Micro // ok for loss, higher is better
     }
 
 
@@ -162,26 +147,25 @@ namespace SharpNet
         }
 
 
-        public static bool HigherScoreIsBetterForMetric(MetricEnum metricEnum)
+        public static bool HigherScoreIsBetter(EvaluationMetricEnum evaluationMetric)
         {
-            switch (metricEnum)
+            switch (evaluationMetric)
             {
-                case MetricEnum.Accuracy:
-                case MetricEnum.CosineSimilarity504:
-                case MetricEnum.F1Micro:
-                    return true; // highest is better
-                case MetricEnum.Loss:
-                case MetricEnum.Mae:
-                case MetricEnum.Mse:
-                case MetricEnum.Rmse:
-                    return false; // lowest is better
+                case EvaluationMetricEnum.Accuracy:
+                case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
+                case EvaluationMetricEnum.CosineSimilarity504:
+                case EvaluationMetricEnum.F1Micro:
+                    return true; // higher is better
+                case EvaluationMetricEnum.Mae:
+                case EvaluationMetricEnum.Mse:
+                case EvaluationMetricEnum.Rmse:
+                    return false; // lower is better
                 default:
-                    throw new NotImplementedException($"unknown metric : {metricEnum}");
+                    throw new NotImplementedException($"unknown {nameof(EvaluationMetricEnum)} : {evaluationMetric}");
             }
         }
 
 
-        //?D add tests
         /// <summary>
         /// true if score 'a' is better then score 'b'
         /// </summary>
@@ -189,7 +173,7 @@ namespace SharpNet
         /// <param name="b"></param>
         /// <param name="metricEnum"></param>
         /// <returns></returns>
-        public static bool IsBetterScore(float a, float b, MetricEnum metricEnum)
+        public static bool IsBetterScore(float a, float b, EvaluationMetricEnum metricEnum)
         {
             if (float.IsNaN(a))
             {
@@ -199,7 +183,7 @@ namespace SharpNet
             {
                 return true;
             }
-            if (HigherScoreIsBetterForMetric(metricEnum))
+            if (HigherScoreIsBetter(metricEnum))
             {
                 return a > b;
             }
@@ -229,10 +213,8 @@ namespace SharpNet
                     result.Add(t);
                 }
             }
-
             return result;
         }
-
 
         public static string ShapeToStringWithBatchSize(int[] shape)
         {
@@ -442,6 +424,21 @@ namespace SharpNet
             return result;
         }
 
+
+        private static readonly Dictionary<string, List<string[]>> ReadCsvCache = new();
+        private static readonly object LockObject = new();
+        public static List<string[]> ReadCsvWithCache(string csvPath, char? mandatorySeparator = null)
+        {
+            lock (LockObject)
+            {
+                if (!ReadCsvCache.ContainsKey(csvPath))
+                {
+                    ReadCsvCache[csvPath] = ReadCsv(csvPath, mandatorySeparator).ToList();
+                }
+                return ReadCsvCache[csvPath];
+            }
+        }
+
         /// <summary>
         /// Read all rows of a CSV file
         /// if the separator (parameter: mandatorySeparator) is not provided, it will be detected automatically
@@ -487,10 +484,10 @@ namespace SharpNet
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        public static List<string> Intersect(IEnumerable<string> a, IEnumerable<string> b)
+        public static List<string> Intersect(IList<string> a, IList<string> b)
         {
             var result = new List<string>();
-            if (a == null || b == null)
+            if (a == null || b == null ||a.Count == 0 || b.Count == 0)
             {
                 return result;
             }
@@ -501,6 +498,25 @@ namespace SharpNet
                 if (bHash.Contains(e))
                 {
                     result.Add(e);
+                }
+            }
+            return result;
+        }
+
+        public static List<string> Without(IEnumerable<string> a, IEnumerable<string> b)
+        {
+            var result = new List<string>();
+            if (a == null || b == null)
+            {
+                return result;
+            }
+            var bHash = new HashSet<string>(b);
+
+            foreach (var aItem in a)
+            {
+                if (!bHash.Contains(aItem))
+                {
+                    result.Add(aItem);
                 }
             }
             return result;
@@ -1194,6 +1210,7 @@ namespace SharpNet
                     || e.Data.Contains("Object info sizes") 
                     || e.Data.Contains("Skipping test eval output") 
                     || e.Data.Contains(" min passed")
+                    || e.Data.Contains("No further splits with positive gain")
                     )
                 {
                     return;

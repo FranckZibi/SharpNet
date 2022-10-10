@@ -122,9 +122,9 @@ namespace SharpNet.Networks
 
         public int NumEpochs;
         public int BatchSize;
-        public LossFunctionEnum LossFunction = LossFunctionEnum.CategoricalCrossentropy;
+        public EvaluationMetricEnum LossFunction = EvaluationMetricEnum.CategoricalCrossentropy;
         public CompatibilityModeEnum CompatibilityMode = CompatibilityModeEnum.SharpNet;
-        public List<MetricEnum> Metrics = new() { MetricEnum.Loss, MetricEnum.Accuracy };
+        public List<EvaluationMetricEnum> Metrics = new() { EvaluationMetricEnum.CategoricalCrossentropy, EvaluationMetricEnum.Accuracy };
         public string DataSetName;
         /// <summary>
         /// if true

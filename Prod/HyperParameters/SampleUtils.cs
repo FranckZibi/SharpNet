@@ -20,35 +20,41 @@ public static class SampleUtils
     /// <param name="workingDirectory">the directory where the 'model sample' and 'dataset description' is located</param>
     /// <param name="resumeCsvPathIfAny">(optional) the CSV file where to store statistics about the trained model</param>
     /// <param name="bestScoreSoFar">the best score associated with the best sample found so far for the model</param>
-    /// <returns></returns>
+    /// <returns>the score of the ranking evaluation metric for the validation dataset</returns>
     public static IScore TrainWithHyperParameters([NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref IScore bestScoreSoFar)
     {
         var sw = Stopwatch.StartNew();
         var modelAndDataset = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, workingDirectory);
         var model = modelAndDataset.Model;
-        var validationScore = modelAndDataset.Fit(false, true, false).validationScore;
+        var validationRankingScore = modelAndDataset.Fit(false, true, false);
 
-        IScore trainScore = null;
-        Debug.Assert(validationScore != null);
+        IScore trainRankingScore = null;
+        Debug.Assert(validationRankingScore != null);
 
-        if (validationScore.IsBetterThan(bestScoreSoFar))
+        if (validationRankingScore.IsBetterThan(bestScoreSoFar))
         {
-            IModel.Log.Debug($"Model '{model.ModelName}' has new best score: {validationScore} (was: {bestScoreSoFar})");
-            bestScoreSoFar = validationScore;
-            trainScore = modelAndDataset.SavePredictionsInTargetFormat().trainScore;
+            IModel.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
+            bestScoreSoFar = validationRankingScore;
+            using var trainAndValidation = modelAndDataset.ModelAndDatasetPredictionsSample.DatasetSample.SplitIntoTrainingAndValidation();
+            var res = modelAndDataset.ComputeAndSaveTrainValidAndTestPredictions(trainAndValidation);
+            trainRankingScore = res.trainRankingScore;
             modelAndDataset.Save(workingDirectory, model.ModelName);
+            var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
+            var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
+            IModel.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
+            modelAndDatasetOnFullDataset.Fit(true, true, true);
         }
         else
         {
-            IModel.Log.Debug($"Removing all model '{model.ModelName}' files because of low score ({validationScore})");
+            IModel.Log.Debug($"Removing all model '{model.ModelName}' files because of low score ({validationRankingScore})");
             modelAndDataset.AllFiles().ForEach(path => Utils.TryDelete(path));
         }
 
         if (!string.IsNullOrEmpty(resumeCsvPathIfAny))
         {
             var trainingTimeInSeconds = sw.Elapsed.TotalSeconds;
-            model.AddResumeToCsv(trainingTimeInSeconds, trainScore, validationScore, resumeCsvPathIfAny);
+            model.AddResumeToCsv(trainingTimeInSeconds, trainRankingScore, validationRankingScore, resumeCsvPathIfAny);
         }
-        return validationScore;
+        return validationRankingScore;
     }
 }

@@ -20,7 +20,7 @@ namespace SharpNet.HPO
         [NotNull] protected readonly string _workingDirectory;
         private readonly DateTime _creationTime = DateTime.Now;
         protected static readonly ILog Log = LogManager.GetLogger(typeof(AbstractHpo));
-        protected readonly DoubleAccumulator _allCost = new();
+        protected readonly DoubleAccumulator _allAsctualScores = new();
         protected int _nextSampleId = 0;
         // the last time we have displayed statistics about the search, or null if we have never displayed statistics
         private DateTime? lastTimeDisplayedStatisticsDateTime;
@@ -28,13 +28,13 @@ namespace SharpNet.HPO
 
         #region public fields
         /// <summary>
-        /// the best sample (lowest cost) found so far (or null if no sample has been analyzed)
+        /// the best sample (best score) found so far (or null if no sample has been analyzed)
         /// </summary>
         // ReSharper disable once MemberCanBePrivate.Global
         // ReSharper disable once UnusedAutoPropertyAccessor.Global
         public ISample BestSampleFoundSoFar { get; protected set; }
         /// <summary>
-        /// the cost associated with the best sample found sample (or NaN if no sample has been analyzed)
+        /// the score associated with the best sample found (or NaN if no sample has been analyzed)
         /// </summary>
         // ReSharper disable once MemberCanBePrivate.Global
         public IScore ScoreOfBestSampleFoundSoFar { get; protected set; }
@@ -92,17 +92,17 @@ namespace SharpNet.HPO
         }
 
 
-        protected virtual void RegisterSampleCost(ISample sample, int sampleId, IScore score, double elapsedTimeInSeconds)
+        protected virtual void RegisterSampleScore(ISample sample, int sampleId, IScore actualScore, double elapsedTimeInSeconds)
         {
-            _allCost.Add(score.Value, 1);
-            RegisterSampleCost(SearchSpace, sample, score, elapsedTimeInSeconds);
+            _allAsctualScores.Add(actualScore.Value, 1);
+            RegisterSampleScore(SearchSpace, sample, actualScore, elapsedTimeInSeconds);
         }
-        protected static void RegisterSampleCost(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, [NotNull] IScore score, double elapsedTimeInSeconds)
+        protected static void RegisterSampleScore(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, [NotNull] IScore actualScore, double elapsedTimeInSeconds)
         {
             foreach (var (parameterName, parameterSearchSpace) in searchSpace)
             {
                 var parameterValue = sample.Get(parameterName);
-                parameterSearchSpace.RegisterCost(parameterValue, score.Value, elapsedTimeInSeconds);
+                parameterSearchSpace.RegisterScore(parameterValue, actualScore, elapsedTimeInSeconds);
             }
         }
         protected static string ToSampleDescription(IDictionary<string, string> dico, ISample sample)
@@ -151,7 +151,7 @@ namespace SharpNet.HPO
                         ScoreOfBestSampleFoundSoFar = score;
                     }
                     double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
-                    RegisterSampleCost(sample, sampleId, score, elapsedTimeInSeconds);
+                    RegisterSampleScore(sample, sampleId, score, elapsedTimeInSeconds);
                     Log.Debug("ended new computation");
                     Log.Debug($"{Processed} processed samples");
                     //we display statistics only once every 10s
@@ -177,7 +177,7 @@ namespace SharpNet.HPO
         /// <summary>
         /// number of processed search spaces
         /// </summary>
-        private int Processed => _allCost.Count;
+        private int Processed => _allAsctualScores.Count;
         private string StatisticsDescription()
         {
             string res = "";

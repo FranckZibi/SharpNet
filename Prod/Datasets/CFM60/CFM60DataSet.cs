@@ -382,7 +382,7 @@ namespace SharpNet.Datasets.CFM60
 
         public void CreatePredictionFile(IModel model, string fileSuffix)
         {
-            var res = model.Predict(this);
+            var res = model.Predict(this, true, false);
             var CFM60EntryIDToPrediction = new Dictionary<int, double>();
             var spanResult = res.FloatCpuTensor().ReadonlyContent;
             for (int elementId = 0; elementId < Count; ++elementId)
@@ -756,9 +756,9 @@ namespace SharpNet.Datasets.CFM60
         {
             return    epoch >= 2
                    && network.CurrentEpochIsAbsolutelyBestInValidationLoss()
-                   && !double.IsNaN(network.EpochData.Last().ValidationLoss)
+                   && !double.IsNaN(network.EpochData.Last().GetValidationLoss(network.Config.LossFunction))
                    && network.Config.AlwaysUseFullTestDataSetForLossAndAccuracy
-                   && network.EpochData.Last().ValidationLoss < Sample.MaxLossToSaveTheNetwork;
+                   && network.EpochData.Last().GetValidationLoss(network.Config.LossFunction) < Sample.MaxLossToSaveTheNetwork;
         }
 
         public override int Count => Y.Shape[0];

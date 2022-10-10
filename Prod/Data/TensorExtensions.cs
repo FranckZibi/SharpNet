@@ -186,7 +186,7 @@ namespace SharpNet.Data
         public static double ComputeAccuracy(CpuTensor<float> y_true, CpuTensor<float> y_pred)
         {
             using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
-            return y_true.ComputeAccuracy(y_pred, LossFunctionEnum.BinaryCrossentropy, buffer);
+            return y_true.ComputeAccuracy(y_pred, buffer);
         }
     }
 }

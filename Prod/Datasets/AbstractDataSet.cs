@@ -19,45 +19,6 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets
 {
-    public enum ResizeStrategyEnum
-    {
-        /// <summary>
-        /// we do n ot resize the image from disk to the target size for training/inference
-        /// we expect them to be the same
-        /// an exception is thrown if it is not the case
-        /// </summary>
-        None,
-
-        /// <summary>
-        /// we'll simply resize the image from disk to the target size for training/inference
-        /// without keeping the same proportion.
-        /// It means that the picture can be distorted to fit the target size
-        /// </summary>
-        ResizeToTargetSize,
-
-        /// <summary>
-        /// We'll resize the image so that it will have exactly the same width as the size fo the training/inference tensor
-        /// We'll keep the same proportion as in the original image (no distortion)
-        /// </summary>
-        // ReSharper disable once UnusedMember.Global
-        ResizeToWidthSizeKeepingSameProportion,
-
-        /// <summary>
-        /// We'll resize the image so that it will have exactly the same height as the size fo the training/inference tensor
-        /// We'll keep the same proportion as in the original image (no distortion)
-        /// </summary>
-        // ReSharper disable once UnusedMember.Global
-        ResizeToHeightSizeKeepingSameProportion,
-
-        /// <summary>
-        /// We'll take the biggest crop in the original image and resize this crop to match exactly the size fo the training/inference tensor
-        /// We'll keep the same proportion as in the original image (no distortion)
-        /// </summary>
-        // ReSharper disable once UnusedMember.Global
-        BiggestCropInOriginalImageToKeepSameProportion
-    }
-
-
     public abstract class AbstractDataSet : IDataSet
     {
         #region private & protected fields
@@ -89,7 +50,7 @@ namespace SharpNet.Datasets
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
         [NotNull] public string[] FeatureNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
-        [NotNull] public string[] IdFeatures { get; }
+        [NotNull] public string[] IdColumns { get; }
         [NotNull] public string[] TargetLabels { get; }
         public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
         public char Separator { get; }
@@ -104,7 +65,7 @@ namespace SharpNet.Datasets
             ResizeStrategyEnum resizeStrategy,
             [NotNull] string[] featureNames,
             [NotNull] string[] categoricalFeatures,
-            [NotNull] string[] idFeatures,
+            [NotNull] string[] idColumns,
             [NotNull] string[] targetLabels,
             bool useBackgroundThreadToLoadNextMiniBatch,
             char separator)
@@ -123,7 +84,7 @@ namespace SharpNet.Datasets
             }
             FeatureNames = featureNames;
             CategoricalFeatures = categoricalFeatures;
-            IdFeatures = idFeatures;
+            IdColumns = idColumns;
             TargetLabels = targetLabels;
             if (UseBackgroundThreadToLoadNextMiniBatch)
             {
@@ -137,6 +98,9 @@ namespace SharpNet.Datasets
         /// the type of use of the dataset : Regression or Classification
         /// </summary>
         public Objective_enum Objective { get; }
+
+        public bool IsRegressionProblem => Objective == Objective_enum.Regression;
+
 
         public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,[CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation);
 
@@ -318,6 +282,20 @@ namespace SharpNet.Datasets
 
 
         public abstract int Count { get; }
+        public DataFrame Y_InTargetFormat()
+        {
+            if (Y == null)
+            {
+                return null;
+            }
+            var y_true_InTargetFormat = DataFrame.New(Y, TargetLabels);
+            if (IdColumns.Length == 0)
+            {
+                return y_true_InTargetFormat;
+            }
+            return DataFrame.MergeHorizontally(ExtractIdDataFrame(), y_true_InTargetFormat);
+        }
+
         public string Name { get; }
         public ResizeStrategyEnum ResizeStrategy { get; }
         public virtual bool ShouldCreateSnapshotForEpoch(int epoch, Network network)
@@ -332,14 +310,14 @@ namespace SharpNet.Datasets
 
         public virtual DataFrame ExtractIdDataFrame()
         {
-            if (IdFeatures.Length == 0)
+            if (IdColumns.Length == 0)
             {
                 throw new ArgumentException($"can't extract id columns because the DataFrame doesn't contain any");
             }
-            var columnIndexesOfIds = IdFeatures.Select(id => Array.IndexOf(FeatureNames, id)).ToList();
+            var columnIndexesOfIds = IdColumns.Select(id => Array.IndexOf(FeatureNames, id)).ToList();
             columnIndexesOfIds.Sort();
 
-            var content = new float[Count * IdFeatures.Length];
+            var content = new float[Count * IdColumns.Length];
             int cols = FeatureNames.Length;
             using CpuTensor<float> singleRow = new(new[] { 1, cols });
             var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
@@ -352,8 +330,8 @@ namespace SharpNet.Datasets
                     content[nextIdx++] = singleRowAsSpan[colIdx];
                 }
             }
-            var idCpuTensor = new CpuTensor<float>(new[] { Count, IdFeatures.Length }, content);
-            return DataFrame.New(idCpuTensor, IdFeatures, Array.Empty<string>());
+            var idCpuTensor = new CpuTensor<float>(new[] { Count, IdColumns.Length }, content);
+            return DataFrame.New(idCpuTensor, IdColumns);
         }
 
         public int Channels { get; }
@@ -507,6 +485,15 @@ namespace SharpNet.Datasets
         }
         public abstract CpuTensor<float> Y { get; }
 
+        public CpuTensor<float> Y_InModelFormat(int numClasses)
+        {
+            if (Y == null)
+            {
+                return null;
+            }
+            return IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
+        }
+
 
         protected void UpdateStatus(ref int nbPerformed)
         {
@@ -630,9 +617,10 @@ namespace SharpNet.Datasets
         /// </summary>
         /// <param name="path">the path where to save the dataset (it contains both the directory and the filename)</param>
         /// <param name="addTargetColumnAsFirstColumn"></param>
+        /// <param name="includeIdColumns"></param>
         /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
         /// <param name="separator"></param>
-        public void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        private void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
@@ -652,12 +640,31 @@ namespace SharpNet.Datasets
                 }
                 sb.Append(TargetLabels[0] + separator);
             }
-            sb.Append(string.Join(separator, FeatureNames) + Environment.NewLine);
             // ReSharper disable once PossibleNullReferenceException
             var yDataAsSpan = (addTargetColumnAsFirstColumn&&Y!=null) ? Y.AsFloatCpuSpan : null;
 
-            int cols = FeatureNames.Length;
-            using CpuTensor<float> singleRow = new(new[] { 1, cols });
+
+            List<int> validIdxColumns;
+            if (includeIdColumns)
+            {
+                validIdxColumns = Enumerable.Range(0, FeatureNames.Length).ToList();
+            }
+            else
+            {
+                validIdxColumns = new List<int>();
+                for (var index = 0; index < FeatureNames.Length; index++)
+                {
+                    if (Array.IndexOf(IdColumns, FeatureNames[index]) == -1)
+                    {
+                        validIdxColumns.Add(index);
+                    }
+                }
+            }
+
+            //we construct the header
+            sb.Append(string.Join(separator, validIdxColumns.Select(idx => FeatureNames[idx])) + Environment.NewLine);
+
+            using CpuTensor<float> singleRow = new(new[] { 1, FeatureNames.Length});
             var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
             for (int row = 0; row < Count; ++row)
             {
@@ -667,17 +674,10 @@ namespace SharpNet.Datasets
                     sb.Append(yValue.ToString(CultureInfo.InvariantCulture) + separator);
                 }
                 LoadAt(row, 0, singleRow, null, false);
-                for (int col = 0; col < cols; ++col)
+                foreach (var colIdx in validIdxColumns)
                 {
-                    sb.Append(singleRowAsSpan[col].ToString(CultureInfo.InvariantCulture));
-                    if (col == cols - 1)
-                    {
-                        sb.Append(Environment.NewLine);
-                    }
-                    else
-                    {
-                        sb.Append(separator);
-                    }
+                    sb.Append(singleRowAsSpan[colIdx].ToString(CultureInfo.InvariantCulture));
+                    sb.Append( colIdx == validIdxColumns.Last() ? Environment.NewLine  : separator);
                 }
             }
 
@@ -689,17 +689,15 @@ namespace SharpNet.Datasets
             Log.Debug($"Dataset {Name} saved in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
         }
 
-        public string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool overwriteIfExists)
+        public string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
         {
-            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn) + ".csv");
-            to_csv(datasetPath, Separator, addTargetColumnAsFirstColumn, overwriteIfExists);
+            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn, includeIdColumns) + ".csv");
+            to_csv(datasetPath, Separator, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             return datasetPath;
         }
 
 
-
-
-    private static readonly object Lock_to_csv = new();
+        private static readonly object Lock_to_csv = new();
 
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {
@@ -710,12 +708,16 @@ namespace SharpNet.Datasets
             }
             return result;
         }
-        private static string ComputeUniqueDatasetName(IDataSet dataset, bool addTargetColumnAsFirstColumn)
+        private static string ComputeUniqueDatasetName(IDataSet dataset, bool addTargetColumnAsFirstColumn, bool includeIdColumns)
         {
             var desc = ComputeDescription(dataset);
             if (addTargetColumnAsFirstColumn)
             {
                 desc += '_' + ComputeDescription(dataset.Y);
+            }
+            if (!includeIdColumns)
+            {
+                desc += "_without_ids";
             }
             return Utils.ComputeHash(desc, 10);
         }

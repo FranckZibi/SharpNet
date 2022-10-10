@@ -22,18 +22,20 @@ public class TestISample
         public override Objective_enum GetObjective() => Objective_enum.Regression;
 
         public override List<string> CategoricalFeatures() { return new List<string>(); }
-        public override List<string> IdFeatures() { throw new NotImplementedException(); }
+        public override List<string> IdColumns() { throw new NotImplementedException(); }
         public override List<string> TargetLabels() { throw new NotImplementedException(); }
         public override IDataSet TestDataset() { throw new NotImplementedException(); }
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()  { throw new NotImplementedException(); }
-        public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat) { throw new NotImplementedException(); }
+        public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns) { throw new NotImplementedException(); }
+        protected override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     }
 
     [Test]
-    public void TestCopyWithNewPercentageInTraining()
+    public void TestCopyWithNewPercentageInTrainingAndKFold()
     {
         var sample =  new TestClass();
         sample.PercentageInTraining = 0.5;
+        sample.KFold = 3;
         sample.Train_XDatasetPath = "Train_XDatasetPath";
         sample.Train_YDatasetPath = "Train_YDatasetPath";
         sample.Validation_XDatasetPath = "Validation_XDatasetPath";
@@ -41,15 +43,17 @@ public class TestISample
         sample.Test_XDatasetPath = "Test_XDatasetPath";
         sample.Test_YDatasetPath = "Test_YDatasetPath";
 
-        var sample_0_75 = sample.CopyWithNewPercentageInTraining(0.75);
+        var sample_0_75_5 = sample.CopyWithNewPercentageInTrainingAndKFold(0.75, 5);
         Assert.AreEqual(0.5, sample.PercentageInTraining, 1e-6);
-        Assert.AreEqual(0.75, sample_0_75.PercentageInTraining, 1e-6);
-        Assert.AreEqual("", sample_0_75.Train_XDatasetPath);
-        Assert.AreEqual("", sample_0_75.Train_YDatasetPath);
-        Assert.AreEqual("", sample_0_75.Validation_XDatasetPath);
-        Assert.AreEqual("", sample_0_75.Validation_YDatasetPath);
-        Assert.AreEqual("Test_XDatasetPath", sample_0_75.Test_XDatasetPath );
-        Assert.AreEqual("Test_YDatasetPath", sample_0_75.Test_YDatasetPath );
+        Assert.AreEqual(3, sample.KFold, 1e-6);
+        Assert.AreEqual(0.75, sample_0_75_5.PercentageInTraining, 1e-6);
+        Assert.AreEqual(5, sample_0_75_5.KFold, 1e-6);
+        Assert.IsNull(sample_0_75_5.Train_XDatasetPath);
+        Assert.IsNull(sample_0_75_5.Train_YDatasetPath);
+        Assert.IsNull(sample_0_75_5.Validation_XDatasetPath);
+        Assert.IsNull(sample_0_75_5.Validation_YDatasetPath);
+        Assert.AreEqual("Test_XDatasetPath", sample_0_75_5.Test_XDatasetPath );
+        Assert.AreEqual("Test_YDatasetPath", sample_0_75_5.Test_YDatasetPath );
     }
 
 

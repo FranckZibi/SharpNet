@@ -9,34 +9,47 @@ namespace SharpNet.Data
     {
         #region properties
         public double LearningRateMultiplicativeFactorFromReduceLrOnPlateau { get; }
-        public readonly IDictionary<MetricEnum, double> TrainingMetrics = new Dictionary<MetricEnum, double>();
-        public readonly IDictionary<MetricEnum, double> ValidationMetrics = new Dictionary<MetricEnum, double>();
+        public readonly IDictionary<EvaluationMetricEnum, double> TrainingMetrics = new Dictionary<EvaluationMetricEnum, double>();
+        public readonly IDictionary<EvaluationMetricEnum, double> ValidationMetrics = new Dictionary<EvaluationMetricEnum, double>();
         private readonly int _index;
         private double LearningRateAtEpochStart { get; }
         private double SecondsForEpoch { get; }
         #endregion
 
-        public EpochData(int index, double learningRateAtEpochStart, double learningRateMultiplicativeFactorFromReduceLROnPlateau, 
-            double trainingLoss, double trainingAccuracy, double validationLoss, double validationAccuracy, 
-            double secondsForEpoch)
+        /// <summary>
+        /// this constructor is needed only for tests
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="learningRateAtEpochStart"></param>
+        /// <param name="learningRateMultiplicativeFactorFromReduceLROnPlateau"></param>
+        /// <param name="trainingLoss"></param>
+        /// <param name="trainingAccuracy"></param>
+        /// <param name="validationLoss"></param>
+        /// <param name="validationAccuracy"></param>
+        /// <param name="secondsForEpoch"></param>
+        /// <param name="loss"></param>
+        public EpochData(int index, double learningRateAtEpochStart,
+            double learningRateMultiplicativeFactorFromReduceLROnPlateau,
+            double trainingLoss, double trainingAccuracy, double validationLoss, double validationAccuracy,
+            double secondsForEpoch, EvaluationMetricEnum loss)
             : this(index, learningRateAtEpochStart, learningRateMultiplicativeFactorFromReduceLROnPlateau, secondsForEpoch, 
-                ToDictionary(trainingLoss, trainingAccuracy), 
-                ToDictionary(validationLoss, validationAccuracy)) 
+                ToDictionary(trainingLoss, trainingAccuracy, loss), 
+                ToDictionary(validationLoss, validationAccuracy, loss)) 
         {
         }
-        public EpochData(int index, double learningRateAtEpochStart, double learningRateMultiplicativeFactorFromReduceLROnPlateau, double secondsForEpoch, IDictionary<MetricEnum, double> trainingMetrics, IDictionary<MetricEnum, double> validationMetrics)
+        public EpochData(int index, double learningRateAtEpochStart, double learningRateMultiplicativeFactorFromReduceLROnPlateau, double secondsForEpoch, IDictionary<EvaluationMetricEnum, double> trainingMetrics, IDictionary<EvaluationMetricEnum, double> validationMetrics)
         {
             _index = index;
             LearningRateAtEpochStart = learningRateAtEpochStart;
             LearningRateMultiplicativeFactorFromReduceLrOnPlateau = learningRateMultiplicativeFactorFromReduceLROnPlateau;
             ValidationMetrics.Clear();
             SecondsForEpoch = secondsForEpoch;
-            foreach (var (metric, metricValue) in validationMetrics ?? new Dictionary<MetricEnum, double>())
+            foreach (var (metric, metricValue) in validationMetrics ?? new Dictionary<EvaluationMetricEnum, double>())
             {
                 ValidationMetrics[metric] = metricValue;
             }
             TrainingMetrics.Clear();
-            foreach (var (metric, metricValue) in trainingMetrics ?? new Dictionary<MetricEnum, double>())
+            foreach (var (metric, metricValue) in trainingMetrics ?? new Dictionary<EvaluationMetricEnum, double>())
             {
                 TrainingMetrics[metric] = metricValue;
             }
@@ -66,7 +79,7 @@ namespace SharpNet.Data
             LearningRateAtEpochStart = (double)serialized[nameof(LearningRateAtEpochStart)];
             LearningRateMultiplicativeFactorFromReduceLrOnPlateau = (double)serialized[nameof(LearningRateMultiplicativeFactorFromReduceLrOnPlateau)];
 
-            foreach (var metric in Enum.GetValues(typeof(MetricEnum)).Cast<MetricEnum>())
+            foreach (var metric in Enum.GetValues(typeof(EvaluationMetricEnum)).Cast<EvaluationMetricEnum>())
             {
                 if (serialized.TryGetValue("Validation" + metric, out var validationMetric))
                 {
@@ -116,28 +129,32 @@ namespace SharpNet.Data
         {
             return _index;
         }
-        public double TrainingLoss => GetWithDefaultValue(TrainingMetrics, MetricEnum.Loss, double.NaN);
-        public double ValidationLoss => GetWithDefaultValue(ValidationMetrics, MetricEnum.Loss, double.NaN);
+        public double GetTrainingLoss(EvaluationMetricEnum evaluationMetric) => GetWithDefaultValue(TrainingMetrics, evaluationMetric, double.NaN);
+        public double GetValidationLoss(EvaluationMetricEnum evaluationMetric) => GetWithDefaultValue(ValidationMetrics, evaluationMetric, double.NaN);
         // ReSharper disable once UnusedMember.Global
-        public double TrainingAccuracy => GetWithDefaultValue(TrainingMetrics, MetricEnum.Accuracy, double.NaN);
-        public double ValidationAccuracy => GetWithDefaultValue(ValidationMetrics, MetricEnum.Accuracy, double.NaN);
+        public double TrainingAccuracy => GetWithDefaultValue(TrainingMetrics, EvaluationMetricEnum.Accuracy, double.NaN);
+        public double ValidationAccuracy => GetWithDefaultValue(ValidationMetrics, EvaluationMetricEnum.Accuracy, double.NaN);
         // ReSharper disable once UnusedMember.Global
-        public double TrainingMae => GetWithDefaultValue(TrainingMetrics, MetricEnum.Mae, double.NaN);
+        public double TrainingMae => GetWithDefaultValue(TrainingMetrics, EvaluationMetricEnum.Mae, double.NaN);
         // ReSharper disable once UnusedMember.Global
-        public double ValidationMae => GetWithDefaultValue(ValidationMetrics, MetricEnum.Mae, double.NaN);
+        public double ValidationMae => GetWithDefaultValue(ValidationMetrics, EvaluationMetricEnum.Mae, double.NaN);
 
-        private static double GetWithDefaultValue(IDictionary<MetricEnum, double> allAvailableMetrics, MetricEnum metricEnum, double defaultValue)
+        private static double GetWithDefaultValue(IDictionary<EvaluationMetricEnum, double> allAvailableMetrics, EvaluationMetricEnum metricEnum, double defaultValue)
         {
             return allAvailableMetrics.ContainsKey(metricEnum)
                 ? allAvailableMetrics[metricEnum]
                 : defaultValue;
         }
-        private static IDictionary<MetricEnum, double> ToDictionary(double loss, double accuracy)
+
+        /// <summary>
+        /// used only for tests
+        /// </summary>
+        private static IDictionary<EvaluationMetricEnum, double> ToDictionary(double loss, double accuracy, EvaluationMetricEnum evaluationMetric)
         {
-            return new Dictionary<MetricEnum, double>
+            return new Dictionary<EvaluationMetricEnum, double>
             {
-                [MetricEnum.Loss] = loss,
-                [MetricEnum.Accuracy] = accuracy
+                [evaluationMetric] = loss,
+                [EvaluationMetricEnum.Accuracy] = accuracy
             };
         }
     }

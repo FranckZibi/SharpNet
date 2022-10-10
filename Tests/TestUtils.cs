@@ -39,16 +39,16 @@ namespace SharpNetTests
             Assert.AreEqual(expectedResult, Utils.Product(data));
         }
 
-        [TestCase(true, 0f, float.NaN, MetricEnum.Mae)]
-        [TestCase(false, float.NaN, 0, MetricEnum.Mae)]
-        [TestCase(false, float.NaN, float.NaN, MetricEnum.Mae)]
-        [TestCase(true, 0f, 1f, MetricEnum.Mae)]
-        [TestCase(false, 1f, 0f, MetricEnum.Mae)]
-        [TestCase(false, 0f, 0f, MetricEnum.Mae)]
-        [TestCase(true, 1f, 0f, MetricEnum.Accuracy)]
-        [TestCase(false, 0f, 1f, MetricEnum.Accuracy)]
-        [TestCase(false, 0f, 0f, MetricEnum.Accuracy)]
-        public void TestIsBetterScore(bool expectedResult, float a, float b, MetricEnum metric)
+        [TestCase(true, 0f, float.NaN, EvaluationMetricEnum.Mae)]
+        [TestCase(false, float.NaN, 0, EvaluationMetricEnum.Mae)]
+        [TestCase(false, float.NaN, float.NaN, EvaluationMetricEnum.Mae)]
+        [TestCase(true, 0f, 1f, EvaluationMetricEnum.Mae)]
+        [TestCase(false, 1f, 0f, EvaluationMetricEnum.Mae)]
+        [TestCase(false, 0f, 0f, EvaluationMetricEnum.Mae)]
+        [TestCase(true, 1f, 0f, EvaluationMetricEnum.Accuracy)]
+        [TestCase(false, 0f, 1f, EvaluationMetricEnum.Accuracy)]
+        [TestCase(false, 0f, 0f, EvaluationMetricEnum.Accuracy)]
+        public void TestIsBetterScore(bool expectedResult, float a, float b, EvaluationMetricEnum metric)
         {
             Assert.AreEqual(expectedResult, Utils.IsBetterScore(a, b, metric));
         }

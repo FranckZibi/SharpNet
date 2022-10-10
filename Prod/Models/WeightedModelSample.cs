@@ -122,13 +122,9 @@ public class WeightedModelSample : AbstractSample, IModelSample
             res.Update_Adding_Alpha_X(weights[i] / sumWeights, t[i].FloatCpuTensor());
         }
         res.LoadColumnsFromSource(t[0].FloatCpuTensor(), indexColumnsNotToUse);
-        return DataFrame.New(res, t[0].FeatureNames, t[0].CategoricalFeatures);
+        return DataFrame.New(res, t[0].ColumnNames);
     }
-    public MetricEnum GetMetric()
-    {
-        return GetFirstEmbeddedModelSample().GetMetric();
-    }
-    public LossFunctionEnum GetLoss()
+    public EvaluationMetricEnum GetLoss()
     {
         return GetFirstEmbeddedModelSample().GetLoss();
     }

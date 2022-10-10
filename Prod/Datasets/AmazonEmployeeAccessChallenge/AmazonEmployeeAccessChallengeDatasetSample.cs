@@ -17,7 +17,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
     public AmazonEmployeeAccessChallengeDatasetSample() : base(new HashSet<string>())
     {
-        var train = DataFrameT<float>.Load(TrainRawFile, true, float.Parse, CategoricalFeatures(), DataFrame.Float2String);
+        var train = DataFrameT<float>.Load(TrainRawFile, true, float.Parse, DataFrame.Float2String);
         var targetLabels = new List<string> { "ACTION" };
         var x_dataframe = train.Drop(targetLabels);
         var x_train_full = x_dataframe.Tensor;
@@ -28,7 +28,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
             "AmazonEmployeeAccessChallenge",
             GetObjective(),
             null,
-            featureNames: x_dataframe.FeatureNames,
+            featureNames: x_dataframe.ColumnNames,
             categoricalFeatures: CategoricalFeatures().ToArray(),
             useBackgroundThreadToLoadNextMiniBatch: false);
 
@@ -37,7 +37,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
             nameof(AmazonEmployeeAccessChallengeDatasetSample),
             GetObjective(),
             null,
-            featureNames: x_dataframe.FeatureNames,
+            featureNames: x_dataframe.ColumnNames,
             categoricalFeatures: CategoricalFeatures().ToArray(),
             useBackgroundThreadToLoadNextMiniBatch: false);
 
@@ -50,7 +50,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     //    return FullTrain;
     //}
    
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
     {
         throw new NotImplementedException();
     }
@@ -67,7 +67,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
         return new List<string> { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
     }
 
-    public override List<string> IdFeatures()
+    public override List<string> IdColumns()
     {
         return new List<string> { "id" };
     }
@@ -86,5 +86,6 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
         return _testDataset;
     }
 
+    protected override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     private static string TrainRawFile => Path.Combine(DataDirectory, "train.csv");
 }

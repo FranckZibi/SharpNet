@@ -100,7 +100,7 @@ namespace SharpNet.Networks
             throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
         }
 
-        public MetricEnum GetMetric()
+        public EvaluationMetricEnum GetMetric()
         {
             if (Config.Metrics.Any())
             {
@@ -108,16 +108,16 @@ namespace SharpNet.Networks
             }
             switch (Config.LossFunction)
             {
-                case LossFunctionEnum.BinaryCrossentropy: return MetricEnum.Loss;
-                case LossFunctionEnum.CategoricalCrossentropy: return MetricEnum.Loss;
-                case LossFunctionEnum.Mse: return MetricEnum.Mse;
-                case LossFunctionEnum.Rmse: return MetricEnum.Rmse;
-                case LossFunctionEnum.Mae: return MetricEnum.Mae;
+                case EvaluationMetricEnum.BinaryCrossentropy: return EvaluationMetricEnum.BinaryCrossentropy;
+                case EvaluationMetricEnum.CategoricalCrossentropy: return EvaluationMetricEnum.CategoricalCrossentropy;
+                case EvaluationMetricEnum.Mse: return EvaluationMetricEnum.Mse;
+                case EvaluationMetricEnum.Rmse: return EvaluationMetricEnum.Rmse;
+                case EvaluationMetricEnum.Mae: return EvaluationMetricEnum.Mae;
                 default: throw new NotImplementedException($"can't retrieve metric from {Config.LossFunction}");
             }
         }
 
-        public LossFunctionEnum GetLoss()
+        public EvaluationMetricEnum GetLoss()
         {
             return Config.LossFunction;
         }

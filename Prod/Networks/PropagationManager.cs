@@ -154,7 +154,7 @@ namespace SharpNet.Networks
             return _memoryPool.GetFloatTensor(outputShape);
         }
        
-        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, LossFunctionEnum lossFunction)
+        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
         {
             Debug.Assert(yExpected.SameShape(yPredicted));
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
@@ -162,9 +162,9 @@ namespace SharpNet.Networks
 
             var dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
 
-            switch (lossFunction)
+            switch (evaluationMetric)
             {
-                case LossFunctionEnum.BinaryCrossentropy:
+                case EvaluationMetricEnum.BinaryCrossentropy:
                     Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
                     //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
                     yPredicted.CopyTo(dyPredicted);
@@ -172,30 +172,30 @@ namespace SharpNet.Networks
                     var multiplier = 1f / (categoryCount);
                     dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
                     break;
-                case LossFunctionEnum.CategoricalCrossentropy:
+                case EvaluationMetricEnum.CategoricalCrossentropy:
                     Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
                     //we compute: _dyPredicted = (yPredicted - yExpected)
                     yPredicted.CopyTo(dyPredicted);
                     dyPredicted.AddTensor(-1, yExpected, 1);
                     break;
-                case LossFunctionEnum.CategoricalCrossentropyWithHierarchy:
+                case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
                     dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
                     break;
-                case LossFunctionEnum.Huber:
+                case EvaluationMetricEnum.Huber:
                     const float huberDelta = 1.0f;
                     dyPredicted.HuberGradient(yExpected, yPredicted, huberDelta);
                     break;
-                case LossFunctionEnum.Mse:
+                case EvaluationMetricEnum.Mse:
                     dyPredicted.MseGradient(yExpected, yPredicted);
                     break;
-                case LossFunctionEnum.Mae:
+                case EvaluationMetricEnum.Mae:
                     dyPredicted.MaeGradient(yExpected, yPredicted);
                     break;
-                case LossFunctionEnum.CosineSimilarity504:
+                case EvaluationMetricEnum.CosineSimilarity504:
                     dyPredicted.CosineSimilarityGradient(yExpected, yPredicted, Tensor.CosineSimilarity504_TimeSeries_Length);
                     break;
                 default:
-                    throw new Exception("Invalid loss function " + lossFunction);
+                    throw new Exception("Invalid loss function " + evaluationMetric);
             }
 
             var all_dY = new Tensor[_layers.Count];

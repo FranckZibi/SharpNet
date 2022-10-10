@@ -15,13 +15,21 @@ public class KFoldSample : AbstractSample, IModelSample
     private KFoldSample() : base(new HashSet<string>())
     {
     }
-    public KFoldSample(int nSplits, string embeddedModelName, string embeddedModelDirectory, int countMustBeMultipleOf) : base(new HashSet<string>())
+    public KFoldSample(int nSplits, string embeddedModelName, string embeddedModelWorkingDirectory, int countMustBeMultipleOf) : base(new HashSet<string>())
     {
         n_splits = nSplits;
         EmbeddedModelName = embeddedModelName;
-        EmbeddedModelDirectory = embeddedModelDirectory;
+        EmbeddedModelWorkingDirectory = embeddedModelWorkingDirectory;
         CountMustBeMultipleOf = countMustBeMultipleOf;
         _embeddedModelSample = GetEmbeddedModelSample();
+    }
+    public KFoldSample(int nSplits, string embeddedModelName, string embeddedModelWorkingDirectory, IModelSample embeddedModelSample, int countMustBeMultipleOf) : base(new HashSet<string>())
+    {
+        n_splits = nSplits;
+        EmbeddedModelName = embeddedModelName;
+        EmbeddedModelWorkingDirectory = embeddedModelWorkingDirectory;
+        CountMustBeMultipleOf = countMustBeMultipleOf;
+        _embeddedModelSample = embeddedModelSample;
     }
     #endregion
 
@@ -30,14 +38,10 @@ public class KFoldSample : AbstractSample, IModelSample
     // ReSharper disable once MemberCanBePrivate.Global
     public string EmbeddedModelName;
     // ReSharper disable once MemberCanBePrivate.Global
-    public string EmbeddedModelDirectory;
+    public string EmbeddedModelWorkingDirectory;
     public int CountMustBeMultipleOf = 1;
     #endregion
-    public MetricEnum GetMetric()
-    {
-        return GetEmbeddedModelSample().GetMetric();
-    }
-    public LossFunctionEnum GetLoss()
+    public EvaluationMetricEnum GetLoss()
     {
         return GetEmbeddedModelSample().GetLoss();
     }
@@ -45,7 +49,7 @@ public class KFoldSample : AbstractSample, IModelSample
     {
         if (_embeddedModelSample == null)
         {
-            _embeddedModelSample = IModelSample.LoadModelSample(EmbeddedModelDirectory, EmbeddedModelName);
+            _embeddedModelSample = IModelSample.LoadModelSample(EmbeddedModelWorkingDirectory, EmbeddedModelName);
         }
         return _embeddedModelSample;
     }

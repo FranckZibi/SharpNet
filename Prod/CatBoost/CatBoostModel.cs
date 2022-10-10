@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
-using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
@@ -45,19 +44,31 @@ namespace SharpNet.CatBoost
         public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
             Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
         {
-            string trainDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, true, false);
+            const bool addTargetColumnAsFirstColumn = true;
+            const bool includeIdColumns = false;
+            const bool overwriteIfExists = false;
+            string trainDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             char separator = trainDataset.Separator;
 
             string validationDatasetPathIfAny = "";
             if (validationDatasetIfAny != null)
             {
-                validationDatasetPathIfAny = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, true, false);
+                validationDatasetPathIfAny = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             }
 
             string datasetColumnDescriptionPath = trainDatasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, trainDataset, false);
+            to_column_description(datasetColumnDescriptionPath, trainDataset, addTargetColumnAsFirstColumn, false);
 
-            IModel.Log.Info($"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}");
+            var logMsg = $"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}";
+            if (LoggingForModelShouldBeDebug(ModelName))
+            {
+                LogDebug(logMsg);
+            }
+            else
+            {
+                LogInfo(logMsg);
+            }
+
 
             var tempModelSamplePath = ISample.ToJsonPath(TempPath, ModelName);
             string arguments = "fit " +
@@ -100,31 +111,28 @@ namespace SharpNet.CatBoost
             return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
         }
 
-        public override DataFrame Predict(IDataSet dataset)
+        public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
         {
-            var (predictions, _) = PredictWithPath(dataset);
-            return predictions;
-        }
-        public override (DataFrame predictions, string predictionPath) PredictWithPath(IDataSet dataset)
-        {
-            const bool targetColumnIsFirstColumn = true;
-            string predictionDatasetPath = dataset.to_csv_in_directory(RootDatasetPath, targetColumnIsFirstColumn, false);
-
-            string datasetColumnDescriptionPath = predictionDatasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, dataset, true);
-
-
             if (!File.Exists(ModelPath))
             {
                 throw new Exception($"missing model {ModelPath} for inference");
             }
-            var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(predictionDatasetPath) + ".tsv");
+            const bool addTargetColumnAsFirstColumn = true;
+            const bool includeIdColumns = false;
+            const bool overwriteIfExists = false;
+            string datasetPath = dataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+
+            string datasetColumnDescriptionPath = datasetPath + ".co";
+            to_column_description(datasetColumnDescriptionPath, dataset, addTargetColumnAsFirstColumn, true);
+
+
+            var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(datasetPath) + ".tsv");
             var configFilePath = predictionResultPath.Replace(".txt", "_conf.json");
             CatBoostSample.Save(configFilePath);
 
             string modelFormat = ModelPath.EndsWith("json") ? "json" : "CatboostBinary";
             var arguments = "calc " +
-                            " --input-path " + predictionDatasetPath +
+                            " --input-path " + datasetPath +
                             " --output-path " + predictionResultPath +
                             " --delimiter=\"" + dataset.Separator + "\"" +
                             " --has-header" +
@@ -134,25 +142,25 @@ namespace SharpNet.CatBoost
                             ;
 
             //+ " --prediction-type Probability,Class,RawFormulaVal,Exponent,LogProbability "
-            if (dataset.Objective == Objective_enum.Classification)
-            {
-                arguments += " --prediction-type Probability ";
-            }
-            else
+            if (dataset.IsRegressionProblem)
             {
                 arguments += " --prediction-type RawFormulaVal ";
             }
+            else
+            {
+                arguments += " --prediction-type Probability ";
+            }
 
             Utils.Launch(WorkingDirectory, ExePath, arguments, IModel.Log);
-            var predictions1 = File.ReadAllLines(predictionResultPath).Skip(1).Select(l => l.Split()[1]).Select(float.Parse).ToArray();
-            File.Delete(configFilePath);
-            File.Delete(predictionResultPath);
-            var predictions = DataFrame.New(new CpuTensor<float>(new[] { predictions1.Length, 1 }, predictions1), dataset.FeatureNames, dataset.CategoricalFeatures);
-            if (predictions.Shape[0]!= dataset.Count)
+            var predictionsDf = LoadProbaFile(predictionResultPath, true, true, dataset, addIdColumnsAtLeft);
+            Utils.TryDelete(configFilePath);
+            Utils.TryDelete(predictionResultPath);
+            if (removeAllTemporaryFilesAtEnd)
             {
-                throw new Exception($"Invalid number of predictions, received {predictions.Shape[0]} but expected {dataset.Count}");
+                Utils.TryDelete(datasetPath);
+                Utils.TryDelete(datasetColumnDescriptionPath);
             }
-            return (predictions, predictionDatasetPath);
+            return predictionsDf;
         }
         public override void Save(string workingDirectory, string modelName)
         {
@@ -189,29 +197,33 @@ namespace SharpNet.CatBoost
         //    return new CatBoostModel(sample, workingDirectory, modelName);
         //}
 
-        private static void to_column_description([JetBrains.Annotations.NotNull] string path, IDataSet dataset, bool overwriteIfExists = false)
+        private static void to_column_description([JetBrains.Annotations.NotNull] string path, IDataSet dataset, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
                 IModel.Log.Debug($"No need to save dataset column description in path {path} : it already exists");
                 return;
             }
-
             var categoricalColumns = dataset.CategoricalFeatures;
             var sb = new StringBuilder();
+            int nextColumnIdx = 0;
+            if (addTargetColumnAsFirstColumn)
+            {
+                foreach(var _ in dataset.TargetLabels)
+                {
+                    //this feature is the target
+                    sb.Append($"{nextColumnIdx++}\tLabel" + Environment.NewLine);
+                }
+            }
             for (int featureId = 0; featureId < dataset.FeatureNames.Length; ++featureId)
             {
                 var featureName = dataset.FeatureNames[featureId];
-                if (dataset.TargetLabels.Contains(featureName))
-                {
-                    //this feature is the target
-                    sb.Append($"{featureId}\tLabel" + Environment.NewLine);
-                }
-                else if (categoricalColumns.Contains(featureName))
+                if (categoricalColumns.Contains(featureName))
                 {
                     //this feature is a categorical feature
-                    sb.Append($"{featureId}\tCateg"+Environment.NewLine);
+                    sb.Append($"{nextColumnIdx}\tCateg"+Environment.NewLine);
                 }
+                ++nextColumnIdx;
             }
             IModel.Log.Debug($"Saving dataset column description in path {path}");
             var fileContent = sb.ToString().Trim();

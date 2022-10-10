@@ -528,7 +528,7 @@ namespace SharpNet.Networks
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
             {
                 MemoryPool.GetFloatTensor(ref _buffer, new[] { yExpectedMiniBatch.Shape[0] });
-                var blockLoss = yExpectedMiniBatch.ComputeLoss(yPredictedMiniBatch, Config.LossFunction, _buffer);
+                var blockLoss = yExpectedMiniBatch.ComputeEvaluationMetric(yPredictedMiniBatch, Config.LossFunction, _buffer);
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
@@ -600,7 +600,7 @@ namespace SharpNet.Networks
 
 
                 var lastAutoSaveTime = DateTime.Now; //last time we saved the network
-                IDictionary<MetricEnum, double> validationMetrics = null;
+                IDictionary<EvaluationMetricEnum, double> validationMetrics = null;
                 for (;;)
                 {
                     int epoch = EpochData.Count + 1;
@@ -611,8 +611,8 @@ namespace SharpNet.Networks
 
                     var swEpoch = Stopwatch.StartNew();
 
-                    var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(EpochData);
-                    if (learningRateComputer.ShouldReduceLrOnPlateau(EpochData))
+                    var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(EpochData, Config.LossFunction);
+                    if (learningRateComputer.ShouldReduceLrOnPlateau(EpochData, Config.LossFunction))
                     {
                         LogInfo("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
                     }
@@ -677,7 +677,7 @@ namespace SharpNet.Networks
                         || ( (Config.AutoSaveIntervalInMinutes>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinutes)
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
                         || trainingDataset.ShouldCreateSnapshotForEpoch(epoch, this)
-                        || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds)
+                        || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds, Config.LossFunction)
                     )
                     {
                         trainingDataset.Save(this, WorkingDirectory, DynamicModelName);
@@ -691,7 +691,7 @@ namespace SharpNet.Networks
                         LogInfo("Saving network '" + Description + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
-                    if (ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds))
+                    if (ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds, Config.LossFunction))
                     {
                         LogInfo("Stopping Training because of EarlyStopping");
                         break;
@@ -712,9 +712,9 @@ namespace SharpNet.Networks
                         + learningRateComputer.LearningRate(1, 0, 1.0) + ";"
                         + _spInternalFit.Elapsed.TotalSeconds + ";"
                         + (_spInternalFit.Elapsed.TotalSeconds / GetNumEpochs()) + ";"
-                        + EpochData.Last().TrainingLoss + ";"
+                        + EpochData.Last().GetTrainingLoss(Config.LossFunction) + ";"
                         + EpochData.Last().TrainingAccuracy + ";"
-                        + EpochData.Last().ValidationLoss + ";"
+                        + EpochData.Last().GetValidationLoss(Config.LossFunction) + ";"
                         + EpochData.Last().ValidationAccuracy + ";"
                         + Environment.NewLine;
                     File.AppendAllText(Utils.ConcatenatePathWithFileName(WorkingDirectory, testsCsv), line);
@@ -746,7 +746,7 @@ namespace SharpNet.Networks
         /// then we stop the training
         /// </summary>
         /// <returns></returns>
-        private static bool ShouldStopTrainingBecauseOfEarlyStopping(List<EpochData> epochData, int earlyStoppingRounds)
+        private static bool ShouldStopTrainingBecauseOfEarlyStopping(List<EpochData> epochData, int earlyStoppingRounds, EvaluationMetricEnum evaluationMetric)
         {
             if (earlyStoppingRounds <= 0)
             {
@@ -756,8 +756,8 @@ namespace SharpNet.Networks
             int nbConsecutiveEpochsWithDegradationOfValidationLoss = 0;
             for (int i = epochData.Count - 1; i >= 1; --i)
             {
-                var currentValidationLoss = epochData[i].ValidationLoss;
-                var previousValidationLoss = epochData[i - 1].ValidationLoss;
+                var currentValidationLoss = epochData[i].GetValidationLoss(evaluationMetric);
+                var previousValidationLoss = epochData[i - 1].GetValidationLoss(evaluationMetric);
                 if (double.IsNaN(previousValidationLoss) || double.IsNaN(currentValidationLoss))
                 {
                     break;
@@ -782,23 +782,23 @@ namespace SharpNet.Networks
         }
 
         #region compute Loss and Accuracy
-        public IDictionary<MetricEnum, double> ComputeMetricsForTestDataSet(int miniBatchSize, IDataSet testDataSet)
+        public IDictionary<EvaluationMetricEnum, double> ComputeMetricsForTestDataSet(int miniBatchSize, IDataSet testDataSet)
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
             return ComputeMetrics(testDataSet.Y, yPredicted);
         }
-        private IDictionary<MetricEnum, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
+        private IDictionary<EvaluationMetricEnum, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
         {
             _swComputeMetrics?.Start();
-            var result = new Dictionary<MetricEnum, double>();
+            var result = new Dictionary<EvaluationMetricEnum, double>();
             yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
             yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
             foreach (var metric in Config.Metrics)
             {
                 MemoryPool.GetFloatTensor(ref _buffer, yExpected.ComputeMetricBufferShape(metric));
-                result[metric] = yExpected.ComputeMetric(yPredicted, metric, Config.LossFunction, _buffer);
+                result[metric] = yExpected.ComputeEvaluationMetric(yPredicted, metric, _buffer);
             }
             _swComputeMetrics?.Stop();
             return result;
@@ -830,10 +830,10 @@ namespace SharpNet.Networks
         {
             return Predict(new List<Tensor> {X}, isTraining);
         }
-        public override DataFrame Predict(IDataSet dataset)
+        public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Config.BatchSize);
-            return DataFrame.New(cpuTensor, dataset.FeatureNames, dataset.CategoricalFeatures);
+            return DataFrame.New(cpuTensor, dataset.FeatureNames);
         }
 
         public override int GetNumEpochs()
@@ -904,7 +904,7 @@ namespace SharpNet.Networks
 
             //the first epoch is #1
             int epoch = EpochData.Count + 1;
-            var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(EpochData) ?? 1.0;
+            var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(EpochData, Config.LossFunction) ?? 1.0;
 
             //dataSet.Count:
             // actual number of elements in the dataSet that we'll process
@@ -1089,24 +1089,25 @@ namespace SharpNet.Networks
         {
             return
                 EpochData.Count >= 1
-                && EpochData.All(e => !double.IsNaN(e.ValidationLoss))
-                && Math.Abs(EpochData.Select(e => e.ValidationLoss).Min() - EpochData.Last().ValidationLoss) < 1e-6;
+                && EpochData.All(e => !double.IsNaN(e.GetValidationLoss(Config.LossFunction)))
+                && Math.Abs(EpochData.Select(e => e.GetValidationLoss(Config.LossFunction)).Min() - EpochData.Last().GetValidationLoss(Config.LossFunction)) < 1e-6;
         }
         public string DynamicModelName
         {
             get
             {
+                var loss = Config.LossFunction;
                 var desc = (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description));
                 var epoch = EpochData.Count;
                 var trainingLoss = "";
-                if (epoch >= 1 && !double.IsNaN(EpochData.Last().TrainingLoss))
+                if (epoch >= 1 && !double.IsNaN(EpochData.Last().GetTrainingLoss(loss)))
                 {
-                    trainingLoss = "_" + Math.Round(EpochData.Last().TrainingLoss, 4).ToString(CultureInfo.InvariantCulture).Replace(".", "_");
+                    trainingLoss = "_" + Math.Round(EpochData.Last().GetTrainingLoss(loss), 4).ToString(CultureInfo.InvariantCulture).Replace(".", "_");
                 }
                 var validationLoss = "";
-                if (epoch >=1 && !double.IsNaN(EpochData.Last().ValidationLoss))
+                if (epoch >=1 && !double.IsNaN(EpochData.Last().GetValidationLoss(loss)))
                 {
-                    validationLoss = "_" + Math.Round(EpochData.Last().ValidationLoss, 4).ToString(CultureInfo.InvariantCulture) .Replace(".", "_");
+                    validationLoss = "_" + Math.Round(EpochData.Last().GetValidationLoss(loss), 4).ToString(CultureInfo.InvariantCulture) .Replace(".", "_");
                 }
                 var timeStamp = _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
                 return desc + "_" + epoch + trainingLoss + validationLoss + "_" + timeStamp + "_" + Thread.CurrentThread.ManagedThreadId;

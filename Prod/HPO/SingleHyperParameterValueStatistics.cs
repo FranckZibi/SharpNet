@@ -5,22 +5,24 @@ namespace SharpNet.HPO
 {
     public class SingleHyperParameterValueStatistics
     {
-        public readonly DoubleAccumulator Cost = new DoubleAccumulator();
-        private readonly DoubleAccumulator ElapsedTimeInSeconds = new DoubleAccumulator();
+        public readonly DoubleAccumulator CostToDecrease = new();
+        private readonly DoubleAccumulator ElapsedTimeInSeconds = new();
 
-        public void RegisterCost(float cost, double elapsedTimeInSeconds)
+        public void RegisterScore(IScore score, double elapsedTimeInSeconds)
         {
-            Cost.Add(cost,1);
+            //the cost is something we want to minimize
+            var costToDecrease = score.HigherIsBetter ? -score.Value : score.Value;
+            CostToDecrease.Add(costToDecrease,1);
             ElapsedTimeInSeconds.Add(elapsedTimeInSeconds, 1);
         }
 
         public override string ToString()
         {
-            if (Cost.Count == 0)
+            if (CostToDecrease.Count == 0)
             {
                 return "empty";
             }
-            return Cost.Average + " +/- " + Cost.Volatility + " (" + Cost.Count + " evals at "+Math.Round(ElapsedTimeInSeconds.Average,1) + "s/eval)";
+            return CostToDecrease.Average + " +/- " + CostToDecrease.Volatility + " (" + CostToDecrease.Count + " evals at "+Math.Round(ElapsedTimeInSeconds.Average,1) + "s/eval)";
         }
     }
 }
