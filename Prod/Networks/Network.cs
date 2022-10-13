@@ -833,7 +833,7 @@ namespace SharpNet.Networks
         public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Config.BatchSize);
-            return DataFrame.New(cpuTensor, dataset.FeatureNames);
+            return DataFrame.New(cpuTensor, Utils.Join(dataset.IdColumns, dataset.TargetLabels));
         }
 
         public override int GetNumEpochs()

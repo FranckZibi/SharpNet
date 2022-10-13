@@ -89,11 +89,13 @@ public abstract class AbstractModel : IModel
         return modelName.Contains("_kfold_");
     }
 
-    protected static DataFrame LoadProbaFile(string predictionResultPath, bool hasHeader, bool hasIndex, IDataSet dataset, bool addIdColumnsAtLeft)
+    public static DataFrame LoadProbaFile(string predictionResultPath, bool hasHeader, bool hasIndex, char ?separator, IDataSet dataset, bool addIdColumnsAtLeft)
     {
-        float[][] predictionResultContent = File.ReadAllLines(predictionResultPath)
+        Func<string, string[]> split = separator.HasValue ? (s => s.Split(s, separator.Value)) : s=>s.Split();
+        var readAllLines = File.ReadAllLines(predictionResultPath);
+        float[][] predictionResultContent = readAllLines
             .Skip(hasHeader ? 1 : 0)
-            .Select(l => l.Split().Skip(hasIndex ? 1 : 0).Select(float.Parse).ToArray()).ToArray();
+            .Select(l => split(l).Skip(hasIndex ? 1 : 0).Select(float.Parse).ToArray()).ToArray();
         int rows = predictionResultContent.Length;
         int columns = predictionResultContent[0].Length;
         var content = new float[rows * columns];
@@ -115,10 +117,7 @@ public abstract class AbstractModel : IModel
             predictionLabels = Enumerable.Range(0, predictionsCpuTensor.Shape[1]).Select(x => x.ToString()).ToArray();
         }
         var predictionsDf = DataFrame.New(predictionsCpuTensor, predictionLabels);
-        if (addIdColumnsAtLeft && dataset.IdColumns.Length != 0)
-        {
-            predictionsDf = DataFrame.MergeHorizontally(dataset.ExtractIdDataFrame(), predictionsDf);
-        }
+        predictionsDf = dataset.AddIdColumnsAtLeftIfNeeded(predictionsDf);
         if (predictionsDf.Shape[0] != dataset.Count)
         {
             throw new Exception($"Invalid number of predictions, received {predictionsDf.Shape[0]} but expected {dataset.Count}");
@@ -133,13 +132,14 @@ public abstract class AbstractModel : IModel
         Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny);
     public abstract DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd);
     public abstract void Save(string workingDirectory, string modelName);
-    public abstract string DeviceName();
-    public abstract int TotalParams();
+    public virtual string DeviceName() => "";
+    public virtual int TotalParams() => -1;
     public abstract List<string> ModelFiles();
 
-    public abstract int GetNumEpochs();
-    public abstract double GetLearningRate();
-    public abstract void Use_All_Available_Cores();
+    public virtual int GetNumEpochs() => -1;
+    public virtual double GetLearningRate() => double.NaN;
+
+    public virtual void Use_All_Available_Cores() { }
     
     protected static void LogDebug(string message) { IModel.Log.Debug(message); }
     protected static void LogInfo(string message) { IModel.Log.Info(message); }

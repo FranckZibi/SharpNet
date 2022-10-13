@@ -26,7 +26,7 @@ public class TesDatasetEncoder
     [Test]
     public void TestEncodingDecoding()
     {
-        var testDatasetSample = new TestDatasetSample(new List<string> { "cat2" }, new List<string> { "id" }, new List<string> { "y" });
+        var testDatasetSample = new TestDatasetSample(new [] { "cat2" }, new[] { "id" }, new [] { "y" });
         var encoder = new DatasetEncoder(testDatasetSample);
 
         var rows = SimpleTestDataset();
@@ -39,21 +39,17 @@ public class TesDatasetEncoder
 
     public class TestDatasetSample : AbstractDatasetSample
     {
-        private readonly List<string> _categoricalFeatures;
-        private readonly List<string> _idColumns;
-        private readonly List<string> _targetLabels;
-
-        public TestDatasetSample(List<string> categoricalFeatures, List<string> idColumns, List<string> targetLabels) : base(new HashSet<string>())
+        public TestDatasetSample(string[] categoricalFeatures, string[] idColumns, string[] targetLabels) : base(new HashSet<string>())
         {
-            _categoricalFeatures = categoricalFeatures;
-            _idColumns = idColumns;
-            _targetLabels = targetLabels;
+            CategoricalFeatures = categoricalFeatures;
+            IdColumns = idColumns;
+            TargetLabels = targetLabels;
         }
 
         public override Objective_enum GetObjective() => Objective_enum.Regression;
-        public override List<string> CategoricalFeatures() => _categoricalFeatures;
-        public override List<string> IdColumns() => _idColumns;
-        public override List<string> TargetLabels() => _targetLabels;
+        public override string[] CategoricalFeatures { get; }
+        public override string[] IdColumns { get; }
+        public override string[] TargetLabels { get; }
         public override IDataSet TestDataset() { throw new NotImplementedException(); }
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation() { throw new NotImplementedException(); }
         public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns) { throw new NotImplementedException(); }

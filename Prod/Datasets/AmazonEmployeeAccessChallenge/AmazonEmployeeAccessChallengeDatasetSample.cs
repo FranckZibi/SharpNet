@@ -28,8 +28,8 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
             "AmazonEmployeeAccessChallenge",
             GetObjective(),
             null,
-            featureNames: x_dataframe.ColumnNames,
-            categoricalFeatures: CategoricalFeatures().ToArray(),
+            columnNames: x_dataframe.ColumnNames,
+            categoricalFeatures: CategoricalFeatures,
             useBackgroundThreadToLoadNextMiniBatch: false);
 
         _testDataset = new InMemoryDataSet(DataFrame.LoadFloatDataFrame(GetXTestDatasetPath(), true).Drop(new[] { "id" }).Tensor,
@@ -37,8 +37,8 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
             nameof(AmazonEmployeeAccessChallengeDatasetSample),
             GetObjective(),
             null,
-            featureNames: x_dataframe.ColumnNames,
-            categoricalFeatures: CategoricalFeatures().ToArray(),
+            columnNames: x_dataframe.ColumnNames,
+            categoricalFeatures: CategoricalFeatures,
             useBackgroundThreadToLoadNextMiniBatch: false);
 
     }
@@ -62,20 +62,9 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
 
     public override Objective_enum GetObjective() => Objective_enum.Classification;
 
-    public override List<string> CategoricalFeatures()
-    {
-        return new List<string> { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
-    }
-
-    public override List<string> IdColumns()
-    {
-        return new List<string> { "id" };
-    }
-
-    public override List<string> TargetLabels()
-    {
-        return new List<string> { "ACTION" };
-    }
+    public override string[] CategoricalFeatures => new [] { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
+    public override string[] IdColumns => new [] { "id" };
+    public override string[] TargetLabels => new [] { "ACTION" };
 
     public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {

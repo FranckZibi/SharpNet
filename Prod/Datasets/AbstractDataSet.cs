@@ -48,7 +48,7 @@ namespace SharpNet.Datasets
         #region public properties
 
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
-        [NotNull] public string[] FeatureNames { get; }
+        [NotNull] public string[] ColumnNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
         [NotNull] public string[] IdColumns { get; }
         [NotNull] public string[] TargetLabels { get; }
@@ -63,7 +63,7 @@ namespace SharpNet.Datasets
             int channels,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
-            [NotNull] string[] featureNames,
+            [NotNull] string[] columnNames,
             [NotNull] string[] categoricalFeatures,
             [NotNull] string[] idColumns,
             [NotNull] string[] targetLabels,
@@ -82,7 +82,7 @@ namespace SharpNet.Datasets
             {
                 _rands[i] = new Random(i);
             }
-            FeatureNames = featureNames;
+            ColumnNames = columnNames;
             CategoricalFeatures = categoricalFeatures;
             IdColumns = idColumns;
             TargetLabels = targetLabels;
@@ -282,18 +282,27 @@ namespace SharpNet.Datasets
 
 
         public abstract int Count { get; }
-        public DataFrame Y_InTargetFormat()
+        public virtual DataFrame AddIdColumnsAtLeftIfNeeded(DataFrame df)
         {
-            if (Y == null)
-            {
-                return null;
-            }
-            var y_true_InTargetFormat = DataFrame.New(Y, TargetLabels);
             if (IdColumns.Length == 0)
             {
-                return y_true_InTargetFormat;
+                return df;
             }
-            return DataFrame.MergeHorizontally(ExtractIdDataFrame(), y_true_InTargetFormat);
+            var intersection = Utils.Intersect(df.ColumnNames, IdColumns);
+            if (intersection.Count == 0)
+            {
+                return DataFrame.MergeHorizontally(ExtractIdDataFrame(), df);
+            }
+
+            if (intersection.Count == IdColumns.Length)
+            {
+                // all Id Columns are already in the DataFrame, nothing to do
+                return df;
+            }
+            //some Id Columns are in the DataFrame and some other are not
+            var errorMsg = $"found only a part {string.Join(' ', intersection)} of Id Columns ({string.Join(' ', IdColumns)})";
+            Log.Error(errorMsg);
+            throw new Exception(errorMsg);
         }
 
         public string Name { get; }
@@ -312,13 +321,14 @@ namespace SharpNet.Datasets
         {
             if (IdColumns.Length == 0)
             {
-                throw new ArgumentException($"can't extract id columns because the DataFrame doesn't contain any");
+                // can't extract id columns because the DataFrame doesn't contain any
+                return null;
             }
-            var columnIndexesOfIds = IdColumns.Select(id => Array.IndexOf(FeatureNames, id)).ToList();
+            var columnIndexesOfIds = IdColumns.Select(id => Array.IndexOf(ColumnNames, id)).ToList();
             columnIndexesOfIds.Sort();
 
             var content = new float[Count * IdColumns.Length];
-            int cols = FeatureNames.Length;
+            int cols = ColumnNames.Length;
             using CpuTensor<float> singleRow = new(new[] { 1, cols });
             var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
             int nextIdx = 0;
@@ -485,13 +495,34 @@ namespace SharpNet.Datasets
         }
         public abstract CpuTensor<float> Y { get; }
 
-        public CpuTensor<float> Y_InModelFormat(int numClasses)
+        public DataFrame Y_InModelFormat(int numClasses, bool includeIdColumns)
         {
             if (Y == null)
             {
                 return null;
             }
-            return IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
+            var y_true_tensor = IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
+            var y_true = DataFrame.New(y_true_tensor, TargetLabels_InModelFormat(numClasses));
+            return includeIdColumns ? AddIdColumnsAtLeftIfNeeded(y_true) : y_true;
+        }
+
+        private string[] TargetLabels_InModelFormat(int numClasses)
+        {
+            if (IsRegressionProblem || TargetLabels.Length == numClasses)
+            {
+                return TargetLabels;
+            }
+            return Enumerable.Range(0, numClasses).Select(x => x.ToString()).ToArray();
+        }
+
+        public DataFrame Y_InTargetFormat(bool includeIdColumns)
+        {
+            if (Y == null)
+            {
+                return null;
+            }
+            var y_true = DataFrame.New(Y, TargetLabels);
+            return includeIdColumns ? AddIdColumnsAtLeftIfNeeded(y_true) : y_true;
         }
 
 
@@ -647,14 +678,14 @@ namespace SharpNet.Datasets
             List<int> validIdxColumns;
             if (includeIdColumns)
             {
-                validIdxColumns = Enumerable.Range(0, FeatureNames.Length).ToList();
+                validIdxColumns = Enumerable.Range(0, ColumnNames.Length).ToList();
             }
             else
             {
                 validIdxColumns = new List<int>();
-                for (var index = 0; index < FeatureNames.Length; index++)
+                for (var index = 0; index < ColumnNames.Length; index++)
                 {
-                    if (Array.IndexOf(IdColumns, FeatureNames[index]) == -1)
+                    if (Array.IndexOf(IdColumns, ColumnNames[index]) == -1)
                     {
                         validIdxColumns.Add(index);
                     }
@@ -662,9 +693,9 @@ namespace SharpNet.Datasets
             }
 
             //we construct the header
-            sb.Append(string.Join(separator, validIdxColumns.Select(idx => FeatureNames[idx])) + Environment.NewLine);
+            sb.Append(string.Join(separator, validIdxColumns.Select(idx => ColumnNames[idx])) + Environment.NewLine);
 
-            using CpuTensor<float> singleRow = new(new[] { 1, FeatureNames.Length});
+            using CpuTensor<float> singleRow = new(new[] { 1, ColumnNames.Length});
             var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
             for (int row = 0; row < Count; ++row)
             {
@@ -745,7 +776,7 @@ namespace SharpNet.Datasets
                 return "";
             }
             int rows = dataset.Count;
-            int cols = dataset.FeatureNames.Length;
+            int cols = dataset.ColumnNames.Length;
             var desc = rows + "_" + cols;
             using CpuTensor<float> xBuffer = new(new[] { 1, cols });
             var xDataSpan = xBuffer.AsReadonlyFloatCpuContent;

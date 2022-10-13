@@ -50,38 +50,8 @@ public class WeightedModel: AbstractModel
         ModelSample.Save(workingDirectory, modelName);
     }
 
-    public override int GetNumEpochs()
-    {
-        return _embeddedModels[0].GetNumEpochs();
-    }
 
-    public override string DeviceName()
-    {
-        return _embeddedModels[0].DeviceName();
-    }
-    public override double GetLearningRate()
-    {
-        return _embeddedModels[0].GetLearningRate();
-    }
-    public override void Use_All_Available_Cores()
-    {
-        _embeddedModels.ForEach(m => m.Use_All_Available_Cores());
-    }
-
-    public override int TotalParams()
-    {
-        return -1; //TODO
-    }
-
-    public override List<string> ModelFiles()
-    {
-        List<string> res = new();
-        foreach (var m in _embeddedModels)
-        {
-            res.AddRange(m.ModelFiles());
-        }
-        return res;
-    }
+    public override List<string> ModelFiles() => new();
 
     private WeightedModelSample WeightedModelSample => (WeightedModelSample)ModelSample;
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using SharpNet.CPU;
@@ -46,10 +47,6 @@ namespace SharpNet.Datasets
         public abstract DataFrame Keep(IList<string> columnsToKeep);
         public abstract (DataFrame first, DataFrame second) Split(IList<string> columnsForSecondDataFrame);
 
-        public static bool SameShape(IList<DataFrame> tensors)
-        {
-            return tensors.All(t => t.Shape.SequenceEqual(tensors[0].Shape));
-        }
         public abstract void to_csv(string path, string sep = ",", bool addHeader = false, int? index = null);
 
         public List<int> ColumnNamesToIndexes(IEnumerable<string> columnNames)
@@ -80,9 +77,33 @@ namespace SharpNet.Datasets
 
         public static DataFrame MergeHorizontally(DataFrame left, DataFrame right)
         {
+            if (left == null)
+            {
+                return right;
+            }
+            if (right == null)
+            {
+                return left;
+            }
             var mergedTensor = CpuTensor<float>.MergeHorizontally(left.FloatCpuTensor(), right.FloatCpuTensor());
             var mergedColumnNames = Utils.Join(left.ColumnNames, right.ColumnNames);
             return New(mergedTensor, mergedColumnNames);
         }
+
+        public static DataFrame MergeVertically(DataFrame top, DataFrame bottom)
+        {
+            if (top == null)
+            {
+                return bottom;
+            }
+            if (bottom == null)
+            {
+                return top;
+            }
+            Debug.Assert(top.ColumnNames.SequenceEqual(bottom.ColumnNames));
+            var mergedTensor = CpuTensor<float>.MergeVertically(top.FloatCpuTensor(), bottom.FloatCpuTensor());
+            return New(mergedTensor, top.ColumnNames);
+        }
+
     }
 }

@@ -13,7 +13,6 @@ public class WeightedModelSample : AbstractSample, IModelSample
 {
     #region private fields
     private readonly List<Tuple<string, string>> _workingDirectoryAndModelNames = new();
-    private IModelSample _firstEmbeddedModelSample;
     private int FixErrors_calls = 0;
     #endregion
 
@@ -21,17 +20,11 @@ public class WeightedModelSample : AbstractSample, IModelSample
     public WeightedModelSample() : base(new HashSet<string>())
     {
     }
-    public WeightedModelSample(string workingDirectoryAndModelNames) : base(new HashSet<string>())
+    public WeightedModelSample(List<Tuple<string,string>> workingDirectoryAndModelNames) : base(new HashSet<string>())
     {
-        WorkingDirectoryAndModelNames = workingDirectoryAndModelNames;
-        _workingDirectoryAndModelNames = Split(workingDirectoryAndModelNames);
-        _firstEmbeddedModelSample = GetFirstEmbeddedModelSample();
+        _workingDirectoryAndModelNames = workingDirectoryAndModelNames;
+        WorkingDirectoryAndModelNames = string.Join(";", workingDirectoryAndModelNames.Select(t => t.Item1 + ";" + t.Item2));
         SetZeroWeights();
-    }
-    public WeightedModelSample(List<Tuple<string,string>> workingDirectoryAndModelNames) 
-        : this(string.Join(";",workingDirectoryAndModelNames.Select(t=>t.Item1+";"+t.Item2)))
-    {
-
     }
     #endregion
 
@@ -126,7 +119,7 @@ public class WeightedModelSample : AbstractSample, IModelSample
     }
     public EvaluationMetricEnum GetLoss()
     {
-        return GetFirstEmbeddedModelSample().GetLoss();
+        throw new NotImplementedException();
     }
     private float[] GetWeights()
     {
@@ -172,29 +165,5 @@ public class WeightedModelSample : AbstractSample, IModelSample
         {
             weights[i] *= 1.0f / sum;
         }
-    }
-    private static List<Tuple<string, string>> Split(string workingDirectoryAndModelNames)
-    {
-        List<Tuple<string, string>> result = new();
-        var splitted = workingDirectoryAndModelNames.Split(';').ToList();
-        if (splitted.Count % 2 != 0)
-        {
-            throw new ArgumentException($" invalid number of elements in {workingDirectoryAndModelNames}: must be even");
-        }
-        for (int i = 0; i < splitted.Count; i += 2)
-        {
-            result.Add(Tuple.Create(splitted[i], splitted[i + 1]));
-        }
-
-        return result;
-    }
-
-    private IModelSample GetFirstEmbeddedModelSample()
-    {
-        if (_firstEmbeddedModelSample == null)
-        {
-            _firstEmbeddedModelSample = IModelSample.LoadModelSample(_workingDirectoryAndModelNames[0].Item1, _workingDirectoryAndModelNames[1].Item2);
-        }
-        return _firstEmbeddedModelSample;
     }
 }

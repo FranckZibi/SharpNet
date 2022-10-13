@@ -72,8 +72,8 @@ namespace SharpNet.HyperParameters
 
             if (ModelSample is LightGBMSample lightGbmSample)
             {
-                var categoricalFeatures = DatasetSample.CategoricalFeatures();
-                var categoricalFeaturesFieldValue = (categoricalFeatures.Count >= 1)
+                var categoricalFeatures = DatasetSample.CategoricalFeatures;
+                var categoricalFeaturesFieldValue = (categoricalFeatures.Length >= 1)
                     ? ("name:" + string.Join(',', categoricalFeatures))
                     : "";
                 lightGbmSample.categorical_feature = categoricalFeaturesFieldValue;

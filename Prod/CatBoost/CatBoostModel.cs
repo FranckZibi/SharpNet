@@ -152,7 +152,7 @@ namespace SharpNet.CatBoost
             }
 
             Utils.Launch(WorkingDirectory, ExePath, arguments, IModel.Log);
-            var predictionsDf = LoadProbaFile(predictionResultPath, true, true, dataset, addIdColumnsAtLeft);
+            var predictionsDf = LoadProbaFile(predictionResultPath, true, true, null, dataset, addIdColumnsAtLeft);
             Utils.TryDelete(configFilePath);
             Utils.TryDelete(predictionResultPath);
             if (removeAllTemporaryFilesAtEnd)
@@ -211,17 +211,14 @@ namespace SharpNet.CatBoost
             {
                 foreach(var _ in dataset.TargetLabels)
                 {
-                    //this feature is the target
-                    sb.Append($"{nextColumnIdx++}\tLabel" + Environment.NewLine);
+                    sb.Append($"{nextColumnIdx++}\tLabel" + Environment.NewLine); //this column is the target
                 }
             }
-            for (int featureId = 0; featureId < dataset.FeatureNames.Length; ++featureId)
+            foreach (var columnName in dataset.ColumnNames)
             {
-                var featureName = dataset.FeatureNames[featureId];
-                if (categoricalColumns.Contains(featureName))
+                if (categoricalColumns.Contains(columnName))
                 {
-                    //this feature is a categorical feature
-                    sb.Append($"{nextColumnIdx}\tCateg"+Environment.NewLine);
+                    sb.Append($"{nextColumnIdx}\tCateg"+Environment.NewLine); //this column is a categorical feature
                 }
                 ++nextColumnIdx;
             }

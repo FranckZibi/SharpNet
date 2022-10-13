@@ -38,6 +38,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
                 _fullTrainDatasetEncoded = _trainTestEncoder.NumericalEncoding(XYTrainRawFile);
                 _fullTestDatasetEncoded = _trainTestEncoder.NumericalEncoding(XTestRawFile, null);
             }
+            WasYouStayWorthItsPriceDatasetSample_NumClasses = _trainTestEncoder.NumClasses();
         }
 
         //_fullTrainDatasetEncoded.to_csv(@"C:\Projects\Challenges\WasYouStayWorthItsPrice\yx_train.csv", GetSeparator(), true, true);
@@ -48,7 +49,29 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         //_xTrainEncoded.T
     }
 
-    private int NumClasses() => _trainTestEncoder.NumClasses();
+    #region Hyper-Parameters
+    // ReSharper disable once UnusedMember.Global
+    // ReSharper disable once MemberCanBePrivate.Global
+    // ReSharper disable once FieldCanBeMadeReadOnly.Global
+    public int WasYouStayWorthItsPriceDatasetSample_NumClasses;
+    #endregion
+
+
+    public static void WeightOptimizer()
+    {
+        var submissionWorkingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission";
+        List<Tuple<string, string>> workingDirectoryAndModelNames = new();
+        workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "CB3E039726_KFOLD"));
+        workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "3C3987FE91_KFOLD"));
+        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "C3CC5F05C4")); //LightGBM : 0.31969
+        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "2674967CC5")); //LightGBM : 0.31899
+        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "35F41F899E")); //LightGBM : 0.31847
+        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "3ABC690E85")); //CatBoost : 0.31139
+        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "94D0AA30CA")); //CatBoost : 0.309
+        string searchWorkingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission\search";
+        WeightsOptimizer.SearchForBestWeights(workingDirectoryAndModelNames, searchWorkingDirectory, null);
+    }
+
     public static void LaunchCatBoostHPO()
     {
         // ReSharper disable once ConvertToConstant.Local
@@ -84,18 +107,15 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     public static void LaunchLightGBMHPO()
     {
         // ReSharper disable once ConvertToConstant.Local
-        var min_num_iterations = 50;
-        var numClasses = new WasYouStayWorthItsPriceDatasetSample().NumClasses();
+        var min_num_iterations = 200;
+        var numClasses = new WasYouStayWorthItsPriceDatasetSample().WasYouStayWorthItsPriceDatasetSample_NumClasses;
 
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-            //{"KFold", new[]{1,3,5}},
-            {"KFold", new[]{3}},
-
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-            //{"KFold", 1},
+            //{"KFold", new[]{1,3}},
+            {"KFold", new[]{1}},
 
             //{"FromProbaDistributionToPredictedCategory_Method", new[]{0, 1, 2}},
             
@@ -141,7 +161,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar), 100);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
     }
 
     public override Objective_enum GetObjective() => Objective_enum.Classification;
@@ -156,22 +176,9 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         return EvaluationMetricEnum.F1Micro;
     }
 
-
-
-    public override List<string> CategoricalFeatures()
-    {
-        return new List<string> { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
-    }
-
-    public override List<string> IdColumns()
-    {
-        return new List<string> { "id" };
-    }
-
-    public override List<string> TargetLabels()
-    {
-        return new List<string> { "max_rating_class" }; ;
-    }
+    public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
+    public override string[] IdColumns => new [] { "id" };
+    public override string[] TargetLabels => new[] { "max_rating_class" };
 
     public override IDataSet TestDataset()
     {
@@ -188,10 +195,10 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
     public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
     {
-        Debug.Assert(TargetLabels().Count == 1);
-        var (predictionsInModelFormat_without_Ids, idDataFrame) = predictionsInModelFormat_with_IdColumns.Split(IdColumns());
+        Debug.Assert(TargetLabels.Length == 1);
+        var (predictionsInModelFormat_without_Ids, idDataFrame) = predictionsInModelFormat_with_IdColumns.Split(IdColumns);
         var cpuTensor = FromProbaDistributionToPredictedCategory(predictionsInModelFormat_without_Ids.FloatCpuTensor());
-        var probaDataFrame_InTargetFormat = DataFrame.New(cpuTensor, TargetLabels());
+        var probaDataFrame_InTargetFormat = DataFrame.New(cpuTensor, TargetLabels);
         var predictionsInTargetFormat_encoded = DataFrame.MergeHorizontally(idDataFrame, probaDataFrame_InTargetFormat);
         return predictionsInTargetFormat_encoded;
     }
@@ -215,13 +222,13 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             return CpuTensor<float>.ArgMax(predictionsInModelFormat_without_Ids);
         }
 
-        var count = _trainTestEncoder.GetDistinctCategoricalCount(TargetLabels()[0]);
-        Debug.Assert(count.Count == columns);
-        float sumCount = count.Sum();
+        var countByTargetLabel = _trainTestEncoder.GetDistinctCategoricalCount(TargetLabels[0]);
+        Debug.Assert(countByTargetLabel.Count == columns);
+        float sumCount = countByTargetLabel.Sum();
         List<Tuple<int, float>> percentageInEachClass = new();
-        for (var index = 0; index < count.Count; index++)
+        for (var index = 0; index < countByTargetLabel.Count; index++)
         {
-            percentageInEachClass.Add(Tuple.Create(index, count[index]/sumCount));
+            percentageInEachClass.Add(Tuple.Create(index, countByTargetLabel[index]/sumCount));
         }
 
         float[] content = Enumerable.Repeat(float.NaN, rows).ToArray();
@@ -280,9 +287,9 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         return new CpuTensor<float>(new int[]{rows, 1}, content);
     }
 
-    public override void SavePredictionsInTargetFormat(DataFrame predictionsInTargetFormat, string path)
+    public override void SavePredictionsInTargetFormat(DataFrame encodedPredictionsInTargetFormat, string path)
     {
-        var csvContent = _trainTestEncoder.NumericalDecoding(predictionsInTargetFormat, GetSeparator(), "");
+        var csvContent = _trainTestEncoder.NumericalDecoding(encodedPredictionsInTargetFormat, GetSeparator(), "");
         File.WriteAllText(path, csvContent);
     }
 

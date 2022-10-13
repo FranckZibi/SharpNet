@@ -36,7 +36,7 @@ public static class SampleUtils
             IModel.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;
             using var trainAndValidation = modelAndDataset.ModelAndDatasetPredictionsSample.DatasetSample.SplitIntoTrainingAndValidation();
-            var res = modelAndDataset.ComputeAndSaveTrainValidAndTestPredictions(trainAndValidation);
+            var res = modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
             trainRankingScore = res.trainRankingScore;
             modelAndDataset.Save(workingDirectory, model.ModelName);
             var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);

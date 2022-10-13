@@ -21,14 +21,31 @@ public class KFoldModel : AbstractModel
     #region constructors
     public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
     {
-        var embeddedModelSample = modelSample.GetEmbeddedModelSample();
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
         {
-            _embeddedModels.Add(IModel.NewModel((IModelSample)embeddedModelSample.Clone(), kfoldWorkingDirectory, EmbeddedModelName(kfoldModelName, i)));
+            IModel embeddedModel;
+            try
+            {
+                embeddedModel = GetEmbeddedModel(KFoldSample.EmbeddedModelWorkingDirectory, i);
+            }
+            catch
+            {
+                //The initial directory of the embedded model may have been changed, we check in tje KFold Model directory
+                embeddedModel = GetEmbeddedModel(WorkingDirectory, i);
+            }
+            _embeddedModels.Add(embeddedModel);
         }
-        Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
     }
+
+
+    private IModel GetEmbeddedModel(string embeddedModelWorkingDirectory, int embeddedModelIndex)
+    {
+        var embeddedModelName = EmbeddedModelName(ModelName, embeddedModelIndex);
+        var embeddedModelSample = IModelSample.LoadModelSample(embeddedModelWorkingDirectory, embeddedModelName);
+        return IModel.NewModel(embeddedModelSample, WorkingDirectory, embeddedModelName);
+    }
+
     #endregion
 
     //public static void TrainEmbeddedModelWithKFold(string kfoldModelWorkingDirectory, string embeddedModelAndDatasetPredictionsWorkingDirectory, string embeddedModelAndDatasetPredictionsName, int n_splits)
@@ -73,8 +90,8 @@ public class KFoldModel : AbstractModel
             var trainAndValidation = foldedTrainAndValidationDataset[fold];
             embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
             var validationDataset = trainAndValidation.Test;
-            var foldValidationPrediction = embeddedModel.Predict(validationDataset, false, false);
-            var foldValidationLoss = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat(foldValidationPrediction.Shape[1]), foldValidationPrediction.FloatCpuTensor());
+            var fold_y_pred = embeddedModel.Predict(validationDataset, false, false);
+            var foldValidationLoss = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat(fold_y_pred.Shape[1], false).FloatCpuTensor(), fold_y_pred.FloatCpuTensor());
             LogDebug($"Validation Loss for fold[{fold}/{n_splits}] : {foldValidationLoss}");
         }
         return (null, null, train_XYDatasetPath, null, null, train_XYDatasetPath);
@@ -95,7 +112,7 @@ public class KFoldModel : AbstractModel
             var trainAndValidation = foldedTrainAndValidationDataset[fold];
             var train_predictionsInModelFormat_with_IdColumns = embeddedModel.Predict(trainAndValidation.Training, true, false);
             var y_pred_train_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(train_predictionsInModelFormat_with_IdColumns);
-            var y_true_train_InTargetFormat = trainAndValidation.Training.Y_InTargetFormat();
+            var y_true_train_InTargetFormat = trainAndValidation.Training.Y_InTargetFormat(true);
             if (y_true_train_InTargetFormat != null)
             {
                 var foldTrainingScore = datasetSample.ComputeRankingEvaluationMetric(y_true_train_InTargetFormat, y_pred_train_InTargetFormat);
@@ -105,7 +122,7 @@ public class KFoldModel : AbstractModel
 
             var validation_predictionsInModelFormat_with_IdColumns = embeddedModel.Predict(trainAndValidation.Test, true, false);
             var y_pred_valid_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(validation_predictionsInModelFormat_with_IdColumns);
-            var y_true_valid_InTargetFormat = trainAndValidation.Test.Y_InTargetFormat();
+            var y_true_valid_InTargetFormat = trainAndValidation.Test.Y_InTargetFormat(true);
             if (y_true_valid_InTargetFormat != null)
             {
                 var foldValidationScore = datasetSample.ComputeRankingEvaluationMetric(y_true_valid_InTargetFormat, y_pred_valid_InTargetFormat);
@@ -123,11 +140,11 @@ public class KFoldModel : AbstractModel
         Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
         //each model weight
         var weight = 1.0f / KFoldSample.n_splits;
-        var featuresNames = new List<string>();
+        var columnNames = new List<string>();
         foreach (var m in _embeddedModels)
         {
             var modelPrediction = m.Predict(dataset, false, removeAllTemporaryFilesAtEnd);
-            featuresNames = modelPrediction.ColumnNames.ToList();
+            columnNames = modelPrediction.ColumnNames.ToList();
             if (res == null)
             {
                 res = modelPrediction.FloatCpuTensor();
@@ -138,10 +155,10 @@ public class KFoldModel : AbstractModel
                 res.AddTensor(weight, modelPrediction.FloatCpuTensor(), 1.0f);
             }
         }
-        var df = DataFrame.New(res, featuresNames);
-        if (addIdColumnsAtLeft && dataset.IdColumns.Length != 0)
+        var df = DataFrame.New(res, columnNames);
+        if (addIdColumnsAtLeft)
         {
-            df = DataFrame.MergeHorizontally(dataset.ExtractIdDataFrame(), df);
+            df = dataset.AddIdColumnsAtLeftIfNeeded(df);
         }
         return df;
     }
@@ -219,8 +236,9 @@ public class KFoldModel : AbstractModel
         }
         return res;
     }
-    private static string EmbeddedModelName(string modelName, int index)
+
+    private static string EmbeddedModelName(string kfoldModelName, int index)
     {
-        return modelName + "_kfold_" + index;
+        return kfoldModelName + "_kfold_" + index;
     }
 }

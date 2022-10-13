@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using JetBrains.Annotations;
 using log4net;
@@ -15,37 +16,31 @@ namespace SharpNet.Datasets;
 /// </summary>
 public class DatasetEncoder
 {
+    #region Private Fields
     private readonly AbstractDatasetSample _datasetSample;
-
     /// <summary>
     /// list of all categorical features in the dataset
     /// </summary>
-    private List<string> CategoricalFeatures => _datasetSample.CategoricalFeatures();
+    private string[] CategoricalFeatures => _datasetSample.CategoricalFeatures;
     /// <summary>
     /// name of the target features (to predict)
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private List<string> Targets => _datasetSample.TargetLabels();
+    [NotNull] private string[] Targets => _datasetSample.TargetLabels;
     /// <summary>
     /// the list of features that will be used to uniquely identify a row
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private List<string> IdColumns => _datasetSample.IdColumns();
+    [NotNull] private string[] IdColumns => _datasetSample.IdColumns;
     [NotNull] private readonly Dictionary<string, FeatureStats> _featureStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
+    #endregion
 
     public DatasetEncoder(AbstractDatasetSample datasetSample)
     {
         _datasetSample = datasetSample;
     }
-
-    public FeatureStats this[string featureName]
-    {
-        get
-        {
-            return _featureStats[featureName];
-        }
-    }
+    public FeatureStats this[string featureName] => _featureStats[featureName];
 
     /// <summary>
     /// load the dataset 'xyDataset' and encode all categorical features into numerical values
@@ -71,14 +66,12 @@ public class DatasetEncoder
             _datasetSample.GetObjective(),
             null,
             xTrainEncoded.ColumnNames,
-            CategoricalFeatures.ToArray(),
-            IdColumns.ToArray(),
-            Targets.ToArray(),
+            CategoricalFeatures,
+            IdColumns,
+            Targets,
             false,
             _datasetSample.GetSeparator());
     }
-
-    
     /// <summary>
     /// load the dataset 'xDataset' and encode all categorical features into numerical values
     /// (so that it can be processed by LightGBM)
@@ -104,13 +97,12 @@ public class DatasetEncoder
             _datasetSample.GetObjective(),
             null,
             xEncoding.ColumnNames,
-            CategoricalFeatures.ToArray(),
-            IdColumns.ToArray(),
-            Targets.ToArray(),
+            CategoricalFeatures,
+            IdColumns,
+            Targets,
             false,
             _datasetSample.GetSeparator());
     }
-
     /// <summary>
     /// for classification problems, the number of distinct class to identify
     /// 1 if it is a regression problem
@@ -122,11 +114,11 @@ public class DatasetEncoder
         {
             return 1;
         }
-        if (_datasetSample.TargetLabels().Count != 1)
+        if (_datasetSample.TargetLabels.Length != 1)
         {
-            throw new NotImplementedException($"invalid number of target labels {_datasetSample.TargetLabels().Count}, only 1 is supported");
+            throw new NotImplementedException($"invalid number of target labels {_datasetSample.TargetLabels.Length}, only 1 is supported");
         }
-        var targetLabel = _datasetSample.TargetLabels()[0];
+        var targetLabel = _datasetSample.TargetLabels[0];
         var allValues = GetDistinctCategoricalValues(targetLabel);
         if (allValues == null || allValues.Count == 0)
         {
@@ -134,25 +126,6 @@ public class DatasetEncoder
         }
         return allValues.Count;
     }
-
-    /// <summary>
-    /// return the distinct values of a 'categorical feature' or of a 'categorical target label '
-    /// </summary>
-    /// <param name="categoricalColumn"></param>
-    /// <returns></returns>
-    public IList<string> GetDistinctCategoricalValues(string categoricalColumn)
-    {
-        if (!IsCategoricalColumn(categoricalColumn))
-        {
-            throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
-        }
-        if (!_featureStats.ContainsKey(categoricalColumn))
-        {
-            return null;
-        }
-        return _featureStats[categoricalColumn].GetDistinctCategoricalValues();
-    }
-
     public IList<int> GetDistinctCategoricalCount(string categoricalColumn)
     {
         if (!IsCategoricalColumn(categoricalColumn))
@@ -164,21 +137,6 @@ public class DatasetEncoder
             return null;
         }
         return _featureStats[categoricalColumn].GetDistinctCategoricalCount();
-    }
-
-    private bool IsCategoricalColumn(string columnName)
-    {
-        if (CategoricalFeatures.Contains(columnName)||IdColumns.Contains(columnName))
-        {
-            return true;
-        }
-
-        if (_datasetSample.IsClassificationProblem && Targets.Contains(columnName))
-        {
-            return true;
-        }
-
-        return false;
     }
     public DataFrameT<float> NumericalEncoding(IReadOnlyList<string[]> rows)
     {
@@ -268,5 +226,37 @@ public class DatasetEncoder
             }
         }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// return the distinct values of a 'categorical feature' or of a 'categorical target label '
+    /// </summary>
+    /// <param name="categoricalColumn"></param>
+    /// <returns></returns>
+    private IList<string> GetDistinctCategoricalValues(string categoricalColumn)
+    {
+        if (!IsCategoricalColumn(categoricalColumn))
+        {
+            throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
+        }
+        if (!_featureStats.ContainsKey(categoricalColumn))
+        {
+            return null;
+        }
+        return _featureStats[categoricalColumn].GetDistinctCategoricalValues();
+    }
+    private bool IsCategoricalColumn(string columnName)
+    {
+        if (CategoricalFeatures.Contains(columnName) || IdColumns.Contains(columnName))
+        {
+            return true;
+        }
+
+        if (_datasetSample.IsClassificationProblem && Targets.Contains(columnName))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -70,6 +70,9 @@ namespace SharpNet.Datasets
         string ElementIdToDescription(int elementId);
         string ElementIdToPathIfAny(int elementId);
 
+
+        DataFrame AddIdColumnsAtLeftIfNeeded(DataFrame df);
+
         bool IsRegressionProblem {get;}
         
         /// <summary>
@@ -87,7 +90,12 @@ namespace SharpNet.Datasets
         /// <returns>the path (directory+filename) where the dataset has been saved</returns>
         string to_csv_in_directory([NotNull] string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists);
 
-        string[] FeatureNames { get; }
+
+        /// <summary>
+        /// all column names in the Training DataSet, including Id Columns (if any) and  all Features Columns
+        /// this will never include the target
+        /// </summary>
+        string[] ColumnNames { get; }
 
         string[] CategoricalFeatures { get; }
         string[] IdColumns { get; }
@@ -115,8 +123,8 @@ namespace SharpNet.Datasets
         List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
         [CanBeNull] CpuTensor<float> Y { get; }
-        CpuTensor<float> Y_InModelFormat(int numClasses);
-        DataFrame Y_InTargetFormat();
+        public DataFrame Y_InModelFormat(int numClasses, bool includeIdColumns);
+        DataFrame Y_InTargetFormat(bool includeIdColumns);
 
         string Name { get; }
 
@@ -145,6 +153,5 @@ namespace SharpNet.Datasets
         /// </summary>
         bool ShouldCreateSnapshotForEpoch(int epoch, Network network);
         void Save(IModel network, string workingDirectory, string modelName);
-        DataFrame ExtractIdDataFrame();
     }
 }

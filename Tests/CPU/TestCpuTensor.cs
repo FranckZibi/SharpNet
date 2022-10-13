@@ -193,6 +193,25 @@ namespace SharpNetTests.CPU
         }
 
         [Test]
+        public void TestInsertAtRowIndex()
+        {
+            var source = new CpuTensor<float>(new[] { 2, 3 }, new float[] { 1, 2, 3, 4, 5, 6 });
+            var toAdd = new CpuTensor<float>(new[] { 2, 3 }, new float[] { 100, 200, 300, 400, 500, 600 });
+
+            var result = CpuTensor<float>.InsertAtRowIndex(source, toAdd, 0);
+            var expectedResult = new CpuTensor<float>(new[] { 4, 3 }, new float[] { 100, 200, 300, 400, 500, 600, 1, 2, 3, 4, 5, 6 });
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+
+            result = CpuTensor<float>.InsertAtRowIndex(source, toAdd, 1);
+            expectedResult = new CpuTensor<float>(new[] { 4, 3 }, new float[] { 1, 2, 3, 100, 200, 300, 400, 500, 600, 4, 5, 6 });
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+
+            result = CpuTensor<float>.InsertAtRowIndex(source, toAdd, 2);
+            expectedResult = new CpuTensor<float>(new[] { 4, 3 }, new float[] { 1, 2, 3, 4, 5, 6, 100, 200, 300, 400, 500, 600 });
+            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+        }
+
+        [Test]
         public void TestLoadColumnsFromSource()
         {
             var toUpdate = new CpuTensor<float>(new[] { 2, 4 }, new float[] { 1, 2, 3, 4, 5, 6, 7, 8 });

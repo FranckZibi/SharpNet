@@ -30,23 +30,11 @@ public class QRT72DatasetSample : AbstractDatasetSample
     {
         return true;
     }
-
-    public override List<string> CategoricalFeatures()
-    {
-        //only numerical features
-        return new List<string>();
-    }
-
-    public override List<string> IdColumns()
-    {
-        throw new NotImplementedException();
-    }
-
-    public override List<string> TargetLabels()
-    {
-        throw new NotImplementedException();
-    }
-
+    //only numerical features
+    public override string[] CategoricalFeatures => Array.Empty<string>();
+    public override string[] IdColumns => throw new NotImplementedException();
+    public override string[] TargetLabels => throw new NotImplementedException();
+    
     protected override List<string> PredictionInTargetFormatHeader()
     {
         return new List<string>{"", "0"};
@@ -93,15 +81,15 @@ public class QRT72DatasetSample : AbstractDatasetSample
     private IDataSet NewDataSet([JetBrains.Annotations.NotNull] string xFileInTargetFormat)
     {
         var (xTensor, yTensor) = Load_XY(xFileInTargetFormat);
-        var featureNames = Enumerable.Range(0, xTensor.Shape[1]).Select(x => x.ToString()).ToArray();
+        var columnNames = Enumerable.Range(0, xTensor.Shape[1]).Select(x => x.ToString()).ToArray();
         return new InMemoryDataSet(
             xTensor,
             yTensor,
             QRT72Utils.NAME,
             GetObjective(),
             null,
-            featureNames: featureNames,
-            categoricalFeatures: CategoricalFeatures().ToArray(),
+            columnNames: columnNames,
+            categoricalFeatures: CategoricalFeatures,
             useBackgroundThreadToLoadNextMiniBatch: false,
             separator: GetSeparator());
     }

@@ -79,6 +79,7 @@ namespace SharpNetTests
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
 
+            //WasYouStayWorthItsPriceDatasetSample.WeightOptimizer();
             //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
             //new WasYouStayWorthItsPriceDatasetSample();

@@ -2073,6 +2073,12 @@ namespace SharpNet.CPU
             return InsertAtColumnIndex(left, right, left.Shape[1]);
         }
 
+        public static CpuTensor<T> MergeVertically(CpuTensor<T> top, CpuTensor<T> bottom)
+        {
+            return InsertAtRowIndex(top, bottom, top.Shape[0]);
+        }
+
+
         public static CpuTensor<T> InsertAtColumnIndex(CpuTensor<T> source, CpuTensor<T> toAddAtColumnIndex, int columnIndex)
         {
             Debug.Assert(source.Shape.Length == 2);
@@ -2106,6 +2112,28 @@ namespace SharpNet.CPU
             }
             return new CpuTensor<T>(newShape, newData);
         }
+
+
+        public static CpuTensor<T> InsertAtRowIndex(CpuTensor<T> source, CpuTensor<T> toAddAtRowIndex, int rowIndex)
+        {
+            Debug.Assert(source.Shape.Length == 2);
+            Debug.Assert(toAddAtRowIndex.Shape.Length == 2);
+            //same number of rows
+            var columns = source.Shape[1];
+            Debug.Assert(columns == toAddAtRowIndex.Shape[1]);
+            Debug.Assert(rowIndex <= source.Shape[0]);
+            var newShape = new[] { source.Shape[0] + toAddAtRowIndex.Shape[0], columns };
+
+            var newTensor = new CpuTensor<T>(newShape);
+            source.CopyTo(0, newTensor, 0, rowIndex* columns);
+            toAddAtRowIndex.CopyTo(0, newTensor, rowIndex * columns, toAddAtRowIndex.Count);
+            if (rowIndex < source.Shape[0])
+            {
+                source.CopyTo(rowIndex * columns, newTensor, rowIndex * columns+ toAddAtRowIndex.Count, source.Count-rowIndex * columns);
+            }
+            return newTensor;
+        }
+
         public static CpuTensor<float> NewCpuTensor(IList<float[]> rows)
         {
             var x = new CpuTensor<float>(new[] { rows.Count, rows[0].Length });

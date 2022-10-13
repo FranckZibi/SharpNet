@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using SharpNet.Datasets;
 
@@ -34,7 +33,7 @@ public class TestFeatureStats
     [Test]
     public void TestProperties()
     {
-        var testDatasetSample = new TesDatasetEncoder.TestDatasetSample(new List<string> { "cat2", "id" }, new List<string> { "id" }, new List<string> { "y" });
+        var testDatasetSample = new TesDatasetEncoder.TestDatasetSample(new [] { "cat2", "id" }, new[] { "id" }, new[] { "y" });
         var encoder = new DatasetEncoder(testDatasetSample);
         var rows = TesDatasetEncoder.SimpleTestDataset();
         encoder.NumericalEncoding(rows);

@@ -14,7 +14,7 @@ namespace SharpNet.Datasets
                 original.Channels, 
                 original.MeanAndVolatilityForEachChannel, 
                 original.ResizeStrategy,
-                original.FeatureNames,
+                original.ColumnNames,
                 original.CategoricalFeatures, 
                 original.IdColumns, 
                 original.TargetLabels, 

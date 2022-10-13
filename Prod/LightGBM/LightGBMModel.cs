@@ -83,7 +83,7 @@ namespace SharpNet.LightGBM
 
             Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
 
-            var predictionsDf = LoadProbaFile(predictionResultPath, false, false, dataset, addIdColumnsAtLeft);
+            var predictionsDf = LoadProbaFile(predictionResultPath, false, false, null, dataset, addIdColumnsAtLeft);
             Utils.TryDelete(tmpLightGBMSamplePath);
             Utils.TryDelete(predictionResultPath);
             if (removeAllTemporaryFilesAtEnd)

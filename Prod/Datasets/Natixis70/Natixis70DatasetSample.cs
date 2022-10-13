@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.HyperParameters;
@@ -19,7 +18,6 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     private static readonly ConcurrentDictionary<string, CpuTensor<float>> CacheDataset = new();
     private static DoubleAccumulator[] YStatsInTargetFormat { get; }
     private static DoubleAccumulator[] YAbsStatsInTargetFormat { get; }
-    private static readonly ConcurrentDictionary<string, DataFrame> PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache = new();
     #endregion
 
     #region constructors
@@ -166,61 +164,41 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         return true;
     }
-    /// <summary>
-    /// convert a dataset in LightGBM format (first column is the target 'y') to the challenge target format 
-    /// </summary>
-    /// name="dataframe_path">a dataset in LightGBM format
-    /// <returns></returns>
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path)
-    {
-        if (PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryGetValue(dataframe_path, out var res))
-        {
-            return res;
-        }
-        var predictionsInModelFormat = DataFrame.LoadFloatDataFrame(dataframe_path, true).Keep(new[] { "y" });
-        var predictionInTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
-        Debug.Assert(predictionInTargetFormat.Shape.Length == 2);
-        Debug.Assert(predictionInTargetFormat.Shape[1] == (1+39));
-        PredictionsInModelFormat_2_PredictionsInTargetFormat_Cache.TryAdd(dataframe_path, predictionInTargetFormat);
-        return predictionInTargetFormat;
-    }
 
     //public override (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) 
     //    LoadAllPredictionsInTargetFormatWithoutIndex()
     //{
     //    return LoadAllPredictionsInTargetFormatWithoutIndex(true, true, ',');
     //}
-    public override List<string> CategoricalFeatures()
+    public override string[] CategoricalFeatures
     {
-        var categoricalFeatures = new List<string>();
-        if (MergeHorizonAndMarketIdInSameFeature)
+        get
         {
-            Debug.Assert(!TryToPredictAllMarketsAtTheSameTime);
-            Debug.Assert(!TryToPredictAllHorizonAtTheSameTime);
-            categoricalFeatures.Add("marketIdhorizonId");
-        }
-        else
-        {
-            if (!TryToPredictAllMarketsAtTheSameTime)
+            var categoricalFeatures = new List<string>();
+            if (MergeHorizonAndMarketIdInSameFeature)
             {
-                categoricalFeatures.Add("marketId");
+                Debug.Assert(!TryToPredictAllMarketsAtTheSameTime);
+                Debug.Assert(!TryToPredictAllHorizonAtTheSameTime);
+                categoricalFeatures.Add("marketIdhorizonId");
             }
-            if (!TryToPredictAllHorizonAtTheSameTime)
+            else
             {
-                categoricalFeatures.Add("horizonId");
+                if (!TryToPredictAllMarketsAtTheSameTime)
+                {
+                    categoricalFeatures.Add("marketId");
+                }
+                if (!TryToPredictAllHorizonAtTheSameTime)
+                {
+                    categoricalFeatures.Add("horizonId");
+                }
             }
+            return categoricalFeatures.ToArray();
         }
-        return categoricalFeatures;
+
     }
 
-    public override List<string> IdColumns()
-    {
-        return new List<string>{""};
-    }
-    public override List<string> TargetLabels()
-    {
-        return Natixis70Utils.PredictionHeader.Trim(',').Split(',').ToList();
-    }
+    public override string[] IdColumns => new []{""};
+    public override string[] TargetLabels => Natixis70Utils.PredictionHeader.Trim(',').Split(',');
 
     /// <summary>
     /// true if the test dataset must also have associated labels (so that we can compute a score for it)
@@ -331,7 +309,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         {
             featureNames.Add("embed_" + i);
         }
-        featureNames.AddRange(CategoricalFeatures());
+        featureNames.AddRange(CategoricalFeatures);
         return featureNames;
     }
     private int[] XShapeInModelFormat(int rowsInTargetFormat)
@@ -365,8 +343,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             Natixis70Utils.NAME,
             GetObjective(),
             null,
-            featureNames: FeatureNames().ToArray(),
-            categoricalFeatures: CategoricalFeatures().ToArray(),
+            columnNames: FeatureNames().ToArray(),
+            categoricalFeatures: CategoricalFeatures,
             useBackgroundThreadToLoadNextMiniBatch: false,
             separator: GetSeparator());
     }

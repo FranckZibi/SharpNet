@@ -61,10 +61,11 @@ public class BayesianSearchHPO : AbstractHpo
         _randomSearchOption = randomSearchOption;
         _searchStartTime = DateTime.Now;
         var surrogateModelName = "surrogate_" + System.Diagnostics.Process.GetCurrentProcess().Id;
-        _surrogateModel = BuildRandomForestSurrogateModel(_workingDirectory, surrogateModelName, SurrogateModelCategoricalFeature());
-        //_surrogateModel = BuildCatBoostSurrogateModel(_workingDirectory, surrogateModelName);
+        // _surrogateModel = BuildRandomForestSurrogateModel(_workingDirectory, surrogateModelName, SurrogateModelCategoricalFeature());
+        _surrogateModel = BuildCatBoostSurrogateModel(_workingDirectory, surrogateModelName);
     }
 
+    // ReSharper disable once UnusedMember.Local
     private static IModel BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
     {
         surrogateModelCategoricalFeature ??= Array.Empty<string>();
@@ -122,14 +123,14 @@ public class BayesianSearchHPO : AbstractHpo
         var x = x_df.Tensor;
         var y_df = df.Keep(new[] {"y"});
         var y = y_df.Tensor;
-        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, featureNames: x_df.ColumnNames, categoricalFeatures: categoricalFeature??Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
+        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, columnNames: x_df.ColumnNames, categoricalFeatures: categoricalFeature??Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
     {
         var df = DataFrame.LoadFloatDataFrame(dataFramePath, true);
         var x = df.Tensor;
-        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: df.ColumnNames, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
+        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, columnNames: df.ColumnNames, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
 
     protected override (ISample, int, string) Next
@@ -209,7 +210,7 @@ public class BayesianSearchHPO : AbstractHpo
             RegisterSampleScore(SearchSpace, sample, actualScore, elapsedTimeInSeconds);
 
             //if (SamplesWithScore.Count >= Math.Max(10, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
-            if (SamplesWithScore.Count >= Math.Max(10, 2*_samplesUsedForModelTraining))
+            if (SamplesWithScore.Count >= Math.Max(5, 2*_samplesUsedForModelTraining))
             {
                 _samplesUsedForModelTraining = TrainSurrogateModel();
             }
@@ -250,8 +251,9 @@ public class BayesianSearchHPO : AbstractHpo
 
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
-        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);
-
+        //using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);
+        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), Array.Empty<string>(), new[] { "y" }, false, ',');
+        
         // we compute the estimate score associated with each random sample (using the surrogate model)
         var y = _samplesUsedForModelTraining == 0 
                 
@@ -386,11 +388,12 @@ public class BayesianSearchHPO : AbstractHpo
         //AdjustSurrogateModelSampleForTrainingDatasetCount(trainingDataset.Count);
 
         IDataSet resizedTrainingDataset = trainingDataset;
-        const int minimumRowsForTraining = 400;
+        const int minimumRowsForTraining = 1;
         if (trainingDataset.Count < minimumRowsForTraining)
         {
             resizedTrainingDataset = trainingDataset.Resize(minimumRowsForTraining, false);
         }
+        AdjustSurrogateModelSampleForTrainingDatasetCount(resizedTrainingDataset.Count);
         _surrogateTrainedFiles = _surrogateModel.Fit(resizedTrainingDataset, null);
 
         // we compute the score of the surrogate model on the training dataset
@@ -405,17 +408,17 @@ public class BayesianSearchHPO : AbstractHpo
 
     private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) _surrogateTrainedFiles = (null, null, null, null, null, null);
 
-    //private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
-    //{
-    //    if (_surrogateModel is LightGBMModel lightGbmModel)
-    //    {
-    //        var adjusted_min_data_in_bin = Math.Max(1, trainingDatasetCount / 5);
-    //        if (adjusted_min_data_in_bin < lightGbmModel.LightGbmSample.min_data_in_bin)
-    //        {
-    //            lightGbmModel.LightGbmSample.min_data_in_bin = adjusted_min_data_in_bin;
-    //        }
-    //    }
-    //}
+    private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
+    {
+        if (_surrogateModel is LightGBMModel lightGbmModel)
+        {
+            var adjusted_min_data_in_bin = Math.Max(1, trainingDatasetCount / 5);
+            if (adjusted_min_data_in_bin < lightGbmModel.LightGbmSample.min_data_in_bin)
+            {
+                lightGbmModel.LightGbmSample.min_data_in_bin = adjusted_min_data_in_bin;
+            }
+        }
+    }
 
     private string[] SurrogateModelFeatureNames()
     {
