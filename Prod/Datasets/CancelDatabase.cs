@@ -382,13 +382,13 @@ namespace SharpNet.Datasets
             }
             var totalSum = totalCount.Values.Sum();
             var totalErrors = countKO.Values.Sum();
-            IModel.Log.Info("Errors (total):" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
-            IModel.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).ThenByDescending(e=>totalCount[e.Item1]).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
+            Model.Log.Info("Errors (total):" + Math.Round(100 * ((double)totalErrors) / totalSum, 2) + "% (" + totalErrors + "/" + totalSum + ")");
+            Model.Log.Info(string.Join(Environment.NewLine, errorStats.OrderByDescending(e=>e.Item2).ThenByDescending(e=>totalCount[e.Item1]).Select(e=>e.Item1+":"+Math.Round(100*e.Item2,2)+"% ("+ countKO[e.Item1]+"/"+ totalCount[e.Item1] + ")")));
 
             File.WriteAllText(outputFile, sb.ToString());
         }
 
-        public AbstractDataSet ExtractDataSet(Func<CancelDatabaseEntry, bool> accept, ResizeStrategyEnum resizeStrategy)
+        public DataSet ExtractDataSet(Func<CancelDatabaseEntry, bool> accept, ResizeStrategyEnum resizeStrategy)
         {
             var categoryNameToCount = new ConcurrentDictionary<string,int>();
             var elementIdToPaths = new List<List<string>>();

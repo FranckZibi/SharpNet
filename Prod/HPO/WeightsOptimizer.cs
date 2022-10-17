@@ -25,7 +25,7 @@ public class WeightsOptimizer /*: AbstractModel*/
     #endregion
 
 
-    //private IModel FirstModel => _embeddedModelsAndDataset[0].Model;
+    //private AbstractModel FirstModel => _embeddedModelsAndDataset[0].Model;
     private AbstractDatasetSample FirstDatasetSample => _embeddedModelsAndDataset[0].ModelAndDatasetPredictionsSample.DatasetSample;
 
 
@@ -113,18 +113,18 @@ public class WeightsOptimizer /*: AbstractModel*/
             var y_pred_valid_InModelFormat = weightsOptimizer._y_preds_valid_InModelFormat[i];
             var y_pred_valid_InTargetFormat = weightsOptimizer.DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_valid_InModelFormat);
             var y_prev_valid_score = firstDatasetSample.ComputeRankingEvaluationMetric(weightsOptimizer._y_true_valid_InTargetFormat, y_pred_valid_InTargetFormat);
-            IModel.Log.Info($"Original validation score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) :{y_prev_valid_score}");
+            Model.Log.Info($"Original validation score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) :{y_prev_valid_score}");
             var y_pred_train_InModelFormat = weightsOptimizer._y_preds_train_InModelFormat[i];
             if (y_pred_train_InModelFormat != null)
             {
                 var y_pred_train_InTargetFormat = weightsOptimizer.DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_train_InModelFormat);
-                IModel.Log.Info($"Original train score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) : {firstDatasetSample.ComputeRankingEvaluationMetric(weightsOptimizer._y_true_train_InTargetFormat, y_pred_train_InTargetFormat)}");
+                Model.Log.Info($"Original train score of model#{i} ({workingDirectoryAndModelNames[i].Item2}) : {firstDatasetSample.ComputeRankingEvaluationMetric(weightsOptimizer._y_true_train_InTargetFormat, y_pred_train_InTargetFormat)}");
             }
         }
         var equalWeightedModelSample = new WeightedModelSample(workingDirectoryAndModelNames);
         equalWeightedModelSample.SetEqualWeights();
         var validationScore = weightsOptimizer.ComputePredictionsAndRankingScore(weightsOptimizer._y_true_valid_InTargetFormat, weightsOptimizer._y_preds_valid_InModelFormat, equalWeightedModelSample).metricScore;
-        IModel.Log.Info($"Validation score if Equal Weights: {validationScore}");
+        Model.Log.Info($"Validation score if Equal Weights: {validationScore}");
 
         var hpo = new BayesianSearchHPO(searchSpace, () => new WeightedModelSample(workingDirectoryAndModelNames), workingDirectory);
         IScore bestScoreSoFar = null;
@@ -151,7 +151,7 @@ public class WeightsOptimizer /*: AbstractModel*/
         {
             var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(weightedModelSample, (AbstractDatasetSample)_embeddedModelsAndDataset[0].ModelAndDatasetPredictionsSample.DatasetSample.Clone());
             var modelAndDatasetPredictions = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash());
-            IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} has new best score: {validationScore} (was: {bestScoreSoFar})");
+            Model.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} has new best score: {validationScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationScore;
 
             IScore trainScore = null;
@@ -160,7 +160,7 @@ public class WeightsOptimizer /*: AbstractModel*/
                 (var weightedModelTrainPrediction, trainScore) = ComputePredictionsAndRankingScore(_y_true_train_InTargetFormat, _y_preds_train_InModelFormat, weightedModelSample);
                 if (trainScore != null)
                 {
-                    IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} train score: {trainScore}");
+                    Model.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} train score: {trainScore}");
                 }
                 modelAndDatasetPredictions.SaveTrainPredictionsInTargetFormat(weightedModelTrainPrediction, trainScore);
             }
@@ -170,7 +170,7 @@ public class WeightsOptimizer /*: AbstractModel*/
                 var (weightedModelTestPrediction, testScore)  = ComputePredictionsAndRankingScore(_y_true_test_InTargetFormat, _y_preds_test_InModelFormat, weightedModelSample);
                 if (testScore != null)
                 {
-                    IModel.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} test score: {testScore}");
+                    Model.Log.Info($"{nameof(WeightedModel)} {modelAndDatasetPredictions.Name} test score: {testScore}");
                 }
                 modelAndDatasetPredictions.SaveTestPredictionsInTargetFormat(weightedModelTestPrediction, testScore);
             }

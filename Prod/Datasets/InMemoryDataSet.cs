@@ -6,7 +6,7 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class InMemoryDataSet : AbstractDataSet
+    public class InMemoryDataSet : DataSet
     {
         #region private fields
         private readonly int[] _elementIdToCategoryIndex;

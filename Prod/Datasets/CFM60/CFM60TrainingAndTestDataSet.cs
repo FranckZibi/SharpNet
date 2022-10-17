@@ -6,8 +6,8 @@ namespace SharpNet.Datasets.CFM60
 {
     public class Cfm60TrainingAndTestDataset : AbstractTrainingAndTestDataset
     {
-        public override IDataSet Training { get; }
-        public override IDataSet Test { get; }
+        public override DataSet Training { get; }
+        public override DataSet Test { get; }
 
         public override int CategoryByteToCategoryIndex(byte categoryByte)
         {

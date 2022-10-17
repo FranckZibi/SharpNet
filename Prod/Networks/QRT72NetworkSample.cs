@@ -39,7 +39,7 @@ public class QRT72NetworkSample : NetworkSample
     }
 
 
-    public override void SaveExtraModelInfos(IModel model, string workingDirectory, string modelName)
+    public override void SaveExtraModelInfos(Model model, string workingDirectory, string modelName)
     {
         var n = (Network)model;
         var denseLayers = n.Layers.Where(t => t is DenseLayer).ToArray();
@@ -50,11 +50,11 @@ public class QRT72NetworkSample : NetworkSample
 
         //We ensure that the matrix is orthogonal (max allowed error : 1e-6)
         var maxError = A.MaxErrorIfOrthogonalMatrix();
-        IModel.Log.Info($"Observed Error for orthogonal Matrix: {maxError}");
+        Model.Log.Info($"Observed Error for orthogonal Matrix: {maxError}");
         if (Math.Abs(maxError) > 1e-6)
         {
             var errorMsg = $"Max Error is too big: {maxError}";
-            IModel.Log.Error(errorMsg);
+            Model.Log.Error(errorMsg);
             Console.WriteLine(errorMsg);
             File.WriteAllText(submissionPath, errorMsg);
             return;

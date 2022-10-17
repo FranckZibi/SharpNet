@@ -4,7 +4,7 @@ namespace SharpNet.Datasets
 {
     public interface ITrainingAndTestDataSet : IDisposable
     {
-        IDataSet Training { get; }
-        IDataSet Test { get; }
+        DataSet Training { get; }
+        DataSet Test { get; }
     }
 }

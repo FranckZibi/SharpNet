@@ -3,12 +3,12 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public sealed class MappedDataSet : AbstractDataSet
+    public sealed class MappedDataSet : DataSet
     {
-        private readonly IDataSet _original;
+        private readonly DataSet _original;
         private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
         
-        public MappedDataSet(IDataSet original, IReadOnlyList<int> elementIdToOriginalElementId) 
+        public MappedDataSet(DataSet original, IReadOnlyList<int> elementIdToOriginalElementId) 
             : base(original.Name, 
                 original.Objective, 
                 original.Channels, 

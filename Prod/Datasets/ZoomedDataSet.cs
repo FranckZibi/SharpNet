@@ -3,17 +3,17 @@ using SharpNet.Layers;
 
 namespace SharpNet.Datasets
 {
-    public class ZoomedDataSet : AbstractDataSet
+    public class ZoomedDataSet : DataSet
     {
         #region private fields
-        private readonly IDataSet _original;
+        private readonly DataSet _original;
         private readonly int[] _originalShape_CHW;
         private readonly int _rowFactor;
         private readonly int _colFactor;
         private readonly CpuTensor<float> _xBufferBeforeZoom = new CpuTensor<float>(new[] { 1 });
         #endregion
 
-        public ZoomedDataSet(IDataSet original, int[] originalShape_CHW, int rowFactor, int colFactor)
+        public ZoomedDataSet(DataSet original, int[] originalShape_CHW, int rowFactor, int colFactor)
             : base(original.Name, 
                 original.Objective, 
                 original.Channels, 

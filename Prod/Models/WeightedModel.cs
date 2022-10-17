@@ -5,10 +5,10 @@ using SharpNet.HyperParameters;
 
 namespace SharpNet.Models;
 
-public class WeightedModel: AbstractModel
+public class WeightedModel: Model
 {
     #region private fields
-    private readonly List<IModel> _embeddedModels;
+    private readonly List<Model> _embeddedModels;
     #endregion
 
 
@@ -18,22 +18,22 @@ public class WeightedModel: AbstractModel
         foreach(var (embeddedModelWorkingDirectory, embeddedModelName) in modelSample.GetWorkingDirectoryAndModelNames())
         {
             var embeddedModelSample = IModelSample.LoadModelSample(embeddedModelWorkingDirectory, embeddedModelName);
-            _embeddedModels.Add(IModel.NewModel(embeddedModelSample, embeddedModelWorkingDirectory, embeddedModelName));
+            _embeddedModels.Add(NewModel(embeddedModelSample, embeddedModelWorkingDirectory, embeddedModelName));
         }
     }
 
     public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath)
-        Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+        Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
     {
         throw new System.NotImplementedException();
     }
 
-    public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+    public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
     {
         return WeightedModelSample.ApplyWeights(PredictForEachEmbeddedModel(dataset, addIdColumnsAtLeft),  new List<int>() );
     }
 
-    private List<DataFrame> PredictForEachEmbeddedModel(IDataSet dataset, bool addIdColumnsAtLeft)
+    private List<DataFrame> PredictForEachEmbeddedModel(DataSet dataset, bool addIdColumnsAtLeft)
     {
         var allModelPredictions = new List<DataFrame>();
         foreach (var m in _embeddedModels)

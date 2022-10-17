@@ -108,7 +108,7 @@ namespace SharpNet.LightGBM
         //}
 
 
-        public void UpdateForDataset(IDataSet dataset)
+        public void UpdateForDataset(DataSet dataset)
         {
             var categoricalFeatures = dataset.CategoricalFeatures;
             categorical_feature = (categoricalFeatures.Length >= 1) ? ("name:" + string.Join(',', categoricalFeatures)) : "";

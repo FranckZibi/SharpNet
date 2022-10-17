@@ -204,9 +204,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
         private static string PredictionToString(Tensor prediction, string description)
@@ -285,9 +285,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
 
@@ -355,9 +355,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow_Embedding()
@@ -425,9 +425,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -509,9 +509,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# momentum= " + momentum);
             Log.Info("C# batchSize= " + batchSize);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
 
@@ -605,9 +605,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
 
@@ -677,9 +677,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -747,9 +747,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# momentum= " + momentum);
             Log.Info("C# batchSize= " + batchSize);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -820,9 +820,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# momentum= " + momentum);
             Log.Info("C# batchSize= " + batchSize);
             Log.Info(predict_before);
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(lossAccuracyAfter, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
         }
 
         [Test, Explicit]
@@ -940,9 +940,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# hiddenSize= " + hiddenSize);
             Log.Info("C# return_sequences= " + returnSequences);
             Log.Info(predict_before.ToShapeAndNumpy());
-            Log.Info("C# metrics_before= " + IModel.MetricsToString(network.EpochData[0].TrainingMetrics, ""));
+            Log.Info("C# metrics_before= " + Model.MetricsToString(network.EpochData[0].TrainingMetrics, ""));
             Log.Info(predict_after.ToShapeAndNumpy());
-            Log.Info("C# metrics_after= " + IModel.MetricsToString(network.EpochData.Last().TrainingMetrics, ""));
+            Log.Info("C# metrics_after= " + Model.MetricsToString(network.EpochData.Last().TrainingMetrics, ""));
         }
 
 
@@ -1061,9 +1061,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# return_sequences= " + returnSequences);
             Log.Info("C# shuffle= " + shuffle);
             //Log.Info(predict_before.ToShapeAndNumpy());
-            Log.Info("C# metrics_before= " + IModel.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
+            Log.Info("C# metrics_before= " + Model.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
             //Log.Info(predict_after.ToShapeAndNumpy());
-            Log.Info("C# metrics_after= " + IModel.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
+            Log.Info("C# metrics_after= " + Model.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
         }
 
 
@@ -1142,9 +1142,9 @@ namespace SharpNetTests.NonReg
             Log.Info("C# batchSize= " + batchSize);
             Log.Info("C# shuffle= " + shuffle);
             //Log.Info(predict_before.ToShapeAndNumpy());
-            Log.Info("C# metrics_before= " + IModel.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
+            Log.Info("C# metrics_before= " + Model.TrainingAndValidationMetricsToString(network.EpochData[0].TrainingMetrics, network.EpochData[0].ValidationMetrics));
             //Log.Info(predict_after.ToShapeAndNumpy());
-            Log.Info("C# metrics_after= " + IModel.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
+            Log.Info("C# metrics_after= " + Model.TrainingAndValidationMetricsToString(network.EpochData.Last().TrainingMetrics, network.EpochData.Last().ValidationMetrics));
         }
     }
 }

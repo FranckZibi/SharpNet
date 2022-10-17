@@ -206,7 +206,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     public static bool TestDatasetMustHaveLabels = false;
 
     
-    public override IDataSet TestDataset()
+    public override DataSet TestDataset()
     {
         if (TestDatasetMustHaveLabels)
         {
@@ -335,7 +335,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
         return new[] { RowsInTargetFormatToRowsInModelFormat(rowsInTargetFormat), xColCountInModelFormat };
     }
-    private IDataSet NewDataSet([JetBrains.Annotations.NotNull] string xFileInTargetFormat, [CanBeNull] string yFileInTargetFormatIfAny)
+    private DataSet NewDataSet([JetBrains.Annotations.NotNull] string xFileInTargetFormat, [CanBeNull] string yFileInTargetFormatIfAny)
     {
         return new InMemoryDataSet(
             Load_XInModelFormat(xFileInTargetFormat),

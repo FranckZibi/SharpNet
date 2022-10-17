@@ -11,7 +11,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets
 {
-    public class PascalVOCDataSet : AbstractDataSet
+    public class PascalVOCDataSet : DataSet
     {
         private readonly DirectoryDataSet _directoryDataSet;
         private readonly List<PascalVOCImageDescription> _annotations;

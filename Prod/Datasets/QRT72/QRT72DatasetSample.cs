@@ -40,7 +40,7 @@ public class QRT72DatasetSample : AbstractDatasetSample
         return new List<string>{"", "0"};
     }
 
-    public override IDataSet TestDataset()
+    public override DataSet TestDataset()
     {
         return null;
     }
@@ -78,7 +78,7 @@ public class QRT72DatasetSample : AbstractDatasetSample
     public override Objective_enum GetObjective() => Objective_enum.Regression;
 
 
-    private IDataSet NewDataSet([JetBrains.Annotations.NotNull] string xFileInTargetFormat)
+    private DataSet NewDataSet([JetBrains.Annotations.NotNull] string xFileInTargetFormat)
     {
         var (xTensor, yTensor) = Load_XY(xFileInTargetFormat);
         var columnNames = Enumerable.Range(0, xTensor.Shape[1]).Select(x => x.ToString()).ToArray();

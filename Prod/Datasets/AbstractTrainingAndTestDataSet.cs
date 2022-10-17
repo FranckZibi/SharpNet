@@ -3,8 +3,8 @@
     public abstract class AbstractTrainingAndTestDataset : ITrainingAndTestDataSet
     {
         #region public properties
-        public abstract IDataSet Training { get; }
-        public abstract IDataSet Test { get; }
+        public abstract DataSet Training { get; }
+        public abstract DataSet Test { get; }
         public string Name { get; }
         #endregion
 

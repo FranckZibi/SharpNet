@@ -5,7 +5,7 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public class ImageNetDataSet : AbstractDataSet
+    public class ImageNetDataSet : DataSet
     {
         private readonly DirectoryDataSet _directoryDataSet;
 

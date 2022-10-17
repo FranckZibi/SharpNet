@@ -78,8 +78,8 @@ namespace SharpNet.Datasets
         //    "vehicles 2"
         //};
 
-        public override IDataSet Training { get; }
-        public override IDataSet Test { get; }
+        public override DataSet Training { get; }
+        public override DataSet Test { get; }
 
         public static readonly int[] Shape_CHW = { 3, 32, 32 };
 
@@ -94,20 +94,20 @@ namespace SharpNet.Datasets
             Load(Path.Combine(path, "train.bin"), xTrainingSet, yTrainingSet);
             //We normalize the input with 0 mean / 1 volatility
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>>{Tuple.Create(129.304165605469f, 68.1702428992064f),Tuple.Create(124.069962695312f, 65.3918080438575f),Tuple.Create(112.434050058594f, 70.4183701880494f)};
-            var xTrain = AbstractDataSet.ToXWorkingSet(xTrainingSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTrain = AbstractDataSet.ToYWorkingSet(yTrainingSet, CategoryCount, CategoryByteToCategoryIndex);
+            var xTrain = DataSet.ToXWorkingSet(xTrainingSet, meanAndVolatilityOfEachChannelInTrainingSet);
+            var yTrain = DataSet.ToYWorkingSet(yTrainingSet, CategoryCount, CategoryByteToCategoryIndex);
 
-            AbstractDataSet.AreCompatible_X_Y(xTrain, yTrain);
+            DataSet.AreCompatible_X_Y(xTrain, yTrain);
 
             //We load the test set
             var xTestSet = new CpuTensor<byte>(new[] { 10000, Shape_CHW[0], Shape_CHW[1], Shape_CHW[2]});
             var yTestSet = new CpuTensor<byte>(new[] { 10000, 1, 1, 1 });
             Load(Path.Combine(path, "test.bin"), xTestSet, yTestSet);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
-            var xTest = AbstractDataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTest = AbstractDataSet.ToYWorkingSet(yTestSet, CategoryCount, CategoryByteToCategoryIndex);
+            var xTest = DataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
+            var yTest = DataSet.ToYWorkingSet(yTestSet, CategoryCount, CategoryByteToCategoryIndex);
 
-            AbstractDataSet.AreCompatible_X_Y(xTest, yTest);
+            DataSet.AreCompatible_X_Y(xTest, yTest);
             //Uncomment the following line to take only the first elements
             //xTrain = (CpuTensor<float>)xTrain.Slice(0, 1000);yTrain = (CpuTensor<float>)yTrain.Slice(0, xTrain.Shape[0]); xTest = (CpuTensor<float>)xTest.Slice(0, 1000); ; yTest = (CpuTensor<float>)yTest.Slice(0, xTest.Shape[0]);
 

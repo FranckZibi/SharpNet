@@ -14,7 +14,7 @@ namespace SharpNet.Networks
             _modelFilesPath = modelFilesPath;
         }
 
-        public Tuple<CpuTensor<float>, double> Predict(IDataSet testDataSet, int miniBatchSize)
+        public Tuple<CpuTensor<float>, double> Predict(DataSet testDataSet, int miniBatchSize)
         {
             var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y.Shape);
             var buffer = new CpuTensor<float>(new []{ testDataSet.Count});

@@ -2,14 +2,14 @@
 {
     public class TrainingAndTestDataset : AbstractTrainingAndTestDataset
     {
-        public TrainingAndTestDataset(IDataSet training, IDataSet test, string name)
+        public TrainingAndTestDataset(DataSet training, DataSet test, string name)
             : base(name)
         {
             Training = training;
             Test = test;
         }
 
-        public override IDataSet Training { get; }
-        public override IDataSet Test { get; }
+        public override DataSet Training { get; }
+        public override DataSet Test { get; }
     }
 }

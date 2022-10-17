@@ -12,8 +12,8 @@
             Test = new ZoomedDataSet(original.Test, originalShape_CHW, heightMultiplier, widthMultiplier);
         }
 
-        public override IDataSet Training { get; }
-        public override IDataSet Test { get; }
+        public override DataSet Training { get; }
+        public override DataSet Test { get; }
         public override int CategoryByteToCategoryIndex(byte categoryByte)
         {
             return _original.CategoryByteToCategoryIndex(categoryByte);

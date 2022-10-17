@@ -8,7 +8,7 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public sealed class SplittedFileDataSet : AbstractDataSet
+    public sealed class SplittedFileDataSet : DataSet
     {
         #region private fields
         [NotNull] private readonly int[] _elementIdToCategoryIndex;

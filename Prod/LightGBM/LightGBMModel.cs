@@ -8,7 +8,7 @@ using SharpNet.Models;
 
 namespace SharpNet.LightGBM
 {
-    public class LightGBMModel : AbstractModel
+    public class LightGBMModel : Model
     {
         #region public fields & properties
         public LightGBMSample LightGbmSample => (LightGBMSample)ModelSample;
@@ -41,7 +41,7 @@ namespace SharpNet.LightGBM
         #endregion
 
         public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
-            Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+            Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
@@ -73,13 +73,13 @@ namespace SharpNet.LightGBM
             }
             tmpLightGBMSample.Save(tmpLightGBMSamplePath);
 
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, Log);
             Utils.TryDelete(tmpLightGBMSamplePath);
             return (null, null, trainDatasetPath, null, null, validationDatasetPath);
         }
 
      
-        public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+        public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
         {
             if (!File.Exists(ModelPath))
             {
@@ -103,9 +103,9 @@ namespace SharpNet.LightGBM
             });
             tmpLightGBMSample.Save(tmpLightGBMSamplePath);
 
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, Log);
 
-            var predictionsDf = LoadProbaFile(predictionResultPath, false, false, null, dataset, addIdColumnsAtLeft);
+            var predictionsDf = LoadProbaFile(predictionResultPath, false, false, null, dataset);
             Utils.TryDelete(tmpLightGBMSamplePath);
             Utils.TryDelete(predictionResultPath);
             if (removeAllTemporaryFilesAtEnd)

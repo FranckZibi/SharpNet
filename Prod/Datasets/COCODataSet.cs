@@ -5,7 +5,7 @@ using SharpNet.CPU;
 namespace SharpNet.Datasets
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    public class COCODataSet : AbstractDataSet
+    public class COCODataSet : DataSet
     {
         #region private fields
         // ReSharper disable once NotAccessedField.Local

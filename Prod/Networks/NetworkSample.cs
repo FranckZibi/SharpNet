@@ -30,7 +30,7 @@ namespace SharpNet.Networks
         public DataAugmentationSample DA => (DataAugmentationSample)Samples[1];
 
 
-        public virtual void SaveExtraModelInfos(IModel model, string workingDirectory, string modelName)
+        public virtual void SaveExtraModelInfos(Model model, string workingDirectory, string modelName)
         {
         }
 

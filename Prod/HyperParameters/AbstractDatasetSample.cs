@@ -136,13 +136,13 @@ public abstract class AbstractDatasetSample : AbstractSample
         }
         return DataFrame.read_float_csv(path);
     }
-    public abstract IDataSet TestDataset();
+    public abstract DataSet TestDataset();
     /// <summary>
     /// returns the train and validation dataset
     /// </summary>
     /// <returns></returns>
     public abstract ITrainingAndTestDataSet SplitIntoTrainingAndValidation();
-    //public abstract IDataSet FullTraining();
+    //public abstract DataSet FullTraining();
     //public abstract CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path);
     //public abstract (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) LoadAllPredictionsInTargetFormatWithoutIndex();
     /// <summary>
@@ -186,7 +186,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// <returns></returns>
     protected abstract EvaluationMetricEnum GetRankingEvaluationMetric();
 
-    private IDataSet LoadTrainingAndTestDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
+    private DataSet LoadTrainingAndTestDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
     {
         DataFrame x = null;
         DataFrame y = null;

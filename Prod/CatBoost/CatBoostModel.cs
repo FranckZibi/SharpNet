@@ -10,7 +10,7 @@ using SharpNet.Models;
 
 namespace SharpNet.CatBoost
 {
-    public class CatBoostModel : AbstractModel
+    public class CatBoostModel : Model
     {
         #region prrivate fields & properties
         private static readonly object LockToColumnDescription = new();
@@ -42,7 +42,7 @@ namespace SharpNet.CatBoost
         #endregion
 
         public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
-            Fit(IDataSet trainDataset, IDataSet validationDatasetIfAny)
+            Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
@@ -107,11 +107,11 @@ namespace SharpNet.CatBoost
             //        " --trace-log " + Path.Combine(tmpDirectory, "trace.log");
             //}
 
-            Utils.Launch(WorkingDirectory, ExePath, arguments, IModel.Log);
+            Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
             return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
         }
 
-        public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+        public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
         {
             if (!File.Exists(ModelPath))
             {
@@ -151,8 +151,8 @@ namespace SharpNet.CatBoost
                 arguments += " --prediction-type Probability ";
             }
 
-            Utils.Launch(WorkingDirectory, ExePath, arguments, IModel.Log);
-            var predictionsDf = LoadProbaFile(predictionResultPath, true, true, null, dataset, addIdColumnsAtLeft);
+            Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
+            var predictionsDf = LoadProbaFile(predictionResultPath, true, true, null, dataset);
             Utils.TryDelete(configFilePath);
             Utils.TryDelete(predictionResultPath);
             if (removeAllTemporaryFilesAtEnd)
@@ -197,11 +197,11 @@ namespace SharpNet.CatBoost
         //    return new CatBoostModel(sample, workingDirectory, modelName);
         //}
 
-        private static void to_column_description([JetBrains.Annotations.NotNull] string path, IDataSet dataset, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        private static void to_column_description([JetBrains.Annotations.NotNull] string path, DataSet dataset, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
             if (File.Exists(path) && !overwriteIfExists)
             {
-                IModel.Log.Debug($"No need to save dataset column description in path {path} : it already exists");
+                Log.Debug($"No need to save dataset column description in path {path} : it already exists");
                 return;
             }
             var categoricalColumns = dataset.CategoricalFeatures;
@@ -222,13 +222,13 @@ namespace SharpNet.CatBoost
                 }
                 ++nextColumnIdx;
             }
-            IModel.Log.Debug($"Saving dataset column description in path {path}");
+            Log.Debug($"Saving dataset column description in path {path}");
             var fileContent = sb.ToString().Trim();
             lock (LockToColumnDescription)
             {
                 File.WriteAllText(path, fileContent);
             }
-            IModel.Log.Debug($"Dataset column description saved in path {path}");
+            Log.Debug($"Dataset column description saved in path {path}");
         }
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "catboost.exe");
 

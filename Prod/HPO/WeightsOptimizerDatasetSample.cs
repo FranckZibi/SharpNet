@@ -25,7 +25,7 @@
 //    }
 
 //    public override (string train_PredictionsFileName, float trainScore, string validation_PredictionsFileName, float validationScore, string test_PredictionsFileName)
-//        Fit(IModel model, bool computeAndSavePredictions, bool computeValidationScore, bool saveTrainedModel)
+//        Fit(AbstractModel model, bool computeAndSavePredictions, bool computeValidationScore, bool saveTrainedModel)
 //    {
 //        var weightsOptimizer = (WeightsOptimizer)model;
 //        var res = ("", float.NaN, "", float.NaN, "");
@@ -44,7 +44,7 @@
 //        }
 //        return res;
 //    }
-//    public override (string train_PredictionsFileName, float trainScore, string validation_PredictionsFileName, float validationScore, string test_PredictionsFileName) ComputeAndSavePredictions(IModel model)
+//    public override (string train_PredictionsFileName, float trainScore, string validation_PredictionsFileName, float validationScore, string test_PredictionsFileName) ComputeAndSavePredictions(AbstractModel model)
 //    {
 //        var weightsOptimizerModel = (WeightsOptimizer)model;
 //        var (trainPredictions, trainScore, validationPredictions, validationScore, testPredictions, testScore) =
@@ -86,7 +86,7 @@
 //    }
 
 
-//    public override IDataSet TestDataset()
+//    public override DataSet TestDataset()
 //    {
 //        throw new NotImplementedException();
 //    }

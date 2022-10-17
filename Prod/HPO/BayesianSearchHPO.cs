@@ -21,7 +21,7 @@ public class BayesianSearchHPO : AbstractHpo
     /// <summary>
     /// the model use to predict the objective function score
     /// </summary>
-    private readonly IModel  _surrogateModel;
+    private readonly Model  _surrogateModel;
     private bool? _higherScoreIsBetter = null;
     /// <summary>
     /// Item1:  the sample
@@ -166,7 +166,7 @@ public class BayesianSearchHPO : AbstractHpo
     }
 
     // ReSharper disable once UnusedMember.Local
-    private static IModel BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
+    private static Model BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
     {
         surrogateModelCategoricalFeature ??= Array.Empty<string>();
         // the surrogate model will be trained with a LightGBM using random forests (boosting=rf)
@@ -198,7 +198,7 @@ public class BayesianSearchHPO : AbstractHpo
         return new LightGBMModel(surrogateModelSample, workingDirectory, modelName);
     }
     // ReSharper disable once UnusedMember.Local
-    private static IModel BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
+    private static Model BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
     {
         // the surrogate model will be trained with CatBoost
         CatBoostSample surrogateModelSample = new()
@@ -382,7 +382,7 @@ public class BayesianSearchHPO : AbstractHpo
         
         //AdjustSurrogateModelSampleForTrainingDatasetCount(trainingDataset.Count);
 
-        IDataSet resizedTrainingDataset = trainingDataset;
+        DataSet resizedTrainingDataset = trainingDataset;
         const int minimumRowsForTraining = 1;
         if (trainingDataset.Count < minimumRowsForTraining)
         {

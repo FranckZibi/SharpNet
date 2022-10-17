@@ -5,7 +5,7 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets
 {
-    public sealed class UnivariateTimeSeriesDataSet : AbstractDataSet
+    public sealed class UnivariateTimeSeriesDataSet : DataSet
     {
         #region private fields
         private readonly Memory<float> _univariateTimeSeries;

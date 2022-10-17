@@ -12,10 +12,10 @@ namespace SharpNet.Models;
 /// Train 'kfold' distinct models on a the training dataset.
 /// Use Stacked Ensemble Learning to make predictions for the models 
 /// </summary>
-public class KFoldModel : AbstractModel
+public class KFoldModel : Model
 {
     #region private fields
-    private readonly List<IModel> _embeddedModels;
+    private readonly List<Model> _embeddedModels;
     #endregion
 
     #region constructors
@@ -24,7 +24,7 @@ public class KFoldModel : AbstractModel
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
         {
-            IModel embeddedModel;
+            Model embeddedModel;
             try
             {
                 embeddedModel = GetEmbeddedModel(KFoldSample.EmbeddedModelWorkingDirectory, i);
@@ -39,11 +39,11 @@ public class KFoldModel : AbstractModel
     }
 
 
-    private IModel GetEmbeddedModel(string embeddedModelWorkingDirectory, int embeddedModelIndex)
+    private Model GetEmbeddedModel(string embeddedModelWorkingDirectory, int embeddedModelIndex)
     {
         var embeddedModelName = EmbeddedModelName(ModelName, embeddedModelIndex);
         var embeddedModelSample = IModelSample.LoadModelSample(embeddedModelWorkingDirectory, embeddedModelName);
-        return IModel.NewModel(embeddedModelSample, WorkingDirectory, embeddedModelName);
+        return NewModel(embeddedModelSample, WorkingDirectory, embeddedModelName);
     }
 
     #endregion
@@ -69,7 +69,7 @@ public class KFoldModel : AbstractModel
     //}
 
     public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
-        Fit(IDataSet trainDataset, IDataSet nullValidationDataset)
+        Fit(DataSet trainDataset, DataSet nullValidationDataset)
     {
         if (nullValidationDataset != null)
         {
@@ -97,7 +97,7 @@ public class KFoldModel : AbstractModel
         return (null, null, train_XYDatasetPath, null, null, train_XYDatasetPath);
     }
 
-    public (IScore trainingScore, IScore validationScore) ComputeEvaluationMetricOnFullDataset(IDataSet trainDataset, AbstractDatasetSample datasetSample)
+    public (IScore trainingScore, IScore validationScore) ComputeEvaluationMetricOnFullDataset(DataSet trainDataset, AbstractDatasetSample datasetSample)
     {
 
         int n_splits = KFoldSample.n_splits;
@@ -134,7 +134,7 @@ public class KFoldModel : AbstractModel
     }
 
 
-    public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+    public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
     {
         CpuTensor<float> res = null;
         Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
@@ -223,7 +223,7 @@ public class KFoldModel : AbstractModel
         }
         return validationIntervalForKfold;
     }
-    private static List<TrainingAndTestDataset> KFold(IDataSet dataset, int kfold, int countMustBeMultipleOf)
+    private static List<TrainingAndTestDataset> KFold(DataSet dataset, int kfold, int countMustBeMultipleOf)
     {
         var validationIntervalForKfold = KFoldIntervals(kfold, dataset.Count, countMustBeMultipleOf);
         List<TrainingAndTestDataset> res = new();

@@ -21,7 +21,7 @@ using H5GroupId = System.Int64;
 
 namespace SharpNet.Networks
 {
-    public partial class Network : AbstractModel, IDisposable
+    public partial class Network : Model, IDisposable
     {
         #region private fields
         public readonly List<EpochData> EpochData = new();
@@ -512,7 +512,7 @@ namespace SharpNet.Networks
 
         private int NonTrainableParams => Layers.Select(l => l.NonTrainableParams).Sum();
         // ReSharper disable once UnusedMethodReturnValue.Global
-        public double FindBestLearningRate(IDataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers)
+        public double FindBestLearningRate(DataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers)
         {
             Debug.Assert(minLearningRate >= 0);
             Debug.Assert(maxLearningRate >= 0);
@@ -560,7 +560,7 @@ namespace SharpNet.Networks
         /// <param name="trainingDataset"></param>
         /// <param name="validationDatasetIfAny"></param>
         public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
-            Fit(IDataSet trainingDataset, IDataSet validationDatasetIfAny)
+            Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
             int miniBatchSizeForAllWorkers = Config.BatchSize;
             int numEpochs = Config.NumEpochs;
@@ -630,14 +630,14 @@ namespace SharpNet.Networks
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
                     var trainingMetrics = ComputeMetrics(_yExpectedForEpoch, yPredicted);
-                    var lossAndAccuracyMsg = IModel.MetricsToString(trainingMetrics, "");
+                    var lossAndAccuracyMsg = MetricsToString(trainingMetrics, "");
                     if (validationDatasetIfAny != null)
                     {
                         //We compute the validation loss&accuracy
                         if (ShouldUseFullTestDataSetForLossAndAccuracy(learningRateComputer, epoch, numEpochs))
                         {
                             validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, validationDatasetIfAny);
-                            lossAndAccuracyMsg += " - " + IModel.MetricsToString(validationMetrics, "val_");
+                            lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "val_");
                         }
                         else
                         {
@@ -647,7 +647,7 @@ namespace SharpNet.Networks
                             { 
                                 using var subDataSet = validationDatasetIfAny.SubDataSet(percentageToUseInTestDataSet);
                                 validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
-                                lossAndAccuracyMsg += " - " + IModel.MetricsToString(validationMetrics, "estimate_val_");
+                                lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
                             }
                         }
 
@@ -782,7 +782,7 @@ namespace SharpNet.Networks
         }
 
         #region compute Loss and Accuracy
-        public IDictionary<EvaluationMetricEnum, double> ComputeMetricsForTestDataSet(int miniBatchSize, IDataSet testDataSet)
+        public IDictionary<EvaluationMetricEnum, double> ComputeMetricsForTestDataSet(int miniBatchSize, DataSet testDataSet)
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
@@ -830,7 +830,7 @@ namespace SharpNet.Networks
         {
             return Predict(new List<Tensor> {X}, isTraining);
         }
-        public override DataFrame Predict(IDataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+        public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Config.BatchSize);
             return DataFrame.New(cpuTensor, Utils.Join(dataset.IdColumns, dataset.TargetLabels));
@@ -858,7 +858,7 @@ namespace SharpNet.Networks
             throw new NotImplementedException();
         }
 
-        public CpuTensor<float> Predict(IDataSet dataset, int miniBatchSizeForAllWorkers)
+        public CpuTensor<float> Predict(DataSet dataset, int miniBatchSizeForAllWorkers)
         {
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataset, miniBatchSizeForAllWorkers);
             var yPredictedCpu = yPredicted.ToCpuFloat();
@@ -882,7 +882,7 @@ namespace SharpNet.Networks
         /// parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         /// If the callback returns true we should stop the computation</param>
         /// <returns>observed output associated with the input 'x'</returns>
-        public Tensor MiniBatchGradientDescentForSingleEpoch(IDataSet dataSet, int miniBatchSizeForAllWorkers, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null)
+        public Tensor MiniBatchGradientDescentForSingleEpoch(DataSet dataSet, int miniBatchSizeForAllWorkers, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null)
         {
             Debug.Assert(IsMaster);
             Debug.Assert(miniBatchSizeForAllWorkers >= 1);

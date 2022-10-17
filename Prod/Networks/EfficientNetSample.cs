@@ -336,7 +336,7 @@ namespace SharpNet.Networks
         public Network EfficientNetB0_CIFAR10(string weight, int[] inputShape_CHW)
         {
             var net = EfficientNetB0(true, weight, inputShape_CHW);
-            IModel.Log.Info("setting number of output categoryCount to 10");
+            Model.Log.Info("setting number of output categoryCount to 10");
             net.SetCategoryCount(10);
             return net;
         }

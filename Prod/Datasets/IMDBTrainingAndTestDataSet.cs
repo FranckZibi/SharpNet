@@ -15,8 +15,8 @@ namespace SharpNet.Datasets
         // ReSharper disable once CollectionNeverQueried.Local
         private readonly IDictionary<string, int> _wordIndex = new Dictionary<string, int>();
 
-        public override IDataSet Training { get; }
-        public override IDataSet Test { get; }
+        public override DataSet Training { get; }
+        public override DataSet Test { get; }
 
 
         public ImdbTrainingAndTestDataset() : base("IMDB")

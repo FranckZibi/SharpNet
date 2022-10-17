@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace SharpNet.Datasets
 {
-    public sealed class DirectoryDataSet : AbstractDataSet
+    public sealed class DirectoryDataSet : DataSet
     {
         #region private fields
         /// <summary>

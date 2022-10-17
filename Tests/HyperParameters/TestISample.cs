@@ -24,7 +24,7 @@ public class TestISample
         public override string[] CategoricalFeatures => new string[0];
         public override string[] IdColumns => throw new NotImplementedException();
         public override string[] TargetLabels => throw new NotImplementedException();
-        public override IDataSet TestDataset() { throw new NotImplementedException(); }
+        public override DataSet TestDataset() { throw new NotImplementedException(); }
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()  { throw new NotImplementedException(); }
         public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns) { throw new NotImplementedException(); }
         protected override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();

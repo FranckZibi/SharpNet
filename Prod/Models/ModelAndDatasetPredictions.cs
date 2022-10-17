@@ -10,7 +10,7 @@ namespace SharpNet.Models;
 public class ModelAndDatasetPredictions
 {
     #region public fields and properties
-    public IModel Model { get; }
+    public Model Model { get; }
     public ModelAndDatasetPredictionsSample ModelAndDatasetPredictionsSample { get; }
     #endregion
 
@@ -18,7 +18,7 @@ public class ModelAndDatasetPredictions
     public ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, string modelName)
     {
         ModelAndDatasetPredictionsSample = modelAndDatasetPredictionsSample;
-        Model = IModel.NewModel(ModelAndDatasetPredictionsSample.ModelSample, workingDirectory, modelName);
+        Model = Model.NewModel(ModelAndDatasetPredictionsSample.ModelSample, workingDirectory, modelName);
         if (DatasetSample.KFold >= 2 && Model is not KFoldModel && Model is not WeightedModel)
         {
             var embeddedModel = Model;
@@ -203,7 +203,7 @@ public class ModelAndDatasetPredictions
         PredictionsSample.Test_PredictionsFileName_InModelFormat = Model.ModelName + "_modelformat_predict_test_" + IScore.ToString(testLoss, 5) + ".csv";
         DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, PredictionsSample.Test_PredictionsFileName_InModelFormat));
     }
-    private (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat_with_IdColumns, IScore rankingScore) ComputePredictionsAndRankingScore(IDataSet dataset)
+    private (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat_with_IdColumns, IScore rankingScore) ComputePredictionsAndRankingScore(DataSet dataset)
     {
         Debug.Assert(dataset != null);
         var start = Stopwatch.StartNew();

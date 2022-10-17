@@ -243,7 +243,7 @@ namespace SharpNetTests
             //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Cancel_400_470_20200713_1809_580.txt"));
 
             //network.FindBestLearningRate(cancelDataset, 1e-5, 10, p.Config.BatchSize);return;
-            IModel.Log.Debug(database.Summary());
+            Model.Log.Debug(database.Summary());
             network.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
         }
         #endregion
@@ -455,7 +455,7 @@ namespace SharpNetTests
         {
             using var network = p.CFM60();
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize4_64_DropoutRate0_2_20210115_1831_10.txt");
-            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s=> IModel.Log.Info(s));
+            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s=> Model.Log.Info(s));
             var cfm60 = (CFM60DataSet) cfm60TrainingAndTestDataSet.Training;
             //To compute feature importances, uncomment the following line
             //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;

@@ -16,7 +16,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets.CFM60
 {
-    public class CFM60DataSet : AbstractDataSet, ITimeSeriesDataSet
+    public class CFM60DataSet : DataSet, ITimeSeriesDataSet
     {
         public CFM60HyperParameters Sample => _cfm60NetworkSample.CFM60HyperParameters;
         private readonly Cfm60NetworkSample _cfm60NetworkSample;
@@ -354,7 +354,7 @@ namespace SharpNet.Datasets.CFM60
         /// for Neural network model:
         ///     will save also the pid features, and the prediction file for the Train + Validation + Test datasets
         /// </summary>
-        public override void Save(IModel model, string workingDirectory, string modelName)
+        public override void Save(Model model, string workingDirectory, string modelName)
         {
             base.Save(model, workingDirectory, modelName);
             CreatePredictionFile(model, "_predict_train_");
@@ -380,7 +380,7 @@ namespace SharpNet.Datasets.CFM60
             throw new ArgumentException($"cant' save model of type {model.GetType()}");
         }
 
-        public void CreatePredictionFile(IModel model, string fileSuffix)
+        public void CreatePredictionFile(Model model, string fileSuffix)
         {
             var res = model.Predict(this, true, false);
             var CFM60EntryIDToPrediction = new Dictionary<int, double>();
@@ -744,7 +744,7 @@ namespace SharpNet.Datasets.CFM60
         }
 
 
-        public override IDataSet SubDataSet(double percentageToKeep)
+        public override DataSet SubDataSet(double percentageToKeep)
         {
             throw new NotImplementedException();
         }

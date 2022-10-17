@@ -94,7 +94,7 @@ namespace SharpNetTests.Datasets
             {
                 var rowPrediction = p.RowSlice(row, 1).AsReadonlyFloatCpuContent;
                 var predictionWithProba = root.ExtractPredictionWithProba(rowPrediction);
-                IModel.Log.Error(predictionWithProba);
+                Model.Log.Error(predictionWithProba);
             }
 
         }

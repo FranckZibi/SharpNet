@@ -44,7 +44,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, AmazonEmployeeAccessChallengeUtils.NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    //public override IDataSet FullTraining()
+    //public override DataSet FullTraining()
     //{
     //    return FullTrain;
     //}
@@ -69,7 +69,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     {
         throw new NotImplementedException();
     }
-    public override IDataSet TestDataset()
+    public override DataSet TestDataset()
     {
         return _testDataset;
     }

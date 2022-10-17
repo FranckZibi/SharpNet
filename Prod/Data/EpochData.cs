@@ -97,8 +97,8 @@ namespace SharpNet.Data
         public override string ToString()
         {
             return "Epoch "+_index+" : learningRate:"+LearningRateAtEpochStart
-                   +" - "+ IModel.MetricsToString(TrainingMetrics, "Training")
-                   +" - "+ IModel.MetricsToString(ValidationMetrics, "Validation");
+                   +" - "+ Model.MetricsToString(TrainingMetrics, "Training")
+                   +" - "+ Model.MetricsToString(ValidationMetrics, "Validation");
         }
         public bool Equals(EpochData other, double epsilon)
         {

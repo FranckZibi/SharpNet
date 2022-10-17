@@ -33,7 +33,7 @@ public static class SampleUtils
 
         if (validationRankingScore.IsBetterThan(bestScoreSoFar))
         {
-            IModel.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
+            Model.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;
             using var trainAndValidation = modelAndDataset.ModelAndDatasetPredictionsSample.DatasetSample.SplitIntoTrainingAndValidation();
             var res = modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
@@ -41,12 +41,12 @@ public static class SampleUtils
             modelAndDataset.Save(workingDirectory, model.ModelName);
             var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
             var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
-            IModel.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
+            Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
             modelAndDatasetOnFullDataset.Fit(true, true, true);
         }
         else
         {
-            IModel.Log.Debug($"Removing all model '{model.ModelName}' files because of low score ({validationRankingScore})");
+            Model.Log.Debug($"Removing all model '{model.ModelName}' files because of low score ({validationRankingScore})");
             modelAndDataset.AllFiles().ForEach(path => Utils.TryDelete(path));
         }
 

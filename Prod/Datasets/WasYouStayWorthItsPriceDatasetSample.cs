@@ -180,7 +180,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
     public override string[] IdColumns => new [] { "id" };
     public override string[] TargetLabels => new[] { "max_rating_class" };
-    public override IDataSet TestDataset()
+    public override DataSet TestDataset()
     {
         return EnrichIfNeeded(_fullTestDatasetEncoded);
     }

@@ -13,8 +13,8 @@ namespace SharpNet.Datasets
         private static readonly string[] CategoryIndexToDescription = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
         public static int CategoryCount => CategoryIndexToDescription.Length;
 
-        public override IDataSet Training { get; }
-        public override IDataSet Test { get; }
+        public override DataSet Training { get; }
+        public override DataSet Test { get; }
 
 
         public static readonly int[] Shape_CHW = {3, 32, 32};

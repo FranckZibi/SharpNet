@@ -48,7 +48,7 @@ public class TesDatasetEncoder
         public override string[] CategoricalFeatures { get; }
         public override string[] IdColumns { get; }
         public override string[] TargetLabels { get; }
-        public override IDataSet TestDataset() { throw new NotImplementedException(); }
+        public override DataSet TestDataset() { throw new NotImplementedException(); }
         public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation() { throw new NotImplementedException(); }
         public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns) { throw new NotImplementedException(); }
 
