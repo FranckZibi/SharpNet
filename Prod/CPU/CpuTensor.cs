@@ -30,13 +30,14 @@ namespace SharpNet.CPU
         private HostPinnedMemory<T> _hostPinnedMemory;
         #endregion
 
+        #region constructors
         public CpuTensor(int[] shape, T[] data, int typeSize) : base(shape, typeSize, false)
         {
             Content = data ?? new T[Count];
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
             _ptrToOwnerPinnedMemory = IntPtr.Zero;
         }
-        public CpuTensor(int[] shape, T[] data = null) : this(shape, data, Marshal.SizeOf(typeof(T)))
+        public CpuTensor(int[] shape, T[] data = null) : this(shape, data, typeof(T).IsValueType ?Marshal.SizeOf(typeof(T)) : IntPtr.Size)
         {
         }
         private CpuTensor(int[] shape, CpuTensor<T> memoryOwner, int startIndex) : base(shape, memoryOwner.TypeSize, false)
@@ -45,6 +46,17 @@ namespace SharpNet.CPU
             CapacityInBytes = (ulong)(Content.Length * TypeSize);
             _ptrToOwnerPinnedMemory = memoryOwner.Pointer + TypeSize * startIndex;
         }
+        public static CpuTensor<T> New(T[] content, int columns)
+        {
+            if (content == null || content.Length == 0)
+            {
+                return null;
+            }
+            Debug.Assert(content.Length % columns == 0);
+            int rows = content.Length / columns;
+            return new CpuTensor<T>(new[] { rows, columns }, content);
+        }
+        #endregion
 
         /// <summary>
         /// pointer to (pinned) host memory (in CPU)
@@ -2026,35 +2038,81 @@ namespace SharpNet.CPU
             return new CpuTensor<float>(new[] { rows, numClasses }, content);
         }
 
-        /// <summary>
-        /// for each row of the input tensor, find the index of the max element of the row
-        /// and store it in the output tensor
-        /// </summary>
-        /// <param name="input">a tensor of shape (rows, columns) </param>
-        /// <returns>a tensor of shape (rows, 1), each row contains the index of the max element of the row 'row' in 'inpute</returns>
-        public static CpuTensor<float> ArgMax(CpuTensor<float> input)
+        /// <param name="predictionsInModelFormat_without_Ids">a tensor of shape (batchSize, num_classes) </param>
+        /// <param name="FromProbaDistributionToPredictedCategory_Method">
+        /// 0 : default method (Arg Max)
+        /// 1 : fit the observed class distribution to the expected class distribution, starting with the least common class
+        /// 2 : fit the observed class distribution to the expected class distribution, starting with the most common class
+        /// </param>
+        /// <param name="percentageByTargetLabel"></param>
+        /// <returns>a tensor of shape (batchSize, 1)</returns>
+        /// ReSharper disable once UnusedMember.Local
+        public static CpuTensor<float> FromProbaDistributionToPredictedCategory(CpuTensor<float> predictionsInModelFormat_without_Ids, int FromProbaDistributionToPredictedCategory_Method, IList<float> percentageByTargetLabel)
         {
-            Debug.Assert(input.Shape.Length == 2);
-            var inputContent = input.ReadonlyContent;
-            int rows = input.Shape[0];
-            int columns = input.Shape[1];
-            var argMaxContent = new float[rows];
-            for (int row = 0; row < rows; row++)
+            if (FromProbaDistributionToPredictedCategory_Method == 0)
             {
-                int startIdx = row * columns;
-                int colMax = 0;
-                for (int col = 1; col < columns; col++)
+                return predictionsInModelFormat_without_Ids.ArgMax();
+            }
+            Debug.Assert(predictionsInModelFormat_without_Ids.Shape.Length == 2);
+            var rows = predictionsInModelFormat_without_Ids.Shape[0];
+            var columns = predictionsInModelFormat_without_Ids.Shape[1];
+            Debug.Assert(percentageByTargetLabel.Count == columns);
+            List<Tuple<int, float>> percentageInEachClass = new();
+            for (var index = 0; index < percentageByTargetLabel.Count; index++)
+            {
+                percentageInEachClass.Add(Tuple.Create(index, percentageByTargetLabel[index]));
+            }
+
+            float[] content = Enumerable.Repeat(float.NaN, rows).ToArray();
+            percentageInEachClass = (FromProbaDistributionToPredictedCategory_Method == 1)
+                ? percentageInEachClass.OrderByDescending(t => t.Item2).ToList()
+                : percentageInEachClass.OrderBy(t => t.Item2).ToList();
+
+            var observedValue = new List<float>(rows);
+            var probaContent = predictionsInModelFormat_without_Ids.ReadonlyContent;
+            for (int iClass = 0; iClass < percentageInEachClass.Count - 1; ++iClass)
+            {
+                observedValue.Clear();
+                int classIndex = percentageInEachClass[iClass].Item1;
+                float classPercentage = percentageInEachClass[iClass].Item2;
+
+                //we compute the proba threshold for class 'classIndex'
+                //all non classified element with an observed proba greater than this threshold will be predicted as 'classIndex'
+                for (int row = 0; row < rows; ++row)
                 {
-                    if (inputContent[startIdx + col] > inputContent[startIdx+ colMax])
+                    if (float.IsNaN(content[row]))
                     {
-                        colMax = col;
+                        observedValue.Add(probaContent[row * columns + classIndex]);
                     }
                 }
-                argMaxContent[row] = colMax;
-            }
-            return new CpuTensor<float>(new[] { rows, 1 }, argMaxContent);
-        }
+                if (observedValue.Count == 0)
+                {
+                    continue;
+                }
+                observedValue.Sort();
+                observedValue.Reverse();
+                int idxInSortedObservedValue = (int)(classPercentage * rows);
+                idxInSortedObservedValue = Math.Min(idxInSortedObservedValue, observedValue.Count - 1);
+                var probaThreshold = observedValue[idxInSortedObservedValue];
 
+                for (int row = 0; row < rows; ++row)
+                {
+                    if (float.IsNaN(content[row]) && probaContent[row * columns + classIndex] >= probaThreshold)
+                    {
+                        content[row] = classIndex;
+                    }
+                }
+            }
+
+            for (int row = 0; row < rows; ++row)
+            {
+                if (float.IsNaN(content[row]))
+                {
+                    content[row] = percentageInEachClass.Last().Item1;
+                }
+            }
+            return new CpuTensor<float>(new[] { rows, 1 }, content);
+        }
 
         public static CpuTensor<float> AddIndexInFirstColumn(CpuTensor<float> tensor, int startIndex = 0)
         {
@@ -2070,11 +2128,28 @@ namespace SharpNet.CPU
 
         public static CpuTensor<T> MergeHorizontally(CpuTensor<T> left, CpuTensor<T> right)
         {
+            if (left == null)
+            {
+                return right;
+            }
+            if (right == null)
+            {
+                return left;
+            }
             return InsertAtColumnIndex(left, right, left.Shape[1]);
         }
 
         public static CpuTensor<T> MergeVertically(CpuTensor<T> top, CpuTensor<T> bottom)
         {
+            if (top == null)
+            {
+                return bottom;
+            }
+            if (bottom == null)
+            {
+                return top;
+            }
+
             return InsertAtRowIndex(top, bottom, top.Shape[0]);
         }
 

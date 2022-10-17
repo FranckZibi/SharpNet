@@ -116,7 +116,7 @@ public abstract class AbstractModel : IModel
         {
             predictionLabels = Enumerable.Range(0, predictionsCpuTensor.Shape[1]).Select(x => x.ToString()).ToArray();
         }
-        var predictionsDf = DataFrame.New(predictionsCpuTensor, predictionLabels);
+        DataFrame predictionsDf = DataFrame.New(predictionsCpuTensor, predictionLabels);
         predictionsDf = dataset.AddIdColumnsAtLeftIfNeeded(predictionsDf);
         if (predictionsDf.Shape[0] != dataset.Count)
         {

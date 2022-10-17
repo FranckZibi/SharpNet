@@ -24,7 +24,7 @@
 //        Validation_YDatasetPath = embeddedDatasetSample.Validation_YDatasetPath;
 //    }
 
-//    public override (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath)
+//    public override (string train_PredictionsFileName, float trainScore, string validation_PredictionsFileName, float validationScore, string test_PredictionsFileName)
 //        Fit(IModel model, bool computeAndSavePredictions, bool computeValidationScore, bool saveTrainedModel)
 //    {
 //        var weightsOptimizer = (WeightsOptimizer)model;
@@ -44,15 +44,15 @@
 //        }
 //        return res;
 //    }
-//    public override (string train_PredictionsPath, float trainScore, string validation_PredictionsPath, float validationScore, string test_PredictionsPath) ComputeAndSavePredictions(IModel model)
+//    public override (string train_PredictionsFileName, float trainScore, string validation_PredictionsFileName, float validationScore, string test_PredictionsFileName) ComputeAndSavePredictions(IModel model)
 //    {
 //        var weightsOptimizerModel = (WeightsOptimizer)model;
 //        var (trainPredictions, trainScore, validationPredictions, validationScore, testPredictions, testScore) =
 //            weightsOptimizerModel.Predictions();
 
-//        Train_PredictionsPath = "";
-//        Validation_PredictionsPath = "";
-//        Test_PredictionsPath = "";
+//        Train_PredictionsFileName = "";
+//        Validation_PredictionsFileName = "";
+//        Test_PredictionsFileName = "";
 
 //        if (!float.IsNaN(trainScore))
 //        {
@@ -67,7 +67,7 @@
 //            SaveTestPredictions(model, testPredictions);
 //        }
 
-//        return (Train_PredictionsPath, trainScore, Validation_PredictionsPath, validationScore, Test_PredictionsPath);
+//        return (Train_PredictionsFileName, trainScore, Validation_PredictionsFileName, validationScore, Test_PredictionsFileName);
 //    }
 
 //    public override List<string> CategoricalFeatures()

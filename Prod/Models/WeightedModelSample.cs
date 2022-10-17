@@ -115,7 +115,7 @@ public class WeightedModelSample : AbstractSample, IModelSample
             res.Update_Adding_Alpha_X(weights[i] / sumWeights, t[i].FloatCpuTensor());
         }
         res.LoadColumnsFromSource(t[0].FloatCpuTensor(), indexColumnsNotToUse);
-        return DataFrame.New(res, t[0].ColumnNames);
+        return DataFrame.New(res, t[0].Columns);
     }
     public EvaluationMetricEnum GetLoss()
     {

@@ -122,16 +122,36 @@ namespace SharpNet.Datasets
         /// <returns></returns>
         List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer);
         int[] YMiniBatch_Shape(int miniBatchSize);
+
+        /// <summary>
+        /// Y shape for
+        ///     regression:                 (_, 1)
+        ///     binary classification:      (_, 1)  where each element is a probability in [0, 1] range
+        ///     multi class classification  (_, 1) with each element being the index of the class in [0, numClasses-1] range
+        /// </summary>
         [CanBeNull] CpuTensor<float> Y { get; }
+
+        /// <summary>
+        /// Y_InModelFormat shape for
+        ///     regression:                 (_, 1)
+        ///     binary classification:      (_, 1)  where each element is a probability in [0, 1) range
+        ///     multi class classification  (_, NumClasses) with each element being the probability of belonging to this class
+        /// </summary>
+        /// <param name="numClasses"></param>
+        /// <param name="includeIdColumns"></param>
+        /// <returns></returns>
         public DataFrame Y_InModelFormat(int numClasses, bool includeIdColumns);
+        /// <summary>
+        /// same shape as Y
+        /// </summary>
+        /// <param name="includeIdColumns"></param>
+        /// <returns></returns>
         DataFrame Y_InTargetFormat(bool includeIdColumns);
 
         string Name { get; }
 
         ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet);
         ITrainingAndTestDataSet IntSplitIntoTrainingAndValidation(int countInTrainingSet);
-        // ReSharper disable once UnusedMember.Global
-        IDataSet Resize(int targetSize, bool shuffle);
         // ReSharper disable once UnusedMember.Global
         IDataSet Shuffle(Random r);
 

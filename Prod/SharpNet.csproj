@@ -27,6 +27,7 @@
     <PackageReference Include="protobuf-net" Version="3.0.73" />
     <PackageReference Include="System.Management" Version="6.0.0" />
 	<PackageReference Include="CsvHelper" Version="28.0.1" />
+	<PackageReference Include="Porter2StemmerStandard" Version="1.1.0" />
     <Compile Remove="Properties\AssemblyInfo.cs" />
     <None Remove="packages.config" />
   </ItemGroup>

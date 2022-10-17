@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
-using System.Text;
 using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
@@ -32,7 +32,7 @@ public class DatasetEncoder
     /// (usually a single feature)
     /// </summary>
     [NotNull] private string[] IdColumns => _datasetSample.IdColumns;
-    [NotNull] private readonly Dictionary<string, FeatureStats> _featureStats = new();
+    [NotNull] private readonly Dictionary<string, ColumnStatistics> _columnStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
     #endregion
 
@@ -40,7 +40,7 @@ public class DatasetEncoder
     {
         _datasetSample = datasetSample;
     }
-    public FeatureStats this[string featureName] => _featureStats[featureName];
+    public ColumnStatistics this[string featureName] => _columnStats[featureName];
 
     /// <summary>
     /// load the dataset 'xyDataset' and encode all categorical features into numerical values
@@ -51,58 +51,47 @@ public class DatasetEncoder
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public IDataSet NumericalEncoding(string xyDataset)
+    public InMemoryDataSet NumericalEncoding(string xyDataset)
     {
-        var rows = Utils.ReadCsvWithCache(xyDataset);
-        var df = NumericalEncoding(rows);
-        var (xTrainEncoded, yTrainEncoded) = df.Split(Targets);
-
-        var x = xTrainEncoded.FloatCpuTensor();
-        var y = yTrainEncoded.FloatCpuTensor();
-        return new InMemoryDataSet(
-            x,
-            y,
-            _datasetSample.Name,
-            _datasetSample.GetObjective(),
-            null,
-            xTrainEncoded.ColumnNames,
-            CategoricalFeatures,
-            IdColumns,
-            Targets,
-            false,
-            _datasetSample.GetSeparator());
+        var xyTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(xyDataset));
+        var xTrainEncoded = xyTrainEncoded.Drop(Targets);
+        var yTrainEncoded = xyTrainEncoded[Targets];
+        return NewInMemoryDataSet(xTrainEncoded, yTrainEncoded?.FloatCpuTensor(), _datasetSample);
     }
     /// <summary>
     /// load the dataset 'xDataset' and encode all categorical features into numerical values
     /// (so that it can be processed by LightGBM)
     /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
     /// </summary>
-    public IDataSet NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
+    public InMemoryDataSet NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
     {
-        var xRows = Utils.ReadCsvWithCache(xDataset);
-        var xEncoding = NumericalEncoding(xRows);
+        var xTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(xDataset));
 
         //we load the y file if any
-        DataFrameT<float> yEncoding = null;
+        DataFrame yTrainEncoded = null;
         if (!string.IsNullOrEmpty(yDataset))
         {
-            var yRows = Utils.ReadCsvWithCache(yDataset);
-            yEncoding = NumericalEncoding(yRows);
+            yTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(yDataset));
         }
-
-        return new InMemoryDataSet(
-            xEncoding.FloatCpuTensor(),
-            yEncoding?.Tensor,
-            _datasetSample.Name,
-            _datasetSample.GetObjective(),
-            null,
-            xEncoding.ColumnNames,
-            CategoricalFeatures,
-            IdColumns,
-            Targets,
-            false,
-            _datasetSample.GetSeparator());
+        return NewInMemoryDataSet(xTrainEncoded, yTrainEncoded?.FloatCpuTensor(), _datasetSample);
     }
+
+    public static InMemoryDataSet NewInMemoryDataSet(DataFrame xTrainEncoded, CpuTensor<float> yTrainEncodedTensor, AbstractDatasetSample datasetSample)
+    {
+        return new InMemoryDataSet(
+            xTrainEncoded.FloatCpuTensor(),
+            yTrainEncodedTensor,
+            datasetSample.Name,
+            datasetSample.GetObjective(),
+            null,
+            xTrainEncoded.Columns,
+            Utils.Intersect(datasetSample.CategoricalFeatures, xTrainEncoded.Columns).ToArray(), //we only take Categorical Features that actually appear in the training DataSet
+            Utils.Intersect(datasetSample.IdColumns, xTrainEncoded.Columns).ToArray(), //we only take Id Columns Features that actually appear in the training DataSet
+            datasetSample.TargetLabels,
+            false,
+            datasetSample.GetSeparator());
+    }
+
     /// <summary>
     /// for classification problems, the number of distinct class to identify
     /// 1 if it is a regression problem
@@ -126,56 +115,44 @@ public class DatasetEncoder
         }
         return allValues.Count;
     }
-    public IList<int> GetDistinctCategoricalCount(string categoricalColumn)
+    //public IList<float> GetDistinctCategoricalPercentage(string categoricalColumn)
+    //{
+    //    if (!IsCategoricalColumn(categoricalColumn))
+    //    {
+    //        throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
+    //    }
+    //    if (!_featureStats.ContainsKey(categoricalColumn))
+    //    {
+    //        return null;
+    //    }
+    //    return _featureStats[categoricalColumn].GetDistinctCategoricalPercentage();
+    //}
+    public DataFrame NumericalEncoding(DataFrame df)
     {
-        if (!IsCategoricalColumn(categoricalColumn))
-        {
-            throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
-        }
-        if (!_featureStats.ContainsKey(categoricalColumn))
-        {
-            return null;
-        }
-        return _featureStats[categoricalColumn].GetDistinctCategoricalCount();
-    }
-    public DataFrameT<float> NumericalEncoding(IReadOnlyList<string[]> rows)
-    {
-        //the 1st row contains the header
-        if (rows.Count < 2)
-        {
-            var errorMsg = $"fail to encode dataset '{_datasetSample.Name}', too few rows {rows.Count}";
-            Log.Error(errorMsg);
-            throw new Exception(errorMsg);
-        }
         //we read the header
-        var headerRow = rows[0];
-        foreach (var featureName in headerRow)
+        foreach (var c in df.Columns)
         {
-            if (!_featureStats.ContainsKey(featureName))
+            if (!_columnStats.ContainsKey(c))
             {
-                _featureStats[featureName] = new FeatureStats(IsCategoricalColumn(featureName), Targets.Contains(featureName), IdColumns.Contains(featureName));
+                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c));
             }
         }
 
-        var content = new float[(rows.Count - 1) * headerRow.Length];
+        var rows = df.Shape[0];
+        var columns = df.Shape[1];
+        var content = new float[rows*columns];
         int contentIndex = 0;
+        var readonlyContent = df.StringCpuTensor().ReadonlyContent;
 
-        //we skip the first row (== header row)
-        for (var rowIndex = 1; rowIndex < rows.Count; rowIndex++)
+        for (var rowIndex = 0; rowIndex < rows; rowIndex++)
         {
-            var row = rows[rowIndex];
-            if (row.Length != headerRow.Length)
+            foreach (var c in df.Columns)
             {
-                Log.Warn($"invalid number of elements for row at index#{rowIndex}: found {row.Length} elements, expecting {headerRow.Length} (ignoring)");
-            }
-            for (int i = 0; i < headerRow.Length; ++i)
-            {
-                content[contentIndex++] = (float)_featureStats[headerRow[i]].NumericalEncoding(i<row.Length ? row[i] : "");
+                content[contentIndex] = (float)_columnStats[c].NumericalEncoding(readonlyContent[contentIndex]);
+                ++contentIndex;
             }
         }
-        var cpuTensor = new CpuTensor<float>(new [] { rows.Count - 1, headerRow.Length }, content);
-        var df = DataFrame.New(cpuTensor, headerRow);
-        return (DataFrameT<float>)df;
+        return DataFrame.New(content, df.Columns);
     }
 
 
@@ -183,49 +160,29 @@ public class DatasetEncoder
     /// Decode the dataframe 'df' (replacing numerical values by their categorical values) and return the content of the decoded DataFrame
     /// </summary>
     /// <param name="df"></param>
-    /// <param name="separator"></param>
     /// <param name="missingNumberValue"></param>
     /// <returns></returns>
-    public string NumericalDecoding(DataFrame df, char separator, string missingNumberValue = "")
+    public DataFrame NumericalDecoding(DataFrame df, string missingNumberValue = "")
     {
-        var featureNames = df.ColumnNames;
-
-        //we ensure that categorical feature names are valid
-        foreach (var featureName in featureNames)
+        //we display a warning for column names without known encoding
+        var unknownFeatureName = Utils.Without(df.Columns, _columnStats.Keys);
+        if (unknownFeatureName.Count != 0)
         {
-            if (!_featureStats.ContainsKey(featureName))
-            {
-                var errorMsg = $"Invalid feature name '{featureName}' : must be in {string.Join(' ', _featureStats.Keys)}";
-                Log.Error(errorMsg);
-                throw new Exception(errorMsg);
-            }
+            Log.Warn($"{unknownFeatureName.Count} unknown feature name(s): '{string.Join(' ', unknownFeatureName)}' (not in '{string.Join(' ', _columnStats.Keys)}')");
         }
 
-        var sb = new StringBuilder();
-        sb.Append(string.Join(separator, featureNames) + Environment.NewLine);
-        int nbRows = df.Shape[0];
-        int nbColumns = df.Shape[1];
-        var memoryContent = df.FloatCpuTensor().Content;
-        for (int rowIndex = 0; rowIndex < nbRows; rowIndex++)
+        var encodedContent = df.FloatCpuTensor().ReadonlyContent;
+        var decodedContent = new string[encodedContent.Length];
+        for (int idx = 0; idx< encodedContent.Length;++idx)
         {
-            var rowContent = memoryContent.Slice(rowIndex * nbColumns, nbColumns).Span;
-            for (int colIndex = 0; colIndex < nbColumns; ++colIndex)
-            {
-                var e = rowContent[colIndex];
-                var featureStat = _featureStats[featureNames[colIndex]];
-                var eAsString = featureStat.NumericalDecoding(e, missingNumberValue);
-                if (colIndex != 0)
-                {
-                    sb.Append(separator);
-                }
-                sb.Append(eAsString);
-            }
-            if (rowIndex != nbRows - 1)
-            {
-                sb.Append(Environment.NewLine);
-            }
+            var encodedValue = encodedContent[idx];
+            int col = idx % df.Columns.Length;
+            var decodedValueAsString = _columnStats.TryGetValue(df.Columns[col], out var featureStat)
+                ? featureStat.NumericalDecoding(encodedValue, missingNumberValue)
+                : encodedValue.ToString(CultureInfo.InvariantCulture);
+            decodedContent[idx] = decodedValueAsString;
         }
-        return sb.ToString();
+        return DataFrame.New(decodedContent, df.Columns);
     }
 
     /// <summary>
@@ -239,11 +196,11 @@ public class DatasetEncoder
         {
             throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
         }
-        if (!_featureStats.ContainsKey(categoricalColumn))
+        if (!_columnStats.ContainsKey(categoricalColumn))
         {
             return null;
         }
-        return _featureStats[categoricalColumn].GetDistinctCategoricalValues();
+        return _columnStats[categoricalColumn].GetDistinctCategoricalValues();
     }
     private bool IsCategoricalColumn(string columnName)
     {
@@ -251,12 +208,10 @@ public class DatasetEncoder
         {
             return true;
         }
-
         if (_datasetSample.IsClassificationProblem && Targets.Contains(columnName))
         {
             return true;
         }
-
         return false;
     }
 }

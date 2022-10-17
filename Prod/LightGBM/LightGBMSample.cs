@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 
 namespace SharpNet.LightGBM
@@ -107,6 +108,11 @@ namespace SharpNet.LightGBM
         //}
 
 
+        public void UpdateForDataset(IDataSet dataset)
+        {
+            var categoricalFeatures = dataset.CategoricalFeatures;
+            categorical_feature = (categoricalFeatures.Length >= 1) ? ("name:" + string.Join(',', categoricalFeatures)) : "";
+        }
 
 
         #region Core Parameters

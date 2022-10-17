@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using JetBrains.Annotations;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
@@ -47,13 +46,36 @@ namespace SharpNet.LightGBM
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
-            string trainDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
-            string validationDatasetPath = null;
-            if (validationDatasetIfAny != null)
+            var trainDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            var validationDatasetPath = validationDatasetIfAny?.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            LightGbmSample.UpdateForDataset(trainDataset);
+            //we save in 'tmpLightGBMSamplePath' the model sample used for training
+            var tmpLightGBMSamplePath = ISample.ToPath(TempPath, ModelName);
+            var tmpLightGBMSample = (LightGBMSample)LightGbmSample.Clone();
+            tmpLightGBMSample.Set(new Dictionary<string, object> {
+                {"task", LightGBMSample.task_enum.train},
+                {"data", trainDatasetPath},
+                {"valid", validationDatasetPath??""},
+                {"output_model", ModelPath},
+                {"input_model", ""},
+                {"prediction_result", ""},
+                {"header", true},
+                {"save_binary", false},
+            });
+            var logMsg = $"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}" +(string.IsNullOrEmpty(validationDatasetPath) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validationDatasetPath)}");
+            if (LoggingForModelShouldBeDebug(ModelName))
             {
-                validationDatasetPath = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+                LogDebug(logMsg);
             }
-            return Fit(trainDatasetPath, validationDatasetPath);
+            else
+            {
+                LogInfo(logMsg);
+            }
+            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
+
+            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
+            Utils.TryDelete(tmpLightGBMSamplePath);
+            return (null, null, trainDatasetPath, null, null, validationDatasetPath);
         }
 
      
@@ -130,38 +152,6 @@ namespace SharpNet.LightGBM
         //    var sample = ISample.LoadSample<LightGBMSample>(workingDirectory, modelName);
         //    return new LightGBMModel(sample, workingDirectory, modelName);
         //}
-
-        private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
-            Fit([JetBrains.Annotations.NotNull] string trainDatasetPath, [CanBeNull] string validationDatasetPathIfAny)
-        {
-            //we save in 'tmpLightGBMSamplePath' the model sample used for training
-            var tmpLightGBMSamplePath = ISample.ToPath(TempPath, ModelName);
-            var tmpLightGBMSample = (LightGBMSample)LightGbmSample.Clone();
-            tmpLightGBMSample.Set(new Dictionary<string, object> {
-                {"task", LightGBMSample.task_enum.train},
-                {"data", trainDatasetPath},
-                {"valid", validationDatasetPathIfAny??""},
-                {"output_model", ModelPath},
-                {"input_model", ""},
-                {"prediction_result", ""},
-                {"header", true},
-                {"save_binary", false},
-            });
-            var logMsg = $"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}" +(string.IsNullOrEmpty(validationDatasetPathIfAny) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validationDatasetPathIfAny)}");
-            if (LoggingForModelShouldBeDebug(ModelName))
-            {
-                LogDebug(logMsg);
-            }
-            else
-            {
-                LogInfo(logMsg);
-            }
-            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
-
-            Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, IModel.Log);
-            Utils.TryDelete(tmpLightGBMSamplePath);
-            return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
-        }
 
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "lightgbm.exe");
         private string TempPath => Path.Combine(WorkingDirectory, "Temp");

@@ -9,11 +9,11 @@ public class PredictionsSample : AbstractSample
     }
 
     #region Hyper-Parameters
-    public string Train_PredictionsPath;
-    public string Validation_PredictionsPath;
-    public string Test_PredictionsPath;
-    public string Train_PredictionsPath_InModelFormat;
-    public string Validation_PredictionsPath_InModelFormat;
-    public string Test_PredictionsPath_InModelFormat;
+    public string Train_PredictionsFileName;
+    public string Validation_PredictionsFileName;
+    public string Test_PredictionsFileName;
+    public string Train_PredictionsFileName_InModelFormat;
+    public string Validation_PredictionsFileName_InModelFormat;
+    public string Test_PredictionsFileName_InModelFormat;
     #endregion
 }

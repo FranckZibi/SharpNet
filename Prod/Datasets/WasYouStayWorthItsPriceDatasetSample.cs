@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using SharpNet.CatBoost;
-using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
@@ -15,21 +14,16 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 {
     #region private fields
     private const string NAME = "WasYouStayWorthItsPrice";
-
-
     private static readonly object LockObject = new();
     private static DatasetEncoder _trainTestEncoder;
-    private static IDataSet _fullTrainDatasetEncoded;
-    private static IDataSet _fullTestDatasetEncoded;
-
-    //private readonly DatasetEncoder _reviewsEncoder;
-    //private readonly DataFrameT<float> _reviewEncoded;
-    private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
-    private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
+    private static InMemoryDataSet _fullTrainDatasetEncoded;
+    private static InMemoryDataSet _fullTestDatasetEncoded;
+    private static DataFrame _fullReviewEncoded;
     #endregion
 
     private WasYouStayWorthItsPriceDatasetSample() : base(new HashSet<string>())
     {
+        //var s2 = Stopwatch.StartNew();
         lock (LockObject)
         {
             if (_trainTestEncoder == null)
@@ -39,7 +33,20 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
                 _fullTestDatasetEncoded = _trainTestEncoder.NumericalEncoding(XTestRawFile, null);
             }
             WasYouStayWorthItsPriceDatasetSample_NumClasses = _trainTestEncoder.NumClasses();
+            if (!File.Exists(ReviewsTfIdfEncodedRawFile))
+            {
+                var encoded_review_df = DataFrame.read_string_csv(ReviewsRawFile)["listing_id", "renters_comments"]
+                    .RenameInPlace("listing_id", "id")
+                    .TfIdfEncoding("renters_comments", 1000)
+                    .AverageBy("id");
+                encoded_review_df.to_csv(ReviewsTfIdfEncodedRawFile);
+            }
+            if (_fullReviewEncoded == null)
+            {
+                _fullReviewEncoded = _trainTestEncoder.NumericalEncoding(ReviewsTfIdfEncodedRawFile, null).XDataFrame;
+            }
         }
+
 
         //_fullTrainDatasetEncoded.to_csv(@"C:\Projects\Challenges\WasYouStayWorthItsPrice\yx_train.csv", GetSeparator(), true, true);
         //_fullTestDatasetEncoded.to_csv(@"C:\Projects\Challenges\WasYouStayWorthItsPrice\x_test.csv", GetSeparator(), false, true);
@@ -54,24 +61,29 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     // ReSharper disable once MemberCanBePrivate.Global
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public int WasYouStayWorthItsPriceDatasetSample_NumClasses;
+    /// <summary>
+    /// the embedding dim to use to enrich the dataset with the reviews
+    /// </summary>
+    // ReSharper disable once MemberCanBePrivate.Global
+    public int Reviews_EmbeddingDim = 200;
     #endregion
-
 
     public static void WeightOptimizer()
     {
-        var submissionWorkingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission";
-        List<Tuple<string, string>> workingDirectoryAndModelNames = new();
-        workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "CB3E039726_KFOLD"));
-        workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "3C3987FE91_KFOLD"));
-        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "C3CC5F05C4")); //LightGBM : 0.31969
-        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "2674967CC5")); //LightGBM : 0.31899
-        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "35F41F899E")); //LightGBM : 0.31847
-        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "3ABC690E85")); //CatBoost : 0.31139
-        //workingDirectoryAndModelNames.Add(Tuple.Create(submissionWorkingDirectory, "94D0AA30CA")); //CatBoost : 0.309
-        string searchWorkingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission\search";
+        const string submissionWorkingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission";
+        List<Tuple<string, string>> workingDirectoryAndModelNames = new()
+        {
+            Tuple.Create(submissionWorkingDirectory, "56E668E7DB_FULL"),
+            Tuple.Create(submissionWorkingDirectory, "8CF93D9FA0_FULL"),
+            Tuple.Create(submissionWorkingDirectory, "90840F212D_FULL"),
+            Tuple.Create(submissionWorkingDirectory, "E72AD5B74B_FULL"),
+            Tuple.Create(submissionWorkingDirectory, "66B4F3653A_FULL"),
+            Tuple.Create(submissionWorkingDirectory, "395B343296_FULL"),
+        };
+        var searchWorkingDirectory = Path.Combine(submissionWorkingDirectory, "search");
         WeightsOptimizer.SearchForBestWeights(workingDirectoryAndModelNames, searchWorkingDirectory, null);
     }
-
+    // ReSharper disable once UnusedMember.Global
     public static void LaunchCatBoostHPO()
     {
         // ReSharper disable once ConvertToConstant.Local
@@ -103,11 +115,10 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
     }
-
-    public static void LaunchLightGBMHPO()
+    public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int min_num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         // ReSharper disable once ConvertToConstant.Local
-        var min_num_iterations = 200;
+
         var numClasses = new WasYouStayWorthItsPriceDatasetSample().WasYouStayWorthItsPriceDatasetSample_NumClasses;
 
         var searchSpace = new Dictionary<string, object>
@@ -117,10 +128,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //{"KFold", new[]{1,3}},
             {"KFold", new[]{1}},
 
-            //{"FromProbaDistributionToPredictedCategory_Method", new[]{0, 1, 2}},
-            
-            /*
-            //{"boosting", "dart"},
+            {"boosting", new []{"gbdt", "dart"}},
             //dart mode
             //{"drop_rate", new[]{0.05, 0.1, 0.2}},
             {"max_drop", new[]{40, 50, 60}},
@@ -128,7 +136,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //{"xgboost_dart_mode", new[]{false, true}},
             //{"uniform_drop", new[]{false, true}},
             //{"drop_seed", 4},
-            */
 
             //related to LightGBM model
             { "metric", "multi_logloss" },
@@ -143,159 +150,77 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             { "early_stopping_round", min_num_iterations/10 },
             { "bagging_fraction", new[]{0.9f, 1.0f} },
             { "bagging_freq", new[]{0, 1} },
-            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
             //{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
             { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
             { "max_depth", new[]{10, 20, 50, 100, 255} },
             //{ "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 100) },
-            { "min_data_in_bin", new[]{2, 3, 10, 100, 150}  },
+            { "min_data_in_bin", new[]{3, 10, 100, 150}  },
             //{ "min_data_in_leaf", AbstractHyperParameterSearchSpace.Range(20, 200) },
             //{ "min_data_in_leaf", new[]{10, 20, 30} },
             //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
-            { "num_leaves", AbstractHyperParameterSearchSpace.Range(5, 60) },
+            { "num_leaves", AbstractHyperParameterSearchSpace.Range(5, 100) },
             //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
     }
 
     public override Objective_enum GetObjective() => Objective_enum.Classification;
-
-    //public override EvaluationMetricEnum GetLossFunction()
-    //{
-    //    return EvaluationMetricEnum.CategoricalCrossentropy;
-    //}
-
     protected override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
         return EvaluationMetricEnum.F1Micro;
     }
-
     public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
     public override string[] IdColumns => new [] { "id" };
     public override string[] TargetLabels => new[] { "max_rating_class" };
-
     public override IDataSet TestDataset()
     {
-        return _fullTestDatasetEncoded;
+        return EnrichIfNeeded(_fullTestDatasetEncoded);
     }
-
     public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {
-        int rowsForTraining = (int)(PercentageInTraining * _fullTrainDatasetEncoded.Count + 0.1);
+        var enrichFullTrain = EnrichIfNeeded(_fullTrainDatasetEncoded);
+        int rowsForTraining = (int)(PercentageInTraining * enrichFullTrain.Count + 0.1);
         rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
-        return _fullTrainDatasetEncoded.IntSplitIntoTrainingAndValidation(rowsForTraining);
+        return enrichFullTrain.IntSplitIntoTrainingAndValidation(rowsForTraining);
 
     }
-
     public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
     {
-        Debug.Assert(TargetLabels.Length == 1);
-        var (predictionsInModelFormat_without_Ids, idDataFrame) = predictionsInModelFormat_with_IdColumns.Split(IdColumns);
-        var cpuTensor = FromProbaDistributionToPredictedCategory(predictionsInModelFormat_without_Ids.FloatCpuTensor());
-        var probaDataFrame_InTargetFormat = DataFrame.New(cpuTensor, TargetLabels);
-        var predictionsInTargetFormat_encoded = DataFrame.MergeHorizontally(idDataFrame, probaDataFrame_InTargetFormat);
-        return predictionsInTargetFormat_encoded;
+        var cpuTensor_InTargetFormat = predictionsInModelFormat_with_IdColumns.Drop(IdColumns).FloatCpuTensor().ArgMax();
+        var probaDataFrame_InTargetFormat = DataFrame.New(cpuTensor_InTargetFormat, TargetLabels);
+        return DataFrame.MergeHorizontally(predictionsInModelFormat_with_IdColumns[IdColumns], probaDataFrame_InTargetFormat);
     }
-
-
-    private readonly int FromProbaDistributionToPredictedCategory_Method = 0;
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="predictionsInModelFormat_without_Ids">a tensor of shape (batchSize, num_classes) </param>
-    /// <returns>a tensor of shape (batchSize, 1)</returns>
-    private CpuTensor<float> FromProbaDistributionToPredictedCategory(CpuTensor<float> predictionsInModelFormat_without_Ids)
-    {
-        Debug.Assert(predictionsInModelFormat_without_Ids.Shape.Length == 2);
-        var rows = predictionsInModelFormat_without_Ids.Shape[0];
-        var columns = predictionsInModelFormat_without_Ids.Shape[1];
-        Debug.Assert(_trainTestEncoder.NumClasses() == columns);
-        if (FromProbaDistributionToPredictedCategory_Method == 0)
-        {
-            return CpuTensor<float>.ArgMax(predictionsInModelFormat_without_Ids);
-        }
-
-        var countByTargetLabel = _trainTestEncoder.GetDistinctCategoricalCount(TargetLabels[0]);
-        Debug.Assert(countByTargetLabel.Count == columns);
-        float sumCount = countByTargetLabel.Sum();
-        List<Tuple<int, float>> percentageInEachClass = new();
-        for (var index = 0; index < countByTargetLabel.Count; index++)
-        {
-            percentageInEachClass.Add(Tuple.Create(index, countByTargetLabel[index]/sumCount));
-        }
-
-        float[] content = Enumerable.Repeat(float.NaN, rows).ToArray();
-        percentageInEachClass = (FromProbaDistributionToPredictedCategory_Method == 1)
-            ?percentageInEachClass.OrderByDescending(t => t.Item2).ToList()
-            :percentageInEachClass.OrderBy(t => t.Item2).ToList();
-
-        var observedValue = new List<float>(rows);
-        var probaContent = predictionsInModelFormat_without_Ids.ReadonlyContent;
-        for (int iClass = 0; iClass < percentageInEachClass.Count - 1; ++iClass)
-        {
-            observedValue.Clear();
-            int classIndex = percentageInEachClass[iClass].Item1;
-            float classPercentage = percentageInEachClass[iClass].Item2;
-
-            //we compute the proba threshold for class 'classIndex'
-            //all non classified element with an observed proba greater than this threshold will be predicted as 'classIndex'
-            for (int row = 0; row < rows; ++row)
-            {
-                if (float.IsNaN(content[row]))
-                {
-                    observedValue.Add(probaContent[row * columns + classIndex]);
-                }
-            }
-            if (observedValue.Count == 0)
-            {
-                continue;
-            }
-            observedValue.Sort();
-            observedValue.Reverse();
-            int idxInSortedObservedValue = (int)(classPercentage * rows);
-            idxInSortedObservedValue = Math.Min(idxInSortedObservedValue, observedValue.Count - 1);
-            var probaThreshold = observedValue[idxInSortedObservedValue];
-
-            for (int row = 0; row < rows; ++row)
-            {
-                if (float.IsNaN(content[row]) && probaContent[row * columns + classIndex]>= probaThreshold)
-                {
-                    content[row] = classIndex;
-                }
-            }
-        }
-
-        for (int row = 0; row < rows; ++row)
-        {
-            if (float.IsNaN(content[row]))
-            {
-                content[row] = percentageInEachClass.Last().Item1;
-            }
-        }
-
-        //predictionsInModelFormat_without_Ids.Transpose();
-
-
-
-        return new CpuTensor<float>(new int[]{rows, 1}, content);
-    }
-
     public override void SavePredictionsInTargetFormat(DataFrame encodedPredictionsInTargetFormat, string path)
     {
-        var csvContent = _trainTestEncoder.NumericalDecoding(encodedPredictionsInTargetFormat, GetSeparator(), "");
-        File.WriteAllText(path, csvContent);
+        var df_decoded = _trainTestEncoder.NumericalDecoding(encodedPredictionsInTargetFormat);
+        df_decoded.to_csv(path, GetSeparator());
     }
 
-
-
+    private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
+    private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
     private static string XYTrainRawFile => Path.Combine(DataDirectory, "train.csv");
     private static string XTestRawFile => Path.Combine(DataDirectory, "test.csv");
-    //private static string ReviewsRawFile => Path.Combine(DataDirectory, "reviews.csv");
+    private static string ReviewsRawFile => Path.Combine(DataDirectory, "reviews.csv");
+    private static string ReviewsTfIdfEncodedRawFile => Path.Combine(DataDirectory, "reviews_tfidf_encoded.csv");
+    private InMemoryDataSet EnrichIfNeeded(InMemoryDataSet dataset)
+    {
+        if (Reviews_EmbeddingDim > 0)
+        {
+            var fullReviewsForEmbeddingDim = _fullReviewEncoded[_fullReviewEncoded.Columns.Take(IdColumns.Length + Reviews_EmbeddingDim).ToArray()];
+            var xEnriched = dataset.XDataFrame.LeftJoinWithoutDuplicates(fullReviewsForEmbeddingDim, "id");
+            return DatasetEncoder.NewInMemoryDataSet(xEnriched, dataset.Y, this);
+        }
+        else
+        {
+            return dataset;
+        }
+    }
 }

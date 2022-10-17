@@ -37,6 +37,7 @@ namespace SharpNet.Datasets
                 separator)
         {
             Debug.Assert(y==null || AreCompatible_X_Y(x, y));
+            //Debug.Assert(x.Shape[1] == columnNames.Length);
 
             _x = x;
             Y = y;
@@ -92,6 +93,7 @@ namespace SharpNet.Datasets
             return "";
         }
 
+        public DataFrame XDataFrame => DataFrame.New(_x, ColumnNames);
         public override CpuTensor<float> Y { get; }
         public override string ToString()
         {

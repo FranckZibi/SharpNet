@@ -484,14 +484,14 @@ namespace SharpNet
         /// <param name="a"></param>
         /// <param name="b"></param>
         /// <returns></returns>
-        public static List<string> Intersect(IList<string> a, IList<string> b)
+        public static List<T> Intersect<T>(IList<T> a, IList<T> b)
         {
-            var result = new List<string>();
+            var result = new List<T>();
             if (a == null || b == null ||a.Count == 0 || b.Count == 0)
             {
                 return result;
             }
-            var bHash = new HashSet<string>(b);
+            var bHash = new HashSet<T>(b);
 
             foreach (var e in a)
             {
@@ -503,14 +503,14 @@ namespace SharpNet
             return result;
         }
 
-        public static List<string> Without(IEnumerable<string> a, IEnumerable<string> b)
+        public static List<T> Without<T>(IEnumerable<T> a, IEnumerable<T> b)
         {
-            var result = new List<string>();
+            var result = new List<T>();
             if (a == null || b == null)
             {
                 return result;
             }
-            var bHash = new HashSet<string>(b);
+            var bHash = new HashSet<T>(b);
 
             foreach (var aItem in a)
             {
@@ -522,9 +522,9 @@ namespace SharpNet
             return result;
         }
 
-        public static List<string> Join(IEnumerable<string> a, IEnumerable<string> b)
+        public static List<T> Join<T>(IEnumerable<T> a, IEnumerable<T> b)
         {
-            var result = new List<string>();
+            var result = new List<T>();
             if (a == null)
             {
                 return b == null ? result : b.ToList();

@@ -26,6 +26,7 @@
 	<PackageReference Include="HDF.PInvoke" Version="1.10.6.1" />
     <PackageReference Include="PhotoSauce.MagicScaler" Version="0.11.1" />
 	<PackageReference Include="CsvHelper" Version="28.0.1" />	
+	<PackageReference Include="Porter2StemmerStandard" Version="1.1.0" />
     <Compile Remove="Properties\AssemblyInfo.cs" />
     <None Remove="packages.config" />
   </ItemGroup>

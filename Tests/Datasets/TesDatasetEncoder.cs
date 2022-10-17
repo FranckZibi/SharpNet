@@ -10,17 +10,15 @@ namespace SharpNetTests.Datasets;
 [TestFixture]
 public class TesDatasetEncoder
 {
-    public static List<string[]> SimpleTestDataset()
+    public static DataFrame SimpleTestDataFrame()
     {
-        List<string[]> rows = new()
+        var content = new []
         {
-            new[]{ "id", "num1", "num2", "cat2", "y" }, //header
-            new[]{ "12", " missing", "$25", "cat", "1" },
-            new[]{"13", " 1.5GBP ", "€ 1,025", "dog", "0"},
-            new[]{"14", "bad", "€ 5 555 euros", "     ", "5"}
+             "12", " missing", "$25", "cat", "1" ,
+            "13", " 1.5GBP ", "€ 1,025", "dog", "0",
+            "14", "bad", "€ 5 555 euros", "     ", "5"
         };
-        return rows;
-
+        return DataFrame.New(content, new[] { "id", "num1", "num2", "cat2", "y" });
     }
 
     [Test]
@@ -29,11 +27,11 @@ public class TesDatasetEncoder
         var testDatasetSample = new TestDatasetSample(new [] { "cat2" }, new[] { "id" }, new [] { "y" });
         var encoder = new DatasetEncoder(testDatasetSample);
 
-        var rows = SimpleTestDataset();
-        var df = encoder.NumericalEncoding(rows);
-        var observedResult = encoder.NumericalDecoding(df, ',', "NA" );
-        var expectedResult = string.Join(',', rows[0]) + Environment.NewLine + "12,NA,25,cat,1" + Environment.NewLine + "13,1.5,1025,dog,0" + Environment.NewLine + "14,NA,5555,,5";
-        Assert.AreEqual(expectedResult, observedResult);
+        var df_raw = SimpleTestDataFrame();
+        var df_encoded = encoder.NumericalEncoding(df_raw);
+        var observedResult = encoder.NumericalDecoding(df_encoded, "NA" );
+        Assert.AreEqual(df_raw.Columns, observedResult.Columns);
+        Assert.AreEqual(observedResult.StringCpuTensor().Content.ToArray(), "12,NA,25,cat,1,13,1.5,1025,dog,0,14,NA,5555,,5".Split(","));
     }
 
 

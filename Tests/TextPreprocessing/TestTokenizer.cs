@@ -6,7 +6,7 @@ using SharpNet.TextPreprocessing;
 namespace SharpNetTests.TextPreprocessing
 {
     [TestFixture]
-    public class TextTokenizer
+    public class TestTokenizer
     {
         [Test]
         public void TestExtractWords()

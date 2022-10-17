@@ -11,6 +11,8 @@ public interface IModelSample : ISample
 {
     EvaluationMetricEnum GetLoss();
 
+
+
     public static IModelSample LoadModelSample(string workingDirectory, string sampleName)
     {
         try { return LoadSample<LightGBMSample>(workingDirectory, sampleName); } catch { }

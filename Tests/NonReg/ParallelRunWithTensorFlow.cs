@@ -544,13 +544,15 @@ namespace SharpNetTests.NonReg
             var jsonText = File.ReadAllText(Path.Combine(NetworkConfig.DefaultDataDirectory, "Sarcasm", "sarcasm.json"));
             var allEntries = JsonConvert.DeserializeObject<List< SarcasmEntry>>(jsonText);
 
+            // ReSharper disable once AssignNullToNotNullAttribute
             var trainingEntries = allEntries.Take(training_size).ToList();
             var trainingHeadlines = trainingEntries.Select(e => e.Headline).ToList();
             var tokenizer = new Tokenizer(vocab_size, oov_tok);
-            tokenizer.FitOnTexts(trainingHeadlines);
-            //var word_index = tokenizer.WordIndex;
 
+            tokenizer.FitOnTexts(trainingHeadlines);
             var training_sequences = tokenizer.TextsToSequences(trainingHeadlines);
+            //var training_sequences = tokenizer.FitOnTextsAndTextsToSequences(trainingHeadlines);
+
             var X  = PadSequenceTools.PadSequence(training_sequences, max_length, false, false).Select(x=>(float)x);
             var Y  = new CpuTensor<float>(new[]{X.Shape[0],1}, trainingEntries.Select(e => e.IsSarcastic?1f:0f).ToArray());
 

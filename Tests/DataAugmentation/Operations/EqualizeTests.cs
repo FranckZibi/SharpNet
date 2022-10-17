@@ -32,8 +32,8 @@ namespace SharpNetTests.DataAugmentation.Operations
             const string path = @"C:\download\b\srcimg07.jpg";
             var bmp = BitmapContent.ValueFomSingleRgbBitmap(path);
             var stats = ImageStatistic.ValueOf(bmp);
-            OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), null) }, path, @"C:\download\b\srcimg07_Equalize2.jpg", false);
-            var meanAndVolatilityForEachChannel = new CpuTensor<byte>(new[] { 1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2] }, bmp.SpanContent.ToArray()).ComputeMeanAndVolatilityOfEachChannel(x => (float)x);
+            OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), null) }, path, @"C:\download\b\srcimg07_Equalize2.jpg");
+            var meanAndVolatilityForEachChannel = new CpuTensor<byte>(new[] { 1, bmp.Shape[0], bmp.Shape[1], bmp.Shape[2] }, bmp.SpanContent.ToArray()).ComputeMeanAndVolatilityOfEachChannel(x => x);
             OperationTests.ApplyToPicture(new List<Operation> { new Equalize(Equalize.GetOriginalPixelToEqualizedPixelByChannel(stats), meanAndVolatilityForEachChannel), new HorizontalFlip(bmp.Shape[2]), new VerticalFlip(bmp.Shape[1]), new HorizontalFlip(bmp.Shape[2]) }, path, @"C:\download\b\srcimg07_Equalize2_true.jpg", true);
         }
 

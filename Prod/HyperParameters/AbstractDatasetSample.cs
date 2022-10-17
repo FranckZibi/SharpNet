@@ -14,6 +14,22 @@ namespace SharpNet.HyperParameters;
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public abstract class AbstractDatasetSample : AbstractSample
 {
+    #region public properties
+    public string Name { get; }
+    public abstract string[] CategoricalFeatures { get; }
+    /// <summary>
+    /// features used to identify a row in the dataset
+    /// such features should be ignored during the training
+    /// </summary>
+    /// <returns>list of id features </returns>
+    public abstract string[] IdColumns { get; }
+    /// <summary>
+    /// list of target feature names (usually a single element)
+    /// </summary>
+    /// <returns>list of target feature names </returns>
+    public abstract string[] TargetLabels { get; }
+    #endregion
+
     #region constructors
     protected AbstractDatasetSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(mandatoryCategoricalHyperParameters)
     {
@@ -30,7 +46,6 @@ public abstract class AbstractDatasetSample : AbstractSample
 
     #region Hyper-Parameters
     public double PercentageInTraining = 0.8;
-
     /// <summary>
     /// number of splits for KFold
     /// a value less or equal 1 will disable KFold
@@ -41,15 +56,12 @@ public abstract class AbstractDatasetSample : AbstractSample
     ///     and all the remaining 'Kfold-1' parts for training
     /// </summary>
     public int KFold = 1;
-
     public string Train_XDatasetPath;
     public string Train_YDatasetPath;
     public string Train_XYDatasetPath;
-
     public string Validation_XDatasetPath;
     public string Validation_YDatasetPath;
     public string Validation_XYDatasetPath;
-
     public string Test_XDatasetPath;
     public string Test_YDatasetPath;
     public string Test_XYDatasetPath;
@@ -64,8 +76,6 @@ public abstract class AbstractDatasetSample : AbstractSample
         cloned.Validation_XDatasetPath = cloned.Validation_YDatasetPath = null;
         return cloned;
     }
-
-
     public ITrainingAndTestDataSet LoadTrainingAndValidationDataset_Encoded_InTargetFormat()
     {
         var training = LoadTrainingAndTestDataSet(Train_XDatasetPath, Train_YDatasetPath, Train_XYDatasetPath);
@@ -78,26 +88,7 @@ public abstract class AbstractDatasetSample : AbstractSample
         return new TrainingAndTestDataset(test, null, Name);
     }
 
-
-    public string Name { get; }
-
-    /// <summary>
-    /// the evaluation metric used to rank the final submission
-    /// depending on the evaluation metric, higher (ex: Accuracy) or lower (ex: Rmse) may be better
-    /// </summary>
-    /// <returns></returns>
-    protected abstract EvaluationMetricEnum GetRankingEvaluationMetric();
-
     public abstract Objective_enum GetObjective();
-
-    public bool IsRegressionProblem => GetObjective() == Objective_enum.Regression;
-    public bool IsClassificationProblem => GetObjective() == Objective_enum.Classification;
-
-    protected override HashSet<string> FieldsToDiscardInComputeHash()
-    {
-        return new HashSet<string>{nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
-    }
-
     public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat)
     {
         if (y_true_InTargetFormat == null || y_pred_InTargetFormat == null)
@@ -110,82 +101,10 @@ public abstract class AbstractDatasetSample : AbstractSample
         var rankingEvaluationMetric = GetRankingEvaluationMetric();
         using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(rankingEvaluationMetric));
         var evaluationMetric = y_true.ComputeEvaluationMetric(y_pred, rankingEvaluationMetric, buffer);
-        return new Score ( (float)evaluationMetric , rankingEvaluationMetric);
+        return new Score((float)evaluationMetric, rankingEvaluationMetric);
     }
-
-
-    private IDataSet LoadTrainingAndTestDataSet(string XDatasetPath, string YDatasetPath,  string XYDatasetPath)
-    {
-        DataFrame x = null;
-        DataFrame y = null;
-        if (!string.IsNullOrEmpty(XYDatasetPath))
-        {
-            Debug.Assert(string.IsNullOrEmpty(XDatasetPath));
-            Debug.Assert(string.IsNullOrEmpty(YDatasetPath));
-            var xy = DataFrame.LoadFloatDataFrame(XYDatasetPath, true);
-            x = xy.Keep(Utils.Without(xy.ColumnNames, TargetLabels));
-            y = xy.Keep(TargetLabels);
-        }
-        else
-        {
-            if (!string.IsNullOrEmpty(XDatasetPath))
-            {
-                Debug.Assert(string.IsNullOrEmpty(XYDatasetPath));
-                x = DataFrame.LoadFloatDataFrame(XDatasetPath, true);
-            }
-            if (!string.IsNullOrEmpty(YDatasetPath))
-            {
-                y = DropIdColumnsIfFound(DataFrame.LoadFloatDataFrame(YDatasetPath, true));
-            }
-        }
-        if (x == null)
-        {
-            Debug.Assert(y == null);
-            return null;
-        }
-        return new InMemoryDataSet(x.FloatCpuTensor(), y?.FloatCpuTensor(), Name, GetObjective(), null, x.ColumnNames, CategoricalFeatures, IdColumns, TargetLabels, false, GetSeparator());
-    }
-
-    private DataFrame DropIdColumnsIfFound(DataFrame df)
-    {
-        if (IdColumns.Length == 0)
-        {
-            return df;
-        }
-        var intersection = Utils.Intersect(df.ColumnNames, IdColumns);
-        if (intersection.Count == 0)
-        {
-            return df;
-        }
-
-        if (intersection.Count != IdColumns.Length)
-        {
-            throw new Exception($"found only a part {string.Join(' ', intersection)} of Id Columns ({string.Join(' ', IdColumns)})");
-        }
-        return df.Drop(IdColumns);
-    }
-
-    //private DataFrame ExtractIdColumnsIfFound(DataFrame df)
-    //{
-    //    if (IdColumns.Length == 0)
-    //    {
-    //        return null;
-    //    }
-    //    var intersection = Utils.Intersect(df.ColumnNames, IdColumns);
-    //    if (intersection.Count == 0)
-    //    {
-    //        return null;
-    //    }
-
-    //    if (intersection.Count != IdColumns.Length)
-    //    {
-    //        throw new Exception($"found only a part {string.Join(' ', intersection)} of Id Columns ({string.Join(' ', IdColumns)})");
-    //    }
-    //    return df.Keep(IdColumns);
-    //}
-
-
-
+    public bool IsRegressionProblem => GetObjective() == Objective_enum.Regression;
+    public bool IsClassificationProblem => GetObjective() == Objective_enum.Classification;
     /// <summary>
     /// in some cases, the Dataset (in Model Format) must have a number of rows that is a multiple of some constant
     /// </summary>
@@ -194,54 +113,30 @@ public abstract class AbstractDatasetSample : AbstractSample
     {
         return 1;
     }
-    public abstract string[] CategoricalFeatures { get; }
-
-    /// <summary>
-    /// features used to identify a row in the dataset
-    /// such features should be ignored during the training
-    /// </summary>
-    /// <returns>list of id features </returns>
-    public abstract string[] IdColumns { get; }
-
-    /// <summary>
-    /// list of target feature names (usually a single element)
-    /// </summary>
-    /// <returns>list of target feature names </returns>
-    public abstract string[] TargetLabels { get; }
-
-
-    /// <summary>
-    /// by default, the prediction file starts first with the ids columns, then with the target columns
-    /// </summary>
-    /// <returns></returns>
-    protected virtual List<string> PredictionInTargetFormatHeader()
-    {
-        var res = IdColumns.ToList();
-        res.AddRange(TargetLabels);
-        return res;
-    }
-
-
     public virtual char GetSeparator() { return ',';}
     public virtual void SavePredictionsInTargetFormat(DataFrame encodedPredictionsInTargetFormat, string path)
     {
-        encodedPredictionsInTargetFormat.to_csv(path, GetSeparator().ToString(), true);
+        encodedPredictionsInTargetFormat.to_csv(path, GetSeparator());
     }
-    public virtual void SavePredictionsInModelFormat(DataFrame predictionsInTargetFormat, string path)
+    public virtual void SavePredictionsInModelFormat(DataFrame predictionsInModelFormat, string path)
     {
-        predictionsInTargetFormat.to_csv(path, GetSeparator().ToString(), true);
+        predictionsInModelFormat.to_csv(path, GetSeparator());
     }
-    public virtual DataFrame LoadPredictionsInModelFormat(string path)
+    // ReSharper disable once MemberCanBeMadeStatic.Global
+    public DataFrame LoadPredictionsInModelFormat(string directory, string fileName)
     {
+        if (string.IsNullOrEmpty(fileName))
+        {
+            return null;
+        }
+        var path = Path.Combine(directory, fileName);
         if (!File.Exists(path))
         {
             return null;
         }
-        return DataFrame.LoadFloatDataFrame(path, true);
+        return DataFrame.read_float_csv(path);
     }
-
     public abstract IDataSet TestDataset();
-    
     /// <summary>
     /// returns the train and validation dataset
     /// </summary>
@@ -250,7 +145,6 @@ public abstract class AbstractDatasetSample : AbstractSample
     //public abstract IDataSet FullTraining();
     //public abstract CpuTensor<float> PredictionsInModelFormat_2_PredictionsInTargetFormat(string dataframe_path);
     //public abstract (CpuTensor<float> trainPredictionsInTargetFormatWithoutIndex, CpuTensor<float> validationPredictionsInTargetFormatWithoutIndex, CpuTensor<float> testPredictionsInTargetFormatWithoutIndex) LoadAllPredictionsInTargetFormatWithoutIndex();
-
     /// <summary>
     /// transform a DataFrame of prediction in model format (with the Id Columns at left)
     /// to a DataFrame in Challenge expected format (also with the Id Column at left)
@@ -258,7 +152,6 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// <param name="predictionsInModelFormat_with_IdColumns"></param>
     /// <returns></returns>
     public abstract DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns);
-    
     public override bool FixErrors()
     {
         if (!base.FixErrors())
@@ -270,5 +163,76 @@ public abstract class AbstractDatasetSample : AbstractSample
             PercentageInTraining = 1.0;
         }
         return true;
+    }
+
+    protected override HashSet<string> FieldsToDiscardInComputeHash()
+    {
+        return new HashSet<string> { nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
+    }
+    /// <summary>
+    /// by default, the prediction file starts first with the ids columns, then with the target columns
+    /// </summary>
+    /// <returns></returns>
+    protected virtual List<string> PredictionInTargetFormatHeader()
+    {
+        var res = IdColumns.ToList();
+        res.AddRange(TargetLabels);
+        return res;
+    }
+    /// <summary>
+    /// the evaluation metric used to rank the final submission
+    /// depending on the evaluation metric, higher (ex: Accuracy) or lower (ex: Rmse) may be better
+    /// </summary>
+    /// <returns></returns>
+    protected abstract EvaluationMetricEnum GetRankingEvaluationMetric();
+
+    private IDataSet LoadTrainingAndTestDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
+    {
+        DataFrame x = null;
+        DataFrame y = null;
+        if (!string.IsNullOrEmpty(XYDatasetPath))
+        {
+            Debug.Assert(string.IsNullOrEmpty(XDatasetPath));
+            Debug.Assert(string.IsNullOrEmpty(YDatasetPath));
+            var xy = DataFrame.read_float_csv(XYDatasetPath);
+            x = xy[Utils.Without(xy.Columns, TargetLabels).ToArray()];
+            y = xy[TargetLabels];
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(XDatasetPath))
+            {
+                Debug.Assert(string.IsNullOrEmpty(XYDatasetPath));
+                x = DataFrame.read_float_csv(XDatasetPath);
+            }
+            if (!string.IsNullOrEmpty(YDatasetPath))
+            {
+                y = DropIdColumnsIfFound(DataFrame.read_float_csv(YDatasetPath));
+            }
+        }
+        if (x == null)
+        {
+            Debug.Assert(y == null);
+            return null;
+        }
+        return new InMemoryDataSet(x.FloatCpuTensor(), y?.FloatCpuTensor(), Name, GetObjective(), null, x.Columns, CategoricalFeatures, IdColumns, TargetLabels, false, GetSeparator());
+    }
+    private DataFrame DropIdColumnsIfFound(DataFrame df)
+    {
+        if (IdColumns.Length == 0)
+        {
+            return df;
+        }
+        var intersection = Utils.Intersect(df.Columns, IdColumns);
+        if (intersection.Count == 0)
+        {
+            return df;
+        }
+
+        if (intersection.Count != IdColumns.Length)
+        {
+            throw new Exception($"found only a part {string.Join(' ', intersection)} of Id Columns ({string.Join(' ', IdColumns)})");
+        }
+        return df.Drop(IdColumns);
     }
 }

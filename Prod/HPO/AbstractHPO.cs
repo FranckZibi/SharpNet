@@ -20,7 +20,7 @@ namespace SharpNet.HPO
         [NotNull] protected readonly string _workingDirectory;
         private readonly DateTime _creationTime = DateTime.Now;
         protected static readonly ILog Log = LogManager.GetLogger(typeof(AbstractHpo));
-        protected readonly DoubleAccumulator _allAsctualScores = new();
+        protected readonly DoubleAccumulator _allActualScores = new();
         protected int _nextSampleId = 0;
         // the last time we have displayed statistics about the search, or null if we have never displayed statistics
         private DateTime? lastTimeDisplayedStatisticsDateTime;
@@ -91,10 +91,9 @@ namespace SharpNet.HPO
             Task.WaitAll(threadTasks);
         }
 
-
         protected virtual void RegisterSampleScore(ISample sample, int sampleId, IScore actualScore, double elapsedTimeInSeconds)
         {
-            _allAsctualScores.Add(actualScore.Value, 1);
+            _allActualScores.Add(actualScore.Value, 1);
             RegisterSampleScore(SearchSpace, sample, actualScore, elapsedTimeInSeconds);
         }
         protected static void RegisterSampleScore(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, [NotNull] IScore actualScore, double elapsedTimeInSeconds)
@@ -177,7 +176,7 @@ namespace SharpNet.HPO
         /// <summary>
         /// number of processed search spaces
         /// </summary>
-        private int Processed => _allAsctualScores.Count;
+        private int Processed => _allActualScores.Count;
         private string StatisticsDescription()
         {
             string res = "";

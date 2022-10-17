@@ -17,27 +17,26 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
     public AmazonEmployeeAccessChallengeDatasetSample() : base(new HashSet<string>())
     {
-        var train = DataFrameT<float>.Load(TrainRawFile, true, float.Parse, DataFrame.Float2String);
-        var targetLabels = new List<string> { "ACTION" };
-        var x_dataframe = train.Drop(targetLabels);
-        var x_train_full = x_dataframe.Tensor;
-        var y_train_full = train.Keep(targetLabels).Tensor;
+        var train = DataFrame.read_float_csv(TrainRawFile);
+        var x_dataframe = train.Drop(TargetLabels);
+        var x_train_full = x_dataframe.FloatCpuTensor();
+        var y_train_full = train[TargetLabels].FloatCpuTensor();
         FullTrain = new InMemoryDataSet(
             x_train_full,
             y_train_full,
             "AmazonEmployeeAccessChallenge",
             GetObjective(),
             null,
-            columnNames: x_dataframe.ColumnNames,
+            columnNames: x_dataframe.Columns,
             categoricalFeatures: CategoricalFeatures,
             useBackgroundThreadToLoadNextMiniBatch: false);
 
-        _testDataset = new InMemoryDataSet(DataFrame.LoadFloatDataFrame(GetXTestDatasetPath(), true).Drop(new[] { "id" }).Tensor,
+        _testDataset = new InMemoryDataSet(DataFrame.read_float_csv(GetXTestDatasetPath()).Drop("id").FloatCpuTensor(),
             null,
             nameof(AmazonEmployeeAccessChallengeDatasetSample),
             GetObjective(),
             null,
-            columnNames: x_dataframe.ColumnNames,
+            columnNames: x_dataframe.Columns,
             categoricalFeatures: CategoricalFeatures,
             useBackgroundThreadToLoadNextMiniBatch: false);
 

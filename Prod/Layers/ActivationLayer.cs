@@ -21,7 +21,7 @@ namespace SharpNet.Layers
         {
             if (activationParameter != null && activationParameter.UseGPU != Network.UseGPU)
             {
-                activationParameter = Network.UseGPU ? activationParameter.ToGPU<float>(Network.GpuWrapper) : (Tensor)activationParameter.ToCpuFloat();
+                activationParameter = Network.UseGPU ? activationParameter.ToGPU<float>(Network.GpuWrapper) : activationParameter.ToCpuFloat();
             }
             _activationParameter = activationParameter;
             ActivationFunction = activationFunctionType;

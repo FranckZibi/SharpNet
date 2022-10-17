@@ -48,6 +48,10 @@ namespace SharpNet.Datasets
         #region public properties
 
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
+
+        /// <summary>
+        /// the entire list of columns in the training DataSet (with all Id Columns & Features), but without the Target Columns
+        /// </summary>
         [NotNull] public string[] ColumnNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
         [NotNull] public string[] IdColumns { get; }
@@ -86,6 +90,25 @@ namespace SharpNet.Datasets
             CategoricalFeatures = categoricalFeatures;
             IdColumns = idColumns;
             TargetLabels = targetLabels;
+
+            var invalidCategoricalFeatures = Utils.Without(CategoricalFeatures, ColumnNames);
+            if (invalidCategoricalFeatures.Count != 0)
+            {
+                throw new ArgumentException($"{invalidCategoricalFeatures.Count} invalid CategoricalFeatures: {string.Join(' ', invalidCategoricalFeatures)}");
+            }
+            var invalidIdColumns = Utils.Without(IdColumns, ColumnNames);
+            if (invalidIdColumns.Count != 0)
+            {
+                throw new ArgumentException($"{invalidIdColumns.Count} invalid IdColumns: {string.Join(' ', invalidIdColumns)}");
+            }
+
+            var invalidTargetLabels = Utils.Intersect(TargetLabels, ColumnNames);
+            if (invalidTargetLabels.Count != 0)
+            {
+                throw new ArgumentException($"{invalidTargetLabels.Count} invalid TargetLabels: {string.Join(' ', invalidTargetLabels)}, they should not appear among ColumnNames");
+            }
+
+
             if (UseBackgroundThreadToLoadNextMiniBatch)
             {
                 thread = new Thread(BackgroundThread);
@@ -288,7 +311,7 @@ namespace SharpNet.Datasets
             {
                 return df;
             }
-            var intersection = Utils.Intersect(df.ColumnNames, IdColumns);
+            var intersection = Utils.Intersect(df.Columns, IdColumns);
             if (intersection.Count == 0)
             {
                 return DataFrame.MergeHorizontally(ExtractIdDataFrame(), df);
@@ -340,8 +363,7 @@ namespace SharpNet.Datasets
                     content[nextIdx++] = singleRowAsSpan[colIdx];
                 }
             }
-            var idCpuTensor = new CpuTensor<float>(new[] { Count, IdColumns.Length }, content);
-            return DataFrame.New(idCpuTensor, IdColumns);
+            return DataFrame.New(content, IdColumns);
         }
 
         public int Channels { get; }

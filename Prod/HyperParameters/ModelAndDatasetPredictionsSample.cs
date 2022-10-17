@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using SharpNet.LightGBM;
 
 namespace SharpNet.HyperParameters
 {
@@ -63,23 +62,5 @@ namespace SharpNet.HyperParameters
         public IModelSample ModelSample => (IModelSample)Samples[0];
         public AbstractDatasetSample DatasetSample => (AbstractDatasetSample)Samples[1];
         public PredictionsSample PredictionsSample  => (PredictionsSample) Samples[2];
-        public override bool FixErrors()
-        {
-            if (!base.FixErrors())
-            {
-                return false;
-            }
-
-            if (ModelSample is LightGBMSample lightGbmSample)
-            {
-                var categoricalFeatures = DatasetSample.CategoricalFeatures;
-                var categoricalFeaturesFieldValue = (categoricalFeatures.Length >= 1)
-                    ? ("name:" + string.Join(',', categoricalFeatures))
-                    : "";
-                lightGbmSample.categorical_feature = categoricalFeaturesFieldValue;
-            }
-
-            return true;
-        }
     }
 }

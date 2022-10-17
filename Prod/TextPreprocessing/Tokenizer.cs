@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
+using Porter2StemmerStandard;
 
 namespace SharpNet.TextPreprocessing
 {
@@ -34,6 +37,9 @@ namespace SharpNet.TextPreprocessing
         /// default: true
         /// </summary>
         private readonly bool _lowerCase;
+
+        private readonly IStemmer _stemmer;
+
         /// <summary>
         /// characters that will be filtered (removed) from input
         /// </summary>
@@ -60,12 +66,14 @@ namespace SharpNet.TextPreprocessing
             int numWords = int.MaxValue,
             string oovToken = null, 
             bool lowerCase = true, 
-            string filters = " !\"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n")
+            string filters = " !\"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n\r’",
+            IStemmer stemmer = null)
         {
             _numWords = numWords;
             _oovToken = oovToken;
             _lowerCase = lowerCase;
             _filters = filters.ToCharArray();
+            _stemmer = stemmer;
         }
 
         public void FitOnTexts(IEnumerable<string> texts)
@@ -76,18 +84,139 @@ namespace SharpNet.TextPreprocessing
             }
         }
 
+
+        private static string RemoveDiacritics(string text)
+        {
+            var normalizedString = text.Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder(capacity: normalizedString.Length);
+
+            for (int i = 0; i < normalizedString.Length; i++)
+            {
+                char c = normalizedString[i];
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            return stringBuilder
+                .ToString()
+                .Normalize(NormalizationForm.FormC);
+        }
+
         // public for testing only
         public string[] ExtractWords(string text)
         {
+            //we remove accents
+            text = RemoveDiacritics(text);
+
             if (_lowerCase)
             {
                 text = text.ToLowerInvariant();
             }
-            return text.Split(_filters, StringSplitOptions.RemoveEmptyEntries);
+            var result = text.Split(_filters, StringSplitOptions.RemoveEmptyEntries);
+            if (_stemmer != null)
+            {
+                for (int i = 0; i < result.Length; i++)
+                {
+                    if (result[i].All(char.IsLetterOrDigit))
+                    {
+                        result[i] = _stemmer.Stem(result[i]).Value;
+                    }
+                }
+            }
+            return result;
         }
+
+        //public List<List<int>> FitOnTextsAndTextsToSequences(IEnumerable<string> texts)
+        //{
+        //    List<string> _allWord = new();
+        //    List<int> _allWordCount = new();
+        //    Dictionary<string, int> _wordToIndexInAllWordList = new();
+        //    List<List<int>> _fitOnTexts = new();
+        //    foreach (var text in texts)
+        //    {
+        //        List<int> res = new();
+        //        foreach (var word in ExtractWords(text))
+        //        {
+        //            if (_wordToIndexInAllWordList.TryGetValue(word, out var indexInAllWordList))
+        //            {
+        //                res.Add(indexInAllWordList);
+        //                ++_allWordCount[indexInAllWordList];
+        //            }
+        //            else
+        //            {
+        //                _allWord.Add(word);
+        //                _allWordCount.Add(1);
+        //                indexInAllWordList = res.Count;
+        //                res.Add(indexInAllWordList);
+        //                _wordToIndexInAllWordList[word] = indexInAllWordList;
+        //            }
+        //        }
+        //        _fitOnTexts.Add(res);
+        //    }
+
+        //    var oldIdxAndCount = new List<Tuple<int, int>>();
+        //    for (int i = 0; i < _allWordCount.Count; ++i)
+        //    {
+        //        oldIdxAndCount.Add(new Tuple<int, int>(i, _allWordCount[i]));
+        //    }
+
+
+
+        //    int oovOldIndex = -1;
+        //    int newWordIndex = 1;
+        //    var oldIdxToWordIndex = new Dictionary<int, int>();
+        //    if (!string.IsNullOrEmpty(_oovToken))
+        //    {
+        //        newWordIndex++; // the word index of oov token will always be 1
+        //    }
+        //    foreach (var (oldIdx, _) in oldIdxAndCount.OrderByDescending(x => x.Item2))
+        //    {
+        //        if (oldIdx != oovOldIndex)
+        //        {
+        //            oldIdxToWordIndex[oldIdx] = newWordIndex++;
+        //        }
+        //    }
+
+            
+        //    var finalResults = new List<List<int>>();
+        //    foreach (var doc in _fitOnTexts)
+        //    {
+        //        var result = new List<int>();
+        //        foreach (var oldIdx in doc)
+        //        {
+        //            var wordIndex = oldIdxToWordIndex[oldIdx];
+        //            if (wordIndex <= _numWords)
+        //            {
+        //                result.Add(wordIndex);
+        //            }
+        //            else
+        //            {
+        //                if (!string.IsNullOrEmpty(_oovToken))
+        //                {
+        //                    result.Add(1);
+        //                }
+        //            }
+        //        }
+        //        finalResults.Add(result);
+        //    }
+
+        //    return finalResults;
+        //}
 
         private void FitOnText(string text)
         {
+
+            //var utf8String = Encoding.UTF8.GetBytes(text);
+
+            ////convert them into unicode bytes.
+            //byte[] unicodeBytes = Encoding.Convert(Encoding.UTF8, Encoding.Unicode, utf8String);
+
+            ////builds the converted string.
+            //var strText8 = Encoding.Unicode.GetString(unicodeBytes);
+
             foreach (var word in ExtractWords(text))
             {
                 if (_wordToWordCount.ContainsKey(word))
@@ -128,14 +257,16 @@ namespace SharpNet.TextPreprocessing
             return result;
         }
 
-        public string SequenceToText(List<int> sequence)
+        public string SequenceToText(IEnumerable<int> sequence) => string.Join(" ", SequenceToWords(sequence));
+
+        public List<string> SequenceToWords(IEnumerable<int> sequence)
         {
             var wordIndexToToken = new Dictionary<int, string>();
             foreach (var e in WordIndex)
             {
                 wordIndexToToken[e.Value] = e.Key;
             }
-            return string.Join(" ", sequence.Select(s => wordIndexToToken.ContainsKey(s) ? wordIndexToToken[s] : _oovToken));
+            return sequence.Select(s => wordIndexToToken.ContainsKey(s) ? wordIndexToToken[s] : _oovToken).ToList();
         }
 
         public IDictionary<string, int> WordIndex

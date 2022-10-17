@@ -7,27 +7,26 @@ using SharpNet.MathTools;
 
 namespace SharpNet.Datasets;
 
-public class FeatureStats
+public class ColumnStatistics
 {
     #region private fields
-    // true if the '_subSum' field is outdated and needs to be recomputed
-    private readonly Dictionary<string, int> _categoricalFeatureToCount = new();
+    private readonly Dictionary<string, int> _distinctCategoricalValueToCount = new();
     private readonly List<string> _distinctCategoricalValues = new();
-    private readonly Dictionary<string, int> _categoricalFeatureToIndex = new();
+    private readonly Dictionary<string, int> _distinctCategoricalValueToIndex = new();
     private readonly DoubleAccumulator _numericalValues = new();
-    /// <summary>
-    /// true if the feature is categorical (non numerical)
-    /// </summary>
     #endregion
 
     #region public properties
-    public bool IsCategoricalFeature { get; }
     /// <summary>
-    /// true if the feature is the target of the dataset
+    /// true if the column is categorical (non numerical)
+    /// </summary>
+    public bool IsCategorical { get; }
+    /// <summary>
+    /// true if the column contains the target of the dataset
     /// </summary>
     public bool IsTargetLabel { get; }
     /// <summary>
-    /// true if the feature is (among) the ids needed to identify a unique row
+    /// true if the column is (among) the ids needed to identify a unique row
     /// </summary>
     public bool IsId { get; }
     /// <summary>
@@ -35,77 +34,62 @@ public class FeatureStats
     /// </summary>
     public int Count { get; private set; }
     /// <summary>
-    /// number of empty elements in the DataSet for this feature
+    /// number of empty elements in the DataSet for this column
     /// </summary>
-    public int CountEmptyFeatures { get; private set; }
-
+    public int CountEmptyElements { get; private set; }
     public IList<string> GetDistinctCategoricalValues() => _distinctCategoricalValues;
-
-    public IList<int> GetDistinctCategoricalCount()
-    {
-        var result = new List<int>();
-        foreach (var c in GetDistinctCategoricalValues())
-        {
-            result.Add(_categoricalFeatureToCount.ContainsKey(c)? _categoricalFeatureToCount[c]:0);
-        }
-        return result;
-    }
-
     #endregion
 
 
     #region constructors
-    public FeatureStats(bool isCategoricalFeature, bool isTargetLabel, bool isId)
+    public ColumnStatistics(bool isCategorical, bool isTargetLabel, bool isId)
     {
-        IsCategoricalFeature = isCategoricalFeature;
+        IsCategorical = isCategorical;
         IsTargetLabel = isTargetLabel;
         IsId = isId;
     }
     #endregion
 
-
-    public double NumericalEncoding(string featureValue)
+    public double NumericalEncoding(string elementValue)
     {
         ++Count;
-        if (IsCategoricalFeature)
+        if (IsCategorical)
         {
-            var categoricalFeatures = NormalizeCategoricalFeatureValue(featureValue);
-            if (categoricalFeatures.Length == 0)
+            var categoricalElementValue = NormalizeCategoricalFeatureValue(elementValue);
+            if (categoricalElementValue.Length == 0)
             {
-                ++CountEmptyFeatures;
+                ++CountEmptyElements;
                 return -1;
             }
-            //it is a categorical feature, we add it to the dictionary
-            if (!_categoricalFeatureToCount.ContainsKey(categoricalFeatures))
+            //it is a categorical column, we add it to the dictionary
+            if (!_distinctCategoricalValueToCount.ContainsKey(categoricalElementValue))
             {
-                _categoricalFeatureToCount[categoricalFeatures] = 1;
-                _distinctCategoricalValues.Add(categoricalFeatures);
-                _categoricalFeatureToIndex[categoricalFeatures] = _distinctCategoricalValues.Count - 1;
+                _distinctCategoricalValueToCount[categoricalElementValue] = 1;
+                _distinctCategoricalValues.Add(categoricalElementValue);
+                _distinctCategoricalValueToIndex[categoricalElementValue] = _distinctCategoricalValues.Count - 1;
             }
             else
             {
-                ++_categoricalFeatureToCount[categoricalFeatures];
+                ++_distinctCategoricalValueToCount[categoricalElementValue];
             }
-            return _categoricalFeatureToIndex[categoricalFeatures];
+            return _distinctCategoricalValueToIndex[categoricalElementValue];
         }
         else
         {
             //it is a numerical field
-            var doubleValue = ExtractDouble(featureValue);
+            var doubleValue = ExtractDouble(elementValue);
             if (double.IsNaN(doubleValue))
             {
-                ++CountEmptyFeatures;
+                ++CountEmptyElements;
                 return double.NaN; //missing numerical value
             }
             _numericalValues.Add(doubleValue, 1);
             return doubleValue;
         }
     }
-
-
     public string NumericalDecoding(double numericalEncodedFeatureValue, string missingNumberValue)
     {
-        if (IsCategoricalFeature)
+        if (IsCategorical)
         {
             var categoricalFeatureIndex = (int)Math.Round(numericalEncodedFeatureValue);
             return categoricalFeatureIndex<0?"": _distinctCategoricalValues[categoricalFeatureIndex];
@@ -117,7 +101,6 @@ public class FeatureStats
         }
         return numericalEncodedFeatureValue.ToString(CultureInfo.InvariantCulture);
     }
-
     public static double ExtractDouble(string featureValue)
     {
         bool isNegative = false;
@@ -243,10 +226,8 @@ public class FeatureStats
         }
         return value;
     }
-
     private static bool CharToBeRemovedInStartOrEnd(char c)
     {
         return char.IsWhiteSpace(c) || c == '\'' || c == '\"' || c == '\n' || c == '\r' || c == ';' || c == ',';
     }
-
 }

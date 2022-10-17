@@ -144,7 +144,7 @@ public class KFoldModel : AbstractModel
         foreach (var m in _embeddedModels)
         {
             var modelPrediction = m.Predict(dataset, false, removeAllTemporaryFilesAtEnd);
-            columnNames = modelPrediction.ColumnNames.ToList();
+            columnNames = modelPrediction.Columns.ToList();
             if (res == null)
             {
                 res = modelPrediction.FloatCpuTensor();
@@ -155,7 +155,7 @@ public class KFoldModel : AbstractModel
                 res.AddTensor(weight, modelPrediction.FloatCpuTensor(), 1.0f);
             }
         }
-        var df = DataFrame.New(res, columnNames);
+        DataFrame df = DataFrame.New(res, columnNames);
         if (addIdColumnsAtLeft)
         {
             df = dataset.AddIdColumnsAtLeftIfNeeded(df);

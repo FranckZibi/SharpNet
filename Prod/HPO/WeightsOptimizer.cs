@@ -44,17 +44,18 @@ public class WeightsOptimizer /*: AbstractModel*/
             var embeddedModelAndDatasetPredictions = ModelAndDatasetPredictions.Load(embeddedModelWorkingDirectory, embeddedModelName);
             var datasetSample = embeddedModelAndDatasetPredictions.ModelAndDatasetPredictionsSample.DatasetSample;
             _embeddedModelsAndDataset.Add(embeddedModelAndDatasetPredictions);
+            var y_pred_train_InModelFormat = datasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictions.PredictionsSample.Train_PredictionsFileName_InModelFormat);
+            var y_pred_valid_InModelFormat = datasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictions.PredictionsSample.Validation_PredictionsFileName_InModelFormat);
+            var y_pred_test_InModelFormat = datasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictions.PredictionsSample.Test_PredictionsFileName_InModelFormat);
 
-            var (trainPredictions, validationPredictions, testPredictions) = embeddedModelAndDatasetPredictions.LoadAllPredictionsInModelFormat();
-
-            if (validationPredictions == null)
+            if (y_pred_valid_InModelFormat == null)
             {
-                validationPredictions = trainPredictions;
+                y_pred_valid_InModelFormat = y_pred_train_InModelFormat;
             }
 
-            _y_preds_train_InModelFormat.Add(trainPredictions);
-            _y_preds_valid_InModelFormat.Add(validationPredictions);
-            _y_preds_test_InModelFormat.Add(testPredictions);
+            _y_preds_train_InModelFormat.Add(y_pred_train_InModelFormat);
+            _y_preds_valid_InModelFormat.Add(y_pred_valid_InModelFormat);
+            _y_preds_test_InModelFormat.Add(y_pred_test_InModelFormat);
 
             if (i == 0)
             {
@@ -177,8 +178,6 @@ public class WeightsOptimizer /*: AbstractModel*/
             modelAndDatasetPredictions.SaveValidationPredictionsInTargetFormat(weightedModelValidationPrediction, validationScore);
             modelAndDatasetPredictions.Save(workingDirectory, modelAndDatasetPredictions.Name);
 
-
-            //var trainScore = modelAndDataset.ComputeAndSavePredictionsInTargetFormat().trainScore;
             if (!string.IsNullOrEmpty(resumeCsvPathIfAny))
             {
                 var trainingTimeInSeconds = sw.Elapsed.TotalSeconds;

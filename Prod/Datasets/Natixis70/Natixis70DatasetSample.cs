@@ -23,7 +23,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     #region constructors
     static Natixis70DatasetSample()
     {
-        var cpuTensor = DataFrame.LoadFloatDataFrame(YTrainRawFile, true).Drop(new[] { "" }).Tensor;
+        var cpuTensor = DataFrame.read_float_csv(YTrainRawFile).Drop("").FloatCpuTensor();
         YStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, false);
         YAbsStatsInTargetFormat = ExtractColumnStatistic(cpuTensor, true);
     }
@@ -392,8 +392,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
         //We load 'xFileInTargetFormat'
-        var xInTargetFormatDataFrame = DataFrame.LoadFloatDataFrame(xFileInTargetFormat, true);
-        var xInTargetFormat = xInTargetFormatDataFrame.Tensor;
+        var xInTargetFormatDataFrame = DataFrame.read_float_csv(xFileInTargetFormat);
+        var xInTargetFormat = xInTargetFormatDataFrame.FloatCpuTensor();
         Debug.Assert(xInTargetFormat.Shape[1] == Natixis70Utils.EmbeddingDimension);
         int rowsInTargetFormat = xInTargetFormat.Shape[0];
         var xInTargetFormatSpan = xInTargetFormat.AsReadonlyFloatCpuContent;
@@ -456,8 +456,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
         Debug.Assert(File.Exists(yFileInTargetFormat));
-        var yInTargetFormatDataFrame = DataFrame.LoadFloatDataFrame(yFileInTargetFormat, true);
-        var yInTargetFormat = yInTargetFormatDataFrame.Tensor;
+        var yInTargetFormatDataFrame = DataFrame.read_float_csv(yFileInTargetFormat);
+        var yInTargetFormat = yInTargetFormatDataFrame.FloatCpuTensor();
         var yInModelFormat = PredictionsInTargetFormat_2_PredictionsInModelFormat(yInTargetFormat);
         yInTargetFormat.Dispose();
 

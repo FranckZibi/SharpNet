@@ -677,6 +677,7 @@ namespace SharpNet.Data
             return Slice(Idx(elementIndex), newShape);
         }
 
+
         /// <summary>
         /// [out) y = output tensor of shape (n, 3*h*w, c/3)
         /// </summary>

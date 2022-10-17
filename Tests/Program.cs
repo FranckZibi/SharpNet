@@ -82,7 +82,17 @@ namespace SharpNetTests
             //WasYouStayWorthItsPriceDatasetSample.WeightOptimizer();
             //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
-            //new WasYouStayWorthItsPriceDatasetSample();
+
+            //foreach (var min_num_iterations in new[] { 20, 50, 100, 200 })
+            //    foreach (var maxAllowedSecondsForAllComputation in new[] { 60, 600 })
+            //    {
+            //        var (bestSample, bestScore) = WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(min_num_iterations, maxAllowedSecondsForAllComputation);
+            //        var newLine = $"{min_num_iterations};{maxAllowedSecondsForAllComputation};{bestScore}\n";
+            //        Log.Info($"{newLine}");
+            //        Log.Info($"{bestSample}");
+            //        System.IO.File.AppendAllText("c:/temp/toto3.csv", newLine);
+            //    }
+
 
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "A3699BA7D3", 5, 3);

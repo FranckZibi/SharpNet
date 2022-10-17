@@ -65,72 +65,22 @@ public class BayesianSearchHPO : AbstractHpo
         _surrogateModel = BuildCatBoostSurrogateModel(_workingDirectory, surrogateModelName);
     }
 
-    // ReSharper disable once UnusedMember.Local
-    private static IModel BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
-    {
-        surrogateModelCategoricalFeature ??= Array.Empty<string>();
-        // the surrogate model will be trained with a LightGBM using random forests (boosting=rf)
-        var surrogateModelSample = new LightGBMSample();
-        var categoricalFeaturesFieldValue = (surrogateModelCategoricalFeature.Length>= 1) ? ("name:" + string.Join(',', surrogateModelCategoricalFeature)) : "";
-        surrogateModelSample.Set(new Dictionary<string, object> {
-            { "bagging_fraction", 0.5 },
-            { "bagging_freq", 1 },
-            { "boosting", "rf" },
-            { "categorical_feature", categoricalFeaturesFieldValue },
-            { "colsample_bytree", 0.9 },
-            { "colsample_bynode", 0.9 },
-            { "device_type", "cpu" },
-            { "early_stopping_round", 0 },
-            { "lambda_l1", 0.15f },
-            { "lambda_l2", 0.15f },
-            { "learning_rate", 0.05f },
-            { "max_bin", 255 },
-            { "max_depth", 128},
-            { "min_data_in_leaf", 3 },
-            { "min_data_in_bin", 20 },
-            { "num_iterations", 100 },
-            { "num_leaves", 50 },
-            { "num_threads", 2},
-            { "objective", "regression"},
-            { "path_smooth", 1.0f},
-            { "verbosity", -1 },
-        });
-        return new LightGBMModel(surrogateModelSample, workingDirectory, modelName);
-    }
-
-    // ReSharper disable once UnusedMember.Local
-    private static IModel BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
-    {
-        // the surrogate model will be trained with CatBoost
-        CatBoostSample surrogateModelSample = new ()
-        {
-            iterations = 100,
-            loss_function = CatBoostSample.loss_function_enum.RMSE,
-            eval_metric = CatBoostSample.metric_enum.RMSE,
-            allow_writing_files = false,
-            thread_count = 2,
-            logging_level = CatBoostSample.logging_level_enum.Silent
-        };
-
-        surrogateModelSample.set_early_stopping_rounds(surrogateModelSample.iterations/10);
-        return new CatBoostModel(surrogateModelSample, workingDirectory, modelName);
-    }
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, string[] categoricalFeature = null)
     {
-        var df = DataFrame.LoadFloatDataFrame(dataFramePath, true);
-        var x_df = df.Drop(new[] {"y"});
-        var x = x_df.Tensor;
-        var y_df = df.Keep(new[] {"y"});
-        var y = y_df.Tensor;
-        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, columnNames: x_df.ColumnNames, categoricalFeatures: categoricalFeature??Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
+        var df = DataFrame.read_float_csv(dataFramePath);
+        var x_df = df.Drop("y");
+        var x = x_df.FloatCpuTensor();
+        var y_df = df["y"];
+        var y = y_df.FloatCpuTensor();
+        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, columnNames: x_df.Columns, categoricalFeatures: categoricalFeature??Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
     // ReSharper disable once UnusedMember.Global
     public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
     {
-        var df = DataFrame.LoadFloatDataFrame(dataFramePath, true);
-        var x = df.Tensor;
-        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, columnNames: df.ColumnNames, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
+        var df = DataFrame.read_float_csv(dataFramePath);
+        var x = df.FloatCpuTensor();
+        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, columnNames: df.Columns, categoricalFeatures: categoricalFeature ?? Array.Empty<string>(), useBackgroundThreadToLoadNextMiniBatch: false);
     }
 
     protected override (ISample, int, string) Next
@@ -161,8 +111,6 @@ public class BayesianSearchHPO : AbstractHpo
             }
         }
     }
-
-
     protected override void RegisterSampleScore(ISample sample, int sampleId, [NotNull] IScore actualScore, double elapsedTimeInSeconds)
     {
         lock (_lockObject)
@@ -172,7 +120,7 @@ public class BayesianSearchHPO : AbstractHpo
                 _higherScoreIsBetter = Utils.HigherScoreIsBetter(actualScore.Metric);
                 Log.Info($"Higher Score Is Better = {_higherScoreIsBetter}");
             }
-            _allAsctualScores.Add(actualScore.Value, 1);
+            _allActualScores.Add(actualScore.Value, 1);
             var sampleTuple = _samplesWithScoreIfAvailable[sampleId];
             var sampleAsFloatVector = sampleTuple.Item2;
 
@@ -217,6 +165,55 @@ public class BayesianSearchHPO : AbstractHpo
         }
     }
 
+    // ReSharper disable once UnusedMember.Local
+    private static IModel BuildRandomForestSurrogateModel(string workingDirectory, string modelName, string[] surrogateModelCategoricalFeature)
+    {
+        surrogateModelCategoricalFeature ??= Array.Empty<string>();
+        // the surrogate model will be trained with a LightGBM using random forests (boosting=rf)
+        var surrogateModelSample = new LightGBMSample();
+        var categoricalFeaturesFieldValue = (surrogateModelCategoricalFeature.Length >= 1) ? ("name:" + string.Join(',', surrogateModelCategoricalFeature)) : "";
+        surrogateModelSample.Set(new Dictionary<string, object> {
+            { "bagging_fraction", 0.5 },
+            { "bagging_freq", 1 },
+            { "boosting", "rf" },
+            { "categorical_feature", categoricalFeaturesFieldValue },
+            { "colsample_bytree", 0.9 },
+            { "colsample_bynode", 0.9 },
+            { "device_type", "cpu" },
+            { "early_stopping_round", 0 },
+            { "lambda_l1", 0.15f },
+            { "lambda_l2", 0.15f },
+            { "learning_rate", 0.05f },
+            { "max_bin", 255 },
+            { "max_depth", 128},
+            { "min_data_in_leaf", 3 },
+            { "min_data_in_bin", 20 },
+            { "num_iterations", 100 },
+            { "num_leaves", 50 },
+            { "num_threads", 2},
+            { "objective", "regression"},
+            { "path_smooth", 1.0f},
+            { "verbosity", -1 },
+        });
+        return new LightGBMModel(surrogateModelSample, workingDirectory, modelName);
+    }
+    // ReSharper disable once UnusedMember.Local
+    private static IModel BuildCatBoostSurrogateModel(string workingDirectory, string modelName)
+    {
+        // the surrogate model will be trained with CatBoost
+        CatBoostSample surrogateModelSample = new()
+        {
+            iterations = 100,
+            loss_function = CatBoostSample.loss_function_enum.RMSE,
+            eval_metric = CatBoostSample.metric_enum.RMSE,
+            allow_writing_files = false,
+            thread_count = 2,
+            logging_level = CatBoostSample.logging_level_enum.Silent
+        };
+
+        surrogateModelSample.set_early_stopping_rounds(surrogateModelSample.iterations / 10);
+        return new CatBoostModel(surrogateModelSample, workingDirectory, modelName);
+    }
     private int CountNextSamplesForObjectiveFunction()
     {
         const int min_count = 5;
@@ -291,7 +288,6 @@ public class BayesianSearchHPO : AbstractHpo
         }
         return result;
     }
-
     private (ISample, string) FromFloatVectorToSampleAndDescription(float[] sampleAsFloatVector)
     {
         var searchSpaceHyperParameters = new Dictionary<string, string>();
@@ -351,7 +347,6 @@ public class BayesianSearchHPO : AbstractHpo
         }
         return CpuTensor<float>.NewCpuTensor(rows);
     }
-
     /// <summary>
     /// train the model with all samples with an associated score
     /// </summary>
@@ -401,13 +396,9 @@ public class BayesianSearchHPO : AbstractHpo
         var surrogateModelTrainingLoss = _surrogateModel.ComputeLoss(y_true, y_pred.FloatCpuTensor());
         Log.Info($"Surrogate model Training Loss: {surrogateModelTrainingLoss} (trained on {x.Shape[0]} samples)");
         y_pred.FloatCpuTensor().Dispose();
-        y_pred = null;
         return xRows.Count;
     }
-
-
     private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) _surrogateTrainedFiles = (null, null, null, null, null, null);
-
     private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
     {
         if (_surrogateModel is LightGBMModel lightGbmModel)
@@ -419,7 +410,6 @@ public class BayesianSearchHPO : AbstractHpo
             }
         }
     }
-
     private string[] SurrogateModelFeatureNames()
     {
         return SearchSpace.OrderBy(t => t.Key).Where(t=>!t.Value.IsConstant).Select(t=>t.Key).ToArray();
