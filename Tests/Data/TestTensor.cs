@@ -137,5 +137,15 @@ namespace SharpNetTests.Data
             }
             return SharpNet.Utils.SameContent(a.ContentAsFloatArray(), b.ContentAsFloatArray(), epsilon);
         }
+        public static bool SameStringContent(CpuTensor<string> a, CpuTensor<string> b)
+        {
+            if (!a.SameShape(b))
+            {
+                return false;
+            }
+            var aContent = a.Content.ToArray();
+            var bContent = b.Content.ToArray();
+            return aContent.SequenceEqual(bContent);
+        }
     }
 }

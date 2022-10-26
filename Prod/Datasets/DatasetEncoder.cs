@@ -5,7 +5,6 @@ using System.Linq;
 using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
-using SharpNet.HyperParameters;
 
 namespace SharpNet.Datasets;
 
@@ -99,22 +98,31 @@ public class DatasetEncoder
     /// <returns></returns>
     public int NumClasses()
     {
-        if (_datasetSample.IsRegressionProblem)
+        var targetLabelDistinctValues = TargetLabelDistinctValues;
+        if (targetLabelDistinctValues == null || targetLabelDistinctValues.Length <=1)
         {
             return 1;
         }
-        if (_datasetSample.TargetLabels.Length != 1)
-        {
-            throw new NotImplementedException($"invalid number of target labels {_datasetSample.TargetLabels.Length}, only 1 is supported");
-        }
-        var targetLabel = _datasetSample.TargetLabels[0];
-        var allValues = GetDistinctCategoricalValues(targetLabel);
-        if (allValues == null || allValues.Count == 0)
-        {
-            return 1;
-        }
-        return allValues.Count;
+        return targetLabelDistinctValues.Length;
     }
+
+    public string[] TargetLabelDistinctValues
+    {
+        get{
+            if (_datasetSample.GetObjective() == Objective_enum.Regression)
+            {
+                return new string[0];
+            }
+            if (_datasetSample.TargetLabels.Length != 1)
+            {
+                throw new NotImplementedException($"invalid number of target labels {_datasetSample.TargetLabels.Length}, only 1 is supported");
+            }
+            var targetLabel = _datasetSample.TargetLabels[0];
+            return GetDistinctCategoricalValues(targetLabel).ToArray();
+        }
+    }
+
+
     //public IList<float> GetDistinctCategoricalPercentage(string categoricalColumn)
     //{
     //    if (!IsCategoricalColumn(categoricalColumn))
@@ -208,7 +216,7 @@ public class DatasetEncoder
         {
             return true;
         }
-        if (_datasetSample.IsClassificationProblem && Targets.Contains(columnName))
+        if (_datasetSample.GetObjective() == Objective_enum.Classification && Targets.Contains(columnName))
         {
             return true;
         }

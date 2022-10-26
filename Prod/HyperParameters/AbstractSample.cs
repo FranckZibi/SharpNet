@@ -115,7 +115,7 @@ public abstract class AbstractSample : ISample
     {
         return ToConfigContent(DefaultAcceptForConfigContent);
     }
-    protected virtual HashSet<string> FieldsToDiscardInComputeHash()
+    public virtual HashSet<string> FieldsToDiscardInComputeHash()
     {
         return new HashSet<string>();
     }

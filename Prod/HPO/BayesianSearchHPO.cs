@@ -258,7 +258,7 @@ public class BayesianSearchHPO : AbstractHpo
                 ? DataFrame.New(new CpuTensor<float>(new [] { x.Shape[0], 1 }), new List<string>{"y"})
 
                 // the model has been already trained, we can use it
-                : _surrogateModel.Predict(dataset, false, true); //no id columns for surrogate model
+                : _surrogateModel.Predict(dataset, true); //no id columns for surrogate model
         var ySpan = y.FloatCpuTensor().AsFloatCpuSpan;
         var estimateRandomSampleScoreAndIndex = new List<Tuple<float, int>>();
         for (var index = 0; index < ySpan.Length; index++)
@@ -392,7 +392,7 @@ public class BayesianSearchHPO : AbstractHpo
         _surrogateTrainedFiles = _surrogateModel.Fit(resizedTrainingDataset, null);
 
         // we compute the score of the surrogate model on the training dataset
-        var y_pred = _surrogateModel.Predict(trainingDataset, false, true); // no id columns for surrogate model
+        var y_pred = _surrogateModel.Predict(trainingDataset, true); // no id columns for surrogate model
         var surrogateModelTrainingLoss = _surrogateModel.ComputeLoss(y_true, y_pred.FloatCpuTensor());
         Log.Info($"Surrogate model Training Loss: {surrogateModelTrainingLoss} (trained on {x.Shape[0]} samples)");
         y_pred.FloatCpuTensor().Dispose();

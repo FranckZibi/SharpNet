@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
 
 namespace SharpNetTests.Datasets;
 
@@ -49,9 +48,7 @@ public class TesDatasetEncoder
         public override string[] IdColumns { get; }
         public override string[] TargetLabels { get; }
         public override DataSet TestDataset() { throw new NotImplementedException(); }
-        public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation() { throw new NotImplementedException(); }
-        public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns) { throw new NotImplementedException(); }
-
-        protected override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
+        public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();
+        public override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     }
 }

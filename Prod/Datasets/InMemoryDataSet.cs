@@ -13,6 +13,33 @@ namespace SharpNet.Datasets
         private readonly CpuTensor<float> _x;
         #endregion
 
+
+
+
+        public static InMemoryDataSet MergeVertically(InMemoryDataSet top, InMemoryDataSet bottom)
+        {
+            if (top == null)
+            {
+                return bottom;
+            }
+            if (bottom == null)
+            {
+                return top;
+            }
+            return new InMemoryDataSet(
+                CpuTensor<float>.MergeVertically(top._x, bottom._x),
+                CpuTensor<float>.MergeVertically(top.Y, bottom.Y),
+                top.Name,
+                top.Objective,
+                top.MeanAndVolatilityForEachChannel,
+                top.ColumnNames,
+                top.CategoricalFeatures,
+                top.IdColumns,
+                top.TargetLabels,
+                top.UseBackgroundThreadToLoadNextMiniBatch,
+                top.Separator);
+        }
+
         public InMemoryDataSet([NotNull] CpuTensor<float> x,
             [CanBeNull] CpuTensor<float> y,
             string name = "",

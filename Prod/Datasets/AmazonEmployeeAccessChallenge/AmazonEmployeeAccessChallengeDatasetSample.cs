@@ -1,5 +1,4 @@
-﻿using SharpNet.HyperParameters;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -44,12 +43,12 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, AmazonEmployeeAccessChallengeUtils.NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    //public override DataSet FullTraining()
-    //{
-    //    return FullTrain;
-    //}
-   
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
+    public override DataSet FullTrainingAndValidation()
+    {
+        return FullTrain;
+    }
+
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
     {
         throw new NotImplementedException();
     }
@@ -61,19 +60,14 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
 
     public override Objective_enum GetObjective() => Objective_enum.Classification;
 
-    public override string[] CategoricalFeatures => new [] { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
-    public override string[] IdColumns => new [] { "id" };
-    public override string[] TargetLabels => new [] { "ACTION" };
-
-    public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
-    {
-        throw new NotImplementedException();
-    }
+    public override string[] CategoricalFeatures => new[] { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
+    public override string[] IdColumns => new[] { "id" };
+    public override string[] TargetLabels => new[] { "ACTION" };
     public override DataSet TestDataset()
     {
         return _testDataset;
     }
 
-    protected override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
+    public override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     private static string TrainRawFile => Path.Combine(DataDirectory, "train.csv");
 }

@@ -830,10 +830,10 @@ namespace SharpNet.Networks
         {
             return Predict(new List<Tensor> {X}, isTraining);
         }
-        public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+        public override DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Config.BatchSize);
-            return DataFrame.New(cpuTensor, Utils.Join(dataset.IdColumns, dataset.TargetLabels));
+            return DataFrame.New(cpuTensor, dataset.TargetLabels);
         }
 
         public override int GetNumEpochs()

@@ -62,6 +62,9 @@ namespace SharpNet.TextPreprocessing
         private IDictionary<string, int> _wordToWordIndex =  new Dictionary<string, int>();
         #endregion
 
+
+        public int DistinctWords => _wordToWordIndex.Count;
+
         public Tokenizer(
             int numWords = int.MaxValue,
             string oovToken = null, 

@@ -1,11 +1,77 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using JetBrains.Annotations;
+using SharpNet.Datasets;
+using SharpNet.HPO;
+using SharpNet.LightGBM;
 using SharpNet.Models;
 
 namespace SharpNet.HyperParameters;
 
 public static class SampleUtils
 {
+
+
+    public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO([NotNull] AbstractDatasetSample datasetSample, [NotNull] string workingDirectory, int min_num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
+    {
+        var searchSpace = new Dictionary<string, object>
+        {
+            //related to Dataset 
+            //{ "KFold", new[] { 3 } },
+
+
+            { "boosting", new[] { "gbdt", "dart" } },
+            
+            //dart mode
+            //{"drop_rate", new[]{0.05, 0.1, 0.2}},
+            { "max_drop", new[] { 40, 50, 60 } },
+            { "skip_drop", AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f) },
+
+            //related to LightGBM model
+            //{ "num_iterations", AbstractHyperParameterSearchSpace.Range(min_num_iterations, 3*min_num_iterations) },
+            { "num_iterations", min_num_iterations },
+            { "verbosity", "0" },
+            { "num_threads", 1 },
+            { "learning_rate", AbstractHyperParameterSearchSpace.Range(0.01f, 0.2f) },
+            { "extra_trees", false },
+            { "early_stopping_round", min_num_iterations / 10 },
+            { "bagging_fraction", new[] { 0.9f, 1.0f } },
+            { "bagging_freq", new[] { 0, 1 } },
+            { "colsample_bytree", AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f) },
+            //{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+            { "lambda_l1", AbstractHyperParameterSearchSpace.Range(0f, 2f) },
+            { "lambda_l2", AbstractHyperParameterSearchSpace.Range(0f, 2f) },
+            { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
+            { "max_depth", new[] { 10, 20, 50, 100, 255 } },
+            //{ "min_data_in_bin", AbstractHyperParameterSearchSpace.Range(3, 100) },
+            { "min_data_in_bin", new[] { 3, 10, 100, 150 } },
+            //{ "min_data_in_leaf", AbstractHyperParameterSearchSpace.Range(20, 200) },
+            //{ "min_data_in_leaf", new[]{10, 20, 30} },
+            //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
+            { "num_leaves", AbstractHyperParameterSearchSpace.Range(5, 100) },
+            //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
+        };
+
+        datasetSample.FillWithDefaultLightGBMHyperParameterValues(searchSpace);
+
+        if (!Directory.Exists(workingDirectory))
+        {
+            Directory.CreateDirectory(workingDirectory);
+        }
+        var dataDirectory = Path.Combine(workingDirectory, "Data");
+        if (!Directory.Exists(dataDirectory))
+        {
+            Directory.CreateDirectory(dataDirectory);
+        }
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), workingDirectory); IScore bestScoreSoFar = null;
+        var csvPath = Path.Combine(dataDirectory, "Tests_" + datasetSample.Name + ".csv");
+        hpo.Process(t => TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, csvPath, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
+    }
+
+
     /// <summary>
     /// Train the model (in modelAndDatasetSample) using the dataset (in modelAndDatasetSample)
     /// If validation score of the trained model is better then 'bestScoreSoFar'
@@ -26,6 +92,7 @@ public static class SampleUtils
         var sw = Stopwatch.StartNew();
         var modelAndDataset = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, workingDirectory);
         var model = modelAndDataset.Model;
+        var datasetSample = modelAndDataset.ModelAndDatasetPredictionsSample.DatasetSample;
         var validationRankingScore = modelAndDataset.Fit(false, true, false);
 
         IScore trainRankingScore = null;
@@ -35,14 +102,21 @@ public static class SampleUtils
         {
             Model.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;
-            using var trainAndValidation = modelAndDataset.ModelAndDatasetPredictionsSample.DatasetSample.SplitIntoTrainingAndValidation();
-            var res = modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
-            trainRankingScore = res.trainRankingScore;
-            modelAndDataset.Save(workingDirectory, model.ModelName);
-            var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
-            var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
-            Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
-            modelAndDatasetOnFullDataset.Fit(true, true, true);
+            if (datasetSample.MinimumScoreToSaveModel == null || bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
+            {
+                using var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
+                var res = modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
+                trainRankingScore = res.trainRankingScore;
+                modelAndDataset.Save(workingDirectory, model.ModelName);
+                var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
+                var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
+                Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
+                modelAndDatasetOnFullDataset.Fit(true, true, true);
+            }
+            else
+            {
+                Model.Log.Info($"No interest to save the Model because best score {bestScoreSoFar} is lower than threshold {datasetSample.MinimumScoreToSaveModel}");
+            }
         }
         else
         {

@@ -111,7 +111,7 @@ namespace SharpNet.CatBoost
             return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
         }
 
-        public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+        public override DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             if (!File.Exists(ModelPath))
             {

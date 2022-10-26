@@ -79,7 +79,7 @@ namespace SharpNet.LightGBM
         }
 
      
-        public override DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd)
+        public override DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             if (!File.Exists(ModelPath))
             {

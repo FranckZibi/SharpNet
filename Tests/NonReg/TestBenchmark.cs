@@ -12,10 +12,8 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
-using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Layers;
-using SharpNet.Models;
 using SharpNet.Networks;
 using SharpNetTests.GPU;
 // ReSharper disable AccessToDisposedClosure
@@ -174,53 +172,53 @@ namespace SharpNetTests.NonReg
             Log.Info(comment);
         }
 
-        [Test, Explicit]
-        public void BenchmarkLoadAt()
-        {
-            const bool useMultiThreading = true;
-            const int miniBatchSize = 1024;
-            var p = Cfm60NetworkSample.Default();
-            p.Config.BatchSize = miniBatchSize;
+        //[Test, Explicit]
+        //public void BenchmarkLoadAt()
+        //{
+        //    const bool useMultiThreading = true;
+        //    const int miniBatchSize = 1024;
+        //    var p = Cfm60NetworkSample.Default();
+        //    p.Config.BatchSize = miniBatchSize;
 
-            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => Model.Log.Info(s));
-            var dataset = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
+        //    using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => Model.Log.Info(s));
+        //    var dataset = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
 
-            var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Sample.Encoder_TimeSteps, p.CFM60HyperParameters.Encoder_InputSize };
+        //    var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Sample.Encoder_TimeSteps, p.CFM60HyperParameters.Encoder_InputSize };
 
-            var yMiniBatchShape = dataset.YMiniBatch_Shape(miniBatchSize);
-            var rand = new Random(0);
-            var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();
-            Utils.Shuffle(shuffledElementId, rand);
+        //    var yMiniBatchShape = dataset.YMiniBatch_Shape(miniBatchSize);
+        //    var rand = new Random(0);
+        //    var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();
+        //    Utils.Shuffle(shuffledElementId, rand);
 
-            var xOriginalNotAugmentedMiniBatchCpu = new CpuTensor<float>(xMiniBatchShape);
-            var yBufferMiniBatchCpu = new CpuTensor<float>(yMiniBatchShape);
+        //    var xOriginalNotAugmentedMiniBatchCpu = new CpuTensor<float>(xMiniBatchShape);
+        //    var yBufferMiniBatchCpu = new CpuTensor<float>(yMiniBatchShape);
 
-            yBufferMiniBatchCpu.ZeroMemory();
-            var swLoad = new Stopwatch();
+        //    yBufferMiniBatchCpu.ZeroMemory();
+        //    var swLoad = new Stopwatch();
 
-            int count = 0;
-            for (int firstElementId = 0; firstElementId <= (dataset.Count - miniBatchSize); firstElementId += miniBatchSize)
-            {
-                count += miniBatchSize;
-                int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstElementId + miniBatchIdx];
-                swLoad.Start();
-                if (useMultiThreading)
-                {
-                    Parallel.For(0, miniBatchSize, indexInBuffer => dataset.LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu, false));
-                }
-                else
-                {
-                    for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
-                    {
-                        dataset.LoadAt(MiniBatchIdxToElementId(indexInMiniBatch), indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu, false);
-                    }
-                }
-                swLoad.Stop();
-            }
-            var comment = "count=" + count.ToString("D4") + ",miniBatchSize=" + miniBatchSize.ToString("D4") + ", useMultiThreading=" + (useMultiThreading ? 1 : 0);
-            comment += " ; load into memory took " + swLoad.ElapsedMilliseconds.ToString("D4") + " ms";
-            Log.Info(comment);
-        }
+        //    int count = 0;
+        //    for (int firstElementId = 0; firstElementId <= (dataset.Count - miniBatchSize); firstElementId += miniBatchSize)
+        //    {
+        //        count += miniBatchSize;
+        //        int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[firstElementId + miniBatchIdx];
+        //        swLoad.Start();
+        //        if (useMultiThreading)
+        //        {
+        //            Parallel.For(0, miniBatchSize, indexInBuffer => dataset.LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu, false));
+        //        }
+        //        else
+        //        {
+        //            for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
+        //            {
+        //                dataset.LoadAt(MiniBatchIdxToElementId(indexInMiniBatch), indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu, false);
+        //            }
+        //        }
+        //        swLoad.Stop();
+        //    }
+        //    var comment = "count=" + count.ToString("D4") + ",miniBatchSize=" + miniBatchSize.ToString("D4") + ", useMultiThreading=" + (useMultiThreading ? 1 : 0);
+        //    comment += " ; load into memory took " + swLoad.ElapsedMilliseconds.ToString("D4") + " ms";
+        //    Log.Info(comment);
+        //}
 
 
         //gpu=>gpu (same device)

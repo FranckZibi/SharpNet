@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using SharpNet;
-using SharpNet.Datasets.Natixis70;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using static SharpNet.HPO.AbstractHyperParameterSearchSpace;
@@ -59,7 +58,7 @@ public class TestBayesianSearchHPO
     [Test, Explicit]
     public void TestConvergence()
     {
-        var testDirectory = Path.Combine(Natixis70Utils.WorkingDirectory, "Natixis70", "Temp");
+        var testDirectory = Path.Combine(Utils.ChallengesPath, "Natixis70", "Temp");
         var searchSpace = new Dictionary<string, object>
         {
             { "A", Range(-10f, 10f) },

@@ -32,7 +32,7 @@ namespace SharpNet.Datasets.CFM60
                 log,
                 cfm60NetworkSample,
                 // ReSharper disable once VirtualMemberCallInConstructor
-                (CFM60DataSet) Training);
+                (CFM60DataSet)Training);
             //CFM60Utils.Create_Summary_File(((CFM60DataSet)Training).Entries.Union(((CFM60DataSet)Test).Entries).ToList());
         }
     }

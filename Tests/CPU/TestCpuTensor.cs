@@ -18,6 +18,18 @@ namespace SharpNetTests.CPU
     {
         private readonly Random _rand = new Random(0);
 
+
+        
+
+        [Test]
+        public void TestNormalize()
+        {
+            var a = new CpuTensor<float>(new[] { 3, 3 }, new []{1f,2,3,-5,2,6,9,2,1 });
+            var (aNormalized, _, _) = a.Normalize();
+            var expected = new CpuTensor<float>(a.Shape, new [] { -0.0949158f, 0, -0.1324532f, -0.949158f, 0, 1.05962586f, 1.04407382f, 0, -0.9271726f });
+            Assert.IsTrue(TestTensor.SameContent(expected, aNormalized, 1e-5));
+        }
+
         [Test]
         public void TestEquals()
         {
@@ -555,6 +567,7 @@ namespace SharpNetTests.CPU
             var expectedGradient = TestNetworkPropagation.FromNumpyArray("[[[0.15, -0.15], [0.1, 0.15]]]");
             var observedGradient = new CpuTensor<float>(expectedGradient.Shape);
             observedGradient.CosineSimilarityGradient(yExpected, yPredicted, 2);
+            //?D
             Assert.IsTrue(TestTensor.SameContent(expectedGradient, observedGradient, 1e-6));
         }
 

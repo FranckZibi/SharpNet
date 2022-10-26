@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using JetBrains.Annotations;
 using SharpNet.CPU;
-using SharpNet.HyperParameters;
 using SharpNet.MathTools;
 
 namespace SharpNet.Datasets.Natixis70;
@@ -99,27 +98,27 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         return predictionsInModelFormat;
     }
 
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
     {
-        if (predictionsInModelFormat_with_IdColumns == null)
+        if (predictionsInModelFormat == null)
         {
             return null;
         }
-        if (predictionsInModelFormat_with_IdColumns.Shape[1] == 39)
+        if (predictionsInModelFormat.Shape[1] == 39)
         {
-            var cpuTensor = CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat_with_IdColumns.FloatCpuTensor(), 0);
-            return DataFrame.New(cpuTensor, PredictionInTargetFormatHeader());
+            var cpuTensor = CpuTensor<float>.AddIndexInFirstColumn(predictionsInModelFormat.FloatCpuTensor(), 0);
+            return DataFrame.New(cpuTensor, Utils.Join(IdColumns, TargetLabels));
         }
 
-        var predictionsInModelFormatSpan = predictionsInModelFormat_with_IdColumns.FloatCpuTensor().AsReadonlyFloatCpuContent;
+        var predictionsInModelFormatSpan = predictionsInModelFormat.FloatCpuTensor().AsReadonlyFloatCpuContent;
         var predictionsInModelFormatSpanIndex = 0;
 
         // the predictions in the target format for the Natixis70 Challenge
-        var predictionsInTargetFormat = new CpuTensor<float>(YShapeInTargetFormat(predictionsInModelFormat_with_IdColumns.Shape[0]));
+        var predictionsInTargetFormat = new CpuTensor<float>(YShapeInTargetFormat(predictionsInModelFormat.Shape[0]));
         var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsFloatCpuSpan;
         var divider = RowsInTargetFormatToRowsInModelFormat(1);
 
-        for (int rowInModelFormat = 0; rowInModelFormat < predictionsInModelFormat_with_IdColumns.Shape[0]; ++rowInModelFormat)
+        for (int rowInModelFormat = 0; rowInModelFormat < predictionsInModelFormat.Shape[0]; ++rowInModelFormat)
         {
             var rowInTargetFormat = rowInModelFormat / divider;
             //the first element of each row in target format is the index of this row (starting from 0)
@@ -197,7 +196,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
     }
 
-    public override string[] IdColumns => new []{""};
+    public override string[] IdColumns => new[] { "" };
     public override string[] TargetLabels => Natixis70Utils.PredictionHeader.Trim(',').Split(',');
 
     /// <summary>
@@ -205,12 +204,12 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     /// </summary>
     public static bool TestDatasetMustHaveLabels = false;
 
-    
+
     public override DataSet TestDataset()
     {
         if (TestDatasetMustHaveLabels)
         {
-            using var trainingAndValidationAndTestDataset = NewDataSet(XTrainRawFile, YTrainRawFile);
+            using var trainingAndValidationAndTestDataset = FullTrainingAndValidation();
             var percentageInTraining = PercentageInTraining;
             if (PercentageInTraining >= 1.0)
             {
@@ -226,6 +225,11 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
     }
 
+    public override DataSet FullTrainingAndValidation()
+    {
+        return NewDataSet(XTrainRawFile, YTrainRawFile);
+    }
+
     public override int DatasetRowsInModelFormatMustBeMultipleOf()
     {
         return RowsInTargetFormatToRowsInModelFormat(1);
@@ -233,39 +237,29 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
     public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
     {
+        if (!TestDatasetMustHaveLabels)
+        {
+            return base.SplitIntoTrainingAndValidation();
+        }
         var percentageInTraining = PercentageInTraining;
-        if (TestDatasetMustHaveLabels)
+        using var trainingAndValidationAndTestDataset = FullTrainingAndValidation();
+        if (PercentageInTraining >= 1.0)
         {
-            using var trainingAndValidationAndTestDataset = NewDataSet(XTrainRawFile, YTrainRawFile);
-            if (PercentageInTraining >= 1.0)
-            {
-                percentageInTraining = 0.8;
-            }
-            int rowsForTrainingAndValidation = (int)(percentageInTraining * trainingAndValidationAndTestDataset.Count + 0.1);
-            rowsForTrainingAndValidation -= rowsForTrainingAndValidation % DatasetRowsInModelFormatMustBeMultipleOf();
-            var trainingAndValidationDataset = trainingAndValidationAndTestDataset.IntSplitIntoTrainingAndValidation(rowsForTrainingAndValidation).Training;
-            if (PercentageInTraining >= 1.0)
-            {
-                return new TrainingAndTestDataset(trainingAndValidationDataset, null, trainingAndValidationAndTestDataset.Name);
-            }
-            int rowsForTraining = (int)(percentageInTraining * trainingAndValidationDataset.Count + 0.1);
-            rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
-            return trainingAndValidationDataset.IntSplitIntoTrainingAndValidation(rowsForTraining);
+            percentageInTraining = 0.8;
         }
-        else
+        int rowsForTrainingAndValidation = (int)(percentageInTraining * trainingAndValidationAndTestDataset.Count + 0.1);
+        rowsForTrainingAndValidation -= rowsForTrainingAndValidation % DatasetRowsInModelFormatMustBeMultipleOf();
+        var trainingAndValidationDataset = trainingAndValidationAndTestDataset.IntSplitIntoTrainingAndValidation(rowsForTrainingAndValidation).Training;
+        if (PercentageInTraining >= 1.0)
         {
-            using var trainingAndValidationDataset = NewDataSet(XTrainRawFile, YTrainRawFile);
-            int rowsForTraining = (int)(percentageInTraining * trainingAndValidationDataset.Count + 0.1);
-            rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
-            return trainingAndValidationDataset.IntSplitIntoTrainingAndValidation(rowsForTraining);
+            return new TrainingAndTestDataset(trainingAndValidationDataset, null, trainingAndValidationAndTestDataset.Name);
         }
+        int rowsForTraining = (int)(percentageInTraining * trainingAndValidationDataset.Count + 0.1);
+        rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
+        return trainingAndValidationDataset.IntSplitIntoTrainingAndValidation(rowsForTraining);
     }
 
-    protected override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.Rmse;
-    }
-
+    public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.Rmse;
     public override Objective_enum GetObjective() => Objective_enum.Regression;
 
 
@@ -285,7 +279,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     private int[] YShapeInTargetFormat(int rowsInModelFormat)
     {
         var divider = RowsInTargetFormatToRowsInModelFormat(1);
-        Debug.Assert(rowsInModelFormat%divider == 0);
+        Debug.Assert(rowsInModelFormat % divider == 0);
         var rowsInTargetFormat = rowsInModelFormat / divider;
         return new[] { rowsInTargetFormat, 1 + Natixis70Utils.MarketNames.Length * Natixis70Utils.HorizonNames.Length };
     }
@@ -472,7 +466,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     private const string FILE_SUFFIX = "";
     //private const string FILE_SUFFIX = "_small";
 
-    private static string XTrainRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_train_ACFqOMF"+ FILE_SUFFIX+".csv");
+    private static string XTrainRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_train_ACFqOMF" + FILE_SUFFIX + ".csv");
     private static string XTestRawFile => Path.Combine(Natixis70Utils.DataDirectory, "x_test_pf4T2aK" + FILE_SUFFIX + ".csv");
     private static string YTrainRawFile => Path.Combine(Natixis70Utils.WorkingDirectory, "Data", "y_train_HNMbC27" + FILE_SUFFIX + ".csv");
     /// <summary>

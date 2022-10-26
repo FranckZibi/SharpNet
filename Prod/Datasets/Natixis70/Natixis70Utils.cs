@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using SharpNet.CatBoost;
 using SharpNet.HPO;
@@ -12,8 +11,8 @@ namespace SharpNet.Datasets.Natixis70
     {
         public const string NAME = "Natixis70";
 
-        public static readonly string[] MarketNames = { "VIX", "V2X", "EURUSD", "EURUSDV1M", "USGG10YR", "USGG2YR", "GDBR10YR", "GDBR2YR", "SX5E", "SPX", "SRVIX", "CVIX",  "MOVE"};
-        public const string PredictionHeader =  ",Diff_VIX_1d,Diff_VIX_1w,Diff_VIX_2w,Diff_V2X_1d,Diff_V2X_1w,Diff_V2X_2w,Diff_EURUSD_1d,Diff_EURUSD_1w,Diff_EURUSD_2w,Diff_EURUSDV1M_1d,Diff_EURUSDV1M_1w,Diff_EURUSDV1M_2w,Diff_USGG10YR_1d,Diff_USGG10YR_1w,Diff_USGG10YR_2w,Diff_USGG2YR_1d,Diff_USGG2YR_1w,Diff_USGG2YR_2w,Diff_GDBR10YR_1d,Diff_GDBR10YR_1w,Diff_GDBR10YR_2w,Diff_GDBR2YR_1d,Diff_GDBR2YR_1w,Diff_GDBR2YR_2w,Diff_SX5E_1d,Diff_SX5E_1w,Diff_SX5E_2w,Diff_SPX_1d,Diff_SPX_1w,Diff_SPX_2w,Diff_SRVIX_1d,Diff_SRVIX_1w,Diff_SRVIX_2w,Diff_CVIX_1d,Diff_CVIX_1w,Diff_CVIX_2w,Diff_MOVE_1d,Diff_MOVE_1w,Diff_MOVE_2w";
+        public static readonly string[] MarketNames = { "VIX", "V2X", "EURUSD", "EURUSDV1M", "USGG10YR", "USGG2YR", "GDBR10YR", "GDBR2YR", "SX5E", "SPX", "SRVIX", "CVIX", "MOVE" };
+        public const string PredictionHeader = ",Diff_VIX_1d,Diff_VIX_1w,Diff_VIX_2w,Diff_V2X_1d,Diff_V2X_1w,Diff_V2X_2w,Diff_EURUSD_1d,Diff_EURUSD_1w,Diff_EURUSD_2w,Diff_EURUSDV1M_1d,Diff_EURUSDV1M_1w,Diff_EURUSDV1M_2w,Diff_USGG10YR_1d,Diff_USGG10YR_1w,Diff_USGG10YR_2w,Diff_USGG2YR_1d,Diff_USGG2YR_1w,Diff_USGG2YR_2w,Diff_GDBR10YR_1d,Diff_GDBR10YR_1w,Diff_GDBR10YR_2w,Diff_GDBR2YR_1d,Diff_GDBR2YR_1w,Diff_GDBR2YR_2w,Diff_SX5E_1d,Diff_SX5E_1w,Diff_SX5E_2w,Diff_SPX_1d,Diff_SPX_1w,Diff_SPX_2w,Diff_SRVIX_1d,Diff_SRVIX_1w,Diff_SRVIX_2w,Diff_CVIX_1d,Diff_CVIX_1w,Diff_CVIX_2w,Diff_MOVE_1d,Diff_MOVE_1w,Diff_MOVE_2w";
         public const int EmbeddingDimension = 768;
         public static readonly string[] HorizonNames = { "1d", "1w", "2w" };
 
@@ -28,7 +27,7 @@ namespace SharpNet.Datasets.Natixis70
         {
             // ReSharper disable once ConvertToConstant.Local
             var num_iterations = 1000;
-            
+
             num_iterations = 10;
 
             var searchSpace = new Dictionary<string, object>
@@ -93,7 +92,7 @@ namespace SharpNet.Datasets.Natixis70
                 { "iterations", iterations },
                 { "od_type", "Iter"},
                 { "od_wait",iterations/10},
-               
+
                 { "depth", AbstractHyperParameterSearchSpace.Range(2, 10) },
                 { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
                 { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
@@ -108,42 +107,42 @@ namespace SharpNet.Datasets.Natixis70
         }
 
         // ReSharper disable once UnusedMember.Global
-        public static void SearchForBestWeights()
-        {
-            WeightsOptimizer.SearchForBestWeights(
-                new List<Tuple<string, string>>
-                {
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "9736A5F52A"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "6301C10A9E"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "C8909AE935"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "D805551FDC"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "94648F9CA7"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "32AB0D5D2F"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "FD056E8CA9"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "60E67A6BCF"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "0F24432913"),
-                },
-                Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)),
-                Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
-        }
+        //public static void SearchForBestWeights()
+        //{
+        //    WeightsOptimizer.SearchForBestWeights(
+        //        new List<Tuple<string, string>>
+        //        {
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "9736A5F52A"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "6301C10A9E"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "C8909AE935"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "D805551FDC"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "94648F9CA7"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "32AB0D5D2F"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "FD056E8CA9"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "60E67A6BCF"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "0F24432913"),
+        //        },
+        //        Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)),
+        //        Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
+        //}
 
-        public static void SearchForBestWeights_full_Dataset()
-        {
-            WeightsOptimizer.SearchForBestWeights(
-                new List<Tuple<string, string>>
-                {
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "41C776CB10"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "D324191822"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "E9F2139538"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "FC18503756"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "2DAA3D22BD"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "832172A5DB"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "89D2FB42ED"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "22FD7C720F"),
-                    Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "604A1690F4"),
-                },
-                Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)),
-                Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
-        }
+        //public static void SearchForBestWeights_full_Dataset()
+        //{
+        //    WeightsOptimizer.SearchForBestWeights(
+        //        new List<Tuple<string, string>>
+        //        {
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "41C776CB10"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "D324191822"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "E9F2139538"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "FC18503756"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "2DAA3D22BD"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "832172A5DB"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "89D2FB42ED"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "22FD7C720F"),
+        //            Tuple.Create(Path.Combine(WorkingDirectory, "aaa3"), "604A1690F4"),
+        //        },
+        //        Path.Combine(WorkingDirectory, nameof(WeightsOptimizer)),
+        //        Path.Combine(DataDirectory, "Tests_" + NAME + ".csv"));
+        //}
     }
 }

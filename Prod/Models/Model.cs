@@ -47,10 +47,10 @@ public abstract class Model
         {
             return new LightGBMModel(lightGBMSample, workingDirectory, modelName);
         }
-        if (sample is WeightedModelSample weightedModelSample)
-        {
-            return new WeightedModel(weightedModelSample, workingDirectory, modelName);
-        }
+        //if (sample is WeightedModelSample weightedModelSample)
+        //{
+        //    return new WeightedModel(weightedModelSample, workingDirectory, modelName);
+        //}
         if (sample is KFoldSample kFoldSample)
         {
             return new KFoldModel(kFoldSample, workingDirectory, modelName);
@@ -166,7 +166,6 @@ public abstract class Model
             predictionLabels = Enumerable.Range(0, predictionsCpuTensor.Shape[1]).Select(x => x.ToString()).ToArray();
         }
         DataFrame predictionsDf = DataFrame.New(predictionsCpuTensor, predictionLabels);
-        predictionsDf = dataset.AddIdColumnsAtLeftIfNeeded(predictionsDf);
         if (predictionsDf.Shape[0] != dataset.Count)
         {
             throw new Exception($"Invalid number of predictions, received {predictionsDf.Shape[0]} but expected {dataset.Count}");
@@ -179,17 +178,13 @@ public abstract class Model
 
     public abstract (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
         Fit(DataSet trainDataset, DataSet validationDatasetIfAny);
+
     /// <summary>
     /// do Model inference for dataset 'dataset' and returns the predictions
     /// </summary>
     /// <param name="dataset">teh dataset we want to make the inference</param>
-    /// <param name="addIdColumnsAtLeft">
-    /// if true
-    ///     the returned Dataframe will contain in the 1st columns the Id Columns
-    /// else
-    ///     the Id Column will be discarded in the prediction Dataframe</param>
     /// <param name="removeAllTemporaryFilesAtEnd">
-    /// if true:
+    ///     if true:
     ///     all temporary files needed by the model for inference will be deleted</param>
     /// <returns>
     /// predictions: the model inferences
@@ -199,7 +194,7 @@ public abstract class Model
     ///     else
     ///         an empty string
     /// </returns>
-    public abstract DataFrame Predict(DataSet dataset, bool addIdColumnsAtLeft, bool removeAllTemporaryFilesAtEnd);
+    public abstract DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd);
     public abstract void Save(string workingDirectory, string modelName);
     public virtual string DeviceName() => "";
     public virtual int TotalParams() => -1;

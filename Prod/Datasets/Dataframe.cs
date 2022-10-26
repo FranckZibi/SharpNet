@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using SharpNet.CPU;
@@ -27,9 +28,11 @@ public sealed class DataFrame
     private static readonly Type[] TensorIndexToType;
     private static readonly object[] TensorIndexToNonNullDefaultValue;
     private static readonly Dictionary<Type, int> TypeToTensorIndex = new();
-    private const int FLOAT_TYPE_IDX = 0;
-    private const int STRING_TYPE_IDX = 1;
+    public const int FLOAT_TYPE_IDX = 0;
+    public const int STRING_TYPE_IDX = 1;
     private const int INT_TYPE_IDX = 2;
+    //protected static readonly ILog Log = LogManager.GetLogger(typeof(DataFrame));
+
     #endregion
 
     #region public fields and properties
@@ -37,6 +40,37 @@ public sealed class DataFrame
     public int[] Shape => new[] { Rows, _columns.Count };
     #endregion
 
+
+    public override string ToString()
+    {
+        return Tensor.ShapeToString(Shape);
+    }
+
+    public DataFrame ResizeWithNewNumberOfRows(int newRows)
+    {
+        return new DataFrame(_columns,
+            ResizeWithNewNumberOfRows(_floatTensor, newRows),
+            ResizeWithNewNumberOfRows(_stringTensor, newRows),
+            ResizeWithNewNumberOfRows(_intTensor, newRows)
+        );
+    }
+
+
+    private  static CpuTensor<T> ResizeWithNewNumberOfRows<T>(CpuTensor<T> a, int newRows)
+    {
+        if (a == null)
+        {
+            return null;
+        }
+        Debug.Assert(a.Shape.Length == 2);
+        if (newRows < a.Shape[0])
+        {
+            throw new ArgumentException($"invalid row {newRows} value, must be greater than {a.Shape[0]}");
+        }
+        var newTensor = new CpuTensor<T>(new [] { newRows , a.Shape[1]});
+        a.CopyTo(newTensor.RowSlice(0, a.Shape[0]));
+        return newTensor;
+    }
 
     #region constructors
     static DataFrame()
@@ -50,7 +84,7 @@ public sealed class DataFrame
         TensorIndexToNonNullDefaultValue[STRING_TYPE_IDX] = "";
         TensorIndexToNonNullDefaultValue[INT_TYPE_IDX] = 0;
     }
-    private DataFrame(List<Tuple<string, int, int>> columns,
+    public DataFrame(List<Tuple<string, int, int>> columns,
         CpuTensor<float> floatTensor,
         CpuTensor<string> stringTensor,
         CpuTensor<int> intTensor)
@@ -97,11 +131,18 @@ public sealed class DataFrame
     {
         return New(tensor, null, null, columnsNames);
     }
+    public static DataFrame New(CpuTensor<float> tensor)
+    {
+        var columnsNames = Enumerable.Range(0, tensor.Shape[1]).Select(i => i.ToString()).ToArray();
+        return New(tensor, columnsNames);
+    }
+
     public static DataFrame New(string[] content, IList<string> columnsNames)
     {
         var tensor = CpuTensor<string>.New(content, columnsNames.Count);
         return new DataFrame(columnsNames.Select((n, i) => Tuple.Create(n, STRING_TYPE_IDX, i)).ToList(), null, tensor, null);
     }
+    // ReSharper disable once UnusedMember.Global
     public static DataFrame New(int[] content, IList<string> columnsNames)
     {
         var tensor = CpuTensor<int>.New(content, columnsNames.Count);
@@ -118,6 +159,7 @@ public sealed class DataFrame
         return _floatTensor;
     }
     public CpuTensor<float> FloatTensor =>_floatTensor;
+    public CpuTensor<string> StringTensor =>_stringTensor;
     public CpuTensor<string> StringCpuTensor()
     {
         if (!IsStringDataFrame)
@@ -126,6 +168,7 @@ public sealed class DataFrame
         }
         return _stringTensor;
     }
+    // ReSharper disable once UnusedMember.Global
     public CpuTensor<int> IntCpuTensor()
     {
         if (!IsIntDataFrame)
@@ -185,6 +228,7 @@ public sealed class DataFrame
     {
         return read_csv(path, hasHeader, _ => typeof(string));
     }
+    // ReSharper disable once UnusedMember.Global
     public static DataFrame read_int_csv(string path, bool hasHeader = true)
     {
         return read_csv(path, hasHeader, _ => typeof(int));
@@ -284,12 +328,18 @@ public sealed class DataFrame
             switch (c.Item2)
             {
                 case FLOAT_TYPE_IDX: sb.Append(floatContent[idx].ToString(CultureInfo.InvariantCulture)); break;
-                case STRING_TYPE_IDX: sb.Append(stringContent[idx]); break;
+                case STRING_TYPE_IDX:
+                    var str = stringContent[idx];
+                    if (!string.IsNullOrEmpty(str) && str.Contains(sep) && str[0]!= '\"' && str.Last() != '\"')
+                    {
+                        str = "\""+str+"\"";
+                    }
+                    sb.Append(str); break;
                 case INT_TYPE_IDX: sb.Append(intContent[idx]);  break;
                 default: throw new Exception($"invalid type index {c.Item2}");
             }
         }
-        System.IO.File.WriteAllText(path, sb.ToString());
+        File.WriteAllText(path, sb.ToString());
     }
     // ReSharper disable once UnusedMember.Global
     public static DataFrame MergeVertically(DataFrame top, DataFrame bottom)
@@ -344,114 +394,436 @@ public sealed class DataFrame
         Debug.Assert(idColumns.Length == 1);
         return SumOrAvgForColumns(idColumns[0], true);
     }
-    public List<int> ColumnNamesToIndexes(IEnumerable<string> columnNames)
-    {
-        var indexes = new List<int>();
-        foreach (var f in columnNames)
-        {
-            int idx = Array.IndexOf(Columns, f);
-            if (idx < 0)
-            {
-                throw new Exception($"Invalid {nameof(Columns)} name {f}");
-            }
-            indexes.Add(idx);
-        }
+    //public List<int> ColumnNamesToIndexes(IEnumerable<string> columnNames)
+    //{
+    //    var indexes = new List<int>();
+    //    foreach (var f in columnNames)
+    //    {
+    //        int idx = Array.IndexOf(Columns, f);
+    //        if (idx < 0)
+    //        {
+    //            throw new Exception($"Invalid {nameof(Columns)} name {f}");
+    //        }
+    //        indexes.Add(idx);
+    //    }
 
-        return indexes;
-    }
-    public DataFrame TfIdfEncoding(string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool addTokenNameAsColumnNameSuffix = false)
-    {
-        var documents = StringColumnContent(columnToEncode);
-        var df_encoded = TfIdf.ToTfIdf(documents, embeddingDim, columnToEncode, addTokenNameAsColumnNameSuffix);
+    //    return indexes;
+    //}
 
-        var result = this;
-        if (!keepEncodedColumnName)
-        {
-            result = result.Drop(columnToEncode);
-        }
-        return MergeHorizontally(result, df_encoded);
+    /// <summary>
+    /// encode the string column 'columnToEncode' using Tf*Idf with 'embeddingDim' words and return a new DataFrame with this encoding
+    /// </summary>
+    /// <param name="columnToEncode"></param>
+    /// <param name="embeddingDim">the number of dimension for the encoding.
+    /// Only the top frequent 'embeddingDim' words will be considered for the encoding.
+    /// The other will be discarded</param>
+    /// <param name="keepEncodedColumnName">
+    /// Should we add the original column to the returned DataFrame</param>
+    /// <param name="addTokenNameAsColumnNameSuffix">For testing only,
+    /// Each new feature will have in its name the associated word for the TfIdf encoding</param>
+    /// <param name="reduceEmbeddingDimIfNeeded"></param>
+    /// <param name="norm"></param>
+    /// <param name="scikitLearnCompatibilityMode"></param>
+    /// <returns></returns>
+    public DataFrame TfIdfEncode(string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool addTokenNameAsColumnNameSuffix = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    {
+        return TfIdfEncoding.Encode(new[] { this }, columnToEncode, embeddingDim, keepEncodedColumnName, addTokenNameAsColumnNameSuffix, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)[0];
     }
+
+    //public DataFrame Normalize()
+    //{
+    //    return new DataFrame(_columns,
+    //        _floatTensor?.Normalize().normalizedTensor,
+    //        _stringTensor,
+    //        _intTensor);
+    //}
+
+    //public DataFrame DeduceRowMean()
+    //{
+    //    return new DataFrame(_columns,
+    //        _floatTensor?.DeduceRowMean(),
+    //        _stringTensor,
+    //        _intTensor);
+    //}
+
     /// <summary>
     /// join the 2 DataFrame ('this' and 'right_df' using the key 'joinKey' to join.
     /// this key is considered as a unique key in the 'right_df' DataFrame
     /// (if the 'joinKey' key is duplicated in the 'right_df' DataFrame, then only the 1st occurrence of the key will be considered
     /// this : a DataFrame of shape (leftRows, leftColumns) containing a key 'joinKey'
     /// </summary>
-    /// <param name="rightDf">a DataFrame of shape (rightRows, rightColumns) containing a unique key 'joinKey'</param>
+    /// <param name="right">a DataFrame of shape (rightRows, rightColumns) containing a unique key 'joinKey'</param>
     /// <param name="joinKey">the key to make the left join</param>
     /// <returns>a DataFrame of shape (leftRows, leftColumns+rightColumns-1)</returns>
     /// <exception cref="ArgumentException"></exception>
-    public DataFrame LeftJoinWithoutDuplicates(DataFrame rightDf, string joinKey)
+    public DataFrame LeftJoinWithoutDuplicates(DataFrame right, string joinKey)
     {
+        var left = this;
         int leftJoinKeyIndex = Array.IndexOf(Columns, joinKey);
-        int rightJoinKeyIndex = Array.IndexOf(rightDf.Columns, joinKey);
+        int rightJoinKeyIndex = Array.IndexOf(right.Columns, joinKey);
         if (leftJoinKeyIndex == -1 || rightJoinKeyIndex == -1)
         {
             throw new ArgumentException($"invalid join Key name {joinKey}");
         }
 
-        int leftRows = Shape[0];
-        int leftColumns = Shape[1];
-        var leftContent = FloatCpuTensor();
-
-        int rightRows = rightDf.Shape[0];
-        int rightColumns = rightDf.Shape[1];
-        var rightContent = rightDf.FloatCpuTensor().ReadonlyContent;
-
-        int newRows = leftRows;
-        int newColumns = Shape[1] + rightDf.Shape[1] - 1;
-        var newContent = new float[newRows * newColumns];
-
-        var rightJoinKeyValueToFirstRightRow = new Dictionary<float, int>();
-        for (int rightRow = 0; rightRow < rightRows; ++rightRow)
+        var joinKeyTensorIndex = left._columns[leftJoinKeyIndex].Item2;
+        if (joinKeyTensorIndex != right._columns[rightJoinKeyIndex].Item2)
         {
-            var rightJoinKeyValue = rightContent[rightJoinKeyIndex + rightRow * rightColumns];
+            throw new ArgumentException($"incoherent join Key type {joinKeyTensorIndex} vs {right._columns[rightJoinKeyIndex].Item2}");
+        }
+
+
+        var leftTensorIndexToColumnCount = left.TensorIndexToColumnCount();
+        var rightTensorIndexToColumnCount = right.TensorIndexToColumnCount();
+        var newTensorIndexToColumnCount = new int[leftTensorIndexToColumnCount.Length];
+        for (var tensorIndex = 0; tensorIndex < leftTensorIndexToColumnCount.Length; tensorIndex++)
+        {
+            newTensorIndexToColumnCount[tensorIndex] = leftTensorIndexToColumnCount[tensorIndex] + rightTensorIndexToColumnCount[tensorIndex];
+        }
+        --newTensorIndexToColumnCount[joinKeyTensorIndex];
+
+
+        var leftFloatContent = left._floatTensor == null ? new float[0] : left._floatTensor.ReadonlyContent;
+        var leftStringContent = left._stringTensor == null ? new string[0] : left._stringTensor.ReadonlyContent;
+        var leftIntContent = left._intTensor == null ? new int[0] : left._intTensor.ReadonlyContent;
+
+        var rightFloatContent = right._floatTensor == null ? new float[0] : right._floatTensor.ReadonlyContent;
+        var rightStringContent = right._stringTensor == null ? new string[0] : right._stringTensor.ReadonlyContent;
+        var rightIntContent = right._intTensor == null ? new int[0] : right._intTensor.ReadonlyContent;
+
+        int newRows = left.Shape[0];
+        var newFloatContent = new float[newRows * newTensorIndexToColumnCount[FLOAT_TYPE_IDX]];
+        var newStringContent = new string[newRows * newTensorIndexToColumnCount[STRING_TYPE_IDX]];
+        var newIntContent = new int[newRows * newTensorIndexToColumnCount[INT_TYPE_IDX]];
+
+
+        var rightJoinKeyValueToFirstRightRow = new Dictionary<object, int>();
+        for (int rightRow = 0; rightRow < right.Shape[0]; ++rightRow)
+        {
+            var rightJoinKeyValue = right.ExtractValue(rightRow, right._columns[rightJoinKeyIndex], rightFloatContent, rightStringContent,  rightIntContent)??"";
             if (!rightJoinKeyValueToFirstRightRow.ContainsKey(rightJoinKeyValue))
             {
                 rightJoinKeyValueToFirstRightRow[rightJoinKeyValue] = rightRow;
             }
         }
 
+
+        int leftIdxFloat = 0;
+        int leftIdxString = 0;
+        int leftIdxInt = 0;
+        var rightJoinKeyDesc = right._columns[rightJoinKeyIndex];
         for (int newRow = 0; newRow < newRows; ++newRow)
         {
-            int nextIdxLeft = newRow * leftColumns;
-            int nextIdxNew = newRow * newColumns;
-            for (int leftColumn = 0; leftColumn < leftColumns; ++leftColumn)
+            int newIdxFloat = newRow * newTensorIndexToColumnCount[FLOAT_TYPE_IDX];
+            for (int i = 0; i < leftTensorIndexToColumnCount[FLOAT_TYPE_IDX]; ++i)
             {
-                newContent[nextIdxNew++] = leftContent[nextIdxLeft++];
+                newFloatContent[newIdxFloat++] = leftFloatContent[leftIdxFloat++];
             }
-            var leftIdxValue = leftContent[leftJoinKeyIndex + newRow * leftColumns];
+            int newIdxString = newRow * newTensorIndexToColumnCount[STRING_TYPE_IDX];
+            for (int i = 0; i < leftTensorIndexToColumnCount[STRING_TYPE_IDX]; ++i)
+            {
+                newStringContent[newIdxString++] = leftStringContent[leftIdxString++];
+            }
+            int newIdxInt = newRow * newTensorIndexToColumnCount[INT_TYPE_IDX];
+            for (int i = 0; i < leftTensorIndexToColumnCount[INT_TYPE_IDX]; ++i)
+            {
+                newIntContent[newIdxInt++] = leftIntContent[leftIdxInt++];
+            }
+
+            var leftIdxValue = ExtractValue(newRow, left._columns[leftJoinKeyIndex], leftFloatContent, leftStringContent, leftIntContent) ?? "";
             if (rightJoinKeyValueToFirstRightRow.TryGetValue(leftIdxValue, out var rightRow))
             {
-                for (int rightColumn = 0; rightColumn < rightColumns; ++rightColumn)
+                int rightIdxFloat = rightRow * rightTensorIndexToColumnCount[FLOAT_TYPE_IDX];
+                for (int i = 0; i < rightTensorIndexToColumnCount[FLOAT_TYPE_IDX]; ++i)
                 {
-                    if (rightColumn != rightJoinKeyIndex)
+                    if (rightJoinKeyDesc.Item2 == FLOAT_TYPE_IDX && rightJoinKeyDesc.Item3 == i)
                     {
-                        newContent[nextIdxNew++] = rightContent[rightColumn + rightRow * rightColumns];
+                        continue; //We do not add again the joinKey;
                     }
+                    newFloatContent[newIdxFloat++] = rightFloatContent[rightIdxFloat+i];
+                }
+                int rightIdxString = rightRow * rightTensorIndexToColumnCount[STRING_TYPE_IDX];
+                for (int i = 0; i < rightTensorIndexToColumnCount[STRING_TYPE_IDX]; ++i)
+                {
+                    if (rightJoinKeyDesc.Item2 == STRING_TYPE_IDX && rightJoinKeyDesc.Item3 == i)
+                    {
+                        continue; //We do not add again the joinKey;
+                    }
+                    newStringContent[newIdxString++] = rightStringContent[rightIdxString+i];
+                }
+                int rightIdxInt = rightRow * rightTensorIndexToColumnCount[INT_TYPE_IDX];
+                for (int i = 0; i < rightTensorIndexToColumnCount[INT_TYPE_IDX]; ++i)
+                {
+                    if (rightJoinKeyDesc.Item2 == INT_TYPE_IDX && rightJoinKeyDesc.Item3 == i)
+                    {
+                        continue; //We do not add again the joinKey;
+                    }
+                    newIntContent[newIdxInt++] = rightIntContent[rightIdxInt+i];
                 }
             }
         }
-        var newColumnName = Utils.Join(Columns, Utils.Without(rightDf.Columns, new[] { joinKey }));
-        return New(newContent, newColumnName);
+        var newColumnsDesc = left._columns.ToList();
+        var tensorIndexToRightColumnIndex = (int[])leftTensorIndexToColumnCount.Clone();
+        foreach (var rightColumnDesc in right._columns)
+        {
+            if (rightColumnDesc.Item1 == joinKey)
+            {
+                continue;
+            }
+            var newTuple = Tuple.Create(rightColumnDesc.Item1, rightColumnDesc.Item2, tensorIndexToRightColumnIndex[rightColumnDesc.Item2]++);
+            newColumnsDesc.Add(newTuple);
+        }
+
+        return new DataFrame(
+            newColumnsDesc,
+            CpuTensor<float>.New(newFloatContent, newTensorIndexToColumnCount[FLOAT_TYPE_IDX]), 
+            CpuTensor<string>.New(newStringContent, newTensorIndexToColumnCount[STRING_TYPE_IDX]), 
+            CpuTensor<int>.New(newIntContent, newTensorIndexToColumnCount[INT_TYPE_IDX]));
     }
 
 
-    private static DataFrame read_csv(string path, bool hasHeader = true, Func<int, Type> columnIndexToType = null)
+    private int[] TensorIndexToColumnCount()
     {
+        var embeddedTensors = EmbeddedTensors;
+        var tensorIndexToColumnCount = new int[embeddedTensors.Length];
+        for (var tensorIndex = 0; tensorIndex < embeddedTensors.Length; tensorIndex++)
+        {
+            var t = embeddedTensors[tensorIndex];
+            if (t != null)
+            {
+                tensorIndexToColumnCount[tensorIndex] += t.Shape[1];
+            }
+        }
+        return tensorIndexToColumnCount;
+    }
+
+
+    private DataFrame SumOrAvgForColumns(string keyColumn, bool IsAverage)
+    {
+        var rows = Shape[0];
+        var idxKeyColumn = Array.IndexOf(Columns, keyColumn);
+
+        var newColumnsOldIndex = new List<Tuple<string, int, int>>();
+        newColumnsOldIndex.Add(_columns[idxKeyColumn]);
+        for (var i = 0; i < _columns.Count; i++)
+        {
+            if (i != idxKeyColumn && _columns[i].Item2 != STRING_TYPE_IDX)
+            {
+                newColumnsOldIndex.Add(_columns[i]);
+            }
+        }
+        var countByNewTensor = new int[TensorIndexToType.Length];
+        var newColumnsNewIndex = new List<Tuple<string, int, int>>();
+        for (var i = 0; i < newColumnsOldIndex.Count; i++)
+        {
+            var c = newColumnsOldIndex[i];
+            newColumnsNewIndex.Add(Tuple.Create(c.Item1, (i == 0) ? c.Item2 : FLOAT_TYPE_IDX, countByNewTensor[c.Item2]));
+            ++countByNewTensor[c.Item2];
+        }
+
+        
+
+
+        Dictionary<object, float[]> keyToSumArray = new();
+        Dictionary<object, int> keyToCount = new();
+        List<object> sortedKeys = new();
+
+        var floatContent = _floatTensor == null ? new float[0] : _floatTensor.ReadonlyContent;
+        var stringContent = _stringTensor == null ? new string[0] : _stringTensor.ReadonlyContent;
+        var intContent = _intTensor == null ? new int[0] : _intTensor.ReadonlyContent;
+        var embeddedTensors = EmbeddedTensors;
+
+        for (int row = 0; row < rows; ++row)
+        {
+            object key = ExtractValue(row, _columns[idxKeyColumn], floatContent, stringContent, intContent);
+            if (key == null)
+            {
+                key = TensorIndexToNonNullDefaultValue[_columns[idxKeyColumn].Item2];
+            }
+            if (keyToSumArray.TryGetValue(key, out var sumArray))
+            {
+                ++keyToCount[key];
+            }
+            else
+            {
+                sortedKeys.Add(key);
+                sumArray = new float[newColumnsNewIndex.Count - 1];
+                keyToSumArray[key] = sumArray;
+                keyToCount[key] = 1;
+            }
+
+            int dataIdx = 0;
+            for (var i = 1; i < newColumnsNewIndex.Count; i++)
+            {
+                var c = newColumnsOldIndex[i];
+                var idx = c.Item3 + row * embeddedTensors[c.Item2].Shape[1];
+                switch (c.Item2)
+                {
+                    case FLOAT_TYPE_IDX: sumArray[dataIdx++] += floatContent[idx]; break;
+                    case INT_TYPE_IDX: sumArray[dataIdx++] += intContent[idx]; break;
+                    default: throw new ArgumentException($"can't convert {c.Item2} type to float");
+                }
+            }
+        }
+
+        var targetRows = keyToSumArray.Count;
+        var targetFloatContent = new float[targetRows * countByNewTensor[FLOAT_TYPE_IDX]];
+        var targetStringContent = new string[targetRows * countByNewTensor[STRING_TYPE_IDX]];
+        var targetIntContent = new int[targetRows * countByNewTensor[INT_TYPE_IDX]];
+        int idxTargetFloatContent = 0;
+        var idxKeyColumnDesc = newColumnsNewIndex[0];
+        for (var row = 0; row < sortedKeys.Count; row++)
+        {
+            var key = sortedKeys[row];
+            var idx = idxKeyColumnDesc.Item3 + row * countByNewTensor[idxKeyColumnDesc.Item2];
+            switch (idxKeyColumnDesc.Item2)
+            {
+                case FLOAT_TYPE_IDX: targetFloatContent[idx] = (float)key; break;
+                case STRING_TYPE_IDX: targetStringContent[idx] = (string)key; break;
+                default: targetIntContent[idx] = (int)key; break;
+            }
+
+            if (idxKeyColumnDesc.Item2 == FLOAT_TYPE_IDX)
+            {
+                ++idxTargetFloatContent;
+            }
+            var keyCount = keyToCount[key];
+            foreach (var e in keyToSumArray[key])
+            {
+                targetFloatContent[idxTargetFloatContent++] = IsAverage ? (e / keyCount) : e;
+            }
+        }
+        return new DataFrame(newColumnsNewIndex,
+            CpuTensor<float>.New(targetFloatContent, countByNewTensor[FLOAT_TYPE_IDX]),
+            CpuTensor<string>.New(targetStringContent, countByNewTensor[STRING_TYPE_IDX]),
+            CpuTensor<int>.New(targetIntContent, countByNewTensor[INT_TYPE_IDX]));
+    }
+
+    // ReSharper disable once UnusedMember.Global
+    public DataFrame Head(int n)
+    {
+        n = Math.Min(n, Shape[0]);
+        return RowSlice(0, n, false);
+    }
+    // ReSharper disable once UnusedMember.Global
+    public DataFrame Tail(int n)
+    {
+        n = Math.Min(n, Shape[0]);
+        return RowSlice(n - Shape[0], n, false);
+    }
+
+    public DataFrame Clone()
+    {
+        return new DataFrame(_columns.ToList(),
+            (CpuTensor<float>)_floatTensor?.Clone(),
+            (CpuTensor<string>)_stringTensor?.Clone(),
+            (CpuTensor<int>)_intTensor?.Clone());
+    }
+
+    public void Add(DataFrame other)
+    {
+        AssertSameShapeAndColumns(this, other);
+        _floatTensor?.AddTensor(1, other._floatTensor, 1);
+        other._intTensor?.CopyTo(_intTensor); //!D todo: do same thing for _intTensor
+        other._stringTensor?.CopyTo(_stringTensor);
+    }
+
+    public void Mult(float multiplier)
+    {
+        _floatTensor?.Update_Multiplying_By_Alpha(multiplier);
+        if (_intTensor != null)
+        {
+            //!D TODO: do the same thing for integers
+            throw new NotImplementedException();
+        }
+    }
+
+
+    //public void ClearContent()
+    //{
+    //    SetContent(_floatTensor, 0.0f);
+    //    SetContent(_intTensor, 0);
+    //    SetContent(_stringTensor, null);
+    //}
+
+    //private static void SetContent<T>(CpuTensor<T> t, T newValue)
+    //{
+    //    if (t == null)
+    //    {
+    //        return;
+    //    }
+    //    var content = t.Content.Span;
+    //    for (int i = 0; i < content.Length; ++i)
+    //    {
+    //        content[i] = newValue;
+    //    }
+    //}
+
+    public static bool SameShape(IList<DataFrame> df)
+    {
+        return df.All(t => t.Shape.SequenceEqual(df[0].Shape));
+    }
+    private static void AssertSameShapeAndColumns(DataFrame a, DataFrame b)
+    {
+        if (!a.Shape.SequenceEqual(b.Shape))
+        {
+            throw new ArgumentException($"not same shape between {a} and {b}");
+        }
+        if (!a._columns.SequenceEqual(b._columns))
+        {
+            throw new ArgumentException($"not same columns between {a} and {b}");
+        }
+    }
+
+
+    public DataFrame RowSlice(int startRowIndex, int nbRows, bool inPlace)
+    {
+        Debug.Assert(startRowIndex >= 0);
+        if (nbRows <= 0)
+        {
+            return null;
+        }
+        if (!inPlace)
+        {
+            return Clone().RowSlice(startRowIndex, nbRows, true);
+        }
+        if (startRowIndex == 0 && nbRows >= Shape[0])
+        {
+            return this;
+        }
+        return new DataFrame(_columns,
+            (CpuTensor<float>)_floatTensor?.RowSlice(startRowIndex, nbRows),
+            (CpuTensor<string>)_stringTensor?.RowSlice(startRowIndex, nbRows),
+            (CpuTensor<int>)_intTensor?.RowSlice(startRowIndex, nbRows)
+        );
+    }
+
+
+    public static DataFrame read_csv(string path, bool hasHeader = true, Func<string, Type> columnNameToType = null)
+    {
+        if (!File.Exists(path))
+        {
+            throw new ArgumentException($"invalid CSV file {path}");
+        }
         List<string> columnsNames = null;
         int[] columnIndexToTensorIndex = null;
         Dictionary<int, int> tensorIndexToCount = new();
         List<Tuple<string, int, int>> newColumns = new();
-        if (columnIndexToType == null)
+        if (columnNameToType == null)
         {
-            columnIndexToType = _ => typeof(string);
+            columnNameToType = _ => typeof(string);
         }
         List<float> floats = new();
         List<string> strings = new();
         List<int> ints = new();
 
-        foreach (var lineContent in Utils.ReadCsv(path))
+
+        List<string[]> allLines = null;
+        lock (DataSet.Lock_to_csv)
+        {
+            allLines = Utils.ReadCsv(path).ToList();
+        }
+        foreach (var lineContent in allLines)
         {
             if (columnsNames == null)
             {
@@ -465,7 +837,7 @@ public sealed class DataFrame
 
             if (columnIndexToTensorIndex == null)
             {
-                columnIndexToTensorIndex = Enumerable.Range(0, columnsNames.Count).Select(i => TypeToTensorIndex[columnIndexToType(i)]).ToArray();
+                columnIndexToTensorIndex = columnsNames.Select(i => TypeToTensorIndex[columnNameToType(i)]).ToArray();
                 tensorIndexToCount = columnIndexToTensorIndex.GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());
                 var countByTensorIndex = new int[TensorIndexToType.Length];
                 for (int col = 0; col < columnsNames.Count; ++col)
@@ -505,104 +877,6 @@ public sealed class DataFrame
         return CpuTensor<T>.New(content.ToArray(), columnCount);
     }
     private Tensor[] EmbeddedTensors => new Tensor[] { _floatTensor, _stringTensor, _intTensor };
-    private DataFrame SumOrAvgForColumns(string keyColumn, bool IsAverage)
-    {
-        var rows = Shape[0];
-        var idxKeyColumn = Array.IndexOf(Columns, keyColumn);
-
-        var newColumnsOldIndex = new List<Tuple<string, int, int>>();
-        newColumnsOldIndex.Add(_columns[idxKeyColumn]);
-        for (var i = 0; i < _columns.Count; i++)
-        {
-            if (i != idxKeyColumn && _columns[i].Item2 != STRING_TYPE_IDX)
-            {
-                newColumnsOldIndex.Add(_columns[i]);
-            }
-        }
-        var countByNewTensor = new int[TensorIndexToType.Length];
-        var newColumnsNewIndex = new List<Tuple<string, int, int>>();
-        for (var i = 0; i < newColumnsOldIndex.Count; i++)
-        {
-            var c = newColumnsOldIndex[i];
-            newColumnsNewIndex.Add(Tuple.Create(c.Item1, (i == 0) ? c.Item2 : FLOAT_TYPE_IDX, countByNewTensor[c.Item2]));
-            ++countByNewTensor[c.Item2];
-        }
-
-
-        Dictionary<object, float[]> keyToSumArray = new();
-        Dictionary<object, int> keyToCount = new();
-        List<object> sortedKeys = new();
-
-        var floatContent = _floatTensor == null ? new float[0] : _floatTensor.ReadonlyContent;
-        var stringContent = _stringTensor == null ? new string[0] : _stringTensor.ReadonlyContent;
-        var intContent = _intTensor == null ? new int[0] : _intTensor.ReadonlyContent;
-        var embeddedTensors = EmbeddedTensors;
-
-        for (int row = 0; row < rows; ++row)
-        {
-            object key = ExtractValue(row, _columns[idxKeyColumn], floatContent, stringContent, intContent);
-            if (key == null)
-            {
-                key = TensorIndexToNonNullDefaultValue[_columns[idxKeyColumn].Item2];
-            }
-            if (keyToSumArray.TryGetValue(key, out var sumArray))
-            {
-                ++keyToCount[key];
-            }
-            else
-            {
-                sortedKeys.Add(key);
-                sumArray = new float[newColumnsNewIndex.Count - 1];
-                keyToSumArray[key] = sumArray;
-                keyToCount[key] = 1;
-            }
-
-            int dataIdx = 0;
-            for (var i = 1; i < newColumnsNewIndex.Count; i++)
-            {
-                var c = newColumnsOldIndex[i];
-                var idx = c.Item3 + row * embeddedTensors[c.Item2].Shape[1];
-                switch (c.Item2)
-                {
-                    case FLOAT_TYPE_IDX: sumArray[dataIdx++] += floatContent[idx]; break;
-                    case INT_TYPE_IDX:  sumArray[dataIdx++] += intContent[idx]; break;
-                    default: throw new ArgumentException($"can't convert {c.Item2} type to float");
-                }
-            }
-        }
-
-        var targetRows = keyToSumArray.Count;
-        var targetFloatContent = new float[targetRows * countByNewTensor[FLOAT_TYPE_IDX]];
-        var targetStringContent = new string[targetRows * countByNewTensor[STRING_TYPE_IDX]];
-        var targetIntContent = new int[targetRows * countByNewTensor[INT_TYPE_IDX]];
-        int idxTargetFloatContent = 0;
-        var idxKeyColumnDesc = newColumnsNewIndex[0];
-        for (var row = 0; row < sortedKeys.Count; row++)
-        {
-            var key = sortedKeys[row];
-            var idx = idxKeyColumnDesc.Item3 + row * countByNewTensor[idxKeyColumnDesc.Item2];
-            switch (idxKeyColumnDesc.Item2)
-            {
-                case FLOAT_TYPE_IDX: targetFloatContent[idx] = (float)key; break;
-                case STRING_TYPE_IDX: targetStringContent[idx] = (string)key; break;
-                default: targetIntContent[idx] = (int)key; break;
-            }
-
-            if (idxKeyColumnDesc.Item2 == FLOAT_TYPE_IDX)
-            {
-                ++idxTargetFloatContent;
-            }
-            var keyCount = keyToCount[key];
-            foreach (var e in keyToSumArray[key])
-            {
-                targetFloatContent[idxTargetFloatContent++] = IsAverage ? (e / keyCount) : e;
-            }
-        }
-        return new DataFrame(newColumnsNewIndex,
-            CpuTensor<float>.New(targetFloatContent, countByNewTensor[FLOAT_TYPE_IDX]),
-            CpuTensor<string>.New(targetStringContent, countByNewTensor[STRING_TYPE_IDX]),
-            CpuTensor<int>.New(targetIntContent, countByNewTensor[INT_TYPE_IDX]));
-    }
     private object ExtractValue(int row, Tuple<string, int, int> colDesc, ReadOnlySpan<float> floatContent, ReadOnlySpan<string> stringContent, ReadOnlySpan<int> intContent)
     {
         switch (colDesc.Item2)

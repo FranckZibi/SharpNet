@@ -36,6 +36,10 @@ namespace SharpNet.Data
         #endregion
 
 
+        public static bool SameShape(IList<Tensor> tensors)
+        {
+            return tensors.All(t => t.Shape.SequenceEqual(tensors[0].Shape));
+        }
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
         protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }

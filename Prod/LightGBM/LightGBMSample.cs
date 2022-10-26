@@ -90,6 +90,12 @@ namespace SharpNet.LightGBM
             }
             return true;
         }
+
+        public void Use_All_Available_Cores()
+        {
+            num_threads = Utils.CoreCount;
+        }
+
         public string DeviceName()
         {
 
@@ -102,11 +108,6 @@ namespace SharpNet.LightGBM
                 return "gpu";
             }
         }
-        //public ModelDatasets ToModelDatasets(string testDatasetPath)
-        //{
-        //    return new ModelDatasets(data, data, valid, valid, testDatasetPath, true, ModelDatasets.DatasetType.LightGBMTrainingFormat);
-        //}
-
 
         public void UpdateForDataset(DataSet dataset)
         {

@@ -21,13 +21,12 @@ public class TestISample
         public TestClass() : base(new HashSet<string>()) { }
         public override Objective_enum GetObjective() => Objective_enum.Regression;
 
-        public override string[] CategoricalFeatures => new string[0];
+        public override string[] CategoricalFeatures => Array.Empty<string>();
         public override string[] IdColumns => throw new NotImplementedException();
         public override string[] TargetLabels => throw new NotImplementedException();
-        public override DataSet TestDataset() { throw new NotImplementedException(); }
-        public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()  { throw new NotImplementedException(); }
-        public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns) { throw new NotImplementedException(); }
-        protected override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
+        public override DataSet TestDataset() => throw new NotImplementedException();
+        public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();
+        public override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     }
 
     [Test]

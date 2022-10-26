@@ -1,6 +1,4 @@
-using System.IO;
 using NUnit.Framework;
-using SharpNet.Datasets.AmazonEmployeeAccessChallenge;
 
 namespace SharpNetTests.CatBoost
 {
@@ -10,11 +8,11 @@ namespace SharpNetTests.CatBoost
         [Test, Explicit] 
         public void TestToJson()
         {
-            var workingDirectory = AmazonEmployeeAccessChallengeDatasetSample.WorkingDirectory;
-            if (!Directory.Exists(workingDirectory))
-            {
-                Directory.CreateDirectory(workingDirectory);
-            }
+            //var workingDirectory = AmazonEmployeeAccessChallengeDatasetSample.WorkingDirectory;
+            //if (!Directory.Exists(workingDirectory))
+            //{
+            //    Directory.CreateDirectory(workingDirectory);
+            //}
            // Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log");
            // Utils.ConfigureThreadLog4netProperties(workingDirectory, "log");
 

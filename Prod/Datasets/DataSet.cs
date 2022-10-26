@@ -85,27 +85,35 @@ namespace SharpNet.Datasets
                 _rands[i] = new Random(i);
             }
             ColumnNames = columnNames;
-            CategoricalFeatures = categoricalFeatures;
-            IdColumns = idColumns;
-            TargetLabels = targetLabels;
 
-            var invalidCategoricalFeatures = Utils.Without(CategoricalFeatures, ColumnNames);
+            var invalidCategoricalFeatures = Utils.Without(categoricalFeatures, ColumnNames);
             if (invalidCategoricalFeatures.Count != 0)
             {
-                throw new ArgumentException($"{invalidCategoricalFeatures.Count} invalid CategoricalFeatures: {string.Join(' ', invalidCategoricalFeatures)}");
+                Log.Error($"{invalidCategoricalFeatures.Count} invalid CategoricalFeatures: {string.Join(' ', invalidCategoricalFeatures)} => IGNORING");
+                categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
             }
-            var invalidIdColumns = Utils.Without(IdColumns, ColumnNames);
-            if (invalidIdColumns.Count != 0)
-            {
-                throw new ArgumentException($"{invalidIdColumns.Count} invalid IdColumns: {string.Join(' ', invalidIdColumns)}");
-            }
+            CategoricalFeatures = categoricalFeatures;
 
-            var invalidTargetLabels = Utils.Intersect(TargetLabels, ColumnNames);
+            var invalidTargetLabels = Utils.Intersect(targetLabels, ColumnNames);
             if (invalidTargetLabels.Count != 0)
             {
-                throw new ArgumentException($"{invalidTargetLabels.Count} invalid TargetLabels: {string.Join(' ', invalidTargetLabels)}, they should not appear among ColumnNames");
+                Log.Error($"{invalidTargetLabels.Count} invalid TargetLabels: {string.Join(' ', invalidTargetLabels)}, they should not appear among ColumnNames => IGNORING");
             }
+            TargetLabels = targetLabels;
 
+            if (idColumns.Length != 0)
+            {
+                var foundIdColumns = Utils.Intersect(idColumns, ColumnNames);
+                if (foundIdColumns.Count < idColumns.Length)
+                {
+                    var missingIdColumns = Utils.Without(idColumns, foundIdColumns);
+
+                    var errorMsg = $" {missingIdColumns.Count} missing IdColumns: {string.Join(' ', missingIdColumns)}";
+                    Log.Error(errorMsg);
+                    throw new ArgumentException(errorMsg);
+                }
+            }
+            IdColumns = idColumns;
 
             if (UseBackgroundThreadToLoadNextMiniBatch)
             {
@@ -573,17 +581,15 @@ namespace SharpNet.Datasets
         ///     multi class classification  (_, NumClasses) with each element being the probability of belonging to this class
         /// </summary>
         /// <param name="numClasses"></param>
-        /// <param name="includeIdColumns"></param>
         /// <returns></returns>
-        public DataFrame Y_InModelFormat(int numClasses, bool includeIdColumns)
+        public DataFrame Y_InModelFormat(int numClasses)
         {
             if (Y == null)
             {
                 return null;
             }
             var y_true_tensor = IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
-            var y_true = DataFrame.New(y_true_tensor, TargetLabels_InModelFormat(numClasses));
-            return includeIdColumns ? AddIdColumnsAtLeftIfNeeded(y_true) : y_true;
+            return DataFrame.New(y_true_tensor, TargetLabels_InModelFormat(numClasses));
         }
 
         private string[] TargetLabels_InModelFormat(int numClasses)
@@ -598,16 +604,14 @@ namespace SharpNet.Datasets
         /// <summary>
         /// same shape as Y
         /// </summary>
-        /// <param name="includeIdColumns"></param>
         /// <returns></returns>
-        public DataFrame Y_InTargetFormat(bool includeIdColumns)
+        public DataFrame Y_InTargetFormat()
         {
             if (Y == null)
             {
                 return null;
             }
-            var y_true = DataFrame.New(Y, TargetLabels);
-            return includeIdColumns ? AddIdColumnsAtLeftIfNeeded(y_true) : y_true;
+            return DataFrame.New(Y, TargetLabels);
         }
 
 
@@ -826,7 +830,7 @@ namespace SharpNet.Datasets
         }
 
 
-        private static readonly object Lock_to_csv = new();
+        public static readonly object Lock_to_csv = new();
 
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {

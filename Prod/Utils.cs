@@ -425,19 +425,21 @@ namespace SharpNet
         }
 
 
-        private static readonly Dictionary<string, List<string[]>> ReadCsvCache = new();
-        private static readonly object LockObject = new();
-        public static List<string[]> ReadCsvWithCache(string csvPath, char? mandatorySeparator = null)
-        {
-            lock (LockObject)
-            {
-                if (!ReadCsvCache.ContainsKey(csvPath))
-                {
-                    ReadCsvCache[csvPath] = ReadCsv(csvPath, mandatorySeparator).ToList();
-                }
-                return ReadCsvCache[csvPath];
-            }
-        }
+        //private static readonly Dictionary<string, List<string[]>> ReadCsvCache = new();
+        //private static readonly object LockObject = new();
+        //public static List<string[]> ReadCsvWithCache(string csvPath, char? mandatorySeparator = null)
+        //{
+        //    lock (LockObject)
+        //    {
+        //        if (!ReadCsvCache.ContainsKey(csvPath))
+        //        {
+        //            ReadCsvCache[csvPath] = ReadCsv(csvPath, mandatorySeparator).ToList();
+        //        }
+        //        return ReadCsvCache[csvPath];
+        //    }
+        //}
+
+
 
         /// <summary>
         /// Read all rows of a CSV file
@@ -576,15 +578,15 @@ namespace SharpNet
             return false;
         }
 
-        public static T GetOrDefault<T>(this IDictionary<string, object> serialized, string key, T defaultValue)
-        {
-            if (serialized.TryGetValue(key, out var resAsObject))
-            {
-                return (T)resAsObject;
-            }
+        //public static T GetOrDefault<T>(this IDictionary<string, object> serialized, string key, T defaultValue)
+        //{
+        //    if (serialized.TryGetValue(key, out var resAsObject))
+        //    {
+        //        return (T)resAsObject;
+        //    }
 
-            return defaultValue;
-        }
+        //    return defaultValue;
+        //}
 
         public static T TryGet<T>(this IDictionary<string, object> serialized, string key)
         {
@@ -596,16 +598,16 @@ namespace SharpNet
             return default;
         }
 
-        public static bool Equals<T>(T a, T b, string id, ref string errors)
-        {
-            if (!Equals(a, b))
-            {
-                errors += id + ": " + a + " != " + b + Environment.NewLine;
-                return false;
-            }
+        //public static bool Equals<T>(T a, T b, string id, ref string errors)
+        //{
+        //    if (!Equals(a, b))
+        //    {
+        //        errors += id + ": " + a + " != " + b + Environment.NewLine;
+        //        return false;
+        //    }
 
-            return true;
-        }
+        //    return true;
+        //}
 
         public static bool Equals(double a, double b, double epsilon, string id, ref string errors)
         {

@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.HyperParameters;
 using SharpNet.Networks;
 
 namespace SharpNet.Datasets.QRT72;
@@ -31,50 +30,21 @@ public class QRT72DatasetSample : AbstractDatasetSample
         return true;
     }
     //only numerical features
-    public override string[] CategoricalFeatures => Array.Empty<string>();
-    public override string[] IdColumns => throw new NotImplementedException();
-    public override string[] TargetLabels => throw new NotImplementedException();
-    
-    protected override List<string> PredictionInTargetFormatHeader()
-    {
-        return new List<string>{"", "0"};
-    }
 
     public override DataSet TestDataset()
     {
         return null;
     }
-
-    public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
+    public override DataSet FullTrainingAndValidation()
     {
-        var percentageInTraining = PercentageInTraining;
-   
-        using var trainingAndValidationDataset = NewDataSet(XTrainRawFile);
-        int rowsForTraining = (int)(percentageInTraining * trainingAndValidationDataset.Count + 0.1);
-        rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
-        return trainingAndValidationDataset.IntSplitIntoTrainingAndValidation(rowsForTraining);
+        return NewDataSet(XTrainRawFile);
     }
 
-    public override int DatasetRowsInModelFormatMustBeMultipleOf()
-    {
-        return Tensor.CosineSimilarity504_TimeSeries_Length;
-    }
-
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat_with_IdColumns)
-    {
-        return DataFrame.New(predictionsInModelFormat_with_IdColumns.FloatCpuTensor(), PredictionInTargetFormatHeader());
-    }
-
-    protected override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.CosineSimilarity504;
-    }
-
-    //public override EvaluationMetricEnum GetLossFunction()
-    //{
-    //    return EvaluationMetricEnum.CosineSimilarity504;
-    //}
-
+    public override string[] CategoricalFeatures => Array.Empty<string>();
+    public override string[] IdColumns => new[] { "" };
+    public override string[] TargetLabels => new[] { "0" };
+    public override int DatasetRowsInModelFormatMustBeMultipleOf() => Tensor.CosineSimilarity504_TimeSeries_Length;
+    public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.CosineSimilarity504;
     public override Objective_enum GetObjective() => Objective_enum.Regression;
 
 
@@ -116,11 +86,8 @@ public class QRT72DatasetSample : AbstractDatasetSample
         var yTensor = CpuTensor<float>.NewCpuTensor(y);
         return (xTensor, yTensor);
     }
-
-
     private const string FILE_SUFFIX = "";
     //private const string FILE_SUFFIX = "_small";
-
     private static string XTrainRawFile => Path.Combine(QRT72Utils.DataDirectory, "X_train_YG7NZSq" + FILE_SUFFIX + ".csv");
 
 }

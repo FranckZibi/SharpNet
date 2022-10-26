@@ -19,7 +19,7 @@ public class ModelAndDatasetPredictions
     {
         ModelAndDatasetPredictionsSample = modelAndDatasetPredictionsSample;
         Model = Model.NewModel(ModelAndDatasetPredictionsSample.ModelSample, workingDirectory, modelName);
-        if (DatasetSample.KFold >= 2 && Model is not KFoldModel && Model is not WeightedModel)
+        if (DatasetSample.KFold >= 2 && Model is not KFoldModel /*&& Model is not WeightedModel*/)
         {
             var embeddedModel = Model;
             var datasetSample = ModelAndDatasetPredictionsSample.DatasetSample;
@@ -28,7 +28,7 @@ public class ModelAndDatasetPredictions
                 throw new ArgumentException($"PercentageInTraining must be 100% if KFold is enabled (found {datasetSample.PercentageInTraining}");
             }
             var kfoldSample = new KFoldSample(datasetSample.KFold, embeddedModel.WorkingDirectory, embeddedModel.ModelSample.GetLoss(), datasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
-            Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + "_KFOLD");
+            Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel, embeddedModel);
         }
     }
     public static ModelAndDatasetPredictions New(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory)
@@ -70,11 +70,11 @@ public class ModelAndDatasetPredictions
             if (Model is KFoldModel kfoldModel)
             {
                 Debug.Assert(validationDataSet == null);
-                validationRankingScore = kfoldModel.ComputeEvaluationMetricOnFullDataset(trainDataset, DatasetSample).validationScore;
+                validationRankingScore = kfoldModel.ComputeEvaluationMetricOnFullDataset(trainDataset, DatasetSample).validationRankingScore_InTargetFormat;
             }
             else
             {
-                validationRankingScore = ComputePredictionsAndRankingScore(validationDataSet).rankingScore;
+                validationRankingScore = ComputePredictionsAndRankingScore(validationDataSet?? trainDataset).rankingScore;
             }
         }
         if (saveTrainedModel)
@@ -97,43 +97,49 @@ public class ModelAndDatasetPredictions
         const bool overwriteIfExists = false;
 
         ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Training Dataset");
-        var (trainPredictionsInTargetFormat, trainPredictionsInModelFormat_with_IdColumns, trainRankingScore) = ComputePredictionsAndRankingScore(trainDataset);
         DatasetSample.Train_XYDatasetPath = trainDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
-        IScore validationRankingScore = null;
+        IScore trainRankingScore_InTargetFormat = null;
+        IScore validationRankingScore_InTargetFormat = null;
+
+        IScore trainLoss_InModelFormat = null;
+        IScore validationLoss_InModelFormat = null;
+
+
+        DataFrame trainPredictions_InModelFormat = null, trainPredictions_InTargetFormat = null, validationPredictions_InModelFormat = null, validationPredictions_InTargetFormat = null;
         if (Model is KFoldModel kfoldModel)
         {
             Debug.Assert(validationDataset == null);
-            var overfitScoreOnTraining = trainRankingScore;
-            (trainRankingScore, validationRankingScore) = kfoldModel.ComputeEvaluationMetricOnFullDataset(trainDataset, DatasetSample);
-            ISample.Log.Debug($"KFold Model '{Model.ModelName}' Avg score on Training: {trainRankingScore} (with over fitting: {overfitScoreOnTraining})");
-            SaveTrainPredictionsInModelFormat(trainPredictionsInModelFormat_with_IdColumns, null);
-            SaveTrainPredictionsInTargetFormat(trainPredictionsInTargetFormat, trainRankingScore);
-            ISample.Log.Info($"KFold Model '{Model.ModelName}' Avg score on Validation: {validationRankingScore}");
-            DatasetSample.Validation_XYDatasetPath = DatasetSample.Train_XYDatasetPath;
-            SaveValidationPredictionsInModelFormat(trainPredictionsInModelFormat_with_IdColumns, null);
-            SaveValidationPredictionsInTargetFormat(trainPredictionsInTargetFormat, validationRankingScore);
+            (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, 
+             trainPredictions_InModelFormat, trainLoss_InModelFormat,
+             validationPredictions_InTargetFormat, validationRankingScore_InTargetFormat,
+             validationPredictions_InModelFormat, validationLoss_InModelFormat) = 
+                kfoldModel.ComputeEvaluationMetricOnFullDataset(trainDataset, DatasetSample);
+            validationDataset = trainDataset;
         }
         else
         {
-            ISample.Log.Debug($"Model '{Model.ModelName}' score on Training: {trainRankingScore}");
-            SaveTrainPredictionsInModelFormat(trainPredictionsInModelFormat_with_IdColumns, null);
-            SaveTrainPredictionsInTargetFormat(trainPredictionsInTargetFormat, trainRankingScore);
+            (trainPredictions_InTargetFormat, trainPredictions_InModelFormat, trainRankingScore_InTargetFormat) = ComputePredictionsAndRankingScore(trainDataset);
             if (validationDataset != null)
             {
-                ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Validation Dataset");
-                (var validationPredictionsInTargetFormat, var validationPredictionsInModelFormat_with_IdColumns, validationRankingScore) = ComputePredictionsAndRankingScore(validationDataset);
-                ISample.Log.Info($"Model '{Model.ModelName}' score on Validation: {validationRankingScore}");
+                (validationPredictions_InTargetFormat, validationPredictions_InModelFormat, validationRankingScore_InTargetFormat) = ComputePredictionsAndRankingScore(validationDataset);
                 DatasetSample.Validation_XYDatasetPath = validationDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
-                SaveValidationPredictionsInModelFormat(validationPredictionsInModelFormat_with_IdColumns, null);
-                SaveValidationPredictionsInTargetFormat(validationPredictionsInTargetFormat, validationRankingScore);
             }
         }
+
+        ISample.Log.Debug($"Model '{Model.ModelName}' score on Training: {trainRankingScore_InTargetFormat}");
+        SaveTrainPredictionsInModelFormat(trainPredictions_InModelFormat, trainLoss_InModelFormat);
+        SaveTrainPredictionsInTargetFormat(trainPredictions_InTargetFormat, trainDataset, trainRankingScore_InTargetFormat);
+
+        ISample.Log.Info($"Model '{Model.ModelName}' score on Validation: {validationRankingScore_InTargetFormat}");
+        SaveValidationPredictionsInModelFormat(validationPredictions_InModelFormat, validationLoss_InModelFormat);
+        SaveValidationPredictionsInTargetFormat(validationPredictions_InTargetFormat, validationDataset, validationRankingScore_InTargetFormat);
+
 
         var testDatasetIfAny = DatasetSample.TestDataset();
         if (testDatasetIfAny != null)
         {
             ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Test Dataset");
-            var (testPredictionsInTargetFormat, testPredictionsInModelFormat_with_IdColumns, testRankingScore) = ComputePredictionsAndRankingScore(testDatasetIfAny);
+            var (testPredictionsInTargetFormat, testPredictionsInModelFormat, testRankingScore) = ComputePredictionsAndRankingScore(testDatasetIfAny);
             if (testRankingScore == null)
             {
                 DatasetSample.Test_XDatasetPath = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, false, includeIdColumns, overwriteIfExists);
@@ -145,11 +151,11 @@ public class ModelAndDatasetPredictions
                 DatasetSample.Test_XYDatasetPath = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
                 DatasetSample.Test_YDatasetPath = DatasetSample.Test_XDatasetPath = null;
             }
-            SaveTestPredictionsInTargetFormat(testPredictionsInTargetFormat, testRankingScore);
-            SaveTestPredictionsInModelFormat(testPredictionsInModelFormat_with_IdColumns, null);
+            SaveTestPredictionsInTargetFormat(testPredictionsInTargetFormat, testDatasetIfAny, testRankingScore);
+            SaveTestPredictionsInModelFormat(testPredictionsInModelFormat, null);
             testDatasetIfAny.Dispose();
         }
-        return (trainRankingScore, validationRankingScore);
+        return (trainRankingScore_InTargetFormat, validationRankingScore_InTargetFormat);
     }
     public List<string> AllFiles()
     {
@@ -164,59 +170,101 @@ public class ModelAndDatasetPredictions
         Model.Save(workingDirectory, modelName);
         ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample)}.Save took '{start.Elapsed.TotalSeconds}'s");
     }
-    public string Name => Model.ModelName;
-    public void SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, IScore trainScore)
+
+    //private string Name => Model.ModelName;
+
+    private void SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, DataSet xDataset, IScore trainScore)
     {
+        if (trainPredictionsInTargetFormat == null)
+        {
+            return;
+        }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Training Dataset (score={trainScore})");
-        PredictionsSample.Train_PredictionsFileName = Model.ModelName + "_predict_train_" + IScore.ToString(trainScore, 5) + ".csv";
-        DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInTargetFormat, Path.Combine(Model.WorkingDirectory, PredictionsSample.Train_PredictionsFileName));
+        var fileName = Model.ModelName + "_predict_train_" + IScore.ToString(trainScore, 5) + ".csv";
+        PredictionsSample.Train_PredictionsFileName = fileName;
+        DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
     }
-    public void SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, IScore validationScore)
+
+    private void SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, DataSet xDataset, IScore validationScore)
     {
+        if (validationPredictionsInTargetFormat == null)
+        {
+            return;
+        }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Validation Dataset (score={validationScore})");
-        PredictionsSample.Validation_PredictionsFileName = Model.ModelName + "_predict_valid_" + IScore.ToString(validationScore, 5) + ".csv";
-        DatasetSample.SavePredictionsInTargetFormat(validationPredictionsInTargetFormat, Path.Combine(Model.WorkingDirectory, PredictionsSample.Validation_PredictionsFileName));
+        var fileName = Model.ModelName + "_predict_valid_" + IScore.ToString(validationScore, 5) + ".csv";
+        PredictionsSample.Validation_PredictionsFileName = fileName;
+        DatasetSample.SavePredictionsInTargetFormat(validationPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
     }
-    public void SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, IScore testScore)
+
+    /// <summary>
+    /// save the predictions in the Challenge target format, adding an Id at left if needed
+    /// </summary>
+    /// <param name="testPredictionsInTargetFormat"></param>
+    /// <param name="xDataset"></param>
+    /// <param name="testScore"></param>
+    private void SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, DataSet xDataset, IScore testScore)
     {
+        if (testPredictionsInTargetFormat == null)
+        {
+            return;
+        }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Test Dataset");
-        PredictionsSample.Test_PredictionsFileName = Model.ModelName + "_predict_test_" + IScore.ToString(testScore, 5) + ".csv";
-        DatasetSample.SavePredictionsInTargetFormat(testPredictionsInTargetFormat, Path.Combine(Model.WorkingDirectory, PredictionsSample.Test_PredictionsFileName));
+        var fileName = Model.ModelName + "_predict_test_" + IScore.ToString(testScore, 5) + ".csv";
+        PredictionsSample.Test_PredictionsFileName = fileName;
+        DatasetSample.SavePredictionsInTargetFormat(testPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
     }
+
     public PredictionsSample PredictionsSample => ModelAndDatasetPredictionsSample.PredictionsSample;
 
     private void SaveTrainPredictionsInModelFormat(DataFrame trainPredictionsInModelFormat, IScore trainLoss)
     {
+        if (trainPredictionsInModelFormat == null)
+        {
+            return;
+        }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Model Format for Training Dataset (loss={trainLoss})");
-        PredictionsSample.Train_PredictionsFileName_InModelFormat = Model.ModelName + "_modelformat_predict_train_" + IScore.ToString(trainLoss, 5) + ".csv";
-        DatasetSample.SavePredictionsInModelFormat(trainPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, PredictionsSample.Train_PredictionsFileName_InModelFormat));
+        var fileName = Model.ModelName + "_modelformat_predict_train_" + IScore.ToString(trainLoss, 5) + ".csv";
+        PredictionsSample.Train_PredictionsFileName_InModelFormat = fileName;
+        DatasetSample.SavePredictionsInModelFormat(trainPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
     private void SaveValidationPredictionsInModelFormat(DataFrame validationPredictionsInModelFormat, IScore validationLoss)
     {
+        if (validationPredictionsInModelFormat == null)
+        {
+            return;
+        }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Model Format for Validation Dataset (loss={validationLoss})");
-        PredictionsSample.Validation_PredictionsFileName_InModelFormat = Model.ModelName + "_modelformat_predict_valid_" + IScore.ToString(validationLoss, 5) + ".csv";
-        DatasetSample.SavePredictionsInModelFormat(validationPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, PredictionsSample.Validation_PredictionsFileName_InModelFormat));
+        var fileName = Model.ModelName + "_modelformat_predict_valid_" + IScore.ToString(validationLoss, 5) + ".csv";
+        PredictionsSample.Validation_PredictionsFileName_InModelFormat = fileName;
+        DatasetSample.SavePredictionsInModelFormat(validationPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
     private void SaveTestPredictionsInModelFormat(DataFrame testPredictionsInModelFormat, IScore testLoss)
     {
+        if (testPredictionsInModelFormat == null)
+        {
+            return;
+        }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Model Format for Test Dataset");
-        PredictionsSample.Test_PredictionsFileName_InModelFormat = Model.ModelName + "_modelformat_predict_test_" + IScore.ToString(testLoss, 5) + ".csv";
-        DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, PredictionsSample.Test_PredictionsFileName_InModelFormat));
+        var fileName = Model.ModelName + "_modelformat_predict_test_" + IScore.ToString(testLoss, 5) + ".csv";
+        PredictionsSample.Test_PredictionsFileName_InModelFormat = fileName;
+        DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
-    private (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat_with_IdColumns, IScore rankingScore) ComputePredictionsAndRankingScore(DataSet dataset)
+    private (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat, IScore rankingScore)
+        ComputePredictionsAndRankingScore(DataSet dataset)
     {
         Debug.Assert(dataset != null);
         var start = Stopwatch.StartNew();
-        var predictionsInModelFormat_with_IdColumns = Model.Predict(dataset, true, false);
-        var y_pred_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat_with_IdColumns);
+        var predictionsInModelFormat = Model.Predict(dataset, false);
+        var y_pred_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
         IScore rankingScore = null;
-        var y_true_InTargetFormat = dataset.Y_InTargetFormat(true);
+        var y_true_InTargetFormat = dataset.Y_InTargetFormat();
         if (y_true_InTargetFormat != null)
         {
             rankingScore = DatasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
         }
         ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScore)} took {start.Elapsed.TotalSeconds}s");
-        return (y_pred_InTargetFormat, predictionsInModelFormat_with_IdColumns, rankingScore);
+        return (y_pred_InTargetFormat, predictionsInModelFormat, rankingScore);
     }
     private AbstractDatasetSample DatasetSample => ModelAndDatasetPredictionsSample.DatasetSample;
 }

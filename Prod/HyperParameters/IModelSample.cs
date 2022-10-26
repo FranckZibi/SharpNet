@@ -11,14 +11,11 @@ public interface IModelSample : ISample
 {
     EvaluationMetricEnum GetLoss();
 
-
-
     public static IModelSample LoadModelSample(string workingDirectory, string sampleName)
     {
         try { return LoadSample<LightGBMSample>(workingDirectory, sampleName); } catch { }
         try { return LoadSample<CatBoostSample>(workingDirectory, sampleName); } catch { }
         try { return LoadSample<KFoldSample>(workingDirectory, sampleName); } catch { }
-        try { return LoadSample<WeightedModelSample>(workingDirectory, sampleName); } catch { }
         throw new Exception($"can't load sample from model {sampleName} in directory {workingDirectory}");
     }
 }

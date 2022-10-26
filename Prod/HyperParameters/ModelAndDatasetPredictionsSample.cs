@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SharpNet.Datasets;
 
 namespace SharpNet.HyperParameters
 {
@@ -12,11 +13,27 @@ namespace SharpNet.HyperParameters
 
         public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName)
         {
+            var modelSample = IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0));
+            var datasetSample = AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1));
+
+            //We try to load the prediction sample file
+            //If it is missing, we'll just use an empty prediction file
+            PredictionsSample predictionsSample;
+            try
+            {
+                predictionsSample = ISample.LoadSample<PredictionsSample>(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2));
+            }
+            catch
+            {
+                //Prediction file is missing, we'll use a default prediction file
+                predictionsSample = new PredictionsSample();
+            }
+
             return new ModelAndDatasetPredictionsSample(
                 new ISample[]{
-                IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0)),
-                AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1)),
-                ISample.LoadSample<PredictionsSample>(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2))
+                modelSample,
+                datasetSample,
+                predictionsSample
                 });
         }
 
