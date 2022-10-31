@@ -104,10 +104,6 @@ namespace SharpNet.Datasets
             Debug.Assert(res>=0);
             return res;
         }
-        public override string ElementIdToPathIfAny(int elementId)
-        {
-            return "";
-        }
         public override int Count { get; }
         public override CpuTensor<float> Y { get; }
         public override string ToString()

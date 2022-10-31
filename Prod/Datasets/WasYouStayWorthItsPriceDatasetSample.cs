@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using SharpNet.CatBoost;
 using SharpNet.HPO;
@@ -16,17 +18,20 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     private const string NAME = "WasYouStayWorthItsPrice";
     private static readonly object LockObject = new();
     private static DatasetEncoder _trainTestEncoder;
-    private static InMemoryDataSet _fullTrainDatasetEncoded;
-    private static InMemoryDataSet _fullTestDatasetEncoded;
+    private static InMemoryDataSetV2 _fullTrainDatasetEncoded;
+    private static InMemoryDataSetV2 _fullTestDatasetEncoded;
     #endregion
 
 
     // ReSharper disable once UnusedMember.Global
     public static void CreateEnrichedDataSet()
     {
-        var trainDf = DataFrame.read_string_csv(RawTrainFile);
-        var testDf = DataFrame.read_string_csv(RawTestFile);
-        var res = new List<DataFrame> { trainDf, testDf };
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
+        var sw = Stopwatch.StartNew();
+
+        var reviewsTfIdfEncodedRawFile  = Path.Combine(WorkingDirectory, "reviews_tfidf_encoded_normalized_"+DateTime.Now.Ticks+".csv");
+
         //res = TfIdfEncoding.Encode(res, "property_4", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
         //res = TfIdfEncoding.Encode(res, "property_5", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
         //res = TfIdfEncoding.Encode(res, "property_7", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
@@ -35,14 +40,25 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var encoded_review_df = review_file
             .TfIdfEncode("renters_comments", 200, norm:TfIdfEncoding.TfIdfEncoding_norm.L2, scikitLearnCompatibilityMode:false)
             .AverageBy("id");
-        encoded_review_df.to_csv(ReviewsTfIdfEncodedRawFile);
 
 
-        var fullReviewsForEmbeddingDim = DataFrame.read_csv(ReviewsTfIdfEncodedRawFile, true, c => (c == "id" ? typeof(string) : typeof(float)));
+        encoded_review_df.to_csv(reviewsTfIdfEncodedRawFile);
+        Model.Log.Info($"elapsed fo encoding: {sw.Elapsed.Seconds}s");
+
+
+        var fullReviewsForEmbeddingDim = DataFrame.read_csv(reviewsTfIdfEncodedRawFile, true, c => (c == "id" ? typeof(string) : typeof(float)));
+
+        var trainDf = DataFrame.read_string_csv(RawTrainFile);
+        var testDf = DataFrame.read_string_csv(RawTestFile);
+        var res = new List<DataFrame> { trainDf, testDf };
+
         res[0] = res[0].LeftJoinWithoutDuplicates(fullReviewsForEmbeddingDim, "id");
         res[1] = res[1].LeftJoinWithoutDuplicates(fullReviewsForEmbeddingDim, "id");
         res[0].to_csv(RawTrainFile + FILE_EXT);
-        res[1].to_csv(RawTrainFile + FILE_EXT);
+        res[1].to_csv(RawTestFile + FILE_EXT);
+
+        Model.Log.Info($"elapsed total: {sw.Elapsed.Seconds}s");
+
     }
 
     private WasYouStayWorthItsPriceDatasetSample() : base(new HashSet<string>())
@@ -139,25 +155,25 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //{ "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
             //{ "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0f, 10f)},
         };
-
+        
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
     }
 
-    public const string FILE_EXT = "_tfidf_l2_norm_scikit.csv";
+    public const string FILE_EXT = "_tfidf_l2_norm_scikit_stem_allstopwords.csv";
 
     // ReSharper disable once UnusedMember.Global
     public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int min_num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
-        var numClasses = new WasYouStayWorthItsPriceDatasetSample().NumClass;
+        var datasetSample = new WasYouStayWorthItsPriceDatasetSample();
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
             {"Reviews_EmbeddingDim", 200},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-            {"KFold", new[]{3}},
+            //{"KFold", new[]{3}},
             
 
             {"boosting", new []{"gbdt", "dart"}},
@@ -168,10 +184,10 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             
             //related to LightGBM model
             //{ "metric", "multi_logloss" },
-            { "objective", "multiclass" },
+            //{ "objective", "multiclass" },
             //{ "num_iterations", AbstractHyperParameterSearchSpace.Range(min_num_iterations, 3*min_num_iterations) },
             { "num_iterations", min_num_iterations },
-            { "num_class", numClasses },
+            //{ "num_class", numClasses },
             { "verbosity", "0" },
             { "num_threads", 1},
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.2f)},
@@ -194,6 +210,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
         };
 
+        datasetSample.FillWithDefaultLightGBMHyperParameterValues(searchSpace);
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
@@ -227,8 +244,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     private static string RawTrainFile => Path.Combine(DataDirectory, "train.csv");
     private static string RawTestFile => Path.Combine(DataDirectory, "test.csv");
     private static string RawReviewsFile => Path.Combine(DataDirectory, "reviews.csv");
-    private static string ReviewsTfIdfEncodedRawFile => Path.Combine(DataDirectory, "reviews_tfidf_encoded_normalized.csv");
-    private InMemoryDataSet SelectFeatures(InMemoryDataSet dataset)
+    private InMemoryDataSetV2 SelectFeatures(InMemoryDataSetV2 dataset)
     {
         var df = dataset.XDataFrame;
         var columnToDrop = new List<string>();
@@ -238,7 +254,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             return dataset;
         }
         var xUpdated = df.DropIgnoreErrors(columnToDrop.ToArray());
-        return DatasetEncoder.NewInMemoryDataSet(xUpdated, dataset.Y, this);
+        return DatasetEncoder.NewInMemoryDataSetV2(xUpdated, dataset.YDataFrame, this);
     }
 
     // ReSharper disable once UnusedMember.Global
@@ -259,10 +275,10 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
                 })
         {
 
-            var workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission3";
+            const string workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission3";
 
-            SharpNet.Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-            SharpNet.Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+            Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+            Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
 
             var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
             //var embeddedModel = mKfold.Model;

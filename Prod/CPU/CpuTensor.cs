@@ -85,58 +85,55 @@ namespace SharpNet.CPU
         /// </summary>
         private bool HasPinnedMemory => !IsOwnerOfMemory || _hostPinnedMemory != null;
 
-        public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding, int indexInLastDimensionToUse)
+        public override void WordEmbeddingForwardPropagation(Tensor x, Tensor wordEmbedding, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex)
         {
             var y = this;
             Debug.Assert(wordEmbedding.Shape.Length == 2);
             Debug.Assert(x.Shape[0] == y.Shape[0]); //same batchSize
             Debug.Assert(x.Shape[1] == y.Shape[1]); //same timeSteps
             Debug.Assert(y.Shape.Length == 3);
-            Debug.Assert( (indexInLastDimensionToUse==-1 && x.Shape.Length==2) || (indexInLastDimensionToUse >= 0 && x.Shape.Length == 3));
-
-            int inputSize = indexInLastDimensionToUse == -1 ? 1 : x.Shape[2];
-            indexInLastDimensionToUse = indexInLastDimensionToUse == -1 ? 0 : indexInLastDimensionToUse;
-
+            Debug.Assert(xIndexInLastDimensionToUse>=0);
+            Debug.Assert(yIndexInLastDimensionToUse>=0);
             var timeSteps = x.Shape[1];
             var embeddingDim = wordEmbedding.Shape[1];
-            Debug.Assert(y.Shape[2] == embeddingDim + inputSize - 1);
 
             void ProcessBatch(int batchIndex)
             {
                 var xSpan = x.AsReadonlyFloatCpuContent;
                 var ySpan = y.AsFloatCpuSpan;
                 var wordEmbeddingSpan = wordEmbedding.AsReadonlyFloatCpuContent;
-                int xTimeStepIndex = batchIndex * x.MultDim0;
-                int yTimeStepIndex = batchIndex * y.MultDim0;
+
+
                 for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
+                    int xTimeStepIndex = x.Idx(batchIndex, timeStep, xIndexInLastDimensionToUse);
+                    int yTimeStepIndex = y.Idx(batchIndex, timeStep, yIndexInLastDimensionToUse);
+
+
                     //for the current timeStep, we copy the elements from 'x' to 'y' before 'indexInLastDimensionToUse'
-                    int xElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
-                    if (xElementsBeforeEmbeddingIndex > 0)
+                    //int xElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
+                    if (copyCountBeforeIndex > 0)
                     {
                         //we copy 'xElementsBeforeEmbeddingIndex' elements before index 'indexInLastDimensionToUse'
-                        xSpan.Slice(xTimeStepIndex, xElementsBeforeEmbeddingIndex).CopyTo(ySpan.Slice(yTimeStepIndex, xElementsBeforeEmbeddingIndex));
+                        xSpan.Slice(xTimeStepIndex- copyCountBeforeIndex, copyCountBeforeIndex).CopyTo(ySpan.Slice(yTimeStepIndex- copyCountBeforeIndex, copyCountBeforeIndex));
                     }
 
-                    int wordIndex = (int)(xSpan[xTimeStepIndex+indexInLastDimensionToUse] + 0.1);
-                    wordEmbeddingSpan.Slice(wordIndex*embeddingDim, embeddingDim).CopyTo(ySpan.Slice(yTimeStepIndex+ indexInLastDimensionToUse, embeddingDim));
+                    int wordIndex = (int)(xSpan[xTimeStepIndex] + 0.1);
+                    wordEmbeddingSpan.Slice(wordIndex*embeddingDim, embeddingDim).CopyTo(ySpan.Slice(yTimeStepIndex, embeddingDim));
 
                     //for the current timeStep, we copy the elements from 'x' to 'y' after 'indexInLastDimensionToUse'
-                    int xElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
-                    if (xElementsAfterEmbeddingIndex > 0)
+                    //int xElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
+                    if (copyCountAfterIndex > 0)
                     {
                         //we copy the 'xElementsAfterEmbeddingIndex' elements after index 'indexInLastDimensionToUse'
-                        xSpan.Slice(xTimeStepIndex+indexInLastDimensionToUse+1, xElementsAfterEmbeddingIndex).CopyTo(ySpan.Slice(yTimeStepIndex+indexInLastDimensionToUse+embeddingDim, xElementsAfterEmbeddingIndex));
+                        xSpan.Slice(xTimeStepIndex+ 1, copyCountAfterIndex).CopyTo(ySpan.Slice(yTimeStepIndex+ embeddingDim, copyCountAfterIndex));
                     }
-
-                    xTimeStepIndex += inputSize;
-                    yTimeStepIndex += inputSize + embeddingDim-1;
                 }
             }
             Parallel.For(0, x.Shape[0], ProcessBatch);
         }
 
-        public override void WordEmbeddingBackwardPropagation(/*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int indexInLastDimensionToUse)
+        public override void WordEmbeddingBackwardPropagation(/*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int dxIndexInLastDimensionToUse, int dyIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex)
         {
             var dW = this;
 
@@ -144,10 +141,8 @@ namespace SharpNet.CPU
             Debug.Assert(x.Shape[0] == dy.Shape[0]); //same batchSize
             Debug.Assert(x.Shape[1] == dy.Shape[1]); //same timeSteps
             Debug.Assert(dy.Shape.Length == 3);
-            Debug.Assert((indexInLastDimensionToUse == -1 && x.Shape.Length == 2) || (indexInLastDimensionToUse >= 0 && x.Shape.Length == 3));
-
-            int inputSize = indexInLastDimensionToUse == -1 ? 1 : x.Shape[2];
-            indexInLastDimensionToUse = indexInLastDimensionToUse == -1 ? 0 : indexInLastDimensionToUse;
+            Debug.Assert(dxIndexInLastDimensionToUse >= 0);
+            Debug.Assert(dyIndexInLastDimensionToUse >= 0);
 
             var xCpu = (CpuTensor<float>)x;
             var dyCpu = (CpuTensor<float>)dy;
@@ -166,13 +161,10 @@ namespace SharpNet.CPU
             {
                 for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
-                    int dyTimeStepIndex = dy.Idx(batchIndex, timeStep, 0);
-                    int dxTimeStepIndex = dx.Idx(batchIndex, timeStep, 0);
-
                     //we initialize 'dw' for the current batchIndex & timeStep
-                    int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, timeStep, indexInLastDimensionToUse)] + 0.1);
+                    int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, timeStep, dxIndexInLastDimensionToUse)] + 0.1);
                     int indexInDw = dW.Idx(wordIndex, 0);
-                    int indexIndY = dyCpu.Idx(batchIndex, timeStep, indexInLastDimensionToUse);
+                    int indexIndY = dyCpu.Idx(batchIndex, timeStep, dyIndexInLastDimensionToUse);
                     for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
                     {
                         dWSpan[indexInDw] += dySpan[indexIndY];
@@ -180,21 +172,25 @@ namespace SharpNet.CPU
                         ++indexIndY;
                     }
 
+
+                    int dyTimeStepIndex = dy.Idx(batchIndex, timeStep, dyIndexInLastDimensionToUse);
+                    int dxTimeStepIndex = dx.Idx(batchIndex, timeStep, dxIndexInLastDimensionToUse);
+
                     //we initialize 'dx' for the current batchIndex & timeStep
                     //for the current timeStep, we copy the elements from 'dy' to 'dx' before 'indexInLastDimensionToUse'
-                    int dyElementsBeforeEmbeddingIndex = indexInLastDimensionToUse;
-                    if (dyElementsBeforeEmbeddingIndex > 0)
+                    //int dyElementsBeforeEmbeddingIndex = prevXIndexInLastDimensionToUse==-1?xIndexInLastDimensionToUse:(xIndexInLastDimensionToUse-prevXIndexInLastDimensionToUse-1);
+                    if (copyCountBeforeIndex > 0)
                     {
-                        //we copy 'xElementsBeforeEmbeddingIndex' elements before index 'indexInLastDimensionToUse'
-                        dySpan.Slice(dyTimeStepIndex, dyElementsBeforeEmbeddingIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex, dyElementsBeforeEmbeddingIndex));
+                        //we copy 'xElementsBeforeEmbeddingIndex' elements before index 'xIndexInLastDimensionToUse'
+                        dySpan.Slice(dyTimeStepIndex- copyCountBeforeIndex, copyCountBeforeIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex- copyCountBeforeIndex, copyCountBeforeIndex));
                     }
-                    dxSpan[dxTimeStepIndex + indexInLastDimensionToUse] = 0;
-                    //for the current timeStep, we copy the elements from 'dy' to 'dx' after 'indexInLastDimensionToUse'
-                    int dyElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
-                    if (dyElementsAfterEmbeddingIndex > 0)
+                    dxSpan[dxTimeStepIndex] = 0;
+                    //for the current timeStep, we copy the elements from 'dy' to 'dx' after 'xIndexInLastDimensionToUse'
+                    //int dyElementsAfterEmbeddingIndex = nextXIndexInLastDimensionToUse==-1 ? (inputSize - xIndexInLastDimensionToUse - 1):(nextXIndexInLastDimensionToUse-xIndexInLastDimensionToUse-1);
+                    if (copyCountAfterIndex > 0)
                     {
                         //we copy the 'xElementsAfterEmbeddingIndex' elements after index 'indexInLastDimensionToUse'
-                        dySpan.Slice(dyTimeStepIndex + indexInLastDimensionToUse + embeddingDim, dyElementsAfterEmbeddingIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex + indexInLastDimensionToUse + 1, dyElementsAfterEmbeddingIndex));
+                        dySpan.Slice(dyTimeStepIndex + embeddingDim, copyCountAfterIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex + 1, copyCountAfterIndex));
                     }
                 }
             }

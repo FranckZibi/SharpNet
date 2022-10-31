@@ -763,10 +763,6 @@ namespace SharpNet.Datasets.CFM60
             return -1;
         }
         public override double PercentageToUseForLossAndAccuracyFastEstimate => 0.0; //we do not compute any estimate
-        public override string ElementIdToPathIfAny(int elementId)
-        {
-            return "";
-        }
         public override CpuTensor<float> Y { get; }
         public override string ToString()
         {

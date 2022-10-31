@@ -125,7 +125,7 @@ public class CFM60HyperParameters : AbstractSample
 
         if (Pid_EmbeddingDim >= 1)
         {
-            network.Embedding(CFM60Entry.DISTINCT_PID_COUNT, Pid_EmbeddingDim, 0, network.Config.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+            network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT}, new[] { Pid_EmbeddingDim}, new[] { 0}, network.Config.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
         }
 
         if (InputNormalizationType == InputNormalizationEnum.BATCH_NORM_LAYER || InputNormalizationType == InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
@@ -180,7 +180,7 @@ public class CFM60HyperParameters : AbstractSample
             network.Input(Decoder_TimeSteps, Decoder_InputSize, -1);
             if (Pid_EmbeddingDim >= 1)
             {
-                network.Embedding(CFM60Entry.DISTINCT_PID_COUNT, Pid_EmbeddingDim, 0, network.Config.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+                network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT}, new[] { Pid_EmbeddingDim}, new[] { 0}, network.Config.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
             }
             network.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
         }

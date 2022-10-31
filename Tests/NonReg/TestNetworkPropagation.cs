@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using SharpNet;
@@ -216,6 +217,10 @@ namespace SharpNetTests.NonReg
         }
 
 
+        /// <summary>
+        /// TODO: fix bug when using several CPU to compute the embedding
+        /// </summary>
+        /// <param name="resourceIds"></param>
         [Test, TestCaseSource(nameof(GetTestCases))]
         public void TestEmbedding(List<int> resourceIds)
         {
@@ -230,8 +235,9 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(@"numpy.array([[1], [0]], numpy.float)");
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
             network.Config.WithSGD(momentum, false);
-            network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
+            Debug.Assert(network.Layers.Count == 0);
+            network.Input(maxWordsBySentence, -1, -1)
+                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, 0.0)
                 .Flatten()
                 .Dense(1, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -270,8 +276,9 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
             network.Config.WithAdam(0.9, 0.999, 1e-7);
 
-            network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
+            Debug.Assert(network.Layers.Count == 0);
+            network.Input(maxWordsBySentence, -1, -1)
+                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, 0.0)
                 .GlobalAvgPoolingOnHeight()
                 .Dense(4, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -1157,9 +1164,15 @@ namespace SharpNetTests.NonReg
 
         private static Network GetNetwork(EvaluationMetricEnum evaluationMetric, List<int> resourceIds)
         {
+            var evaluationMetrics = new List<EvaluationMetricEnum>{ evaluationMetric};
+            if (evaluationMetric is EvaluationMetricEnum.BinaryCrossentropy or EvaluationMetricEnum.CategoricalCrossentropy)
+            {
+                evaluationMetrics.Add(EvaluationMetricEnum.Accuracy);
+            }
             return Network.NewForTests(
                 new NetworkConfig{ 
                     LossFunction = evaluationMetric, 
+                    Metrics = evaluationMetrics,
                     RandomizeOrder = false, 
                     ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, 
                     WorkingDirectory = "",

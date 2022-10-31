@@ -133,21 +133,28 @@ namespace SharpNet.Data
 
         /// <summary>
         /// this (= 'y') shape :
-        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
+        ///      (batchSize, timeSteps, embeddingDim)                if 'x' shape = (batchSize, timeSteps)
+        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if 'x' shape = (batchSize, timeSteps, inputSize)
         /// </summary>
         /// <param name="x">
         /// 'x' shape:
-        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
+        ///      (batchSize, timeSteps)
+        ///      or 
+        ///      (batchSize, timeSteps, inputSize)
         /// </param>
         /// <param name="wordEmbedding">
         ///  'wordEmbedding' shape:
         ///     (vocabularySize, embeddingDim)
         ///     vocabularySize = 1+number of distinct words in the embedding
         /// </param>
-        /// <param name="indexInLastDimensionToUse"></param>
-        public abstract void WordEmbeddingForwardPropagation(/*in*/ Tensor x, /*in*/ Tensor wordEmbedding, int indexInLastDimensionToUse);
+        /// <param name="xIndexInLastDimensionToUse">the index in the last dimension of the 'x' tensor that contains the wordIndex to embed</param>
+        /// <param name="yIndexInLastDimensionToUse">the index in the last dimension of the 'y' tensor where we'll store the embedding associated with the wordIndex above </param>
+        /// <param name="copyCountBeforeIndex">number of values before the index of the embedding in 'x' tensor to copy before the embedding in 'y' tensor</param>
+        /// <param name="copyCountAfterIndex">number of values after the index of the embedding in 'x' tensor to copy after the embedding in 'y' tensor</param>
+        public abstract void WordEmbeddingForwardPropagation( /*in*/ Tensor x, /*in*/ Tensor wordEmbedding, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex,  int copyCountAfterIndex);
+
+
+
 
         /// <summary>
         /// Initialize :
@@ -157,19 +164,23 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="x">
         /// 'x' shape:
-        ///      (batchSize, timeSteps)                              if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize)                   if indexInLastDimensionToUse >= 0
+        ///      (batchSize, timeSteps)
+        ///      or
+        ///      (batchSize, timeSteps, inputSize)
         /// </param>
         /// <param name="dx">gradient of input 'x'
         ///  same shape as 'x'
         /// </param>
         /// <param name="dy">
         /// 'dy' shape:
-        ///      (batchSize, timeSteps, embeddingDim)                if indexInLastDimensionToUse = -1
-        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if indexInLastDimensionToUse >= 0
+        ///      (batchSize, timeSteps, embeddingDim)                if 'x' shape = (batchSize, timeSteps)
+        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if 'x' shape = (batchSize, timeSteps, inputSize)
         /// </param>
-        /// <param name="indexInLastDimensionToUse"></param>
-        public abstract void WordEmbeddingBackwardPropagation(/*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int indexInLastDimensionToUse);
+        /// <param name="dxIndexInLastDimensionToUse">the index in the last dimension of the 'x' tensor that contains the wordIndex that was embedded</param>
+        /// <param name="dyIndexInLastDimensionToUse">the index in the last dimension of the 'dy' tensor that contains the gradient of the embedding associated with the wordIndex above </param>
+        /// <param name="copyCountBeforeIndex">number of values before the embedding in 'dy' tensor to copy before the index of the embedding in 'dx' tensor</param>
+        /// <param name="copyCountAfterIndex">number of values after the embedding in 'dy' tensor to copy after the index of the embedding in 'dx' tensor</param>
+        public abstract void WordEmbeddingBackwardPropagation( /*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int dxIndexInLastDimensionToUse, int dyIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex);
 
         public int Count => Shape[0] * MultDim0;
         public int Dimension => Shape.Length;

@@ -140,28 +140,21 @@ namespace SharpNet.Networks
             Layers.Add(new InputLayer(channelCount, h, w, this, layerName));
             return this;
         }
-        public Network InputAndEmbedding(int maxWordsBySentence, int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, double lambdaL2Regularization, string layerName = "")
-        {
-            Debug.Assert(Layers.Count == 0);
-            Input(maxWordsBySentence, -1, -1);
-            Embedding(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, 0, false, layerName);
-            return this;
-        }
-        public Network Embedding(int vocabularySize, 
-            int embeddingDim, 
-            int indexInLastDimensionToUse, 
-            double lambdaL2Regularization,
-            float clipValueForGradients,
-            bool divideGradientsByTimeSteps,
-            string layerName = "")
-        {
+
+        public Network Embedding(int[] vocabularySizes,
+                int[] embeddingDims,
+                int[] indexesInLastDimensionToUse,
+                double lambdaL2Regularization,
+                float clipValueForGradients = 0f,
+                bool divideGradientsByTimeSteps = false,
+                string layerName = "")
+            {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(Layers.Last().IsInputLayer);
 
-            Layers.Add(new EmbeddingLayer(vocabularySize, embeddingDim, indexInLastDimensionToUse, lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
+            Layers.Add(new EmbeddingLayer(EmbeddingLayer.ToEmbeddingLayerDescription(vocabularySizes, embeddingDims, indexesInLastDimensionToUse), lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
             return this;
         }
-
         public Network SwitchSecondAndThirdDimension(bool addOneDimensionInOutputShape, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
@@ -249,7 +242,7 @@ namespace SharpNet.Networks
             return Dense(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, Config.OptimizerType, layerName);
         }
 
-        public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, Optimizer.OptimizationEnum optimizerType, string layerName = "")
+        private Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, Optimizer.OptimizationEnum optimizerType, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             var fullyConnectedLayer = new DenseLayer(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, optimizerType, true, this, layerName);

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
 using SharpNet.GPU;
-using SharpNet.HPO;
 using SharpNet.Models;
 using SharpNet.Networks;
 
@@ -79,10 +78,10 @@ namespace SharpNetTests
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
 
-            StackingCVClassifierDatasetSample.LaunchLightGBMHPO(use_features_in_secondary:true, cv:2, min_num_iterations:100, maxAllowedSecondsForAllComputation:600);
+            //StackingCVClassifierDatasetSample.LaunchLightGBMHPO(use_features_in_secondary:true, cv:2, min_num_iterations:100, maxAllowedSecondsForAllComputation:600);
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
             //WasYouStayWorthItsPriceDatasetSample.WeightOptimizer();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(10, 100);
+            WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(5, 30);
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
 

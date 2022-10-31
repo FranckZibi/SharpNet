@@ -79,10 +79,6 @@ namespace SharpNet.Datasets
         {
             return -1;
         }
-        public override string ElementIdToPathIfAny(int elementId)
-        {
-            return "";
-        }
 
         // ReSharper disable once UnusedMember.Global
         public float DefaultMae

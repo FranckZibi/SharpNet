@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Porter2StemmerStandard;
 
 namespace SharpNet.TextPreprocessing
@@ -38,13 +40,29 @@ namespace SharpNet.TextPreprocessing
         /// </summary>
         private readonly bool _lowerCase;
 
+
+        private readonly HashSet<string> _stopWords = new()
+        {
+            "i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself",
+            "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they",
+            "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those",
+            "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does",
+            "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at",
+            "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above",
+            "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then",
+            "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most",
+            "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t",
+            "can", "will", "just", "don", "should", "now"
+        };
+
         private readonly IStemmer _stemmer;
+        private readonly ConcurrentDictionary<string, string> _wordToStem = new();
 
         /// <summary>
         /// characters that will be filtered (removed) from input
         /// </summary>
         private readonly char[] _filters;
-        private readonly IDictionary<string, int> _wordToWordCount =  new Dictionary<string, int>();
+        private readonly ConcurrentDictionary<string, int> _wordToWordCount =  new ConcurrentDictionary<string, int>();
         /// <summary>
         /// index associated with each word, from the most common (index 1 or 2) to the least common (index _numWords-1)
         /// if no out-of-vocabulary is used (_oovToken == null)
@@ -69,7 +87,7 @@ namespace SharpNet.TextPreprocessing
             int numWords = int.MaxValue,
             string oovToken = null, 
             bool lowerCase = true, 
-            string filters = " !\"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n\r’",
+            string filters = "  !\"#$%&()*+,-—.…/:;<=>?@[\\]^_{|}~\t\n\r´`‘’'",
             IStemmer stemmer = null)
         {
             _numWords = numWords;
@@ -79,12 +97,17 @@ namespace SharpNet.TextPreprocessing
             _stemmer = stemmer;
         }
 
-        public void FitOnTexts(IEnumerable<string> texts)
+        public void FitOnTexts(IList<string> texts)
         {
-            foreach (var text in texts)
+            void FitOnText(string text)
             {
-                FitOnText(text);
+                foreach (var word in ExtractWords(text))
+                {
+                    _wordToWordCount.AddOrUpdate(word, 1, (_, oldValue) => oldValue + 1);
+                }
+                _wordToWordIndex = null;
             }
+            Parallel.For(0, texts.Count, i => FitOnText(texts[i]));
         }
 
 
@@ -123,13 +146,28 @@ namespace SharpNet.TextPreprocessing
             {
                 for (int i = 0; i < result.Length; i++)
                 {
-                    if (result[i].All(char.IsLetterOrDigit))
+                    if (!_wordToStem.TryGetValue(result[i], out var stemmedWord))
                     {
-                        result[i] = _stemmer.Stem(result[i]).Value;
+                        try
+                        {
+                            stemmedWord = _stemmer.Stem(result[i]).Value;
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine($"Fail to do stemming for word: {result[i]}");
+                            stemmedWord = result[i];
+                        }
+                        if (_stopWords.Contains(stemmedWord) || _stopWords.Contains(result[i]))
+                        {
+                            stemmedWord = "";
+                        }
+                        _wordToStem[result[i]] = stemmedWord;
                     }
+
+                    result[i] = stemmedWord;
                 }
             }
-            return result;
+            return result.Where(s=>!string.IsNullOrEmpty(s)).ToArray();
         }
 
         //public List<List<int>> FitOnTextsAndTextsToSequences(IEnumerable<string> texts)
@@ -209,34 +247,14 @@ namespace SharpNet.TextPreprocessing
         //    return finalResults;
         //}
 
-        private void FitOnText(string text)
+       
+
+        public List<List<int>> TextsToSequences(IList<string> texts)
         {
-
-            //var utf8String = Encoding.UTF8.GetBytes(text);
-
-            ////convert them into unicode bytes.
-            //byte[] unicodeBytes = Encoding.Convert(Encoding.UTF8, Encoding.Unicode, utf8String);
-
-            ////builds the converted string.
-            //var strText8 = Encoding.Unicode.GetString(unicodeBytes);
-
-            foreach (var word in ExtractWords(text))
-            {
-                if (_wordToWordCount.ContainsKey(word))
-                {
-                    ++_wordToWordCount[word];
-                }
-                else
-                {
-                    _wordToWordCount[word] = 1;
-                }
-            }
-            _wordToWordIndex = null;
-        }
-
-        public List<List<int>> TextsToSequences(IEnumerable<string> texts)
-        {
-            return texts.Select(TextToSequence).ToList();
+            var _ = WordIndex;
+            var res = new List<int>[texts.Count].ToList();
+            Parallel.For(0, texts.Count, i => res[i] = TextToSequence(texts[i]));
+            return res;
         }
 
         public List<int> TextToSequence(string text)

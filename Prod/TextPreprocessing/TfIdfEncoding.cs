@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using log4net;
+using Porter2StemmerStandard;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 
@@ -11,7 +12,7 @@ namespace SharpNet.TextPreprocessing;
 
 public static class TfIdfEncoding
 {
-    //private static readonly IStemmer _stemmer = new EnglishPorter2Stemmer();
+    private static readonly IStemmer _stemmer = new EnglishPorter2Stemmer();
 
     private static readonly ILog Log = LogManager.GetLogger(typeof(DataSet));
 
@@ -118,9 +119,8 @@ public static class TfIdfEncoding
         bool addTokenNameAsColumnNameSuffix = false, bool reduceEmbeddingDimIfNeeded = false,
         TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
-        //var tokenizer = new Tokenizer(oovToken: null, lowerCase: false, stemmer: _stemmer);
-        var tokenizer = new Tokenizer(oovToken: null, lowerCase: true);
-
+        var tokenizer = new Tokenizer(oovToken: null, lowerCase: true, stemmer: _stemmer);
+       
         tokenizer.FitOnTexts(documents);
         var training_sequences = tokenizer.TextsToSequences(documents);
         if (reduceEmbeddingDimIfNeeded && tokenizer.DistinctWords < embeddingDim)

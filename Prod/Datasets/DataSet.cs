@@ -192,6 +192,10 @@ namespace SharpNet.Datasets
                 if (miniBatchId != alreadyComputedMiniBatchId)
                 {
                     elementsActuallyLoaded = LoadMiniBatchInCpu(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, dataAugmentationSample, all_xMiniBatchesShapes, yMiniBatch.Shape);
+                    if (elementsActuallyLoaded == shuffledElementId.Length)
+                    {
+                        elementsActuallyLoadedByBackgroundThread = elementsActuallyLoaded;
+                    }
                 }
                 else
                 {
@@ -495,7 +499,10 @@ namespace SharpNet.Datasets
         /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
         /// <returns>the associated category id, or -1 if the category is not known</returns>
         public abstract int ElementIdToCategoryIndex(int elementId);
-        public abstract string ElementIdToPathIfAny(int elementId);
+        public virtual string ElementIdToPathIfAny(int elementId)
+        {
+            return "";
+        }
 
         public virtual void Dispose()
         {
@@ -589,18 +596,15 @@ namespace SharpNet.Datasets
                 return null;
             }
             var y_true_tensor = IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
-            return DataFrame.New(y_true_tensor, TargetLabels_InModelFormat(numClasses));
-        }
 
-        private string[] TargetLabels_InModelFormat(int numClasses)
-        {
-            if (IsRegressionProblem || TargetLabels.Length == numClasses)
-            {
-                return TargetLabels;
-            }
-            return Enumerable.Range(0, numClasses).Select(x => x.ToString()).ToArray();
-        }
 
+            var targetLabels_InModelFormat = (IsRegressionProblem || TargetLabels.Length == numClasses)
+                ?TargetLabels
+                :Enumerable.Range(0, numClasses).Select(x => x.ToString()).ToArray();
+
+            return DataFrame.New(y_true_tensor, targetLabels_InModelFormat);
+        }
+        
         /// <summary>
         /// same shape as Y
         /// </summary>

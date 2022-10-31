@@ -373,8 +373,8 @@ namespace SharpNetTests.NonReg
             var X = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1, 2, 1, 1], [2, 2, 1, 1]], numpy.float)");
             var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1], [0]], numpy.float)");
 
-
             int batchSize = X.Shape[0];
+            
             const int deviceId = -1;
             //var deviceId = 0;
             var network = Network.NewForTests(
@@ -390,8 +390,9 @@ namespace SharpNetTests.NonReg
                         new DataAugmentationSample()
                 );
 
-            network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
+            Debug.Assert(network.Layers.Count == 0);
+            network.Input(maxWordsBySentence, -1, -1)
+                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, 0.0)
                 .Flatten()
                 .Dense(1, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -399,12 +400,12 @@ namespace SharpNetTests.NonReg
 
             Log.Info(network.Summary() + Environment.NewLine);
 
-            TestNetworkPropagation.FromNumpyArray("[[-0.020802486687898636, -0.02934335544705391, 0.0035390742123126984, 0.006125748157501221, -0.008332550525665283], [0.0307827927172184, -0.0006774887442588806, 0.0498129241168499, 0.019673515111207962, -0.037462640553712845],[0.020981673151254654, 0.016241561621427536, 0.007225655019283295, -0.013524651527404785, -0.007948171347379684]]")
+            TestNetworkPropagation.FromNumpyArray("[[0,0,0,0,0],[-0.020802486687898636, -0.02934335544705391, 0.0035390742123126984, 0.006125748157501221, -0.008332550525665283], [0.0307827927172184, -0.0006774887442588806, 0.0498129241168499, 0.019673515111207962, -0.037462640553712845],[0.020981673151254654, 0.016241561621427536, 0.007225655019283295, -0.013524651527404785, -0.007948171347379684]]")
                 .CopyTo(((EmbeddingLayer)network.Layers[1]).Weights);
             TestNetworkPropagation.FromNumpyArray("[[0.05924016237258911], [-0.2979503273963928], [0.39012110233306885], [0.2964285612106323], [0.15513628721237183], [0.032458603382110596], [-0.5190843939781189], [0.3992980718612671], [-0.03236877918243408], [-0.12109190225601196], [0.4128159284591675], [0.14623379707336426], [-0.5325161814689636], [0.38246530294418335], [-0.4191945493221283], [0.4918263554573059], [-0.30854684114456177], [0.1737397313117981], [-0.40517792105674744], [-0.3750319480895996]]")
                 .CopyTo(((DenseLayer)network.Layers[3]).Weights);
 
-            network.PropagationManager.LogPropagation = true;
+            //network.PropagationManager.LogPropagation = true;
             var predict_before = network.Predict(X, false).ToNumpy();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
@@ -424,6 +425,77 @@ namespace SharpNetTests.NonReg
             Log.Info("C# learningRate= " + learningRate);
             Log.Info("C# l2regularizer= " + lambdaL2Regularization);
             Log.Info("C# momentum= " + momentum);
+            Log.Info(predict_before);
+            Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
+            Log.Info(predict_after);
+            Log.Info("C# metrics_after= " + Model.MetricsToString(lossAccuracyAfter, ""));
+        }
+
+        [Test, Explicit]
+        public void TestParallelRunWithTensorFlow_Embedding_3D()
+        {
+            const int numEpochs = 5;
+            const double learningRate = 0.01;
+            const double lambdaL2Regularization = 0.00;
+            const double momentum = 0.9;
+            const int batchSize = 2;
+            const int deviceId = -1;
+            //var deviceId = 0;
+
+            //'X' shape (4,2,3)
+            var X = TestNetworkPropagation.FromNumpyArray("[ [[3000,2,3001,0],[1000,0,1001,5]], [[2000,1,2001,7],[1002,0,1003,9]], [[2002,1,2003,2],[3002,2,3003,8]], [[1003,0,1004,6],[2004,1,2005,4]] ]");
+            //'Y' shape (4,1)
+            var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1], [0], [1], [0]], numpy.float)");
+
+            var networkConfig = new NetworkConfig
+            {
+                ModelName = "Embedding_3D",
+                LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
+                RandomizeOrder = false,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                ResourceIds = new List<int> { deviceId }
+            };
+
+            var network = Network.NewForTests(
+                        networkConfig
+                       .WithAdam(0.9, 0.999, 1e-7),
+                        //.WithSGD(momentum, false),
+                        new DataAugmentationSample()
+                );
+
+            network
+                .Input(X.Shape[1], X.Shape[2], -1)
+                .Embedding(new []{3,10}, new[] { 5,5 }, new[] { 1, 3 }, 0.0)
+                //.Flatten()
+                .Dense(1, 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+
+            Log.Info(network.Summary() + Environment.NewLine);
+            
+            var predict_before = network.Predict(X, false).ToNumpy();
+
+            using var trainingDataSet = new InMemoryDataSet(X, Y);
+
+            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+
+            Log.Info("-");
+            Log.Info("- Fit -------------------------------------------------------------------");
+            Log.Info("-");
+
+            TestNetwork.Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, null);
+
+            Log.Info("-");
+            Log.Info("- Using Trained Network -------------------------------------------------------------------");
+            Log.Info("-");
+
+            var predict_after = network.Predict(X, false).ToNumpy();
+            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+
+            Log.Info("C# numEpochs= " + numEpochs);
+            Log.Info("C# learningRate= " + learningRate);
+            Log.Info("C# l2regularizer= " + lambdaL2Regularization);
+            Log.Info("C# momentum= " + momentum);
+            Log.Info("C# batchSize= " + batchSize);
             Log.Info(predict_before);
             Log.Info("C# metrics_before= " + Model.MetricsToString(lossAccuracyBefore, ""));
             Log.Info(predict_after);
@@ -465,8 +537,9 @@ namespace SharpNetTests.NonReg
                 );
             network.PropagationManager.LogPropagation = true;
 
-            network
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, 0.0)
+            Debug.Assert(network.Layers.Count == 0);
+            network.Input(maxWordsBySentence, -1, -1)
+                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, 0.0)
                 .GlobalAvgPooling()
                 .Dense(4, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -571,8 +644,9 @@ namespace SharpNetTests.NonReg
                         new DataAugmentationSample()
                 );
 
-            network
-                .InputAndEmbedding(max_length, vocab_size, embedding_dim, -1, 0.0)
+            Debug.Assert(network.Layers.Count == 0);
+            network.Input(max_length, -1, -1)
+                .Embedding(new [] { vocab_size }, new[] { embedding_dim }, new[] { -1 }, 0.0)
                 .GlobalAvgPoolingOnHeight()
                 .Dense(24, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -1106,9 +1180,9 @@ namespace SharpNetTests.NonReg
                 );
 
             const bool isBidirectional = false;
-            network
-                //.Input(timeSteps, inputSize, -1)
-                .InputAndEmbedding(maxWordsBySentence, vocabularySize, embeddingDim, -1, lambdaL2Regularization)
+            Debug.Assert(network.Layers.Count == 0);
+            network.Input(maxWordsBySentence, -1, -1)
+                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, lambdaL2Regularization)
                 .Dropout(0.2)
                 .LSTM(32, false, isBidirectional, 1, 0.0, false)
                 .Dense_Activation(256, lambdaL2Regularization, true, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)

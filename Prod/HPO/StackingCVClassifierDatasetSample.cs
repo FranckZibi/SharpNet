@@ -36,11 +36,11 @@ namespace SharpNet.HPO
                 "E72AD5B74B_KFOLD"
             };
 
-            var workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission3";
+            var workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\";
             var workingDirectoryAndModelNames = modelName.Select(m => Tuple.Create(workingDirectory, m, m + "_FULL")).ToList();
             var datasetSample = New(workingDirectoryAndModelNames, workingDirectory, use_features_in_secondary, cv);
 
-            return SampleUtils.LaunchLightGBMHPO(datasetSample, @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission3\hpo", min_num_iterations, maxAllowedSecondsForAllComputation);
+            return SampleUtils.LaunchLightGBMHPO(datasetSample, Path.Combine(workingDirectory, "hpo"), min_num_iterations, maxAllowedSecondsForAllComputation);
         }
 
 

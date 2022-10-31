@@ -48,11 +48,6 @@ namespace SharpNet.Datasets
         {
             throw new ArgumentException("several categories may be associated with a single image");
         }
-        public override string ElementIdToPathIfAny(int elementId)
-        {
-            return "";
-        }
-
         public override CpuTensor<float> Y => throw new NotImplementedException();
     }
 }

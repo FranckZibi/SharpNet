@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using JetBrains.Annotations;
 using log4net;
-using SharpNet.CPU;
 
 namespace SharpNet.Datasets;
 
@@ -50,19 +49,19 @@ public class DatasetEncoder
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public InMemoryDataSet NumericalEncoding(string xyDataset)
+    public InMemoryDataSetV2 NumericalEncoding(string xyDataset)
     {
         var xyTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(xyDataset));
         var xTrainEncoded = xyTrainEncoded.Drop(Targets);
         var yTrainEncoded = xyTrainEncoded[Targets];
-        return NewInMemoryDataSet(xTrainEncoded, yTrainEncoded?.FloatCpuTensor(), _datasetSample);
+        return NewInMemoryDataSetV2(xTrainEncoded, yTrainEncoded, _datasetSample);
     }
     /// <summary>
     /// load the dataset 'xDataset' and encode all categorical features into numerical values
     /// (so that it can be processed by LightGBM)
     /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
     /// </summary>
-    public InMemoryDataSet NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
+    public InMemoryDataSetV2 NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
     {
         var xTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(xDataset));
 
@@ -72,23 +71,16 @@ public class DatasetEncoder
         {
             yTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(yDataset));
         }
-        return NewInMemoryDataSet(xTrainEncoded, yTrainEncoded?.FloatCpuTensor(), _datasetSample);
+        return NewInMemoryDataSetV2(xTrainEncoded, yTrainEncoded, _datasetSample);
     }
 
-    public static InMemoryDataSet NewInMemoryDataSet(DataFrame xTrainEncoded, CpuTensor<float> yTrainEncodedTensor, AbstractDatasetSample datasetSample)
+    public static InMemoryDataSetV2 NewInMemoryDataSetV2(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
     {
-        return new InMemoryDataSet(
-            xTrainEncoded.FloatCpuTensor(),
-            yTrainEncodedTensor,
-            datasetSample.Name,
-            datasetSample.GetObjective(),
-            null,
-            xTrainEncoded.Columns,
-            Utils.Intersect(datasetSample.CategoricalFeatures, xTrainEncoded.Columns).ToArray(), //we only take Categorical Features that actually appear in the training DataSet
-            Utils.Intersect(datasetSample.IdColumns, xTrainEncoded.Columns).ToArray(), //we only take Id Columns Features that actually appear in the training DataSet
-            datasetSample.TargetLabels,
-            false,
-            datasetSample.GetSeparator());
+        return new InMemoryDataSetV2(
+            datasetSample,
+            xTrainEncoded,
+            yTrainEncoded,
+            false);
     }
 
     /// <summary>
