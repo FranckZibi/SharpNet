@@ -41,25 +41,25 @@ namespace SharpNet.CatBoost
         }
         #endregion
 
-        public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
-            string trainDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            string trainDatasetPath_InModelFormat = trainDataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             char separator = trainDataset.Separator;
 
-            string validationDatasetPathIfAny = "";
+            string validationDatasetPathIfAny_InModelFormat = "";
             if (validationDatasetIfAny != null)
             {
-                validationDatasetPathIfAny = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+                validationDatasetPathIfAny_InModelFormat = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             }
 
-            string datasetColumnDescriptionPath = trainDatasetPath + ".co";
+            string datasetColumnDescriptionPath = trainDatasetPath_InModelFormat + ".co";
             to_column_description(datasetColumnDescriptionPath, trainDataset, addTargetColumnAsFirstColumn, false);
 
-            var logMsg = $"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath)}";
+            var logMsg = $"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}";
             if (LoggingForModelShouldBeDebug(ModelName))
             {
                 LogDebug(logMsg);
@@ -72,7 +72,7 @@ namespace SharpNet.CatBoost
 
             var tempModelSamplePath = ISample.ToJsonPath(TempPath, ModelName);
             string arguments = "fit " +
-                               " --learn-set " + trainDatasetPath +
+                               " --learn-set " + trainDatasetPath_InModelFormat +
                                " --delimiter=\"" + separator + "\"" +
                                " --has-header" +
                                " --params-file " + tempModelSamplePath +
@@ -83,9 +83,9 @@ namespace SharpNet.CatBoost
                                " --verbose false "
                              ;
 
-            if (!string.IsNullOrEmpty(validationDatasetPathIfAny))
+            if (!string.IsNullOrEmpty(validationDatasetPathIfAny_InModelFormat))
             {
-                arguments += " --test-set " + validationDatasetPathIfAny;
+                arguments += " --test-set " + validationDatasetPathIfAny_InModelFormat;
             }
             else
             {
@@ -108,10 +108,10 @@ namespace SharpNet.CatBoost
             //}
 
             Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
-            return (null, null, trainDatasetPath, null, null, validationDatasetPathIfAny);
+            return (null, null, trainDatasetPath_InModelFormat, null, null, validationDatasetPathIfAny_InModelFormat);
         }
 
-        public override DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
+        public override (DataFrame,string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             if (!File.Exists(ModelPath))
             {
@@ -158,9 +158,10 @@ namespace SharpNet.CatBoost
             if (removeAllTemporaryFilesAtEnd)
             {
                 Utils.TryDelete(datasetPath);
+                datasetPath = "";
                 Utils.TryDelete(datasetColumnDescriptionPath);
             }
-            return predictionsDf;
+            return (predictionsDf, datasetPath);
         }
         public override void Save(string workingDirectory, string modelName)
         {

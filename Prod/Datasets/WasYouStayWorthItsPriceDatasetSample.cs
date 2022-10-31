@@ -158,8 +158,17 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar));
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar));
+    }
+
+
+    public static void ComputeAndSaveFeatureImportance()
+    {
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
+        var m = ModelAndDatasetPredictions.Load(WorkingDirectory, "CF1B33A251");
+        m.ComputeAndSaveFeatureImportance();
+        return;
     }
 
     public const string FILE_EXT = "_tfidf_l2_norm_scikit_stem_allstopwords.csv";
@@ -173,7 +182,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //related to Dataset 
             {"Reviews_EmbeddingDim", 200},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-            //{"KFold", new[]{3}},
+            {"KFold", new[]{2}},
             
 
             {"boosting", new []{"gbdt", "dart"}},
@@ -213,8 +222,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         datasetSample.FillWithDefaultLightGBMHyperParameterValues(searchSpace);
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        var csvPath = Path.Combine(DataDirectory, "Tests_" + NAME + ".csv");
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, csvPath, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
         return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
     }
 

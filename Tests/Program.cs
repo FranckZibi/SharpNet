@@ -81,23 +81,10 @@ namespace SharpNetTests
             //StackingCVClassifierDatasetSample.LaunchLightGBMHPO(use_features_in_secondary:true, cv:2, min_num_iterations:100, maxAllowedSecondsForAllComputation:600);
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
             //WasYouStayWorthItsPriceDatasetSample.WeightOptimizer();
-            WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(5, 30);
+            WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(100, 600);
+            //WasYouStayWorthItsPriceDatasetSample.ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
-
-
-
-
-            ////foreach (var min_num_iterations in new[] { 20, 50, 100, 200 })
-            //foreach (var min_num_iterations in new[] { 100 })
-            //    foreach (var maxAllowedSecondsForAllComputation in new[] { /*60 ,*/ 600 })
-            //    {
-            //        var (bestSample, bestScore) = WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(min_num_iterations, maxAllowedSecondsForAllComputation);
-            //        var newLine = $"{min_num_iterations};{maxAllowedSecondsForAllComputation};{bestScore};{WasYouStayWorthItsPriceDatasetSample.FILE_EXT}\n";
-            //        Log.Info($"{newLine}");
-            //        Log.Info($"{bestSample}");
-            //        System.IO.File.AppendAllText("c:/temp/toto3.csv", newLine);
-            //    }
 
 
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);

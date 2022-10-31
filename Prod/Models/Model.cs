@@ -174,9 +174,16 @@ public abstract class Model
     }
 
 
+
+    public virtual DataFrame ComputeFeatureImportance(AbstractDatasetSample datasetSample, AbstractDatasetSample.DatasetType datasetType)
+    {
+        return null;
+    }
+
+
     public virtual string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
 
-    public abstract (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+    public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
         Fit(DataSet trainDataset, DataSet validationDatasetIfAny);
 
     /// <summary>
@@ -194,7 +201,14 @@ public abstract class Model
     ///     else
     ///         an empty string
     /// </returns>
-    public abstract DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd);
+    public virtual DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
+    {
+        return PredictWithPath(dataset, removeAllTemporaryFilesAtEnd).predictions;
+    }
+
+    public abstract (DataFrame predictions, string datasetPath) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd);
+
+
     public abstract void Save(string workingDirectory, string modelName);
     public virtual string DeviceName() => "";
     public virtual int TotalParams() => -1;

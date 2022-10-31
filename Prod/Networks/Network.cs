@@ -552,7 +552,7 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="trainingDataset"></param>
         /// <param name="validationDatasetIfAny"></param>
-        public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
             Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
             int miniBatchSizeForAllWorkers = Config.BatchSize;
@@ -823,10 +823,10 @@ namespace SharpNet.Networks
         {
             return Predict(new List<Tensor> {X}, isTraining);
         }
-        public override DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
+        public override (DataFrame, string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Config.BatchSize);
-            return DataFrame.New(cpuTensor, dataset.TargetLabels);
+            return (DataFrame.New(cpuTensor, dataset.TargetLabels), "");
         }
 
         public override int GetNumEpochs()

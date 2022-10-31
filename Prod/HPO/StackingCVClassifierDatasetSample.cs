@@ -25,15 +25,21 @@ namespace SharpNet.HPO
         {
             var modelName = new[]
             {
-                "3580990008_KFOLD",
-                "395B343296_KFOLD",
-                "48F31E6543_KFOLD",
-                "56E668E7DB_KFOLD",
-                "66B4F3653A_KFOLD",
-                "8CF93D9FA0_KFOLD",
-                "90840F212D_KFOLD",
-                "90DAFFB8FC_KFOLD",
-                "E72AD5B74B_KFOLD"
+                "316CF95B15_KFOLD",
+                "B63953F624_KFOLD",
+                "6034138E35_KFOLD",
+                "F867A78F52_KFOLD",
+
+
+                //"3580990008_KFOLD",
+                //"395B343296_KFOLD",
+                //"48F31E6543_KFOLD",
+                //"56E668E7DB_KFOLD",
+                //"66B4F3653A_KFOLD",
+                //"8CF93D9FA0_KFOLD",
+                //"90840F212D_KFOLD",
+                //"90DAFFB8FC_KFOLD",
+                //"E72AD5B74B_KFOLD"
             };
 
             var workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\";
@@ -93,7 +99,7 @@ namespace SharpNet.HPO
                 }
 
 
-                EmbeddedDatasetSample = embeddedModelAndDatasetPredictionsForTraining.ModelAndDatasetPredictionsSample.DatasetSample;
+                EmbeddedDatasetSample = embeddedModelAndDatasetPredictionsForTraining.DatasetSample;
                 //var y_pred_train_InModelFormat = datasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictionsForTraining.PredictionsSample.Train_PredictionsFileName_InModelFormat);
                 var y_pred_training_InModelFormat = EmbeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictionsForTraining.PredictionsSample.Validation_PredictionsFileName_InModelFormat);
                 var y_pred_inference_InModelFormat = EmbeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictionsForInference.PredictionsSample.Test_PredictionsFileName_InModelFormat);

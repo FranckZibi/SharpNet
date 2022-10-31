@@ -22,12 +22,11 @@ public class ModelAndDatasetPredictions
         if (DatasetSample.KFold >= 2 && Model is not KFoldModel /*&& Model is not WeightedModel*/)
         {
             var embeddedModel = Model;
-            var datasetSample = ModelAndDatasetPredictionsSample.DatasetSample;
-            if (datasetSample.PercentageInTraining < 1.0)
+            if (DatasetSample.PercentageInTraining < 1.0)
             {
-                throw new ArgumentException($"PercentageInTraining must be 100% if KFold is enabled (found {datasetSample.PercentageInTraining}");
+                throw new ArgumentException($"PercentageInTraining must be 100% if KFold is enabled (found {DatasetSample.PercentageInTraining}");
             }
-            var kfoldSample = new KFoldSample(datasetSample.KFold, embeddedModel.WorkingDirectory, embeddedModel.ModelSample.GetLoss(), datasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+            var kfoldSample = new KFoldSample(DatasetSample.KFold, embeddedModel.WorkingDirectory, embeddedModel.ModelSample.GetLoss(), DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
             Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel, embeddedModel);
         }
     }
@@ -44,6 +43,8 @@ public class ModelAndDatasetPredictions
     }
     #endregion
 
+    public AbstractDatasetSample DatasetSample => ModelAndDatasetPredictionsSample.DatasetSample;
+
     /// <summary>
     /// 
     /// </summary>
@@ -56,7 +57,8 @@ public class ModelAndDatasetPredictions
         using var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
         var validationDataSet = trainingAndValidation.Test;
         var trainDataset = trainingAndValidation.Training;
-        (DatasetSample.Train_XDatasetPath, DatasetSample.Train_YDatasetPath, DatasetSample.Train_XYDatasetPath, DatasetSample.Validation_XDatasetPath, DatasetSample.Validation_YDatasetPath, DatasetSample.Validation_XYDatasetPath) = 
+        (DatasetSample.Train_XDatasetPath_InModelFormat, DatasetSample.Train_YDatasetPath_InModelFormat, DatasetSample.Train_XYDatasetPath_InModelFormat, 
+         DatasetSample.Validation_XDatasetPath_InModelFormat, DatasetSample.Validation_YDatasetPath_InModelFormat, DatasetSample.Validation_XYDatasetPath_InModelFormat) = 
             Model.Fit(trainDataset, validationDataSet);
         IScore validationRankingScore = null;
         if (saveTrainValidAndTestsPredictions)
@@ -97,7 +99,7 @@ public class ModelAndDatasetPredictions
         const bool overwriteIfExists = false;
 
         ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Training Dataset");
-        DatasetSample.Train_XYDatasetPath = trainDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
+        DatasetSample.Train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
         IScore trainRankingScore_InTargetFormat = null;
         IScore validationRankingScore_InTargetFormat = null;
 
@@ -118,11 +120,11 @@ public class ModelAndDatasetPredictions
         }
         else
         {
-            (trainPredictions_InTargetFormat, trainPredictions_InModelFormat, trainRankingScore_InTargetFormat) = ComputePredictionsAndRankingScore(trainDataset);
+            (trainPredictions_InTargetFormat, trainPredictions_InModelFormat, trainRankingScore_InTargetFormat, _) = ComputePredictionsAndRankingScore(trainDataset);
             if (validationDataset != null)
             {
-                (validationPredictions_InTargetFormat, validationPredictions_InModelFormat, validationRankingScore_InTargetFormat) = ComputePredictionsAndRankingScore(validationDataset);
-                DatasetSample.Validation_XYDatasetPath = validationDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
+                (validationPredictions_InTargetFormat, validationPredictions_InModelFormat, validationRankingScore_InTargetFormat, _) = ComputePredictionsAndRankingScore(validationDataset);
+                DatasetSample.Validation_XYDatasetPath_InTargetFormat = validationDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
             }
         }
 
@@ -139,23 +141,55 @@ public class ModelAndDatasetPredictions
         if (testDatasetIfAny != null)
         {
             ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Test Dataset");
-            var (testPredictionsInTargetFormat, testPredictionsInModelFormat, testRankingScore) = ComputePredictionsAndRankingScore(testDatasetIfAny);
+            var (testPredictionsInTargetFormat, testPredictionsInModelFormat, testRankingScore, testDatasetPath_InModelFormat) = ComputePredictionsAndRankingScore(testDatasetIfAny);
             if (testRankingScore == null)
             {
-                DatasetSample.Test_XDatasetPath = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, false, includeIdColumns, overwriteIfExists);
-                DatasetSample.Test_YDatasetPath = DatasetSample.Test_XYDatasetPath = null;
+                DatasetSample.Test_XDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, false, includeIdColumns, overwriteIfExists);
+                DatasetSample.Test_XDatasetPath_InModelFormat = testDatasetPath_InModelFormat;
+                DatasetSample.Test_YDatasetPath_InTargetFormat = DatasetSample.Test_XYDatasetPath_InTargetFormat = null;
+                DatasetSample.Test_YDatasetPath_InModelFormat = DatasetSample.Test_XYDatasetPath_InModelFormat = null;
             }
             else
             {
                 ISample.Log.Info($"Model '{Model.ModelName}' score on Test: {testRankingScore}");
-                DatasetSample.Test_XYDatasetPath = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
-                DatasetSample.Test_YDatasetPath = DatasetSample.Test_XDatasetPath = null;
+                DatasetSample.Test_XYDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
+                DatasetSample.Test_XYDatasetPath_InModelFormat = testDatasetPath_InModelFormat;
+                DatasetSample.Test_YDatasetPath_InTargetFormat = DatasetSample.Test_XDatasetPath_InTargetFormat = null;
+                DatasetSample.Test_YDatasetPath_InModelFormat = DatasetSample.Test_XDatasetPath_InModelFormat = null;
             }
             SaveTestPredictionsInTargetFormat(testPredictionsInTargetFormat, testDatasetIfAny, testRankingScore);
             SaveTestPredictionsInModelFormat(testPredictionsInModelFormat, null);
             testDatasetIfAny.Dispose();
         }
         return (trainRankingScore_InTargetFormat, validationRankingScore_InTargetFormat);
+    }
+
+    /// <summary>
+    /// Compute and Save the Feature Importance for the current Model & Dataset
+    /// </summary>
+    /// <param name="computeFeatureImportanceForAllDatasetTypes">
+    /// if true, it will try to compute Feature Importance for the Test, Validation & Train Dataset
+    /// if false, it will stop asa a Feature Importance has been computed for anu DataSet
+    /// </param>
+    public void ComputeAndSaveFeatureImportance(bool computeFeatureImportanceForAllDatasetTypes = false)
+    {
+        foreach (var datasetType in new[] { AbstractDatasetSample.DatasetType.Test, AbstractDatasetSample.DatasetType.Validation, AbstractDatasetSample.DatasetType.Train })
+        {
+            var featureImportance_df = Model.ComputeFeatureImportance(DatasetSample, datasetType);
+            if (featureImportance_df == null)
+            {
+                Model.Log.Info($"Failed to compute Feature Importance for {datasetType} Dataset");
+                continue;
+            }
+            var featureImportance_path = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_feature_importance_" + datasetType + ".csv");
+            featureImportance_df.to_csv(featureImportance_path);
+            Model.Log.Info($"Feature Importance for {datasetType} Dataset has been saved to {featureImportance_path}");
+            if (!computeFeatureImportanceForAllDatasetTypes)
+            {
+                //we have successfully computed Feature Importance for a DataSet , no need to compute Feature Importance for the remaining DataSet
+                break;
+            }
+        }
     }
     public List<string> AllFiles()
     {
@@ -250,12 +284,12 @@ public class ModelAndDatasetPredictions
         PredictionsSample.Test_PredictionsFileName_InModelFormat = fileName;
         DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
-    private (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat, IScore rankingScore)
+    private (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat, IScore rankingScore, string datasetPath)
         ComputePredictionsAndRankingScore(DataSet dataset)
     {
         Debug.Assert(dataset != null);
         var start = Stopwatch.StartNew();
-        var predictionsInModelFormat = Model.Predict(dataset, false);
+        var (predictionsInModelFormat, datasetPath) = Model.PredictWithPath(dataset, false);
         var y_pred_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
         IScore rankingScore = null;
         var y_true_InTargetFormat = dataset.Y_InTargetFormat();
@@ -264,7 +298,6 @@ public class ModelAndDatasetPredictions
             rankingScore = DatasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
         }
         ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScore)} took {start.Elapsed.TotalSeconds}s");
-        return (y_pred_InTargetFormat, predictionsInModelFormat, rankingScore);
+        return (y_pred_InTargetFormat, predictionsInModelFormat, rankingScore, datasetPath);
     }
-    private AbstractDatasetSample DatasetSample => ModelAndDatasetPredictionsSample.DatasetSample;
 }

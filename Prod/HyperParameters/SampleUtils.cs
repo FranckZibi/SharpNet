@@ -66,8 +66,7 @@ public static class SampleUtils
         }
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), workingDirectory); IScore bestScoreSoFar = null;
-        var csvPath = Path.Combine(dataDirectory, "Tests_" + datasetSample.Name + ".csv");
-        hpo.Process(t => TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, csvPath, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
         return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
     }
 
@@ -84,18 +83,15 @@ public static class SampleUtils
     /// </summary>
     /// <param name="modelAndDatasetPredictionsSample">the 'model sample' and dataset to use for training the model</param>
     /// <param name="workingDirectory">the directory where the 'model sample' and 'dataset description' is located</param>
-    /// <param name="resumeCsvPathIfAny">(optional) the CSV file where to store statistics about the trained model</param>
     /// <param name="bestScoreSoFar">the best score associated with the best sample found so far for the model</param>
     /// <returns>the score of the ranking evaluation metric for the validation dataset</returns>
-    public static IScore TrainWithHyperParameters([NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, [CanBeNull] string resumeCsvPathIfAny, ref IScore bestScoreSoFar)
+    public static IScore TrainWithHyperParameters([NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, ref IScore bestScoreSoFar)
     {
-        var sw = Stopwatch.StartNew();
         var modelAndDataset = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, workingDirectory);
         var model = modelAndDataset.Model;
-        var datasetSample = modelAndDataset.ModelAndDatasetPredictionsSample.DatasetSample;
+        var datasetSample = modelAndDataset.DatasetSample;
         var validationRankingScore = modelAndDataset.Fit(false, true, false);
 
-        IScore trainRankingScore = null;
         Debug.Assert(validationRankingScore != null);
 
         if (validationRankingScore.IsBetterThan(bestScoreSoFar))
@@ -105,13 +101,13 @@ public static class SampleUtils
             if (datasetSample.MinimumScoreToSaveModel == null || bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
             {
                 using var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
-                var res = modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
-                trainRankingScore = res.trainRankingScore;
+                modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
                 modelAndDataset.Save(workingDirectory, model.ModelName);
                 var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
                 var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
                 Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
                 modelAndDatasetOnFullDataset.Fit(true, true, true);
+                //modelAndDatasetOnFullDataset.ComputeAndSaveFeatureImportance();
             }
             else
             {
@@ -124,11 +120,6 @@ public static class SampleUtils
             modelAndDataset.AllFiles().ForEach(path => Utils.TryDelete(path));
         }
 
-        if (!string.IsNullOrEmpty(resumeCsvPathIfAny))
-        {
-            var trainingTimeInSeconds = sw.Elapsed.TotalSeconds;
-            model.AddResumeToCsv(trainingTimeInSeconds, trainRankingScore, validationRankingScore, resumeCsvPathIfAny);
-        }
         return validationRankingScore;
     }
 }

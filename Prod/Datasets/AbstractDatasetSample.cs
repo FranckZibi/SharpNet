@@ -45,6 +45,36 @@ public abstract class AbstractDatasetSample : AbstractSample
     }
     #endregion
 
+
+    public enum DatasetType
+    {
+        Train,      //The Dataset is used for Training (optimization of the Weights of the Model)
+        Validation, //The Dataset is used for Validation (optimization of the Hyper-Parameters of the Model)
+        Test        //The Dataset is used for Test (final and 'official' Ranking of the Model)
+    };
+
+    public string ExtractDatasetPath_InModelFormat(DatasetType datasetType)
+    {
+        switch (datasetType)
+        {
+            case DatasetType.Train:
+                return string.IsNullOrEmpty(Train_XYDatasetPath_InModelFormat)
+                    ? Train_XDatasetPath_InModelFormat
+                    : Train_XYDatasetPath_InModelFormat;
+            case DatasetType.Validation:
+                return string.IsNullOrEmpty(Validation_XYDatasetPath_InModelFormat)
+                    ? Validation_XDatasetPath_InModelFormat
+                    : Validation_XYDatasetPath_InModelFormat;
+            case DatasetType.Test:
+                return string.IsNullOrEmpty(Test_XYDatasetPath_InModelFormat)
+                    ? Test_XDatasetPath_InModelFormat
+                    : Test_XYDatasetPath_InModelFormat;
+            default:
+                throw new NotSupportedException($"invalid {nameof(DatasetType)}: {datasetType}");
+        }
+    }
+
+
     #region Hyper-Parameters
     public double PercentageInTraining = 0.8;
     /// <summary>
@@ -57,15 +87,26 @@ public abstract class AbstractDatasetSample : AbstractSample
     ///     and all the remaining 'Kfold-1' parts for training
     /// </summary>
     public int KFold = 1;
-    public string Train_XDatasetPath;
-    public string Train_YDatasetPath;
-    public string Train_XYDatasetPath;
-    public string Validation_XDatasetPath;
-    public string Validation_YDatasetPath;
-    public string Validation_XYDatasetPath;
-    public string Test_XDatasetPath;
-    public string Test_YDatasetPath;
-    public string Test_XYDatasetPath;
+    public string Train_XDatasetPath_InTargetFormat;
+    public string Train_YDatasetPath_InTargetFormat;
+    public string Train_XYDatasetPath_InTargetFormat;
+    public string Train_XDatasetPath_InModelFormat;
+    public string Train_YDatasetPath_InModelFormat;
+    public string Train_XYDatasetPath_InModelFormat;
+
+    public string Validation_XDatasetPath_InTargetFormat;
+    public string Validation_YDatasetPath_InTargetFormat;
+    public string Validation_XYDatasetPath_InTargetFormat;
+    public string Validation_XDatasetPath_InModelFormat;
+    public string Validation_YDatasetPath_InModelFormat;
+    public string Validation_XYDatasetPath_InModelFormat;
+
+    public string Test_XDatasetPath_InTargetFormat;
+    public string Test_YDatasetPath_InTargetFormat;
+    public string Test_XYDatasetPath_InTargetFormat;
+    public string Test_XDatasetPath_InModelFormat;
+    public string Test_YDatasetPath_InModelFormat;
+    public string Test_XYDatasetPath_InModelFormat;
     #endregion
 
     public AbstractDatasetSample CopyWithNewPercentageInTrainingAndKFold(double newPercentageInTraining, int newKFold)
@@ -73,12 +114,25 @@ public abstract class AbstractDatasetSample : AbstractSample
         var cloned = (AbstractDatasetSample)Clone();
         cloned.PercentageInTraining = newPercentageInTraining;
         cloned.KFold = newKFold;
-        cloned.Train_XDatasetPath = cloned.Train_YDatasetPath = null;
-        cloned.Validation_XDatasetPath = cloned.Validation_YDatasetPath = null;
+        cloned.SetAll_Train_XDatasetPath(null);
+        cloned.SetAll_Validation_XDatasetPath(null);
         return cloned;
     }
-    public InMemoryDataSet LoadTrainDataset() => LoadDataSet(Train_XDatasetPath, Train_YDatasetPath, Train_XYDatasetPath);
-    public InMemoryDataSet LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath, Validation_YDatasetPath, Validation_XYDatasetPath);
+
+    private void SetAll_Train_XDatasetPath(string newValue)
+    {
+        Train_XDatasetPath_InTargetFormat = Train_YDatasetPath_InTargetFormat = Train_XYDatasetPath_InTargetFormat = newValue;
+        Train_XDatasetPath_InModelFormat = Train_YDatasetPath_InModelFormat = Train_XYDatasetPath_InModelFormat = newValue;
+    }
+    private void SetAll_Validation_XDatasetPath(string newValue)
+    {
+        Validation_XDatasetPath_InTargetFormat = Validation_YDatasetPath_InTargetFormat = Validation_XYDatasetPath_InTargetFormat = newValue;
+        Validation_XDatasetPath_InModelFormat = Validation_YDatasetPath_InModelFormat = Validation_XYDatasetPath_InModelFormat = newValue;
+    }
+
+
+    public InMemoryDataSet LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
+    public InMemoryDataSet LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
 
     ///// <summary>
     ///// return a DataSet with all labeled Data (all data found both in training and validation dataset)
@@ -86,7 +140,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     ///// <returns></returns>
     //public InMemoryDataSet LoadTrainAndValidationDataset() => InMemoryDataSet.MergeVertically(LoadTrainDataset(), LoadValidationDataset());
 
-    public InMemoryDataSet LoadTestDataset() => LoadDataSet(Test_XDatasetPath, Test_YDatasetPath, Test_XYDatasetPath);
+    public InMemoryDataSet LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
     
     //// ReSharper disable once MemberCanBeMadeStatic.Global
     public DataFrame LoadPredictionsInModelFormat(string directory, string fileName)
@@ -336,7 +390,15 @@ public abstract class AbstractDatasetSample : AbstractSample
 
     public override HashSet<string> FieldsToDiscardInComputeHash()
     {
-        return new HashSet<string> { nameof(Train_XDatasetPath), nameof(Train_YDatasetPath), nameof(Train_XYDatasetPath), nameof(Validation_XDatasetPath), nameof(Validation_YDatasetPath), nameof(Validation_XYDatasetPath), nameof(Test_XDatasetPath), nameof(Test_YDatasetPath), nameof(Test_XYDatasetPath) };
+        return new HashSet<string>
+        {
+            nameof(Train_XDatasetPath_InTargetFormat), nameof(Train_YDatasetPath_InTargetFormat), nameof(Train_XYDatasetPath_InTargetFormat), 
+            nameof(Validation_XDatasetPath_InTargetFormat), nameof(Validation_YDatasetPath_InTargetFormat), nameof(Validation_XYDatasetPath_InTargetFormat), 
+            nameof(Test_XDatasetPath_InTargetFormat), nameof(Test_YDatasetPath_InTargetFormat), nameof(Test_XYDatasetPath_InTargetFormat),
+            nameof(Train_XDatasetPath_InModelFormat), nameof(Train_YDatasetPath_InModelFormat), nameof(Train_XYDatasetPath_InModelFormat),
+            nameof(Validation_XDatasetPath_InModelFormat), nameof(Validation_YDatasetPath_InModelFormat), nameof(Validation_XYDatasetPath_InModelFormat),
+            nameof(Test_XDatasetPath_InModelFormat), nameof(Test_YDatasetPath_InModelFormat), nameof(Test_XYDatasetPath_InModelFormat)
+        };
     }
     /// <summary>
     /// by default, the prediction file starts first with the ids columns, then with the target columns

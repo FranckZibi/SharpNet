@@ -20,7 +20,6 @@ public class TestISample
     {
         public TestClass() : base(new HashSet<string>()) { }
         public override Objective_enum GetObjective() => Objective_enum.Regression;
-
         public override string[] CategoricalFeatures => Array.Empty<string>();
         public override string[] IdColumns => throw new NotImplementedException();
         public override string[] TargetLabels => throw new NotImplementedException();
@@ -35,24 +34,24 @@ public class TestISample
         var sample =  new TestClass();
         sample.PercentageInTraining = 0.5;
         sample.KFold = 3;
-        sample.Train_XDatasetPath = "Train_XDatasetPath";
-        sample.Train_YDatasetPath = "Train_YDatasetPath";
-        sample.Validation_XDatasetPath = "Validation_XDatasetPath";
-        sample.Validation_YDatasetPath = "Validation_YDatasetPath";
-        sample.Test_XDatasetPath = "Test_XDatasetPath";
-        sample.Test_YDatasetPath = "Test_YDatasetPath";
+        sample.Train_XDatasetPath_InTargetFormat = "Train_XDatasetPath_InTargetFormat";
+        sample.Train_YDatasetPath_InTargetFormat = "Train_YDatasetPath_InTargetFormat";
+        sample.Validation_XDatasetPath_InTargetFormat = "Validation_XDatasetPath_InTargetFormat";
+        sample.Validation_YDatasetPath_InTargetFormat = "Validation_YDatasetPath_InTargetFormat";
+        sample.Test_XDatasetPath_InTargetFormat = "Test_XDatasetPath_InTargetFormat";
+        sample.Test_YDatasetPath_InTargetFormat = "Test_YDatasetPath_InTargetFormat";
 
         var sample_0_75_5 = sample.CopyWithNewPercentageInTrainingAndKFold(0.75, 5);
         Assert.AreEqual(0.5, sample.PercentageInTraining, 1e-6);
         Assert.AreEqual(3, sample.KFold, 1e-6);
         Assert.AreEqual(0.75, sample_0_75_5.PercentageInTraining, 1e-6);
         Assert.AreEqual(5, sample_0_75_5.KFold, 1e-6);
-        Assert.IsNull(sample_0_75_5.Train_XDatasetPath);
-        Assert.IsNull(sample_0_75_5.Train_YDatasetPath);
-        Assert.IsNull(sample_0_75_5.Validation_XDatasetPath);
-        Assert.IsNull(sample_0_75_5.Validation_YDatasetPath);
-        Assert.AreEqual("Test_XDatasetPath", sample_0_75_5.Test_XDatasetPath );
-        Assert.AreEqual("Test_YDatasetPath", sample_0_75_5.Test_YDatasetPath );
+        Assert.IsNull(sample_0_75_5.Train_XDatasetPath_InTargetFormat);
+        Assert.IsNull(sample_0_75_5.Train_YDatasetPath_InTargetFormat);
+        Assert.IsNull(sample_0_75_5.Validation_XDatasetPath_InTargetFormat);
+        Assert.IsNull(sample_0_75_5.Validation_YDatasetPath_InTargetFormat);
+        Assert.AreEqual("Test_XDatasetPath_InTargetFormat", sample_0_75_5.Test_XDatasetPath_InTargetFormat);
+        Assert.AreEqual("Test_YDatasetPath_InTargetFormat", sample_0_75_5.Test_YDatasetPath_InTargetFormat);
     }
 
 
@@ -62,18 +61,18 @@ public class TestISample
         var modelSample = new LightGBMSample();
         modelSample.bagging_seed = 666;
         var datasetSample = new TestClass();
-        datasetSample.Test_XDatasetPath = "a1";
-        datasetSample.Test_YDatasetPath = "a2";
+        datasetSample.Test_XDatasetPath_InTargetFormat = "a1";
+        datasetSample.Test_YDatasetPath_InTargetFormat = "a2";
         var original = ModelAndDatasetPredictionsSample.New(modelSample, datasetSample);
         var cloned = (ModelAndDatasetPredictionsSample) original.Clone();
         ((LightGBMSample)cloned.ModelSample).bagging_seed = 667;
-        cloned.DatasetSample.Test_XDatasetPath = "b1";
-        cloned.DatasetSample.Test_YDatasetPath = "b2";
+        cloned.DatasetSample.Test_XDatasetPath_InTargetFormat = "b1";
+        cloned.DatasetSample.Test_YDatasetPath_InTargetFormat = "b2";
         Assert.AreEqual(666, modelSample.bagging_seed);
         Assert.AreEqual(667, ((LightGBMSample)cloned.ModelSample).bagging_seed);
-        Assert.AreEqual("a1", datasetSample.Test_XDatasetPath);
-        Assert.AreEqual("b1", cloned.DatasetSample.Test_XDatasetPath);
-        Assert.AreEqual("a2", datasetSample.Test_YDatasetPath);
-        Assert.AreEqual("b2", cloned.DatasetSample.Test_YDatasetPath);
+        Assert.AreEqual("a1", datasetSample.Test_XDatasetPath_InTargetFormat);
+        Assert.AreEqual("b1", cloned.DatasetSample.Test_XDatasetPath_InTargetFormat);
+        Assert.AreEqual("a2", datasetSample.Test_YDatasetPath_InTargetFormat);
+        Assert.AreEqual("b2", cloned.DatasetSample.Test_YDatasetPath_InTargetFormat);
     }
 }

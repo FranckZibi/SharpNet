@@ -2695,5 +2695,25 @@ namespace SharpNet.CPU
             }
             System.IO.File.WriteAllText(filePath, sb.ToString());
         }
+
+        public CpuTensor<T> ApplyRowOrder(int[] newRowOrder)
+        {
+            Debug.Assert(Shape.Length == 2);
+            var newTensor = new CpuTensor<T>(Shape);
+
+            var oldTensorContent = ReadonlyContent;
+            var newTensorContent = newTensor.SpanContent;
+
+            for (int newRow = 0; newRow < newTensor.Shape[0]; ++newRow)
+            {
+                var oldRow = newRowOrder[newRow];
+                for (int col = 0; col < Shape[1]; ++col)
+                {
+                    newTensorContent[col+ newRow * Shape[1]] = oldTensorContent[col + oldRow*Shape[1]];
+                }
+                //RowSlice(oldRow, 1).CopyTo(newTensor.RowSlice(newRow, 1));
+            }
+            return newTensor;
+        }
     }
 }

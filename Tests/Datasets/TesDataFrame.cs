@@ -61,6 +61,39 @@ public class TesDataFrame
     }
 
     [Test]
+    public void Test_sort_values()
+    {
+        var floatTensor = CpuTensor<float>.New(new[] { 0.1f, 0.4f, 0.2f, 0.5f, 0.3f, 0.6f}, 2);
+        var stringTensor = CpuTensor<string>.New(new[] { "C", "A", "B" }, 1);
+        var df1 = DataFrame.New(floatTensor, stringTensor, null, new[] { "c0", "c1", "id" });
+
+        var df_id_ascending = df1.sort_values("id", ascending:true);
+        Assert.AreEqual(df_id_ascending.Columns, df1.Columns);
+        var expectedFloatTensor = new CpuTensor<float>(new[] { 3, 2 }, new[] { 0.2f, 0.5f, 0.3f, 0.6f, 0.1f, 0.4f });
+        Assert.IsTrue(TestTensor.SameContent(df_id_ascending.FloatTensor, expectedFloatTensor, 1e-5));
+        Assert.AreEqual(new[] { "A", "B", "C" }, df_id_ascending.StringColumnContent("id"));
+
+        var df_id_descending = df1.sort_values("id", ascending: false);
+        Assert.AreEqual(df_id_descending.Columns, df1.Columns);
+        expectedFloatTensor = new CpuTensor<float>(new[] { 3, 2 }, new[] { 0.1f, 0.4f, 0.3f, 0.6f, 0.2f, 0.5f });
+        Assert.IsTrue(TestTensor.SameContent(df_id_descending.FloatTensor, expectedFloatTensor, 1e-5));
+        Assert.AreEqual(new[] { "C", "B", "A" }, df_id_descending.StringColumnContent("id"));
+
+        var df_c1_ascending = df1.sort_values("c1", ascending:true);
+        Assert.AreEqual(df_c1_ascending.Columns, df1.Columns);
+        expectedFloatTensor = new CpuTensor<float>(new[] { 3, 2 }, new[] { 0.1f, 0.4f, 0.2f, 0.5f, 0.3f, 0.6f });
+        Assert.IsTrue(TestTensor.SameContent(df_c1_ascending.FloatTensor, expectedFloatTensor, 1e-5));
+        Assert.AreEqual(new[] { "C", "A", "B" }, df_c1_ascending.StringColumnContent("id"));
+
+        var df_c2_ascending = df1.sort_values("c1", ascending: false);
+        Assert.AreEqual(df_c2_ascending.Columns, df1.Columns);
+        expectedFloatTensor = new CpuTensor<float>(new[] { 3, 2 }, new[] { 0.3f, 0.6f, 0.2f, 0.5f, 0.1f, 0.4f});
+        Assert.IsTrue(TestTensor.SameContent(df_c2_ascending.FloatTensor, expectedFloatTensor, 1e-5));
+        Assert.AreEqual(new[] { "B", "A", "C" }, df_c2_ascending.StringColumnContent("id"));
+
+    }
+
+    [Test]
     public void TestLeftJoinWithoutDuplicatesStringType()
     {
         var leftFloatTensor = CpuTensor<float>.New(new[] { 7f, 5.0f, 6.0f, 0.4f, 0.2f, 0.3f, 0.3f, 0.1f, 0.2f, }, 3);

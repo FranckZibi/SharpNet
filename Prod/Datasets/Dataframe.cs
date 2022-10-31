@@ -739,6 +739,64 @@ public sealed class DataFrame
     }
 
 
+    public DataFrame sort_values(string columnName, bool ascending = true)
+    {
+        var colDesc = _columns.FirstOrDefault(c => c.Item1 == columnName);
+        if (colDesc == null)
+        {
+            throw new ArgumentException($"invalid column name {columnName}");
+        }
+
+        int[] orderedRows = null;
+        if (colDesc.Item2 == FLOAT_TYPE_IDX)
+        {
+            var floatSpan = _floatTensor.ReadonlyContent;
+            List<Tuple<int, float>> columnContent = new();
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                columnContent.Add(Tuple.Create(row, floatSpan[colDesc.Item3 + row * _floatTensor.Shape[1]]));
+            }
+            orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
+        }
+        else if (colDesc.Item2 == INT_TYPE_IDX)
+        {
+            var intSpan = _intTensor.ReadonlyContent;
+            List<Tuple<int, int>> columnContent = new();
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                columnContent.Add(Tuple.Create(row, intSpan[colDesc.Item3 + row * _intTensor.Shape[1]]));
+            }
+            orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
+        }
+        else if (colDesc.Item2 == STRING_TYPE_IDX)
+        {
+            var stringSpan = _stringTensor.ReadonlyContent;
+            List<Tuple<int, string>> columnContent = new();
+            for (int row = 0; row < Shape[0]; ++row)
+            {
+                columnContent.Add(Tuple.Create(row, stringSpan[colDesc.Item3 + row * _stringTensor.Shape[1]]));
+            }
+            orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
+        }
+        else 
+        {
+            throw new ArgumentException($"invalid tensor type {colDesc.Item2}");
+        }
+
+        if (!ascending)
+        {
+            Array.Reverse(orderedRows);
+        }
+
+        return new DataFrame(
+            _columns.ToList(),
+            _floatTensor?.ApplyRowOrder(orderedRows),
+            _stringTensor?.ApplyRowOrder(orderedRows),
+            _intTensor?.ApplyRowOrder(orderedRows)
+            );
+    }
+
+
     //public void ClearContent()
     //{
     //    SetContent(_floatTensor, 0.0f);

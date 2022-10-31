@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.IO;
 using SharpNet.CatBoost;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
@@ -36,7 +35,6 @@ public static class AmazonEmployeeAccessChallengeUtils
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new AmazonEmployeeAccessChallengeDatasetSample()), workingDirectory);
         IScore bestScoreSoFar = null;
-        var csvPath = Path.Combine(AmazonEmployeeAccessChallengeDatasetSample.DataDirectory, "Tests_" + NAME + ".csv");
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, csvPath, ref bestScoreSoFar));
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, ref bestScoreSoFar));
     }
 }

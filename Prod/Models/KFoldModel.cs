@@ -74,7 +74,7 @@ public class KFoldModel : Model
     //public static void TrainEmbeddedModelWithKFold(string kfoldModelWorkingDirectory, string embeddedModelAndDatasetPredictionsWorkingDirectory, string embeddedModelAndDatasetPredictionsName, int n_splits)
     //{
     //    var embeddedModelAndDatasetPredictions = ModelAndDatasetPredictions.Load(embeddedModelAndDatasetPredictionsWorkingDirectory, embeddedModelAndDatasetPredictionsName);
-    //    var datasetSample = embeddedModelAndDatasetPredictions.ModelAndDatasetPredictionsSample.DatasetSample;
+    //    var datasetSample = embeddedModelAndDatasetPredictions.DatasetSample;
 
     //    //We first train on part of training dataset, then on full training dataset
     //    foreach(var useFullTraining in new[]{false, true})
@@ -91,7 +91,7 @@ public class KFoldModel : Model
     //    }
     //}
 
-    public override (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath) 
+    public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
         Fit(DataSet trainDataset, DataSet nullValidationDataset)
     {
         if (nullValidationDataset != null)
@@ -103,8 +103,7 @@ public class KFoldModel : Model
         const bool overwriteIfExists = false;
         int n_splits = KFoldSample.n_splits;
         var foldedTrainAndValidationDataset = KFold(trainDataset, n_splits, KFoldSample.CountMustBeMultipleOf);
-
-        var train_XYDatasetPath = trainDataset.to_csv_in_directory(RootDatasetPath, true, includeIdColumns, overwriteIfExists);
+        var train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(RootDatasetPath, true, includeIdColumns, overwriteIfExists);
 
         for (int fold = 0; fold < n_splits; ++fold)
         {
@@ -117,7 +116,7 @@ public class KFoldModel : Model
             var foldValidationLoss = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat(fold_y_pred.Shape[1]).FloatCpuTensor(), fold_y_pred.FloatCpuTensor());
             LogDebug($"Validation Loss for fold[{fold}/{n_splits}] : {foldValidationLoss}");
         }
-        return (null, null, train_XYDatasetPath, null, null, train_XYDatasetPath);
+        return (null, null, train_XYDatasetPath_InTargetFormat, null, null, train_XYDatasetPath_InTargetFormat);
     }
 
     public (DataFrame trainPredictions_InTargetFormat, IScore trainRankingScore_InTargetFormat,
@@ -190,7 +189,7 @@ public class KFoldModel : Model
             validationPredictions_InModelFormat, validationLoss_InModelFormat);
     }
 
-    public override DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
+    public override (DataFrame, string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
     {
         CpuTensor<float> res = null;
         Debug.Assert(KFoldSample.n_splits == _embeddedModels.Count);
@@ -211,7 +210,7 @@ public class KFoldModel : Model
                 res.AddTensor(weight, modelPrediction.FloatCpuTensor(), 1.0f);
             }
         }
-        return DataFrame.New(res, columnNames);
+        return (DataFrame.New(res, columnNames), "");
     }
     public override void Save(string workingDirectory, string modelName)
     {
