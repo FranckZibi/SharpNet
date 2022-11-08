@@ -20,15 +20,16 @@ public class TesDatasetEncoder
         return DataFrame.New(content, new[] { "id", "num1", "num2", "cat2", "y" });
     }
 
-    [Test]
-    public void TestEncodingDecoding()
+    //[TestCase(true)]
+    [TestCase(false)]
+    public void TestEncodingDecoding(bool standardizeDoubleValues)
     {
         var testDatasetSample = new TestDatasetSample(new [] { "cat2" }, new[] { "id" }, new [] { "y" });
-        var encoder = new DatasetEncoder(testDatasetSample);
+        var encoder = new DatasetEncoder(testDatasetSample, standardizeDoubleValues);
 
         var df_raw = SimpleTestDataFrame();
-        var df_encoded = encoder.NumericalEncoding(df_raw);
-        var observedResult = encoder.NumericalDecoding(df_encoded, "NA" );
+        var df_encoded = encoder.Fit_Transform(df_raw);
+        var observedResult = encoder.Inverse_Transform(df_encoded, "NA" );
         Assert.AreEqual(df_raw.Columns, observedResult.Columns);
         Assert.AreEqual(observedResult.StringCpuTensor().Content.ToArray(), "12,NA,25,cat,1,13,1.5,1025,dog,0,14,NA,5555,,5".Split(","));
     }

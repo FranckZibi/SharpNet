@@ -25,8 +25,8 @@ namespace SharpNetTests
             var Y = GetY();
             var network = GetNetwork();
             network
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, true);
             var denseLayer = (DenseLayer)network.Layers[1];
             //We test the gradients computation for weights
@@ -44,8 +44,8 @@ namespace SharpNetTests
             network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, true);
             var convLayer = (ConvolutionLayer)network.Layers[1];
             //We test the gradients computation for weights
@@ -63,8 +63,8 @@ namespace SharpNetTests
             network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, 0.0, true )
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, 0.0, true ).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, true);
             var convLayer = (ConvolutionLayer)network.Layers[1];
             //We test the gradients computation for weights
@@ -81,8 +81,8 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .BatchNorm(1.0, 1e-5)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
+                .BatchNorm(1.0, 1e-5).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
             network.Predict(X, true);
             //n.SaveLayers();
             var batchNormLayer = (BatchNormalizationLayer)network.Layers[1];
@@ -175,7 +175,7 @@ namespace SharpNetTests
             return Network.NewForTests(new NetworkConfig
                 {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy, 
-                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, 
+                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow, 
                     WorkingDirectory = "",
                     ResourceIds = resourceIds.ToList()
                 }, 

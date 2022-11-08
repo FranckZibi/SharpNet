@@ -85,7 +85,6 @@ public class QRT72NetworkSample : NetworkSample
 
     public override void BuildNetwork(Network network)
     {
-        network.Description = Config.ModelName;
         //const cudnnActivationMode_t activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
         network.Input(QRT72Utils.D, -1, -1);
         //network.Dense(QRT72Utils.F, QRT72HyperParameters.lambdaL2Regularization_matrix, false, Optimizer.OptimizationEnum.VanillaSGD);

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
@@ -11,10 +10,9 @@ using SharpNet.Models;
 
 namespace SharpNet.Networks
 {
-    public class NetworkSample : MultiSamples, IModelSample
+    public abstract class NetworkSample : MultiSamples, IModelSample
     {
-
-        public NetworkSample(ISample[] samples) : base(samples)
+        protected NetworkSample(ISample[] samples) : base(samples)
         {
         }
 
@@ -23,7 +21,7 @@ namespace SharpNet.Networks
         {
             var newSamples = (ISample[])Samples.Clone();
             newSamples[0] = newConfig;
-            return new NetworkSample(newSamples);
+            return new TestNetworkSample(newSamples);
         }
 
         public NetworkConfig Config => (NetworkConfig)Samples[0];
@@ -67,28 +65,27 @@ namespace SharpNet.Networks
         {
             Config.ModelName = networkName + Config.ExtraDescription;
             var network = new Network(this, Config.WorkingDirectory, Config.ModelName);
-            network.Description = Config.ModelName;
             return network;
         }
 
 
         public virtual void BuildNetwork(Network network)
         {
-            network.Description = Config.ModelName;
+            throw new NotImplementedException();
         }
 
 
 
 
 
-        private static NetworkSample ValueOfNetworkSample(string workingDirectory, string modelName)
-        {
-            return new NetworkSample(new ISample[]
-            {
-                ISample.LoadSample<NetworkConfig>(workingDirectory, ISample.SampleName(modelName, 0)),
-                ISample.LoadSample<DataAugmentationSample>(workingDirectory, ISample.SampleName(modelName, 1)),
-            });
-        }
+        //private static NetworkSample ValueOfNetworkSample(string workingDirectory, string modelName)
+        //{
+        //    return new NetworkSample(new ISample[]
+        //    {
+        //        ISample.LoadSample<NetworkConfig>(workingDirectory, ISample.SampleName(modelName, 0)),
+        //        ISample.LoadSample<DataAugmentationSample>(workingDirectory, ISample.SampleName(modelName, 1)),
+        //    });
+        //}
 
         [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
         public static NetworkSample ValueOf(string workingDirectory, string modelName)
@@ -96,25 +93,8 @@ namespace SharpNet.Networks
             try { return EfficientNetSample.ValueOfEfficientNetSample(workingDirectory, modelName); } catch { }
             try { return Cfm60NetworkSample.ValueOfCfm60NetworkSample(workingDirectory, modelName); } catch { }
             try { return WideResNetSample.ValueOfWideResNetSample(workingDirectory, modelName); } catch { }
-            try { return ValueOfNetworkSample(workingDirectory, modelName); } catch { }
+            //try { return ValueOfNetworkSample(workingDirectory, modelName); } catch { }
             throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
-        }
-
-        public EvaluationMetricEnum GetMetric()
-        {
-            if (Config.Metrics.Any())
-            {
-                return Config.Metrics[0];
-            }
-            switch (Config.LossFunction)
-            {
-                case EvaluationMetricEnum.BinaryCrossentropy: return EvaluationMetricEnum.BinaryCrossentropy;
-                case EvaluationMetricEnum.CategoricalCrossentropy: return EvaluationMetricEnum.CategoricalCrossentropy;
-                case EvaluationMetricEnum.Mse: return EvaluationMetricEnum.Mse;
-                case EvaluationMetricEnum.Rmse: return EvaluationMetricEnum.Rmse;
-                case EvaluationMetricEnum.Mae: return EvaluationMetricEnum.Mae;
-                default: throw new NotImplementedException($"can't retrieve metric from {Config.LossFunction}");
-            }
         }
 
         public EvaluationMetricEnum GetLoss()

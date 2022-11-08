@@ -191,7 +191,8 @@ public class CFM60HyperParameters : AbstractSample
             network.Dropout(DropoutRate_After_EncoderDecoder);
         }
 
-        network.Dense_Activation(DenseUnits, network.Config.lambdaL2Regularization, true, ActivationFunctionAfterFirstDense);
+        network.Dense(DenseUnits, network.Config.lambdaL2Regularization, true)
+            .Activation(ActivationFunctionAfterFirstDense);
         network.Dense(1, network.Config.lambdaL2Regularization, true);
         network.Flatten();
 

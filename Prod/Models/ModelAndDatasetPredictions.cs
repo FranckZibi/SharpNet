@@ -54,7 +54,7 @@ public class ModelAndDatasetPredictions
     /// <returns>validation ranking score</returns>
     public IScore Fit(bool saveTrainValidAndTestsPredictions, bool computeValidationRankingScore, bool saveTrainedModel)
     {
-        using var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
+        var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
         var validationDataSet = trainingAndValidation.Test;
         var trainDataset = trainingAndValidation.Training;
         (DatasetSample.Train_XDatasetPath_InModelFormat, DatasetSample.Train_YDatasetPath_InModelFormat, DatasetSample.Train_XYDatasetPath_InModelFormat, 
@@ -159,7 +159,7 @@ public class ModelAndDatasetPredictions
             }
             SaveTestPredictionsInTargetFormat(testPredictionsInTargetFormat, testDatasetIfAny, testRankingScore);
             SaveTestPredictionsInModelFormat(testPredictionsInModelFormat, null);
-            testDatasetIfAny.Dispose();
+            //testDatasetIfAny.Dispose();
         }
         return (trainRankingScore_InTargetFormat, validationRankingScore_InTargetFormat);
     }

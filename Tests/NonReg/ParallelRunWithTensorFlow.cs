@@ -57,17 +57,17 @@ namespace SharpNetTests.NonReg
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredicted, 1e-5));
 
             //we save the network
-            network.Save(network.WorkingDirectory, network.DynamicModelName);
+            network.Save(network.WorkingDirectory, network.ModelName);
             network.Dispose();
 
             //we ensure that the saved version of the network behave the same as the original one
-            var networkFromSavedFile = Network.LoadTrainedNetworkModel(network.WorkingDirectory, network.DynamicModelName);
+            var networkFromSavedFile = Network.LoadTrainedNetworkModel(network.WorkingDirectory, network.ModelName);
             var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
 
-            var savedModelFile = Network.ToModelFilePath(network.WorkingDirectory, network.DynamicModelName);
+            var savedModelFile = Network.ToModelFilePath(network.WorkingDirectory, network.ModelName);
             File.Delete(savedModelFile);
-            var saveParametersFile = Network.ToParameterFilePath(network.WorkingDirectory, network.DynamicModelName);
+            var saveParametersFile = Network.ToParameterFilePath(network.WorkingDirectory, network.ModelName);
             File.Delete(saveParametersFile);
         }
 
@@ -84,7 +84,7 @@ namespace SharpNetTests.NonReg
             var networkBuilder = Yolov3NetSample.ValueOf(new List<int> { 0 });
             var network = networkBuilder.Build();
             //network.PropagationManager.LogPropagation = true; 
-            network.LoadParametersFromH5File(weightPath, NetworkConfig.CompatibilityModeEnum.TensorFlow2);
+            network.LoadParametersFromH5File(weightPath, NetworkConfig.CompatibilityModeEnum.TensorFlow);
 
             //var imagePaths = new DirectoryInfo(@"C:\Franck\Photos\2019\Madagascar").GetFiles("*.jpg").Select(f => f.FullName).ToList();
             var imagePaths = new List<string>{ @"C:\Projects\YOLOv3_TF2\data\images\test.jpg"};
@@ -234,14 +234,14 @@ namespace SharpNetTests.NonReg
             //var gpuDeviceId = -1;
             const int gpuDeviceId = 0;
 
-            var sample = new NetworkSample(new ISample[]
+            var sample = new TestNetworkSample(new ISample[]
             {
                 new NetworkConfig
                     {
                         ModelName = "TestParallelRunWithTensorFlow_Convolution",
                         LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                         RandomizeOrder = false,
-                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                         ResourceIds = new List<int> { gpuDeviceId }
                     }
                     .WithSGD(momentum, false),
@@ -255,8 +255,8 @@ namespace SharpNetTests.NonReg
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
                 .GlobalAvgPooling()
                 .MultiplyLayer(1, 3)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
 
             Log.Info(network.Summary() + Environment.NewLine);
@@ -310,7 +310,7 @@ namespace SharpNetTests.NonReg
                             ModelName = "TestParallelRunWithTensorFlow_Convolution",
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { gpuDeviceId }
                         }
                        .WithSGD(momentum, false),
@@ -321,8 +321,8 @@ namespace SharpNetTests.NonReg
                 .Conv1D(2, 3, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Conv1D(2, 3, 2, ConvolutionLayer.PADDING_TYPE.CAUSAL, lambdaL2Regularization, true)
                 .Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             Log.Info(network.Summary() + Environment.NewLine);
 
@@ -383,7 +383,7 @@ namespace SharpNetTests.NonReg
                             ModelName = "Embedding",
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
@@ -452,7 +452,7 @@ namespace SharpNetTests.NonReg
                 ModelName = "Embedding_3D",
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = false,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
 
@@ -525,7 +525,7 @@ namespace SharpNetTests.NonReg
                 ModelName = "Embedding_GlobalPooling",
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = false,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
 
@@ -634,7 +634,7 @@ namespace SharpNetTests.NonReg
                 ModelName = "TestParallelRunWithTensorFlow_Sarcasm",
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = true,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
 
@@ -704,7 +704,7 @@ namespace SharpNetTests.NonReg
                             ModelName = "TestParallelRunWithTensorFlow_DownSampling2D",
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
                             ResourceIds = new List<int> { gpuDeviceId }
                         }
@@ -719,8 +719,8 @@ namespace SharpNetTests.NonReg
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(4,1,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .UpSampling2D(3,2,UpSampling2DLayer.InterpolationEnum.Nearest)
-                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             network.PropagationManager.LogPropagation = true;
 
@@ -777,7 +777,7 @@ namespace SharpNetTests.NonReg
                             LossFunction = EvaluationMetricEnum.Huber,
                             //LossFunction = LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
@@ -850,7 +850,7 @@ namespace SharpNetTests.NonReg
                             ModelName = "Mse",
                             LossFunction = EvaluationMetricEnum.Mse,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> {EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
@@ -961,7 +961,7 @@ namespace SharpNetTests.NonReg
                             ModelName = "GRU",
                             LossFunction = EvaluationMetricEnum.Huber,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Huber, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
@@ -1086,7 +1086,7 @@ namespace SharpNetTests.NonReg
                         ModelName = "TimeSeries",
                         LossFunction = EvaluationMetricEnum.Mse,
                         RandomizeOrder = shuffle,
-                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                         Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae },
                         ResourceIds = new List<int> { deviceId }
                     }
@@ -1169,7 +1169,7 @@ namespace SharpNetTests.NonReg
                             ModelName = "IMDB",
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                             RandomizeOrder = shuffle,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.BinaryCrossentropy, EvaluationMetricEnum.Accuracy},
                             ResourceIds = new List<int> { deviceId }
                         }
@@ -1184,10 +1184,10 @@ namespace SharpNetTests.NonReg
             network.Input(maxWordsBySentence, -1, -1)
                 .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, lambdaL2Regularization)
                 .Dropout(0.2)
-                .LSTM(32, false, isBidirectional, 1, 0.0, false)
-                .Dense_Activation(256, lambdaL2Regularization, true, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dropout(0.2)
-                .Dense_Activation(1, lambdaL2Regularization, true, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)
+                .LSTM(32, false, isBidirectional, 1, 0.0, false).Dense(256, lambdaL2Regularization, true)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dropout(0.2).Dense(1, lambdaL2Regularization, true)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)
                 ;
 
             Log.Info(network.Summary() + Environment.NewLine);

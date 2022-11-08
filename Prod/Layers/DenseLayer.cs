@@ -12,19 +12,22 @@ namespace SharpNet.Layers
 {
     /// <summary>
     /// input shape :
-    ///     (batchSize, ..., n_x)
+    ///     (batchSize, a, b, ... y, z)
     /// output shape :
-    ///     (batchSize, ..., units)                 if flattenInputTensorOnLastDimension == true
+    ///     (batchSize, a, b, ... y, units)         if flattenInputTensorOnLastDimension == true
     ///     (batchSize, units)                      if flattenInputTensorOnLastDimension == false
     /// </summary>
+
     public sealed class DenseLayer : Layer
     {
         #region Private fields
         #region trainable parameters
         /// <summary>
-        /// shape: 
-        ///    (prevLayerOutputShape[last], units)      if _flattenInputTensorOnLastDimension == true
-        ///    (PrevLayer.n_x, units)                   if _flattenInputTensorOnLastDimension == false
+        /// if input shape is:
+        ///     (batchSize, a, b, ... y, z)
+        /// weights shape will be : 
+        ///    (z, units)                           if _flattenInputTensorOnLastDimension == true
+        ///    (a*b*...*y*z, units)                 if _flattenInputTensorOnLastDimension == false
         /// </summary>
         [NotNull] private Tensor _weights;
         /// <summary>
@@ -219,13 +222,19 @@ namespace SharpNet.Layers
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             //trainable params
-            _weights.NormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+            _weights.GlorotUniform(Rand);
+            //!D TO TEST:
+            //_weights.PytorchUniform(Rand);
+            //_weights.NormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
+
             if (_optimizer.IsOrthogonal)
             {
                 _weights.Orthogonal(Rand);
             }
 
             _bias?.ZeroMemory();
+            //!D TO TEST:
+            //_bias?.PytorchUniform(Rand);
 
             if (resetAlsoOptimizerWeights)
             {
@@ -282,7 +291,7 @@ namespace SharpNet.Layers
             {
                 // ReSharper disable once PossibleNullReferenceException
                 result.Add(BiasDatasetPath, _bias.ToCpuFloat());
-                if (originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
+                if (originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow)
                 {
                     // ReSharper disable once PossibleNullReferenceException
                     Debug.Assert(_bias.Count == _bias.Shape[1]);

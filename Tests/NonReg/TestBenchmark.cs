@@ -297,12 +297,10 @@ namespace SharpNetTests.NonReg
                 .MaxPooling(2, 2, 2, 2)
 
                 .Convolution(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU).Dense(1000, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-
-                .Dense_Activation(1000, 0.0, false, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dropout(0.2)
-
-                .Output(MnistDataset.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Dropout(0.2).Dense(MnistDataset.CategoryCount, 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
             network.Fit(mnist.Training, mnist.Test);

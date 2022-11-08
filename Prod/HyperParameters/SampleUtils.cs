@@ -13,7 +13,7 @@ public static class SampleUtils
 {
 
 
-    public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO([NotNull] AbstractDatasetSample datasetSample, [NotNull] string workingDirectory, int min_num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
+    public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO([NotNull] AbstractDatasetSample datasetSample, [NotNull] string workingDirectory, int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
@@ -30,12 +30,12 @@ public static class SampleUtils
 
             //related to LightGBM model
             //{ "num_iterations", AbstractHyperParameterSearchSpace.Range(min_num_iterations, 3*min_num_iterations) },
-            { "num_iterations", min_num_iterations },
+            { "num_iterations", num_iterations },
             { "verbosity", "0" },
             { "num_threads", 1 },
             { "learning_rate", AbstractHyperParameterSearchSpace.Range(0.01f, 0.2f) },
             { "extra_trees", false },
-            { "early_stopping_round", min_num_iterations / 10 },
+            { "early_stopping_round", num_iterations / 10 },
             { "bagging_fraction", new[] { 0.9f, 1.0f } },
             { "bagging_freq", new[] { 0, 1 } },
             { "colsample_bytree", AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f) },
@@ -100,7 +100,7 @@ public static class SampleUtils
             bestScoreSoFar = validationRankingScore;
             if (datasetSample.MinimumScoreToSaveModel == null || bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
             {
-                using var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
+                var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
                 modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
                 modelAndDataset.Save(workingDirectory, model.ModelName);
                 var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);

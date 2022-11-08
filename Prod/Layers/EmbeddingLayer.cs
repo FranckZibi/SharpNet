@@ -12,13 +12,16 @@ namespace SharpNet.Layers;
 
 /// <summary>
 /// This layer can only be used as the second layer in a model (the first layer being the InputLayer).
-/// input 'x' shape :
-///     (batchSize, timeSteps)
-///     or
-///     (batchSize, timeSteps, input_length)
-/// output 'y' shape :
-///     (batchSize, timeSteps, EmbeddingDim)                if 'x' shape is (batchSize, timeSteps)
-///     (batchSize, timeSteps, input_length+EmbeddingDim-1) if 'x' shape is (batchSize, timeSteps, input_length)
+/// 
+/// =======================================================================================================
+/// input 'x' shape                                     output 'y' shape
+/// =======================================================================================================
+/// (batchSize, timeSteps)                              (batchSize, timeSteps, EmbeddingDim)
+/// =======================================================================================================
+/// (batchSize, input_length)                           (batchSize, input_length+EmbeddingDim-1)
+/// =======================================================================================================
+/// (batchSize, timeSteps, input_length)                (batchSize, timeSteps, input_length+EmbeddingDim-1)
+/// =======================================================================================================
 /// </summary>
 public sealed class EmbeddingLayer : Layer
 {
@@ -127,14 +130,38 @@ public sealed class EmbeddingLayer : Layer
     #region forward and backward propagation
     public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
     {
+        ++NbForwardPropagation;
         Debug.Assert(allX.Count == 1);
         var x = allX[0];
         Debug.Assert(x.Shape[0] == y.Shape[0]); //same batchSize
-        Debug.Assert(x.Shape[1] == y.Shape[1]); //same timeSteps
+        Debug.Assert(y.Shape.Length != 3 || x.Shape[1] == y.Shape[1]); //same timeSteps
+        Debug.Assert(!ShouldEmbedEachElementOfLastDimension || x.Shape[1] == y.Shape[1]); //same timeSteps
         int deltaForIndexesInLastDimensionToUse = 0;
         var allWeights = Split(_weights);
 
+        var xOriginalShape = (int[])x.Shape.Clone();
+        var yOriginalShape = (int[])y.Shape.Clone();
+
+        // we'll ensure that in all cases:
+        //  the x shape is (batchSize, timeSteps, input_length)
+        //  the y shape is (batchSize, timeSteps, input_length+EmbeddingDim-1)
         if (x.Shape.Length == 2)
+        {
+            if (ShouldEmbedEachElementOfLastDimension)
+            {
+                //x shape from (batchSize, timeSteps) to (batchSize, timeSteps, 1)
+                x.ReshapeInPlace(new [] { x.Shape[0], x.Shape[1], 1});
+            }
+            else
+            {
+                //x shape from (batchSize, input_length) to (batchSize, 1, input_length)
+                x.ReshapeInPlace(new [] { x.Shape[0], 1, x.Shape[1] });
+                //y shape from (batchSize, input_length+EmbeddingDim-1) to (batchSize, 1, input_length+EmbeddingDim-1)
+                y.ReshapeInPlace(new [] { y.Shape[0], 1, y.Shape[1] });
+            }
+        }
+
+        if (ShouldEmbedEachElementOfLastDimension)
         {
             Debug.Assert(allWeights.Count == 1);
             y.WordEmbeddingForwardPropagation(x, allWeights[0], 0, 0, 0, 0);
@@ -150,9 +177,12 @@ public sealed class EmbeddingLayer : Layer
                 deltaForIndexesInLastDimensionToUse += allWeights[i].Shape[1] - 1;
             }
         }
+
+        x.ReshapeInPlace(xOriginalShape);
+        y.ReshapeInPlace(yOriginalShape);
     }
 
-    private List<Tensor> Split(Tensor w)
+    public List<Tensor> Split(Tensor w)
     {
         var res = new List<Tensor>();
         int nextIdxInWeights = 0;
@@ -164,6 +194,11 @@ public sealed class EmbeddingLayer : Layer
         }
         return res;
     }
+
+
+    public int NbForwardPropagation = 0;
+
+    private bool ShouldEmbedEachElementOfLastDimension => _embeddingDescriptions[0].indexInLastDimensionToUse == -1;
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
     {
@@ -177,7 +212,33 @@ public sealed class EmbeddingLayer : Layer
         int deltaForIndexesInLastDimensionToUse = 0;
         var allWeightGradients = Split(_weightGradients);
 
+
+        var xOriginalShape = (int[])x.Shape.Clone();
+        var dxOriginalShape = (int[])dx.Shape.Clone();
+        var dyOriginalShape = (int[])dy.Shape.Clone();
+
+        // we'll ensure that in all cases:
+        //  the x shape is (batchSize, timeSteps, input_length)
+        //  the y shape is (batchSize, timeSteps, input_length+EmbeddingDim-1)
         if (x.Shape.Length == 2)
+        {
+            if (ShouldEmbedEachElementOfLastDimension)
+            {
+                //x shape from (batchSize, timeSteps) to (batchSize, timeSteps, 1)
+                x.ReshapeInPlace(new[] { x.Shape[0], x.Shape[1], 1 });
+                dx.ReshapeInPlace(x.Shape);
+            }
+            else
+            {
+                //x shape from (batchSize, input_length) to (batchSize, 1, input_length)
+                x.ReshapeInPlace(new[] { x.Shape[0], 1, x.Shape[1] });
+                dx.ReshapeInPlace(x.Shape);
+                //dy shape from (batchSize, input_length+EmbeddingDim-1) to (batchSize, 1, input_length+EmbeddingDim-1)
+                dy.ReshapeInPlace(new[] { dy.Shape[0], 1, dy.Shape[1] });
+            }
+        }
+
+        if (ShouldEmbedEachElementOfLastDimension)
         {
             Debug.Assert(allWeightGradients.Count == 1);
             allWeightGradients[0].WordEmbeddingBackwardPropagation(x, dx, dy, 0, 0, 0, 0);
@@ -194,12 +255,16 @@ public sealed class EmbeddingLayer : Layer
             }
         }
 
+        x.ReshapeInPlace(xOriginalShape);
+        dx.ReshapeInPlace(dxOriginalShape);
+        dy.ReshapeInPlace(dyOriginalShape);
 
         if (DivideGradientsByTimeSteps)
         {
             int timeSteps = x.Shape[1];
             _weightGradients.Update_Multiplying_By_Alpha(1f/ timeSteps);
         }
+
         if (ClipValueForGradients > 1e-6)
         {
             _weightGradients.Clip(-ClipValueForGradients, ClipValueForGradients);
@@ -315,17 +380,20 @@ public sealed class EmbeddingLayer : Layer
     public override int[] OutputShape(int batchSize)
     {
         var prevLayerOutputShape = PrevLayer.OutputShape(batchSize);
-        var timeSteps = prevLayerOutputShape[1];
-        if (IndexesInLastDimensionToUse[0] == -1)
+        var outputShape = (int[])prevLayerOutputShape.Clone();
+        outputShape[0] = batchSize;
+        if (ShouldEmbedEachElementOfLastDimension)
         {
             Debug.Assert(IndexesInLastDimensionToUse.Length == 1);
-            Debug.Assert(prevLayerOutputShape.Length == 2);
-            return new[] {batchSize, timeSteps, EmbeddingDims[0] };
+            //Debug.Assert(prevLayerOutputShape.Length == 2);
+            outputShape = outputShape.Append(EmbeddingDims[0]).ToArray();
+            return outputShape;
         }
         else
         {
-            Debug.Assert(prevLayerOutputShape.Length == 3);
-            return new[] { batchSize, timeSteps, prevLayerOutputShape[2]+EmbeddingDims.Sum()-EmbeddingDims.Length};
+            //Debug.Assert(prevLayerOutputShape.Length == 3);
+            outputShape[^1] += EmbeddingDims.Sum() - EmbeddingDims.Length;
+            return outputShape;
         }
     }
     public override string ToString()

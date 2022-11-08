@@ -18,39 +18,6 @@ namespace SharpNet.HPO
         private readonly InMemoryDataSet InferenceDataSet;
         #endregion
 
-
-
-        // ReSharper disable once UnusedMember.Global
-        public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(bool use_features_in_secondary, int cv, int min_num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
-        {
-            var modelName = new[]
-            {
-                "316CF95B15_KFOLD",
-                "B63953F624_KFOLD",
-                "6034138E35_KFOLD",
-                "F867A78F52_KFOLD",
-
-
-                //"3580990008_KFOLD",
-                //"395B343296_KFOLD",
-                //"48F31E6543_KFOLD",
-                //"56E668E7DB_KFOLD",
-                //"66B4F3653A_KFOLD",
-                //"8CF93D9FA0_KFOLD",
-                //"90840F212D_KFOLD",
-                //"90DAFFB8FC_KFOLD",
-                //"E72AD5B74B_KFOLD"
-            };
-
-            var workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\";
-            var workingDirectoryAndModelNames = modelName.Select(m => Tuple.Create(workingDirectory, m, m + "_FULL")).ToList();
-            var datasetSample = New(workingDirectoryAndModelNames, workingDirectory, use_features_in_secondary, cv);
-
-            return SampleUtils.LaunchLightGBMHPO(datasetSample, Path.Combine(workingDirectory, "hpo"), min_num_iterations, maxAllowedSecondsForAllComputation);
-        }
-
-
-
         #region constructor
 
         // ReSharper disable once UnusedMember.Global
@@ -73,7 +40,7 @@ namespace SharpNet.HPO
             }
         }
 
-        private static StackingCVClassifierDatasetSample New(IReadOnlyList<Tuple<string, string, string>> workingDirectoryAndModelNames, [NotNull] string workingDirectory, bool use_features_in_secondary, int cv)
+        public static StackingCVClassifierDatasetSample New(IReadOnlyList<Tuple<string, string, string>> workingDirectoryAndModelNames, [NotNull] string workingDirectory, bool use_features_in_secondary = true, int cv = 2)
         {
             List<DataFrame> y_preds_for_training_InModelFormat = new();
             List<DataFrame> y_preds_for_inference_InModelFormat = new();
@@ -128,13 +95,6 @@ namespace SharpNet.HPO
                     y_true_training_InTargetFormat = validationDataset.Y_InTargetFormat().FloatCpuTensor();
                 }
             }
-
-            //Debug.Assert(_perfectValidationPredictions_InTargetFormat != null);
-
-            //we load the train predictions done by the source models (if any)
-            //_y_preds_train_InModelFormat.RemoveAll(t => t == null);
-            //Debug.Assert(_y_preds_train_InModelFormat.Count == 0 || _y_preds_train_InModelFormat.Count == _y_preds_valid_InModelFormat.Count);
-            //Debug.Assert(SameShape(_y_preds_train_InModelFormat));
 
             //we load the validation predictions done by the source models
             y_preds_for_training_InModelFormat.RemoveAll(t => t == null);

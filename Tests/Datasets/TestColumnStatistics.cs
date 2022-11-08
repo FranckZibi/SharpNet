@@ -5,7 +5,7 @@ using SharpNet.Datasets;
 namespace SharpNetTests.Datasets;
 
 [TestFixture]
-public class TestFeatureStats
+public class TestColumnStatistics
 {
     [TestCase("0", 0.0)]
     [TestCase("-12.3456", -12.3456)]
@@ -30,13 +30,14 @@ public class TestFeatureStats
         Assert.AreEqual(expectedDoubleValue, observedExtractedValue, 1e-6);
     }
 
-    [Test]
-    public void TestProperties()
+    [TestCase(true)]
+    [TestCase(false)]
+    public void TestProperties(bool standardizeDoubleValues)
     {
         var testDatasetSample = new TesDatasetEncoder.TestDatasetSample(new [] { "cat2", "id" }, new[] { "id" }, new[] { "y" });
-        var encoder = new DatasetEncoder(testDatasetSample);
+        var encoder = new DatasetEncoder(testDatasetSample, standardizeDoubleValues);
         var rows = TesDatasetEncoder.SimpleTestDataFrame();
-        encoder.NumericalEncoding(rows);
+        encoder.Fit(rows);
 
         var idStats = encoder["id"];
         Assert.AreEqual(3, idStats.Count);

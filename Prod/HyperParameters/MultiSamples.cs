@@ -17,6 +17,9 @@ public abstract class MultiSamples : ISample
     }
     #endregion
 
+
+    public bool UseGPU => Samples.Any(s => s.UseGPU);
+
     public void Save(string workingDirectory, string modelName)
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)

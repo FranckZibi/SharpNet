@@ -27,19 +27,13 @@ namespace SharpNet.Data
         {
             Debug.Assert(shape.Length >= 1);
             Debug.Assert(shape.Length <= 4);
-            Debug.Assert(shape.Min() >= 1);
+            Debug.Assert(shape.Min() >= 0);
             Shape = shape;
             UseGPU = useGpu;
             TypeSize = typeSize;
             RecomputeMultDim();
         }
         #endregion
-
-
-        public static bool SameShape(IList<Tensor> tensors)
-        {
-            return tensors.All(t => t.Shape.SequenceEqual(tensors[0].Shape));
-        }
         public bool SameShape(params Tensor[] b) { return b.Where(x=>x!=null).All(SameShape); }
         public bool SameShape(Tensor b) {return SameShape(b.Shape);}
         protected bool SameShape(int[] shape) { return Shape.SequenceEqual(shape); }
@@ -133,13 +127,10 @@ namespace SharpNet.Data
 
         /// <summary>
         /// this (= 'y') shape :
-        ///      (batchSize, timeSteps, embeddingDim)                if 'x' shape = (batchSize, timeSteps)
-        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if 'x' shape = (batchSize, timeSteps, inputSize)
+        ///      (batchSize, timeSteps, outputSize)
         /// </summary>
         /// <param name="x">
         /// 'x' shape:
-        ///      (batchSize, timeSteps)
-        ///      or 
         ///      (batchSize, timeSteps, inputSize)
         /// </param>
         /// <param name="wordEmbedding">
@@ -164,8 +155,6 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="x">
         /// 'x' shape:
-        ///      (batchSize, timeSteps)
-        ///      or
         ///      (batchSize, timeSteps, inputSize)
         /// </param>
         /// <param name="dx">gradient of input 'x'
@@ -173,8 +162,7 @@ namespace SharpNet.Data
         /// </param>
         /// <param name="dy">
         /// 'dy' shape:
-        ///      (batchSize, timeSteps, embeddingDim)                if 'x' shape = (batchSize, timeSteps)
-        ///      (batchSize, timeSteps, inputSize+embeddingDim-1)    if 'x' shape = (batchSize, timeSteps, inputSize)
+        ///      (batchSize, timeSteps, outputShape)
         /// </param>
         /// <param name="dxIndexInLastDimensionToUse">the index in the last dimension of the 'x' tensor that contains the wordIndex that was embedded</param>
         /// <param name="dyIndexInLastDimensionToUse">the index in the last dimension of the 'dy' tensor that contains the gradient of the embedding associated with the wordIndex above </param>
@@ -929,9 +917,16 @@ namespace SharpNet.Data
         {
             int fanIn = Shape[0];  //number of input units in the weight tensor
             int fanOut = MultDim0; //number of output units in the weight tensor
-            NormalDistribution(rand, 0, Math.Sqrt(6.0 / (fanIn + fanOut)));
+            var limit = Math.Sqrt(6.0 / (fanIn + fanOut));
+            UniformDistribution(rand, -limit, limit);
         }
 
+        public void PytorchUniform(Random rand)
+        {
+            int fanIn = Shape[0];  //number of input units in the weight tensor
+            var limit = Math.Sqrt(1.0 / (fanIn));
+            UniformDistribution(rand, -limit, limit);
+        }
         /// <summary>
         /// set the same value 'sameValue' in the entire tensor
         /// </summary>
@@ -962,6 +957,16 @@ namespace SharpNet.Data
             _multDim2 = Shape.Length >= 4 ? Shape[3] : 1;
             MultDim1 = Shape.Length >= 3 ? Shape[2] * _multDim2  : 1;
             MultDim0 = Shape.Length >= 2 ? Shape[1] * MultDim1 : 1;
+        }
+
+        public void ReshapeInPlace(int[] newShapeOfSameCount)
+        {
+            if (Utils.Product(newShapeOfSameCount) != Utils.Product(Shape))
+            {
+                throw new ArgumentException($"new shape and previous shape must have same count {ShapeToString(Shape)} vs {ShapeToString(newShapeOfSameCount)}");
+            }
+            Shape = newShapeOfSameCount;
+            RecomputeMultDim();
         }
 
         private bool IsCompatible(Tensor a)

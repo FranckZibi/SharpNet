@@ -224,7 +224,7 @@ namespace SharpNet.Networks
                         break;
                     case SLAVE_NETWORK_STATUS.TO_ABORT:
                         slave._spInternalFit.Stop();
-                        LogDebug("stopping thread for network " + slave.Description);
+                        LogDebug("stopping thread for network " + slave.ModelName);
                         LogDebug(slave.MemoryInfo());
                         LogDebug(slave.LayersKpi());
                         slave.Dispose();

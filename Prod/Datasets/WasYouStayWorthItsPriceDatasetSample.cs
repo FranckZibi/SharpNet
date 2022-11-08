@@ -7,6 +7,7 @@ using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.Models;
+using SharpNet.Networks;
 using SharpNet.TextPreprocessing;
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -61,34 +62,33 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
     }
 
+    public bool StandardizeDoubleValues = false;
+
     private WasYouStayWorthItsPriceDatasetSample() : base(new HashSet<string>())
     {
-        //var s2 = Stopwatch.StartNew();
         lock (LockObject)
         {
             if (_trainTestEncoder == null)
             {
-                _trainTestEncoder = new DatasetEncoder(this);
-                _fullTrainDatasetEncoded = _trainTestEncoder.NumericalEncoding(XYTrainRawFile);
-                _fullTestDatasetEncoded = _trainTestEncoder.NumericalEncoding(XTestRawFile, null);
+                _trainTestEncoder = new DatasetEncoder(this, StandardizeDoubleValues);
+                var xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile);
+                //var xytrain_string_df = DataFrame.read_string_csv(RawTrainFile);
+                _trainTestEncoder.Fit(xytrain_string_df);
+                var xtest_string_df = DataFrame.read_string_csv(XTestRawFile);
+                //var xtest_string_df = DataFrame.read_string_csv(RawTestFile);
+                _trainTestEncoder.Fit(xtest_string_df);
+
+                _fullTrainDatasetEncoded = _trainTestEncoder.Transform_XYDataset(xytrain_string_df);
+                _fullTestDatasetEncoded = _trainTestEncoder.Transform_X_and_Y_Dataset(xtest_string_df, null);
             }
-            WasYouStayWorthItsPriceDatasetSample_NumClasses = _trainTestEncoder.NumClasses();
         }
-
-
-        //_fullTrainDatasetEncoded.to_csv(@"C:\Projects\Challenges\WasYouStayWorthItsPrice\yx_train.csv", GetSeparator(), true, true);
-        //_fullTestDatasetEncoded.to_csv(@"C:\Projects\Challenges\WasYouStayWorthItsPrice\x_test.csv", GetSeparator(), false, true);
-
-        //_reviewsEncoder = new DatasetEncoder(new List<string>{"id", "listing_id", "renters_comments"}, new List<string>{"id"}, new List<string>());
-        //_reviewEncoded = _reviewsEncoder.NumericalEncoding(ReviewsRawFile);
-        //_xTrainEncoded.T
     }
 
     #region Hyper-Parameters
     // ReSharper disable once UnusedMember.Global
     // ReSharper disable once MemberCanBePrivate.Global
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public int WasYouStayWorthItsPriceDatasetSample_NumClasses;
+    public string WasYouStayWorthItsPriceDatasetSample_Version = "v1";
     /// <summary>
     /// the embedding dim to use to enrich the dataset with the reviews
     /// </summary>
@@ -97,39 +97,62 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
     #endregion
 
-    public override int NumClass => WasYouStayWorthItsPriceDatasetSample_NumClasses;
+    public override int NumClass => 7;
 
 
     // ReSharper disable once UnusedMember.Global
-    //public static void WeightOptimizer()
-    //{
-    //    const string submissionWorkingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission2";
-    //    List<Tuple<string, string, string>> workingDirectoryAndModelNames = new()
-    //    {
-    //        //Tuple.Create(submissionWorkingDirectory, "3580990008"),
-    //        //Tuple.Create(submissionWorkingDirectory, "48F31E6543"),
-    //        //Tuple.Create(submissionWorkingDirectory, "56E668E7DB"),
-    //        //Tuple.Create(submissionWorkingDirectory, "8CF93D9FA0"),
-    //        //Tuple.Create(submissionWorkingDirectory, "90840F212D"),
-    //        //Tuple.Create(submissionWorkingDirectory, "E72AD5B74B"),
-    //        //Tuple.Create(submissionWorkingDirectory, "66B4F3653A"),
-    //        //Tuple.Create(submissionWorkingDirectory, "395B343296"),
+    public static void TrainNetwork()
+    {
+
+        var datasetSample = new WasYouStayWorthItsPriceDatasetSample();
+        var networkSample = InMemoryDataSetV2NetworkSample.New(datasetSample.FullTrainingAndValidation());
+        //var networkSampleV2 = networkSample.Clone();
+        //var network = new Network(networkSample, WorkingDirectory, NAME);
+        //var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
+        //network.Fit(trainAndValidation.Training, trainAndValidation.Test);
 
 
-        //        Tuple.Create(submissionWorkingDirectory, "3580990008_KFOLD", "3580990008_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "395B343296_KFOLD", "395B343296_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "48F31E6543_KFOLD", "48F31E6543_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "56E668E7DB_KFOLD", "56E668E7DB_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "66B4F3653A_KFOLD", "66B4F3653A_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "8CF93D9FA0_KFOLD", "8CF93D9FA0_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "90840F212D_KFOLD", "90840F212D_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "90DAFFB8FC_KFOLD", "90DAFFB8FC_KFOLD_FULL"),
-        //        Tuple.Create(submissionWorkingDirectory, "E72AD5B74B_KFOLD", "E72AD5B74B_KFOLD_FULL"),
-        //    };
-        //    var searchWorkingDirectory = Path.Combine(submissionWorkingDirectory, "search");
-        //    WeightsOptimizer.SearchForBestWeights(workingDirectoryAndModelNames, searchWorkingDirectory, null);
-        //}
-        // ReSharper disable once UnusedMember.Global
+        var searchSpace = new Dictionary<string, object>
+        {
+            {"KFold", 2},
+            //{"PercentageInTraining", new[]{0.8}},
+
+            {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-6f, 1f, AbstractHyperParameterSearchSpace.range_type.normal)},
+            //{"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-3f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
+
+            {"Reviews_EmbeddingDim", new[]{200}},
+            //{"Reviews_EmbeddingDim", new[]{0, 100, 200}},
+            
+            // Optimizer 
+            {"OptimizerType", new[]{"AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ }},
+            {"AdamW_L2Regularization", new[]{1e-5, 1e-4, 1e-3, 1e-2, 1e-1}},
+            {"SGD_usenesterov", new[]{true, false}},
+            {"lambdaL2Regularization", new[]{0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1}},
+
+            // Learning Rate Scheduler
+            {"LearningRateSchedulerType", new[]{ "CyclicCosineAnnealing", "OneCycle", "Linear"}},
+            
+            { "DefaultEmbeddingDim", new[]{0, 4, 8 ,12}},
+            
+            //{"weight_norm", new[]{true, false}},
+            //{"leaky_relu", new[]{true, false}},
+
+            {"dropout_top", new[]{0, 0.1, 0.2}},
+            {"dropout_mid", new[]{0, 0.3, 0.5}},
+            {"dropout_bottom", new[]{0, 0.2, 0.4}},
+            
+            {"BatchSize", new []{256, 512, 1024, 2048}},
+            
+            {"NumEpochs", new[]{15}},
+        };
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New((InMemoryDataSetV2NetworkSample)networkSample.Clone(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar));
+    }
+
+
+    // ReSharper disable once UnusedMember.Global
     public static void LaunchCatBoostHPO()
     {
         // ReSharper disable once ConvertToConstant.Local
@@ -162,14 +185,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     }
 
 
-    public static void ComputeAndSaveFeatureImportance()
-    {
-        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
-        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
-        var m = ModelAndDatasetPredictions.Load(WorkingDirectory, "CF1B33A251");
-        m.ComputeAndSaveFeatureImportance();
-        return;
-    }
 
     public const string FILE_EXT = "_tfidf_l2_norm_scikit_stem_allstopwords.csv";
 
@@ -182,7 +197,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //related to Dataset 
             {"Reviews_EmbeddingDim", 200},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-            {"KFold", new[]{2}},
+            //!D {"KFold", new[]{2}},
             
 
             {"boosting", new []{"gbdt", "dart"}},
@@ -232,18 +247,12 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
     public override string[] IdColumns => new [] { "id" };
     public override string[] TargetLabels => new[] { "max_rating_class" };
-    
-    public override DataSet TestDataset()
-    {
-        return SelectFeatures(_fullTestDatasetEncoded);
-    }
 
-    public override DataSet FullTrainingAndValidation()
-    {
-        return SelectFeatures(_fullTrainDatasetEncoded);
-    }
+    public override DataSet TestDataset() => SelectFeatures(_fullTestDatasetEncoded);
 
-    protected override DatasetEncoder DatasetEncoder => _trainTestEncoder;
+    public override InMemoryDataSetV2 FullTrainingAndValidation() => SelectFeatures(_fullTrainDatasetEncoded);
+
+    public override DatasetEncoder DatasetEncoder => _trainTestEncoder;
     
     private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
@@ -262,58 +271,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             return dataset;
         }
         var xUpdated = df.DropIgnoreErrors(columnToDrop.ToArray());
-        return DatasetEncoder.NewInMemoryDataSetV2(xUpdated, dataset.YDataFrame, this);
-    }
-
-    // ReSharper disable once UnusedMember.Global
-    public static void Retrain()
-    {
-
-        foreach(var modelName in new[]
-                {
-                    "3580990008",
-                    "395B343296",
-                    "48F31E6543",
-                    "56E668E7DB",
-                    "66B4F3653A",
-                    "8CF93D9FA0",
-                    "90840F212D",
-                    "90DAFFB8FC",
-                    "E72AD5B74B"
-                })
-        {
-
-            const string workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\submission3";
-
-            Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-            Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-
-            var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
-            //var embeddedModel = mKfold.Model;
-            var mKfoldModelAndDatasetPredictionsSample = m.ModelAndDatasetPredictionsSample;
-            if (m.Model is not KFoldModel)
-            {
-                var embeddedModel = m.Model;
-                var kfoldSample = new KFoldSample(3, workingDirectory, embeddedModel.ModelSample.GetLoss(), mKfoldModelAndDatasetPredictionsSample.DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
-                var sample = new ModelAndDatasetPredictionsSample(new ISample[]
-                {
-                    kfoldSample,
-                    mKfoldModelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, kfoldSample.n_splits),
-                    mKfoldModelAndDatasetPredictionsSample.PredictionsSample
-                });
-                m = new ModelAndDatasetPredictions(sample, workingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel);
-            }
-
-            m.Model.Use_All_Available_Cores();
-            m.Fit(true, true, true);
-
-            var kfoldModelName = m.Model.ModelName;
-            m.Save(workingDirectory, kfoldModelName);
-            var modelAndDatasetPredictionsSampleOnFullDataset = mKfoldModelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
-            var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, kfoldModelName + "_FULL");
-            Model.Log.Info($"Retraining Model '{kfoldModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
-            modelAndDatasetOnFullDataset.Model.Use_All_Available_Cores();
-            modelAndDatasetOnFullDataset.Fit(true, true, true);
-        }
+        return DatasetEncoder.NewInMemoryDataSetV2(xUpdated, dataset.YDataFrame_InModelFormat, this);
     }
 }

@@ -15,6 +15,7 @@ using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.Layers;
 using SharpNet.Models;
+using SharpNet.Networks;
 using SharpNet.Optimizers;
 using H5GroupId = System.Int64;
 
@@ -26,7 +27,7 @@ namespace SharpNet.Networks
         #region private fields
         public readonly List<EpochData> EpochData = new();
         private Tensor _buffer;
-        private readonly DateTime _timeStampCreation = DateTime.Now;
+        //private readonly DateTime _timeStampCreation = DateTime.Now;
         // bytes/batchSize needed for forward & backward propagation
         #endregion
 
@@ -35,7 +36,6 @@ namespace SharpNet.Networks
         public DataAugmentationSample DA => NetworkSample.DA;
         public Random Rand { get; } = new Random(0);
         public List<Layer> Layers { get; } = new List<Layer>();
-        public string Description { private get; set; } = "";
         public PropagationManager PropagationManager { get; }
         public TensorMemoryPool MemoryPool { get; }
         public GPUWrapper GpuWrapper { get; }
@@ -49,7 +49,7 @@ namespace SharpNet.Networks
         /// <returns></returns>
         public static Network NewForTests(NetworkConfig config, DataAugmentationSample da)
         {
-            var modelSample = new NetworkSample(new ISample[] { config, da });
+            var modelSample = new TestNetworkSample(new ISample[] { config, da });
             return new Network(modelSample, config.WorkingDirectory, config.ModelName);
         }
 
@@ -65,8 +65,6 @@ namespace SharpNet.Networks
         public Network(NetworkSample modelSample, string workingDirectory, string modelName, Network masterNetworkIfAny = null) : base(modelSample, workingDirectory, modelName)
         {
             //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
-            Utils.ConfigureThreadLog4netProperties(modelSample.Config.WorkingDirectory, Config.ModelName);
-
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
             Debug.Assert(masterNetworkIfAny == null || Config.ResourceIds.Count == 1);
 
@@ -138,6 +136,12 @@ namespace SharpNet.Networks
         public Network Input(int channelCount, int h, int w, string layerName = "")
         {
             Layers.Add(new InputLayer(channelCount, h, w, this, layerName));
+            return this;
+        }
+
+        public Network Reshape(int channelCount, int h, int w, string layerName = "")
+        {
+            Layers.Add(new ReshapeLayer(channelCount, h, w, this, layerName));
             return this;
         }
 
@@ -378,7 +382,10 @@ namespace SharpNet.Networks
         public Network Dropout(double dropoutRate, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new DropoutLayer(dropoutRate, this, layerName));
+            if (dropoutRate > 0)
+            {
+                Layers.Add(new DropoutLayer(dropoutRate, this, layerName));
+            }
             return this;
         }
         public Network Activation(cudnnActivationMode_t activationFunction, string layerName = "")
@@ -455,22 +462,7 @@ namespace SharpNet.Networks
             Layers.Add(new BatchNormalizationLayer(momentum, epsilon, true, this, layerName));
             return this;
         }
-        public Network Dense_Activation(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, cudnnActivationMode_t activationFunction)
-        {
-            return Dense(units, lambdaL2Regularization, flattenInputTensorOnLastDimension)
-                .Activation(activationFunction);
-        }
-        public Network Dense_DropOut_Activation(int units, double lambdaL2Regularization, double dropOut, cudnnActivationMode_t activationFunction)
-        {
-            return Dense(units, lambdaL2Regularization, false)
-                .Dropout(dropOut)
-                .Activation(activationFunction);
-        }
-        public Network Output(int units, double lambdaL2Regularization, cudnnActivationMode_t activationFunctionType)
-        {
-            return Dense(units, lambdaL2Regularization, false)
-                .Activation(activationFunctionType);
-        }
+
         public Network Flatten()
         {
             Debug.Assert(Layers.Count >= 1);
@@ -525,7 +517,7 @@ namespace SharpNet.Networks
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
-            var fileName = Path.Combine(WorkingDirectory, DynamicModelName + "_LearningRateFinder.csv");
+            var fileName = Path.Combine(WorkingDirectory, ModelName + "_LearningRateFinder.csv");
             File.WriteAllText(fileName, learningRateFinder.AsCsv());
             LogInfo("Stats stored in: " + fileName);
             var bestLearningRate = learningRateFinder.BestLearningRate();
@@ -555,6 +547,8 @@ namespace SharpNet.Networks
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
             Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
+            //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Config.BatchSize);
+
             int miniBatchSizeForAllWorkers = Config.BatchSize;
             int numEpochs = Config.NumEpochs;
             var learningRateComputer = Config.GetLearningRateComputer();
@@ -581,7 +575,7 @@ namespace SharpNet.Networks
                 {
                     LogDebug("Validation dataset: " + validationDatasetIfAny);
                 }
-                LogInfo("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+Description);
+                LogInfo("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+ModelName);
                 if (Config.DisplayTensorContentStats)
                 {
                     LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
@@ -650,7 +644,7 @@ namespace SharpNet.Networks
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                     double nbStepsByEpoch = ((double)trainingDataset.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
-                    LogInfo("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ Description);
+                    LogInfo("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ ModelName);
                     LogDebug(MemoryInfo());
                     //if it is the last epoch, we'll save Layer KPI
                     if (epoch == numEpochs)
@@ -665,23 +659,23 @@ namespace SharpNet.Networks
 
                     #region we save the network in a file if necessary
                     if (   //if we have finished training
-                           ((epoch == numEpochs) && (numEpochs > 10))
+                           (Config.AutoSaveIntervalInMinutes >= 0 &&  epoch == numEpochs && numEpochs > 10)
                             //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
-                        || ( (Config.AutoSaveIntervalInMinutes>=0) && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinutes)
+                        || (Config.AutoSaveIntervalInMinutes>=0 && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Config.AutoSaveIntervalInMinutes)
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
                         || trainingDataset.ShouldCreateSnapshotForEpoch(epoch, this)
-                        || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds, Config.LossFunction)
+                        || (Config.AutoSaveIntervalInMinutes >= 0 && ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds, Config.LossFunction))
                     )
                     {
-                        trainingDataset.Save(this, WorkingDirectory, DynamicModelName);
+                        trainingDataset.Save(this, WorkingDirectory, ModelName);
                         lastAutoSaveTime = DateTime.Now;
                     }
                     #endregion
 
                     if (Config.SaveNetworkStatsAfterEachEpoch)
                     {
-                        var networkStatFileName = Path.Combine(WorkingDirectory, DynamicModelName + "_NetworkStats.txt");
-                        LogInfo("Saving network '" + Description + "' stats in " + networkStatFileName);
+                        var networkStatFileName = Path.Combine(WorkingDirectory, ModelName + "_NetworkStats.txt");
+                        LogInfo("Saving network '" + ModelName + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
                     if (ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Config.EarlyStoppingRounds, Config.LossFunction))
@@ -697,7 +691,7 @@ namespace SharpNet.Networks
                 {
                     //We save the results of the net
                     line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
-                        + Description.Replace(';', '_') + ";"
+                        + ModelName.Replace(';', '_') + ";"
                         + DeviceName() + ";"
                         + TotalParams() + ";"
                         + GetNumEpochs()+ ";"
@@ -718,10 +712,10 @@ namespace SharpNet.Networks
                     // ignored
                 }
 
-                LogInfo("Training '"+ Description+"' for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
-                if (!string.IsNullOrEmpty(Description))
+                LogInfo("Training '"+ ModelName+"' for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
+                if (!string.IsNullOrEmpty(ModelName))
                 {
-                    LogDebug("Network Name: "+Description);
+                    LogDebug("Network Name: "+ModelName);
                 }
                 _spInternalFit.Stop();
             }
@@ -826,7 +820,7 @@ namespace SharpNet.Networks
         public override (DataFrame, string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Config.BatchSize);
-            return (DataFrame.New(cpuTensor, dataset.TargetLabels), "");
+            return (DataFrame.New(cpuTensor), ""); //!D TODO : add labels
         }
 
         public override int GetNumEpochs()
@@ -1056,9 +1050,9 @@ namespace SharpNet.Networks
             yExpected_miniBatch_cpu_allWorkers.Dispose();
 
             // ReSharper disable once PossibleNullReferenceException
-            _yPredictedForEpoch.Reshape(dataSet.Y.Shape);
-            _yExpectedForEpoch.Reshape(dataSet.Y.Shape);
-
+            var y_shape = dataSet.YMiniBatch_Shape(dataSet.Count);
+            _yPredictedForEpoch.Reshape(y_shape);
+            _yExpectedForEpoch.Reshape(y_shape);
             return _yPredictedForEpoch;
         }
         public int LastLayerIndex => Layers.Last().LayerIndex;
@@ -1066,7 +1060,7 @@ namespace SharpNet.Networks
         {
             return Layers.Count(l => l.GetType() == layerType);
         }
-        public bool UseGPU => Config.ResourceIds.Max() >= 0;
+        public bool UseGPU => Config.UseGPU;
         private string MemoryInfo()
         {
             string result = "Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);
@@ -1084,27 +1078,6 @@ namespace SharpNet.Networks
                 EpochData.Count >= 1
                 && EpochData.All(e => !double.IsNaN(e.GetValidationLoss(Config.LossFunction)))
                 && Math.Abs(EpochData.Select(e => e.GetValidationLoss(Config.LossFunction)).Min() - EpochData.Last().GetValidationLoss(Config.LossFunction)) < 1e-6;
-        }
-        public string DynamicModelName
-        {
-            get
-            {
-                var loss = Config.LossFunction;
-                var desc = (string.IsNullOrEmpty(Description) ? "Network" : Utils.ToValidFileName(Description));
-                var epoch = EpochData.Count;
-                var trainingLoss = "";
-                if (epoch >= 1 && !double.IsNaN(EpochData.Last().GetTrainingLoss(loss)))
-                {
-                    trainingLoss = "_" + Math.Round(EpochData.Last().GetTrainingLoss(loss), 4).ToString(CultureInfo.InvariantCulture).Replace(".", "_");
-                }
-                var validationLoss = "";
-                if (epoch >=1 && !double.IsNaN(EpochData.Last().GetValidationLoss(loss)))
-                {
-                    validationLoss = "_" + Math.Round(EpochData.Last().GetValidationLoss(loss), 4).ToString(CultureInfo.InvariantCulture) .Replace(".", "_");
-                }
-                var timeStamp = _timeStampCreation.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
-                return desc + "_" + epoch + trainingLoss + validationLoss + "_" + timeStamp + "_" + Thread.CurrentThread.ManagedThreadId;
-            }
         }
         public string Summary()
         {
@@ -1140,9 +1113,9 @@ namespace SharpNet.Networks
             var line0 = new string('_', firstColumnWidth + secondColumnWidth + thirdColumnWidth + forthColumnWidth);
             var line1 = new string('=', line0.Length);
             string result = "";
-            if (!string.IsNullOrEmpty(Description))
+            if (!string.IsNullOrEmpty(ModelName))
             {
-                result += "Network Name: " + Description + Environment.NewLine;
+                result += "Network Name: " + ModelName + Environment.NewLine;
             }
             result += line0 + Environment.NewLine;
             result += "Layer (type)                    Output Shape         Param #     Connected to" + Environment.NewLine;
@@ -1177,9 +1150,9 @@ namespace SharpNet.Networks
             var line0 = new string('_', firstColumnWidth + secondColumnWidth + thirdColumnWidth);
             var line1 = new string('=', line0.Length);
             string result = "";
-            if (!string.IsNullOrEmpty(Description))
+            if (!string.IsNullOrEmpty(ModelName))
             {
-                result += "Network Name: " + Description + Environment.NewLine;
+                result += "Network Name: " + ModelName + Environment.NewLine;
             }
             result += line0 + Environment.NewLine;
             result += "Layer (Type)                 Output Shape              Param #" + Environment.NewLine;
@@ -1237,7 +1210,18 @@ namespace SharpNet.Networks
             PropagationManager.Forward(allX, yPredicted, isTraining);
             return yPredicted;
         }
-        private NetworkSample NetworkSample => (NetworkSample)ModelSample;
+        // ReSharper disable once MemberCanBePrivate.Global
+        public NetworkSample NetworkSample => (NetworkSample)ModelSample;
 
     }
 }
+
+
+
+public class TestNetworkSample : NetworkSample
+{
+    public TestNetworkSample(ISample[] samples) : base(samples)
+    {
+    }
+}
+

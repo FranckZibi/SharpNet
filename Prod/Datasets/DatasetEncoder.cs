@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using log4net;
 
@@ -16,6 +18,8 @@ public class DatasetEncoder
 {
     #region Private Fields
     private readonly AbstractDatasetSample _datasetSample;
+    private readonly bool _standardizeDoubleValues;
+
     /// <summary>
     /// list of all categorical features in the dataset
     /// </summary>
@@ -32,11 +36,27 @@ public class DatasetEncoder
     [NotNull] private string[] IdColumns => _datasetSample.IdColumns;
     [NotNull] private readonly Dictionary<string, ColumnStatistics> _columnStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
+
+    /// <summary>
+    /// number of time the method 'Fit' has been called
+    /// </summary>
+    private int _fitCallCount = 0;
+    /// <summary>
+    /// number of time the method 'Transform' has been called
+    /// </summary>
+    private int _transformCallCount = 0;
+    /// <summary>
+    /// number of time the method 'Inverse_Transform' has been called
+    /// </summary>
+    private int _inverseTransformCallCount = 0;
+
+
     #endregion
 
-    public DatasetEncoder(AbstractDatasetSample datasetSample)
+    public DatasetEncoder(AbstractDatasetSample datasetSample, bool standardizeDoubleValues)
     {
         _datasetSample = datasetSample;
+        _standardizeDoubleValues = standardizeDoubleValues;
     }
     public ColumnStatistics this[string featureName] => _columnStats[featureName];
 
@@ -45,32 +65,31 @@ public class DatasetEncoder
     /// (so that it can be processed by LightGBM)
     /// this dataset contains both features (the 'x') and target columns (the 'y')
     /// </summary>
-    /// <param name="xyDataset"></param>
+    /// <param name="xyDataset_string_df"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public InMemoryDataSetV2 NumericalEncoding(string xyDataset)
+    public InMemoryDataSetV2 Transform_XYDataset(DataFrame xyDataset_string_df)
     {
-        var xyTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(xyDataset));
+        Debug.Assert(xyDataset_string_df.IsStringDataFrame);
+        var xyTrainEncoded = Transform(xyDataset_string_df);
         var xTrainEncoded = xyTrainEncoded.Drop(Targets);
         var yTrainEncoded = xyTrainEncoded[Targets];
         return NewInMemoryDataSetV2(xTrainEncoded, yTrainEncoded, _datasetSample);
     }
+
     /// <summary>
     /// load the dataset 'xDataset' and encode all categorical features into numerical values
     /// (so that it can be processed by LightGBM)
     /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
     /// </summary>
-    public InMemoryDataSetV2 NumericalEncoding([NotNull] string xDataset, [CanBeNull] string yDataset)
+    public InMemoryDataSetV2 Transform_X_and_Y_Dataset([NotNull] DataFrame x_string_df, [CanBeNull] DataFrame y_string_df)
     {
-        var xTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(xDataset));
-
-        //we load the y file if any
-        DataFrame yTrainEncoded = null;
-        if (!string.IsNullOrEmpty(yDataset))
-        {
-            yTrainEncoded = NumericalEncoding(DataFrame.read_string_csv(yDataset));
-        }
+        Debug.Assert(x_string_df.IsStringDataFrame);
+        Debug.Assert(y_string_df == null || y_string_df.IsStringDataFrame);
+        var xTrainEncoded = Transform(x_string_df);
+        //we transform the y file if any
+        var yTrainEncoded = (y_string_df != null)? Transform(y_string_df):null;
         return NewInMemoryDataSetV2(xTrainEncoded, yTrainEncoded, _datasetSample);
     }
 
@@ -81,21 +100,6 @@ public class DatasetEncoder
             xTrainEncoded,
             yTrainEncoded,
             false);
-    }
-
-    /// <summary>
-    /// for classification problems, the number of distinct class to identify
-    /// 1 if it is a regression problem
-    /// </summary>
-    /// <returns></returns>
-    public int NumClasses()
-    {
-        var targetLabelDistinctValues = TargetLabelDistinctValues;
-        if (targetLabelDistinctValues == null || targetLabelDistinctValues.Length <=1)
-        {
-            return 1;
-        }
-        return targetLabelDistinctValues.Length;
     }
 
     public string[] TargetLabelDistinctValues
@@ -114,6 +118,11 @@ public class DatasetEncoder
         }
     }
 
+    public DataFrame Fit_Transform(DataFrame string_df)
+    {
+        Fit(string_df);
+        return Transform(string_df);
+    }
 
     //public IList<float> GetDistinctCategoricalPercentage(string categoricalColumn)
     //{
@@ -127,62 +136,102 @@ public class DatasetEncoder
     //    }
     //    return _featureStats[categoricalColumn].GetDistinctCategoricalPercentage();
     //}
-    public DataFrame NumericalEncoding(DataFrame df)
+    public void Fit(DataFrame string_df)
     {
+        if (_transformCallCount != 0)
+        {
+            throw new ArgumentException($"can't call method {nameof(Fit)} because the method {nameof(Transform)} has already been called");
+        }
+
+        ++_fitCallCount;
+        Debug.Assert(string_df.IsStringDataFrame);
         //we read the header
-        foreach (var c in df.Columns)
+        foreach (var c in string_df.Columns)
         {
             if (!_columnStats.ContainsKey(c))
             {
-                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c));
+                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues);
             }
         }
 
-        var rows = df.Shape[0];
-        var columns = df.Shape[1];
-        var content = new float[rows*columns];
-        int contentIndex = 0;
-        var readonlyContent = df.StringCpuTensor().ReadonlyContent;
-
-        for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+        var rows = string_df.Shape[0];
+        void FitColumn(int columnIdx)
         {
-            foreach (var c in df.Columns)
+            var readonlyContent = string_df.StringCpuTensor().ReadonlyContent;
+            var columnStats = _columnStats[string_df.Columns[columnIdx]];
+            for (var rowIndex = 0; rowIndex < rows; rowIndex++)
             {
-                content[contentIndex] = (float)_columnStats[c].NumericalEncoding(readonlyContent[contentIndex]);
-                ++contentIndex;
+                columnStats.Fit(readonlyContent[columnIdx + rowIndex * string_df.Columns.Length]);
             }
         }
-        return DataFrame.New(content, df.Columns);
+        Parallel.For(0, string_df.Columns.Length, FitColumn);
     }
 
+    // ReSharper disable once MemberCanBePrivate.Global
+    public DataFrame Transform(DataFrame string_df)
+    {
+        if (_fitCallCount == 0)
+        {
+            throw new ArgumentException($"can't call method {nameof(Transform)} because the method {nameof(Fit)} has never been called");
+        }
+        ++_transformCallCount;
+        Debug.Assert(string_df.IsStringDataFrame);
+        foreach (var c in string_df.Columns)
+        {
+            if (!_columnStats.ContainsKey(c))
+            {
+                throw new ArgumentException($"unknown column to transform : {c}, not among {string.Join(' ', string_df.Columns)}");
+            }
+        }
+
+        var rows = string_df.Shape[0];
+        var columns = string_df.Shape[1];
+        var content = new float[rows * columns];
+        
+        void TransformColumn(int columnIdx)
+        {
+            var readonlyContent = string_df.StringCpuTensor().ReadonlyContent;
+            var columnStats = _columnStats[string_df.Columns[columnIdx]];
+            for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+            {
+                var contentIndex = columnIdx + rowIndex * string_df.Columns.Length;
+                content[contentIndex] = (float)columnStats.Transform(readonlyContent[contentIndex]);
+            }
+        }
+        Parallel.For(0, string_df.Columns.Length, TransformColumn);
+
+        return DataFrame.New(content, string_df.Columns);
+    }
 
     /// <summary>
     /// Decode the dataframe 'df' (replacing numerical values by their categorical values) and return the content of the decoded DataFrame
     /// </summary>
-    /// <param name="df"></param>
+    /// <param name="float_df"></param>
     /// <param name="missingNumberValue"></param>
     /// <returns></returns>
-    public DataFrame NumericalDecoding(DataFrame df, string missingNumberValue = "")
+    public DataFrame Inverse_Transform(DataFrame float_df, string missingNumberValue = "")
     {
+        ++_inverseTransformCallCount;
+        Debug.Assert(float_df.IsFloatDataFrame);
         //we display a warning for column names without known encoding
-        var unknownFeatureName = Utils.Without(df.Columns, _columnStats.Keys);
+        var unknownFeatureName = Utils.Without(float_df.Columns, _columnStats.Keys);
         if (unknownFeatureName.Count != 0)
         {
             Log.Warn($"{unknownFeatureName.Count} unknown feature name(s): '{string.Join(' ', unknownFeatureName)}' (not in '{string.Join(' ', _columnStats.Keys)}')");
         }
 
-        var encodedContent = df.FloatCpuTensor().ReadonlyContent;
+        var encodedContent = float_df.FloatCpuTensor().ReadonlyContent;
         var decodedContent = new string[encodedContent.Length];
         for (int idx = 0; idx< encodedContent.Length;++idx)
         {
             var encodedValue = encodedContent[idx];
-            int col = idx % df.Columns.Length;
-            var decodedValueAsString = _columnStats.TryGetValue(df.Columns[col], out var featureStat)
-                ? featureStat.NumericalDecoding(encodedValue, missingNumberValue)
+            int col = idx % float_df.Columns.Length;
+            var decodedValueAsString = _columnStats.TryGetValue(float_df.Columns[col], out var featureStat)
+                ? featureStat.Inverse_Transform(encodedValue, missingNumberValue)
                 : encodedValue.ToString(CultureInfo.InvariantCulture);
             decodedContent[idx] = decodedValueAsString;
         }
-        return DataFrame.New(decodedContent, df.Columns);
+        return DataFrame.New(decodedContent, float_df.Columns);
     }
 
     /// <summary>

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using log4net;
+using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.MathTools;
 
@@ -66,6 +67,18 @@ namespace SharpNet.HPO
             }
 
             int coreCount = Utils.CoreCount;
+            
+            if (defaultSample.UseGPU)
+            {
+                //if the sample runs on GPU, we need to limit the number of // computation to the number of available GPU
+                coreCount = GPUWrapper.GetDeviceCount();
+                if (coreCount <= 0)
+                {
+                    throw new ArgumentException($"no GPU detected but sample {defaultSample} requires one");
+                }
+            }
+
+            //coreCount = 1;
 
             // ReSharper disable once ConvertToConstant.Local
             // number of parallel threads in each single training
@@ -123,6 +136,7 @@ namespace SharpNet.HPO
         /// <param name="maxAllowedSecondsForAllComputation"></param>
         private void ProcessNextSample([NotNull] Func<ISample, IScore> objectiveFunction, float maxAllowedSecondsForAllComputation)
         {
+            Utils.ConfigureThreadIdLog4netProperties();
             for (; ; )
             {
                 ISample sample;

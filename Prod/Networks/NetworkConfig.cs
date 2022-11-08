@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.Optimizers;
 using static SharpNet.GPU.GPUWrapper;
@@ -31,13 +32,13 @@ namespace SharpNet.Networks
         /// </summary>
         public ConvolutionAlgoPreference ConvolutionAlgoPreference = ConvolutionAlgoPreference.FASTEST_DETERMINIST;
 
-        public double AdamW_L2Regularization;
-        public double Adam_beta1;
-        public double Adam_beta2;
-        public double Adam_epsilon;
-        public double SGD_momentum;
+        public double AdamW_L2Regularization = 0.01;
+        public double Adam_beta1 = 0.9;
+        public double Adam_beta2 = 0.999;
+        public double Adam_epsilon = 1e-8;
+        public double SGD_momentum = 0.9;
         public double lambdaL2Regularization;
-        public bool SGD_usenesterov;
+        public bool SGD_usenesterov = true;
         public bool RandomizeOrder = true;
         //when RandomizeOrder is true, consider that the dataset is built from block of 'RandomizeOrderBlockSize' element (that must be kept in same order)
         public int RandomizeOrderBlockSize = 1;
@@ -138,7 +139,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// true if we should use the same conventions then TensorFlow
         /// </summary>
-        public bool TensorFlowCompatibilityMode => CompatibilityMode == CompatibilityModeEnum.TensorFlow1 || CompatibilityMode == CompatibilityModeEnum.TensorFlow2;
+        public bool TensorFlowCompatibilityMode => CompatibilityMode == CompatibilityModeEnum.TensorFlow;
 
         /// <summary>
         /// true if we want to display statistics about the weights tensors.
@@ -286,13 +287,42 @@ namespace SharpNet.Networks
         }
         #endregion
 
+
         public override bool FixErrors()
         {
-            return true; //TODO
+            switch (OptimizerType)
+            {
+                case Optimizer.OptimizationEnum.AdamW:
+                    lambdaL2Regularization = SGD_momentum = 0;
+                    SGD_usenesterov = false;
+                    break;
+                case Optimizer.OptimizationEnum.SGD:
+                    AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
+                    break;
+                case Optimizer.OptimizationEnum.Adam:
+                    AdamW_L2Regularization = SGD_momentum = 0;
+                    SGD_usenesterov = false;
+                    break;
+                case Optimizer.OptimizationEnum.VanillaSGD:
+                case Optimizer.OptimizationEnum.VanillaSGDOrtho:
+                    SGD_momentum = AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
+                    SGD_usenesterov = false;
+                    break; // no extra configuration needed
+            }
+
+            if (!UseGPU)
+            {
+                //this is the only supported mode on CPU
+                ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST;
+            }
+
+            return true;
         }
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4;
+        public override bool UseGPU => ResourceIds.Max() >= 0;
+
         public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999, double _epsilon = 1e-8)
         {
             Debug.Assert(_beta1 >= 0);
@@ -307,14 +337,22 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public NetworkConfig WithAdamW(double l2Regularization, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="adamW_L2Regularization">also known as weight decay</param>
+        /// <param name="beta1"></param>
+        /// <param name="beta2"></param>
+        /// <param name="epsilon"></param>
+        /// <returns></returns>
+        public NetworkConfig WithAdamW(double adamW_L2Regularization = 0.01, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8)
         {
             Debug.Assert(beta1 >= 0);
             Debug.Assert(beta1 <= 1.0);
             Debug.Assert(beta2 >= 0);
             Debug.Assert(beta2 <= 1.0);
-            Debug.Assert(l2Regularization>1e-6);
-            AdamW_L2Regularization = l2Regularization;
+            Debug.Assert(adamW_L2Regularization>1e-6);
+            AdamW_L2Regularization = adamW_L2Regularization;
             lambdaL2Regularization = 0; //L2 regularization is not compatible with AdamW
             Adam_beta1 = beta1;
             Adam_beta2 = beta2;
@@ -336,8 +374,7 @@ namespace SharpNet.Networks
         public enum CompatibilityModeEnum
         {
             SharpNet,
-            TensorFlow1, //TensorFlow v1
-            TensorFlow2, //TensorFlow v2
+            TensorFlow,
             PyTorch,
             Caffe,
             MXNet

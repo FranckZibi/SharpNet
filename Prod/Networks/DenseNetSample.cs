@@ -31,9 +31,14 @@ Orig Paper = https://arxiv.org/pdf/1608.06993.pdf
 namespace SharpNet.Networks
 {
     //DenseNet implementation as described in https://arxiv.org/pdf/1608.06993.pdf
-    public static class DenseNet
+
+    public class DenseNetSample : NetworkSample
     {
-        public static NetworkSample CIFAR10()
+        private DenseNetSample(ISample[] samples) : base(samples)
+        {
+        }
+
+        public static DenseNetSample CIFAR10()
         {
             var config = new NetworkConfig
                 {
@@ -59,7 +64,7 @@ namespace SharpNet.Networks
                 //by default we use a cutout of 1/2 of the image width
                 CutoutPatchPercentage = 0.5
             };
-            return new NetworkSample(new ISample[] { config, da });
+            return new DenseNetSample(new ISample[] { config, da });
 
         }
 

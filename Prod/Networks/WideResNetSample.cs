@@ -275,11 +275,14 @@ namespace SharpNet.Networks
 
             if (WideResNetHyperParameters.WRN_DropOutAfterDenseLayer > 0)
             {
-                network.Dense_DropOut_Activation(categoryCount, config.lambdaL2Regularization, WideResNetHyperParameters.WRN_DropOutAfterDenseLayer, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                network.Dense(categoryCount, config.lambdaL2Regularization, false)
+                    .Dropout(WideResNetHyperParameters.WRN_DropOutAfterDenseLayer)
+                    .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             else
             {
-                network.Output(categoryCount, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                network.Dense(categoryCount, config.lambdaL2Regularization, false)
+                    .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             }
             return network;
         }

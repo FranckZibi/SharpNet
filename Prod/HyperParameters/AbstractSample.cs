@@ -46,6 +46,8 @@ public abstract class AbstractSample : ISample
         var configFile = ISample.ToPath(workingDirectory, modelName);
         Save(configFile);
     }
+    public virtual bool UseGPU => false;
+
     public void Save(string path)
     {
         File.WriteAllText(path, GetContent());

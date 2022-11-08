@@ -7,6 +7,7 @@ using System.Linq;
 using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 
@@ -44,6 +45,41 @@ public abstract class AbstractDatasetSample : AbstractSample
         throw new ArgumentException($"can't load a {nameof(AbstractDatasetSample)} with name {sampleName} from directory {workingDirectory}");
     }
     #endregion
+
+
+
+
+    public EvaluationMetricEnum DefaultLossFunction
+    {
+        get
+        {
+            if (GetObjective() == Objective_enum.Regression)
+            {
+                return EvaluationMetricEnum.Rmse;
+            }
+            if (NumClass == 1)
+            {
+                return EvaluationMetricEnum.BinaryCrossentropy;
+            }
+            return EvaluationMetricEnum.CategoricalCrossentropy;
+        }
+    }
+
+    public cudnnActivationMode_t ActivationForLastLayer
+    {
+        get
+        {
+            if (GetObjective() == Objective_enum.Regression)
+            {
+                return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
+            }
+            if (NumClass == 1)
+            {
+                return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
+            }
+            return cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
+        }
+    }
 
 
     public enum DatasetType
@@ -283,12 +319,12 @@ public abstract class AbstractDatasetSample : AbstractSample
         encodedPredictionsInTargetFormat = xDataset.AddIdColumnsAtLeftIfNeeded(encodedPredictionsInTargetFormat);
         if (DatasetEncoder != null)
         {
-            encodedPredictionsInTargetFormat = DatasetEncoder.NumericalDecoding(encodedPredictionsInTargetFormat);
+            encodedPredictionsInTargetFormat = DatasetEncoder.Inverse_Transform(encodedPredictionsInTargetFormat);
         }
         encodedPredictionsInTargetFormat.to_csv(path, GetSeparator());
     }
 
-    protected virtual DatasetEncoder DatasetEncoder => null;
+    public virtual DatasetEncoder DatasetEncoder => null;
 
     public virtual void SavePredictionsInModelFormat(DataFrame predictionsInModelFormat, string path)
     {

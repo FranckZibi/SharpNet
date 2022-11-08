@@ -38,6 +38,12 @@ public sealed class DataFrame
     #region public fields and properties
     public string[] Columns { get; }
     public int[] Shape => new[] { Rows, _columns.Count };
+
+    /// <summary>
+    /// total number of cells in the DataFrame (including null/empty/nan cells
+    /// </summary>
+    public int CellCount => Utils.Product(Shape);
+
     #endregion
 
 
@@ -418,16 +424,14 @@ public sealed class DataFrame
     /// Only the top frequent 'embeddingDim' words will be considered for the encoding.
     /// The other will be discarded</param>
     /// <param name="keepEncodedColumnName">
-    /// Should we add the original column to the returned DataFrame</param>
-    /// <param name="addTokenNameAsColumnNameSuffix">For testing only,
     /// Each new feature will have in its name the associated word for the TfIdf encoding</param>
     /// <param name="reduceEmbeddingDimIfNeeded"></param>
     /// <param name="norm"></param>
     /// <param name="scikitLearnCompatibilityMode"></param>
     /// <returns></returns>
-    public DataFrame TfIdfEncode(string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool addTokenNameAsColumnNameSuffix = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    public DataFrame TfIdfEncode(string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
-        return TfIdfEncoding.Encode(new[] { this }, columnToEncode, embeddingDim, keepEncodedColumnName, addTokenNameAsColumnNameSuffix, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)[0];
+        return TfIdfEncoding.Encode(new[] { this }, columnToEncode, embeddingDim, keepEncodedColumnName, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)[0];
     }
 
     //public DataFrame Normalize()
@@ -944,9 +948,9 @@ public sealed class DataFrame
             default: return intContent[colDesc.Item3 + row * _intTensor.Shape[1]];
         }
     }
-    private bool IsFloatDataFrame => _floatTensor != null && _stringTensor == null && _intTensor == null;
-    private bool IsStringDataFrame => _floatTensor == null && _stringTensor != null && _intTensor == null;
-    private bool IsIntDataFrame => _floatTensor == null && _stringTensor == null && _intTensor != null;
+    public bool IsFloatDataFrame => _floatTensor != null && _stringTensor == null && _intTensor == null;
+    public bool IsStringDataFrame => _floatTensor == null && _stringTensor != null && _intTensor == null;
+    public bool IsIntDataFrame => _floatTensor == null && _stringTensor == null && _intTensor != null;
     /// <summary>
     /// ensure that all column name in 'columnNameToValidate' are valid and throws an exception if it is not the case
     /// </summary>

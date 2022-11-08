@@ -35,7 +35,7 @@ namespace SharpNet.Networks
                 ModelName = "TimeSeries",
                 LossFunction = EvaluationMetricEnum.Mse,
                 RandomizeOrder = true,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow2,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                 Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mse },
                 WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "CFM60"),
                 BatchSize = 2048, //validated on 13-june-2021: -0.01

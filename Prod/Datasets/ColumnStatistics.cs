@@ -9,6 +9,8 @@ namespace SharpNet.Datasets;
 
 public class ColumnStatistics
 {
+    private readonly bool _standardizeDoubleValues;
+
     #region private fields
     private readonly Dictionary<string, int> _distinctCategoricalValueToCount = new();
     private readonly List<string> _distinctCategoricalValues = new();
@@ -42,64 +44,112 @@ public class ColumnStatistics
 
 
     #region constructors
-    public ColumnStatistics(bool isCategorical, bool isTargetLabel, bool isId)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="isCategorical"></param>
+    /// <param name="isTargetLabel"></param>
+    /// <param name="isId"></param>
+    /// <param name="standardizeDoubleValues">
+    /// true if we should standardize double values (mean 0 and volatility 1)
+    /// false if we should not transform double values
+    /// </param>
+    public ColumnStatistics(bool isCategorical, bool isTargetLabel, bool isId, bool standardizeDoubleValues)
     {
+        _standardizeDoubleValues = standardizeDoubleValues;
         IsCategorical = isCategorical;
         IsTargetLabel = isTargetLabel;
         IsId = isId;
     }
     #endregion
 
-    public double NumericalEncoding(string elementValue)
+    public void Fit(string elementValue)
     {
         ++Count;
         if (IsCategorical)
         {
-            var categoricalElementValue = NormalizeCategoricalFeatureValue(elementValue);
-            if (categoricalElementValue.Length == 0)
+            elementValue = NormalizeCategoricalFeatureValue(elementValue);
+            if (elementValue.Length == 0)
             {
                 ++CountEmptyElements;
-                return -1;
+                return;
             }
             //it is a categorical column, we add it to the dictionary
-            if (!_distinctCategoricalValueToCount.ContainsKey(categoricalElementValue))
+            if (!_distinctCategoricalValueToCount.ContainsKey(elementValue))
             {
-                _distinctCategoricalValueToCount[categoricalElementValue] = 1;
-                _distinctCategoricalValues.Add(categoricalElementValue);
-                _distinctCategoricalValueToIndex[categoricalElementValue] = _distinctCategoricalValues.Count - 1;
+                _distinctCategoricalValueToCount[elementValue] = 1;
+                _distinctCategoricalValues.Add(elementValue);
+                _distinctCategoricalValueToIndex[elementValue] = _distinctCategoricalValues.Count - 1;
             }
             else
             {
-                ++_distinctCategoricalValueToCount[categoricalElementValue];
+                ++_distinctCategoricalValueToCount[elementValue];
             }
-            return _distinctCategoricalValueToIndex[categoricalElementValue];
+            return;
         }
-        else
+
+        //it is a numerical field
+        var doubleValue = ExtractDouble(elementValue);
+        if (double.IsNaN(doubleValue))
         {
-            //it is a numerical field
-            var doubleValue = ExtractDouble(elementValue);
-            if (double.IsNaN(doubleValue))
-            {
-                ++CountEmptyElements;
-                return double.NaN; //missing numerical value
-            }
-            _numericalValues.Add(doubleValue, 1);
-            return doubleValue;
+            ++CountEmptyElements;
+            return; //missing numerical value
         }
+        _numericalValues.Add(doubleValue, 1);
     }
-    public string NumericalDecoding(double numericalEncodedFeatureValue, string missingNumberValue)
+
+    public double Transform(string elementValue)
+    {
+        if (IsCategorical)
+        {
+            elementValue = NormalizeCategoricalFeatureValue(elementValue);
+            if (elementValue.Length == 0 || !_distinctCategoricalValueToCount.ContainsKey(elementValue))
+            {
+                return -1;
+            }
+            return _distinctCategoricalValueToIndex[elementValue];
+        }
+
+        //it is a numerical field
+        var doubleValue = ExtractDouble(elementValue);
+        if (double.IsNaN(doubleValue))
+        {
+            return double.NaN; //missing numerical value
+        }
+        //We do the standardization for the double value
+        var volatility = _numericalValues.Volatility;
+        if (volatility > 0 && _standardizeDoubleValues)
+        {
+            var standardizedDoubleValue = (doubleValue - _numericalValues.Average) / volatility;
+            return standardizedDoubleValue;
+        }
+        return doubleValue;
+    }
+    public string Inverse_Transform(double numericalEncodedFeatureValue, string missingNumberValue)
     {
         if (IsCategorical)
         {
             var categoricalFeatureIndex = (int)Math.Round(numericalEncodedFeatureValue);
-            return categoricalFeatureIndex<0?"": _distinctCategoricalValues[categoricalFeatureIndex];
+            if (categoricalFeatureIndex < 0 || categoricalFeatureIndex>= _distinctCategoricalValues.Count)
+            {
+                return "";
+            }
+            return _distinctCategoricalValues[categoricalFeatureIndex];
         }
 
         if (double.IsNaN(numericalEncodedFeatureValue))
         {
             return missingNumberValue;
         }
-        return numericalEncodedFeatureValue.ToString(CultureInfo.InvariantCulture);
+
+        var standardizedDoubleValue = numericalEncodedFeatureValue;
+        var volatility = _numericalValues.Volatility;
+        if (volatility > 0 && _standardizeDoubleValues)
+        {
+            var unstandardizedDoubleValue = volatility * standardizedDoubleValue + _numericalValues.Average;
+            return unstandardizedDoubleValue.ToString(CultureInfo.InvariantCulture);
+        }
+        return standardizedDoubleValue.ToString(CultureInfo.InvariantCulture);
     }
     public static double ExtractDouble(string featureValue)
     {

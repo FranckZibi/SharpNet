@@ -820,6 +820,14 @@ namespace SharpNet
             }
         }
 
+        public static void ConfigureThreadIdLog4netProperties()
+        {
+            lock (lockConfigureLog4netProperties)
+            {
+                ThreadContext.Properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
+            }
+        }
+
         private static readonly object lockConfigureLog4netProperties = new object();
 
         private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)

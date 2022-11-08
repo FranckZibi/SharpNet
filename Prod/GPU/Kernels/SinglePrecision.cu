@@ -302,70 +302,73 @@
 		}
 	}
 
+
 	//'x' shape:                (batchSize, timeSteps, inputSize)
-	//'y' shape :               (batchSize, timeSteps, inputSize+embeddingDim-1)
+	//'y' shape :               (batchSize, timeSteps, outputSize)
 	//'wordEmbedding' shape:    (vocabularySize, embeddingDim)
-	__global__ void WordEmbeddingForwardPropagation(int N, int inputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embeddingDim, float* x, float* y, float* wordEmbedding)
+	__global__ void WordEmbeddingForwardPropagation(int N, int inputSize, int outputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embeddingDim, float* x, float* y, float* wordEmbedding)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;	// in [0, batchSize*timeSteps-1]
 		if (i >= N) return;
 
+		int xIndex = xIndexInLastDimensionToUse + i * inputSize;
+		int yIndex = yIndexInLastDimensionToUse + i * outputSize;
 		//we retrieve the wordIndex 
-		int xTimeStepIndex = i * inputSize+xIndexInLastDimensionToUse;
-		int wordIndex = (int)(x[xTimeStepIndex] + 0.1f);	//in [0, vocabularySize-1]
+		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
 		int indexInWordEmbedding = wordIndex*embeddingDim;
-		int yTimeStepIndex = i * (inputSize + embeddingDim - 1)+yIndexInLastDimensionToUse;
 
 		//for the current timeStep, we copy the elements from 'x' to 'y' before 'indexInLastDimensionToUse'
 		if (copyCountBeforeIndex > 0)
 		{
-			memcpy(y + yTimeStepIndex-copyCountBeforeIndex, x + xTimeStepIndex-copyCountBeforeIndex, sizeof(float) * copyCountBeforeIndex);
+			memcpy(y + yIndex-copyCountBeforeIndex, x + xIndex-copyCountBeforeIndex, sizeof(float) * copyCountBeforeIndex);
 		}
 
-		memcpy(y+ yTimeStepIndex, wordEmbedding+indexInWordEmbedding, sizeof(float) * embeddingDim);
+		if (embeddingDim>0)
+		{
+			memcpy(y+ yIndex, wordEmbedding+indexInWordEmbedding, sizeof(float) * embeddingDim);
+		}
 
 		//for the current timeStep, we copy the elements from 'x' to 'y' after 'indexInLastDimensionToUse'
 		if (copyCountAfterIndex > 0)
 		{
-			memcpy(y + yTimeStepIndex+ embeddingDim, x + xTimeStepIndex+1, sizeof(float) * copyCountAfterIndex);
+			memcpy(y + yIndex+ embeddingDim, x + xIndex+1, sizeof(float) * copyCountAfterIndex);
 		}
 	}
 
 	// N :						batchSize * timeSteps
 	// 'x' & 'dx' shape :       (batchSize, timeSteps, inputSize)
-	// 'dy' shape :             (batchSize, timeSteps, inputSize+embeddingDim-1)
+	// 'dy' shape :             (batchSize, timeSteps, outputSize)
 	//'dw' shape:				(vocabularySize, embeddingDim)
-	__global__ void WordEmbeddingBackwardPropagation(int N, int inputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embeddingDim, float* x, float* dx, float* dy, float* dw)
+	__global__ void WordEmbeddingBackwardPropagation(int N, int inputSize, int outputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embeddingDim, float* x, float* dx, float* dy, float* dw)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;	// in [0, batchSize*timeSteps-1]
 		if (i >= N) return;
 
+		int dxIndex = xIndexInLastDimensionToUse + i * inputSize;
+
 		//we retrieve the wordIndex 
-		int dxTimeStepIndex = i * inputSize+xIndexInLastDimensionToUse;
-		int dyTimeStepIndex = i * (inputSize + embeddingDim - 1) + yIndexInLastDimensionToUse;
-		int wordIndex = (int)(x[dxTimeStepIndex] + 0.1f);	//in [0, vocabularySize-1]
+		int wordIndex = (int)(x[dxIndex] + 0.1f);	//in [0, vocabularySize-1]
 		int indexInDw = embeddingDim * wordIndex;
 
-		int indexIndY = i * (inputSize+embeddingDim-1) + yIndexInLastDimensionToUse;
+		int dyIndex = yIndexInLastDimensionToUse + i * outputSize;
 		for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
 		{
-			float valueToAdd = dy[indexIndY];
+			float valueToAdd = dy[dyIndex+embeddingId];
 			atomicAdd(dw+ indexInDw, valueToAdd);
 			++indexInDw;
-			++indexIndY;
 		}
 
 		//we initialize 'dx' for the current batchIndex & timeStep
 		//for the current timeStep, we copy the elements from 'dy' to 'dx' before 'indexInLastDimensionToUse'
 		if (copyCountBeforeIndex > 0)
 		{
-			memcpy(dx + dxTimeStepIndex-copyCountBeforeIndex, dy + dyTimeStepIndex-copyCountBeforeIndex, sizeof(float) * copyCountBeforeIndex);
+			memcpy(dx + dxIndex-copyCountBeforeIndex, dy + dyIndex-copyCountBeforeIndex, sizeof(float) * copyCountBeforeIndex);
 		}
-		dx[dxTimeStepIndex] = 0.0f;
+		dx[dxIndex] = 0.0f;
 		//for the current timeStep, we copy the elements from 'dy' to 'dx' after 'indexInLastDimensionToUse'
 		if (copyCountAfterIndex > 0)
 		{
-			memcpy(dx + dxTimeStepIndex+ 1, dy + dyTimeStepIndex + embeddingDim, sizeof(float) * copyCountAfterIndex);
+			memcpy(dx + dxIndex+ 1, dy + dyIndex + embeddingDim, sizeof(float) * copyCountAfterIndex);
 		}
 	}
 

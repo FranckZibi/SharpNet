@@ -246,6 +246,17 @@ public class BayesianSearchHPO : AbstractHpo
 
         var result = new List<Tuple<ISample, float[], float, string>>();
 
+        if (SearchSpace.All(t => t.Value.IsConstant))
+        {
+            var sampleAsFloatArray = new float[0];
+            var (randomSample, randomSampleDescription) = FromFloatVectorToSampleAndDescription(sampleAsFloatArray);
+            if (randomSample != null)
+            {
+                result.Add(Tuple.Create(randomSample, sampleAsFloatArray, 0f, randomSampleDescription));
+            }
+            return result;
+        }
+
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
         //using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);

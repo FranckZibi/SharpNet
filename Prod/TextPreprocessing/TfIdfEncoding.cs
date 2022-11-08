@@ -53,7 +53,7 @@ public static class TfIdfEncoding
     }
 
     public static IEnumerable<string> ColumnToRemoveToFitEmbedding(DataFrame df, string columnToAdjustEncoding,
-        int targetEmbeddingDim, bool keepOrginalColumnNameWhenUsingEncoding)
+        int targetEmbeddingDim, bool keepOriginalColumnNameWhenUsingEncoding)
     {
         var existingEncodingColumns = EncodedColumns(df, columnToAdjustEncoding).ToList();
         var toDrop = new List<string>();
@@ -62,7 +62,7 @@ public static class TfIdfEncoding
             toDrop = existingEncodingColumns.Skip(targetEmbeddingDim).ToList();
         }
 
-        if (existingEncodingColumns.Count > toDrop.Count && !keepOrginalColumnNameWhenUsingEncoding)
+        if (existingEncodingColumns.Count > toDrop.Count && !keepOriginalColumnNameWhenUsingEncoding)
         {
             toDrop.Add(columnToAdjustEncoding);
         }
@@ -75,11 +75,10 @@ public static class TfIdfEncoding
     {
         None,
         L1,
-        L2
+        L2,
+        Standardization // we scale the embedding with 0 mean and 1 as standard deviation (= volatility). This is not a norm
     };
-    public static List<DataFrame> Encode(IList<DataFrame> dfs, string columnToEncode, int embeddingDim,
-        bool keepEncodedColumnName = false, bool addTokenNameAsColumnNameSuffix = false,
-        bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    public static List<DataFrame> Encode(IList<DataFrame> dfs, string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
         var documents = new List<string>();
         foreach (var df in dfs)
@@ -87,8 +86,7 @@ public static class TfIdfEncoding
             documents.AddRange(df?.StringColumnContent(columnToEncode) ?? Array.Empty<string>());
         }
 
-        var documents_tfidf_encoded = Encode(documents, embeddingDim, columnToEncode, addTokenNameAsColumnNameSuffix,
-            reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode);
+        var documents_tfidf_encoded = Encode(documents, embeddingDim, columnToEncode, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode);
         var dfs_encoded = new List<DataFrame>();
         var startRowIndex = 0;
         for (var index = 0; index < dfs.Count; index++)
@@ -115,9 +113,7 @@ public static class TfIdfEncoding
 
 
 
-    public static DataFrame Encode(IList<string> documents, int embeddingDim, [NotNull] string columnNameToEncode,
-        bool addTokenNameAsColumnNameSuffix = false, bool reduceEmbeddingDimIfNeeded = false,
-        TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    public static DataFrame Encode(IList<string> documents, int embeddingDim, [NotNull] string columnNameToEncode, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
         var tokenizer = new Tokenizer(oovToken: null, lowerCase: true, stemmer: _stemmer);
        
@@ -189,21 +185,43 @@ public static class TfIdfEncoding
         {
             for (int documentId = 0; documentId < documents.Count; ++documentId)
             {
+                double sumForRow = 0.0;         // for Standardization
                 double absSumForRow = 0.0;      // for L1 norm
-                double sumSquareForRow = 0.0;   // for L2 norm
+                double sumSquareForRow = 0.0;   // for L2 norm and Standardization
                 for (int wordIdx = 0; wordIdx < embeddingDim; ++wordIdx)
                 {
                     var val = tfIdf[documentId * embeddingDim + wordIdx];
+                    sumForRow += val;
                     absSumForRow += Math.Abs(val);
                     sumSquareForRow +=(val * val);
                 }
-                if (absSumForRow > 0) //if some non zero elements found
+
+                float multiplier;
+                float toAdd;
+                switch (norm)
                 {
-                    var multiplier =  (norm == TfIdfEncoding_norm.L1) ? (1 / (float)absSumForRow) : (1 / (float)Math.Sqrt(sumSquareForRow));
-                    for (int wordIdx = 0; wordIdx < embeddingDim; ++wordIdx)
-                    {
-                        tfIdf[documentId * embeddingDim + wordIdx] *= multiplier;
-                    }
+                    case TfIdfEncoding_norm.L1:
+                        multiplier = absSumForRow>0?(1 / (float)absSumForRow):0;
+                        toAdd = 0.0f;
+                        break;
+                    case TfIdfEncoding_norm.L2:
+                        multiplier = sumSquareForRow>0?(1 / (float)Math.Sqrt(sumSquareForRow)):0;
+                        toAdd = 0.0f;
+                        break;
+                    case TfIdfEncoding_norm.Standardization:
+                        var mean = (float)sumForRow / embeddingDim;
+                        var variance = Math.Abs(sumSquareForRow - embeddingDim * mean * mean) / embeddingDim;
+                        var stdDev = (float)Math.Sqrt(variance);
+                        multiplier = (stdDev>0)? (1 / stdDev):0;
+                        toAdd = (stdDev > 0)?(-mean/ stdDev):0;
+                        break;
+                    default:
+                        throw new NotSupportedException($"invalid norm {norm}");
+                }
+                for (int wordIdx = 0; wordIdx < embeddingDim; ++wordIdx)
+                {
+                    var index = documentId * embeddingDim + wordIdx;
+                    tfIdf[index] = multiplier* tfIdf[index]+toAdd;
                 }
             }
         }
@@ -214,12 +232,7 @@ public static class TfIdfEncoding
         List<string> columns = new();
         for (int i = 1; i <= embeddingDim; ++i)
         {
-            var tfidfColumnName = columnNameToEncode + TFIDF_COLUMN_NAME_KEY + (i - 1);
-            if (addTokenNameAsColumnNameSuffix)
-            {
-                tfidfColumnName += "_" + sequenceToWords[i - 1];
-            }
-
+            var tfidfColumnName = columnNameToEncode + TFIDF_COLUMN_NAME_KEY + sequenceToWords[i - 1];
             columns.Add(tfidfColumnName);
         }
 

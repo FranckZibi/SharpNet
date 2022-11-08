@@ -35,6 +35,7 @@ namespace SharpNet.GPU
             _wrapper = wrapper;
             _wrapper.CheckThreadId();
             CapacityInBytes = ReallyNeededMemoryInBytes;
+            CapacityInBytes = Math.Max(CapacityInBytes, 8);
             _pointerToStartOfTensor = IntPtr.Zero;
 
             var res = NVCudaWrapper.cuMemAlloc_v2(out _pointerToStartOfTensor, CapacityInBytes);
@@ -639,6 +640,8 @@ namespace SharpNet.GPU
                     Debug.Assert(yPredicted.Count % CosineSimilarity504_TimeSeries_Length == 0);
                     buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
                     return buffer.ContentAsFloatArray().Average();
+                case EvaluationMetricEnum.F1Micro:
+                    return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
                 case EvaluationMetricEnum.Rmse:
                     return Math.Sqrt(ComputeEvaluationMetric(yPredicted, EvaluationMetricEnum.Mse, buffer));
                 default:
@@ -691,9 +694,10 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("MseOfLogLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted, epsilon });
         }
 
+        //!D To write properly for GPU
         public override (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted)
         {
-            throw new NotImplementedException();
+            return ToCpuFloat().F1PrecisionRecallMicro(yExpected.ToCpuFloat(), yPredicted.ToCpuFloat());
         }
 
         public override void CosineSimilarityLoss(Tensor yExpected, Tensor yPredicted, int timeSeriesLength)
@@ -1135,23 +1139,24 @@ namespace SharpNet.GPU
             return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);
         }
 
-        //this (= 'y') shape :      (batchSize, maxWordCountBySentence, embeddingDim)
-        //'x' shape:                (batchSize, maxWordCountBySentence)
-        //'wordEmbedding' shape:    (vocabularySize, embeddingDim)
         public override void WordEmbeddingForwardPropagation( /*in*/ Tensor x, /*in*/ Tensor wordEmbedding, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex)
         {
             var y = this;
             Debug.Assert(wordEmbedding.Shape.Length == 2);
             Debug.Assert(x.Shape[0] == y.Shape[0]); //same batchSize
             Debug.Assert(x.Shape[1] == y.Shape[1]); //same timeSteps
+            Debug.Assert(x.Shape.Length == 3);
             Debug.Assert(y.Shape.Length == 3);
             Debug.Assert(xIndexInLastDimensionToUse >= 0);
             Debug.Assert(yIndexInLastDimensionToUse >= 0);
-            int inputSize = x.Shape.Length == 2 ? 1 : x.Shape[2];
-            int batchSize = y.Shape[0];
-            int timeSteps = y.Shape[1];
+            // x shape: (batchSize, timeSteps, inputSize)
+            int batchSize = x.Shape[0];
+            int timeSteps = x.Shape[1];
+            int inputSize = x.Shape[2];
             int embeddingDim = wordEmbedding.Shape[1];
-            _wrapper.RunKernel("WordEmbeddingForwardPropagation", batchSize* timeSteps, new object[] { inputSize, xIndexInLastDimensionToUse, yIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embeddingDim, x, y, wordEmbedding});
+            // 'y' shape:  (batchSize, timeSteps, outputSize)
+            int outputSize = y.Shape[2];
+            _wrapper.RunKernel("WordEmbeddingForwardPropagation", batchSize* timeSteps, new object[] { inputSize, outputSize, xIndexInLastDimensionToUse, yIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embeddingDim, x, y, wordEmbedding});
         }
 
         public override void WordEmbeddingBackwardPropagation( /*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int dxIndexInLastDimensionToUse, int dyIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex)
@@ -1161,18 +1166,19 @@ namespace SharpNet.GPU
             Debug.Assert(dW.Shape.Length == 2);
             Debug.Assert(x.Shape[0] == dy.Shape[0]); //same batchSize
             Debug.Assert(x.Shape[1] == dy.Shape[1]); //same timeSteps
+            Debug.Assert(x.Shape.Length == 3);
             Debug.Assert(dy.Shape.Length == 3);
             Debug.Assert(dxIndexInLastDimensionToUse >= 0);
             Debug.Assert(dyIndexInLastDimensionToUse >= 0);
-            int inputSize = x.Shape.Length == 2 ? 1 : x.Shape[2];
-            // 'x' shape:   (batchSize, timeSteps, inputSize)
-            // 'dy' shape:  (batchSize, timeSteps, inputSize+embeddingDim-1)
-
             dW.ZeroMemory();
-            int batchSize = dy.Shape[0];
-            int timeSteps = dy.Shape[1];
+            // 'x' shape:   (batchSize, timeSteps, inputSize)
+            int batchSize = x.Shape[0];
+            int timeSteps = x.Shape[1];
+            int inputSize = x.Shape[2];
             int embeddingDim = dW.Shape[1];
-            _wrapper.RunKernel("WordEmbeddingBackwardPropagation", batchSize* timeSteps, new object[] { inputSize, dxIndexInLastDimensionToUse, dyIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embeddingDim, x, dx, dy, dW });
+            // 'dy' shape:  (batchSize, timeSteps, outputSize)
+            int outputSize = dy.Shape[2];
+            _wrapper.RunKernel("WordEmbeddingBackwardPropagation", batchSize* timeSteps, new object[] { inputSize, outputSize, dxIndexInLastDimensionToUse, dyIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embeddingDim, x, dx, dy, dW });
         }
 
         protected override int DeviceId => _wrapper.DeviceId;

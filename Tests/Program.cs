@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
+using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Models;
 using SharpNet.Networks;
@@ -78,11 +79,11 @@ namespace SharpNetTests
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
 
-            //StackingCVClassifierDatasetSample.LaunchLightGBMHPO(use_features_in_secondary:true, cv:2, min_num_iterations:100, maxAllowedSecondsForAllComputation:600);
+            WasYouStayWorthItsPriceDatasetSample.TrainNetwork();
+            //new ChallengeTools().StackedEnsemble();
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
-            //WasYouStayWorthItsPriceDatasetSample.WeightOptimizer();
-            WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(100, 600);
-            //WasYouStayWorthItsPriceDatasetSample.ComputeAndSaveFeatureImportance();
+            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(10, 60);
+            //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
 
@@ -134,8 +135,8 @@ namespace SharpNetTests
         {
             var networkGeometries = new List<Action<NetworkSample, int>>
             {
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNet.DenseNet_12_40(x));},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNet.DenseNetBC_12_100(x));},
+                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNetSample.DenseNet_12_40(x));},
+                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNetSample.DenseNetBC_12_100(x));},
             /*(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNet_Fast_CIFAR10);},
             (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNet_12_10_CIFAR10);},
             (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNet_12_40);},
@@ -151,8 +152,8 @@ namespace SharpNetTests
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.Config.BatchSize = -1;p.Config.NumEpochs = 150; p.Config.ExtraDescription = "_Adam";},
                 //(p) =>{ p.Config.ExtraDescription = "_OrigPaper";},
 
-                () =>{var p = DenseNet.CIFAR10();p.Config.NumEpochs = 240;p.Config.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1;p.DA.CutoutPatchPercentage = 0.0;p.Config.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";return p;},
-                () =>{var p = DenseNet.CIFAR10();p.Config.NumEpochs = 240;p.Config.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1;p.DA.CutoutPatchPercentage = 0.0;p.Config.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";return p;},
+                () =>{var p = DenseNetSample.CIFAR10();p.Config.NumEpochs = 240;p.Config.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow;p.DA.CutoutPatchPercentage = 0.0;p.Config.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";return p;},
+                () =>{var p = DenseNetSample.CIFAR10();p.Config.NumEpochs = 240;p.Config.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow;p.DA.CutoutPatchPercentage = 0.0;p.Config.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";return p;},
 
 
                 //(p) =>{p.Config.NumEpochs = 300;p.Config.BatchSize = -1;p.CutoutPatchPercentage = 0.25;p.Config.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchPercentage0_25;},
@@ -444,25 +445,25 @@ namespace SharpNetTests
 
 
 
-        //private static void Train_CFM60(Cfm60NetworkSample p)
-        //{
-        //    using var network = p.CFM60();
-        //    //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize4_64_DropoutRate0_2_20210115_1831_10.txt");
-        //    using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s=> Model.Log.Info(s));
-        //    var cfm60 = (CFM60DataSet) cfm60TrainingAndTestDataSet.Training;
-        //    //To compute feature importances, uncomment the following line
-        //    //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;
-        //    using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.CFM60HyperParameters.PercentageInTraining);
-        //    //var res = network.FindBestLearningRate(cfm60, 1e-7, 0.9, p.Config.BatchSize);return;
-        //    ((CFM60DataSet) trainingValidation.Training).ValidationDataSet = (CFM60DataSet) trainingValidation.Test;
-        //    ((CFM60DataSet) trainingValidation.Training).OriginalTestDataSet = (CFM60DataSet)cfm60TrainingAndTestDataSet.Test;
-        //    network.Fit(trainingValidation.Training, trainingValidation.Test);
-        //    ((CFM60DataSet)trainingValidation.Training).ValidationDataSet = null;
-        //    ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = null;
+        private static void Train_CFM60(Cfm60NetworkSample p)
+        {
+            using var network = p.CFM60();
+            //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize4_64_DropoutRate0_2_20210115_1831_10.txt");
+            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => Model.Log.Info(s));
+            var cfm60 = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
+            //To compute feature importances, uncomment the following line
+            //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;
+            using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.CFM60HyperParameters.PercentageInTraining);
+            //var res = network.FindBestLearningRate(cfm60, 1e-7, 0.9, p.Config.BatchSize);return;
+            ((CFM60DataSet)trainingValidation.Training).ValidationDataSet = (CFM60DataSet)trainingValidation.Test;
+            ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = (CFM60DataSet)cfm60TrainingAndTestDataSet.Test;
+            network.Fit(trainingValidation.Training, trainingValidation.Test);
+            ((CFM60DataSet)trainingValidation.Training).ValidationDataSet = null;
+            ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = null;
 
-        //    //((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network);
-        //    //((CFM60DataSet)trainingValidation.Test).CreatePredictionFile(network);
-        //}
+            //((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network);
+            //((CFM60DataSet)trainingValidation.Test).CreatePredictionFile(network);
+        }
         //#endregion
 
 

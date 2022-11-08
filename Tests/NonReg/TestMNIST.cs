@@ -53,24 +53,10 @@ namespace SharpNetTests.NonReg
                 //.AddDropout(0.2)
 
                 .Convolution_BatchNorm_Activation(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .MaxPooling(2, 2, 2, 2)
-
-                //.AddBatchNorm()
-                //.AddPooling(2, 2)
-
-                //.AddDropout(0.4)
-
-                //.AddConvolution_Activation_Pooling(64, 3, 1, 1, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 2, 2)
-                //.AddPooling(2, 2)
-
-                //.AddConvolution_BatchNorm_Activation_Pooling(16, 5, 1, 2, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 2, 2)
-                //.AddConvolution_BatchNorm_Activation_Pooling(32, 5, 1, 2, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 2, 2)
-
-                .Dense_Activation(1000, 0.0, false, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dropout(0.5)
-                //.AddBatchNorm()
-
-                .Output(MnistDataset.CategoryCount, 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .MaxPooling(2, 2, 2, 2).Dense(1000, 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Dropout(0.5).Dense(MnistDataset.CategoryCount, 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             network.Fit(mnist.Training, mnist.Test);
         }

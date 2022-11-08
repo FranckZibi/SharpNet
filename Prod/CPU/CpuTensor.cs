@@ -91,7 +91,9 @@ namespace SharpNet.CPU
             Debug.Assert(wordEmbedding.Shape.Length == 2);
             Debug.Assert(x.Shape[0] == y.Shape[0]); //same batchSize
             Debug.Assert(x.Shape[1] == y.Shape[1]); //same timeSteps
+            Debug.Assert(x.Shape.Length == 3);
             Debug.Assert(y.Shape.Length == 3);
+
             Debug.Assert(xIndexInLastDimensionToUse>=0);
             Debug.Assert(yIndexInLastDimensionToUse>=0);
             var timeSteps = x.Shape[1];
@@ -102,7 +104,6 @@ namespace SharpNet.CPU
                 var xSpan = x.AsReadonlyFloatCpuContent;
                 var ySpan = y.AsFloatCpuSpan;
                 var wordEmbeddingSpan = wordEmbedding.AsReadonlyFloatCpuContent;
-
 
                 for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
@@ -138,9 +139,10 @@ namespace SharpNet.CPU
             var dW = this;
 
             Debug.Assert(dW.Shape.Length == 2);
+            Debug.Assert(x.Shape.Length == 3);
+            Debug.Assert(dy.Shape.Length == 3);
             Debug.Assert(x.Shape[0] == dy.Shape[0]); //same batchSize
             Debug.Assert(x.Shape[1] == dy.Shape[1]); //same timeSteps
-            Debug.Assert(dy.Shape.Length == 3);
             Debug.Assert(dxIndexInLastDimensionToUse >= 0);
             Debug.Assert(dyIndexInLastDimensionToUse >= 0);
 
@@ -1692,6 +1694,19 @@ namespace SharpNet.CPU
             Parallel.For(0, batchSize, batchId => { MseOfLogLoss(batchId, mseLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, epsilon); });
         }
 
+
+        private static int MaxIndex(ReadOnlySpan<float> a, int startIndex, int count)
+        {
+            int maxIndex = startIndex;
+            for (int j = startIndex + 1; j < startIndex + count; ++j)
+            {
+                if (a[j] > a[maxIndex])
+                {
+                    maxIndex = j;
+                }
+            }
+            return maxIndex;
+        }
         public override (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted)
         {
             Debug.Assert(yExpected.SameShape(yPredicted));
@@ -1699,17 +1714,35 @@ namespace SharpNet.CPU
             var y_pred_span = yPredicted.AsReadonlyFloatCpuContent;
             int true_count = 0;
 
-            for (int row = 0; row < y_true_span.Length; ++row)
+            var rows = yExpected.Shape[0];
+            var num_class = yExpected.Shape[1];
+            if (num_class >= 2)
             {
-                var idxTrue = Utils.NearestInt(y_true_span[row]);
-                var idxPred = Utils.NearestInt(y_pred_span[row]);
-                if (idxTrue == idxPred)
+                for (int row = 0; row<rows; ++row)
                 {
-                    ++true_count;
+                    int idxStart = row * num_class;
+                    var idxTrue = MaxIndex(y_true_span, idxStart, num_class);
+                    var idxPred = MaxIndex(y_pred_span, idxStart, num_class);
+                    if (idxTrue == idxPred)
+                    {
+                        ++true_count;
+                    }
+                }
+            }
+            else
+            {
+                for (int row = 0; row <rows; ++row)
+                {
+                    var idxTrue = Utils.NearestInt(y_true_span[row]);
+                    var idxPred = Utils.NearestInt(y_pred_span[row]);
+                    if (idxTrue == idxPred)
+                    {
+                        ++true_count;
+                    }
                 }
             }
 
-            var precisionMicro = true_count/(float)y_true_span.Length;
+            var precisionMicro = true_count/(float)rows;
             var recallMicro = precisionMicro;
             var f1Micro = (2 * precisionMicro * recallMicro) / (precisionMicro + recallMicro);
             return (f1Micro, precisionMicro, recallMicro);

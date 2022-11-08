@@ -68,7 +68,7 @@ namespace SharpNet.Networks
 
             var epochsData = (EpochData[])dicoFirstLine[nameof(EpochData)];
             network.EpochData.AddRange(epochsData);
-            network.Description = dicoFirstLine.TryGet<string>(nameof(Description)) ?? "";
+            //network.Description = dicoFirstLine.TryGet<string>(nameof(Description)) ?? "";
             for (int i = 1; i < allLines.Length; ++i)
             {
                 network.Layers.Add(Layer.ValueOf(Serializer.Deserialize(allLines[i]), network));
@@ -105,7 +105,7 @@ namespace SharpNet.Networks
                     h5File.Write(p.Key, p.Value);
                 }
             }
-            LogInfo("Network Parameters '" + Description + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");
+            LogInfo("Network Parameters '" + ModelName + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");
         }
 
         /// <summary>
@@ -172,7 +172,7 @@ namespace SharpNet.Networks
             }
             ModelSample.Save(workingDirectory, modelName);
             var firstLine = new Serializer()
-                .Add(nameof(Description), Description)
+                .Add(nameof(ModelName), ModelName)
                 .Add(nameof(EpochData), EpochData.ToArray())
                 .ToString();
             File.AppendAllLines(modelFilePath, new[] { firstLine });
@@ -182,7 +182,7 @@ namespace SharpNet.Networks
             }
 
             NetworkSample.SaveExtraModelInfos(this, workingDirectory, modelName);
-            LogInfo("Network Model '" + Description + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
+            LogInfo("Network Model '" + ModelName + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
 
         }
 

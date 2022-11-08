@@ -35,7 +35,7 @@ namespace SharpNet.Datasets
         /// a temporary buffer used to construct the data augmented pictures
         /// </summary>
         private readonly List<CpuTensor<float>> all_xBufferForDataAugmentedMiniBatch = new List<CpuTensor<float>>();
-        private readonly CpuTensor<float> yDataAugmentedMiniBatch = new CpuTensor<float>(new[] { 1 });
+        private readonly CpuTensor<float> yDataAugmentedMiniBatch = new(new[] { 1 });
         /// <summary>
         /// the miniBatch Id associated with the above xBufferMiniBatchCpu & yBufferMiniBatchCpu tensors
         /// or -1 if those tensors are empty
@@ -129,6 +129,7 @@ namespace SharpNet.Datasets
         public Objective_enum Objective { get; }
 
         public bool IsRegressionProblem => Objective == Objective_enum.Regression;
+        public bool IsClassificationProblem => Objective == Objective_enum.Classification;
 
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
@@ -527,7 +528,7 @@ namespace SharpNet.Datasets
                 }
             }
         }
-        public int[] YMiniBatch_Shape(int miniBatchSize)
+        public virtual int[] YMiniBatch_Shape(int miniBatchSize)
         {
             var yMiniBatchShape = (int[])Y.Shape.Clone();
             yMiniBatchShape[0] = miniBatchSize;
@@ -577,7 +578,7 @@ namespace SharpNet.Datasets
         /// Y shape for
         ///     regression:                 (_, 1)
         ///     binary classification:      (_, 1)  where each element is a probability in [0, 1] range
-        ///     multi class classification  (_, 1) with each element being the index of the class in [0, numClasses-1] range
+        ///     multi class classification  (_, NumClasses) with each element being the probability of belonging to this class
         /// </summary>
         public abstract CpuTensor<float> Y { get; }
 
@@ -595,27 +596,36 @@ namespace SharpNet.Datasets
             {
                 return null;
             }
-            var y_true_tensor = IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
-
-
+            Debug.Assert(numClasses == Y.Shape[1]);
+            //var y_true_tensor = IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
             var targetLabels_InModelFormat = (IsRegressionProblem || TargetLabels.Length == numClasses)
-                ?TargetLabels
-                :Enumerable.Range(0, numClasses).Select(x => x.ToString()).ToArray();
+                ? TargetLabels
+                : Enumerable.Range(0, numClasses).Select(x => x.ToString()).ToArray();
 
-            return DataFrame.New(y_true_tensor, targetLabels_InModelFormat);
+            return DataFrame.New(Y, targetLabels_InModelFormat);
         }
-        
+
         /// <summary>
-        /// same shape as Y
+        /// shape is (count, TargetLabels.Length)
         /// </summary>
         /// <returns></returns>
-        public DataFrame Y_InTargetFormat()
+        public virtual DataFrame Y_InTargetFormat()
         {
             if (Y == null)
             {
                 return null;
             }
-            return DataFrame.New(Y, TargetLabels);
+            if (Y.Shape[1] == TargetLabels.Length)
+            {
+                return DataFrame.New(Y, TargetLabels);
+            }
+
+            if (TargetLabels.Length == 1 && Y.Shape[1] > 1)
+            {
+                //Multi class classification
+                return DataFrame.New(Y.ArgMax(), TargetLabels);
+            }
+            throw new NotImplementedException($" can compute {nameof(Y_InTargetFormat)} from Y shape {Utils.ShapeToString(Y.Shape)} with TargetLabels={string.Join(' ', TargetLabels)} ");
         }
 
 
@@ -794,7 +804,10 @@ namespace SharpNet.Datasets
             {
                 if (addTargetColumnAsFirstColumn)
                 {
-                    var yValue = yDataAsSpan==null?AbstractSample.DEFAULT_VALUE:yDataAsSpan[row];
+                    float yValue;
+                    if (yDataAsSpan == null) { yValue = AbstractSample.DEFAULT_VALUE; }
+                    else if (IsRegressionProblem) { yValue = yDataAsSpan[row]; }
+                    else { yValue = ElementIdToCategoryIndex(row); }
                     sb.Append(yValue.ToString(CultureInfo.InvariantCulture) + separator);
                 }
                 LoadAt(row, 0, singleRow, null, false);

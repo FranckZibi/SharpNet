@@ -34,7 +34,7 @@ namespace SharpNet.Networks
             var config = new NetworkConfig
                 {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "ImageNet"),
                     NumEpochs = 150,
@@ -62,7 +62,7 @@ namespace SharpNet.Networks
             var config = new NetworkConfig
             {
                 LossFunction = EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                 lambdaL2Regularization = 0.0005,
                 WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"),
                 AlwaysUseFullTestDataSetForLossAndAccuracy = false,
@@ -107,7 +107,7 @@ namespace SharpNet.Networks
             var config = new NetworkConfig
                 {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1,
+                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
                     lambdaL2Regularization = 0.0005,
                     WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
                     NumEpochs = 150,
@@ -261,7 +261,7 @@ namespace SharpNet.Networks
                 {
                     throw new ArgumentException("missing "+weights+" model file "+modelPath);
                 }
-                network.LoadParametersFromH5File(modelPath, NetworkConfig.CompatibilityModeEnum.TensorFlow1);
+                network.LoadParametersFromH5File(modelPath, NetworkConfig.CompatibilityModeEnum.TensorFlow);
             }
 
             network.FreezeSelectedLayers();

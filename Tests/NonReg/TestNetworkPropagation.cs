@@ -40,8 +40,8 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_1_2);
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
             network
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray("[[0.5553087, -0.2966646]]");
             w.CopyTo(((DenseLayer)network.Layers[1]).Weights);
@@ -83,8 +83,8 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_1_3);
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
             network
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray(W_N_1_4_4);
             w.CopyTo(((DenseLayer)network.Layers[1]).Weights);
@@ -109,8 +109,8 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
             network
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray(W_N_1_4_4);
             w.CopyTo(((DenseLayer)network.Layers[1]).Weights);
@@ -135,8 +135,8 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
             network
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             var w = FromNumpyArray("[[ 0.02377093, -0.36406565,  0.20111328],[-0.02257341,  0.49298579,  0.3783552 ],[-0.33265597,  0.22183669,  0.4130335 ],[ 0.03862739,  0.45694906,-0.046529  ],[-0.5435763 ,  0.4115948 ,  0.5266854 ],[-0.04584688, -0.08123899,  0.43348545],[-0.23025852, -0.24818823, -0.31672138],[-0.13403434, -0.39957535,  0.34845835],[-0.11953372, -0.18876502, -0.19744089],[-0.5492821 ,  0.52302474,  0.3208636 ],[ 0.18945718, 0.04014206, -0.3605097 ],[-0.47365752, -0.26253745, -0.2964717 ],[-0.2434968 , -0.34853765, -0.23780361],[ 0.4313671 ,  0.5169173 , -0.43086883],[ 0.00898802,  0.24687833,  0.17265934],[ 0.02312517, -0.22023779,  0.3136925 ]]");
             w.CopyTo(((DenseLayer)network.Layers[1]).Weights);
@@ -194,9 +194,9 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
             network
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Dense_Activation(3, 0.0, false, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(3, 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray("[[ 0.22065729, -0.11788255, -0.4187895 ],[ 0.32060236, -0.44626778,  0.24227637],[-0.46897227,  0.5059137 ,  0.4339162 ],[-0.02144825, -0.04082066, -0.09005189],[ 0.28492624, -0.28046286, -0.18176123],[-0.1717251 , -0.55430335, -0.28846815],[ 0.29476583, -0.3019745 ,  0.03277987],[ 0.41012663,  0.09135884,  0.2522431 ],[-0.40020466, -0.2832676 ,  0.2568243 ],[ 0.47819465,  0.06466031,  0.45569366],[ 0.4343483 , -0.30980763, -0.01376414],[ 0.09202623, -0.02883267,  0.19485158],[-0.5382978 , -0.5129023 ,  0.47553152],[ 0.15798962,  0.43635488,  0.4626748 ],[-0.47213712,  0.17086667, -0.03163177],[ 0.01544881,  0.26190037,  0.38539213]]");
             w.CopyTo(((DenseLayer)network.Layers[1]).Weights);
@@ -315,8 +315,8 @@ namespace SharpNetTests.NonReg
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Dense(3, 0.0, false)
-                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU, Tensor.SingleFloat(0.1f))
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU, Tensor.SingleFloat(0.1f)).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             FromNumpyArray("[[0.023770928382873535, -0.36406564712524414, 0.2011132836341858], [-0.022573411464691162, 0.4929857850074768, 0.3783552050590515], [-0.33265596628189087, 0.22183668613433838, 0.41303348541259766], [0.03862738609313965, 0.45694905519485474, -0.04652899503707886], [-0.5435763001441956, 0.41159480810165405, 0.5266854166984558], [-0.04584687948226929, -0.08123898506164551, 0.4334854483604431], [-0.2302585244178772, -0.24818822741508484, -0.3167213797569275], [-0.13403433561325073, -0.3995753526687622, 0.34845834970474243], [-0.1195337176322937, -0.1887650191783905, -0.19744089245796204], [-0.5492820739746094, 0.5230247378349304, 0.32086360454559326], [0.18945717811584473, 0.040142059326171875, -0.3605096936225891], [-0.4736575186252594, -0.2625374495983124, -0.2964716851711273], [-0.24349680542945862, -0.3485376536846161, -0.2378036081790924], [0.43136709928512573, 0.5169172883033752, -0.43086883425712585], [0.008988022804260254, 0.24687832593917847, 0.17265933752059937], [0.023125171661376953, -0.22023779153823853, 0.31369251012802124]]")
                 .CopyTo(((DenseLayer)network.Layers[1]).Weights);
@@ -342,8 +342,8 @@ namespace SharpNetTests.NonReg
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .Convolution(3, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray("[[[[-0.10066611, -0.22584948,  0.1257661 ]],[[ 0.00622791, -0.02702722, -0.19816945]],[[-0.00094005, -0.12673107,  0.10199177]]],[[[-0.05160269,  0.36979204, -0.38235503]],[[-0.25580615, -0.23532738, -0.18486507]],[[-0.18581466, -0.03875312, -0.18673505]]],[[[-0.1438927 , -0.05969113,  0.22153592]],[[ 0.02154535,  0.143184  ,  0.2194677 ]],[[-0.17963122,  0.14435953,  0.18853426]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
@@ -378,8 +378,8 @@ namespace SharpNetTests.NonReg
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Flatten()
-                .BatchNorm(0.99, 1e-5, "BatchNorm")
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+                .BatchNorm(0.99, 1e-5, "BatchNorm").Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var w = FromNumpyArray("[[ 0.5398403 ,  0.3300526 ,  0.55018014],[ 0.14779323, -0.34529093, -0.16082811],[ 0.25194514, -0.5108937 ,  0.22403759],[-0.15200073,  0.0372324 , 0.38966674],[-0.06222537, -0.49777025,  0.17976868],[-0.30487314,  0.29002702, -0.1486885 ],[ 0.21023047, -0.5419708 , -0.44205534],[ 0.03658289, 0.5347499 ,  0.04729468],[-0.29706508, -0.5559816 ,  0.54104596],[-0.526604  ,  0.12949431, -0.07999322],[ 0.07322848,  0.3647598 ,  0.03496403],[-0.5040164 ,  0.03338426, -0.34131938],[ 0.3909973 ,  0.22031981,  0.2741294 ],[ 0.36716205, -0.21828368,  0.42880273],[-0.03759038, 0.17174226, -0.33242768],[-0.26423737, -0.43534094, -0.30766475]]");
             w.CopyTo(((DenseLayer)network.Layers[3]).Weights);
@@ -448,8 +448,8 @@ namespace SharpNetTests.NonReg
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
-                .AddLayer(2, 1)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .AddLayer(2, 1).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             Tensor w = FromNumpyArray("[[[[-0.7714059]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
@@ -482,8 +482,8 @@ namespace SharpNetTests.NonReg
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true); //left
             network.Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, 0.0, true, 1); //right (identity shortcut)
-            network.AddLayer(3, 2)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
+            network.AddLayer(3, 2).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
                 ;
             Tensor w = FromNumpyArray("[[[[-0.7714059]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
@@ -517,8 +517,8 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds)
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             Tensor w = FromNumpyArray("[[[[-0.7714059]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
@@ -545,8 +545,8 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_1_4_4);
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds)
-                .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             Tensor w = FromNumpyArray("[[-0.3793878 ,  0.13005257, -0.48190022],[-0.5270703 , -0.5069973 , -0.45630288],[-0.08369148, -0.24146178, -0.09606424],[-0.0498544 , -0.4154459 , -0.3665961 ],[-0.3581952 , -0.3345901 ,  0.48476475],[ 0.320306  ,  0.301827  , -0.48490363],[ 0.33425486, -0.42483532,  0.20156533],[ 0.0346387 ,  0.34260863,  0.45479387],[-0.28320554,  0.27089173, -0.5511215 ],[-0.09140414, -0.2540371 , -0.38209555],[ 0.30901152, -0.22211927, -0.07776272],[-0.01273596, -0.43774882,  0.319129  ],[-0.26144847,  0.45303112, -0.5552845 ],[ 0.0012697 , -0.24624684, -0.01347905],[ 0.18339497, -0.46073103,  0.54499584],[-0.32917506,  0.03634387, -0.5220559 ]]");
             w.CopyTo(((DenseLayer)network.Layers[1]).Weights);
             //predictions before training
@@ -570,8 +570,8 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
             network.Config.WithSGD(0.9, false);
-            network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             Tensor w = FromNumpyArray("[[-0.3793878 ,  0.13005257, -0.48190022],[-0.5270703 , -0.5069973 , -0.45630288],[-0.08369148, -0.24146178, -0.09606424],[-0.0498544 , -0.4154459 , -0.3665961 ],[-0.3581952 , -0.3345901 ,  0.48476475],[ 0.320306  ,  0.301827  , -0.48490363],[ 0.33425486, -0.42483532,  0.20156533],[ 0.0346387 ,  0.34260863,  0.45479387],[-0.28320554,  0.27089173, -0.5511215 ],[-0.09140414, -0.2540371 , -0.38209555],[ 0.30901152, -0.22211927, -0.07776272],[-0.01273596, -0.43774882,  0.319129  ],[-0.26144847,  0.45303112, -0.5552845 ],[ 0.0012697 , -0.24624684, -0.01347905],[ 0.18339497, -0.46073103,  0.54499584],[-0.32917506,  0.03634387, -0.5220559 ]]");
             w.CopyTo(((DenseLayer)network.Layers[1]).Weights);
             //predictions before training
@@ -626,8 +626,8 @@ namespace SharpNetTests.NonReg
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .ConcatenateLayer(1, 2)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             var w = FromNumpyArray("[[[[-0.7714059]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             w = FromNumpyArray("[[[[-1.0248963]]]]");
@@ -658,8 +658,8 @@ namespace SharpNetTests.NonReg
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
                 .MultiplyLayer(1, 2)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             var w = FromNumpyArray("[[[[-0.7714059]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
@@ -692,8 +692,8 @@ namespace SharpNetTests.NonReg
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
                 .MultiplyLayer(1, 2)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             var w = FromNumpyArray("[[[[-0.54546636]],[[-0.12539268]]],[[[-0.72356474]],[[0.26959312]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             w = FromNumpyArray("[[[[-0.7247112]],[[-0.49400187]]],[[[-0.39867145]],[[0.04389346]]]]");
@@ -724,8 +724,8 @@ namespace SharpNetTests.NonReg
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
                 .MultiplyLayer(1, 2)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             var w = FromNumpyArray("[[[[-0.54546636, -0.12539268],[-0.72356474, 0.26959312]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             w = FromNumpyArray("[[[[-0.8368243],[-0.4603461]]]]");
@@ -757,8 +757,8 @@ namespace SharpNetTests.NonReg
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
                 .GlobalAvgPooling()
                 .MultiplyLayer(1, 3)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             FromConvNumpyArray("[[[[-0.4878799319267273, -0.6471760272979736], [-0.11215460300445557, 0.24113142490386963], [-0.5400518774986267, -0.8205036520957947]]]]").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             FromConvNumpyArray("[[[[-0.7247111797332764, -0.3986714482307434], [-0.4940018653869629, 0.04389345645904541]]]]").CopyTo(((ConvolutionLayer)network.Layers[2]).Weights);
             FromNumpyArray("[[-0.029460519552230835, 0.1628669798374176], [-0.28001704812049866, -0.23855498433113098], [0.07715305685997009, 0.11627233028411865], [0.32925912737846375, 0.011087954044342041], [0.12424156069755554, -0.05900973081588745], [-0.2703372836112976, 0.12233385443687439], [-0.08240920305252075, 0.006095200777053833], [-0.023135006427764893, 0.08786126971244812], [-0.2075882852077484, -0.3384675085544586], [0.10181871056556702, -0.08105111122131348], [0.04287368059158325, -0.014433145523071289], [-0.050517499446868896, 0.19285127520561218], [0.16756221652030945, -0.06256869435310364], [-0.1878374218940735, -0.17477598786354065], [0.3118181526660919, 0.36103251576423645], [0.16790542006492615, 0.27620890736579895], [0.21295377612113953, -0.15440134704113007], [0.03934970498085022, -0.35186851024627686], [-0.19449061155319214, -0.2855254113674164], [-0.08950188755989075, 0.2891680896282196], [-0.37375181913375854, 0.18617329001426697], [0.07124421000480652, 0.28268447518348694], [0.041756272315979004, 0.13584479689598083], [0.12497344613075256, 0.151188462972641], [0.3146173655986786, -0.22298070788383484], [-0.22048203647136688, -0.30460700392723083], [0.12072917819023132, -0.2646358907222748], [-0.15740737318992615, 0.17554828524589539], [0.13976749777793884, -0.357845664024353], [-0.365357369184494, -0.15716126561164856], [0.14519938826560974, 0.22951403260231018], [0.03488221764564514, 0.1870688498020172], [0.28289076685905457, 0.14199396967887878], [0.31583401560783386, 0.08595579862594604], [0.005727171897888184, 0.2800586521625519], [0.013508498668670654, 0.3192369043827057], [-0.14768590033054352, -0.05077126622200012], [-0.28260645270347595, -0.3034713864326477], [-0.05905658006668091, -0.3151003122329712], [-0.12471392750740051, -0.2689373791217804]]").CopyTo(((DenseLayer)network.Layers[6]).Weights);
@@ -784,8 +784,8 @@ namespace SharpNetTests.NonReg
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, lambdaL2Regularization, true)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             var w = FromConvNumpyArray("[[[[-1.8182212e-01],[-2.4118826e-01],[-4.1797549e-02]],[[ 8.9864373e-02],[-2.0126545e-01],[-3.0578366e-01]],[[ 3.1133693e-01],[ 2.8887171e-01],[-1.8024862e-01]]],[[[ 2.5361568e-01],[ 2.5364757e-04],[ 3.7667376e-01]],[[ 2.5444084e-01],[-1.6983339e-01],[ 3.4809512e-01]],[[ 1.6018957e-01],[-1.4399531e-01],[ 4.0002191e-01]]],[[[ 6.4367443e-02],[ 3.8731194e-01],[-3.4315154e-01]],[[-1.1633310e-01],[ 1.9787598e-01],[ 3.6543274e-01]],[[-1.5561658e-01],[ 2.6152426e-01],[-1.7792954e-01]]]]");
             w.CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             w = FromNumpyArray("[[-0.2895949 , -0.1177094 ],[ 0.23789662,  0.3767377 ],[ 0.41499782,  0.2744642 ], [ 0.00143611,  0.4848951 ], [-0.49549383, -0.20193446], [-0.6493831 ,  0.06595588], [-0.28986678,  0.05255955], [-0.27410832, -0.3834508 ], [ 0.05772114, -0.02405858], [ 0.18792003, -0.33073252], [-0.2710427 ,  0.09345931], [ 0.12703902, -0.14722306]]");
@@ -815,8 +815,8 @@ namespace SharpNetTests.NonReg
                 .Conv1D(2, 3, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Conv1D(2, 3, 2, ConvolutionLayer.PADDING_TYPE.CAUSAL, lambdaL2Regularization, true)
                 .Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
-                .Flatten()
-                .Output(Y.Shape[1], lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             FromConvNumpyArray("[[[0.09934896230697632, -0.11215364933013916], [0.3982505798339844, 0.342079758644104], [-0.06867659091949463, -0.46536481380462646], [0.2547714114189148, -0.08702009916305542]], [[-0.5021747350692749, -0.1221388578414917], [-0.3608691096305847, 0.3861338496208191], [0.10946327447891235, -0.052802085876464844], [-0.016413629055023193, 0.3857215642929077]], [[0.4184006452560425, -0.2657143771648407], [0.296006977558136, -0.28657031059265137], [-0.016508877277374268, -0.2890245020389557], [0.1388271450996399, 0.02789127826690674]]]").CopyTo(network.Layers[1].Weights);
             FromConvNumpyArray("[[[0.39741700887680054, 0.5679424405097961], [0.103904128074646, 0.46203213930130005]], [[0.5664966702461243, -0.5104600191116333], [-0.4302336871623993, 0.2359222173690796]], [[0.1441558599472046, -0.3472554683685303], [0.3229832053184509, -0.13790547847747803]]]").CopyTo(network.Layers[2].Weights);
             FromConvNumpyArray("[[[-1.0770841836929321, 0.557166576385498], [0.405431866645813, -0.2015085220336914]]]").CopyTo(network.Layers[3].Weights);
@@ -843,8 +843,8 @@ namespace SharpNetTests.NonReg
             network.Config.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.00, false)
-                .Flatten()
-                .Output(Y.Shape[1], 0.00, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], 0.00, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             FromConvNumpyArray("[[[[-1.8182212e-01],[-2.4118826e-01],[-4.1797549e-02]],[[ 8.9864373e-02],[-2.0126545e-01],[-3.0578366e-01]],[[ 3.1133693e-01],[ 2.8887171e-01],[-1.8024862e-01]]],[[[ 2.5361568e-01],[ 2.5364757e-04],[ 3.7667376e-01]],[[ 2.5444084e-01],[-1.6983339e-01],[ 3.4809512e-01]],[[ 1.6018957e-01],[-1.4399531e-01],[ 4.0002191e-01]]],[[[ 6.4367443e-02],[ 3.8731194e-01],[-3.4315154e-01]],[[-1.1633310e-01],[ 1.9787598e-01],[ 3.6543274e-01]],[[-1.5561658e-01],[ 2.6152426e-01],[-1.7792954e-01]]]]").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             FromNumpyArray("[[0.28597003,  0.4547698],[-0.4759524,   0.7416852],[-0.85341465, -0.40610817],[-0.14299387, -0.7595345],[0.08673978, -0.36584526],[0.855876, -0.65572554]]").CopyTo(((DenseLayer)network.Layers[3]).Weights);
@@ -871,8 +871,8 @@ namespace SharpNetTests.NonReg
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.00, false)
-                .Flatten()
-                .Output(Y.Shape[1], 0.00, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Flatten().Dense(Y.Shape[1], 0.00, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             FromConvNumpyArray("[[[[ 0.34814847],[-0.12127715],[ 0.22354162]],[[-0.06822091],[ 0.14409536],[ 0.1851415 ]],[[ 0.34887362],[-0.20124988],[-0.40070006]]],[[[0.00579837],[ 0.10344726],[-0.2527819 ]],[[ 0.39281756],[-0.04241154],[-0.27652574]],[[ 0.00179639],[-0.14511377],[-0.05352649]]],[[[ 0.2575059 ],[ 0.1235916 ],[-0.26898897]],[[ 0.01372808],[-0.22314253],[ 0.3652693 ]],[[ 0.4061154 ],[0.04825488],[ 0.4062844 ]]]]").CopyTo(((ConvolutionLayer)network.Layers[2]).Weights);
             FromNumpyArray("[[ 0.1670317  , 0.6739995 ], [ 0.02281129 , 0.36221045], [ 0.7731834  , 0.41565734], [-0.2101801  , 0.21554786], [-0.1369173  , 0.44515973], [-0.18519688 , 0.5447338 ]]").CopyTo(((DenseLayer)network.Layers[4]).Weights);
@@ -900,8 +900,8 @@ namespace SharpNetTests.NonReg
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(4, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .UpSampling2D(3, 2, UpSampling2DLayer.InterpolationEnum.Nearest)
-                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             FromConvNumpyArray("[[[[-0.41233378648757935, -0.5469635725021362, -0.09478795528411865, 0.20379328727722168], [-0.45642712712287903, -0.6934521198272705, 0.7060458660125732, 0.6550993919372559], [-0.40876543521881104, 0.5751461982727051, 0.0005752444267272949, 0.8542157411575317]]]]").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             FromConvNumpyArray("[[[[-0.1615283042192459], [-0.0656551718711853], [0.1326923966407776], [0.21013426780700684]], [[0.23147475719451904], [0.15308880805969238], [0.0008010268211364746], [0.2704615592956543]], [[-0.2763732671737671], [-0.11263367533683777], [-0.3622085750102997], [0.03678843379020691]]], [[[-0.1616799682378769], [0.029316306114196777], [-0.15289030969142914], [-0.21387864649295807]], [[0.032195329666137695], [-0.013419240713119507], [0.10481679439544678], [-0.18447379767894745]], [[-0.15118040144443512], [0.052129119634628296], [0.07085898518562317], [-0.08211708068847656]]], [[[-0.02411407232284546], [0.17931300401687622], [-0.2963199317455292], [-0.019487440586090088]], [[-0.2584547698497772], [0.23713970184326172], [-0.351848304271698], [0.3424469232559204]], [[0.22793227434158325], [0.13822901248931885], [-0.12481275200843811], [-0.32772859930992126]]]]").CopyTo(((ConvolutionLayer)network.Layers[3]).Weights);
@@ -931,8 +931,8 @@ namespace SharpNetTests.NonReg
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(4, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
                 .ZeroPadding2D(1, 2, 3, 4)
-                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
-                .Output(Y.Shape[1], 0.0, cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+                .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true).Dense(Y.Shape[1], 0.0, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
 
             FromConvNumpyArray("[[[[-0.41233378648757935, -0.5469635725021362, -0.09478795528411865, 0.20379328727722168], [-0.45642712712287903, -0.6934521198272705, 0.7060458660125732, 0.6550993919372559], [-0.40876543521881104, 0.5751461982727051, 0.0005752444267272949, 0.8542157411575317]]]]").CopyTo(((ConvolutionLayer)network.Layers[1]).Weights);
             FromConvNumpyArray("[[[[0.07042673230171204], [0.284183144569397], [0.009618103504180908], [0.1527213454246521]], [[0.3260027766227722], [0.17525649070739746], [-0.08861970901489258], [0.09088295698165894]], [[-0.05772939324378967], [0.18769580125808716], [-0.07808583974838257], [0.22967994213104248]]], [[[-0.03302586078643799], [-0.2509212791919708], [-0.1510678380727768], [0.09804627299308777]], [[-0.14208482205867767], [0.15808266401290894], [0.20872968435287476], [-0.264028936624527]], [[-0.34229689836502075], [0.2561035752296448], [0.03571978211402893], [0.24708086252212524]]], [[[-0.07826903462409973], [0.28786909580230713], [0.2017209529876709], [0.17617851495742798]], [[0.15275120735168457], [0.1589658260345459], [-0.2798265814781189], [0.011122971773147583]], [[-0.20089077949523926], [0.19293898344039917], [0.1550755500793457], [0.26180779933929443]]]]").CopyTo(((ConvolutionLayer)network.Layers[3]).Weights);
@@ -1174,7 +1174,7 @@ namespace SharpNetTests.NonReg
                     LossFunction = evaluationMetric, 
                     Metrics = evaluationMetrics,
                     RandomizeOrder = false, 
-                    ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow1, 
+                    ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow, 
                     WorkingDirectory = "",
                     ResourceIds = resourceIds.ToList()
                 }, 

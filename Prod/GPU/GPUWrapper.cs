@@ -478,6 +478,9 @@ namespace SharpNet.GPU
         public cudnnTensorDescriptor_t TensorDesc(cudnnDataType_t dataType, int[] shape)
         {
             CheckThreadId();
+
+            shape = shape.Select(i => Math.Max(i, 1)).ToArray();
+
             var n = shape[0];
             var c = shape.Length >= 2 ? shape[1] : 1;
             var h = shape.Length >= 3 ? shape[2] : 1;
@@ -571,25 +574,21 @@ namespace SharpNet.GPU
         }
         public void LogCopyDeviceToSameDeviceCall(ulong byteCopied)
         {
-            Debug.Assert(byteCopied > 0);
             ++_copyDeviceToSameDeviceCalls;
             _bytesCopiedDeviceToSameDevice += byteCopied;
         }
         public void LogCopyDeviceToOtherDeviceCall(ulong byteCopied)
         {
-            Debug.Assert(byteCopied > 0);
             ++_copyDeviceToOtherDeviceCalls;
             _bytesCopiedDeviceToOtherDevice += byteCopied;
         }
         public void LogCopyHostToDeviceCall(ulong byteCopied)
         {
-            Debug.Assert(byteCopied > 0);
             ++_copyHostToDeviceCalls;
             _bytesCopiedHostToDevice += byteCopied;
         }
         public void LogCopyDeviceToHostCall(ulong byteCopied)
         {
-            Debug.Assert(byteCopied > 0);
             ++_copyDeviceToHostCalls;
             _bytesCopiedDeviceToHost += byteCopied;
         }

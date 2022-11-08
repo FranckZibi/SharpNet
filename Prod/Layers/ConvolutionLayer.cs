@@ -301,7 +301,7 @@ namespace SharpNet.Layers
                 result.Add(ConvolutionBiasDatasetPath, _convolutionBias.ToCpuFloat());
             }
 
-            if (UseBias && originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
+            if (UseBias && originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow)
             {
                 Debug.Assert(_convolutionBias != null);
                 // ReSharper disable once PossibleNullReferenceException
@@ -464,7 +464,7 @@ namespace SharpNet.Layers
                 case PADDING_TYPE.SAME:
                     int outputLength = OutputLength(inputLength, kernelSize, stride, paddingType);
                     int totalPadding = Math.Max((outputLength - 1) * stride + kernelSize - inputLength, 0);
-                    if (compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
+                    if (compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow)
                     {
                         //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python
                         paddingStart = totalPadding / 2;

@@ -199,8 +199,8 @@ namespace SharpNet.Layers
             result[RunningMeanDatasetPath] = _resultRunningMean.ToCpuFloat();
             result[RunningVarianceDatasetPath] = _resultRunningVariance.ToCpuFloat();
 
-            if ((LayerBatchNormalizationMode() != cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION)
-                && (originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow1 || originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow2)
+            if (LayerBatchNormalizationMode() != cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION
+                && originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow
             )
             {
                 Debug.Assert(_scale.Count == _scale.Shape[1]);

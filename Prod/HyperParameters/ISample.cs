@@ -46,6 +46,12 @@ public interface ISample
     string ComputeHash();
     ISample Clone();
 
+    /// <summary>
+    /// true if the the sample runs on GPU
+    /// </summary>
+    // ReSharper disable once UnusedMember.Global
+    bool UseGPU { get; }
+
     public static string ToPath(string workingDirectory, string sampleName)
     {
         return Path.Combine(workingDirectory, sampleName + ".conf");
