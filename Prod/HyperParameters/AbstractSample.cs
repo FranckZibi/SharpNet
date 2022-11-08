@@ -180,4 +180,8 @@ public abstract class AbstractSample : ISample
         }
         return false;
     }
+
+    public virtual void SetTaskId(int taskId)
+    {
+    }
 }

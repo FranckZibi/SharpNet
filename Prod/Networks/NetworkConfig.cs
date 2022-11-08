@@ -322,6 +322,13 @@ namespace SharpNet.Networks
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4;
         public override bool UseGPU => ResourceIds.Max() >= 0;
+        public override void SetTaskId(int taskId)
+        {
+            if (UseGPU)
+            {
+                ResourceIds = new List<int> { taskId };
+            }
+        }
 
         public NetworkConfig WithAdam(double _beta1 = 0.9, double _beta2 = 0.999, double _epsilon = 1e-8)
         {

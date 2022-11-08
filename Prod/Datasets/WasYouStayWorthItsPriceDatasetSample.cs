@@ -103,14 +103,8 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     // ReSharper disable once UnusedMember.Global
     public static void TrainNetwork()
     {
-
         var datasetSample = new WasYouStayWorthItsPriceDatasetSample();
         var networkSample = InMemoryDataSetV2NetworkSample.New(datasetSample.FullTrainingAndValidation());
-        //var networkSampleV2 = networkSample.Clone();
-        //var network = new Network(networkSample, WorkingDirectory, NAME);
-        //var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
-        //network.Fit(trainAndValidation.Training, trainAndValidation.Test);
-
 
         var searchSpace = new Dictionary<string, object>
         {
@@ -124,18 +118,13 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //{"Reviews_EmbeddingDim", new[]{0, 100, 200}},
             
             // Optimizer 
-            {"OptimizerType", new[]{"AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ }},
-            {"AdamW_L2Regularization", new[]{1e-5, 1e-4, 1e-3, 1e-2, 1e-1}},
-            {"SGD_usenesterov", new[]{true, false}},
-            {"lambdaL2Regularization", new[]{0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1}},
+            {"OptimizerType", "AdamW"},
+            {"AdamW_L2Regularization", new[]{1e-5, 1e-4, 1e-3, 1e-2}},
 
             // Learning Rate Scheduler
-            {"LearningRateSchedulerType", new[]{ "CyclicCosineAnnealing", "OneCycle", "Linear"}},
+            {"LearningRateSchedulerType", new[]{ "CyclicCosineAnnealing", "OneCycle"}},
             
-            { "DefaultEmbeddingDim", new[]{0, 4, 8 ,12}},
-            
-            //{"weight_norm", new[]{true, false}},
-            //{"leaky_relu", new[]{true, false}},
+            { "DefaultEmbeddingDim", new[]{0, 4, 8}},
 
             {"dropout_top", new[]{0, 0.1, 0.2}},
             {"dropout_mid", new[]{0, 0.3, 0.5}},
@@ -143,7 +132,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             
             {"BatchSize", new []{256, 512, 1024, 2048}},
             
-            {"NumEpochs", new[]{15}},
+            {"NumEpochs", new[]{30}},
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New((InMemoryDataSetV2NetworkSample)networkSample.Clone(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);

@@ -20,6 +20,11 @@ public abstract class MultiSamples : ISample
 
     public bool UseGPU => Samples.Any(s => s.UseGPU);
 
+    public virtual void SetTaskId(int taskId)
+    {
+        Array.ForEach(Samples, s => s.SetTaskId(taskId));
+    }
+
     public void Save(string workingDirectory, string modelName)
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)

@@ -66,39 +66,39 @@ namespace SharpNet.HPO
                 SearchSpace[hyperParameterName] = AbstractHyperParameterSearchSpace.ValueOf(hyperParameterSearchSpace, isCategoricalHyperParameter);
             }
 
-            int coreCount = Utils.CoreCount;
+            numModelTrainingInParallel = Utils.CoreCount;
             
             if (defaultSample.UseGPU)
             {
                 //if the sample runs on GPU, we need to limit the number of // computation to the number of available GPU
-                coreCount = GPUWrapper.GetDeviceCount();
-                if (coreCount <= 0)
+                numModelTrainingInParallel = GPUWrapper.GetDeviceCount();
+                if (numModelTrainingInParallel <= 0)
                 {
                     throw new ArgumentException($"no GPU detected but sample {defaultSample} requires one");
                 }
             }
 
-            //coreCount = 1;
+            //numModelTrainingInParallel = 1;
 
-            // ReSharper disable once ConvertToConstant.Local
-            // number of parallel threads in each single training
-            int numThreadsForEachModelTraining = 1;//single core
-            numModelTrainingInParallel = coreCount;
+            //// ReSharper disable once ConvertToConstant.Local
+            //// number of parallel threads in each single training
+            //int numThreadsForEachModelTraining = 1;//single core
 
-            if (coreCount % numThreadsForEachModelTraining != 0)
-            {
-                throw new ArgumentException($"invalid number of threads {numThreadsForEachModelTraining} : core count {coreCount} must be a multiple of it");
-            }
+            //if (numModelTrainingInParallel % numThreadsForEachModelTraining != 0)
+            //{
+            //    throw new ArgumentException($"invalid number of threads by model {numThreadsForEachModelTraining} : model count {numModelTrainingInParallel} must be a multiple of it");
+            //}
         }
         #endregion
 
         public void Process(Func<ISample, IScore> objectiveFunction, float maxAllowedSecondsForAllComputation = 0 /* no time limit by default */)
         {
-            Log.Info("Computation(s) will be done on " + numModelTrainingInParallel + " cores");
+            Log.Info($"{numModelTrainingInParallel} model(s) will be trained in parallel");
             var threadTasks = new Task[numModelTrainingInParallel];
             for (int i = 0; i < threadTasks.Length; ++i)
             {
-                threadTasks[i] = new Task(() => ProcessNextSample(objectiveFunction, maxAllowedSecondsForAllComputation));
+                int taskId = i;
+                threadTasks[i] = new Task(() => ProcessNextSample(objectiveFunction, maxAllowedSecondsForAllComputation, taskId));
                 threadTasks[i].Start();
             }
             Task.WaitAll(threadTasks);
@@ -134,7 +134,7 @@ namespace SharpNet.HPO
         /// </summary>
         /// <param name="objectiveFunction"></param>
         /// <param name="maxAllowedSecondsForAllComputation"></param>
-        private void ProcessNextSample([NotNull] Func<ISample, IScore> objectiveFunction, float maxAllowedSecondsForAllComputation)
+        private void ProcessNextSample([NotNull] Func<ISample, IScore> objectiveFunction, float maxAllowedSecondsForAllComputation, int taskId)
         {
             Utils.ConfigureThreadIdLog4netProperties();
             for (; ; )
@@ -154,7 +154,7 @@ namespace SharpNet.HPO
                 try
                 {
                     Log.Debug($"starting computation of sampleId {sampleId}");
-
+                    sample.SetTaskId(taskId);
                     var sw = Stopwatch.StartNew();
                     var score = objectiveFunction(sample);
                     if (score != null && score.IsBetterThan(ScoreOfBestSampleFoundSoFar))

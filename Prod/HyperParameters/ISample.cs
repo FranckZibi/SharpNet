@@ -47,10 +47,18 @@ public interface ISample
     ISample Clone();
 
     /// <summary>
-    /// true if the the sample runs on GPU
+    /// true if the sample runs on GPU
+    /// false if it runs on CPU
     /// </summary>
     // ReSharper disable once UnusedMember.Global
     bool UseGPU { get; }
+    /// <summary>
+    /// When training several models in parallel, 'taskId' is the index of the model being trained
+    /// (in range [0, number_of_models_trained_in_parallel[ )
+    /// This is only used for GPU training to make sure each model is trained in a different GPU
+    /// </summary>
+    /// <param name="taskId"></param>
+    void SetTaskId(int taskId);
 
     public static string ToPath(string workingDirectory, string sampleName)
     {

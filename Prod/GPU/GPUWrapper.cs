@@ -79,8 +79,11 @@ namespace SharpNet.GPU
             }
 
             //We retrieve the cuda version
-            var cuRes = NVCudaWrapper.cuDriverGetVersion(out int cudaDriverVersion);
-            CheckStatus(cuRes);
+            var versionFromPath = System.IO.Path.GetFileName(Environment.GetEnvironmentVariable("CUDA_PATH")).Trim('v').Split('.').Select(int.Parse).ToArray();
+            int cudaDriverVersion = versionFromPath[0] * 1000 + versionFromPath[1] * 10;
+            //var cuRes = NVCudaWrapper.cuDriverGetVersion(out int cudaDriverVersion);
+            //CheckStatus(cuRes);
+
             CudaVersion = Utils.NewVersionXXYY0(cudaDriverVersion);
 
             CudartWrapper = new CudartWrapper(CudaVersion);
@@ -103,7 +106,7 @@ namespace SharpNet.GPU
             _deviceHandle = GetDeviceHandle(deviceId);
 
             //cuRes = NVCudaWrapper.cuCtxCreate_v2(out _contextHandle, 0, _deviceHandle);
-            cuRes = NVCudaWrapper.cuDevicePrimaryCtxRetain(out _contextHandle, _deviceHandle);
+            var cuRes = NVCudaWrapper.cuDevicePrimaryCtxRetain(out _contextHandle, _deviceHandle);
             CheckStatus(cuRes);
 
             var devName = new byte[256];
