@@ -257,7 +257,7 @@ namespace SharpNet.LightGBM
             LightGbmSample.num_threads = Utils.CoreCount;
         }
 
-        public override List<string> ModelFiles()
+        public override List<string> AllFiles()
         {
             return new List<string> { ModelPath };
         }

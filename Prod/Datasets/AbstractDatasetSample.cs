@@ -167,8 +167,8 @@ public abstract class AbstractDatasetSample : AbstractSample
     }
 
 
-    public InMemoryDataSet LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
-    public InMemoryDataSet LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
+    public InMemoryDataSetV2 LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
+    public InMemoryDataSetV2 LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
 
     ///// <summary>
     ///// return a DataSet with all labeled Data (all data found both in training and validation dataset)
@@ -176,7 +176,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     ///// <returns></returns>
     //public InMemoryDataSet LoadTrainAndValidationDataset() => InMemoryDataSet.MergeVertically(LoadTrainDataset(), LoadValidationDataset());
 
-    public InMemoryDataSet LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
+    public InMemoryDataSetV2 LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
     
     //// ReSharper disable once MemberCanBeMadeStatic.Global
     public DataFrame LoadPredictionsInModelFormat(string directory, string fileName)
@@ -453,7 +453,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// <returns></returns>
     public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
 
-    private InMemoryDataSet LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
+    private InMemoryDataSetV2 LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
     {
         DataFrame x = null;
         DataFrame y = null;
@@ -484,7 +484,13 @@ public abstract class AbstractDatasetSample : AbstractSample
         }
         AssertAllIdColumns(x);
         AssertNoIdColumns(y);
-        return new InMemoryDataSet(x.FloatCpuTensor(), y?.FloatCpuTensor(), Name, GetObjective(), null, x.Columns, Utils.Intersect(CategoricalFeatures, x.Columns).ToArray(), Utils.Intersect(IdColumns, x.Columns).ToArray(), TargetLabels, false, GetSeparator());
+
+        if (y != null && NumClass >= 2)
+        {
+            var yTensor = CpuTensor<float>.FromClassIndexToProba(y.FloatTensor, NumClass);
+            y = DataFrame.New(yTensor);
+        }
+        return new InMemoryDataSetV2(this, x, y, false);
     }
     //private DataFrame DropIdColumnsIfFound(DataFrame df)
     //{

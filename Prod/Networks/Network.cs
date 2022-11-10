@@ -50,11 +50,12 @@ namespace SharpNet.Networks
         public static Network NewForTests(NetworkConfig config, DataAugmentationSample da)
         {
             var modelSample = new TestNetworkSample(new ISample[] { config, da });
-            return new Network(modelSample, config.WorkingDirectory, config.ModelName);
+            return new Network(modelSample, config.WorkingDirectory, config.ModelName, true);
         }
 
         /// <param name="modelSample"></param>
         /// <param name="modelName"></param>
+        /// <param name="createLayers"></param>
         /// <param name="masterNetworkIfAny">
         ///     if the current network is a slave network doing computation for its master network:
         ///         the reference of the master network
@@ -62,7 +63,7 @@ namespace SharpNet.Networks
         ///         null
         /// </param>
         /// <param name="workingDirectory"></param>
-        public Network(NetworkSample modelSample, string workingDirectory, string modelName, Network masterNetworkIfAny = null) : base(modelSample, workingDirectory, modelName)
+        public Network(NetworkSample modelSample, string workingDirectory, string modelName, bool createLayers, Network masterNetworkIfAny = null) : base(modelSample, workingDirectory, modelName)
         {
             //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
@@ -74,7 +75,10 @@ namespace SharpNet.Networks
             CreateWorkingDirectoryIfNeeded();
             MemoryPool = new TensorMemoryPool(GpuWrapper);
             PropagationManager = new PropagationManager(Layers, MemoryPool, ForwardPropagationTrainingTime, ForwardPropagationInferenceTime, BackwardPropagationTime, _updateWeightsTime);
-            modelSample.BuildNetwork(this);
+            if (createLayers)
+            {
+                modelSample.CreateLayers(this);
+            }
             if (IsMaster && Config.ResourceIds.Count >= 2)
             {
                 //we create the slave networks

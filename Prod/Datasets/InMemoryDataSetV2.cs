@@ -52,7 +52,7 @@ public class InMemoryDataSetV2 : DataSet
 
         if (IsClassificationProblem && y_df != null && y_df.Shape[1] == 1 && DatasetSample.NumClass>=2)
         {
-            var yFloat = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, y_df.Shape[0], DatasetSample.NumClass);
+            var yFloat = CpuTensor<float>.FromClassIndexToProba(y_df.FloatCpuTensor(), DatasetSample.NumClass);
             y_df = DataFrame.New(yFloat);
         }
 

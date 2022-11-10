@@ -7,21 +7,20 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
-using SharpNet.Models;
 
 namespace SharpNet.HPO
 {
     public class StackingCVClassifierDatasetSample : DelegatedDatasetSample
     {
         #region private fields
-        private readonly InMemoryDataSet TrainingDataSet;
-        private readonly InMemoryDataSet InferenceDataSet;
+        private readonly InMemoryDataSetV2 TrainingDataSet;
+        private readonly InMemoryDataSetV2 InferenceDataSet;
         #endregion
 
         #region constructor
 
         // ReSharper disable once UnusedMember.Global
-        private StackingCVClassifierDatasetSample(AbstractDatasetSample embeddedDatasetSample, InMemoryDataSet trainingDataSet, InMemoryDataSet inferenceDataSet, int cv) : base(embeddedDatasetSample)
+        private StackingCVClassifierDatasetSample(InMemoryDataSetV2 trainingDataSet, InMemoryDataSetV2 inferenceDataSet, int cv) : base(trainingDataSet.DatasetSample)
         {
             TrainingDataSet = trainingDataSet;
             InferenceDataSet= inferenceDataSet;
@@ -45,34 +44,34 @@ namespace SharpNet.HPO
             List<DataFrame> y_preds_for_training_InModelFormat = new();
             List<DataFrame> y_preds_for_inference_InModelFormat = new();
             CpuTensor<float> y_true_training_InTargetFormat = null;
-            InMemoryDataSet validationDataset = null, testDataset = null;
+            InMemoryDataSetV2 validationDataset = null, testDataset = null;
 
             if (!Directory.Exists(workingDirectory))
             {
                 Directory.CreateDirectory(workingDirectory);
             }
 
-            AbstractDatasetSample EmbeddedDatasetSample = null;
+            AbstractDatasetSample embeddedDatasetSample = null;
 
             for (int i = 0; i < workingDirectoryAndModelNames.Count; ++i)
             {
                 var (embeddedModelWorkingDirectory, embeddedModelNameForTraining, embeddedModelNameForInference) = workingDirectoryAndModelNames[i];
-                var embeddedModelAndDatasetPredictionsForTraining = ModelAndDatasetPredictions.Load(embeddedModelWorkingDirectory, embeddedModelNameForTraining);
-
-                var embeddedModelAndDatasetPredictionsForInference = embeddedModelAndDatasetPredictionsForTraining;
+                if (embeddedDatasetSample == null)
+                {
+                    embeddedDatasetSample = ModelAndDatasetPredictionsSample.LoadDatasetSample(embeddedModelWorkingDirectory, embeddedModelNameForTraining);
+                }
+                var trainingPredictionsSample = ModelAndDatasetPredictionsSample.LoadPredictions(embeddedModelWorkingDirectory, embeddedModelNameForTraining);
+                var inferencePredictionsSample = trainingPredictionsSample;
                 if (!string.IsNullOrEmpty(embeddedModelNameForInference) && embeddedModelNameForInference != embeddedModelNameForTraining)
                 {
-                    embeddedModelAndDatasetPredictionsForInference = ModelAndDatasetPredictions.Load(embeddedModelWorkingDirectory, embeddedModelNameForInference); ;
+                    inferencePredictionsSample = ModelAndDatasetPredictionsSample.LoadPredictions(embeddedModelWorkingDirectory, embeddedModelNameForInference);
                 }
 
-
-                EmbeddedDatasetSample = embeddedModelAndDatasetPredictionsForTraining.DatasetSample;
-                //var y_pred_train_InModelFormat = datasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictionsForTraining.PredictionsSample.Train_PredictionsFileName_InModelFormat);
-                var y_pred_training_InModelFormat = EmbeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictionsForTraining.PredictionsSample.Validation_PredictionsFileName_InModelFormat);
-                var y_pred_inference_InModelFormat = EmbeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictionsForInference.PredictionsSample.Test_PredictionsFileName_InModelFormat);
+                var y_pred_training_InModelFormat = embeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, trainingPredictionsSample.Validation_PredictionsFileName_InModelFormat);
+                var y_pred_inference_InModelFormat = embeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, inferencePredictionsSample.Test_PredictionsFileName_InModelFormat);
                 if (y_pred_training_InModelFormat == null)
                 {
-                    y_pred_training_InModelFormat = EmbeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, embeddedModelAndDatasetPredictionsForTraining.PredictionsSample.Train_PredictionsFileName_InModelFormat);
+                    y_pred_training_InModelFormat = embeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, trainingPredictionsSample.Train_PredictionsFileName_InModelFormat);
                 }
 
                 //_y_preds_train_InModelFormat.Add(y_pred_train_InModelFormat);
@@ -81,12 +80,12 @@ namespace SharpNet.HPO
 
                 if (i == 0)
                 {
-                    validationDataset = EmbeddedDatasetSample.LoadValidationDataset()?? EmbeddedDatasetSample.LoadTrainDataset();
+                    validationDataset = embeddedDatasetSample.LoadValidationDataset()?? embeddedDatasetSample.LoadTrainDataset();
                     if (validationDataset == null)
                     {
                         throw new ArgumentException($"no Validation/Training DataSet found");
                     }
-                    testDataset = EmbeddedDatasetSample.LoadTestDataset();
+                    testDataset = embeddedDatasetSample.LoadTestDataset();
                     if (testDataset == null)
                     {
                         throw new ArgumentException($"no Test DataSet found");
@@ -139,44 +138,28 @@ namespace SharpNet.HPO
                 throw new Exception($"training and inference dataset must have the same number of columns");
             }
 
-            var datasetSampleCategoricalFeatures = Utils.Intersect(x_training_InModelFormat_df.Columns, EmbeddedDatasetSample.CategoricalFeatures).ToArray();
-            var datasetSampleIdColumns = Utils.Intersect(x_training_InModelFormat_df.Columns, EmbeddedDatasetSample.IdColumns).ToArray();
-            var TrainingDataSet = new InMemoryDataSet(
-                x_training_InModelFormat_df.FloatCpuTensor(),
-                y_true_training_InTargetFormat,
-                EmbeddedDatasetSample.Name,
-                EmbeddedDatasetSample.GetObjective(),
-                null,
-                x_training_InModelFormat_df.Columns,
-                datasetSampleCategoricalFeatures,
-                datasetSampleIdColumns,
-                EmbeddedDatasetSample.TargetLabels,
-                false,
-                EmbeddedDatasetSample.GetSeparator());
+            var TrainingDataSet = new InMemoryDataSetV2(
+                embeddedDatasetSample,
+                x_training_InModelFormat_df,
+                DataFrame.New(y_true_training_InTargetFormat),
+                false);
 
-            var InferenceDataSet = new InMemoryDataSet(
-                x_inference_InModelFormat_df.FloatCpuTensor(),
+            var InferenceDataSet = new InMemoryDataSetV2(
+                embeddedDatasetSample,
+                x_inference_InModelFormat_df,
                 null,
-                EmbeddedDatasetSample.Name,
-                EmbeddedDatasetSample.GetObjective(),
-                null,
-                x_inference_InModelFormat_df.Columns,
-                datasetSampleCategoricalFeatures,
-                datasetSampleIdColumns,
-                EmbeddedDatasetSample.TargetLabels,
-                false,
-                EmbeddedDatasetSample.GetSeparator());
+                false);
 
 
             TrainingDataSet.to_csv_in_directory(workingDirectory, true, true, true);
             InferenceDataSet.to_csv_in_directory(workingDirectory, true, true, true);
 
         
-            if (EmbeddedDatasetSample.PercentageInTraining > 0.99)
+            if (embeddedDatasetSample.PercentageInTraining > 0.99)
             {
-                EmbeddedDatasetSample.PercentageInTraining = 0.8;
+                embeddedDatasetSample.PercentageInTraining = 0.8;
             }
-            return new StackingCVClassifierDatasetSample(EmbeddedDatasetSample, TrainingDataSet, InferenceDataSet, cv);
+            return new StackingCVClassifierDatasetSample(TrainingDataSet, InferenceDataSet, cv);
 
         }
         #endregion
@@ -184,7 +167,7 @@ namespace SharpNet.HPO
 
         public override ISample Clone()
         {
-            return new StackingCVClassifierDatasetSample(EmbeddedDatasetSample, TrainingDataSet, InferenceDataSet, KFold);
+            return new StackingCVClassifierDatasetSample(TrainingDataSet, InferenceDataSet, KFold);
         }
 
 

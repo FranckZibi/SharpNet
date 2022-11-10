@@ -85,7 +85,13 @@ public interface ISample
         {
             throw new ArgumentException($"both files {textPath} and {jsonPath} exist");
         }
-        return File.Exists(textPath) ? LoadTextConfig(textPath) : LoadJsonConfig(jsonPath);
+        if (!File.Exists(textPath) && !File.Exists(jsonPath))
+        {
+            throw new ArgumentException($"both files {textPath} and {jsonPath} are missing");
+        }
+        return File.Exists(textPath)
+            ?LoadTextConfig(textPath)
+            :LoadJsonConfig(jsonPath);
     }
     public static T LoadSample<T>(string workingDirectory, string sampleName) where T:ISample
     {

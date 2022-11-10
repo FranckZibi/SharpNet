@@ -248,7 +248,7 @@ namespace SharpNetTests.NonReg
                 new DataAugmentationSample()
             });
 
-            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName);
+            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName, false);
 
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)

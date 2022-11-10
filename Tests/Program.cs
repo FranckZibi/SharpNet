@@ -78,11 +78,12 @@ namespace SharpNetTests
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
+            //CFM60Tests();
 
-            WasYouStayWorthItsPriceDatasetSample.TrainNetwork();
+            //WasYouStayWorthItsPriceDatasetSample.TrainNetwork();
             //new ChallengeTools().StackedEnsemble();
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(10, 60);
+            WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(50, 15*60);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
@@ -424,24 +425,24 @@ namespace SharpNetTests
         }
 
 
-        //#region CFM60 Training
-        //private static void CFM60Tests()
-        //{
-        //    const bool useMultiGpu = false;
-        //    var networkGeometries = new List<Action<Cfm60NetworkSample, int>>
-        //    {
-        //        (p,gpuDeviceId) =>{p.Config.SetResourceId(gpuDeviceId);Train_CFM60(p);},
-        //    };
+        #region CFM60 Training
+        private static void CFM60Tests()
+        {
+            const bool useMultiGpu = false;
+            var networkGeometries = new List<Action<Cfm60NetworkSample, int>>
+            {
+                (p,gpuDeviceId) =>{p.Config.SetResourceId(gpuDeviceId);Train_CFM60(p);},
+            };
 
-        //    var networkMetaParameters = new List<Func<Cfm60NetworkSample>>
-        //    {
-        //        () =>{var p = Cfm60NetworkSample.Default();p.CFM60HyperParameters.ValueToPredict= CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_LR ;p.Config.ExtraDescription = "";return p;},
-        //    };
+            var networkMetaParameters = new List<Func<Cfm60NetworkSample>>
+            {
+                () =>{var p = Cfm60NetworkSample.Default();p.CFM60HyperParameters.ValueToPredict= CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_LR ;p.Config.ExtraDescription = "";return p;},
+            };
 
-        //    //networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 2);
+            //networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 2);
 
-        //    PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
-        //}
+            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
+        }
 
 
 
@@ -464,7 +465,7 @@ namespace SharpNetTests
             //((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network);
             //((CFM60DataSet)trainingValidation.Test).CreatePredictionFile(network);
         }
-        //#endregion
+        #endregion
 
 
 

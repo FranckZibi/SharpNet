@@ -220,6 +220,16 @@ public class KFoldModel : Model
             embeddedModel.Save(workingDirectory, embeddedModel.ModelName);
         }
     }
+    public override List<string> AllFiles()
+    {
+        List<string> res = new();
+        res.AddRange(ModelSample.SampleFiles(WorkingDirectory, ModelName));
+        foreach (var m in _embeddedModels)
+        {
+            res.AddRange(m.AllFiles());
+        }
+        return res;
+    }
 
     public override int GetNumEpochs()
     {
@@ -241,15 +251,6 @@ public class KFoldModel : Model
     public override int TotalParams()
     {
         return -1; //TODO
-    }
-    public override List<string> ModelFiles()
-    {
-        List<string> res = new();
-        foreach (var m in _embeddedModels)
-        {
-            res.AddRange(m.ModelFiles());
-        }
-        return res;
     }
 
     private KFoldSample KFoldSample => (KFoldSample)ModelSample;

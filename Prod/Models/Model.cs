@@ -59,7 +59,7 @@ public abstract class Model
         {
             networkSample.Config.WorkingDirectory = workingDirectory;
             networkSample.Config.ModelName = modelName;
-            return new Network(networkSample, workingDirectory, modelName);
+            return new Network(networkSample, workingDirectory, modelName, true);
         }
         throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");
     }
@@ -71,14 +71,10 @@ public abstract class Model
     //    try { return LightGBMModel.LoadTrainedLightGBMModel(workingDirectory, modelName); } catch { }
     //    try { return CatBoostModel.LoadTrainedCatBoostModel(workingDirectory, modelName); } catch { }
     //    throw new ArgumentException($"can't load model {modelName} from {workingDirectory}");
-        #endregion
+    #endregion
 
-    public List<string> AllFiles()
-    {
-        var res = ModelSample.SampleFiles(WorkingDirectory, ModelName);
-        res.AddRange(ModelFiles());
-        return res;
-    }
+    public abstract List<string> AllFiles();
+
     public IScore ComputeLoss(CpuTensor<float> y_true, CpuTensor<float> y_pred)
     {
         if (y_true == null || y_pred == null)
@@ -212,8 +208,6 @@ public abstract class Model
     public abstract void Save(string workingDirectory, string modelName);
     public virtual string DeviceName() => "";
     public virtual int TotalParams() => -1;
-    public abstract List<string> ModelFiles();
-
     public virtual int GetNumEpochs() => -1;
     public virtual double GetLearningRate() => double.NaN;
 

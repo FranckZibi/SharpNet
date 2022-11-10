@@ -53,7 +53,7 @@ namespace SharpNet.Networks
             int[] fixedResourceIds = AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
             sample.Config.ResourceIds = fixedResourceIds.ToList();
 
-            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName);
+            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName, false);
             if (!originalResourceIds.SequenceEqual(fixedResourceIds))
             {
                 LogWarn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
@@ -137,13 +137,13 @@ namespace SharpNet.Networks
         }
 
 
-        public override List<string> ModelFiles()
+        public override List<string> AllFiles()
         {
-            return new List<string>
-            {
-                ToModelFilePath(WorkingDirectory, ModelName),
-                ToParameterFilePath(WorkingDirectory, ModelName)
-            };
+            List<string> res = new();
+            res.AddRange(ModelSample.SampleFiles(WorkingDirectory, ModelName));
+            res.Add(ToModelFilePath(WorkingDirectory, ModelName));
+            res.Add(ToParameterFilePath(WorkingDirectory, ModelName));
+            return res;
         }
 
         [NotNull] public static string ToModelFilePath(string workingDirectory, string modelName)

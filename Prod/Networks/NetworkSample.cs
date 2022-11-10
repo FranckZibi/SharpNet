@@ -64,19 +64,15 @@ namespace SharpNet.Networks
         public Network BuildEmptyNetwork(string networkName)
         {
             Config.ModelName = networkName + Config.ExtraDescription;
-            var network = new Network(this, Config.WorkingDirectory, Config.ModelName);
+            var network = new Network(this, Config.WorkingDirectory, Config.ModelName, false);
             return network;
         }
 
 
-        public virtual void BuildNetwork(Network network)
+        public virtual void CreateLayers(Network network)
         {
             throw new NotImplementedException();
         }
-
-
-
-
 
         //private static NetworkSample ValueOfNetworkSample(string workingDirectory, string modelName)
         //{
@@ -90,6 +86,7 @@ namespace SharpNet.Networks
         [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
         public static NetworkSample ValueOf(string workingDirectory, string modelName)
         {
+            try { return InMemoryDataSetV2NetworkSample.ValueOfInMemoryDataSetV2NetworkSample(workingDirectory, modelName); } catch { }
             try { return EfficientNetSample.ValueOfEfficientNetSample(workingDirectory, modelName); } catch { }
             try { return Cfm60NetworkSample.ValueOfCfm60NetworkSample(workingDirectory, modelName); } catch { }
             try { return WideResNetSample.ValueOfWideResNetSample(workingDirectory, modelName); } catch { }

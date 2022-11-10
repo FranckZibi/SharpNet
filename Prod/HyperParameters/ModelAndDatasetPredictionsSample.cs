@@ -11,23 +11,31 @@ namespace SharpNet.HyperParameters
         // ReSharper disable once MemberCanBePrivate.Global
         public ModelAndDatasetPredictionsSample(ISample[] samples) : base(samples) { }
 
-        public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName)
+        public static AbstractDatasetSample LoadDatasetSample(string workingDirectory, string modelName)
         {
-            var modelSample = IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0));
-            var datasetSample = AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1));
+            return AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1));
+        }
 
+        public static PredictionsSample LoadPredictions(string workingDirectory, string modelName)
+        {
             //We try to load the prediction sample file
             //If it is missing, we'll just use an empty prediction file
-            PredictionsSample predictionsSample;
             try
             {
-                predictionsSample = ISample.LoadSample<PredictionsSample>(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2));
+                return ISample.LoadSample<PredictionsSample>(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2));
             }
             catch
             {
                 //Prediction file is missing, we'll use a default prediction file
-                predictionsSample = new PredictionsSample();
+                return new PredictionsSample();
             }
+        }
+
+        public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName)
+        {
+            var modelSample = IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0));
+            var datasetSample = LoadDatasetSample(workingDirectory, modelName);
+            var predictionsSample = LoadPredictions(workingDirectory, modelName);
 
             return new ModelAndDatasetPredictionsSample(
                 new ISample[]{

@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using SharpNet.CatBoost;
 using SharpNet.LightGBM;
 using SharpNet.Models;
+using SharpNet.Networks;
 
 namespace SharpNet.HyperParameters;
 
@@ -16,6 +17,7 @@ public interface IModelSample : ISample
         try { return LoadSample<LightGBMSample>(workingDirectory, sampleName); } catch { }
         try { return LoadSample<CatBoostSample>(workingDirectory, sampleName); } catch { }
         try { return LoadSample<KFoldSample>(workingDirectory, sampleName); } catch { }
+        try { return NetworkSample.ValueOf(workingDirectory, sampleName); } catch { }
         throw new Exception($"can't load sample from model {sampleName} in directory {workingDirectory}");
     }
 }

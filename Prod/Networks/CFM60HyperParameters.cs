@@ -119,7 +119,7 @@ public class CFM60HyperParameters : AbstractSample
         return result;
     }
 
-    public void Initialize(Network network)
+    public void CreateLayers(Network network)
     {
         network.Input(Encoder_TimeSteps, Encoder_InputSize, -1);
 

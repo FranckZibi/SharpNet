@@ -53,17 +53,16 @@ public class InMemoryDataSetV2NetworkSample : NetworkSample
     public InMemoryDataSetV2NetworkSampleHyperParameters HyperParameters => (InMemoryDataSetV2NetworkSampleHyperParameters)Samples[0];
     // ReSharper disable once MemberCanBePrivate.Global
 
-    //public static InMemoryDataSetV2NetworkSample ValueOfInMemoryDataSetV2NetworkSample(string workingDirectory, string modelName)
-    //{
-    //    return new InMemoryDataSetV2NetworkSample(new ISample[]
-    //    {
-    //        ISample.LoadSample<NetworkConfig>(workingDirectory, ISample.SampleName(modelName, 0)),
-    //        ISample.LoadSample<DataAugmentationSample>(workingDirectory, ISample.SampleName(modelName, 1)),
-    //        ISample.LoadSample<InMemoryDataSetV2NetworkSampleHyperParameters>(workingDirectory, ISample.SampleName(modelName, 2))
-    //    });
-    //}
+    public static InMemoryDataSetV2NetworkSample ValueOfInMemoryDataSetV2NetworkSample(string workingDirectory, string modelName)
+    {
+        return new InMemoryDataSetV2NetworkSample(new ISample[]
+        {
+            ISample.LoadSample<InMemoryDataSetV2NetworkSampleHyperParameters>(workingDirectory, ISample.SampleName(modelName, 0)),
+            ISample.LoadSample<DataAugmentationSample>(workingDirectory, ISample.SampleName(modelName, 1)),
+        });
+    }
 
-    public override void BuildNetwork(Network network)
+    public override void CreateLayers(Network network)
     {
         HyperParameters.BuildNetwork(network);
     }

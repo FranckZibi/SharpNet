@@ -194,10 +194,10 @@ public class ModelAndDatasetPredictions
     public List<string> AllFiles()
     {
         var res = ModelAndDatasetPredictionsSample.SampleFiles(Model.WorkingDirectory, Model.ModelName);
-        res.AddRange(Model.ModelFiles());
+        res.AddRange(Model.AllFiles());
         return res;
     }
-    public void Save(string workingDirectory, string modelName)
+    public virtual void Save(string workingDirectory, string modelName)
     {
         var start = Stopwatch.StartNew();
         ModelAndDatasetPredictionsSample.Save(workingDirectory, modelName);
@@ -249,7 +249,7 @@ public class ModelAndDatasetPredictions
         DatasetSample.SavePredictionsInTargetFormat(testPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
     }
 
-    public PredictionsSample PredictionsSample => ModelAndDatasetPredictionsSample.PredictionsSample;
+    private PredictionsSample PredictionsSample => ModelAndDatasetPredictionsSample.PredictionsSample;
 
     private void SaveTrainPredictionsInModelFormat(DataFrame trainPredictionsInModelFormat, IScore trainLoss)
     {

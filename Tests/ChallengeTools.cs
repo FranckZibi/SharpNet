@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -34,24 +35,24 @@ public class ChallengeTools
     [Test, Explicit]
     public void StackedEnsemble()
     {
-        const string workingDirectory = @"C:\Projects\Challenges\MyChallenge\";
+        const string workingDirectory = @"C:/Projects/Challenges/WasYouStayWorthItsPrice/submission";
         var modelName = new[]
         {
-            "316CF95B15_KFOLD",
-            "B63953F624_KFOLD",
-            "6034138E35_KFOLD",
-            "F867A78F52_KFOLD",
-
-
-            //"3580990008_KFOLD",
-            //"395B343296_KFOLD",
-            //"48F31E6543_KFOLD",
-            //"56E668E7DB_KFOLD",
-            //"66B4F3653A_KFOLD",
-            //"8CF93D9FA0_KFOLD",
-            //"90840F212D_KFOLD",
-            //"90DAFFB8FC_KFOLD",
-            //"E72AD5B74B_KFOLD"
+            //"316CF95B15_KFOLD",
+            //"B63953F624_KFOLD",
+            //"6034138E35_KFOLD",
+            //"F867A78F52_KFOLD",
+            
+            "0EF01A90D8_KFOLD", //Deep Learning
+            "3580990008_KFOLD",
+            "395B343296_KFOLD",
+            "48F31E6543_KFOLD",
+            "56E668E7DB_KFOLD",
+            "66B4F3653A_KFOLD",
+            "8CF93D9FA0_KFOLD",
+            "90840F212D_KFOLD",
+            "90DAFFB8FC_KFOLD",
+            "E72AD5B74B_KFOLD"
         };
         const bool use_features_in_secondary = true;
         const int cv = 2;
@@ -120,4 +121,39 @@ public class ChallengeTools
     }
 
 
+    // ReSharper disable once UnusedMember.Global
+    public static Dictionary<string, object> DefaultSearchSpaceFor_InMemoryDataSetV2NetworkSample()
+    {
+        var searchSpace = new Dictionary<string, object>
+        {
+            { "KFold", 2 },
+            //{"PercentageInTraining", new[]{0.8}},
+
+            // Optimizer 
+            { "OptimizerType", new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
+            { "AdamW_L2Regularization", new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { "SGD_usenesterov", new[] { true, false } },
+            { "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+
+            // Learning Rate
+            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            // Learning Rate Scheduler
+            { "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
+
+            { "DefaultEmbeddingDim", new[] { 0, 4, 8, 12 } },
+
+            //{"weight_norm", new[]{true, false}},
+            //{"leaky_relu", new[]{true, false}},
+
+            { "dropout_top", new[] { 0, 0.1, 0.2 } },
+            { "dropout_mid", new[] { 0, 0.3, 0.5 } },
+            { "dropout_bottom", new[] { 0, 0.2, 0.4 } },
+
+            { "BatchSize", new[] { 256, 512, 1024, 2048 } },
+
+            { "NumEpochs", new[] { 15 } },
+        };
+
+        return searchSpace;
+    }
 }

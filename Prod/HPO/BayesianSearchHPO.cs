@@ -153,12 +153,15 @@ public class BayesianSearchHPO : AbstractHpo
                 throw new Exception($"score can not be NaN for sampleId {sampleId}");
             }
 
-            Log.Debug($"Registering actual sore ({actualScore}) of sample {sampleId} (surrogate score prediction: {surrogateScorePrediction})");
+            Log.Debug($"Registering actual score ({actualScore}) of sample {sampleId} (surrogate score prediction: {surrogateScorePrediction})");
             _samplesWithScoreIfAvailable[sampleId] = Tuple.Create(sampleTuple.Item1, sampleAsFloatVector, surrogateScorePrediction, actualScore.Value, sampleId, sampleDescription);
             RegisterSampleScore(SearchSpace, sample, actualScore, elapsedTimeInSeconds);
 
-            //if (SamplesWithScore.Count >= Math.Max(10, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
-            if (SamplesWithScore.Count >= Math.Max(5, 2*_samplesUsedForModelTraining))
+            // For the first 'samplesUsingRandomSearch' samples, we'll use a random search
+            // Then we'll use the surrogate Model to select the samples to use
+            const int samplesUsingRandomSearch = 30;
+            //if (SamplesWithScore.Count >= Math.Max(samplesUsingRandomSearch, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
+            if (SamplesWithScore.Count >= Math.Max(samplesUsingRandomSearch, 2*_samplesUsedForModelTraining))
             {
                 _samplesUsedForModelTraining = TrainSurrogateModel();
             }

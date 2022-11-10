@@ -25,14 +25,14 @@ public abstract class MultiSamples : ISample
         Array.ForEach(Samples, s => s.SetTaskId(taskId));
     }
 
-    public void Save(string workingDirectory, string modelName)
+    public virtual void Save(string workingDirectory, string modelName)
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)
         {
             Samples[sampleIndex].Save(workingDirectory, SampleIndexToSampleName(modelName, sampleIndex));
         }
     }
-    public List<string> SampleFiles(string workingDirectory, string modelName)
+    public virtual List<string> SampleFiles(string workingDirectory, string modelName)
     {
         HashSet<string> res = new();
         for (var sampleIndex = 0; sampleIndex < Samples.Length; sampleIndex++)

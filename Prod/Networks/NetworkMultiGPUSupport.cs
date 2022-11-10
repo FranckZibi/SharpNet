@@ -188,7 +188,7 @@ namespace SharpNet.Networks
             slaveNetworkConfig.ResourceIds = new List<int> { slaveDeviceId };
             var slaveSample = master.NetworkSample.CopyWithNewConfig(slaveNetworkConfig);
 
-            var slave = new Network(slaveSample, slaveSample.Config.WorkingDirectory, slaveSample.Config.ModelName, master);
+            var slave = new Network(slaveSample, slaveSample.Config.WorkingDirectory, slaveSample.Config.ModelName, true, master);
             lock (master._slaveNetworks)
             {
                 master._slaveNetworks.Add(slave);

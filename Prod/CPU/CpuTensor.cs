@@ -891,22 +891,6 @@ namespace SharpNet.CPU
             Parallel.For(0, Shape[0], SplitSingleRow);
         }
 
-
-        public static CpuTensor<float> CreateOneHotTensor(Func<int,int> elementIdToCategoryIndex, int elementCount, int categoryCount)
-        {
-            var result = new CpuTensor<float>(new[] { elementCount, categoryCount });
-            var yContent = result.SpanContent;
-            for (int elementId = 0; elementId < elementCount; ++elementId)
-            {
-                var categoryIndex = elementIdToCategoryIndex(elementId);
-                if (categoryIndex >= 0)
-                {
-                    yContent[elementId * categoryCount + categoryIndex] = 1f;
-                }
-            }
-            return result;
-        }
-
         ///// <summary>
         ///// return a (square) diagonal matrix of length (rowCount, rowCount)
         ///// each element in the diagonal will be 1, all other will be 0
@@ -2044,6 +2028,25 @@ namespace SharpNet.CPU
             }
             return new CpuTensor<T>(newShape, newData);
         }
+
+
+
+
+        public static CpuTensor<float> CreateOneHotTensor(Func<int, int> elementIdToCategoryIndex, int elementCount, int categoryCount)
+        {
+            var result = new CpuTensor<float>(new[] { elementCount, categoryCount });
+            var yContent = result.SpanContent;
+            for (int elementId = 0; elementId < elementCount; ++elementId)
+            {
+                var categoryIndex = elementIdToCategoryIndex(elementId);
+                if (categoryIndex >= 0)
+                {
+                    yContent[elementId * categoryCount + categoryIndex] = 1f;
+                }
+            }
+            return result;
+        }
+
 
 
         /// <summary>

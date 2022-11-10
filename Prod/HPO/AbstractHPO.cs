@@ -77,17 +77,6 @@ namespace SharpNet.HPO
                     throw new ArgumentException($"no GPU detected but sample {defaultSample} requires one");
                 }
             }
-
-            //numModelTrainingInParallel = 1;
-
-            //// ReSharper disable once ConvertToConstant.Local
-            //// number of parallel threads in each single training
-            //int numThreadsForEachModelTraining = 1;//single core
-
-            //if (numModelTrainingInParallel % numThreadsForEachModelTraining != 0)
-            //{
-            //    throw new ArgumentException($"invalid number of threads by model {numThreadsForEachModelTraining} : model count {numModelTrainingInParallel} must be a multiple of it");
-            //}
         }
         #endregion
 
@@ -134,6 +123,7 @@ namespace SharpNet.HPO
         /// </summary>
         /// <param name="objectiveFunction"></param>
         /// <param name="maxAllowedSecondsForAllComputation"></param>
+        /// <param name="taskId"></param>
         private void ProcessNextSample([NotNull] Func<ISample, IScore> objectiveFunction, float maxAllowedSecondsForAllComputation, int taskId)
         {
             Utils.ConfigureThreadIdLog4netProperties();

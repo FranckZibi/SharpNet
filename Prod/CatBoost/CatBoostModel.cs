@@ -184,7 +184,7 @@ namespace SharpNet.CatBoost
         {
             return CatBoostSample.learning_rate;
         }
-        public override List<string> ModelFiles()
+        public override List<string> AllFiles()
         {
             return new List<string> { ModelPath };
         }

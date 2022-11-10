@@ -100,8 +100,14 @@ namespace SharpNet.Networks
                 return Network.LoadTrainedNetworkModel(workingDirectory, modelName);
             }
             var network = BuildEmptyNetwork(CFM60HyperParameters.DatasetName);
-            CFM60HyperParameters.Initialize(network);
+            CreateLayers(network);
             return network;
+        }
+
+
+        public override void CreateLayers(Network network)
+        {
+            CFM60HyperParameters.CreateLayers(network);
         }
 
     }

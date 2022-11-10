@@ -83,7 +83,7 @@ public class QRT72NetworkSample : NetworkSample
     //}
 
 
-    public override void BuildNetwork(Network network)
+    public override void CreateLayers(Network network)
     {
         //const cudnnActivationMode_t activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
         network.Input(QRT72Utils.D, -1, -1);
