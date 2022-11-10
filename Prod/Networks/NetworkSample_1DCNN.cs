@@ -1,53 +1,22 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
+using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
-using SharpNet.Optimizers;
 
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Networks;
 
-public class InMemoryDataSetV2NetworkSampleHyperParameters : NetworkConfig
+public class NetworkSample_1DCNN : NetworkSample
 {
     // ReSharper disable once EmptyConstructor
-    public InMemoryDataSetV2NetworkSampleHyperParameters()
+    public NetworkSample_1DCNN()
     {
     }
 
-    public int datasetSampleNumClass;
-    public cudnnActivationMode_t datasetSampleActivationForLastLayer;
-    /// <summary>
-    /// total number of input features
-    /// </summary>
-    public int FeatureCounts = -1;
-
     #region Hyper-Parameters
-
-
-
-    #region Embedding of the categorical features
-    /// <summary>
-    /// for each categorical feature, the number of distinct value it has
-    /// </summary>
-    public int[] VocabularySizes = Array.Empty<int>();
-    /// <summary>
-    /// the default embedding for each categorical feature
-    /// </summary>
+    //Embedding of the categorical features
     public int DefaultEmbeddingDim = 10;
-
-    public int[] EmbeddingDims = Array.Empty<int>();
-    
-    /// <summary>
-    /// for each categorical feature, the associated index of this categorical feature in the input
-    /// </summary>
-    public int[] IndexesInLastDimensionToUse = Array.Empty<int>();
-    #endregion
-
-
-
-    //num_features:
-    //len(cfg.cont_cols,
     public int hidden_size = 512;
     //n_categories: [ 3, 3, 3, 5, 136, 5, 60, 3, 3],
     public int channel_1 = 256;
@@ -63,30 +32,15 @@ public class InMemoryDataSetV2NetworkSampleHyperParameters : NetworkConfig
     //public double  batchNorm_momentum = 0.1;
     public double batchNorm_momentum = 0.99;
 
+    public bool NetworkSample_1DCNN_UseGPU = true;
+
     #endregion
 
+    public override bool UseGPU => NetworkSample_1DCNN_UseGPU;
 
 
-    public void BuildNetwork(Network nn)
+    public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
     {
-
-        switch (OptimizerType)
-        {
-            case Optimizer.OptimizationEnum.AdamW:
-                WithAdamW(AdamW_L2Regularization, Adam_beta1, Adam_beta2, Adam_epsilon);
-                break;
-            case Optimizer.OptimizationEnum.SGD:
-                WithSGD(SGD_momentum, SGD_usenesterov);
-                break;
-            case Optimizer.OptimizationEnum.Adam:
-                WithAdam(Adam_beta1, Adam_beta2, Adam_epsilon);
-                break;
-            case Optimizer.OptimizationEnum.VanillaSGD:
-                break; // no extra configuration needed
-            case Optimizer.OptimizationEnum.VanillaSGDOrtho:
-                break; // no extra configuration needed
-        }
-
         //nn.PropagationManager.LogPropagation = true;
         //nn.Config.DisplayTensorContentStats = true;
 
@@ -94,26 +48,7 @@ public class InMemoryDataSetV2NetworkSampleHyperParameters : NetworkConfig
         int cha_po_1 = hidden_size / channel_1 / 2;
         //int cha_po_2 = hidden_size / channel_1 / 2 / 2 * channel_3;
 
-        switch (LearningRateSchedulerType)
-        {
-            case LearningRateSchedulerEnum.CyclicCosineAnnealing:
-                WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
-                break;
-            case LearningRateSchedulerEnum.OneCycle:
-                WithOneCycleLearningRateScheduler(200, 0.1);
-                break;
-            case LearningRateSchedulerEnum.Linear:
-                WithLinearLearningRateScheduler(1000);
-                break;
-        }
-
-        nn.Input(FeatureCounts, -1, -1);
-        if (IndexesInLastDimensionToUse.Length != 0)
-        {
-            //We need to add an embedding layer to manage categorical features
-            nn.Embedding(VocabularySizes, EmbeddingDims, IndexesInLastDimensionToUse, lambdaL2Regularization);
-        }
-
+        nn.Input_and_Embedding_if_required(datasetSample, DefaultEmbeddingDim, lambdaL2Regularization);
 
         //expand(x)
         nn.BatchNorm(batchNorm_momentum, 1e-5);
@@ -165,7 +100,7 @@ public class InMemoryDataSetV2NetworkSampleHyperParameters : NetworkConfig
         {
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_bottom);
-            nn.Dense(datasetSampleNumClass, lambdaL2Regularization, false);
+            nn.Dense(datasetSample.NumClass, lambdaL2Regularization, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
             nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU); // * x
         }
@@ -173,18 +108,9 @@ public class InMemoryDataSetV2NetworkSampleHyperParameters : NetworkConfig
         {
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_bottom);
-            nn.Dense(datasetSampleNumClass, lambdaL2Regularization, false);
+            nn.Dense(datasetSample.NumClass, lambdaL2Regularization, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
         }
-        nn.Activation(datasetSampleActivationForLastLayer);
-    }
-
-    public override bool FixErrors()
-    {
-        if (!base.FixErrors())
-        {
-            return false;
-        }
-        return true;
+        nn.Activation(datasetSample.ActivationForLastLayer);
     }
 }

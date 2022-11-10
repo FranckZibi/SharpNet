@@ -33,7 +33,7 @@ namespace SharpNetTests.NonReg
 
         static TestBenchmark()
         {
-            Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultWorkingDirectory, "SharpNet_Benchmark");
+            Utils.ConfigureThreadLog4netProperties(NetworkSample.DefaultWorkingDirectory, "SharpNet_Benchmark");
         }
 
 
@@ -65,7 +65,7 @@ namespace SharpNetTests.NonReg
                 Console.WriteLine("speed: " + speed + " GB/s");
             }
 
-            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultWorkingDirectory, "GPUBenchmark_Memory.csv"),
+            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkSample.DefaultWorkingDirectory, "GPUBenchmark_Memory.csv"),
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
                 + "2GB Copy CPU=>GPU;"
                 + gpu.DeviceName()+";"
@@ -90,9 +90,9 @@ namespace SharpNetTests.NonReg
             var miniBatchSize = 300;
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             if (useMultiGpu) { miniBatchSize *= GPUWrapper.GetDeviceCount(); }
-            var p = EfficientNetSample.Cancel();
-            p.DA.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;
-            p.Config.BatchSize = miniBatchSize;
+            var p = EfficientNetNetworkSample.Cancel();
+            p.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;
+            p.BatchSize = miniBatchSize;
             var database = new CancelDatabase();
             //TODO Test with selection of only matching size input in the training set
             using var dataset = database.ExtractDataSet(e => CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
@@ -108,7 +108,7 @@ namespace SharpNetTests.NonReg
             var xBufferMiniBatchCpu = new CpuTensor<float>(xMiniBatchShape);
             var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(xMiniBatchShape);
             var yBufferMiniBatchCpu = new CpuTensor<float>(yMiniBatchShape);
-            var imageDataGenerator = new ImageDataGenerator(p.DA);
+            var imageDataGenerator = new ImageDataGenerator(p);
             
             yBufferMiniBatchCpu.ZeroMemory();
             var swLoad = new Stopwatch();
@@ -161,7 +161,7 @@ namespace SharpNetTests.NonReg
                 //var xCpuChunkBytes = xOriginalNotAugmentedMiniBatchCpu /*xBufferMiniBatchCpu*/.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
                 //for (int i = 0; i < 10; ++i)
                 //{
-                //    SharpNet.Pictures.PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Train"), shuffledElementId[i].ToString("D5"), "");
+                //    SharpNet.Pictures.PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(NetworkSample.DefaultLogDirectory, "Train"), shuffledElementId[i].ToString("D5"), "");
                 //}
 
                 swDA.Stop();
@@ -177,7 +177,7 @@ namespace SharpNetTests.NonReg
         //{
         //    const bool useMultiThreading = true;
         //    const int miniBatchSize = 1024;
-        //    var p = Cfm60NetworkSample.Default();
+        //    var p = CFM60NetworkSample.Default();
         //    p.Config.BatchSize = miniBatchSize;
 
         //    using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => Model.Log.Info(s));
@@ -249,7 +249,7 @@ namespace SharpNetTests.NonReg
                 sw.Stop();
                 var speed = (loopId* src.ReallyNeededMemoryInBytes / sw.Elapsed.TotalSeconds) / 1e9;
                 Console.WriteLine("ByteCount: "+Utils.MemoryBytesToString((ulong)byteCount) + ", Avg speed: " + speed + " GB/s");
-                System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultWorkingDirectory, "MemoryCopy_Benchmark.csv"), DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"+ srcDescription + ";"+ destDescription + ";"+ byteCount + ";"+ speed + ";"+ Environment.NewLine);
+                System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkSample.DefaultWorkingDirectory, "MemoryCopy_Benchmark.csv"), DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"+ srcDescription + ";"+ destDescription + ";"+ byteCount + ";"+ speed + ";"+ Environment.NewLine);
             }
         }
         private static Tensor GetTensor(string tensorDescription, int chunkSize)
@@ -275,18 +275,18 @@ namespace SharpNetTests.NonReg
         {
             var mnist = new MnistDataset();
             const double learningRate = 0.01;
-            var network = Network.NewForTests(
-                new NetworkConfig()
+            var network = TestNetwork.NewForTests(
+                new NetworkSample()
                 {
-                    ModelName = "GPUBenchmark",
                     ResourceIds = new List<int> { 0 },
                     BatchSize = 64,
                     NumEpochs = 5,
                     DisableReduceLROnPlateau = true
                 }.WithAdam()
                 .WithConstantLearningRateScheduler(learningRate)
-                , 
-                new DataAugmentationSample()
+                ,
+                NetworkSample.DefaultWorkingDirectory,
+                "GPUBenchmark"
                 );
             network
                 .Input(MnistDataset.Shape_CHW)
@@ -305,15 +305,15 @@ namespace SharpNetTests.NonReg
             var sw = Stopwatch.StartNew();
             network.Fit(mnist.Training, mnist.Test);
             var elapsedMs = sw.Elapsed.TotalSeconds;
-            var lossAndAccuracy = network.ComputeMetricsForTestDataSet(network.Config.BatchSize, mnist.Test);
+            var lossAndAccuracy = network.ComputeMetricsForTestDataSet(network.Sample.BatchSize, mnist.Test);
 
-            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultWorkingDirectory, "GPUBenchmark_Speed.csv" ), 
+            System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkSample.DefaultWorkingDirectory, "GPUBenchmark_Speed.csv" ), 
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"
                 +"MNIST;"
                 + network.DeviceName() + ";"
                 + network.TotalParams() + ";"
-                + network.Config.NumEpochs + ";"
-                + network.Config.BatchSize + ";"
+                + network.Sample.NumEpochs + ";"
+                + network.Sample.BatchSize + ";"
                 + learningRate + ";"
 #if DEBUG
                 +"DEBUG;"

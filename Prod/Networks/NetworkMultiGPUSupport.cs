@@ -175,7 +175,7 @@ namespace SharpNet.Networks
         #endregion
 
         #region methods used in slave networks only
-        private static void SlaveThread(Network master, int slaveDeviceId)
+        private static void SlaveThread(Network master, bool buildLayers, int slaveDeviceId)
         {
             //if slave thread will run on a GPU
             if (slaveDeviceId >= 0)
@@ -184,11 +184,10 @@ namespace SharpNet.Networks
                 GPUWrapper.FromDeviceId(slaveDeviceId).AssociateCurrentThreadWithDevice();
             }
 
-            var slaveNetworkConfig = (NetworkConfig) master.Config.Clone();
-            slaveNetworkConfig.ResourceIds = new List<int> { slaveDeviceId };
-            var slaveSample = master.NetworkSample.CopyWithNewConfig(slaveNetworkConfig);
+            var slaveNetworkSample = (NetworkSample) master.Sample.Clone();
+            slaveNetworkSample.ResourceIds = new List<int> { slaveDeviceId };
 
-            var slave = new Network(slaveSample, slaveSample.Config.WorkingDirectory, slaveSample.Config.ModelName, true, master);
+            var slave = new Network(slaveNetworkSample, master.DatasetSample, master.WorkingDirectory, master.ModelName+"_"+ slaveDeviceId, buildLayers, master);
             lock (master._slaveNetworks)
             {
                 master._slaveNetworks.Add(slave);
@@ -277,7 +276,7 @@ namespace SharpNet.Networks
             PropagationManager.Forward(all_x_miniBatch, _yPredicted_miniBatch_slave, isTraining);
             if (isTraining)
             {
-                PropagationManager.Backward(_yExpected_miniBatch_slave, _yPredicted_miniBatch_slave, Config.LossFunction);
+                PropagationManager.Backward(_yExpected_miniBatch_slave, _yPredicted_miniBatch_slave, Sample.LossFunction);
             }
 
             //copy miniBatch prediction (computed in slave network) to master network

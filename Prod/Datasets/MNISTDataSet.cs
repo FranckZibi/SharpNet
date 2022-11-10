@@ -61,7 +61,7 @@ namespace SharpNet.Datasets
         }
         private static string FileNameToPath(string fileName)
         {
-            return Path.Combine(NetworkConfig.DefaultDataDirectory, "MNIST", fileName);
+            return Path.Combine(NetworkSample.DefaultDataDirectory, "MNIST", fileName);
         }
     }
 }

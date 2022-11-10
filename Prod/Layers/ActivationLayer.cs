@@ -56,7 +56,7 @@ namespace SharpNet.Layers
             }
             StartBackwardTimer(LayerType() + ">" + ToString(ActivationFunction));
             //we compute dx
-            if (IsOutputLayer && Network.Config.LossFunction != EvaluationMetricEnum.Huber)
+            if (IsOutputLayer && Network.Sample.LossFunction != EvaluationMetricEnum.Huber)
             {
                 dy.CopyTo(dx[0]);
             }

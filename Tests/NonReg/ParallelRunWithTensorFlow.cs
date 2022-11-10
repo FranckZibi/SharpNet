@@ -11,10 +11,8 @@ using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
-using SharpNet.HyperParameters;
 using SharpNet.Layers;
 using SharpNet.Models;
 using SharpNet.Networks;
@@ -36,8 +34,8 @@ namespace SharpNetTests.NonReg
         [Test]
         public void TestParallelRunWithTensorFlow_Efficientnet_Inference()
         {
-            var xFileName = Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt");
-            var yExpectedFileName = Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "YExpected_1_224_224_3.txt");
+            var xFileName = Path.Combine(NetworkSample.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt");
+            var yExpectedFileName = Path.Combine(NetworkSample.DefaultDataDirectory, "NonReg", "YExpected_1_224_224_3.txt");
             if (!File.Exists(xFileName) || !File.Exists(yExpectedFileName))
             {
                 Console.WriteLine("ignoring test "+nameof(TestParallelRunWithTensorFlow_Efficientnet_Inference)+" because some files are missing");
@@ -49,10 +47,9 @@ namespace SharpNetTests.NonReg
             var yExpectedFromKeras = TestNetworkPropagation.FromNumpyArray(File.ReadAllText(yExpectedFileName));
 
             //we ensure that the network prediction is the same as in Keras
-            var networkBuilder = EfficientNetSample.CIFAR10();
-            networkBuilder.Config.WorkingDirectory = NetworkConfig.DefaultWorkingDirectory;
-            networkBuilder.Config.SetResourceId(0);
-            var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] {3, 224, 224});
+            var networkBuilder = EfficientNetNetworkSample.CIFAR10();
+            networkBuilder.SetResourceId(0);
+            var network = networkBuilder.EfficientNetB0(NetworkSample.DefaultWorkingDirectory, true, "imagenet", new[] {3, 224, 224});
             var yPredicted = network.Predict(X, false);
             Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredicted, 1e-5));
 
@@ -74,17 +71,17 @@ namespace SharpNetTests.NonReg
         [Test, Explicit]
         public void TestParallelRunWithTensorFlow_YOLOV3()
         {
-            var weightPath = Path.Combine(NetworkConfig.DefaultDataDirectory, "YOLO", "yolov3_weights.h5");
+            var weightPath = Path.Combine(NetworkSample.DefaultDataDirectory, "YOLO", "yolov3_weights.h5");
             if (!File.Exists(weightPath))
             {
                 Console.WriteLine("ignoring test " + nameof(TestParallelRunWithTensorFlow_YOLOV3) + " because weight file is missing");
                 return;
             }
 
-            var networkBuilder = Yolov3NetSample.ValueOf(new List<int> { 0 });
+            var networkBuilder = Yolov3NetworkSample.ValueOf(new List<int> { 0 });
             var network = networkBuilder.Build();
             //network.PropagationManager.LogPropagation = true; 
-            network.LoadParametersFromH5File(weightPath, NetworkConfig.CompatibilityModeEnum.TensorFlow);
+            network.LoadParametersFromH5File(weightPath, NetworkSample.CompatibilityModeEnum.TensorFlow);
 
             //var imagePaths = new DirectoryInfo(@"C:\Franck\Photos\2019\Madagascar").GetFiles("*.jpg").Select(f => f.FullName).ToList();
             var imagePaths = new List<string>{ @"C:\Projects\YOLOv3_TF2\data\images\test.jpg"};
@@ -144,19 +141,19 @@ namespace SharpNetTests.NonReg
             const double lambdaL2Regularization = 0.00;
             const double momentum = 0.9;
 
-            var hp = EfficientNetSample.CIFAR10();
-            hp.Config.SetResourceId(0);
+            var hp = EfficientNetNetworkSample.CIFAR10();
+            hp.SetResourceId(0);
 
             //int defaultHeight = 32;
             const int defaultHeight = 224;
 
-            var network = hp.EfficientNetB0(true, "imagenet", new[] { 3, defaultHeight, defaultHeight });
+            var network = hp.EfficientNetB0(DenseNetNetworkSample.Cifar10WorkingDirectory, true, "imagenet", new[] { 3, defaultHeight, defaultHeight });
             //network.Save();
-            //var logFileName = Utils.ConcatenatePathWithFileName(NetworkConfig.DefaultLogDirectory, "Efficientnet_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
+            //var logFileName = Utils.ConcatenatePathWithFileName(NetworkSample.DefaultLogDirectory, "Efficientnet_" + System.Diagnostics.Process.GetCurrentProcess().Id + "_" + System.Threading.Thread.CurrentThread.ManagedThreadId + ".log");
             //var logger = new Logger(logFileName, true);
 
             //var xShape = new[] { 1, 3, defaultHeight, defaultHeight };
-            var X = TestNetworkPropagation.FromNumpyArray(Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt"));
+            var X = TestNetworkPropagation.FromNumpyArray(Path.Combine(NetworkSample.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt"));
             X = (CpuTensor<float>)X.ChangeAxis(new[] { 0, 3, 1, 2 });
             //for (int i = 0; i < X.Count; ++i)
             //{
@@ -234,21 +231,16 @@ namespace SharpNetTests.NonReg
             //var gpuDeviceId = -1;
             const int gpuDeviceId = 0;
 
-            var sample = new TestNetworkSample(new ISample[]
-            {
-                new NetworkConfig
+            var sample = new NetworkSample
                     {
-                        ModelName = "TestParallelRunWithTensorFlow_Convolution",
                         LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                         RandomizeOrder = false,
-                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                        CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                         ResourceIds = new List<int> { gpuDeviceId }
                     }
-                    .WithSGD(momentum, false),
-                new DataAugmentationSample()
-            });
+                    .WithSGD(momentum, false);
 
-            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName, false);
+            var network = new Network(sample, null, NetworkSample.DefaultWorkingDirectory, "TestParallelRunWithTensorFlow_Convolution", false);
 
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
@@ -304,17 +296,17 @@ namespace SharpNetTests.NonReg
             int batchSize = X.Shape[0];
             //const int  gpuDeviceId = -1;
             const int gpuDeviceId = 0;
-            var network = Network.NewForTests(
-                        new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                        new NetworkSample
                         {
-                            ModelName = "TestParallelRunWithTensorFlow_Convolution",
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { gpuDeviceId }
                         }
                        .WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "TestParallelRunWithTensorFlow_Convolution"
                 );
 
             network.Input(X.Shape[1], X.Shape[2], -1)
@@ -377,17 +369,17 @@ namespace SharpNetTests.NonReg
             
             const int deviceId = -1;
             //var deviceId = 0;
-            var network = Network.NewForTests(
-                        new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                        new NetworkSample
                         {
-                            ModelName = "Embedding",
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "Embedding"
                 );
 
             Debug.Assert(network.Layers.Count == 0);
@@ -447,20 +439,20 @@ namespace SharpNetTests.NonReg
             //'Y' shape (4,1)
             var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1], [0], [1], [0]], numpy.float)");
 
-            var networkConfig = new NetworkConfig
+            var networkSample = new NetworkSample
             {
-                ModelName = "Embedding_3D",
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = false,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
 
-            var network = Network.NewForTests(
-                        networkConfig
+            var network = TestNetwork.NewForTests(
+                        networkSample
                        .WithAdam(0.9, 0.999, 1e-7),
                         //.WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "Embedding_3D"
                 );
 
             network
@@ -520,20 +512,20 @@ namespace SharpNetTests.NonReg
             var Y = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[1], [0], [0], [1]], numpy.float)");
 
 
-            var networkConfig = new NetworkConfig
+            var networkSample = new NetworkSample
             {
-                ModelName = "Embedding_GlobalPooling",
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = false,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
 
-            var network = Network.NewForTests(
-                        networkConfig
+            var network = TestNetwork.NewForTests(
+                        networkSample
                        .WithAdam(0.9, 0.999, 1e-7),
                         //.WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "Embedding_GlobalPooling"
                 );
             network.PropagationManager.LogPropagation = true;
 
@@ -614,7 +606,7 @@ namespace SharpNetTests.NonReg
             const string oov_tok = "<OOV>";
             const int training_size = 20000;
 
-            var jsonText = File.ReadAllText(Path.Combine(NetworkConfig.DefaultDataDirectory, "Sarcasm", "sarcasm.json"));
+            var jsonText = File.ReadAllText(Path.Combine(NetworkSample.DefaultDataDirectory, "Sarcasm", "sarcasm.json"));
             var allEntries = JsonConvert.DeserializeObject<List< SarcasmEntry>>(jsonText);
 
             // ReSharper disable once AssignNullToNotNullAttribute
@@ -629,19 +621,19 @@ namespace SharpNetTests.NonReg
             var X  = PadSequenceTools.PadSequence(training_sequences, max_length, false, false).Select(x=>(float)x);
             var Y  = new CpuTensor<float>(new[]{X.Shape[0],1}, trainingEntries.Select(e => e.IsSarcastic?1f:0f).ToArray());
 
-            var networkConfig = new NetworkConfig
+            var networkSample = new NetworkSample
             {
-                ModelName = "TestParallelRunWithTensorFlow_Sarcasm",
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                 RandomizeOrder = true,
-                CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
 
-            var network = Network.NewForTests(
-                        networkConfig
+            var network = TestNetwork.NewForTests(
+                        networkSample
                         .WithAdam(0.9, 0.999, 1e-7),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "TestParallelRunWithTensorFlow_Sarcasm"
                 );
 
             Debug.Assert(network.Layers.Count == 0);
@@ -698,18 +690,18 @@ namespace SharpNetTests.NonReg
             int batchSize = X.Shape[0];
             const int gpuDeviceId = -1;
             //var gpuDeviceId = 0;
-            var network = Network.NewForTests(
-                        new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                        new NetworkSample
                         {
-                            ModelName = "TestParallelRunWithTensorFlow_DownSampling2D",
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
                             ResourceIds = new List<int> { gpuDeviceId }
                         }
                        .WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "TestParallelRunWithTensorFlow_DownSampling2D"
                 );
 
 
@@ -770,18 +762,18 @@ namespace SharpNetTests.NonReg
 
             const int deviceId = -1;
             //var deviceId = 0;
-            var network = Network.NewForTests(
-                        new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                        new NetworkSample
                         {
-                            ModelName = "Huber",
                             LossFunction = EvaluationMetricEnum.Huber,
                             //LossFunction = LossFunctionEnum.BinaryCrossentropy,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "Huber"
                 );
 
             network
@@ -844,18 +836,18 @@ namespace SharpNetTests.NonReg
 
 
             const int deviceId = 0;
-            var network = Network.NewForTests(
-                        new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                        new NetworkSample
                         {
-                            ModelName = "Mse",
                             LossFunction = EvaluationMetricEnum.Mse,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> {EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "Mse"
                 );
 
             network
@@ -955,18 +947,18 @@ namespace SharpNetTests.NonReg
             const int deviceId = 0;
             const int hiddenSize = 2;
 
-            var network = Network.NewForTests(
-                        new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                        new NetworkSample
                         {
-                            ModelName = "GRU",
                             LossFunction = EvaluationMetricEnum.Huber,
                             RandomizeOrder = false,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Huber, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "GRU"
                 );
 
 
@@ -1080,19 +1072,20 @@ namespace SharpNetTests.NonReg
             using var fullDataSet = new UnivariateTimeSeriesDataSet(series.Content, timeSteps, 1);
             using var trainAndTestDataSet = fullDataSet.SplitIntoTrainingAndValidation(trainingDataSetCount / (double)fullDataSet.Count);
 
-            var network = Network.NewForTests(
-                new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                new NetworkSample
                     {
-                        ModelName = "TimeSeries",
                         LossFunction = EvaluationMetricEnum.Mse,
                         RandomizeOrder = shuffle,
-                        CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                        CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                         Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae },
                         ResourceIds = new List<int> { deviceId }
                     }
                     .WithSGD(momentum, false)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10, 2),
-                new DataAugmentationSample());
+                NetworkSample.DefaultWorkingDirectory,
+                "TimeSeries"
+                );
 
             const bool isBidirectional = true;
             network
@@ -1163,20 +1156,20 @@ namespace SharpNetTests.NonReg
             using var fullTrainingAndTestDataSet = new ImdbTrainingAndTestDataset();
             using var trainAndTestDataSet = fullTrainingAndTestDataSet.Training.SplitIntoTrainingAndValidation(0.8);
 
-            var network = Network.NewForTests(
-                        new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                        new NetworkSample
                         {
-                            ModelName = "IMDB",
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
                             RandomizeOrder = shuffle,
-                            CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.BinaryCrossentropy, EvaluationMetricEnum.Accuracy},
                             ResourceIds = new List<int> { deviceId }
                         }
                        //.WithSGD(momentum, false),
                        .WithAdam(),
                         //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-                        new DataAugmentationSample()
+                        NetworkSample.DefaultWorkingDirectory,
+                        "IMDB"
                 );
 
             const bool isBidirectional = false;

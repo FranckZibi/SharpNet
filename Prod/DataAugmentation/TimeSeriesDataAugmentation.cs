@@ -2,12 +2,13 @@
 using System.Diagnostics;
 using SharpNet.CPU;
 using SharpNet.Datasets;
+using SharpNet.Networks;
 
 namespace SharpNet.DataAugmentation
 {
     public class TimeSeriesDataAugmentation
     {
-        private readonly DataAugmentationSample _sample;
+        private readonly NetworkSample _sample;
         ///for each featureId:
         ///     Item1:  feature minimum
         ///     Item2:  feature maximum
@@ -17,7 +18,7 @@ namespace SharpNet.DataAugmentation
         ///     Item6:  feature importance
         private readonly Tuple<double, double, double, double, double, double>[] FeatureStatistics;
 
-        public TimeSeriesDataAugmentation(DataAugmentationSample sample, ITimeSeriesDataSet dataSet, int featuresCount)
+        public TimeSeriesDataAugmentation(NetworkSample sample, ITimeSeriesDataSet dataSet, int featuresCount)
         {
             _sample = sample;
             FeatureStatistics = new Tuple<double, double, double, double, double, double>[featuresCount];
@@ -79,19 +80,19 @@ namespace SharpNet.DataAugmentation
         private float GetAugmentedValue(float originalValue, int featureId, Random rand)
         {
             var stats = FeatureStatistics[featureId];
-            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.NOTHING || stats == null)
+            if (_sample.TimeSeriesDataAugmentationType == NetworkSample.TimeSeriesDataAugmentationEnum.NOTHING || stats == null)
             {
                 return originalValue;
             }
-            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO)
+            if (_sample.TimeSeriesDataAugmentationType == NetworkSample.TimeSeriesDataAugmentationEnum.REPLACE_BY_ZERO)
             {
                 return 0f;
             }
-            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN)
+            if (_sample.TimeSeriesDataAugmentationType == NetworkSample.TimeSeriesDataAugmentationEnum.REPLACE_BY_MEAN)
             {
                 return (float)stats.Item3;
             }
-            if (_sample.TimeSeriesDataAugmentationType == DataAugmentationSample.TimeSeriesDataAugmentationEnum.ADD_NOISE)
+            if (_sample.TimeSeriesDataAugmentationType == NetworkSample.TimeSeriesDataAugmentationEnum.ADD_NOISE)
             {
                 Debug.Assert(_sample.NoiseInPercentageOfVolatility > 1e-6);
                 var featureMinimum = stats.Item1;

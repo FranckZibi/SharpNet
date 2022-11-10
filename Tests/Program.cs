@@ -40,8 +40,8 @@ namespace SharpNetTests
 
         private static void Main()
         {
-            SharpNet.Utils.ConfigureGlobalLog4netProperties(NetworkConfig.DefaultWorkingDirectory, "SharpNet");
-            SharpNet.Utils.ConfigureThreadLog4netProperties(NetworkConfig.DefaultWorkingDirectory, "SharpNet");
+            SharpNet.Utils.ConfigureGlobalLog4netProperties(NetworkSample.DefaultWorkingDirectory, "SharpNet");
+            SharpNet.Utils.ConfigureThreadLog4netProperties(NetworkSample.DefaultWorkingDirectory, "SharpNet");
             //235*200 : 34.28% errors (30 epochs)
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Imagenet_200_235_20200611_0716_30");
             //235*200 :  11.46% errors (70 epochs, lr=0.02)
@@ -60,11 +60,11 @@ namespace SharpNetTests
             //new CancelDatabase().UpdateSuggestedCancelForAllDatabase("efficientnet-b0_Cancel_400_470_20200715_2244_630");
             //new CancelDatabase().CreatePredictionFile(Path.Combine(ImageDatabaseManagementPath, "Prediction_def.csv"));return;
             //QRT72NetworkSample.Run(new QRT72HyperParameters());
-            //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
-            //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel"));
+            //var builderIDM = new CancelDatabase(System.IO.Path.Combine(NetworkSample.DefaultDataDirectory, "Cancel"));
+            //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkSample.DefaultDataDirectory, "Cancel"));
             //builder.CreateIDM(Path.Combine(ImageDatabaseManagementPath, "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));
             //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures");
-            //using var network = Network.ValueOf(Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
+            //using var network = Network.ValueOf(Path.Combine(NetworkSample.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
@@ -80,10 +80,10 @@ namespace SharpNetTests
 
             //CFM60Tests();
 
-            //WasYouStayWorthItsPriceDatasetSample.TrainNetwork();
+            WasYouStayWorthItsPriceDatasetSample.TrainNetwork();
             //new ChallengeTools().StackedEnsemble();
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
-            WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(50, 15*60);
+            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(50, 15*60);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
@@ -136,8 +136,8 @@ namespace SharpNetTests
         {
             var networkGeometries = new List<Action<NetworkSample, int>>
             {
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNetSample.DenseNet_12_40(x));},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNetSample.DenseNetBC_12_100(x));},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNetNetworkSample.DenseNet_12_40(x));},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(()=> DenseNetNetworkSample.DenseNetBC_12_100(x));},
             /*(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNet_Fast_CIFAR10);},
             (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNet_12_10_CIFAR10);},
             (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.DenseNet_12_40);},
@@ -153,8 +153,8 @@ namespace SharpNetTests
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.Config.BatchSize = -1;p.Config.NumEpochs = 150; p.Config.ExtraDescription = "_Adam";},
                 //(p) =>{ p.Config.ExtraDescription = "_OrigPaper";},
 
-                () =>{var p = DenseNetSample.CIFAR10();p.Config.NumEpochs = 240;p.Config.BatchSize = -1;p.Config.WithSGD(0.9,true); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow;p.DA.CutoutPatchPercentage = 0.0;p.Config.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_WithNesterov_EnhancedMemory";return p;},
-                () =>{var p = DenseNetSample.CIFAR10();p.Config.NumEpochs = 240;p.Config.BatchSize = -1;p.Config.WithSGD(0.9,false); p.Config.CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow;p.DA.CutoutPatchPercentage = 0.0;p.Config.ExtraDescription = "_240Epochs_TensorFlowCompatibilityMode_CutoutPatchPercentage0_NoNesterov_EnhancedMemory";return p;},
+                () =>{var p = DenseNetNetworkSample.CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.WithSGD(0.9,true); p.CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow;p.CutoutPatchPercentage = 0.0;return p;},
+                () =>{var p = DenseNetNetworkSample.CIFAR10();p.NumEpochs = 240;p.BatchSize = -1;p.WithSGD(0.9,false); p.CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow;p.CutoutPatchPercentage = 0.0;return p;},
 
 
                 //(p) =>{p.Config.NumEpochs = 300;p.Config.BatchSize = -1;p.CutoutPatchPercentage = 0.25;p.Config.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchPercentage0_25;},
@@ -181,9 +181,9 @@ namespace SharpNetTests
 
             const int numEpochs = 150;
 
-            var networkMetaParameters = new List<Func<EfficientNetSample>>
+            var networkMetaParameters = new List<Func<EfficientNetNetworkSample>>
             {
-                () =>{var p = EfficientNetSample.Cancel();p.Config.InitialLearningRate = defaultInitialLearningRate;p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_Cancel_"+targetWidth+"_"+targetHeight;return p;},
+                () =>{var p = EfficientNetNetworkSample.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.BatchSize = batchSize;p.NumEpochs = numEpochs;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_Cancel_Augment_SVHN"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.CutoutPatchPercentage=0 ;p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_Cancel_NoCutout"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.Config.WithSGD(0.9, true);p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_nesterov_Cancel_"+targetWidth+"_"+targetHeight;return p;},
@@ -215,14 +215,14 @@ namespace SharpNetTests
             //networkMetaParameters.Clear();for (int i = 0; i < 4; ++i){int j = i;networkMetaParameters.Add(() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_V"+j+(useMultiGpu?"_MultiThreaded":"");return p;});}
 
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-            var networkGeometries = new List<Action<EfficientNetSample, int>>
+            var networkGeometries = new List<Action<EfficientNetNetworkSample, int>>
             {
-                (p,gpuDeviceId) =>{p.Config.SetResourceId(gpuDeviceId);Train_Cancel_EfficientNet(p, targetHeight, targetWidth);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_Cancel_EfficientNet(p, targetHeight, targetWidth);},
             };
 
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
-        private static void Train_Cancel_EfficientNet(EfficientNetSample p, int targetHeight, int targetWidth)
+        private static void Train_Cancel_EfficientNet(EfficientNetNetworkSample p, int targetHeight, int targetWidth)
         {
             var database = new CancelDatabase();
             //TODO Test with selection of only matching size input in the training set
@@ -231,11 +231,11 @@ namespace SharpNetTests
             using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.9); //90% for training,  10% for validation
 
             var rootPrediction = CancelDatabase.Hierarchy.RootPrediction();
-            using var network = p.EfficientNetB0(true, "", new[] { trainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
+            using var network = p.EfficientNetB0(DenseNetNetworkSample.CancelWorkingDirectory, true, "", new[] { trainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
             network.SetSoftmaxWithHierarchy(rootPrediction);
-            //network.LoadParametersFromH5File(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_400_470_20200620_1427_310.h5"), NetworkConfig.CompatibilityModeEnum.TensorFlow1);
+            //network.LoadParametersFromH5File(@System.IO.Path.Combine(NetworkSample.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_400_470_20200620_1427_310.h5"), NetworkSample.CompatibilityModeEnum.TensorFlow1);
 
-            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Cancel", "efficientnet-b0_Cancel_400_470_20200713_1809_580.txt"));
+            //using var network =Network.ValueOf(@System.IO.Path.Combine(NetworkSample.DefaultLogDirectory, "Cancel", "efficientnet-b0_Cancel_400_470_20200713_1809_580.txt"));
 
             //network.FindBestLearningRate(cancelDataset, 1e-5, 10, p.Config.BatchSize);return;
             Model.Log.Debug(database.Summary());
@@ -247,16 +247,16 @@ namespace SharpNetTests
         private static void EfficientNetTests()
         {
             const bool useMultiGpu = true;
-            var networkGeometries = new List<Action<EfficientNetSample, int>>
+            var networkGeometries = new List<Action<EfficientNetNetworkSample, int>>
             {
                 //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "top_dropout";p.Config.ExtraDescription += "_only_dense";Train_CIFAR10_EfficientNet(p);},
                 //(p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);p.WeightForTransferLearning = "imagenet";p.Config.LastLayerNameToFreeze = "block7a_project_bn";p.Config.ExtraDescription += "_all_top";Train_CIFAR10_EfficientNet(p);},
-                (p,gpuDeviceId) =>{p.Config.SetResourceId(gpuDeviceId);p.Config.ExtraDescription += "";Train_CIFAR10_EfficientNet(p);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_CIFAR10_EfficientNet(p);},
             };
 
-            var networkMetaParameters = new List<Func<EfficientNetSample>>
+            var networkMetaParameters = new List<Func<EfficientNetNetworkSample>>
             {
-                () =>{var p = EfficientNetSample.CIFAR10();p.Config.BatchSize = -1;p.Config.InitialLearningRate = 0.30;p.Config.NumEpochs = 1;p.Config.ExtraDescription = "_lr_0_30_batchAuto_test";return p;},
+                () =>{var p = EfficientNetNetworkSample.CIFAR10();p.BatchSize = -1;p.InitialLearningRate = 0.30;p.NumEpochs = 1;return p;},
                 
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.Config.BatchSize = -1;p.InitialLearningRate = 0.30;p.Config.NumEpochs = 30;p.Config.ExtraDescription = "_lr_0_30_batchAuto";return p;},
                 //() =>{var p = EfficientNetBuilder.CIFAR10();p.Config.BatchSize = 64;p.InitialLearningRate = 0.01;p.Config.NumEpochs = 30;p.Config.ExtraDescription = "_lr_0_30_batch64_test";return p;},
@@ -271,13 +271,13 @@ namespace SharpNetTests
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
-        private static void Train_CIFAR10_EfficientNet(EfficientNetSample p)
+        private static void Train_CIFAR10_EfficientNet(EfficientNetNetworkSample p)
         {
             const int zoomFactor = 7;
             using var cifar10Original = new CIFAR10DataSet();
             var zoomedInputShape = new []{CIFAR10DataSet.Shape_CHW[0], zoomFactor * CIFAR10DataSet.Shape_CHW[1],zoomFactor * CIFAR10DataSet.Shape_CHW[2]};
             using var cifar10Zoomed = new ZoomedTrainingAndTestDataset(cifar10Original, CIFAR10DataSet.Shape_CHW, zoomFactor, zoomFactor);
-            using var network = p.EfficientNetB0_CIFAR10(p.EfficientNetHyperParameters.WeightForTransferLearning, zoomedInputShape);
+            using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, zoomedInputShape);
             Log.Info(network.ToString());
             //network.FindBestLearningRate(cifar10.Training, 1e-5, 10, p.Config.BatchSize);return;
 
@@ -289,20 +289,20 @@ namespace SharpNetTests
         private static void WideResNetTests()
         {
             const bool useMultiGpu = false;
-            var networkGeometries = new List<Action<WideResNetSample, int>>
+            var networkGeometries = new List<Action<WideResNetNetworkSample, int>>
             {
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,4);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 40,4);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,8);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 40,4);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,8);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 16,10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10_WRN(x, 28,10);},
             };
 
             //var batchSize = useMultiGpu ? 256 : 128;
-            var networkMetaParameters = new List<Func<WideResNetSample>>
+            var networkMetaParameters = new List<Func<WideResNetNetworkSample>>
             {
-                () =>{var p = WideResNetSample.CIFAR10();p.Config.NumEpochs = 310;p.Config.BatchSize = 128;p.Config.ExtraDescription = "_BatchSize128_310epochs";return p;},
+                () =>{var p = WideResNetNetworkSample.CIFAR10();p.NumEpochs = 310;p.BatchSize = 128;return p;},
                 
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.Config.BatchSize = 128;p.Config.ExtraDescription = "_BatchSize128";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_CIFAR10();p.Config.BatchSize = batchSize;p.Config.ExtraDescription = "_MultiGPU";return p;},
@@ -313,10 +313,10 @@ namespace SharpNetTests
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
-        private static void Train_CIFAR10_WRN(WideResNetSample p, int WRN_depth, int WRN_k)
+        private static void Train_CIFAR10_WRN(WideResNetNetworkSample p, int WRN_depth, int WRN_k)
         {
             using var cifar10 = new CIFAR10DataSet();
-            using var network = p.WRN(WRN_depth, WRN_k, CIFAR10DataSet.Shape_CHW, CIFAR10DataSet.CategoryCount);
+            using var network = p.WRN(DenseNetNetworkSample.Cifar10WorkingDirectory, WRN_depth, WRN_k, CIFAR10DataSet.Shape_CHW, CIFAR10DataSet.CategoryCount);
             network.Fit(cifar10.Training, cifar10.Test);
         }
         #endregion
@@ -324,14 +324,14 @@ namespace SharpNetTests
         #region ResNet Training
         private static void ResNetTests()
         {
-            var networkGeometries = new List<Action<ResNetSample, int>>
+            var networkGeometries = new List<Action<ResNetNetworkSample, int>>
             {
 
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet164V2_CIFAR10);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet110V2_CIFAR10);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet56V2_CIFAR10);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet20V2_CIFAR10);},
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet11V2_CIFAR10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet164V2_CIFAR10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet110V2_CIFAR10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet56V2_CIFAR10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet20V2_CIFAR10);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x.ResNet11V2_CIFAR10);},
                 
                 /*
                 (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.ResNet20V1_CIFAR10);},
@@ -343,9 +343,9 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR10(x, x.ResNet164V1_CIFAR10);},
             };
 
-            var networkMetaParameters = new List<Func<ResNetSample>>
+            var networkMetaParameters = new List<Func<ResNetNetworkSample>>
             {
-                () =>{var p = ResNetSample.CIFAR10();p.Config.WithSGD(0.9,true);p.Config.ExtraDescription = "";return p;},
+                () =>{var p = ResNetNetworkSample.CIFAR10();p.WithSGD(0.9,true);return p;},
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
@@ -354,28 +354,28 @@ namespace SharpNetTests
         #region CIFAR-100 Training
         private static void CIFAR100Tests()
         {
-            var networkGeometries = new List<Action<WideResNetSample, int>>
+            var networkGeometries = new List<Action<WideResNetNetworkSample, int>>
             {
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 16,4);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 16,4);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 16,8);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 40,4);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 16,10);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 28,8);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_CIFAR100_WRN(x, 28,10);},
             };
-            var networkMetaParameters = new List<Func<WideResNetSample>>
+            var networkMetaParameters = new List<Func<WideResNetNetworkSample>>
             {
-                () => {var p = WideResNetSample.CIFAR100();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 1.0;p.DA.CutoutPatchPercentage = 0.0; p.Config.ExtraDescription = "CutMix";return p;},
-                () => {var p = WideResNetSample.CIFAR100();p.DA.AlphaMixup = 1.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 0.0; p.Config.ExtraDescription = "Mixup";return p;},
-                () => {var p = WideResNetSample.CIFAR100();p.DA.AlphaMixup = 0.0;p.DA.AlphaCutMix = 0.0;p.DA.CutoutPatchPercentage = 20.0/32.0; p.Config.ExtraDescription = "Cutout_0_625";return p;},
+                () => {var p = WideResNetNetworkSample.CIFAR100();p.AlphaMixup = 0.0;p.AlphaCutMix = 1.0;p.CutoutPatchPercentage = 0.0; return p;},
+                () => {var p = WideResNetNetworkSample.CIFAR100();p.AlphaMixup = 1.0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 0.0; return p;},
+                () => {var p = WideResNetNetworkSample.CIFAR100();p.AlphaMixup = 0.0;p.AlphaCutMix = 0.0;p.CutoutPatchPercentage = 20.0/32.0; return p;},
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }
 
-        private static void Train_CIFAR100_WRN(WideResNetSample p, int WRN_depth, int WRN_k)
+        private static void Train_CIFAR100_WRN(WideResNetNetworkSample p, int WRN_depth, int WRN_k)
         {
             using (var cifar100 = new CIFAR100DataSet())
-            using (var network = p.WRN(WRN_depth, WRN_k, CIFAR100DataSet.Shape_CHW, CIFAR100DataSet.CategoryCount))
+            using (var network = p.WRN(DenseNetNetworkSample.Cifar100WorkingDirectory, WRN_depth, WRN_k, CIFAR100DataSet.Shape_CHW, CIFAR100DataSet.CategoryCount))
             {
                 network.Fit(cifar100.Training, cifar100.Test);
             }
@@ -386,9 +386,9 @@ namespace SharpNetTests
         private static void SVHNTests()
         {
             const bool useMultiGpu = false;
-            var networkGeometries = new List<Action<WideResNetSample, int>>
+            var networkGeometries = new List<Action<WideResNetNetworkSample, int>>
             {
-                (x,gpuDeviceId) =>{x.Config.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
+                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,8);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
@@ -396,19 +396,19 @@ namespace SharpNetTests
                 //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,10);},
             };
 
-            var networkMetaParameters = new List<Func<WideResNetSample>>
+            var networkMetaParameters = new List<Func<WideResNetNetworkSample>>
             {
-                () =>{var p = WideResNetSample.WRN_SVHN();p.Config.NumEpochs = 30;p.Config.BatchSize=-1;p.Config.ExtraDescription = "_30Epochs_MultiGPU";return p;},
+                () =>{var p = WideResNetNetworkSample.WRN_SVHN();p.NumEpochs = 30;p.BatchSize=-1;return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.Config.NumEpochs = 30;p.Config.ExtraDescription = "_30Epochs";return p;},
                 //() =>{var p = WideResNetBuilder.WRN_SVHN();p.Config.NumEpochs = 30;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS;  p.Config.ExtraDescription = "_30Epochs_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS";return p;},
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
 
-        private static void Train_SVHN_WRN(WideResNetSample p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
+        private static void Train_SVHN_WRN(WideResNetNetworkSample p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
             using var svhn = new SvhnDataset(loadExtraFileForTraining);
-            using var network = p.WRN(WRN_depth, WRN_k, SvhnDataset.Shape_CHW, SvhnDataset.CategoryCount);
+            using var network = p.WRN(DenseNetNetworkSample.SVHNWorkingDirectory, WRN_depth, WRN_k, SvhnDataset.Shape_CHW, SvhnDataset.CategoryCount);
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\SVHN\WRN-16-10_30Epochs_MultiGPU_20200501_1147_30.txt");
             network.Fit(svhn.Training, svhn.Test);
         }
@@ -431,12 +431,12 @@ namespace SharpNetTests
             const bool useMultiGpu = false;
             var networkGeometries = new List<Action<Cfm60NetworkSample, int>>
             {
-                (p,gpuDeviceId) =>{p.Config.SetResourceId(gpuDeviceId);Train_CFM60(p);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_CFM60(p);},
             };
 
             var networkMetaParameters = new List<Func<Cfm60NetworkSample>>
             {
-                () =>{var p = Cfm60NetworkSample.Default();p.CFM60HyperParameters.ValueToPredict= CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_LR ;p.Config.ExtraDescription = "";return p;},
+                () =>{var p = Cfm60NetworkSample.Default();p.ValueToPredict= Cfm60NetworkSample.ValueToPredictEnum.Y_TRUE_MINUS_LR ;return p;},
             };
 
             //networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 2);
@@ -454,7 +454,7 @@ namespace SharpNetTests
             var cfm60 = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
             //To compute feature importances, uncomment the following line
             //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;
-            using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.CFM60HyperParameters.PercentageInTraining);
+            using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.PercentageInTraining);
             //var res = network.FindBestLearningRate(cfm60, 1e-7, 0.9, p.Config.BatchSize);return;
             ((CFM60DataSet)trainingValidation.Training).ValidationDataSet = (CFM60DataSet)trainingValidation.Test;
             ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = (CFM60DataSet)cfm60TrainingAndTestDataSet.Test;

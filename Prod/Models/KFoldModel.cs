@@ -20,12 +20,12 @@ public class KFoldModel : Model
     public const string SuffixKfoldModel = "_KFOLD";
 
     #region constructors
-    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
+    public KFoldModel(KFoldSample modelSample, AbstractDatasetSample datasetSample, string kfoldWorkingDirectory, string kfoldModelName) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
     {
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
         {
-            _embeddedModels.Add(LoadEmbeddedModel(i));
+            _embeddedModels.Add(LoadEmbeddedModel(i, datasetSample));
         }
     }
 
@@ -34,26 +34,26 @@ public class KFoldModel : Model
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
         {
-            _embeddedModels.Add(NewModel(embeddedModel.ModelSample, kfoldWorkingDirectory, EmbeddedModelName(ModelName, i)));
+            _embeddedModels.Add(NewModel(embeddedModel.ModelSample, embeddedModel.DatasetSample, kfoldWorkingDirectory, EmbeddedModelName(ModelName, i)));
         }
     }
 
     //Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel);
 
 
-    private Model LoadEmbeddedModel(int embeddedModelIndex)
+    private Model LoadEmbeddedModel(int embeddedModelIndex, AbstractDatasetSample datasetSample)
     {
         var e = new Exception();
         //The initial directory of the embedded model may have changed, we'll check also in the KFold Model directory
         foreach (var directory in new[] { KFoldSample.EmbeddedModelWorkingDirectory, WorkingDirectory })
         {
-            try { return GetEmbeddedModel(directory, embeddedModelIndex); }
+            try { return GetEmbeddedModel(directory, embeddedModelIndex, datasetSample); }
             catch (Exception ex) { e = ex; }
         }
         throw e;
     }
 
-    private Model GetEmbeddedModel(string directory, int embeddedModelIndex)
+    private Model GetEmbeddedModel(string directory, int embeddedModelIndex, AbstractDatasetSample datasetSample)
     {
         var embeddedModelName = EmbeddedModelName(ModelName, embeddedModelIndex);
         IModelSample embeddedModelSample;
@@ -66,7 +66,7 @@ public class KFoldModel : Model
             //we try to load the embedded model from its original name
             embeddedModelSample = IModelSample.LoadModelSample(directory, EmbeddedModelName(ModelName, -1));
         }
-        return NewModel(embeddedModelSample, WorkingDirectory, embeddedModelName);
+        return NewModel(embeddedModelSample, datasetSample, WorkingDirectory, embeddedModelName);
     }
 
     #endregion

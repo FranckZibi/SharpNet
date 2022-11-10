@@ -985,4 +985,30 @@ public sealed class DataFrame
 
     }
     //private Type[] Dtypes => _columns.Select(t => TensorIndexToType[t.Item2]).ToArray();
+    public DataFrame ReduceFloatDimension(int totalReviewsEmbeddingDim)
+    {
+        if (_floatTensor.Shape[1] < totalReviewsEmbeddingDim)
+        {
+            throw new ArgumentException($"can't reduce dimension to {totalReviewsEmbeddingDim}, dimension is already {totalReviewsEmbeddingDim}");
+        }
+
+        var rows = _floatTensor.Shape[0];
+        var oldCols = _floatTensor.Shape[1];
+        var newCols = totalReviewsEmbeddingDim;
+        var newContent = new float[rows * newCols];
+
+        var srcContent = _floatTensor.AsReadonlyFloatCpuContent;
+        for (int row = 0; row < rows; ++row)
+        {
+            for (int oldCol = 0; oldCol < oldCols; ++oldCol)
+            {
+                var newCol = oldCol%newCols;
+                newContent[row*newCols+newCol] += srcContent[row*oldCols+oldCol];
+            }
+        }
+
+        var newColumnDesc = _columns.Where(c => c.Item2 != FLOAT_TYPE_IDX || c.Item3 < newCols).ToList();
+        var newFloatTensor = new CpuTensor<float>(new[] { rows, newCols }, newContent);
+        return new DataFrame(newColumnDesc, newFloatTensor, _stringTensor, _intTensor);
+    }
 }

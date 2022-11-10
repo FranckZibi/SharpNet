@@ -13,14 +13,14 @@ namespace SharpNet.HPO
     public class StackingCVClassifierDatasetSample : DelegatedDatasetSample
     {
         #region private fields
-        private readonly InMemoryDataSetV2 TrainingDataSet;
-        private readonly InMemoryDataSetV2 InferenceDataSet;
+        private readonly DataSetV2 TrainingDataSet;
+        private readonly DataSetV2 InferenceDataSet;
         #endregion
 
         #region constructor
 
         // ReSharper disable once UnusedMember.Global
-        private StackingCVClassifierDatasetSample(InMemoryDataSetV2 trainingDataSet, InMemoryDataSetV2 inferenceDataSet, int cv) : base(trainingDataSet.DatasetSample)
+        private StackingCVClassifierDatasetSample(DataSetV2 trainingDataSet, DataSetV2 inferenceDataSet, int cv) : base(trainingDataSet.DatasetSample)
         {
             TrainingDataSet = trainingDataSet;
             InferenceDataSet= inferenceDataSet;
@@ -44,7 +44,7 @@ namespace SharpNet.HPO
             List<DataFrame> y_preds_for_training_InModelFormat = new();
             List<DataFrame> y_preds_for_inference_InModelFormat = new();
             CpuTensor<float> y_true_training_InTargetFormat = null;
-            InMemoryDataSetV2 validationDataset = null, testDataset = null;
+            DataSetV2 validationDataset = null, testDataset = null;
 
             if (!Directory.Exists(workingDirectory))
             {
@@ -138,13 +138,13 @@ namespace SharpNet.HPO
                 throw new Exception($"training and inference dataset must have the same number of columns");
             }
 
-            var TrainingDataSet = new InMemoryDataSetV2(
+            var TrainingDataSet = new DataSetV2(
                 embeddedDatasetSample,
                 x_training_InModelFormat_df,
                 DataFrame.New(y_true_training_InTargetFormat),
                 false);
 
-            var InferenceDataSet = new InMemoryDataSetV2(
+            var InferenceDataSet = new DataSetV2(
                 embeddedDatasetSample,
                 x_inference_InModelFormat_df,
                 null,

@@ -112,7 +112,6 @@ public class InMemoryDataSet : DataSet
         return _elementIdToCategoryIndex[elementId];
     }
         
-    public DataFrame XDataFrame => DataFrame.New(_x, ColumnNames);
     public override CpuTensor<float> Y { get; }
     public override string ToString()
     {

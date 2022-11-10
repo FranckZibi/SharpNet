@@ -13,15 +13,15 @@ namespace SharpNet.Datasets.QRT72;
 public class QRT72DatasetSample : AbstractDatasetSample
 {
     #region constructors
-    public QRT72DatasetSample(QRT72HyperParameters hyperParameters) : base(new HashSet<string>())
+    public QRT72DatasetSample(QRT72NetworkSample networkSample) : base(new HashSet<string>())
     {
-        _hyperParameters = hyperParameters;
-        PercentageInTraining = _hyperParameters.PercentageInTraining;
+        _networkSample = networkSample;
+        PercentageInTraining = _networkSample.PercentageInTraining;
     }
     #endregion
 
     #region Hyper-parameters
-    private readonly QRT72HyperParameters _hyperParameters;
+    private readonly QRT72NetworkSample _networkSample;
     #endregion
 
 

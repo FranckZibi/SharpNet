@@ -32,7 +32,7 @@ namespace SharpNet.Datasets
         #region constructor
         public CancelDatabase()
         {
-            _rootPath = Path.Combine(NetworkConfig.DefaultDataDirectory, "Cancel");
+            _rootPath = Path.Combine(NetworkSample.DefaultDataDirectory, "Cancel");
             if (!Directory.Exists(_rootPath))
             {
                 Directory.CreateDirectory(_rootPath);
@@ -191,7 +191,7 @@ namespace SharpNet.Datasets
             //}
             //FlushDatabase();return;
 
-            using var network =Network.LoadTrainedNetworkModel(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), modelName);
+            using var network =Network.LoadTrainedNetworkModel(Path.Combine(NetworkSample.DefaultWorkingDirectory, "Cancel"), modelName);
 
             //foreach (var e in _database.Values.Where(e => !e.IsRemoved))
             //{
@@ -222,7 +222,7 @@ namespace SharpNet.Datasets
 
         public static Network GetDefaultNetwork()
         {
-            var network = Network.LoadTrainedNetworkModel(Path.Combine(NetworkConfig.DefaultWorkingDirectory, "Cancel"), "efficientnet-b0_Cancel_400_470_20200715_2244_630");
+            var network = Network.LoadTrainedNetworkModel(Path.Combine(NetworkSample.DefaultWorkingDirectory, "Cancel"), "efficientnet-b0_Cancel_400_470_20200715_2244_630");
             return network;
         }
 

@@ -36,7 +36,7 @@ namespace SharpNetTests
         public void TestConvolution()
         {
             foreach(ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
-            foreach(NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
+            foreach(NetworkSample.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkSample.CompatibilityModeEnum)))
             foreach(int stride in new[]{1,2})
             foreach (var isDepthwiseConvolution in new[] { true,false})
             {
@@ -77,7 +77,7 @@ namespace SharpNetTests
         {
             var memoryPool = new TensorMemoryPool(GpuWrapper);
             foreach (ConvolutionLayer.PADDING_TYPE paddingType in Enum.GetValues(typeof(ConvolutionLayer.PADDING_TYPE)))
-            foreach (NetworkConfig.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkConfig.CompatibilityModeEnum)))
+            foreach (NetworkSample.CompatibilityModeEnum compatibilityMode in Enum.GetValues(typeof(NetworkSample.CompatibilityModeEnum)))
             foreach (int stride in new[] { 1, 2 })
             foreach (int kernelSize in new[] { 3, 5 })
             foreach (var isDepthwiseConvolution in new[] { true, false })
@@ -585,8 +585,8 @@ namespace SharpNetTests
         [Test, Explicit]
         public void TestActivationForwardSoftmaxWithHierarchyActivationV2()
         {
-            var x = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText( Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "TestActivationForwardSoftmaxWithHierarchyActivationV2_X.txt")));
-            var activationTensor = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText( Path.Combine(NetworkConfig.DefaultDataDirectory, "NonReg", "TestActivationForwardSoftmaxWithHierarchyActivationV2_ActivationTensor.txt")));
+            var x = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText( Path.Combine(NetworkSample.DefaultDataDirectory, "NonReg", "TestActivationForwardSoftmaxWithHierarchyActivationV2_X.txt")));
+            var activationTensor = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText( Path.Combine(NetworkSample.DefaultDataDirectory, "NonReg", "TestActivationForwardSoftmaxWithHierarchyActivationV2_ActivationTensor.txt")));
             var y = RandomTensor(x.Shape);
             TestAll(new[] { x, activationTensor, y }, tensors => tensors[0].ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY, tensors[1], tensors[2]));
         }

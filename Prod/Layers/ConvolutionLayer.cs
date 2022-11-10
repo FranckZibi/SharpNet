@@ -283,7 +283,7 @@ namespace SharpNet.Layers
                 Debug.Assert(newParameters.Count == 1);
             }
         }
-        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkSample.CompatibilityModeEnum originFramework)
         {
             h5FileDataset[ConvolutionDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(_convolution);
             if (UseBias) //we load bias if necessary
@@ -291,7 +291,7 @@ namespace SharpNet.Layers
                 h5FileDataset[ConvolutionBiasDatasetPath].CopyTo(_convolutionBias);
             }
         }
-        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkSample.CompatibilityModeEnum originFramework)
         {
             var result = new Dictionary<string, CpuTensor<float>>();
             result.Add(ConvolutionDatasetPath,(CpuTensor<float>) _convolution.ToCpuFloat().ChangeAxis(new[] {2, 3, 1, 0}));
@@ -301,7 +301,7 @@ namespace SharpNet.Layers
                 result.Add(ConvolutionBiasDatasetPath, _convolutionBias.ToCpuFloat());
             }
 
-            if (UseBias && originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow)
+            if (UseBias && originFramework == NetworkSample.CompatibilityModeEnum.TensorFlow)
             {
                 Debug.Assert(_convolutionBias != null);
                 // ReSharper disable once PossibleNullReferenceException
@@ -454,7 +454,7 @@ namespace SharpNet.Layers
         {
             return (paddingTop != paddingBottom || paddingLeft != paddingRight);
         }
-        public static void Padding(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType, NetworkConfig.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
+        public static void Padding(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType, NetworkSample.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
         {
             switch (paddingType)
             {
@@ -464,7 +464,7 @@ namespace SharpNet.Layers
                 case PADDING_TYPE.SAME:
                     int outputLength = OutputLength(inputLength, kernelSize, stride, paddingType);
                     int totalPadding = Math.Max((outputLength - 1) * stride + kernelSize - inputLength, 0);
-                    if (compatibilityMode == NetworkConfig.CompatibilityModeEnum.TensorFlow)
+                    if (compatibilityMode == NetworkSample.CompatibilityModeEnum.TensorFlow)
                     {
                         //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python
                         paddingStart = totalPadding / 2;
@@ -510,8 +510,8 @@ namespace SharpNet.Layers
                 Debug.Assert(_isConv1D);
                 paddingTypeForHeight = PADDING_TYPE.SAME;
             }
-            Padding(xShape4D[2], _kernelHeight, _stride, paddingTypeForHeight, Config.CompatibilityMode, out paddingTop, out paddingBottom);
-            Padding(xShape4D[3], _kernelWidth, _stride, paddingTypeForWidth, Config.CompatibilityMode, out paddingLeft, out paddingRight);
+            Padding(xShape4D[2], _kernelHeight, _stride, paddingTypeForHeight, Sample.CompatibilityMode, out paddingTop, out paddingBottom);
+            Padding(xShape4D[3], _kernelWidth, _stride, paddingTypeForWidth, Sample.CompatibilityMode, out paddingLeft, out paddingRight);
         }
         private bool UseL2Regularization => _lambdaL2Regularization > 0.0;
         private int[] ConvolutionShape
@@ -540,7 +540,7 @@ namespace SharpNet.Layers
                 }
             }
         }
-        private GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference => Config.ConvolutionAlgoPreference;
+        private GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference => Sample.ConvolutionAlgoPreference;
         private static int[] PaddedXShape(int[] xShape, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight)
         {
             return new[] { xShape[0], xShape[1], paddingTop + xShape[2] + paddingBottom, paddingLeft + xShape[3] + paddingRight };

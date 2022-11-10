@@ -170,7 +170,7 @@ namespace SharpNet.Datasets
         /// <returns>number of actual items loaded,
         /// in range [1, miniBatchSize ]
         ///     with xMiniBatch.Shape[0] = xMiniBatch.Shape[0] </returns>
-        public int LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, DataAugmentationSample dataAugmentationSample, [NotNull] List<CpuTensor<float>> all_xMiniBatches, [NotNull] CpuTensor<float> yMiniBatch)
+        public int LoadMiniBatch(bool withDataAugmentation, int[] shuffledElementId, int firstIndexInShuffledElementId, NetworkSample dataAugmentationSample, [NotNull] List<CpuTensor<float>> all_xMiniBatches, [NotNull] CpuTensor<float> yMiniBatch)
         {
             Debug.Assert(all_xMiniBatches[0].Shape.Length>=1);
             Debug.Assert(all_xMiniBatches[0].TypeSize == TypeSize);
@@ -232,7 +232,7 @@ namespace SharpNet.Datasets
             //    {
             //        int elementId = shuffledElementId[i];
             //        var categoryIndex = ElementIdToCategoryIndex(elementId);
-            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(NetworkConfig.DefaultLogDirectory, "Train"), elementId.ToString("D5") + "_cat" + categoryIndex, "");
+            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(NetworkSample.DefaultLogDirectory, "Train"), elementId.ToString("D5") + "_cat" + categoryIndex, "");
             //    }
             //}
 
@@ -649,7 +649,7 @@ namespace SharpNet.Datasets
         /// <returns>the number of actually loaded elements,in the range [1, xMiniBatchShape[0] ]  </returns>
         private int LoadMiniBatchInCpu(bool withDataAugmentation,
             int[] shuffledElementId, int firstIndexInShuffledElementId,
-            DataAugmentationSample dataAugmentationSample,
+            NetworkSample dataAugmentationSample,
             List<int[]> all_xMiniBatchShape, int[] yMiniBatchShape)
         {
             Debug.Assert(Channels == all_xMiniBatchShape[0][1]);
@@ -915,7 +915,7 @@ namespace SharpNet.Datasets
         /// while working on the current mini batch
         /// </summary>
         private readonly Thread thread;
-        private Tuple<bool, int[], int, DataAugmentationSample, List<int[]>, int[]> threadParameters;
+        private Tuple<bool, int[], int, NetworkSample, List<int[]>, int[]> threadParameters;
         private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new AutoResetEvent(false);
         private readonly AutoResetEvent backgroundThreadIsIdle = new AutoResetEvent(false);
         private bool shouldStopBackgroundThread = false;

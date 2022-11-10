@@ -1586,7 +1586,7 @@ namespace SharpNet.CPU
                     cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (Math.Abs(expected - prediction))).NaNSum();
                     break;
                 case EvaluationMetricEnum.MseOfLog:
-                    cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(Math.Log(expected) - Math.Log(Math.Max(prediction, NetworkConfig.Default_MseOfLog_Loss)), 2) / Math.Max(prediction, NetworkConfig.Default_MseOfLog_Loss))).NaNSum();
+                    cost = (1.0 / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(Math.Log(expected) - Math.Log(Math.Max(prediction, NetworkSample.Default_MseOfLog_Loss)), 2) / Math.Max(prediction, NetworkSample.Default_MseOfLog_Loss))).NaNSum();
                     break;
                 case EvaluationMetricEnum.CosineSimilarity504:
                     Debug.Assert(yPredicted.Count%CosineSimilarity504_TimeSeries_Length == 0);

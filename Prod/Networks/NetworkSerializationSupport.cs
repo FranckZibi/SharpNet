@@ -42,27 +42,27 @@ namespace SharpNet.Networks
             //we load the model (network description)
             var allLines = File.ReadAllLines(modelFilePath);
             var dicoFirstLine = Serializer.Deserialize(allLines[0]);
-            var sample = NetworkSample.ValueOf(workingDirectory, modelName);
-            if (!string.IsNullOrEmpty(sample.Config.WorkingDirectory) && !Directory.Exists(sample.Config.WorkingDirectory))
+            var sample = Networks.NetworkSample.ValueOf(workingDirectory, modelName);
+            if (!string.IsNullOrEmpty(workingDirectory) && !Directory.Exists(workingDirectory))
             {
                 // ReSharper disable once PossibleNullReferenceException
-                sample.Config.WorkingDirectory = new FileInfo(modelFilePath).Directory.FullName;
+                workingDirectory = new FileInfo(modelFilePath).Directory.FullName;
             }
 
-            var originalResourceIds = sample.Config.ResourceIds.ToArray();
+            var originalResourceIds = sample.ResourceIds.ToArray();
             int[] fixedResourceIds = AdaptResourceIdsToCurrentComputer(originalResourceIds, GPUWrapper.GetDeviceCount());
-            sample.Config.ResourceIds = fixedResourceIds.ToList();
+            sample.ResourceIds = fixedResourceIds.ToList();
 
-            var network = new Network(sample, sample.Config.WorkingDirectory, sample.Config.ModelName, false);
+            var network = new Network(sample, null, workingDirectory, modelName, false);
             if (!originalResourceIds.SequenceEqual(fixedResourceIds))
             {
                 LogWarn("changing resourceIds from ("+string.Join(",", originalResourceIds)+ ") to ("+string.Join(",", fixedResourceIds)+")");
             }
             //on CPU we must use 'GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM'
-            if (fixedResourceIds.Max() < 0 && sample.Config.ConvolutionAlgoPreference != GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
+            if (fixedResourceIds.Max() < 0 && sample.ConvolutionAlgoPreference != GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM)
             {
-                LogWarn("only " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + sample.Config.ConvolutionAlgoPreference + " is not supported on CPU)");
-                sample.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
+                LogWarn("only " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + sample.ConvolutionAlgoPreference + " is not supported on CPU)");
+                sample.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
                 LogWarn("force using " + GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM);
             }
 
@@ -78,7 +78,7 @@ namespace SharpNet.Networks
             var parametersFilePath = ToParameterFilePath(workingDirectory, modelName);
             if (File.Exists(parametersFilePath))
             {
-                network.LoadParametersFromH5File(parametersFilePath, network.Config.CompatibilityMode);
+                network.LoadParametersFromH5File(parametersFilePath, network.Sample.CompatibilityMode);
             }
             return network;
         }
@@ -100,7 +100,7 @@ namespace SharpNet.Networks
             using var h5File = new H5File(parametersFilePath);
             foreach (var l in Layers)
             {
-                foreach (var p in l.GetParametersAsCpuFloatTensors(Config.CompatibilityMode))
+                foreach (var p in l.GetParametersAsCpuFloatTensors(Sample.CompatibilityMode))
                 {
                     h5File.Write(p.Key, p.Value);
                 }
@@ -113,7 +113,7 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="h5FilePath"></param>
         /// <param name="originFramework"></param>
-        public void LoadParametersFromH5File(string h5FilePath, NetworkConfig.CompatibilityModeEnum originFramework)
+        public void LoadParametersFromH5File(string h5FilePath, NetworkSample.CompatibilityModeEnum originFramework)
         {
             LogInfo("loading weights from " + h5FilePath);
             using var h5File = new H5File(h5FilePath);

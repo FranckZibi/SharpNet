@@ -20,7 +20,7 @@ namespace SharpNet.Datasets.CFM60
         private static Dictionary<int, CFM60Entry> Load_Summary_File()
         {
             var res = new Dictionary<int, CFM60Entry>();
-            var path = Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "CFM60_summary.csv");
+            var path = Path.Combine(NetworkSample.DefaultDataDirectory, "CFM60", "CFM60_summary.csv");
             foreach (var l in File.ReadAllLines(path).Skip(1))
             {
                 var entry = new CFM60Entry();

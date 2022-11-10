@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using SharpNet.Datasets;
+using SharpNet.Networks;
 
 namespace SharpNet.HyperParameters
 {
@@ -9,8 +10,23 @@ namespace SharpNet.HyperParameters
         #region Constructor
 
         // ReSharper disable once MemberCanBePrivate.Global
-        public ModelAndDatasetPredictionsSample(ISample[] samples) : base(samples) { }
+        public ModelAndDatasetPredictionsSample(ISample[] samples) : base(FixSamples(samples))
+        {
+        }
 
+
+        private static ISample[] FixSamples(ISample[] samples)
+        {
+            var modelSample  = (IModelSample)samples[0];
+            if (modelSample is NetworkSample networkSample)
+            {
+                var datasetSample = (AbstractDatasetSample)samples[1];
+                networkSample.ApplyDataset(datasetSample);
+                samples[0] = networkSample;
+            }
+            return samples;
+        }
+    
         public static AbstractDatasetSample LoadDatasetSample(string workingDirectory, string modelName)
         {
             return AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1));

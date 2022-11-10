@@ -86,7 +86,7 @@ namespace SharpNet.Datasets
         public const string NAME = "CIFAR-100";
         public CIFAR100DataSet() : base(NAME)
         {
-            var path = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
+            var path = Path.Combine(NetworkSample.DefaultDataDirectory, Name);
 
             //We load the training set
             var xTrainingSet = new CpuTensor<byte>(new[] { 50000, Shape_CHW[0], Shape_CHW[1], Shape_CHW[2] });

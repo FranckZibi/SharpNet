@@ -22,12 +22,12 @@ namespace SharpNet.Datasets.CFM60
         public Cfm60TrainingAndTestDataset(Cfm60NetworkSample cfm60NetworkSample, Action<string> log) : base("CFM60")
         {
             Training = new CFM60DataSet(
-                Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_training.csv"),
-                Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "output_training_IxKGwDV.csv"),
+                Path.Combine(NetworkSample.DefaultDataDirectory, "CFM60", "input_training.csv"),
+                Path.Combine(NetworkSample.DefaultDataDirectory, "CFM60", "output_training_IxKGwDV.csv"),
                 log,
                 cfm60NetworkSample,
                 null);
-            Test = new CFM60DataSet(Path.Combine(NetworkConfig.DefaultDataDirectory, "CFM60", "input_test.csv"),
+            Test = new CFM60DataSet(Path.Combine(NetworkSample.DefaultDataDirectory, "CFM60", "input_test.csv"),
                 null,
                 log,
                 cfm60NetworkSample,

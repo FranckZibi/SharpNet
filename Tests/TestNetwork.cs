@@ -32,14 +32,29 @@ namespace SharpNetTests
             Assert.AreEqual(new[] { 0 }, Network.AdaptResourceIdsToCurrentComputer(new[] { 0 }, 2));
         }
 
+
+
+
+        /// <summary>
+        /// used for tests only
+        /// </summary>
+        /// <param name="sample"></param>
+        /// <param name="workingDirectory"></param>
+        /// <param name="modelName"></param>
+        /// <returns></returns>
+        public static Network NewForTests(NetworkSample sample, string workingDirectory, string modelName)
+        {
+            return new Network(sample, null, workingDirectory, modelName, true);
+        }
+
+
         [Test]
         public void TestSaveParametersToH5File()
         {
             //we build an efficientNet-B0 network loading the weights from in Keras
-            var networkBuilder = EfficientNetSample.CIFAR10();
-            networkBuilder.Config.WorkingDirectory = NetworkConfig.DefaultWorkingDirectory;
-            var workingDirectory = networkBuilder.Config.WorkingDirectory;
-            var network = networkBuilder.EfficientNetB0(true, "imagenet", new[] { 3, 224, 224 });
+            var networkBuilder = EfficientNetNetworkSample.CIFAR10();
+            var workingDirectory = NetworkSample.DefaultWorkingDirectory;
+            var network = networkBuilder.EfficientNetB0(workingDirectory, true, "imagenet", new[] { 3, 224, 224 });
 
             //we save the network parameters
             network.Save(workingDirectory, network.ModelName);
@@ -47,7 +62,7 @@ namespace SharpNetTests
             network.Dispose();
 
             //we ensure that the saved parameters are the same as the original one in Keras
-            var kerasParametersFile = EfficientNetSample.GetKerasModelPath("efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
+            var kerasParametersFile = EfficientNetNetworkSample.GetKerasModelPath("efficientnet-b0_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
             using (var kerasParameters = new H5File(kerasParametersFile))
             {
                 var parametersFile = Network.ToParameterFilePath(workingDirectory, network.ModelName);
@@ -65,22 +80,22 @@ namespace SharpNetTests
 
         public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int numEpochs, int batchSize, DataSet testDataSet = null)
         {
-            network.Config.DisableReduceLROnPlateau = true;
+            network.Sample.DisableReduceLROnPlateau = true;
             using var trainingDataSet = new InMemoryDataSet(X, Y);
 
-            network.Config.InitialLearningRate = learningRate;
-            network.Config.NumEpochs = numEpochs;
-            network.Config.BatchSize = batchSize;
+            network.Sample.InitialLearningRate = learningRate;
+            network.Sample.NumEpochs = numEpochs;
+            network.Sample.BatchSize = batchSize;
 
             Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, testDataSet);
         }
 
         public static void Fit(Network network, DataSet trainingDataSet, double learningRate, int numEpochs, int batchSize, DataSet testDataSet = null)
         {
-            network.Config.DisableReduceLROnPlateau = true;
-            network.Config.InitialLearningRate = learningRate;
-            network.Config.NumEpochs = numEpochs;
-            network.Config.BatchSize = batchSize;
+            network.Sample.DisableReduceLROnPlateau = true;
+            network.Sample.InitialLearningRate = learningRate;
+            network.Sample.NumEpochs = numEpochs;
+            network.Sample.BatchSize = batchSize;
             network.Fit(trainingDataSet, testDataSet);
         }
     }

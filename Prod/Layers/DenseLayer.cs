@@ -94,7 +94,7 @@ namespace SharpNet.Layers
         }
 
         private DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) 
-            : this(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, network.Config.OptimizerType, trainable, network, layerName)
+            : this(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, network.Sample.OptimizerType, trainable, network, layerName)
         {
         }
 
@@ -135,7 +135,7 @@ namespace SharpNet.Layers
 
             //we compute dW
             var multiplier = 1f / batchSize;
-            if (Config.TensorFlowCompatibilityMode)
+            if (Sample.TensorFlowCompatibilityMode)
             {
                 multiplier = 1f; //used only for tests and parallel run
             }
@@ -283,7 +283,7 @@ namespace SharpNet.Layers
             return nbDisabledWeights;
         }
 
-        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkSample.CompatibilityModeEnum originFramework)
         {
             var result = new Dictionary<string, CpuTensor<float>>();
             result.Add(WeightDatasetPath, _weights.ToCpuFloat());
@@ -291,7 +291,7 @@ namespace SharpNet.Layers
             {
                 // ReSharper disable once PossibleNullReferenceException
                 result.Add(BiasDatasetPath, _bias.ToCpuFloat());
-                if (originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow)
+                if (originFramework == NetworkSample.CompatibilityModeEnum.TensorFlow)
                 {
                     // ReSharper disable once PossibleNullReferenceException
                     Debug.Assert(_bias.Count == _bias.Shape[1]);

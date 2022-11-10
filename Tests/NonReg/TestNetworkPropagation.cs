@@ -6,7 +6,6 @@ using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -234,7 +233,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(@"numpy.array([[1, 2, 1, 1], [2, 2, 1, 1]], numpy.float)");
             var Y = FromNumpyArray(@"numpy.array([[1], [0]], numpy.float)");
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             Debug.Assert(network.Layers.Count == 0);
             network.Input(maxWordsBySentence, -1, -1)
                 .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, 0.0)
@@ -274,7 +273,7 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(@"numpy.array([[1], [0], [0], [1]], numpy.float)");
             
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
-            network.Config.WithAdam(0.9, 0.999, 1e-7);
+            network.Sample.WithAdam(0.9, 0.999, 1e-7);
 
             Debug.Assert(network.Layers.Count == 0);
             network.Input(maxWordsBySentence, -1, -1)
@@ -311,7 +310,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_1_4_4);
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.BinaryCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Dense(3, 0.0, false)
@@ -414,7 +413,7 @@ namespace SharpNetTests.NonReg
 
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
 
-            network.Config.WithSGD(0.9, false);
+            network.Sample.WithSGD(0.9, false);
 
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
@@ -569,7 +568,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_1_4_4);
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(0.9, false);
+            network.Sample.WithSGD(0.9, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3]).Dense(Y.Shape[1], lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             Tensor w = FromNumpyArray("[[-0.3793878 ,  0.13005257, -0.48190022],[-0.5270703 , -0.5069973 , -0.45630288],[-0.08369148, -0.24146178, -0.09606424],[-0.0498544 , -0.4154459 , -0.3665961 ],[-0.3581952 , -0.3345901 ,  0.48476475],[ 0.320306  ,  0.301827  , -0.48490363],[ 0.33425486, -0.42483532,  0.20156533],[ 0.0346387 ,  0.34260863,  0.45479387],[-0.28320554,  0.27089173, -0.5511215 ],[-0.09140414, -0.2540371 , -0.38209555],[ 0.30901152, -0.22211927, -0.07776272],[-0.01273596, -0.43774882,  0.319129  ],[-0.26144847,  0.45303112, -0.5552845 ],[ 0.0012697 , -0.24624684, -0.01347905],[ 0.18339497, -0.46073103,  0.54499584],[-0.32917506,  0.03634387, -0.5220559 ]]");
@@ -621,7 +620,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_1_1_1_1);
             var Y = FromNumpyArray(Y_1_2);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
@@ -653,7 +652,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(@"numpy.array([[[[1]]]]], numpy.float)");
             var Y = FromNumpyArray(@"numpy.array([[1,0]], numpy.float)");
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
@@ -687,7 +686,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(@"[[[[1]],[[0]]]]");
             var Y = FromNumpyArray(@"[[1,0]]");
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
@@ -719,7 +718,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(@"[[[[1]],[[0]]]]");
             var Y = FromNumpyArray(@"[[1,0]]");
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Convolution(1, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true, 0)
@@ -751,7 +750,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_3_4_5);
             var Y = FromNumpyArray(Y_2_2);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
                 .Convolution(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true)
@@ -781,7 +780,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray("[[[[0.0,0.1],[0.2,0.3]],[[0.4,0.5],[0.6,0.7]],[[0.8,0.9],[0.95,1.0]]]]");
             var Y = FromNumpyArray(@"[[1,0]]");
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, lambdaL2Regularization, true)
                 .Flatten().Dense(Y.Shape[1], lambdaL2Regularization, false)
@@ -810,7 +809,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_3_4_5);
             var Y = FromNumpyArray(Y_3_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], -1)
                 .Conv1D(2, 3, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .Conv1D(2, 3, 2, ConvolutionLayer.PADDING_TYPE.CAUSAL, lambdaL2Regularization, true)
@@ -840,7 +839,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_3_4_5);
             var Y = FromNumpyArray(Y_2_2);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.00, false)
                 .Flatten().Dense(Y.Shape[1], 0.00, false)
@@ -867,7 +866,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_3_4_5);
             var Y = FromNumpyArray(Y_2_2);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network.Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Convolution(1, 3, 2, ConvolutionLayer.PADDING_TYPE.SAME, 0.00, false)
@@ -895,7 +894,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_3_4_5);
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(4, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
@@ -926,7 +925,7 @@ namespace SharpNetTests.NonReg
             var X = FromNumpyArray(X_2_3_4_5);
             var Y = FromNumpyArray(Y_2_3);
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(4, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
@@ -958,7 +957,7 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(@"numpy.array([[0],[5]], numpy.float)");
 
             var network = GetNetwork(EvaluationMetricEnum.Huber, resourceIds);
-            network.Config.WithSGD(momentum, false);
+            network.Sample.WithSGD(momentum, false);
             network
                 .Input(X.Shape[1], 1, -1)
                 .Dense(3, 0.0, false)
@@ -991,8 +990,8 @@ namespace SharpNetTests.NonReg
             var Y = FromNumpyArray(Y_2_3);
 
             var network = GetNetwork(EvaluationMetricEnum.Mse, resourceIds);
-            network.Config.WithSGD(momentum, false);
-            network.Config.Metrics = new List<EvaluationMetricEnum> { network.Config.LossFunction, EvaluationMetricEnum.Mae};
+            network.Sample.WithSGD(momentum, false);
+            network.Sample.Metrics = new List<EvaluationMetricEnum> { network.Sample.LossFunction, EvaluationMetricEnum.Mae};
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Dense(3, 0.0, true)
@@ -1033,7 +1032,7 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(EvaluationMetricEnum.Huber, resourceIds);
-            network.Config.WithSGD(0.9, false);
+            network.Sample.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
                 .SimpleRNN(3, false, false)
@@ -1069,7 +1068,7 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(EvaluationMetricEnum.Huber, new List<int> {0});
-            network.Config.WithSGD(0.9, false);
+            network.Sample.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
                 .SimpleRNN(2, returnSequences, isBidirectional)
@@ -1104,7 +1103,7 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(EvaluationMetricEnum.Huber, new List<int> {0});
-            network.Config.WithSGD(0.9, false);
+            network.Sample.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
                 .LSTM(2, returnSequences, isBidirectional, 1, 0.0, false)
@@ -1141,7 +1140,7 @@ namespace SharpNetTests.NonReg
             int inputSize = X.Shape[2];
 
             var network = GetNetwork(EvaluationMetricEnum.Huber, new List<int> {0});
-            network.Config.WithSGD(0.9, false);
+            network.Sample.WithSGD(0.9, false);
             network
                 .Input(timeSteps, inputSize, -1)
                 .GRU(2, returnSequences, isBidirectional, 1, 0.0, false)
@@ -1169,16 +1168,17 @@ namespace SharpNetTests.NonReg
             {
                 evaluationMetrics.Add(EvaluationMetricEnum.Accuracy);
             }
-            return Network.NewForTests(
-                new NetworkConfig{ 
+            return TestNetwork.NewForTests(
+                new NetworkSample{ 
                     LossFunction = evaluationMetric, 
                     Metrics = evaluationMetrics,
                     RandomizeOrder = false, 
-                    ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow, 
-                    WorkingDirectory = "",
+                    ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow, 
                     ResourceIds = resourceIds.ToList()
-                }, 
-                new DataAugmentationSample());
+                },
+                NetworkSample.DefaultWorkingDirectory,
+                "ModelName"
+                );
         }
         private static void TestPredict(Network network, Tensor X, string expectedPredictionAsString, double epsilon = 1e-6)
         {
@@ -1193,7 +1193,7 @@ namespace SharpNetTests.NonReg
             var observedMetrics = network.ComputeMetricsForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
-                Assert.AreEqual(expectedLoss.Value, observedMetrics[network.Config.LossFunction], epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedMetrics[network.Config.LossFunction]);
+                Assert.AreEqual(expectedLoss.Value, observedMetrics[network.Sample.LossFunction], epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedMetrics[network.Sample.LossFunction]);
             }
             if (expectedAccuracy.HasValue)
             {

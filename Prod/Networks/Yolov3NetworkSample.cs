@@ -7,19 +7,17 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using SharpNet.Data;
-using SharpNet.DataAugmentation;
-using SharpNet.HyperParameters;
 
 namespace SharpNet.Networks
 {
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     [SuppressMessage("ReSharper", "ConvertToConstant.Local")]
     [SuppressMessage("ReSharper", "FieldCanBeMadeReadOnly.Local")]
-    public class Yolov3NetSample : NetworkSample
+    public class Yolov3NetworkSample : NetworkSample
     {
         #region fields & properties
-        private readonly List<Tuple<string, Dictionary<string, string>>> _blocks;
-        private static List<Tuple<string, Dictionary<string, string>>> YOLOV3Config => ExtractConfigFileFromContent(Utils.LoadResourceContent(typeof(Yolov3NetSample).Assembly, "SharpNet.ObjectDetection.yolov3.cfg"));
+        private List<Tuple<string, Dictionary<string, string>>> _blocks;
+        private static List<Tuple<string, Dictionary<string, string>>> YOLOV3Config => ExtractConfigFileFromContent(Utils.LoadResourceContent(typeof(Yolov3NetworkSample).Assembly, "SharpNet.ObjectDetection.yolov3.cfg"));
         private readonly IDictionary<int, int> _blockIdToLastLayerIndex = new Dictionary<int, int>();
         private int[] InputShape_CHW = { 3, 608, 608 };
         private double BatchNormMomentum = 0.99;
@@ -35,33 +33,30 @@ namespace SharpNet.Networks
 
         #region constructor
 
-        private Yolov3NetSample([JetBrains.Annotations.NotNull] List<Tuple<string, Dictionary<string, string>>> blocks, ISample[] samples)  : base(samples)
+        private Yolov3NetworkSample([JetBrains.Annotations.NotNull] List<Tuple<string, Dictionary<string, string>>> blocks)
         {
             _blocks = blocks;
         }
 
-        public static Yolov3NetSample ValueOf(List<int> resourceIds, List<Tuple<string, Dictionary<string, string>>> blocks = null)
+        public static Yolov3NetworkSample ValueOf(List<int> resourceIds, List<Tuple<string, Dictionary<string, string>>> blocks = null)
         {
-            var config = new NetworkConfig
-                {
+            var config = (Yolov3NetworkSample)new Yolov3NetworkSample(blocks ?? YOLOV3Config)
+            {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow,
+                    CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                     lambdaL2Regularization = 0.0005,
-                    WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, "YOLO"),
-                    ResourceIds = resourceIds.ToList()
-                }
+                    ResourceIds = resourceIds.ToList(),
+            }
                 .WithSGD(0.9, false)
                 .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
-
-            return new Yolov3NetSample(blocks ?? YOLOV3Config, new ISample[]{config, new DataAugmentationSample()});
-
+            return config;
         }
         #endregion
 
         public Network Build()
         {
             LoadNetDescription();
-            var network = BuildEmptyNetwork("YOLO V3");
+            var network = BuildNetworkWithoutLayers(Path.Combine(DefaultWorkingDirectory, "YOLO"), "YOLO V3");
 
             network.Input(InputShape_CHW[0], InputShape_CHW[1], InputShape_CHW[2], "input_1");
 

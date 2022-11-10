@@ -320,7 +320,7 @@ public sealed class EmbeddingLayer : Layer
         _weights = newParameters[0];
         Debug.Assert(newParameters.Count == 1);
     }
-    public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+    public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkSample.CompatibilityModeEnum originFramework)
     {
         var result = new Dictionary<string, CpuTensor<float>>();
         result.Add(WeightDatasetPath, _weights.ToCpuFloat());

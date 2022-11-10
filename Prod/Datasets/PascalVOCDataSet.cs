@@ -35,8 +35,8 @@ namespace SharpNet.Datasets
                 true,
                 ',')
         {
-            var annotationsDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
-            var dataDirectory = Path.Combine(NetworkConfig.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
+            var annotationsDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
+            var dataDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
             var elementIdToCategoryIndex = new List<int>();
             var elementIdToDescription = new List<string>();
             var elementIdToPaths = new List<List<string>>();

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using NUnit.Framework;
-using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -18,10 +17,9 @@ namespace SharpNetTests.NonReg
         {
             const bool useGpu = true;
 
-            var network = Network.NewForTests(
-                new NetworkConfig
+            var network = TestNetwork.NewForTests(
+                new NetworkSample
                     {
-                        ModelName = "MNIST",
                         BatchSize = 32,
                         NumEpochs = 1000,
                         DisableReduceLROnPlateau = true,
@@ -31,12 +29,13 @@ namespace SharpNetTests.NonReg
                     //.WithAdam()
                     .WithSGD(0.99, true)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10,2),
-                new DataAugmentationSample()
-            );
+                NetworkSample.DefaultWorkingDirectory,
+                "MNIST"
+                );
 
             //Data Augmentation
-            network.DA.WidthShiftRangeInPercentage = 0.1;
-            network.DA.HeightShiftRangeInPercentage = 0.1;
+            network.Sample.WidthShiftRangeInPercentage = 0.1;
+            network.Sample.HeightShiftRangeInPercentage = 0.1;
 
             var mnist = new MnistDataset();
 

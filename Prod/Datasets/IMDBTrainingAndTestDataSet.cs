@@ -53,7 +53,7 @@ namespace SharpNet.Datasets
 
         private static string FileNameToPath(string fileName)
         {
-            return Path.Combine(NetworkConfig.DefaultDataDirectory, "IMDB", fileName);
+            return Path.Combine(NetworkSample.DefaultDataDirectory, "IMDB", fileName);
         }
     }
 }

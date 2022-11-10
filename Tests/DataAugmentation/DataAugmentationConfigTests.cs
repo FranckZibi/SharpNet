@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using SharpNet.DataAugmentation;
+using SharpNet.Networks;
 
 namespace SharpNetTests.DataAugmentation
 {
@@ -9,7 +10,7 @@ namespace SharpNetTests.DataAugmentation
         [Test]
         public void TestSerialize()
         {
-            var da = new DataAugmentationSample();
+            var da = new NetworkSample();
             da.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
             da.WidthShiftRangeInPercentage = 0.15;
             da.HeightShiftRangeInPercentage = 0.3;

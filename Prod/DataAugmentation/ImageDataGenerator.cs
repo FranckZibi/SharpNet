@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation.Operations;
+using SharpNet.Networks;
 
 namespace SharpNet.DataAugmentation
 {
     public class ImageDataGenerator
     {
-        private readonly DataAugmentationSample _sample;
+        private readonly NetworkSample _sample;
 
         //TODO: add FillModeEnum: Constant
         public enum FillModeEnum { Nearest, Reflect };
@@ -26,7 +27,7 @@ namespace SharpNet.DataAugmentation
             TIME_SERIES
         };
 
-        public ImageDataGenerator(DataAugmentationSample sample)
+        public ImageDataGenerator(NetworkSample sample)
         {
             _sample = sample;
         }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
@@ -8,7 +7,7 @@ using SharpNet.Data;
 
 namespace SharpNet.Datasets;
 
-public class InMemoryDataSetV2 : DataSet
+public class DataSetV2 : DataSet
 {
     // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
     private readonly AbstractDatasetSample _datasetSample;
@@ -19,7 +18,7 @@ public class InMemoryDataSetV2 : DataSet
     #endregion
 
     
-    public InMemoryDataSetV2(
+    public DataSetV2(
         AbstractDatasetSample datasetSample,
         [NotNull] DataFrame x_df,
         [CanBeNull] DataFrame y_df,
@@ -79,38 +78,7 @@ public class InMemoryDataSetV2 : DataSet
         return new[] { miniBatchSize, DatasetSample.NumClass };
     }
 
-    public (int[] vocabularySizes, int[] embeddingDims, int[] indexesInLastDimensionToUse) EmbeddingDescription(int defaultEmbeddingSize)
-    {
-        List<int> vocabularySizes = new();
-        List<int> embeddingDims = new();
-        List<int> indexesInLastDimensionToUse = new();
 
-        for (var i = 0; i < ColumnNames.Length; i++)
-        {
-            var column = ColumnNames[i];
-            
-            if (Array.IndexOf(IdColumns, column) >= 0)
-            {
-                //we'll discard Id columns
-                indexesInLastDimensionToUse.Add(i);
-                embeddingDims.Add(0); //0 embedding dim :  the feature will be discarded
-                vocabularySizes.Add(1);
-                continue;
-            }
-
-            if (Array.IndexOf(CategoricalFeatures, column) < 0)
-            {
-                continue;
-            }
-            indexesInLastDimensionToUse.Add(i);
-            embeddingDims.Add(defaultEmbeddingSize);
-            var columnStats = _datasetSample.DatasetEncoder[column];
-            vocabularySizes.Add(1+columnStats.GetDistinctCategoricalValues().Count);
-        }
-
-
-        return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray());
-    }
     public override int Count => _x.Shape[0];
 
     public override int ElementIdToCategoryIndex(int elementId)

@@ -66,20 +66,20 @@ namespace SharpNet.Networks
 
         public void FreezeSelectedLayers()
         {
-            if (string.IsNullOrEmpty(Config.FirstLayerNameToFreeze) &&
-                string.IsNullOrEmpty(Config.LastLayerNameToFreeze))
+            if (string.IsNullOrEmpty(Sample.FirstLayerNameToFreeze) &&
+                string.IsNullOrEmpty(Sample.LastLayerNameToFreeze))
             {
                 //no layers to freeze : we'll train the entire network
                 return;
             }
 
-            var firstLayerIndexToFreeze = LayerNameToLayerIndex(Config.FirstLayerNameToFreeze);
+            var firstLayerIndexToFreeze = LayerNameToLayerIndex(Sample.FirstLayerNameToFreeze);
             if (firstLayerIndexToFreeze == -1)
             {
                 firstLayerIndexToFreeze = 0;
             }
 
-            var lastLayerIndexToFreeze = LayerNameToLayerIndex(Config.LastLayerNameToFreeze);
+            var lastLayerIndexToFreeze = LayerNameToLayerIndex(Sample.LastLayerNameToFreeze);
             if (lastLayerIndexToFreeze == -1)
             {
                 lastLayerIndexToFreeze = LastLayerIndex;

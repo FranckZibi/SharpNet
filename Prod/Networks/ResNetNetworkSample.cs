@@ -1,8 +1,6 @@
-﻿using System.IO;
-using SharpNet.DataAugmentation;
+﻿using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
-using SharpNet.HyperParameters;
 using SharpNet.Layers;
 // ReSharper disable UnusedMember.Global
 
@@ -31,9 +29,9 @@ Cutout 16 / FillMode = Reflect / DivideBy10OnPlateau
 
 namespace SharpNet.Networks
 {
-    public class ResNetSample : NetworkSample
+    public class ResNetNetworkSample : NetworkSample
     {
-        private ResNetSample(ISample[] samples) : base(samples)
+        public ResNetNetworkSample()
         {
         }
 
@@ -41,33 +39,31 @@ namespace SharpNet.Networks
         /// default Hyper-Parameters for CIFAR10
         /// </summary>
         /// <returns></returns>
-        public static ResNetSample CIFAR10()
+        public static ResNetNetworkSample CIFAR10()
         {
-            var config = new NetworkConfig
-                {
+            var config = (ResNetNetworkSample)new ResNetNetworkSample
+            {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     lambdaL2Regularization = 1e-4,
-                    WorkingDirectory = Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
                     NumEpochs = 160, //64k iterations
                     BatchSize = 128,
-                    InitialLearningRate = 0.1
+                    InitialLearningRate = 0.1,
+
+                    //Data Augmentation
+                    DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
+                    WidthShiftRangeInPercentage = 0.1, //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
+                    HeightShiftRangeInPercentage = 0.1,
+                    HorizontalFlip = true, // 'true' : validated on 18-apr-2019: +70 bps
+                    VerticalFlip = false,
+                    FillMode = ImageDataGenerator.FillModeEnum.Reflect, //validated on 18-apr-2019: +50 bps
+                    CutoutPatchPercentage = 0.5, // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
+
             }
                 .WithSGD(0.9, false) // SGD : validated on 19-apr-2019: +70 bps
                 //config.WithCyclicCosineAnnealingLearningRateScheduler(10, 2), //Tested on 28-may-2019: +16bps on ResNetV2 / +2bps on ResNetV1
                 .WithCifar10ResNetLearningRateScheduler(true, true, false);
 
-            DataAugmentationSample da = new ()
-            {
-                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-                WidthShiftRangeInPercentage = 0.1, //validated on 18-apr-2019: +300 bps (for both using WidthShiftRange & HeightShiftRange)
-                HeightShiftRangeInPercentage = 0.1,
-                HorizontalFlip = true, // 'true' : validated on 18-apr-2019: +70 bps
-                VerticalFlip = false,
-                FillMode = ImageDataGenerator.FillModeEnum.Reflect, //validated on 18-apr-2019: +50 bps
-                CutoutPatchPercentage = 0.5 // validated on 17-apr-2019 for CIFAR-10: +70 bps (a cutout of the 1/2 of the image width)
-            };
-
-            return new ResNetSample(new ISample[] { config, da });
+            return config;
 
         }
 
@@ -95,8 +91,8 @@ namespace SharpNet.Networks
         }
         private Network ResNetV1(string networkName, int[] nbResBlocks, bool useBottleNeck, int[] xShape, int categoryCount)
         {
-            var network = BuildEmptyNetwork(networkName);
-            var config = network.Config;
+            var network = BuildNetworkWithoutLayers(DenseNetNetworkSample.Cifar10WorkingDirectory, networkName);
+            var config = network.Sample;
             const cudnnActivationMode_t activationFunction = cudnnActivationMode_t.CUDNN_ACTIVATION_RELU;
             network.Input(xShape[1], xShape[2], xShape[3]);
 
@@ -148,8 +144,8 @@ namespace SharpNet.Networks
         private Network ResNetV1_CIFAR10(int numResBlocks)
         {
             var networkName = "ResNet" + (6 * numResBlocks + 2) + "V1_"+ CIFAR10DataSet.NAME;
-            var network = BuildEmptyNetwork(networkName);
-            var config = network.Config;
+            var network = BuildNetworkWithoutLayers(DenseNetNetworkSample.Cifar10WorkingDirectory, networkName);
+            var config = network.Sample;
 
             network.Input(CIFAR10DataSet.Shape_CHW);
 
@@ -188,8 +184,8 @@ namespace SharpNet.Networks
         private Network ResNetV2_CIFAR10(int numResBlocks)
         {
             var networkName = "ResNet" + (9 * numResBlocks + 2) + "V2_"+ CIFAR10DataSet.NAME;
-            var network = BuildEmptyNetwork(networkName);
-            var config = network.Config;
+            var network = BuildNetworkWithoutLayers(DenseNetNetworkSample.Cifar10WorkingDirectory, networkName);
+            var config = network.Sample;
 
             network.Input(CIFAR10DataSet.Shape_CHW);
             network.Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);

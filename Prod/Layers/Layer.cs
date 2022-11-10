@@ -170,7 +170,7 @@ namespace SharpNet.Layers
         /// <param name="h5FileDataset">all datasets objects in the *.h5 file</param>
         /// <param name="originFramework">the ML Framework from where the *.h5 file comes from</param>
         // ReSharper disable once UnusedParameter.Global
-        public virtual void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        public virtual void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkSample.CompatibilityModeEnum originFramework)
         {
             foreach (var layerParameters in Parameters)
             {
@@ -188,7 +188,7 @@ namespace SharpNet.Layers
         /// <param name="originFramework">the ML Framework for which we want to save the *.h5 file
         ///     (so this file will be compatible with this Framework</param>
         // ReSharper disable once UnusedParameter.Global
-        public virtual IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+        public virtual IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkSample.CompatibilityModeEnum originFramework)
         {
             var result = new Dictionary<string, CpuTensor<float>>();
             foreach (var p in Parameters)
@@ -481,35 +481,35 @@ namespace SharpNet.Layers
         protected Random Rand => Network.Rand;
         protected TensorMemoryPool MemoryPool => Network.MemoryPool;
         protected List<Layer> Layers => Network.Layers;
-        protected NetworkConfig Config => Network.Config;
+        protected NetworkSample Sample => Network.Sample;
 
 
         protected Optimizer GetOptimizer(int[] weightShape, int[] biasShape)
         {
-            return GetOptimizer(Config.OptimizerType, weightShape, biasShape);
+            return GetOptimizer(Sample.OptimizerType, weightShape, biasShape);
         }
         protected Optimizer GetOptimizer(Optimizer.OptimizationEnum optimizerType, int[] weightShape, int[] biasShape)
         {
             switch (optimizerType)
             {
                 case Optimizer.OptimizationEnum.Adam:
-                    if (Math.Abs(Config.AdamW_L2Regularization) > 1e-6)
+                    if (Math.Abs(Sample.AdamW_L2Regularization) > 1e-6)
                     {
-                        throw new Exception("Invalid AdamW_L2Regularization (" + Config.AdamW_L2Regularization+") for Adam: should be 0");
+                        throw new Exception("Invalid AdamW_L2Regularization (" + Sample.AdamW_L2Regularization+") for Adam: should be 0");
                     }
-                    return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, 0.0, weightShape, biasShape);
+                    return new Adam(MemoryPool, Sample.Adam_beta1, Sample.Adam_beta2, Sample.Adam_epsilon, 0.0, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.AdamW:
-                    if (Math.Abs(Config.lambdaL2Regularization) > 1e-6)
+                    if (Math.Abs(Sample.lambdaL2Regularization) > 1e-6)
                     {
                         throw new Exception("Can't use both AdamW and L2 Regularization");
                     }
-                    if (Config.AdamW_L2Regularization < 1e-6)
+                    if (Sample.AdamW_L2Regularization < 1e-6)
                     {
-                        throw new Exception("Invalid AdamW_L2Regularization (" + Config.AdamW_L2Regularization + ") for AdamW: should be > 0");
+                        throw new Exception("Invalid AdamW_L2Regularization (" + Sample.AdamW_L2Regularization + ") for AdamW: should be > 0");
                     }
-                    return new Adam(MemoryPool, Config.Adam_beta1, Config.Adam_beta2, Config.Adam_epsilon, Config.AdamW_L2Regularization, weightShape, biasShape);
+                    return new Adam(MemoryPool, Sample.Adam_beta1, Sample.Adam_beta2, Sample.Adam_epsilon, Sample.AdamW_L2Regularization, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.SGD: 
-                    return new Sgd(MemoryPool, Config.SGD_momentum, Config.SGD_usenesterov, weightShape, biasShape);
+                    return new Sgd(MemoryPool, Sample.SGD_momentum, Sample.SGD_usenesterov, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.VanillaSGDOrtho: 
                     return new VanillaSgdOrtho(MemoryPool, weightShape);
                 case Optimizer.OptimizationEnum.VanillaSGD:

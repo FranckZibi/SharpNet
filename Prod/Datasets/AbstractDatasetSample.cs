@@ -17,19 +17,62 @@ namespace SharpNet.Datasets;
 public abstract class AbstractDatasetSample : AbstractSample
 {
     #region public properties
+
     public string Name { get; }
     public abstract string[] CategoricalFeatures { get; }
+
     /// <summary>
     /// features used to identify a row in the dataset
     /// such features should be ignored during the training
     /// </summary>
     /// <returns>list of id features </returns>
     public abstract string[] IdColumns { get; }
+
     /// <summary>
     /// list of target feature names (usually a single element)
     /// </summary>
     /// <returns>list of target feature names </returns>
     public abstract string[] TargetLabels { get; }
+
+    private int[] _cacheInputShape_CHW = null;
+    private string[] _cacheColumns = null;
+    private readonly object lockInputShape_CHW = new();
+
+
+    public virtual int[] GetInputShapeOfSingleElement()
+    {
+        if (_cacheInputShape_CHW != null)
+        {
+            return _cacheInputShape_CHW;
+        }
+        lock(lockInputShape_CHW)
+        {
+            if (_cacheInputShape_CHW != null)
+            {
+                return _cacheInputShape_CHW;
+            }
+
+            var fullTrainingAndValidation = FullTrainingAndValidation();
+            var full = fullTrainingAndValidation as DataSetV2;
+            if (full == null)
+            {
+                throw new ArgumentException($"can't compute shape for dataset type {fullTrainingAndValidation.GetType()}");
+            }
+            _cacheInputShape_CHW = full.XDataFrame.Shape.Skip(1).ToArray();
+            _cacheColumns = full.ColumnNames.ToArray();
+        }
+        return _cacheInputShape_CHW;
+    }
+
+    public virtual string[] GetColumnNames()
+    {
+        if (_cacheColumns == null)
+        {
+            GetInputShapeOfSingleElement(); //we compute the columns
+        }
+        return _cacheColumns;
+    }
+
     #endregion
 
     #region constructors
@@ -48,7 +91,47 @@ public abstract class AbstractDatasetSample : AbstractSample
 
 
 
+    /// <summary>
+    /// VocabularySizes : for each categorical feature, the number of distinct value it has
+    /// EmbeddingDims: the default embedding for each categorical feature
+    /// IndexesInLastDimensionToUse: for each categorical feature, the associated index of this categorical feature in the input
+    /// </summary>
+    /// <param name="defaultEmbeddingSize"></param>
+    /// <returns></returns>
+    public (int[] vocabularySizes, int[] embeddingDims, int[] indexesInLastDimensionToUse) EmbeddingDescription(int defaultEmbeddingSize)
+    {
+        List<int> vocabularySizes = new();
+        List<int> embeddingDims = new();
+        List<int> indexesInLastDimensionToUse = new();
 
+        string[] columnNames = GetColumnNames();
+
+        for (var i = 0; i < columnNames.Length; i++)
+        {
+            var column = columnNames[i];
+
+            if (Array.IndexOf(IdColumns, column) >= 0)
+            {
+                //we'll discard Id columns
+                indexesInLastDimensionToUse.Add(i);
+                embeddingDims.Add(0); //0 embedding dim :  the feature will be discarded
+                vocabularySizes.Add(1);
+                continue;
+            }
+
+            if (Array.IndexOf(CategoricalFeatures, column) < 0)
+            {
+                continue;
+            }
+            indexesInLastDimensionToUse.Add(i);
+            embeddingDims.Add(defaultEmbeddingSize);
+            var columnStats = DatasetEncoder[column];
+            vocabularySizes.Add(1 + columnStats.GetDistinctCategoricalValues().Count);
+        }
+
+
+        return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray());
+    }
     public EvaluationMetricEnum DefaultLossFunction
     {
         get
@@ -167,8 +250,8 @@ public abstract class AbstractDatasetSample : AbstractSample
     }
 
 
-    public InMemoryDataSetV2 LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
-    public InMemoryDataSetV2 LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
+    public DataSetV2 LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
+    public DataSetV2 LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
 
     ///// <summary>
     ///// return a DataSet with all labeled Data (all data found both in training and validation dataset)
@@ -176,7 +259,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     ///// <returns></returns>
     //public InMemoryDataSet LoadTrainAndValidationDataset() => InMemoryDataSet.MergeVertically(LoadTrainDataset(), LoadValidationDataset());
 
-    public InMemoryDataSetV2 LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
+    public DataSetV2 LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
     
     //// ReSharper disable once MemberCanBeMadeStatic.Global
     public DataFrame LoadPredictionsInModelFormat(string directory, string fileName)
@@ -453,7 +536,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// <returns></returns>
     public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
 
-    private InMemoryDataSetV2 LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
+    private DataSetV2 LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
     {
         DataFrame x = null;
         DataFrame y = null;
@@ -490,7 +573,7 @@ public abstract class AbstractDatasetSample : AbstractSample
             var yTensor = CpuTensor<float>.FromClassIndexToProba(y.FloatTensor, NumClass);
             y = DataFrame.New(yTensor);
         }
-        return new InMemoryDataSetV2(this, x, y, false);
+        return new DataSetV2(this, x, y, false);
     }
     //private DataFrame DropIdColumnsIfFound(DataFrame df)
     //{

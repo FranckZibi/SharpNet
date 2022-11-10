@@ -18,7 +18,7 @@ namespace SharpNet.Datasets.CFM60
 {
     public class CFM60DataSet : DataSet, ITimeSeriesDataSet
     {
-        public CFM60HyperParameters Sample => _cfm60NetworkSample.CFM60HyperParameters;
+        public Cfm60NetworkSample Sample => _cfm60NetworkSample;
         private readonly Cfm60NetworkSample _cfm60NetworkSample;
         private readonly CFM60DataSet TrainingDataSetIfAny;
         //TODO : add element for each valid day, even if no entry is associated with that day
@@ -102,17 +102,17 @@ namespace SharpNet.Datasets.CFM60
         #endregion
 
         public CFM60DataSet(string xFile, string yFileIfAny, Action<string> log, Cfm60NetworkSample sample, CFM60DataSet trainingDataSetIfAny = null)
-            : this(CFM60Entry.Load(xFile, yFileIfAny, log, sample.CFM60HyperParameters.ValueToPredict, sample.CFM60HyperParameters.predictionFilesIfComputeErrors), sample, trainingDataSetIfAny)
+            : this(CFM60Entry.Load(xFile, yFileIfAny, log, sample.ValueToPredict, sample.predictionFilesIfComputeErrors), sample, trainingDataSetIfAny)
         {
         }
 
         public CFM60DataSet(CFM60Entry[] entries, Cfm60NetworkSample cfm60NetworkSample, CFM60DataSet trainingDataSetIfAny = null)
-            : base(cfm60NetworkSample.CFM60HyperParameters.IsTryingToPredictErrors ? "CFM60Errors" : "CFM60",
+            : base(cfm60NetworkSample.IsTryingToPredictErrors ? "CFM60Errors" : "CFM60",
                 Objective_enum.Regression,
-                cfm60NetworkSample.CFM60HyperParameters.Encoder_TimeSteps,
+                cfm60NetworkSample.Encoder_TimeSteps,
                 null,
                 ResizeStrategyEnum.None,
-                cfm60NetworkSample.CFM60HyperParameters.ComputeFeatureNames(),
+                cfm60NetworkSample.ComputeFeatureNames(),
                 new string[0],
                 new string[0],
                 new string[0],
@@ -389,11 +389,11 @@ namespace SharpNet.Datasets.CFM60
             {
                 var id = _elementIdToLastAssociateCFM60Entry[elementId].ID;
                 var prediction = spanResult[elementId];
-                if (Sample.ValueToPredict == CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_LR)
+                if (Sample.ValueToPredict == Cfm60NetworkSample.ValueToPredictEnum.Y_TRUE_MINUS_LR)
                 {
                     prediction += CFM60Utils.LinearRegressionEstimate(id);
                 }
-                else if (Sample.ValueToPredict == CFM60HyperParameters.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
+                else if (Sample.ValueToPredict == Cfm60NetworkSample.ValueToPredictEnum.Y_TRUE_MINUS_ADJUSTED_LR)
                 {
                     prediction += CFM60Utils.LinearRegressionAdjustedByMeanEstimate(id);
                 }
@@ -714,20 +714,20 @@ namespace SharpNet.Datasets.CFM60
                 ? Encoder_FeaturesStatistics[featureId]
                 : Decoder_FeaturesStatistics[featureId];
             if (stats == null
-                || Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.NONE
-                || Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.BATCH_NORM_LAYER
+                || Sample.InputNormalizationType == Cfm60NetworkSample.InputNormalizationEnum.NONE
+                || Sample.InputNormalizationType == Cfm60NetworkSample.InputNormalizationEnum.BATCH_NORM_LAYER
                 )
             {
                 return featureValue;
             }
-            if (Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.Z_SCORE)
+            if (Sample.InputNormalizationType == Cfm60NetworkSample.InputNormalizationEnum.Z_SCORE)
             {
                 var mean = (float)stats.Item3;
                 var volatility = (float)stats.Item4;
                 return (featureValue - mean) / volatility;
             }
-            if (Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.DEDUCE_MEAN
-                || Sample.InputNormalizationType == CFM60HyperParameters.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
+            if (Sample.InputNormalizationType == Cfm60NetworkSample.InputNormalizationEnum.DEDUCE_MEAN
+                || Sample.InputNormalizationType == Cfm60NetworkSample.InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
             {
                 var mean = (float)stats.Item3;
                 return featureValue - mean;
@@ -753,9 +753,9 @@ namespace SharpNet.Datasets.CFM60
         {
             return epoch >= 2
                    && network.CurrentEpochIsAbsolutelyBestInValidationLoss()
-                   && !double.IsNaN(network.EpochData.Last().GetValidationLoss(network.Config.LossFunction))
-                   && network.Config.AlwaysUseFullTestDataSetForLossAndAccuracy
-                   && network.EpochData.Last().GetValidationLoss(network.Config.LossFunction) < Sample.MaxLossToSaveTheNetwork;
+                   && !double.IsNaN(network.EpochData.Last().GetValidationLoss(network.Sample.LossFunction))
+                   && network.Sample.AlwaysUseFullTestDataSetForLossAndAccuracy
+                   && network.EpochData.Last().GetValidationLoss(network.Sample.LossFunction) < Sample.MaxLossToSaveTheNetwork;
         }
         public override int Count => Y.Shape[0];
         public override int ElementIdToCategoryIndex(int elementId)

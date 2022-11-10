@@ -89,7 +89,6 @@ public static class SampleUtils
     {
         var modelAndDataset = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, workingDirectory);
         var model = modelAndDataset.Model;
-        var datasetSample = modelAndDataset.DatasetSample;
         var validationRankingScore = modelAndDataset.Fit(false, true, false);
 
         Debug.Assert(validationRankingScore != null);
@@ -98,6 +97,7 @@ public static class SampleUtils
         {
             Model.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;
+            var datasetSample = modelAndDataset.DatasetSample;
             if (datasetSample.MinimumScoreToSaveModel == null || bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
             {
                 var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();

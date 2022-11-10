@@ -69,7 +69,7 @@ public class DatasetEncoder
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public InMemoryDataSetV2 Transform_XYDataset(DataFrame xyDataset_string_df)
+    public DataSetV2 Transform_XYDataset(DataFrame xyDataset_string_df)
     {
         Debug.Assert(xyDataset_string_df.IsStringDataFrame);
         var xyTrainEncoded = Transform(xyDataset_string_df);
@@ -83,7 +83,7 @@ public class DatasetEncoder
     /// (so that it can be processed by LightGBM)
     /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
     /// </summary>
-    public InMemoryDataSetV2 Transform_X_and_Y_Dataset([NotNull] DataFrame x_string_df, [CanBeNull] DataFrame y_string_df)
+    public DataSetV2 Transform_X_and_Y_Dataset([NotNull] DataFrame x_string_df, [CanBeNull] DataFrame y_string_df)
     {
         Debug.Assert(x_string_df.IsStringDataFrame);
         Debug.Assert(y_string_df == null || y_string_df.IsStringDataFrame);
@@ -93,9 +93,9 @@ public class DatasetEncoder
         return NewInMemoryDataSetV2(xTrainEncoded, yTrainEncoded, _datasetSample);
     }
 
-    public static InMemoryDataSetV2 NewInMemoryDataSetV2(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
+    public static DataSetV2 NewInMemoryDataSetV2(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
     {
-        return new InMemoryDataSetV2(
+        return new DataSetV2(
             datasetSample,
             xTrainEncoded,
             yTrainEncoded,

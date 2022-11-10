@@ -27,6 +27,7 @@ public abstract class Model
     public string WorkingDirectory { get; }
     public string ModelName { get; }
     public IModelSample ModelSample { get; }
+    public virtual AbstractDatasetSample DatasetSample { get; } = null;
     #endregion
 
 
@@ -37,7 +38,7 @@ public abstract class Model
         ModelName = modelName;
         ModelSample = modelSample;
     }
-    public static Model NewModel(IModelSample sample, string workingDirectory, string modelName)
+    public static Model NewModel(IModelSample sample, AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
     {
         if (sample is CatBoostSample catBoostSample)
         {
@@ -53,13 +54,11 @@ public abstract class Model
         //}
         if (sample is KFoldSample kFoldSample)
         {
-            return new KFoldModel(kFoldSample, workingDirectory, modelName);
+            return new KFoldModel(kFoldSample, datasetSample, workingDirectory, modelName);
         }
         if (sample is NetworkSample networkSample)
         {
-            networkSample.Config.WorkingDirectory = workingDirectory;
-            networkSample.Config.ModelName = modelName;
-            return new Network(networkSample, workingDirectory, modelName, true);
+            return new Network(networkSample, datasetSample, workingDirectory, modelName, true);
         }
         throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");
     }

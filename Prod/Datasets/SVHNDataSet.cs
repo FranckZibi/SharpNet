@@ -64,7 +64,7 @@ namespace SharpNet.Datasets
         {
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
             
-            var directory = Path.Combine(NetworkConfig.DefaultDataDirectory, Name);
+            var directory = Path.Combine(NetworkSample.DefaultDataDirectory, Name);
             var trainFiles = SplittedFileDataSet.AllBinFilesInDirectory(directory, loadExtraFileForTraining?new []{ "data_batch", "extra_batch"} : new [] { "data_batch"});
             Training = new SplittedFileDataSet(trainFiles, Name, CategoryIndexToDescription, Shape_CHW, meanAndVolatilityOfEachChannelInTrainingSet, CategoryByteToCategoryIndex);
             //to recompute the mean and volatility of each channel, uncomment the following line
@@ -76,9 +76,9 @@ namespace SharpNet.Datasets
 
         //public static void CreateBinFile()
         //{
-        //    var matFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "extra_32x32.mat");
-        //    //var matFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "train_32x32.mat");
-        //    //var matFile = Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "test_32x32.mat");
+        //    var matFile = Path.Combine(NetworkSample.DefaultDataDirectory, "SVHN", "extra_32x32.mat");
+        //    //var matFile = Path.Combine(NetworkSample.DefaultDataDirectory, "SVHN", "train_32x32.mat");
+        //    //var matFile = Path.Combine(NetworkSample.DefaultDataDirectory, "SVHN", "test_32x32.mat");
         //    var reader = new MatReader(matFile);
         //    var X = reader.Read<byte[,,,]>("X");
         //    var y = reader.Read<byte[,]>("y");
@@ -107,7 +107,7 @@ namespace SharpNet.Datasets
         //        }
         //        if (idx >= bytes.Length)
         //        {
-        //            File.WriteAllBytes(Path.Combine(NetworkConfig.DefaultDataDirectory, "SVHN", "extra_batch_" + (nextFileIndex++) + ".bin"), bytes);
+        //            File.WriteAllBytes(Path.Combine(NetworkSample.DefaultDataDirectory, "SVHN", "extra_batch_" + (nextFileIndex++) + ".bin"), bytes);
         //            int remainingElement = totalCount - count - 1;
         //            bytes = new byte[Math.Min(remainingElement, maxElementByFile) * bytesByElement];
         //            idx = 0;

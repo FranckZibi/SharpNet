@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using SharpNet.CatBoost;
@@ -19,8 +18,8 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     private const string NAME = "WasYouStayWorthItsPrice";
     private static readonly object LockObject = new();
     private static DatasetEncoder _trainTestEncoder;
-    private static InMemoryDataSetV2 _fullTrainDatasetEncoded;
-    private static InMemoryDataSetV2 _fullTestDatasetEncoded;
+    private static DataSetV2 _fullTrainDatasetEncoded;
+    private static DataSetV2 _fullTestDatasetEncoded;
     #endregion
 
 
@@ -31,23 +30,29 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
         var sw = Stopwatch.StartNew();
 
-        var reviewsTfIdfEncodedRawFile  = Path.Combine(WorkingDirectory, "reviews_tfidf_encoded_normalized_"+DateTime.Now.Ticks+".csv");
-
-        //res = TfIdfEncoding.Encode(res, "property_4", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
-        //res = TfIdfEncoding.Encode(res, "property_5", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
-        //res = TfIdfEncoding.Encode(res, "property_7", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
-        var review_file = DataFrame.read_string_csv(RawReviewsFile)["listing_id", "renters_comments"]
+        /*
+        #region Creating Embedding file using Tf Idf
+        var reviewsTfIdfEncodedRawFile = Path.Combine(WorkingDirectory, "reviews_tfidf_encoded_normalized_" + DateTime.Now.Ticks + ".csv");
+        var rawReviewsFile = Path.Combine(DataDirectory, "reviews.csv");
+        var review_file = DataFrame.read_string_csv(rawReviewsFile)["listing_id", "renters_comments"]
             .RenameInPlace("listing_id", "id");
+        //review_file = review_file.TfIdfEncode("property_4", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true)
+        //            .TfIdfEncode("property_5", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true)
+        //            .TfIdfEncode("property_7", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
         var encoded_review_df = review_file
             .TfIdfEncode("renters_comments", 200, norm:TfIdfEncoding.TfIdfEncoding_norm.L2, scikitLearnCompatibilityMode:false)
             .AverageBy("id");
-
-
         encoded_review_df.to_csv(reviewsTfIdfEncodedRawFile);
         Model.Log.Info($"elapsed fo encoding: {sw.Elapsed.Seconds}s");
+        #endregion
+        */
+        #region Embedding done by Sentence Transformers 
+        var reviewsTfIdfEncodedRawFile = Path.Combine(DataDirectory, "reviews_embedded_transformers_avg.csv");
+        #endregion
 
-
-        var fullReviewsForEmbeddingDim = DataFrame.read_csv(reviewsTfIdfEncodedRawFile, true, c => (c == "id" ? typeof(string) : typeof(float)));
+        var fullReviewsForEmbeddingDim = DataFrame.read_csv(reviewsTfIdfEncodedRawFile, true, c => (c == "listing_id" ? typeof(string) : typeof(float)))
+            .RenameInPlace("listing_id", "id");
+        //fullReviewsForEmbeddingDim = fullReviewsForEmbeddingDim.ReduceFloatDimension(TOTAL_Reviews_EmbeddingDim / 4);
 
         var trainDf = DataFrame.read_string_csv(RawTrainFile);
         var testDf = DataFrame.read_string_csv(RawTestFile);
@@ -64,6 +69,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
     public bool StandardizeDoubleValues = false;
 
+    
     private WasYouStayWorthItsPriceDatasetSample() : base(new HashSet<string>())
     {
         lock (LockObject)
@@ -93,29 +99,38 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     /// the embedding dim to use to enrich the dataset with the reviews
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
-    public int Reviews_EmbeddingDim = 200;
+    public int Reviews_EmbeddingDim = TOTAL_Reviews_EmbeddingDim;
 
     #endregion
 
     public override int NumClass => 7;
 
+    public const int TOTAL_Reviews_EmbeddingDim = 200; //Tf Idf
+    //public const int TOTAL_Reviews_EmbeddingDim = 384; // Sentence Transformers
 
     // ReSharper disable once UnusedMember.Global
     public static void TrainNetwork()
     {
-        var datasetSample = new WasYouStayWorthItsPriceDatasetSample();
-        var networkSample = InMemoryDataSetV2NetworkSample.New(datasetSample.FullTrainingAndValidation());
+        //var datasetSample = new WasYouStayWorthItsPriceDatasetSample();
+        //var networkSample = NetworkSampleV2.New(datasetSample.FullTrainingAndValidation());
+
+
+        //var networkSample = new NetworkSampleV2(new ISample[]{new NetworkSampleV2(), new DataAugmentationSample()});
+
 
         var searchSpace = new Dictionary<string, object>
         {
+            //run on GPU
+            {"NetworkSample_1DCNN_UseGPU", true},
+
             {"KFold", 2},
             //{"PercentageInTraining", new[]{0.8}},
 
             {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-6f, 1f, AbstractHyperParameterSearchSpace.range_type.normal)},
             //{"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-3f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
 
-            {"Reviews_EmbeddingDim", new[]{200}},
-            //{"Reviews_EmbeddingDim", new[]{0, 100, 200}},
+            {"Reviews_EmbeddingDim", new[]{TOTAL_Reviews_EmbeddingDim}},
+            //{"Reviews_EmbeddingDim", new[]{0, 100, TOTAL_Reviews_EmbeddingDim}},
             
             // Optimizer 
             {"OptimizerType", "AdamW"},
@@ -132,10 +147,10 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             
             {"BatchSize", new []{256, 512, 1024, 2048}},
             
-            {"NumEpochs", new[]{30}},
+            {"NumEpochs", new[]{1}},
         };
 
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New((InMemoryDataSetV2NetworkSample)networkSample.Clone(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar));
     }
@@ -176,6 +191,9 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
 
     public const string FILE_EXT = "_tfidf_l2_norm_scikit_stem_allstopwords.csv";
+    //public const string FILE_EXT = "_sentence_transformers.csv";
+    //public const string FILE_EXT = "_sentence_transformers_reduce_192.csv";
+    //public const string FILE_EXT = "_sentence_transformers_reduce_96.csv";
 
     // ReSharper disable once UnusedMember.Global
     public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int min_num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
@@ -184,7 +202,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            {"Reviews_EmbeddingDim", 200},
+            {"Reviews_EmbeddingDim", TOTAL_Reviews_EmbeddingDim},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
             //!D {"KFold", new[]{2}},
             
@@ -239,7 +257,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
     public override DataSet TestDataset() => SelectFeatures(_fullTestDatasetEncoded);
 
-    public override InMemoryDataSetV2 FullTrainingAndValidation() => SelectFeatures(_fullTrainDatasetEncoded);
+    public override DataSetV2 FullTrainingAndValidation() => SelectFeatures(_fullTrainDatasetEncoded);
 
     public override DatasetEncoder DatasetEncoder => _trainTestEncoder;
     
@@ -249,8 +267,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     private static string XTestRawFile => Path.Combine(DataDirectory, "test.csv"+ FILE_EXT); //!D
     private static string RawTrainFile => Path.Combine(DataDirectory, "train.csv");
     private static string RawTestFile => Path.Combine(DataDirectory, "test.csv");
-    private static string RawReviewsFile => Path.Combine(DataDirectory, "reviews.csv");
-    private InMemoryDataSetV2 SelectFeatures(InMemoryDataSetV2 dataset)
+    private DataSetV2 SelectFeatures(DataSetV2 dataset)
     {
         var df = dataset.XDataFrame;
         var columnToDrop = new List<string>();

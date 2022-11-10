@@ -180,7 +180,7 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
-        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkConfig.CompatibilityModeEnum originFramework)
+        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkSample.CompatibilityModeEnum originFramework)
         {
             foreach (var layerParameters in Parameters)
             {
@@ -191,7 +191,7 @@ namespace SharpNet.Layers
                 }
             }
         }
-        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkConfig.CompatibilityModeEnum originFramework)
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkSample.CompatibilityModeEnum originFramework)
         {
             var result = new Dictionary<string, CpuTensor<float>>();
             result[ScaleDatasetPath] = _scale.ToCpuFloat();
@@ -200,7 +200,7 @@ namespace SharpNet.Layers
             result[RunningVarianceDatasetPath] = _resultRunningVariance.ToCpuFloat();
 
             if (LayerBatchNormalizationMode() != cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION
-                && originFramework == NetworkConfig.CompatibilityModeEnum.TensorFlow
+                && originFramework == NetworkSample.CompatibilityModeEnum.TensorFlow
             )
             {
                 Debug.Assert(_scale.Count == _scale.Shape[1]);

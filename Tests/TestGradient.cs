@@ -6,7 +6,6 @@ using SharpNet.GPU;
 using System.Collections.Generic;
 using SharpNet;
 using SharpNet.CPU;
-using SharpNet.DataAugmentation;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.NonReg;
@@ -41,7 +40,7 @@ namespace SharpNetTests
             var X = GetX();
             var Y = GetY();
             var network = GetNetwork();
-            network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
+            network.Sample.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true).Dense(Y.Shape[1], 0.0, false)
@@ -60,7 +59,7 @@ namespace SharpNetTests
             var X = GetX();
             var Y = GetY();
             var network = GetNetwork();
-            network.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
+            network.Sample.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, 0.0, true ).Dense(Y.Shape[1], 0.0, false)
@@ -172,14 +171,15 @@ namespace SharpNetTests
         private static Network GetNetwork()
         {
             var resourceIds = new List<int> {-1};
-            return Network.NewForTests(new NetworkConfig
+            return TestNetwork.NewForTests(new NetworkSample
                 {
-                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy, 
-                    CompatibilityMode = NetworkConfig.CompatibilityModeEnum.TensorFlow, 
-                    WorkingDirectory = "",
+                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
+                    CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                     ResourceIds = resourceIds.ToList()
-                }, 
-                new DataAugmentationSample());
+                },
+                NetworkSample.DefaultWorkingDirectory,
+                "ModelName"
+                );
         }
         private static CpuTensor<float> GetY()
         {

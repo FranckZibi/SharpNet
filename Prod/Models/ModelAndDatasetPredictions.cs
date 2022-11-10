@@ -18,7 +18,7 @@ public class ModelAndDatasetPredictions
     public ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, string modelName)
     {
         ModelAndDatasetPredictionsSample = modelAndDatasetPredictionsSample;
-        Model = Model.NewModel(ModelAndDatasetPredictionsSample.ModelSample, workingDirectory, modelName);
+        Model = Model.NewModel(ModelAndDatasetPredictionsSample.ModelSample, DatasetSample, workingDirectory, modelName);
         if (DatasetSample.KFold >= 2 && Model is not KFoldModel /*&& Model is not WeightedModel*/)
         {
             var embeddedModel = Model;

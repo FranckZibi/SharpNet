@@ -4,7 +4,6 @@ using System.Linq;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
-using SharpNet.HyperParameters;
 using SharpNet.Layers;
 
 /*
@@ -32,39 +31,42 @@ namespace SharpNet.Networks
 {
     //DenseNet implementation as described in https://arxiv.org/pdf/1608.06993.pdf
 
-    public class DenseNetSample : NetworkSample
+    public class DenseNetNetworkSample : NetworkSample
     {
-        private DenseNetSample(ISample[] samples) : base(samples)
+        public DenseNetNetworkSample()
         {
         }
 
-        public static DenseNetSample CIFAR10()
+        public static readonly string Cifar10WorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, CIFAR10DataSet.NAME);
+        public static readonly string Cifar100WorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, CIFAR100DataSet.NAME);
+        public static readonly string CancelWorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, "Cancel");
+        public static readonly string SVHNWorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, "SVHN");
+
+        public static DenseNetNetworkSample CIFAR10()
         {
-            var config = new NetworkConfig
-                {
+            var config = (DenseNetNetworkSample)new DenseNetNetworkSample
+            {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     lambdaL2Regularization = 1e-4,
-                    WorkingDirectory = System.IO.Path.Combine(NetworkConfig.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
                     NumEpochs = 300,
                     BatchSize = 64,
-                    InitialLearningRate = 0.1
+                    InitialLearningRate = 0.1,
+
+                    //Data AUgmentation
+                    DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
+                    WidthShiftRangeInPercentage = 0.1,
+                    HeightShiftRangeInPercentage = 0.1,
+                    HorizontalFlip = true,
+                    VerticalFlip = false,
+                    FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+                    //by default we use a cutout of 1/2 of the image width
+                    CutoutPatchPercentage = 0.5
+
             }
                 .WithSGD(0.9, true)
                 .WithCifar10DenseNetLearningRateScheduler(false, true, false);
 
-            //Data augmentation
-            DataAugmentationSample da = new ()
-            {
-                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-                WidthShiftRangeInPercentage = 0.1,
-                HeightShiftRangeInPercentage = 0.1,
-                HorizontalFlip = true,
-                VerticalFlip = false,
-                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                //by default we use a cutout of 1/2 of the image width
-                CutoutPatchPercentage = 0.5
-            };
-            return new DenseNetSample(new ISample[] { config, da });
+            return config;
 
         }
 
@@ -123,12 +125,12 @@ namespace SharpNet.Networks
             double compression,
             double? dropoutRate)
         {
-            var net = sample.BuildEmptyNetwork(networkName);
+            var net = sample.BuildNetworkWithoutLayers(Cifar10WorkingDirectory, networkName);
 
             Debug.Assert(net.Layers.Count == 0);
             net.Input(xShape[1], xShape[2], xShape[3]);
             var filtersCount = 2 * growthRate;
-            var lambdaL2Regularization = sample.Config.lambdaL2Regularization;
+            var lambdaL2Regularization = sample.lambdaL2Regularization;
 
             if (subSampleInitialBlock)
             {
