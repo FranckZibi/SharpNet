@@ -195,6 +195,9 @@ public abstract class AbstractDatasetSample : AbstractSample
 
 
     #region Hyper-Parameters
+    //For numerical features:
+    // should we standardize them (with mean=0 & volatility=1) before sending them to the model ?
+    public bool StandardizeDoubleValues = false;
     public double PercentageInTraining = 0.8;
     /// <summary>
     /// number of splits for KFold
@@ -305,10 +308,7 @@ public abstract class AbstractDatasetSample : AbstractSample
                     {
                         return nameof(LightGBMSample.objective_enum.multiclass);
                     }
-                    if (NumClass == 1)
-                    {
-                        return nameof(LightGBMSample.objective_enum.binary);
-                    }
+                    return nameof(LightGBMSample.objective_enum.binary);
                 }
                 break;
             case nameof(LightGBMSample.num_class):

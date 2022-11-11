@@ -1,4 +1,4 @@
-using System;
+using System.Runtime;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
@@ -6,6 +6,7 @@ using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Models;
 using SharpNet.Networks;
+using System;
 
 // ReSharper disable UnusedMember.Local
 

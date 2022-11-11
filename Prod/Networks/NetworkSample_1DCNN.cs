@@ -16,8 +16,8 @@ public class NetworkSample_1DCNN : NetworkSample
 
     #region Hyper-Parameters
     //Embedding of the categorical features
-    public int DefaultEmbeddingDim = 10;
-    public int hidden_size = 512;
+    public int EmbeddingDim = 10;
+    public int hidden_size = 4096;
     //n_categories: [ 3, 3, 3, 5, 136, 5, 60, 3, 3],
     public int channel_1 = 256;
     public int channel_2 = 512;
@@ -33,22 +33,24 @@ public class NetworkSample_1DCNN : NetworkSample
     public double batchNorm_momentum = 0.99;
 
     public bool NetworkSample_1DCNN_UseGPU = true;
+    public bool Use_ConcatenateLayer = false;
+    public bool Use_AddLayer = true;
+    
 
     #endregion
-
     public override bool UseGPU => NetworkSample_1DCNN_UseGPU;
-
-
     public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
     {
         //nn.PropagationManager.LogPropagation = true;
         //nn.Config.DisplayTensorContentStats = true;
 
-        //int channel_1_reshape = hidden_size / channel_1;
-        int cha_po_1 = hidden_size / channel_1 / 2;
-        //int cha_po_2 = hidden_size / channel_1 / 2 / 2 * channel_3;
+        //!D TO CHECK
+        Metrics = new() { LossFunction, datasetSample.GetRankingEvaluationMetric() };
 
-        nn.Input_and_Embedding_if_required(datasetSample, DefaultEmbeddingDim, lambdaL2Regularization);
+
+        int cha_po_1 = hidden_size / channel_1 / 2;
+
+        nn.Input_and_Embedding_if_required(datasetSample, EmbeddingDim, lambdaL2Regularization);
 
         //expand(x)
         nn.BatchNorm(batchNorm_momentum, 1e-5);
@@ -79,6 +81,8 @@ public class NetworkSample_1DCNN : NetworkSample
 
         if (two_stage)
         {
+            int previousLayerIndex1 = nn.LastLayerIndex;
+
             //conv2 
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_mid);
@@ -90,6 +94,16 @@ public class NetworkSample_1DCNN : NetworkSample
             nn.Conv1D(channel_3, 5, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true); //nn.Conv1d(channel_2, channel_3, kernel_size = 5, stride = 1, padding = 2, bias = True);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
             nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU); // * x
+            int previousLayerIndex2 = nn.LastLayerIndex;
+            if (Use_ConcatenateLayer)
+            {
+                nn.ConcatenateLayer(previousLayerIndex1, previousLayerIndex2);
+            }
+            else if (Use_AddLayer)
+            {
+                nn.AddLayer(previousLayerIndex1, previousLayerIndex2);
+            }
+
         }
 
         nn.MaxPooling(1, 2, 1, 2); //MaxPool1d(kernel_size = 4, stride = 2, padding = 1);
@@ -113,4 +127,25 @@ public class NetworkSample_1DCNN : NetworkSample
         }
         nn.Activation(datasetSample.ActivationForLastLayer);
     }
+
+    public override bool FixErrors()
+    {
+        if (!base.FixErrors())
+        {
+            return false;
+        }
+        if (!two_stage)
+        {
+            Use_ConcatenateLayer = false;
+            Use_AddLayer = false;
+        }
+        if (Use_AddLayer)
+        {
+            Use_ConcatenateLayer = false;
+        }
+
+        return true;
+
+    }
+
 }

@@ -223,19 +223,13 @@ namespace SharpNet.Layers
         {
             //trainable params
             _weights.GlorotUniform(Rand);
-            //!D TO TEST:
-            //_weights.PytorchUniform(Rand);
-            //_weights.NormalDistribution(Rand, 0.0 /* mean */, Math.Sqrt(2.0 / PrevLayer.n_x) /*stdDev*/);
-
+            
             if (_optimizer.IsOrthogonal)
             {
                 _weights.Orthogonal(Rand);
             }
 
             _bias?.ZeroMemory();
-            //!D TO TEST:
-            //_bias?.PytorchUniform(Rand);
-
             if (resetAlsoOptimizerWeights)
             {
                 _optimizer.ZeroMemory();

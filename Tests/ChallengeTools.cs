@@ -122,12 +122,19 @@ public class ChallengeTools
 
 
     // ReSharper disable once UnusedMember.Global
-    public static Dictionary<string, object> DefaultSearchSpaceFor_InMemoryDataSetV2NetworkSample()
+    public static Dictionary<string, object> DefaultSearchSpaceFor_1DCNN()
     {
         var searchSpace = new Dictionary<string, object>
         {
             { "KFold", 2 },
             //{"PercentageInTraining", new[]{0.8}},
+
+            //Loss for Regression Taks
+            {"LossFunction", "Rmse"}, //or: Ms, Mae
+            //Loss for binary classification
+            //{"LossFunction", "BinaryCrossentropy"},
+            //Loss for multi class classification
+            //{"LossFunction", "CategoricalCrossentropy"},
 
             // Optimizer 
             { "OptimizerType", new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
@@ -140,7 +147,7 @@ public class ChallengeTools
             // Learning Rate Scheduler
             { "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
 
-            { "DefaultEmbeddingDim", new[] { 0, 4, 8, 12 } },
+            { "EmbeddingDim", new[] { 0, 4, 8, 12 } },
 
             //{"weight_norm", new[]{true, false}},
             //{"leaky_relu", new[]{true, false}},

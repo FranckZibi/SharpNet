@@ -67,8 +67,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
     }
 
-    public bool StandardizeDoubleValues = false;
-
     
     private WasYouStayWorthItsPriceDatasetSample() : base(new HashSet<string>())
     {
@@ -100,7 +98,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
     public int Reviews_EmbeddingDim = TOTAL_Reviews_EmbeddingDim;
-
     #endregion
 
     public override int NumClass => 7;
@@ -111,43 +108,51 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     // ReSharper disable once UnusedMember.Global
     public static void TrainNetwork()
     {
-        //var datasetSample = new WasYouStayWorthItsPriceDatasetSample();
-        //var networkSample = NetworkSampleV2.New(datasetSample.FullTrainingAndValidation());
-
-
-        //var networkSample = new NetworkSampleV2(new ISample[]{new NetworkSampleV2(), new DataAugmentationSample()});
-
-
         var searchSpace = new Dictionary<string, object>
         {
-            //run on GPU
-            {"NetworkSample_1DCNN_UseGPU", true},
+            //{"KFold", 2},
+            {"PercentageInTraining", new[]{0.8}},
 
-            {"KFold", 2},
-            //{"PercentageInTraining", new[]{0.8}},
+            {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
 
-            {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-6f, 1f, AbstractHyperParameterSearchSpace.range_type.normal)},
-            //{"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-3f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
-
-            {"Reviews_EmbeddingDim", new[]{TOTAL_Reviews_EmbeddingDim}},
+            //dataset 
+            //{"StandardizeDoubleValues", new[]{true, false} },
             //{"Reviews_EmbeddingDim", new[]{0, 100, TOTAL_Reviews_EmbeddingDim}},
             
             // Optimizer 
             {"OptimizerType", "AdamW"},
-            {"AdamW_L2Regularization", new[]{1e-5, 1e-4, 1e-3, 1e-2}},
+            //{"AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},
+            {"AdamW_L2Regularization", 0.004},
+
+            //{"LossFunction", "Rmse"}, //Mse , Mae
+            //{"LossFunction", "BinaryCrossentropy"},
+            {"LossFunction", "CategoricalCrossentropy"},
 
             // Learning Rate Scheduler
-            {"LearningRateSchedulerType", new[]{ "CyclicCosineAnnealing", "OneCycle"}},
-            
-            { "DefaultEmbeddingDim", new[]{0, 4, 8}},
+            {"LearningRateSchedulerType", new[]{ "OneCycle"}},
 
-            {"dropout_top", new[]{0, 0.1, 0.2}},
-            {"dropout_mid", new[]{0, 0.3, 0.5}},
-            {"dropout_bottom", new[]{0, 0.2, 0.4}},
-            
-            {"BatchSize", new []{256, 512, 1024, 2048}},
-            
-            {"NumEpochs", new[]{1}},
+            { "EmbeddingDim", new[]{10} },
+            //{ "EmbeddingDim", 10 },
+
+            //{"dropout_top", 0.1},
+            //{"dropout_mid", 0.3},
+            //{"dropout_bottom", 0},
+
+            //run on GPU
+            {"NetworkSample_1DCNN_UseGPU", true},
+
+            {"BatchSize", new[]{256} },
+
+            //{"two_stage", new[]{true,false } },
+            //{"Use_ConcatenateLayer", new[]{true,false } },
+            //{"Use_AddLayer", new[]{true,false } },
+
+            {"two_stage", true },
+            {"Use_ConcatenateLayer", false },
+            {"Use_AddLayer", true },
+
+
+            {"NumEpochs", 20},
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
