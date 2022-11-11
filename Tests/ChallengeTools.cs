@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
+using SharpNet.LightGBM;
 using SharpNet.Models;
 
 namespace SharpNetTests;
@@ -18,8 +20,8 @@ public class ChallengeTools
     [Test, Explicit]
     public void ComputeAndSaveFeatureImportance()
     {
-        const string workingDirectory = @"C:\Projects\Challenges\MyChallenge\";
-        const string modelName = "ABCDEF";
+        const string workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\sub2\";
+        const string modelName = "D875D0F56C_KFOLD_FULL";
         SharpNet.Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         SharpNet.Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
@@ -32,36 +34,80 @@ public class ChallengeTools
     /// Stack several trained models together to compute new predictions
     /// (through a new LightGBM model that will be trained to do the stacking)
     /// </summary>
-    [Test, Explicit]
-    public void StackedEnsemble()
+    [TestCase(100,0), Explicit]
+    public void StackedEnsemble(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         const string workingDirectory = @"C:/Projects/Challenges/WasYouStayWorthItsPrice/submission";
         var modelName = new[]
         {
-            //"316CF95B15_KFOLD",
-            //"B63953F624_KFOLD",
-            //"6034138E35_KFOLD",
-            //"F867A78F52_KFOLD",
-            
+            "F2CC39BB32_KFOLD", //1D-CNN    F2CC39BB32_KFOLD_FULL_predict_test_0.31976.csv
+            "D875D0F56C_KFOLD", //LightGBM  D875D0F56C_KFOLD_FULL_predict_test_0.3204.csv
+            "3F2CB236DB_KFOLD", //CatBoost  3F2CB236DB_KFOLD_FULL_predict_test_0.31759.csv
+
             "0EF01A90D8_KFOLD", //Deep Learning
             "3580990008_KFOLD",
-            "395B343296_KFOLD",
-            "48F31E6543_KFOLD",
-            "56E668E7DB_KFOLD",
+            "395B343296_KFOLD", //LightGBM GBDT
+            //"48F31E6543_KFOLD",
+            //"56E668E7DB_KFOLD",
             "66B4F3653A_KFOLD",
             "8CF93D9FA0_KFOLD",
             "90840F212D_KFOLD",
-            "90DAFFB8FC_KFOLD",
+            //"90DAFFB8FC_KFOLD",
             "E72AD5B74B_KFOLD"
         };
         const bool use_features_in_secondary = true;
         const int cv = 2;
-        const int min_num_iterations = 100;
-        const int maxAllowedSecondsForAllComputation = 0;
 
         var workingDirectoryAndModelNames = modelName.Select(m => Tuple.Create(workingDirectory, m, m + "_FULL")).ToList();
         var datasetSample = StackingCVClassifierDatasetSample.New(workingDirectoryAndModelNames, workingDirectory, use_features_in_secondary, cv);
-        SampleUtils.LaunchLightGBMHPO(datasetSample, Path.Combine(workingDirectory, "hpo"), min_num_iterations, maxAllowedSecondsForAllComputation);
+
+        var searchSpace = new Dictionary<string, object>
+        {
+            //related to Dataset 
+            { "KFold", cv },
+
+
+
+            { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
+            { "bagging_freq", new[]{0, 1} },
+            { "boosting", new []{"gbdt", "dart"}},
+            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
+            //{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
+            { "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
+            { "early_stopping_round", num_iterations/10 },
+            { "extra_trees", new[] { true , false } }, //low priority 
+            { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.2f)},
+            //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.03f)},
+            { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
+            { "max_depth", new[]{10, 20, 50, 100, 255} },
+            { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
+            { "min_data_in_bin", new[]{3, 10, 100, 150}  },
+            { "min_data_in_leaf", AbstractHyperParameterSearchSpace.Range(10, 200) },
+            { "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
+            { "num_iterations", num_iterations },
+            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 60) },
+            { "num_threads", 1},
+            { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
+            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
+            { "verbosity", "0" },
+        };
+
+        if (!Directory.Exists(workingDirectory))
+        {
+            Directory.CreateDirectory(workingDirectory);
+        }
+        var dataDirectory = Path.Combine(workingDirectory, "Data");
+        if (!Directory.Exists(dataDirectory))
+        {
+            Directory.CreateDirectory(dataDirectory);
+        }
+
+        var hpoWorkingDirectory = Path.Combine(workingDirectory, "hpo");
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), hpoWorkingDirectory); IScore bestScoreSoFar = null;
+        //var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), hpoWorkingDirectory); IScore bestScoreSoFar = null;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, hpoWorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -118,49 +164,5 @@ public class ChallengeTools
             modelAndDatasetOnFullDataset.Model.Use_All_Available_Cores();
             modelAndDatasetOnFullDataset.Fit(true, true, true);
         }
-    }
-
-
-    // ReSharper disable once UnusedMember.Global
-    public static Dictionary<string, object> DefaultSearchSpaceFor_1DCNN()
-    {
-        var searchSpace = new Dictionary<string, object>
-        {
-            { "KFold", 2 },
-            //{"PercentageInTraining", new[]{0.8}},
-
-            //Loss for Regression Taks
-            {"LossFunction", "Rmse"}, //or: Ms, Mae
-            //Loss for binary classification
-            //{"LossFunction", "BinaryCrossentropy"},
-            //Loss for multi class classification
-            //{"LossFunction", "CategoricalCrossentropy"},
-
-            // Optimizer 
-            { "OptimizerType", new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
-            { "AdamW_L2Regularization", new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
-            { "SGD_usenesterov", new[] { true, false } },
-            { "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
-
-            // Learning Rate
-            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
-            // Learning Rate Scheduler
-            { "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
-
-            { "EmbeddingDim", new[] { 0, 4, 8, 12 } },
-
-            //{"weight_norm", new[]{true, false}},
-            //{"leaky_relu", new[]{true, false}},
-
-            { "dropout_top", new[] { 0, 0.1, 0.2 } },
-            { "dropout_mid", new[] { 0, 0.3, 0.5 } },
-            { "dropout_bottom", new[] { 0, 0.2, 0.4 } },
-
-            { "BatchSize", new[] { 256, 512, 1024, 2048 } },
-
-            { "NumEpochs", new[] { 15 } },
-        };
-
-        return searchSpace;
     }
 }

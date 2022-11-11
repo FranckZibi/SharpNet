@@ -163,4 +163,6 @@ public interface ISample
         }
         return res;
     }
+
+    void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace);
 }

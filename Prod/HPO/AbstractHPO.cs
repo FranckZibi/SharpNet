@@ -60,6 +60,7 @@ namespace SharpNet.HPO
 
             var defaultSample = createDefaultSample();
 
+            defaultSample.FillSearchSpaceWithDefaultValues(searchSpace);
             foreach (var (hyperParameterName, hyperParameterSearchSpace) in searchSpace)
             {
                 var isCategoricalHyperParameter = defaultSample.IsCategoricalHyperParameter(hyperParameterName);

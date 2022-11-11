@@ -1,6 +1,8 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using SharpNet.Datasets;
 using SharpNet.GPU;
+using SharpNet.HPO;
 using SharpNet.Layers;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -43,10 +45,6 @@ public class NetworkSample_1DCNN : NetworkSample
     {
         //nn.PropagationManager.LogPropagation = true;
         //nn.Config.DisplayTensorContentStats = true;
-
-        //!D TO CHECK
-        Metrics = new() { LossFunction, datasetSample.GetRankingEvaluationMetric() };
-
 
         int cha_po_1 = hidden_size / channel_1 / 2;
 
@@ -143,9 +141,50 @@ public class NetworkSample_1DCNN : NetworkSample
         {
             Use_ConcatenateLayer = false;
         }
-
         return true;
+    }
 
+
+
+    /// <summary>
+    /// The default Search Space for this Model
+    /// </summary>
+    /// <returns></returns>
+    // ReSharper disable once UnusedMember.Global
+    public static Dictionary<string, object> DefaultSearchSpace()
+    {
+        var searchSpace = new Dictionary<string, object>
+        {
+            //uncomment appropriate one
+            //{"LossFunction", "Rmse"},                     //for Regression Tasks: Rmse, Mse, Mae, etc.
+            //{"LossFunction", "BinaryCrossentropy"},       //for binary classification
+            //{"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
+
+            // Optimizer 
+            { "OptimizerType", new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
+            { "AdamW_L2Regularization", new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { "SGD_usenesterov", new[] { true, false } },
+            { "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+
+            // Learning Rate
+            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            // Learning Rate Scheduler
+            { "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
+            { "EmbeddingDim", new[] { 0, 4, 8, 12 } },
+            //{"weight_norm", new[]{true, false}},
+            //{"leaky_relu", new[]{true, false}},
+            { "dropout_top", new[] { 0, 0.1, 0.2 } },
+            { "dropout_mid", new[] { 0, 0.3, 0.5 } },
+            { "dropout_bottom", new[] { 0, 0.2, 0.4 } },
+            { "BatchSize", new[] { 256, 512, 1024, 2048 } },
+            { "NumEpochs", new[] { 15 } },
+
+            //Dataset specific
+            { "KFold", 2 },
+            //{"PercentageInTraining", new[]{0.8}},
+        };
+
+        return searchSpace;
     }
 
 }

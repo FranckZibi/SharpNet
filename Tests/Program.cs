@@ -1,4 +1,3 @@
-using System.Runtime;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
@@ -81,12 +80,13 @@ namespace SharpNetTests
 
             //CFM60Tests();
 
-            WasYouStayWorthItsPriceDatasetSample.TrainNetwork();
-            //new ChallengeTools().StackedEnsemble();
-            //WasYouStayWorthItsPriceDatasetSample.Retrain();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(50, 15*60);
+            //WasYouStayWorthItsPriceDatasetSample.TrainNetwork(10, 120);
+            new ChallengeTools().StackedEnsemble(30, 0);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO();
+            //WasYouStayWorthItsPriceDatasetSample.Retrain();
+            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(50, 120);
+            //new ChallengeTools().ComputeAndSaveFeatureImportance();
+            //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(50, 120);
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
 
 

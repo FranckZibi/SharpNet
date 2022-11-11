@@ -4,12 +4,10 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.HyperParameters;
-using SharpNet.LightGBM;
 
 namespace SharpNet.Datasets;
 
@@ -279,56 +277,9 @@ public abstract class AbstractDatasetSample : AbstractSample
         return DataFrame.read_float_csv(path);
     }
 
-    public void FillWithDefaultLightGBMHyperParameterValues(IDictionary<string, object> existingHyperParameterValues)
-    {
-        var objectiveKeyName = nameof(LightGBMSample.objective);
-        if (!existingHyperParameterValues.ContainsKey(objectiveKeyName))
-        {
-            existingHyperParameterValues[objectiveKeyName] = GetDefaultHyperParameterValueForLightGBM(objectiveKeyName);
-        }
-        var numClassKeyName = nameof(LightGBMSample.num_class);
-        if (!existingHyperParameterValues.ContainsKey(numClassKeyName) && GetObjective() == Objective_enum.Classification)
-        {
-            existingHyperParameterValues[numClassKeyName] = GetDefaultHyperParameterValueForLightGBM(numClassKeyName);
-        }
-    }
 
-    private object GetDefaultHyperParameterValueForLightGBM(string hyperParameterName)
-    {
-        switch (hyperParameterName)
-        {
-            case nameof(LightGBMSample.objective):
-                if (GetObjective() == Objective_enum.Regression)
-                {
-                    return nameof(LightGBMSample.objective_enum.regression);
-                }
-                if (GetObjective() == Objective_enum.Classification)
-                {
-                    if (NumClass >= 2)
-                    {
-                        return nameof(LightGBMSample.objective_enum.multiclass);
-                    }
-                    return nameof(LightGBMSample.objective_enum.binary);
-                }
-                break;
-            case nameof(LightGBMSample.num_class):
-                return NumClass;
-        }
-        var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(LightGBMModel)}";
-        ISample.Log.Error(errorMsg);
-        throw new ArgumentException(errorMsg);
-    }
 
-    // ReSharper disable once UnusedMember.Local
-    private object GetDefaultHyperParameterValueForCatBoost(string hyperParameterName)
-    {
-        switch (hyperParameterName)
-        {
-        }
-        var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(CatBoostModel)}";
-        ISample.Log.Error(errorMsg);
-        throw new ArgumentException(errorMsg);
-    }
+
 
     public virtual int NumClass
     {

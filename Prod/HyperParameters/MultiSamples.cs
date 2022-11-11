@@ -25,6 +25,11 @@ public abstract class MultiSamples : ISample
         Array.ForEach(Samples, s => s.SetTaskId(taskId));
     }
 
+    public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
+    {
+        Array.ForEach(Samples, s => s.FillSearchSpaceWithDefaultValues(hyperParameterSearchSpace));
+    }
+
     public virtual void Save(string workingDirectory, string modelName)
     {
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)

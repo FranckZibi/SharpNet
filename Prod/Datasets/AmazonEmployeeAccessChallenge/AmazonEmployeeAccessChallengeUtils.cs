@@ -32,7 +32,6 @@ public static class AmazonEmployeeAccessChallengeUtils
             { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
             { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
         };
-
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new AmazonEmployeeAccessChallengeDatasetSample()), workingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, ref bestScoreSoFar));

@@ -184,4 +184,8 @@ public abstract class AbstractSample : ISample
     public virtual void SetTaskId(int taskId)
     {
     }
+
+    public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
+    {
+    }
 }

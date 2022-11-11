@@ -48,8 +48,8 @@ namespace SharpNet.Datasets.Natixis70
                 { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
                 //{ "bagging_fraction",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
                 { "bagging_freq", new[]{0, 1} },
-                { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
-                { "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+                { "colsample_bytree", AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+                { "colsample_bynode", AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
                 { "extra_trees", new[] { true /*, false*/ } }, //bad: false
                 { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 1f)},
                 { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 1f)},

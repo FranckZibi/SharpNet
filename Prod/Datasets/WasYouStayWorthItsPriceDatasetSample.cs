@@ -106,12 +106,13 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     //public const int TOTAL_Reviews_EmbeddingDim = 384; // Sentence Transformers
 
     // ReSharper disable once UnusedMember.Global
-    public static void TrainNetwork()
+    public static void TrainNetwork(int numEpochs = 15, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
-            //{"KFold", 2},
-            {"PercentageInTraining", new[]{0.8}},
+            //related to Dataset 
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
             {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
 
@@ -152,36 +153,33 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             {"Use_AddLayer", true },
 
 
-            {"NumEpochs", 20},
+            {"NumEpochs", numEpochs},
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar));
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
     // ReSharper disable once UnusedMember.Global
-    public static void LaunchCatBoostHPO()
+    public static void LaunchCatBoostHPO(int iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         // ReSharper disable once ConvertToConstant.Local
-        var iterations = 100;
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
+            {"KFold", 2},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-            //{"KFold", new[]{1,3}},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
             //related to CatBoost model
-            { "loss_function", "MultiClass"},
             { "logging_level", "Silent"},
             { "allow_writing_files",false},
             { "thread_count",1},
             { "iterations", iterations },
             { "od_type", "Iter"},
             { "od_wait",iterations/10},
-            { "depth", AbstractHyperParameterSearchSpace.Range(2, 5) },
+            { "depth", AbstractHyperParameterSearchSpace.Range(2, 7) },
             //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.10f)},
             { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
             //{ "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
@@ -190,7 +188,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar));
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -203,9 +201,12 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     // ReSharper disable once UnusedMember.Global
     public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int min_num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
-        var datasetSample = new WasYouStayWorthItsPriceDatasetSample();
         var searchSpace = new Dictionary<string, object>
         {
+            //related to Dataset 
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+
             //related to Dataset 
             {"Reviews_EmbeddingDim", TOTAL_Reviews_EmbeddingDim},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
@@ -246,7 +247,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) },
         };
 
-        datasetSample.FillWithDefaultLightGBMHyperParameterValues(searchSpace);
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
