@@ -155,12 +155,7 @@ public abstract class Model
         }
         var predictionsCpuTensor = new CpuTensor<float>(new[] { rows, columns }, content);
 
-        string[] predictionLabels = dataset.TargetLabels;
-        if (predictionLabels.Length != predictionsCpuTensor.Shape[1])
-        {
-            predictionLabels = Enumerable.Range(0, predictionsCpuTensor.Shape[1]).Select(x => x.ToString()).ToArray();
-        }
-        DataFrame predictionsDf = DataFrame.New(predictionsCpuTensor, predictionLabels);
+        var predictionsDf = DataFrame.New(predictionsCpuTensor);
         if (predictionsDf.Shape[0] != dataset.Count)
         {
             throw new Exception($"Invalid number of predictions, received {predictionsDf.Shape[0]} but expected {dataset.Count}");

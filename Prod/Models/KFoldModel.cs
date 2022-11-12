@@ -113,7 +113,7 @@ public class KFoldModel : Model
             embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
             var validationDataset = trainAndValidation.Test;
             var fold_y_pred = embeddedModel.Predict(validationDataset, false);
-            var foldValidationLoss = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat(fold_y_pred.Shape[1]).FloatCpuTensor(), fold_y_pred.FloatCpuTensor());
+            var foldValidationLoss = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat().FloatCpuTensor(), fold_y_pred.FloatCpuTensor());
             LogDebug($"Validation Loss for fold[{fold}/{n_splits}] : {foldValidationLoss}");
         }
         return (null, null, train_XYDatasetPath_InTargetFormat, null, null, train_XYDatasetPath_InTargetFormat);
@@ -165,8 +165,8 @@ public class KFoldModel : Model
         Debug.Assert(validationPredictions_InModelFormat != null);
 
 
-        var y_true_InModelFormat = trainDataset.Y_InModelFormat(trainPredictions_InModelFormat.Shape[1]).FloatCpuTensor();
-        var y_true_InTargetFormat = trainDataset.Y_InTargetFormat();
+        var y_true_InModelFormat = trainDataset.Y_InModelFormat().FloatCpuTensor();
+        var y_true_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y_true_InModelFormat));
 
         if (n_splits >= 2)
         {

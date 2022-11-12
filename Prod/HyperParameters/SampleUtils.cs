@@ -46,7 +46,7 @@ public static class SampleUtils
             }
             else
             {
-                Model.Log.Info($"No interest to save the Model because best score {bestScoreSoFar} is lower than threshold {datasetSample.MinimumScoreToSaveModel}");
+                Model.Log.Info($"No interest to save the Model because best score {bestScoreSoFar} is better than threshold {datasetSample.MinimumScoreToSaveModel}");
             }
         }
         else

@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using SharpNet.CatBoost;
@@ -16,10 +18,9 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 {
     #region private fields
     private const string NAME = "WasYouStayWorthItsPrice";
-    private static readonly object LockObject = new();
-    private static DatasetEncoder _trainTestEncoder;
-    private static DataSetV2 _fullTrainDatasetEncoded;
-    private static DataSetV2 _fullTestDatasetEncoded;
+    private static readonly DataFrame xytrain_string_df;
+    private static readonly DataFrame xtest_string_df;
+    private static readonly ConcurrentDictionary<string, Tuple<DataSetV2, DataSetV2, DatasetEncoder>> CacheDataset = new();
     #endregion
 
 
@@ -67,25 +68,14 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
     }
 
-    
+
+    static WasYouStayWorthItsPriceDatasetSample()
+    {
+        xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile);
+        xtest_string_df = DataFrame.read_string_csv(XTestRawFile);
+    }
     private WasYouStayWorthItsPriceDatasetSample() : base(new HashSet<string>())
     {
-        lock (LockObject)
-        {
-            if (_trainTestEncoder == null)
-            {
-                _trainTestEncoder = new DatasetEncoder(this, StandardizeDoubleValues);
-                var xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile);
-                //var xytrain_string_df = DataFrame.read_string_csv(RawTrainFile);
-                _trainTestEncoder.Fit(xytrain_string_df);
-                var xtest_string_df = DataFrame.read_string_csv(XTestRawFile);
-                //var xtest_string_df = DataFrame.read_string_csv(RawTestFile);
-                _trainTestEncoder.Fit(xtest_string_df);
-
-                _fullTrainDatasetEncoded = _trainTestEncoder.Transform_XYDataset(xytrain_string_df);
-                _fullTestDatasetEncoded = _trainTestEncoder.Transform_X_and_Y_Dataset(xtest_string_df, null);
-            }
-        }
     }
 
     #region Hyper-Parameters
@@ -190,8 +180,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
-
-
+    
 
     public const string FILE_EXT = "_tfidf_l2_norm_scikit_stem_allstopwords.csv";
     //public const string FILE_EXT = "_sentence_transformers.csv";
@@ -259,29 +248,59 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
     public override string[] IdColumns => new [] { "id" };
     public override string[] TargetLabels => new[] { "max_rating_class" };
+    public override DataSet TestDataset()
+    {
+        return LoadAndEncodeDataset_If_Needed().testDataset;
+    }
 
-    public override DataSet TestDataset() => SelectFeatures(_fullTestDatasetEncoded);
+    public override DataSetV2 FullTrainingAndValidation()
+    {
+        return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;
+    }
 
-    public override DataSetV2 FullTrainingAndValidation() => SelectFeatures(_fullTrainDatasetEncoded);
+    private (DataSetV2 fullTrainingAndValidation, DataSetV2 testDataset) LoadAndEncodeDataset_If_Needed()
+    {
+        var key = ComputeHash();
+        if ( CacheDataset.TryGetValue(key, out var result))
+        {
+            DatasetEncoder = result.Item3;
+            return (result.Item1, result.Item2);
+        }
+        DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues);
+        
+        var xyTrain = UpdateFeatures(xytrain_string_df.Clone());
+        var xtest = UpdateFeatures(xtest_string_df.Clone());
+        DatasetEncoder.Fit(xyTrain);
+        DatasetEncoder.Fit(xtest);
 
-    public override DatasetEncoder DatasetEncoder => _trainTestEncoder;
-    
+        var xTrain_Encoded = DatasetEncoder.Transform(xyTrain.Drop(TargetLabels));
+        var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
+        var xtest_Encoded = DatasetEncoder.Transform(xtest);
+
+        var fullTrainingAndValidation = new DataSetV2(this, xTrain_Encoded, yTrain_Encoded, false);
+        var testDataset = new DataSetV2(this, xtest_Encoded, null, false);
+
+        CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
+        return (fullTrainingAndValidation, testDataset);
+    }
+
+    private DataFrame UpdateFeatures(DataFrame x)
+    {
+        var columnToDrop = new List<string>();
+        columnToDrop.AddRange(TfIdfEncoding.ColumnToRemoveToFitEmbedding(x, "renters_comments", Reviews_EmbeddingDim, true));
+        if (columnToDrop.Count == 0)
+        {
+            return x;
+        }
+        return x.DropIgnoreErrors(columnToDrop.ToArray());
+    }
+   
     private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
     private static string XYTrainRawFile => Path.Combine(DataDirectory, "train.csv"+ FILE_EXT); //!D
     private static string XTestRawFile => Path.Combine(DataDirectory, "test.csv"+ FILE_EXT); //!D
     private static string RawTrainFile => Path.Combine(DataDirectory, "train.csv");
     private static string RawTestFile => Path.Combine(DataDirectory, "test.csv");
-    private DataSetV2 SelectFeatures(DataSetV2 dataset)
-    {
-        var df = dataset.XDataFrame;
-        var columnToDrop = new List<string>();
-        columnToDrop.AddRange(TfIdfEncoding.ColumnToRemoveToFitEmbedding(df, "renters_comments", Reviews_EmbeddingDim, true));
-        if (columnToDrop.Count == 0)
-        {
-            return dataset;
-        }
-        var xUpdated = df.DropIgnoreErrors(columnToDrop.ToArray());
-        return DatasetEncoder.NewInMemoryDataSetV2(xUpdated, dataset.YDataFrame_InModelFormat, this);
-    }
+
+    
 }

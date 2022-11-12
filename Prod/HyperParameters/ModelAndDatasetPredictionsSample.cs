@@ -190,6 +190,9 @@ namespace SharpNet.HyperParameters
         }
         private void FillWithDefaultNetworkHyperParameterValues(IDictionary<string, object> existingHyperParameterValues)
         {
+            //!D TO change
+            ((NetworkSample)ModelSample).ApplyDataset(DatasetSample);
+
             const string lossFunctionKeyName = nameof(NetworkSample.LossFunction);
             if (!existingHyperParameterValues.ContainsKey(lossFunctionKeyName))
             {
@@ -201,19 +204,7 @@ namespace SharpNet.HyperParameters
             switch (hyperParameterName)
             {
                 case nameof(NetworkSample.LossFunction):
-                    if (DatasetSample.GetObjective() == Objective_enum.Regression)
-                    {
-                        return nameof(EvaluationMetricEnum.Rmse);
-                    }
-                    if (DatasetSample.GetObjective() == Objective_enum.Classification)
-                    {
-                        if (DatasetSample.NumClass >= 2)
-                        {
-                            return nameof(EvaluationMetricEnum.CategoricalCrossentropy);
-                        }
-                        return nameof(EvaluationMetricEnum.BinaryCrossentropy);
-                    }
-                    break;
+                    return DatasetSample.DefaultLossFunction.ToString();
             }
             var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(Network)}";
             ISample.Log.Error(errorMsg);

@@ -1971,7 +1971,7 @@ namespace SharpNet.CPU
             else
             {
                 //copy from CPU ('this' tensor) to CPU ('b' tensor)
-                AsFloatCpu.Content.Slice(0, Count).CopyTo(b.AsFloatCpu.Content.Slice(0, Count));
+                Content.Slice(0, Count).CopyTo( ((CpuTensor<T>)b).Content.Slice(0, Count));
             }
         }
 

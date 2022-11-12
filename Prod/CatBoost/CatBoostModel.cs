@@ -210,10 +210,8 @@ namespace SharpNet.CatBoost
             int nextColumnIdx = 0;
             if (addTargetColumnAsFirstColumn)
             {
-                foreach(var _ in dataset.TargetLabels)
-                {
-                    sb.Append($"{nextColumnIdx++}\tLabel" + Environment.NewLine); //this column is the target
-                }
+                //this first column is the target
+                sb.Append($"{nextColumnIdx++}\tLabel" + Environment.NewLine);
             }
             foreach (var columnName in dataset.ColumnNames)
             {

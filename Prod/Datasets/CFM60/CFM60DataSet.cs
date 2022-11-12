@@ -115,7 +115,6 @@ namespace SharpNet.Datasets.CFM60
                 cfm60NetworkSample.ComputeFeatureNames(),
                 new string[0],
                 new string[0],
-                new string[0],
                 UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetIfAny),
                 ',')
         {

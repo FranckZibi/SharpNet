@@ -466,7 +466,8 @@ namespace SharpNet.Networks
         // ReSharper disable once UnusedParameter.Global
         public virtual void ApplyDataset(AbstractDatasetSample datasetSample)
         {
-            Metrics = new() { LossFunction, datasetSample.GetRankingEvaluationMetric() };
+            LossFunction = datasetSample.DefaultLossFunction;
+            Metrics = new() { datasetSample.DefaultLossFunction, datasetSample.GetRankingEvaluationMetric() };
         }
 
         public NetworkSample WithSGD(double momentum = 0.9, bool useNesterov = true)

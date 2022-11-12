@@ -69,12 +69,12 @@ namespace SharpNetTests
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
 
 
-            //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220122.csv", new []{"bagging_fraction", "max_depth" }, Parameters.boosting_enum.rf, 100);
-            //SharpNet.Datasets.Natixis70.Natixis70Utils.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220129.csv", new string[]{}, Parameters.boosting_enum.rf, 100);
-            //SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchLightGBMHPO(); return;
-            //SharpNet.Datasets.Natixis70.Natixis70Utils.LaunchCatBoostHPO(); return;
+            //SharpNet.Datasets.Natixis70.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220122.csv", new []{"bagging_fraction", "max_depth" }, Parameters.boosting_enum.rf, 100);
+            //SharpNet.Datasets.Natixis70.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220129.csv", new string[]{}, Parameters.boosting_enum.rf, 100);
+            //SharpNet.Datasets.Natixis70.Natixis70DatasetSample.TrainNetwork(10, 120); return;
+            //SharpNet.Datasets.Natixis70.Natixis70DatasetSample.LaunchCatBoostHPO(10, 1*60); return;
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_bis", "5F73F0353D", 5);
-
+            //new ChallengeTools().StackedEnsemble(30, 0);
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
@@ -84,7 +84,7 @@ namespace SharpNetTests
             new ChallengeTools().StackedEnsemble(30, 0);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(50, 120);
+            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(10, 10);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(50, 120);
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();

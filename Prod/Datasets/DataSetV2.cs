@@ -31,7 +31,6 @@ public class DataSetV2 : DataSet
             x_df.Columns,
             Utils.Intersect(x_df.Columns, datasetSample.CategoricalFeatures).ToArray(),
             Utils.Intersect(x_df.Columns, datasetSample.IdColumns).ToArray(),
-            datasetSample.TargetLabels,
             useBackgroundThreadToLoadNextMiniBatch,
             datasetSample.GetSeparator())
     {

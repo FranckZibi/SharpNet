@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Datasets.Natixis70;
 using SharpNet.GPU;
 using SharpNet.HyperParameters;
 
@@ -26,6 +27,10 @@ public abstract class AbstractDatasetSample : AbstractSample
     /// <returns>list of id features </returns>
     public abstract string[] IdColumns { get; }
 
+    // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
+    protected DatasetEncoder DatasetEncoder { get; set; }
+
+
     /// <summary>
     /// list of target feature names (usually a single element)
     /// </summary>
@@ -35,7 +40,6 @@ public abstract class AbstractDatasetSample : AbstractSample
     private int[] _cacheInputShape_CHW = null;
     private string[] _cacheColumns = null;
     private readonly object lockInputShape_CHW = new();
-
 
     public virtual int[] GetInputShapeOfSingleElement()
     {
@@ -80,7 +84,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     }
     public static AbstractDatasetSample ValueOf(string workingDirectory, string sampleName)
     {
-        //try { return ISample.LoadSample<Natixis70DatasetSample>(workingDirectory, sampleName); } catch { }
+        try { return ISample.LoadSample<Natixis70DatasetSample>(workingDirectory, sampleName); } catch { }
         //try { return ISample.LoadSample<AmazonEmployeeAccessChallengeDatasetSample>(workingDirectory, sampleName); } catch { }
         try { return ISample.LoadSample<WasYouStayWorthItsPriceDatasetSample>(workingDirectory, sampleName); } catch { }
         throw new ArgumentException($"can't load a {nameof(AbstractDatasetSample)} with name {sampleName} from directory {workingDirectory}");
@@ -88,6 +92,10 @@ public abstract class AbstractDatasetSample : AbstractSample
     #endregion
 
 
+    public virtual int EmbeddingForColumn(string columnName, int defaultEmbeddingSize)
+    {
+        return defaultEmbeddingSize;
+    }
 
     /// <summary>
     /// VocabularySizes : for each categorical feature, the number of distinct value it has
@@ -122,7 +130,7 @@ public abstract class AbstractDatasetSample : AbstractSample
                 continue;
             }
             indexesInLastDimensionToUse.Add(i);
-            embeddingDims.Add(defaultEmbeddingSize);
+            embeddingDims.Add(EmbeddingForColumn(column, defaultEmbeddingSize));
             var columnStats = DatasetEncoder[column];
             vocabularySizes.Add(1 + columnStats.GetDistinctCategoricalValues().Count);
         }
@@ -136,7 +144,9 @@ public abstract class AbstractDatasetSample : AbstractSample
         {
             if (GetObjective() == Objective_enum.Regression)
             {
-                return EvaluationMetricEnum.Rmse;
+                //!D TODO return EvaluationMetricEnum.Rmse;
+                //return EvaluationMetricEnum.Mse;
+                return EvaluationMetricEnum.Mae;
             }
             if (NumClass == 1)
             {
@@ -250,18 +260,10 @@ public abstract class AbstractDatasetSample : AbstractSample
         Validation_XDatasetPath_InModelFormat = Validation_YDatasetPath_InModelFormat = Validation_XYDatasetPath_InModelFormat = newValue;
     }
 
-
     public DataSetV2 LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
     public DataSetV2 LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
-
-    ///// <summary>
-    ///// return a DataSet with all labeled Data (all data found both in training and validation dataset)
-    ///// </summary>
-    ///// <returns></returns>
-    //public InMemoryDataSet LoadTrainAndValidationDataset() => InMemoryDataSet.MergeVertically(LoadTrainDataset(), LoadValidationDataset());
-
     public DataSetV2 LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
-    
+
     //// ReSharper disable once MemberCanBeMadeStatic.Global
     public DataFrame LoadPredictionsInModelFormat(string directory, string fileName)
     {
@@ -276,8 +278,6 @@ public abstract class AbstractDatasetSample : AbstractSample
         }
         return DataFrame.read_float_csv(path);
     }
-
-
 
 
 
@@ -343,22 +343,20 @@ public abstract class AbstractDatasetSample : AbstractSample
     }
     public virtual char GetSeparator() { return ',';}
     /// save the predictions in the Challenge target format, adding an Id at left if needed
-    public virtual void SavePredictionsInTargetFormat(DataFrame encodedPredictionsInTargetFormat, DataSet xDataset, string path)
+    public virtual void SavePredictionsInTargetFormat(DataFrame y_pred_Encoded_InTargetFormat, DataSet xDataset, string path)
     {
-        if (encodedPredictionsInTargetFormat == null)
+        if (y_pred_Encoded_InTargetFormat == null)
         {
             return;
         }
-        AssertNoIdColumns(encodedPredictionsInTargetFormat);
-        encodedPredictionsInTargetFormat = xDataset.AddIdColumnsAtLeftIfNeeded(encodedPredictionsInTargetFormat);
+        AssertNoIdColumns(y_pred_Encoded_InTargetFormat);
+        y_pred_Encoded_InTargetFormat = xDataset.AddIdColumnsAtLeftIfNeeded(y_pred_Encoded_InTargetFormat);
         if (DatasetEncoder != null)
         {
-            encodedPredictionsInTargetFormat = DatasetEncoder.Inverse_Transform(encodedPredictionsInTargetFormat);
+            y_pred_Encoded_InTargetFormat = DatasetEncoder.Inverse_Transform(y_pred_Encoded_InTargetFormat);
         }
-        encodedPredictionsInTargetFormat.to_csv(path, GetSeparator());
+        y_pred_Encoded_InTargetFormat.to_csv(path, GetSeparator());
     }
-
-    public virtual DatasetEncoder DatasetEncoder => null;
 
     public virtual void SavePredictionsInModelFormat(DataFrame predictionsInModelFormat, string path)
     {
@@ -424,25 +422,25 @@ public abstract class AbstractDatasetSample : AbstractSample
     }
 
 
-    /// <summary>
-    /// ensure that the DataFrame 'df' has all Id Columns
-    /// throw an exception if it contains Id Columns
-    /// </summary>
-    /// <param name="df"></param>
-    /// <exception cref="Exception"></exception>
-    private void AssertAllIdColumns(DataFrame df)
-    {
-        if (df == null || IdColumns.Length == 0)
-        {
-            return;
-        }
-        var idCol = Utils.Intersect(df.Columns, IdColumns);
-        if (idCol.Count != IdColumns.Length)
-        {
-            var missingIdColumn = Utils.Without(IdColumns, idCol);
-            throw new Exception($"The DataFrame has {missingIdColumn.Count} missing Id Columns : {string.Join(' ', missingIdColumn)}");
-        }
-    }
+    ///// <summary>
+    ///// ensure that the DataFrame 'df' has all Id Columns
+    ///// throw an exception if it contains Id Columns
+    ///// </summary>
+    ///// <param name="df"></param>
+    ///// <exception cref="Exception"></exception>
+    //private void AssertAllIdColumns(DataFrame df)
+    //{
+    //    if (df == null || IdColumns.Length == 0)
+    //    {
+    //        return;
+    //    }
+    //    var idCol = Utils.Intersect(df.Columns, IdColumns);
+    //    if (idCol.Count != IdColumns.Length)
+    //    {
+    //        var missingIdColumn = Utils.Without(IdColumns, idCol);
+    //        throw new Exception($"The DataFrame has {missingIdColumn.Count} missing Id Columns : {string.Join(' ', missingIdColumn)}");
+    //    }
+    //}
     
 
     public override bool FixErrors()
@@ -471,16 +469,6 @@ public abstract class AbstractDatasetSample : AbstractSample
         };
     }
     /// <summary>
-    /// by default, the prediction file starts first with the ids columns, then with the target columns
-    /// </summary>
-    /// <returns></returns>
-    protected virtual List<string> PredictionInTargetFormatHeader()
-    {
-        var res = IdColumns.ToList();
-        res.AddRange(TargetLabels);
-        return res;
-    }
-    /// <summary>
     /// the evaluation metric used to rank the final submission
     /// depending on the evaluation metric, higher (ex: Accuracy) or lower (ex: Rmse) may be better
     /// </summary>
@@ -496,8 +484,10 @@ public abstract class AbstractDatasetSample : AbstractSample
             Debug.Assert(string.IsNullOrEmpty(XDatasetPath));
             Debug.Assert(string.IsNullOrEmpty(YDatasetPath));
             var xy = DataFrame.read_float_csv(XYDatasetPath);
-            x = xy[Utils.Without(xy.Columns, TargetLabels).ToArray()];
-            y = xy[TargetLabels];
+            //only the first column contains the label
+            var targetLabels = xy.Columns.Take(1).ToArray();
+            x = xy[Utils.Without(xy.Columns, targetLabels).ToArray()];
+            y = xy[targetLabels];
         }
         else
         {
@@ -516,7 +506,7 @@ public abstract class AbstractDatasetSample : AbstractSample
             Debug.Assert(y == null);
             return null;
         }
-        AssertAllIdColumns(x);
+        //!D AssertAllIdColumns(x);
         AssertNoIdColumns(y);
 
         if (y != null && NumClass >= 2)

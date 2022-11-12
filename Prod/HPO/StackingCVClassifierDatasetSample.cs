@@ -43,7 +43,7 @@ namespace SharpNet.HPO
         {
             List<DataFrame> y_preds_for_training_InModelFormat = new();
             List<DataFrame> y_preds_for_inference_InModelFormat = new();
-            CpuTensor<float> y_true_training_InTargetFormat = null;
+            DataFrame y_true_training_InModelFormat = null;
             DataSetV2 validationDataset = null, testDataset = null;
 
             if (!Directory.Exists(workingDirectory))
@@ -91,7 +91,7 @@ namespace SharpNet.HPO
                         throw new ArgumentException($"no Test DataSet found");
                     }
 
-                    y_true_training_InTargetFormat = validationDataset.Y_InTargetFormat().FloatCpuTensor();
+                    y_true_training_InModelFormat = validationDataset.Y_InModelFormat();
                 }
             }
 
@@ -141,7 +141,7 @@ namespace SharpNet.HPO
             var TrainingDataSet = new DataSetV2(
                 embeddedDatasetSample,
                 x_training_InModelFormat_df,
-                DataFrame.New(y_true_training_InTargetFormat),
+                y_true_training_InModelFormat, //y_true_training_InTargetFormat,
                 false);
 
             var InferenceDataSet = new DataSetV2(
@@ -150,11 +150,9 @@ namespace SharpNet.HPO
                 null,
                 false);
 
+            //TrainingDataSet.to_csv_in_directory(workingDirectory, true, true, true);
+            //InferenceDataSet.to_csv_in_directory(workingDirectory, true, true, true);
 
-            TrainingDataSet.to_csv_in_directory(workingDirectory, true, true, true);
-            InferenceDataSet.to_csv_in_directory(workingDirectory, true, true, true);
-
-        
             if (embeddedDatasetSample.PercentageInTraining > 0.99)
             {
                 embeddedDatasetSample.PercentageInTraining = 0.8;

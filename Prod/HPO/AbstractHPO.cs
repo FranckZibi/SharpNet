@@ -68,7 +68,9 @@ namespace SharpNet.HPO
             }
 
             numModelTrainingInParallel = Utils.CoreCount;
-            
+
+            //numModelTrainingInParallel = 1;
+
             if (defaultSample.UseGPU)
             {
                 //if the sample runs on GPU, we need to limit the number of // computation to the number of available GPU

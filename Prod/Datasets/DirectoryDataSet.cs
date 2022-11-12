@@ -81,7 +81,6 @@ namespace SharpNet.Datasets
                 featureNames,
                 new string[0],
                 new string[0],
-                new string[0],
                 true,
                 ',')
         {

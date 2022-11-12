@@ -289,15 +289,15 @@ public class ModelAndDatasetPredictions
     {
         Debug.Assert(dataset != null);
         var start = Stopwatch.StartNew();
-        var (predictionsInModelFormat, datasetPath) = Model.PredictWithPath(dataset, false);
-        var y_pred_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
+        var (y_pred_InModelFormat, datasetPath) = Model.PredictWithPath(dataset, false);
+        var y_pred_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat);
         IScore rankingScore = null;
-        var y_true_InTargetFormat = dataset.Y_InTargetFormat();
-        if (y_true_InTargetFormat != null)
+        if (dataset.Y != null)
         {
+            var y_true_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(dataset.Y));
             rankingScore = DatasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
         }
         ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScore)} took {start.Elapsed.TotalSeconds}s");
-        return (y_pred_InTargetFormat, predictionsInModelFormat, rankingScore, datasetPath);
+        return (y_pred_InTargetFormat, y_pred_InModelFormat, rankingScore, datasetPath);
     }
 }

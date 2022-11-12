@@ -16,8 +16,7 @@ namespace SharpNet.Datasets
                 original.ResizeStrategy,
                 original.ColumnNames,
                 original.CategoricalFeatures, 
-                original.IdColumns, 
-                original.TargetLabels, 
+                original.IdColumns,
                 original.UseBackgroundThreadToLoadNextMiniBatch,
                 original.Separator)
         {

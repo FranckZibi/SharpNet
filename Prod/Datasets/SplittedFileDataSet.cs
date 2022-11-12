@@ -28,7 +28,6 @@ namespace SharpNet.Datasets
                 new string[0],
                 new string[0],
                 new string[0],
-                new string[0],
                 true,
                 ',')
         {

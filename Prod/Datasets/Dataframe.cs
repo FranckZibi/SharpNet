@@ -44,6 +44,9 @@ public sealed class DataFrame
     /// </summary>
     public int CellCount => Utils.Product(Shape);
 
+    public List<Tuple<string, int, int>> ColumnsDesc => _columns;
+
+
     #endregion
 
 
@@ -938,7 +941,7 @@ public sealed class DataFrame
         }
         return CpuTensor<T>.New(content.ToArray(), columnCount);
     }
-    private Tensor[] EmbeddedTensors => new Tensor[] { _floatTensor, _stringTensor, _intTensor };
+    public Tensor[] EmbeddedTensors => new Tensor[] { _floatTensor, _stringTensor, _intTensor };
     private object ExtractValue(int row, Tuple<string, int, int> colDesc, ReadOnlySpan<float> floatContent, ReadOnlySpan<string> stringContent, ReadOnlySpan<int> intContent)
     {
         switch (colDesc.Item2)
@@ -948,9 +951,9 @@ public sealed class DataFrame
             default: return intContent[colDesc.Item3 + row * _intTensor.Shape[1]];
         }
     }
-    public bool IsFloatDataFrame => _floatTensor != null && _stringTensor == null && _intTensor == null;
-    public bool IsStringDataFrame => _floatTensor == null && _stringTensor != null && _intTensor == null;
-    public bool IsIntDataFrame => _floatTensor == null && _stringTensor == null && _intTensor != null;
+    public bool IsFloatDataFrame => _stringTensor == null && _intTensor == null;
+    public bool IsStringDataFrame => _floatTensor == null && _intTensor == null;
+    public bool IsIntDataFrame => _floatTensor == null && _stringTensor == null;
     /// <summary>
     /// ensure that all column name in 'columnNameToValidate' are valid and throws an exception if it is not the case
     /// </summary>

@@ -22,7 +22,6 @@ namespace SharpNet.Datasets
                 original.ColumnNames,
                 original.CategoricalFeatures,
                 original.IdColumns,
-                original.TargetLabels,
                 true,
                 original.Separator)
         {

@@ -45,7 +45,6 @@ public class InMemoryDataSet : DataSet
         string[] columnNames = null,
         string[] categoricalFeatures = null,
         string[] idColumns = null, 
-        string[] targetLabels = null,
         bool useBackgroundThreadToLoadNextMiniBatch = true,
         char separator = ',')
         : base(name,
@@ -56,7 +55,6 @@ public class InMemoryDataSet : DataSet
             columnNames ?? new string[0],
             categoricalFeatures ??new string[0],
             idColumns ?? new string[0],
-            targetLabels ?? new string[0],
             useBackgroundThreadToLoadNextMiniBatch,
             separator)
     {

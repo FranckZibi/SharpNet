@@ -53,7 +53,6 @@ namespace SharpNet.Datasets
         [NotNull] public string[] ColumnNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
         [NotNull] public string[] IdColumns { get; }
-        [NotNull] public string[] TargetLabels { get; }
         public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
         public char Separator { get; }
 
@@ -68,7 +67,6 @@ namespace SharpNet.Datasets
             [NotNull] string[] columnNames,
             [NotNull] string[] categoricalFeatures,
             [NotNull] string[] idColumns,
-            [NotNull] string[] targetLabels,
             bool useBackgroundThreadToLoadNextMiniBatch,
             char separator)
         {
@@ -93,13 +91,6 @@ namespace SharpNet.Datasets
                 categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
             }
             CategoricalFeatures = categoricalFeatures;
-
-            var invalidTargetLabels = Utils.Intersect(targetLabels, ColumnNames);
-            if (invalidTargetLabels.Count != 0)
-            {
-                Log.Error($"{invalidTargetLabels.Count} invalid TargetLabels: {string.Join(' ', invalidTargetLabels)}, they should not appear among ColumnNames => IGNORING");
-            }
-            TargetLabels = targetLabels;
 
             if (idColumns.Length != 0)
             {
@@ -588,46 +579,11 @@ namespace SharpNet.Datasets
         ///     binary classification:      (_, 1)  where each element is a probability in [0, 1) range
         ///     multi class classification  (_, NumClasses) with each element being the probability of belonging to this class
         /// </summary>
-        /// <param name="numClasses"></param>
         /// <returns></returns>
-        public DataFrame Y_InModelFormat(int numClasses)
+        public DataFrame Y_InModelFormat()
         {
-            if (Y == null)
-            {
-                return null;
-            }
-            Debug.Assert(numClasses == Y.Shape[1]);
-            //var y_true_tensor = IsRegressionProblem ? Y : CpuTensor<float>.FromClassIndexToProba(Y, numClasses);
-            var targetLabels_InModelFormat = (IsRegressionProblem || TargetLabels.Length == numClasses)
-                ? TargetLabels
-                : Enumerable.Range(0, numClasses).Select(x => x.ToString()).ToArray();
-
-            return DataFrame.New(Y, targetLabels_InModelFormat);
+            return Y == null ? null : DataFrame.New(Y);
         }
-
-        /// <summary>
-        /// shape is (count, TargetLabels.Length)
-        /// </summary>
-        /// <returns></returns>
-        public virtual DataFrame Y_InTargetFormat()
-        {
-            if (Y == null)
-            {
-                return null;
-            }
-            if (Y.Shape[1] == TargetLabels.Length)
-            {
-                return DataFrame.New(Y, TargetLabels);
-            }
-
-            if (TargetLabels.Length == 1 && Y.Shape[1] > 1)
-            {
-                //Multi class classification
-                return DataFrame.New(Y.ArgMax(), TargetLabels);
-            }
-            throw new NotImplementedException($" can compute {nameof(Y_InTargetFormat)} from Y shape {Utils.ShapeToString(Y.Shape)} with TargetLabels={string.Join(' ', TargetLabels)} ");
-        }
-
 
         protected void UpdateStatus(ref int nbPerformed)
         {
@@ -766,13 +722,7 @@ namespace SharpNet.Datasets
             var sb = new StringBuilder();
             if (addTargetColumnAsFirstColumn)
             {
-                if (TargetLabels.Length != 1)
-                {
-                    var errorMsg = $"invalid number of target features, expecting 1, found {TargetLabels.Length}: {string.Join(' ', TargetLabels)}";
-                    Log.Error(errorMsg);
-                    throw new Exception(errorMsg);
-                }
-                sb.Append(TargetLabels[0] + separator);
+                sb.Append("y" + separator);
             }
             // ReSharper disable once PossibleNullReferenceException
             var yDataAsSpan = (addTargetColumnAsFirstColumn&&Y!=null) ? Y.AsFloatCpuSpan : null;

@@ -37,23 +37,30 @@ public class ChallengeTools
     [TestCase(100,0), Explicit]
     public void StackedEnsemble(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
-        const string workingDirectory = @"C:/Projects/Challenges/WasYouStayWorthItsPrice/submission";
+        //const string workingDirectory = @"C:/Projects/Challenges/WasYouStayWorthItsPrice/submission";
+        const string workingDirectory = @"C:\Projects\Challenges\Natixis70\aaa7\";
         var modelName = new[]
         {
-            "F2CC39BB32_KFOLD", //1D-CNN    F2CC39BB32_KFOLD_FULL_predict_test_0.31976.csv
-            "D875D0F56C_KFOLD", //LightGBM  D875D0F56C_KFOLD_FULL_predict_test_0.3204.csv
-            "3F2CB236DB_KFOLD", //CatBoost  3F2CB236DB_KFOLD_FULL_predict_test_0.31759.csv
+            ////Natixis70
+            "35CB39CB45_KFOLD", //LightGBM
+            "CAD2F81CEB_KFOLD", //LightGBM
+            "B222453FF6_KFOLD", //CatBoost
+            "7598B6F2E4_KFOLD", //CatBoost
 
-            "0EF01A90D8_KFOLD", //Deep Learning
-            "3580990008_KFOLD",
-            "395B343296_KFOLD", //LightGBM GBDT
-            //"48F31E6543_KFOLD",
-            //"56E668E7DB_KFOLD",
-            "66B4F3653A_KFOLD",
-            "8CF93D9FA0_KFOLD",
-            "90840F212D_KFOLD",
-            //"90DAFFB8FC_KFOLD",
-            "E72AD5B74B_KFOLD"
+            //WasYouStayWorthItsPrice
+            //"F2CC39BB32_KFOLD", //1D-CNN    F2CC39BB32_KFOLD_FULL_predict_test_0.31976.csv
+            //"D875D0F56C_KFOLD", //LightGBM  D875D0F56C_KFOLD_FULL_predict_test_0.3204.csv
+            //"3F2CB236DB_KFOLD", //CatBoost  3F2CB236DB_KFOLD_FULL_predict_test_0.31759.csv
+            //"0EF01A90D8_KFOLD", //Deep Learning
+            //"3580990008_KFOLD",
+            //"395B343296_KFOLD", //LightGBM GBDT
+            ////"48F31E6543_KFOLD",
+            ////"56E668E7DB_KFOLD",
+            //"66B4F3653A_KFOLD",
+            //"8CF93D9FA0_KFOLD",
+            //"90840F212D_KFOLD",
+            ////"90DAFFB8FC_KFOLD",
+            //"E72AD5B74B_KFOLD"
         };
         const bool use_features_in_secondary = true;
         const int cv = 2;
@@ -66,32 +73,34 @@ public class ChallengeTools
             //related to Dataset 
             { "KFold", cv },
 
-
-
-            { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
+            //high priority
+            { "bagging_fraction", new[]{/*0.8f,*/ 0.9f /*, 1.0f*/} },
             { "bagging_freq", new[]{0, 1} },
-            { "boosting", new []{"gbdt", "dart"}},
+            { "boosting", new []{/*"gbdt",*/ "dart"}},
             { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
-            //{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
-            { "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
             { "early_stopping_round", num_iterations/10 },
-            { "extra_trees", new[] { true , false } }, //low priority 
             { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
-            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
-            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.2f)},
-            //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.03f)},
-            { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
-            { "max_depth", new[]{10, 20, 50, 100, 255} },
-            { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
-            { "min_data_in_bin", new[]{3, 10, 100, 150}  },
-            { "min_data_in_leaf", AbstractHyperParameterSearchSpace.Range(10, 200) },
-            { "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
+            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
+            { "max_depth", new[]{10, 20, 50, 100 /*, 255*/} },
+            { "min_data_in_leaf", new[]{20, 50 /*,100*/} },
             { "num_iterations", num_iterations },
-            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 60) },
+            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
             { "num_threads", 1},
-            { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
-            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
             { "verbosity", "0" },
+
+            ////medium priority
+            { "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
+            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "min_data_in_bin", new[]{3, 10, 100, 150}  },
+            { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
+            { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
+            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
+
+            ////low priority
+            //{ "extra_trees", new[] { true , false } }, //low priority 
+            ////{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
+            //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
+            //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
         };
 
         if (!Directory.Exists(workingDirectory))
@@ -106,7 +115,6 @@ public class ChallengeTools
 
         var hpoWorkingDirectory = Path.Combine(workingDirectory, "hpo");
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), hpoWorkingDirectory); IScore bestScoreSoFar = null;
-        //var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), hpoWorkingDirectory); IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, hpoWorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 

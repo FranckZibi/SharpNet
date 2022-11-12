@@ -875,7 +875,7 @@ namespace SharpNet.Data
         /// <param name="huberDelta"></param>
         public abstract void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta);
 
-              /// <summary>
+        /// <summary>
         /// Compute the output gradient when are using Mean Squared Error loss
         /// and stores it in the 'this' tensor
         /// </summary>

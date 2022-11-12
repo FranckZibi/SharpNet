@@ -609,6 +609,20 @@
 			losses[i] = loss / lineSize;
 		}
 	}
+	
+	__global__ void MseGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = yPredicted[j] - yExpected[j];
+				mseGradient[j] = (2 * diff) / lineSize;
+			}
+		}
+	}
 
 	__global__ void CosineSimilarityLoss(int timeSeriesLength, int yExpectedLength, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
@@ -654,20 +668,6 @@
             {
                 cosineSimilarityGradient[t] = - (float)(multiplier1*yExpected[t] + mutliplier2*yPredicted[t]);
             }
-		}
-	}
-
-	__global__ void MseGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
-	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < batchSize) {
-			int startIndex = i * lineSize;
-			int endIndexExcluded = startIndex + lineSize;
-			for (int j = startIndex; j < endIndexExcluded; ++j)
-			{
-				float diff = yPredicted[j] - yExpected[j];
-				mseGradient[j] = (2 * diff) / lineSize;
-			}
 		}
 	}
 

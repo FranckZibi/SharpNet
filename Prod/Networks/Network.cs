@@ -559,7 +559,7 @@ namespace SharpNet.Networks
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
             Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
-            //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Config.BatchSize);
+            //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
 
             int miniBatchSizeForAllWorkers = Sample.BatchSize;
             int numEpochs = Sample.NumEpochs;
@@ -649,7 +649,6 @@ namespace SharpNet.Networks
                                 lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
                             }
                         }
-
                     }
                     StopTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
 

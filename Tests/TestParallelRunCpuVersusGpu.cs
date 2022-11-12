@@ -865,8 +865,8 @@ namespace SharpNetTests
         {
             var predicted = RandomTensor(shape);
             var expected = RandomTensor(predicted.Shape);
-            var huberGradient = RandomTensor(expected.Shape);
-            TestAll(new[] { huberGradient, expected, predicted }, tensors => tensors[0].MseGradient(tensors[1], tensors[2]));
+            var mseGradient = RandomTensor(expected.Shape);
+            TestAll(new[] { mseGradient, expected, predicted }, tensors => tensors[0].MseGradient(tensors[1], tensors[2]));
         }
 
 
