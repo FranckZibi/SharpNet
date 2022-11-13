@@ -95,138 +95,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     //public const int TOTAL_Reviews_EmbeddingDim = 384; // Sentence Transformers
 
     // ReSharper disable once UnusedMember.Global
-    public static void TrainNetwork(int numEpochs = 15, int maxAllowedSecondsForAllComputation = 0)
-    {
-        var searchSpace = new Dictionary<string, object>
-        {
-            //related to Dataset 
-            {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-
-            //uncomment appropriate one
-            //{"LossFunction", "Rmse"},                     //for Regression Tasks: Rmse, Mse, Mae, etc.
-            //{"LossFunction", "BinaryCrossentropy"},       //for binary classification
-            //{"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
-
-            // Optimizer 
-            { "OptimizerType", new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
-            { "AdamW_L2Regularization", new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
-            { "SGD_usenesterov", new[] { true, false } },
-            { "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
-
-            // Learning Rate
-            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
-            // Learning Rate Scheduler
-            { "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
-            { "EmbeddingDim", new[] { 0, 4, 8, 12 } },
-            //{"weight_norm", new[]{true, false}},
-            //{"leaky_relu", new[]{true, false}},
-            { "dropout_top", new[] { 0, 0.1, 0.2 } },
-            { "dropout_mid", new[] { 0, 0.3, 0.5 } },
-            { "dropout_bottom", new[] { 0, 0.2, 0.4 } },
-            { "BatchSize", new[] { 256, 512, 1024, 2048 } },
-            { "NumEpochs", new[] { numEpochs } },
-
-        };
-
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new KaggleDaysDatasetSample()), WorkingDirectory);
-        IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
-    }
-
-
-    // ReSharper disable once UnusedMember.Global
-    public static void LaunchCatBoostHPO(int iterations = 100, int maxAllowedSecondsForAllComputation = 0)
-    {
-        // ReSharper disable once ConvertToConstant.Local
-        var searchSpace = new Dictionary<string, object>
-        {
-            //related to Dataset 
-            {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-
-            //uncomment appropriate one
-            //{"loss_function", "RMSE"},          //for Regression Tasks: RMSE, etc.
-            //{"loss_function", "Logloss"},     //for binary classification
-            //{"loss_function", "MultiClass"},  //for multi class classification
-
-            { "logging_level", "Silent"},
-            { "allow_writing_files",false},
-            { "thread_count",1},
-            { "iterations", iterations },
-            { "od_type", "Iter"},
-            { "od_wait",iterations/10},
-            { "depth", AbstractHyperParameterSearchSpace.Range(2, 10) },
-            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
-            { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
-            { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
-            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
-        };
-
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
-        IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
-    }
-
-
     private const string FILE_EXT = "_tfidf_l2_norm_scikit_stem_allstopwords.csv";
-    
-    // ReSharper disable once UnusedMember.Global
-    public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
-    {
-        var searchSpace = new Dictionary<string, object>
-        {
-            //related to Dataset 
-            {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-
-            //related to Dataset 
-            {"Reviews_EmbeddingDim", TOTAL_Reviews_EmbeddingDim},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-            //!D {"KFold", new[]{2}},
-            
-
-            //uncomment appropriate one
-            //{"objective", "regression"},      //for Regression Tasks
-            //{"objective", "binary"},          //for binary classification
-            //{"objective", "multiclass"},      //for multi class classification
-            //{"num_class", number_of_class },  //for multi class classification
-
-            //high priority
-            { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
-            { "bagging_freq", new[]{0, 1} },
-            { "boosting", new []{"gbdt", "dart"}},
-            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
-            { "early_stopping_round", num_iterations/10 },
-            { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
-            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
-            { "max_depth", new[]{10, 20, 50, 100, 255} },
-            { "min_data_in_leaf", new[]{20, 50 /*,100*/} },
-            { "num_iterations", num_iterations },
-            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
-            { "num_threads", 1},
-            { "verbosity", "0" },
-
-            //medium priority
-            { "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
-            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
-            { "min_data_in_bin", new[]{3, 10, 100, 150}  },
-            { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
-            { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
-            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
-
-            //low priority
-            { "extra_trees", new[] { true , false } }, //low priority 
-            //{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
-            { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
-            { "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
-        };
-
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
-        IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
-        return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
-    }
 
     public override Objective_enum GetObjective() => Objective_enum.Classification;
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.Mse;
@@ -287,4 +156,136 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     private static string XTestRawFile => Path.Combine(DataDirectory, "test.csv" + FILE_EXT); //!D
     private static string RawTrainFile => Path.Combine(DataDirectory, "train.csv");
     private static string RawTestFile => Path.Combine(DataDirectory, "test.csv");
+
+
+    // ReSharper disable once UnusedMember.Global
+    public static void TrainNetwork(int numEpochs = 15, int maxAllowedSecondsForAllComputation = 0)
+    {
+        var searchSpace = new Dictionary<string, object>
+        {
+            //related to Dataset 
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+
+            //uncomment appropriate one
+            //{"LossFunction", "Rmse"},                     //for Regression Tasks: Rmse, Mse, Mae, etc.
+            //{"LossFunction", "BinaryCrossentropy"},       //for binary classification
+            //{"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
+
+            // Optimizer 
+            { "OptimizerType", new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
+            { "AdamW_L2Regularization", new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { "SGD_usenesterov", new[] { true, false } },
+            { "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+
+            // Learning Rate
+            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            // Learning Rate Scheduler
+            { "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
+            { "EmbeddingDim", new[] { 0, 4, 8, 12 } },
+            //{"weight_norm", new[]{true, false}},
+            //{"leaky_relu", new[]{true, false}},
+            { "dropout_top", new[] { 0, 0.1, 0.2 } },
+            { "dropout_mid", new[] { 0, 0.3, 0.5 } },
+            { "dropout_bottom", new[] { 0, 0.2, 0.4 } },
+            { "BatchSize", new[] { 256, 512, 1024, 2048 } },
+            { "NumEpochs", new[] { numEpochs } },
+
+        };
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new KaggleDaysDatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+    }
+
+    // ReSharper disable once UnusedMember.Global
+    public static void LaunchCatBoostHPO(int iterations = 100, int maxAllowedSecondsForAllComputation = 0)
+    {
+        // ReSharper disable once ConvertToConstant.Local
+        var searchSpace = new Dictionary<string, object>
+        {
+            //related to Dataset 
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+
+            //uncomment appropriate one
+            //{"loss_function", "RMSE"},          //for Regression Tasks: RMSE, etc.
+            //{"loss_function", "Logloss"},     //for binary classification
+            //{"loss_function", "MultiClass"},  //for multi class classification
+
+            { "logging_level", "Silent"},
+            { "allow_writing_files",false},
+            { "thread_count",1},
+            { "iterations", iterations },
+            { "od_type", "Iter"},
+            { "od_wait",iterations/10},
+            { "depth", AbstractHyperParameterSearchSpace.Range(2, 10) },
+            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
+            { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
+            { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
+            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
+        };
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+    }
+
+
+    // ReSharper disable once UnusedMember.Global
+    public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
+    {
+        var searchSpace = new Dictionary<string, object>
+        {
+            //related to Dataset 
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+
+            //related to Dataset 
+            {"Reviews_EmbeddingDim", TOTAL_Reviews_EmbeddingDim},
+            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //!D {"KFold", new[]{2}},
+            
+
+            //uncomment appropriate one
+            //{"objective", "regression"},      //for Regression Tasks
+            //{"objective", "binary"},          //for binary classification
+            //{"objective", "multiclass"},      //for multi class classification
+            //{"num_class", number_of_class },  //for multi class classification
+
+            //high priority
+            { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
+            { "bagging_freq", new[]{0, 1} },
+            { "boosting", new []{"gbdt", "dart"}},
+            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
+            { "early_stopping_round", num_iterations/10 },
+            { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
+            { "max_depth", new[]{10, 20, 50, 100, 255} },
+            { "min_data_in_leaf", new[]{20, 50 /*,100*/} },
+            { "num_iterations", num_iterations },
+            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
+            { "num_threads", 1},
+            { "verbosity", "0" },
+
+            //medium priority
+            { "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
+            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "min_data_in_bin", new[]{3, 10, 100, 150}  },
+            { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
+            { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
+            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
+
+            //low priority
+            { "extra_trees", new[] { true , false } }, //low priority 
+            //{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
+            { "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
+            { "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
+        };
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
+    }
 }
