@@ -12,21 +12,9 @@ namespace SharpNet.HyperParameters
         #region Constructor
 
         // ReSharper disable once MemberCanBePrivate.Global
-        public ModelAndDatasetPredictionsSample(ISample[] samples) : base(FixSamples(samples))
+        public ModelAndDatasetPredictionsSample(ISample[] samples) : base(samples)
         {
-        }
-
-
-        private static ISample[] FixSamples(ISample[] samples)
-        {
-            var modelSample  = (IModelSample)samples[0];
-            if (modelSample is NetworkSample networkSample)
-            {
-                var datasetSample = (AbstractDatasetSample)samples[1];
-                networkSample.ApplyDataset(datasetSample);
-                samples[0] = networkSample;
-            }
-            return samples;
+            FixErrors();
         }
     
         public static AbstractDatasetSample LoadDatasetSample(string workingDirectory, string modelName)
@@ -102,6 +90,18 @@ namespace SharpNet.HyperParameters
             return ModelAndDatasetSampleIndexToSampleName(modelName, sampleIndex);
         }
 
+        public override bool FixErrors()
+        {
+            if (ModelSample is NetworkSample networkSample)
+            {
+                networkSample.ApplyDataset(DatasetSample);
+            }
+            if (!base.FixErrors())
+            {
+                return false;
+            }
+            return true;
+        }
 
         #region Filling Search Space with Default Values for Model
         public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)

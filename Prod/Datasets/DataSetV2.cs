@@ -4,13 +4,13 @@ using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
+using SharpNet.Datasets.CFM60;
 
 namespace SharpNet.Datasets;
 
-public class DataSetV2 : DataSet
+public class DataSetV2 : DataSet, IGetDatasetSample
 {
     // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
-    private readonly AbstractDatasetSample _datasetSample;
 
     #region private fields
     private readonly int[] _elementIdToCategoryIndex;
@@ -34,7 +34,7 @@ public class DataSetV2 : DataSet
             useBackgroundThreadToLoadNextMiniBatch,
             datasetSample.GetSeparator())
     {
-        _datasetSample = datasetSample;
+        DatasetSample = datasetSample;
         Debug.Assert(y_df == null || AreCompatible_X_Y(x_df.FloatCpuTensor(), y_df.FloatCpuTensor()));
 
         if (IsRegressionProblem || y_df == null)
@@ -88,12 +88,18 @@ public class DataSetV2 : DataSet
         }
         return _elementIdToCategoryIndex[elementId];
     }
-    public AbstractDatasetSample DatasetSample => _datasetSample;
+    public AbstractDatasetSample DatasetSample { get; }
+
     public DataFrame XDataFrame { get; }
-    public DataFrame YDataFrame_InModelFormat { get; }
+    private DataFrame YDataFrame_InModelFormat { get; }
     public override CpuTensor<float> Y => YDataFrame_InModelFormat?.FloatCpuTensor();
     public override string ToString()
     {
         return XDataFrame + " => " + YDataFrame_InModelFormat;
+    }
+
+    public AbstractDatasetSample GetDatasetSample()
+    {
+        return DatasetSample;
     }
 }

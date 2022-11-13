@@ -6,7 +6,8 @@ using SharpNet.Datasets;
 using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Layers;
-using SharpNet.MathTools;
+
+// ReSharper disable MemberCanBeMadeStatic.Global
 
 namespace SharpNet.Networks;
 
@@ -14,9 +15,9 @@ namespace SharpNet.Networks;
 /// Network support for CFM60 challenge
 /// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-public class Cfm60NetworkSample : NetworkSample
+public class Cfm60NetworkSampleOld : NetworkSample
 {
-    public Cfm60NetworkSample() : base()
+    public Cfm60NetworkSampleOld() : base()
     {
     }
 
@@ -45,10 +46,6 @@ public class Cfm60NetworkSample : NetworkSample
 
         //y estimate
         if (Use_prev_Y && isEncoderInputSize) { ++result; featureNames.Add("prev_y"); }
-        if (Use_y_LinearRegressionEstimate) { ++result; featureNames.Add("y_LinearRegressionEstimate"); }
-        if (Use_mean_pid_y) { ++result; featureNames.Add("mean(pid_y)"); }
-        if (Use_volatility_pid_y) { ++result; featureNames.Add("vol(pid_y)"); }
-        if (Use_variance_pid_y) { ++result; featureNames.Add("var(pid_y)"); }
 
         //day/year
         if (Use_day) {++result; featureNames.Add("day/"+(int)Use_day_Divider);}
@@ -69,25 +66,18 @@ public class Cfm60NetworkSample : NetworkSample
             result += CFM60Entry.POINTS_BY_DAY;
             for (int i = 0; i < CFM60Entry.POINTS_BY_DAY; ++i)
             {
-                featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("abs_ret", i));
+                featureNames.Add(CFM60DatasetSample.VectorFeatureName("abs_ret", i));
             }
         }
-        if (Use_mean_abs_ret) {++result; featureNames.Add("mean(abs_ret)");}
-        if (Use_volatility_abs_ret) { ++result; featureNames.Add("vol(abs_ret)"); }
-
         //rel_vol
         if (Use_rel_vol)
         {
-            result += Use_rel_vol_start_and_end_only?(2*12):CFM60Entry.POINTS_BY_DAY;
+            result += CFM60Entry.POINTS_BY_DAY;
             for (int i = 0; i < CFM60Entry.POINTS_BY_DAY; ++i)
             {
-                if (i < 12 || !Use_rel_vol_start_and_end_only || i >= CFM60Entry.POINTS_BY_DAY - 12)
-                {
-                    featureNames.Add(FeatureImportancesCalculator.VectorFeatureName("rel_vol", i));
-                }
+                featureNames.Add(CFM60DatasetSample.VectorFeatureName("rel_vol", i));
             }
         }
-        if (Use_volatility_rel_vol) { ++result; featureNames.Add("vol(rel_vol)"); }
 
         //LS
         if (Use_LS)
@@ -119,26 +109,18 @@ public class Cfm60NetworkSample : NetworkSample
         return result;
     }
 
+
+
     public override void BuildLayers(Network network, AbstractDatasetSample datasetSample)
     {
         network.Input(Encoder_TimeSteps, Encoder_InputSize, -1);
-
         if (Pid_EmbeddingDim >= 1)
         {
-            network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT}, new[] { Pid_EmbeddingDim}, new[] { 0}, network.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+            network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, network.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
         }
-
-        if (InputNormalizationType == InputNormalizationEnum.BATCH_NORM_LAYER || InputNormalizationType == InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
-        {
-            network.SwitchSecondAndThirdDimension(true);
-            network.BatchNorm(0.99, 1e-5);
-            network.SwitchSecondAndThirdDimension(false);
-        }
-
         if (UseConv1D)
         {
             network.Conv1D(Encoder_TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, network.Sample.lambdaL2Regularization, true);
-
             if (UseBatchNormAfterConv1D)
             {
                 network.BatchNorm(0.99, 1e-5);
@@ -148,7 +130,6 @@ public class Cfm60NetworkSample : NetworkSample
                 network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU, null);
             }
         }
-
         //We add the Encoder
         if (Use_GRU_instead_of_LSTM)
         {
@@ -180,7 +161,7 @@ public class Cfm60NetworkSample : NetworkSample
             network.Input(Decoder_TimeSteps, Decoder_InputSize, -1);
             if (Pid_EmbeddingDim >= 1)
             {
-                network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT}, new[] { Pid_EmbeddingDim}, new[] { 0}, network.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+                network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, network.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
             }
             network.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
         }
@@ -190,44 +171,27 @@ public class Cfm60NetworkSample : NetworkSample
         {
             network.Dropout(DropoutRate_After_EncoderDecoder);
         }
-
         network.Dense(DenseUnits, network.Sample.lambdaL2Regularization, true)
             .Activation(ActivationFunctionAfterFirstDense);
         network.Dense(1, network.Sample.lambdaL2Regularization, true);
         network.Flatten();
-
-        if (WithSpecialEndV1)
-        {
-            network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
-            network.Linear(2, 0);
-            network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LN);
-        }
     }
-
 
     //pid embedding
     public int Pid_EmbeddingDim = 4;  //validated on 16-jan-2021: -0.0236
 
     //y estimate
-    public bool Use_y_LinearRegressionEstimate = true; //validated on 19-jan-2021: -0.0501 (with other changes)
     /// <summary>
     /// should we use the average observed 'y' outcome of the company (computed in the training dataSet) in the input tensor
     /// </summary>
-    public bool Use_mean_pid_y = false; //discarded on 19-jan-2021: +0.0501 (with other changes)
-    public bool Use_volatility_pid_y = true; //validated on 17-jan-2021: -0.0053
-    public bool Use_variance_pid_y = false;
     public bool Use_prev_Y = true;
         
         
     //rel_vol fields
     public bool Use_rel_vol = true;
-    public bool Use_rel_vol_start_and_end_only = false; //use only the first 12 and last 12 elements of rel_vol
-    public bool Use_volatility_rel_vol = false; //'true' discarded on 22-jan-2020: +0.0065
 
     //abs_ret
     public bool Use_abs_ret = true;  //validated on 16-jan-2021: -0.0515
-    public bool Use_mean_abs_ret = false;
-    public bool Use_volatility_abs_ret = false;
 
     //LS
     public bool Use_LS = true; //validated on 16-jan-2021: -0.0164
@@ -267,21 +231,7 @@ public class Cfm60NetworkSample : NetworkSample
     public bool Use_Christmas_flag = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
     public bool Use_EndOfTrimester_flag = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
 
-    //normalization
-    public enum InputNormalizationEnum
-    {
-        NONE,
-        Z_SCORE,
-        DEDUCE_MEAN,
-        BATCH_NORM_LAYER, //we'll use a batch norm layer for normalization
-        DEDUCE_MEAN_AND_BATCH_NORM_LAYER
-    }
-    //entry.rel_vol.Length - 12
-
-    public InputNormalizationEnum InputNormalizationType = InputNormalizationEnum.NONE;
-
-
-
+   
 
     /// <summary>
     /// the optional serialized network to load for training
@@ -341,7 +291,7 @@ public class Cfm60NetworkSample : NetworkSample
     }
 
     public int Encoder_NumLayers = 2;
-    public int Encoder_TimeSteps = 20;
+    public int Encoder_TimeSteps = 60;
     /// <summary>
     /// dropout to use for the encoder. A value of 0 means no dropout
     /// </summary>
@@ -388,69 +338,15 @@ public class Cfm60NetworkSample : NetworkSample
     public bool UseReluAfterConv1D = false;
         
     // max value of the loss to consider saving the network
-    public double MaxLossToSaveTheNetwork => IsTryingToPredictErrors?0.356:0.36;
+    public double MaxLossToSaveTheNetwork => 0.36;
 
-    public string[] predictionFilesIfComputeErrors = null;
-
-    //the kind of value embedded in Y (and that we are trying to predict)
-    public ValueToPredictEnum ValueToPredict = ValueToPredictEnum.Y_TRUE;
-
-    public enum ValueToPredictEnum { 
-        Y_TRUE,  // we try to predict the true value 'Y'
-        Y_TRUE_MINUS_LR, //we try to predict the spread between the true value and a linear regression estimate
-        Y_TRUE_MINUS_ADJUSTED_LR, //we try to predict the spread between the true value and a linear regression estimate adjusted by the estimate error
-        ERROR, //we try to predict the error (Y_TRUE-Y_PRED) made by a previously trained network
-    }
-
-    public bool IsTryingToPredictErrors => predictionFilesIfComputeErrors != null;
-
-    public string DatasetName => IsTryingToPredictErrors ? "CFM60Errors" : "CFM60";
-
-    // ReSharper disable once UnusedMember.Global
-    public void WithConv1D(int kernelWidth, ConvolutionLayer.PADDING_TYPE paddingType, bool useBatchNormAfterConv1D, bool useReluAfterConv1D)
-    {
-        UseConv1D = true;
-        Conv1DKernelWidth = kernelWidth;
-        Conv1DPaddingType = paddingType;
-        UseBatchNormAfterConv1D = useBatchNormAfterConv1D;
-        UseReluAfterConv1D = useReluAfterConv1D;
-    }
+    public string DatasetName => "CFM60";
 
     public int Conv1DKernelWidth = 3;
 
     public ConvolutionLayer.PADDING_TYPE Conv1DPaddingType = ConvolutionLayer.PADDING_TYPE.SAME;
 
     public cudnnActivationMode_t ActivationFunctionAfterFirstDense = cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU;
-    public bool WithSpecialEndV1 = false;
-
-
-    public Tuple<double, double, double, double, double, double>[] Compute_Encoder_FeaturesStatistics()
-    {
-        var featureImportance = FeatureImportancesCalculator.LoadFromFile(Path.Combine(DefaultDataDirectory, "CFM60", "featureimportances.csv"));
-        var res = new Tuple<double, double, double, double, double, double>[Encoder_InputSize];
-        for (int featureId = 0; featureId < res.Length; ++featureId)
-        {
-            var featureName = FeatureIdToEncoderFeatureName(featureId);
-            res[featureId] = featureImportance.TryGetValue(featureName, out var result) ? result : null;
-        }
-        return res;
-    }
-    public Tuple<double, double, double, double, double, double>[] Compute_Decoder_FeaturesStatistics()
-    {
-        if (!Use_Decoder)
-        {
-            return null;
-        }
-        var featureImportance = FeatureImportancesCalculator.LoadFromFile(Path.Combine(DefaultDataDirectory, "CFM60", "featureimportances.csv"));
-        var res = new Tuple<double, double, double, double, double, double>[Decoder_InputSize];
-        for (int featureId = 0; featureId < res.Length; ++featureId)
-        {
-            var featureName = FeatureIdToDecoderFeatureName(featureId);
-            res[featureId] = featureImportance.TryGetValue(featureName, out var result) ? result : null;
-        }
-        return res;
-    }
-
 
 
     public string[] ComputeFeatureNames()
@@ -459,74 +355,41 @@ public class Cfm60NetworkSample : NetworkSample
     }
 
 
-    public string FeatureIdToEncoderFeatureName(int featureId)
+    public static Cfm60NetworkSampleOld Default()
     {
-        return Encoder_FeatureNames[featureId];
-    }
-    public string FeatureIdToDecoderFeatureName(int featureId)
-    {
-        return Decoder_FeatureNames[featureId];
-    }
-
-    public static Cfm60NetworkSample Default()
-    {
-        var config = (Cfm60NetworkSample)new Cfm60NetworkSample()
+        var config = (Cfm60NetworkSampleOld)new Cfm60NetworkSampleOld()
         {
             LossFunction = EvaluationMetricEnum.Mse,
             RandomizeOrder = true,
             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
             Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mse },
             BatchSize = 2048, //validated on 13-june-2021: -0.01
-            NumEpochs = 30, //validated on 20-july-2021: speed up tests
+            NumEpochs = 10,
+            lambdaL2Regularization = 0.00005,
             InitialLearningRate = 0.002  //validated on 4-aug-2021:  -0.0011
                                          //AlwaysUseFullTestDataSetForLossAndAccuracy = false;
         }
-        //.WithAdamW(0.00005); //validated on 19-july-2021: very small degradation (+0.0016) but better expected results for bigger data set
-        .WithAdamW(0.0001) //validated on 20-july-2021: small change but better generalization
-                           //.WithCyclicCosineAnnealingLearningRateScheduler(10, 2)
-        .WithOneCycleLearningRateScheduler(200, 0.1); //validated on 14-july-2021: -0.0078
+        .WithAdam()
+        .WithOneCycleLearningRateScheduler(20, 0.1); //validated on 14-july-2021: -0.0078
 
-        config.ValueToPredict = Cfm60NetworkSample.ValueToPredictEnum.Y_TRUE;
-        config.predictionFilesIfComputeErrors = null;
         //builder.BatchSize = 1024; //updated on 13-june-2021
         //builder.InitialLearningRate = 0.001;
         config.Use_day = true;
-        config.Use_y_LinearRegressionEstimate = false;
-        config.Use_volatility_pid_y = false;
         //builder.Encoder_TimeSteps = 20;
         config.Use_LS = false; //validated on 2-june-2021: -0.011155486
         config.Pid_EmbeddingDim = 8; //validated on 6-june-2021: -0.0226
+
         config.DenseUnits = 50; //validated on 6-june-2021: -0.0121
         config.ClipValueForGradients = 1000;  //validated on 4-july-2021: -0.0110
         config.HiddenSize = 64; //validated on 14-july-2021: very small degradation (+0.0010) but much less parameters
                                 //validated on 2-aug-2021:  -0.0078
-        config.Encoder(1, 20, 0.0); //validated on 2-aug-2021:  -0.0078
+        config.Encoder(1, 60, 0.0);
         config.DropoutRate_Between_Encoder_And_Decoder = 0.2; //validated on 2-aug-2021:  -0.0078
-        config.Decoder(2, 1, 0.2); //validated on 2-aug-2021:  -0.0078
+        config.Decoder(1, 1, 0.0);
         config.DropoutRate_After_EncoderDecoder = 0.2; //validated on 2-aug-2021:  -0.0078
 
         return config;
     }
-
-    //public static CFM60NetworkSample DefaultToPredictError()
-    //{
-    //    var builder = Default();
-    //    builder.CFM60NetworkSample.ValueToPredict = CFM60NetworkSample.ValueToPredictEnum.ERROR;
-    //    builder.CFM60NetworkSample.predictionFilesIfComputeErrors = new[]
-    //                                                {
-    //                                                    @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\train_predictions\CFM60_30_0_3099_0_3595_20211024_1207_4.csv",
-    //                                                    @"C:\Users\Franck\AppData\Local\SharpNet\CFM60\validation_predictions\CFM60_30_0_3099_0_3595_20211024_1207_4.csv"
-    //                                                };
-    //    //builder.Config.LossFunction = LossFunctionEnum.Mae;
-    //    //builder.NumEpochs = 10;
-    //    //builder.Use_fraction_of_year = true;
-    //    //builder.Use_year_Cyclical_Encoding = true;
-    //    //builder.Use_rel_vol = false;
-    //    //builder.Use_abs_ret = false;
-    //    //builder.BatchSize= 1024;
-    //    builder.CFM60NetworkSample.Pid_EmbeddingDim = 20; //validated on 26/10/2021 : 
-    //    return builder;
-    //}
 
     public Network CFM60()
     {

@@ -20,6 +20,8 @@ public abstract class AbstractDatasetSample : AbstractSample
     public string Name { get; }
     public abstract string[] CategoricalFeatures { get; }
 
+
+    public virtual bool PredictionsMustBeOrderedByIdColumn => false;
     /// <summary>
     /// features used to identify a row in the dataset
     /// such features should be ignored during the training
@@ -38,7 +40,7 @@ public abstract class AbstractDatasetSample : AbstractSample
     public abstract string[] TargetLabels { get; }
 
     private int[] _cacheInputShape_CHW = null;
-    private string[] _cacheColumns = null;
+    protected string[] _cacheColumns = null;
     private readonly object lockInputShape_CHW = new();
 
     public virtual int[] GetInputShapeOfSingleElement()
@@ -97,6 +99,12 @@ public abstract class AbstractDatasetSample : AbstractSample
         return defaultEmbeddingSize;
     }
 
+    public virtual int CountOfDistinctCategoricalValues(string columnName)
+    {
+        var columnStats = DatasetEncoder[columnName];
+        return columnStats.GetDistinctCategoricalValues().Count;
+    }
+
     /// <summary>
     /// VocabularySizes : for each categorical feature, the number of distinct value it has
     /// EmbeddingDims: the default embedding for each categorical feature
@@ -131,11 +139,8 @@ public abstract class AbstractDatasetSample : AbstractSample
             }
             indexesInLastDimensionToUse.Add(i);
             embeddingDims.Add(EmbeddingForColumn(column, defaultEmbeddingSize));
-            var columnStats = DatasetEncoder[column];
-            vocabularySizes.Add(1 + columnStats.GetDistinctCategoricalValues().Count);
+            vocabularySizes.Add(1 + CountOfDistinctCategoricalValues(column));
         }
-
-
         return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray());
     }
     public EvaluationMetricEnum DefaultLossFunction
@@ -145,8 +150,8 @@ public abstract class AbstractDatasetSample : AbstractSample
             if (GetObjective() == Objective_enum.Regression)
             {
                 //!D TODO return EvaluationMetricEnum.Rmse;
-                //return EvaluationMetricEnum.Mse;
-                return EvaluationMetricEnum.Mae;
+                return EvaluationMetricEnum.Mse;
+                //return EvaluationMetricEnum.Mae;
             }
             if (NumClass == 1)
             {
@@ -355,6 +360,12 @@ public abstract class AbstractDatasetSample : AbstractSample
         {
             y_pred_Encoded_InTargetFormat = DatasetEncoder.Inverse_Transform(y_pred_Encoded_InTargetFormat);
         }
+
+        if (PredictionsMustBeOrderedByIdColumn && IdColumns.Length != 0)
+        {
+            y_pred_Encoded_InTargetFormat = y_pred_Encoded_InTargetFormat.sort_values(IdColumns[0]);
+        }
+
         y_pred_Encoded_InTargetFormat.to_csv(path, GetSeparator());
     }
 

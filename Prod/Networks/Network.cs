@@ -10,6 +10,7 @@ using System.Threading;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
+using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
@@ -131,14 +132,14 @@ namespace SharpNet.Networks
             return Input(shape_CHW[0], shape_CHW.Length>=2?shape_CHW[1]:-1, shape_CHW.Length>=3?shape_CHW[2]:-1, layerName);
         }
 
-        public Network Input_and_Embedding_if_required(AbstractDatasetSample datasetSample, int embeddingDim, double lambdaL2Regularization, string layerName = "")
+        public Network Input_and_Embedding_if_required(AbstractDatasetSample datasetSample, int embeddingDim, double lambdaL2Regularization, float clipValueForGradients= 0, string layerName = "")
         {
             Input(datasetSample.GetInputShapeOfSingleElement(), layerName);
             var (vocabularySizes, embeddingDims, indexesInLastDimensionToUse) = datasetSample.EmbeddingDescription(embeddingDim);
             if (indexesInLastDimensionToUse.Length != 0)
             {
                 //We need to add an embedding layer to manage categorical features
-                Embedding(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, lambdaL2Regularization);
+                Embedding(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, lambdaL2Regularization, clipValueForGradients);
             }
             return this;
         }
@@ -831,7 +832,11 @@ namespace SharpNet.Networks
         public override (DataFrame, string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Sample.BatchSize);
-            return (DataFrame.New(cpuTensor), ""); //!D TODO : add labels
+            if (dataset is IGetDatasetSample getDatasetSample && getDatasetSample.GetDatasetSample().TargetLabels.Length == cpuTensor.Shape[1])
+            {
+                return (DataFrame.New(cpuTensor, getDatasetSample.GetDatasetSample().TargetLabels), "");
+            }
+            return (DataFrame.New(cpuTensor), "");
         }
 
         public override int GetNumEpochs()
@@ -910,8 +915,9 @@ namespace SharpNet.Networks
             // Length of the tensors used to store the expected (_yExpectedForEpoch) & predicted values (_yPredictedForEpoch)
             // Those tensors contains an extra buffer of 'miniBatchSizeForAllWorkers-1' elements at the end
             // to make sure we can always split the dataSet in batch of exactly 'miniBatchSizeForAllWorkers' elements
-            int multiplier = (dataSet.Count + miniBatchSizeForAllWorkers - 1) / miniBatchSizeForAllWorkers;
-            int dataSetCountWithExtraBufferAtEnd = miniBatchSizeForAllWorkers* multiplier;
+            //int multiplier = (dataSet.Count + miniBatchSizeForAllWorkers - 1) / miniBatchSizeForAllWorkers;
+            //int dataSetCountWithExtraBufferAtEnd = miniBatchSizeForAllWorkers* multiplier;
+            int dataSetCountWithExtraBufferAtEnd = dataSet.Count + miniBatchSizeForAllWorkers - 1;
             var YShapeAsMultipleOfMiniBatchSize = dataSet.YMiniBatch_Shape(dataSetCountWithExtraBufferAtEnd);
             MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, YShapeAsMultipleOfMiniBatchSize);
             MemoryPool.GetFloatTensor(ref _yExpectedForEpoch, YShapeAsMultipleOfMiniBatchSize);

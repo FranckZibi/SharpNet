@@ -57,7 +57,7 @@ namespace SharpNet.Networks
         {
             try { return ISample.LoadSample<EfficientNetNetworkSample>(workingDirectory, modelName); } catch { }
             try { return ISample.LoadSample<NetworkSample_1DCNN>(workingDirectory, modelName); } catch { }
-            try { return ISample.LoadSample<Cfm60NetworkSample>(workingDirectory, modelName); } catch { }
+            try { return ISample.LoadSample<Cfm60NetworkSampleOld>(workingDirectory, modelName); } catch { }
             try { return ISample.LoadSample<WideResNetNetworkSample>(workingDirectory, modelName); } catch { }
             //try { return ValueOfNetworkSample(workingDirectory, modelName); } catch { }
             throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
@@ -308,35 +308,35 @@ namespace SharpNet.Networks
             {
                 case Optimizer.OptimizationEnum.AdamW:
                     WithAdamW(AdamW_L2Regularization, Adam_beta1, Adam_beta2, Adam_epsilon);
-                    lambdaL2Regularization = SGD_momentum = 0;
-                    SGD_usenesterov = false;
+                    //lambdaL2Regularization = SGD_momentum = 0;
+                    //SGD_usenesterov = false;
                     break;
                 case Optimizer.OptimizationEnum.SGD:
                     WithSGD(SGD_momentum, SGD_usenesterov);
-                    AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
+                    //AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
                     break;
                 case Optimizer.OptimizationEnum.Adam:
                     WithAdam(Adam_beta1, Adam_beta2, Adam_epsilon);
-                    AdamW_L2Regularization = SGD_momentum = 0;
-                    SGD_usenesterov = false;
+                    //AdamW_L2Regularization = SGD_momentum = 0;
+                    //SGD_usenesterov = false;
                     break;
                 case Optimizer.OptimizationEnum.VanillaSGD:
                 case Optimizer.OptimizationEnum.VanillaSGDOrtho:
-                    SGD_momentum = AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
-                    SGD_usenesterov = false;
+                    //SGD_momentum = AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
+                    //SGD_usenesterov = false;
                     break; // no extra configuration needed
             }
 
             switch (LearningRateSchedulerType)
             {
                 case LearningRateSchedulerEnum.CyclicCosineAnnealing:
-                    WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
+                    WithCyclicCosineAnnealingLearningRateScheduler(CyclicCosineAnnealing_nbEpochsInFirstRun, CyclicCosineAnnealing_nbEpochInNextRunMultiplier, CyclicCosineAnnealing_MinLearningRate);
                     break;
                 case LearningRateSchedulerEnum.OneCycle:
-                    WithOneCycleLearningRateScheduler(200, 0.1);
+                    WithOneCycleLearningRateScheduler(OneCycle_DividerForMinLearningRate, OneCycle_PercentInAnnealing);
                     break;
                 case LearningRateSchedulerEnum.Linear:
-                    WithLinearLearningRateScheduler(1000);
+                    WithLinearLearningRateScheduler(Linear_DividerForMinLearningRate);
                     break;
             }
 
@@ -534,37 +534,12 @@ namespace SharpNet.Networks
 
         #region time series
 
-        // ReSharper disable once UnusedMember.Global
-        public void WithTimeSeriesDataAugmentation(TimeSeriesDataAugmentationEnum timeSeriesDataAugmentationType,
-            double augmentedFeaturesPercentage,
-            bool useContinuousFeatureInEachTimeStep,
-            bool sameAugmentedFeaturesForEachTimeStep,
-            double noiseInPercentageOfVolatility = 0.0)
-        {
-            Debug.Assert(augmentedFeaturesPercentage >= 0);
-            Debug.Assert(augmentedFeaturesPercentage <= (1f + 1e-6));
-            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.TIME_SERIES;
-            TimeSeriesDataAugmentationType = timeSeriesDataAugmentationType;
-            AugmentedFeaturesPercentage = augmentedFeaturesPercentage;
-            UseContinuousFeatureInEachTimeStep = useContinuousFeatureInEachTimeStep;
-            SameAugmentedFeaturesForEachTimeStep = sameAugmentedFeaturesForEachTimeStep;
-            NoiseInPercentageOfVolatility = noiseInPercentageOfVolatility;
-        }
-
-        public enum TimeSeriesDataAugmentationEnum
-        {
-            NOTHING,         //no change
-            REPLACE_BY_MEAN, //replace feature by its mean
-            REPLACE_BY_ZERO, //replace feature by zero
-            ADD_NOISE,       //add noise to feature
-        }
 
 
         // ReSharper disable once UnusedMember.Global
         public string TimeSeriesDescription()
         {
             string res = "_";
-            res += TimeSeriesDataAugmentationType;
             res += "_" + AugmentedFeaturesPercentage.ToString(CultureInfo.InvariantCulture).Replace(".", "_");
 
             if (UseContinuousFeatureInEachTimeStep)
@@ -575,14 +550,9 @@ namespace SharpNet.Networks
             {
                 res += "_SameFeaturesByTimeStep";
             }
-            if (TimeSeriesDataAugmentationType == TimeSeriesDataAugmentationEnum.ADD_NOISE)
-            {
-                res += "_noise_" + NoiseInPercentageOfVolatility.ToString(CultureInfo.InvariantCulture).Replace(".", "_");
-            }
             return res;
         }
 
-        public TimeSeriesDataAugmentationEnum TimeSeriesDataAugmentationType = TimeSeriesDataAugmentationEnum.NOTHING;
         public bool UseContinuousFeatureInEachTimeStep = false;
 
         /// <summary>

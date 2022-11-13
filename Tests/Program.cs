@@ -78,15 +78,16 @@ namespace SharpNetTests
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
-            //CFM60Tests();
+            //CFM60Tests(); return;
+            //CFM60DatasetSample.TrainNetwork(10);
 
             //WasYouStayWorthItsPriceDatasetSample.TrainNetwork(10, 120);
-            new ChallengeTools().StackedEnsemble(30, 0);
+            //new ChallengeTools().StackedEnsemble(30, 0);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
             //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(10, 10);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(50, 120);
+            //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(10, 10);
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
 
 
@@ -430,14 +431,14 @@ namespace SharpNetTests
         private static void CFM60Tests()
         {
             const bool useMultiGpu = false;
-            var networkGeometries = new List<Action<Cfm60NetworkSample, int>>
+            var networkGeometries = new List<Action<Cfm60NetworkSampleOld, int>>
             {
                 (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_CFM60(p);},
             };
 
-            var networkMetaParameters = new List<Func<Cfm60NetworkSample>>
+            var networkMetaParameters = new List<Func<Cfm60NetworkSampleOld>>
             {
-                () =>{var p = Cfm60NetworkSample.Default();p.ValueToPredict= Cfm60NetworkSample.ValueToPredictEnum.Y_TRUE_MINUS_LR ;return p;},
+                () =>{var p = Cfm60NetworkSampleOld.Default();return p;},
             };
 
             //networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 2);
@@ -447,21 +448,21 @@ namespace SharpNetTests
 
 
 
-        private static void Train_CFM60(Cfm60NetworkSample p)
+        private static void Train_CFM60(Cfm60NetworkSampleOld p)
         {
             using var network = p.CFM60();
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize4_64_DropoutRate0_2_20210115_1831_10.txt");
-            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => Model.Log.Info(s));
-            var cfm60 = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
+            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDatasetOld(p, s => Model.Log.Info(s));
+            var cfm60 = (CFM60DataSetOld)cfm60TrainingAndTestDataSet.Training;
             //To compute feature importances, uncomment the following line
             //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;
             using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.PercentageInTraining);
             //var res = network.FindBestLearningRate(cfm60, 1e-7, 0.9, p.Config.BatchSize);return;
-            ((CFM60DataSet)trainingValidation.Training).ValidationDataSet = (CFM60DataSet)trainingValidation.Test;
-            ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = (CFM60DataSet)cfm60TrainingAndTestDataSet.Test;
+            ((CFM60DataSetOld)trainingValidation.Training).ValidationDataSetOld = (CFM60DataSetOld)trainingValidation.Test;
+            ((CFM60DataSetOld)trainingValidation.Training).OriginalTestDataSetOld = (CFM60DataSetOld)cfm60TrainingAndTestDataSet.Test;
             network.Fit(trainingValidation.Training, trainingValidation.Test);
-            ((CFM60DataSet)trainingValidation.Training).ValidationDataSet = null;
-            ((CFM60DataSet)trainingValidation.Training).OriginalTestDataSet = null;
+            ((CFM60DataSetOld)trainingValidation.Training).ValidationDataSetOld = null;
+            ((CFM60DataSetOld)trainingValidation.Training).OriginalTestDataSetOld = null;
 
             //((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network);
             //((CFM60DataSet)trainingValidation.Test).CreatePredictionFile(network);

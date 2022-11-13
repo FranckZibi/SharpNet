@@ -596,8 +596,6 @@ namespace SharpNet.Datasets
         }
 
 
-        private TimeSeriesDataAugmentation TimeSeriesDataAugmentation;
-
         /// <summary>
         /// Load in 'xBufferMiniBatchCpu' & 'yBufferMiniBatchCpu' tensors the data related to the mini batch starting
         /// at 'firstIndexInShuffledElementId'
@@ -654,20 +652,6 @@ namespace SharpNet.Datasets
                 {
                     all_xOriginalNotAugmentedMiniBatch[x].CopyTo(all_xDataAugmentedMiniBatch[x]);
                 }
-            }
-            else if (dataAugmentationSample.DataAugmentationType == ImageDataGenerator.DataAugmentationEnum.TIME_SERIES)
-            {
-                //Data Augmentation for time series
-                for (int x = 0; x < all_xOriginalNotAugmentedMiniBatch.Count; ++x)
-                {
-                    all_xOriginalNotAugmentedMiniBatch[x].CopyTo(all_xDataAugmentedMiniBatch[x]);
-                }
-                if (TimeSeriesDataAugmentation == null)
-                {
-                    var featuresCount = all_xOriginalNotAugmentedMiniBatch[0].Shape[2];
-                    TimeSeriesDataAugmentation = new TimeSeriesDataAugmentation(dataAugmentationSample, (ITimeSeriesDataSet) this, featuresCount);
-                }
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => TimeSeriesDataAugmentation.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xDataAugmentedMiniBatch[0], GetRandomForIndexInMiniBatch(indexInMiniBatch)));
             }
             else
             {
@@ -789,7 +773,7 @@ namespace SharpNet.Datasets
         /// <param name="includeIdColumns"></param>
         /// <param name="overwriteIfExists"></param>
         /// <returns>the path (directory+filename) where the dataset has been saved</returns>
-        public string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
+        public virtual string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
         {
             var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn, includeIdColumns) + ".csv");
             to_csv(datasetPath, Separator, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);

@@ -183,7 +183,6 @@ public class NetworkSample_1DCNN : NetworkSample
             { "KFold", 2 },
             //{"PercentageInTraining", new[]{0.8}},
         };
-
         return searchSpace;
     }
 
