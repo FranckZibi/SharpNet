@@ -8,6 +8,7 @@ using SharpNet.Networks;
 using System;
 
 // ReSharper disable UnusedMember.Local
+
 namespace SharpNetTests
 {
     static class Program
