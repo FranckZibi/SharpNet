@@ -78,6 +78,10 @@ namespace SharpNetTests
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
+            KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\5ADF527ECE_FULL_modelformat_predict_test_.csv");
+            //KaggleDaysDatasetSample.CreateEnrichedDataSet();
+            //KaggleDaysDatasetSample.LaunchLightGBMHPO(10,10);
+
             //CFM60Tests(); return;
             //CFM60DatasetSample.TrainNetwork(10);
 

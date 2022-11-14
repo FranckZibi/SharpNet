@@ -408,7 +408,9 @@ public abstract class AbstractDatasetSample : AbstractSample
         {
             return DataFrame.New(predictionsInModelFormat.FloatCpuTensor().ArgMax(), TargetLabels);
         }
-        throw new NotImplementedException("Can't manage binary classification");
+
+        return predictionsInModelFormat;
+        //throw new NotImplementedException("Can't manage binary classification");
     }
 
 

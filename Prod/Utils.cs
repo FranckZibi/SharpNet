@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Xml;
+using CsvHelper;
 using log4net;
 using log4net.Config;
 using log4net.Util;
@@ -159,6 +160,7 @@ namespace SharpNet
                 case EvaluationMetricEnum.Mae:
                 case EvaluationMetricEnum.Mse:
                 case EvaluationMetricEnum.Rmse:
+                case EvaluationMetricEnum.BinaryCrossentropy: //?D
                     return false; // lower is better
                 default:
                     throw new NotImplementedException($"unknown {nameof(EvaluationMetricEnum)} : {evaluationMetric}");
@@ -453,6 +455,7 @@ namespace SharpNet
         public static IEnumerable<string[]> ReadCsv(string csvPath, char? mandatorySeparator = null)
         {
             using System.IO.TextReader fileReader = System.IO.File.OpenText(csvPath);
+
             var csvConfig = new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 TrimOptions = CsvHelper.Configuration.TrimOptions.InsideQuotes | CsvHelper.Configuration.TrimOptions.Trim
@@ -461,12 +464,15 @@ namespace SharpNet
             {
                 csvConfig.DetectDelimiter = false;
                 csvConfig.Delimiter = mandatorySeparator.Value.ToString();
+                csvConfig.BadDataFound = null;
             }
             else
             {
                 csvConfig.DetectDelimiter = true;
             }
+
             var csvParser = new CsvHelper.CsvParser(fileReader, csvConfig);
+
             while (csvParser.Read())
             {
                 string[] row = csvParser.Record;
