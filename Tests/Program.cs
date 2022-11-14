@@ -8,7 +8,6 @@ using SharpNet.Networks;
 using System;
 
 // ReSharper disable UnusedMember.Local
-
 namespace SharpNetTests
 {
     static class Program
@@ -85,9 +84,9 @@ namespace SharpNetTests
             //new ChallengeTools().StackedEnsemble(30, 0);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.Retrain();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(10, 10);
+            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(1, 1);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(10, 10);
+            WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(10, 10);
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
 
 
