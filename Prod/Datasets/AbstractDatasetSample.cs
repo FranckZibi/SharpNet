@@ -89,6 +89,7 @@ public abstract class AbstractDatasetSample : AbstractSample
         try { return ISample.LoadSample<Natixis70DatasetSample>(workingDirectory, sampleName); } catch { }
         //try { return ISample.LoadSample<AmazonEmployeeAccessChallengeDatasetSample>(workingDirectory, sampleName); } catch { }
         try { return ISample.LoadSample<WasYouStayWorthItsPriceDatasetSample>(workingDirectory, sampleName); } catch { }
+        try { return ISample.LoadSample<KaggleDaysDatasetSample>(workingDirectory, sampleName); } catch { }
         throw new ArgumentException($"can't load a {nameof(AbstractDatasetSample)} with name {sampleName} from directory {workingDirectory}");
     }
     #endregion

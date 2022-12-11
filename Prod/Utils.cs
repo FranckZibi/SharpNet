@@ -11,11 +11,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Xml;
-using CsvHelper;
 using log4net;
 using log4net.Config;
 using log4net.Util;
 using SharpNet.Pictures;
+using Path = System.IO.Path;
 
 namespace SharpNet
 {
@@ -116,7 +116,6 @@ namespace SharpNet
             var invalids = new HashSet<char>(Path.GetInvalidFileNameChars());
             return new string(fileName.Select(x => invalids.Contains(x) ? '_' : x).ToArray());
         }
-
         public static int Product(int[] data)
         {
             if ((data == null) || (data.Length == 0))
@@ -132,22 +131,18 @@ namespace SharpNet
 
             return result;
         }
-
         // ReSharper disable once UnusedMember.Global
         public static ulong AvailableRamMemoryInBytes()
         {
             var ramCounter = new PerformanceCounter("Memory", "Available Bytes");
             return (ulong)ramCounter.NextValue();
         }
-
         public static IList<IList<T>> AllPermutations<T>(List<T> data)
         {
             var result = new List<IList<T>>();
             AllPermutationsHelper(data, 0, result);
             return result;
         }
-
-
         public static bool HigherScoreIsBetter(EvaluationMetricEnum evaluationMetric)
         {
             switch (evaluationMetric)
@@ -157,17 +152,19 @@ namespace SharpNet
                 case EvaluationMetricEnum.CosineSimilarity504:
                 case EvaluationMetricEnum.F1Micro:
                     return true; // higher is better
+                case EvaluationMetricEnum.BinaryCrossentropy:
+                case EvaluationMetricEnum.CategoricalCrossentropy:
+                case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
+                case EvaluationMetricEnum.Huber:
                 case EvaluationMetricEnum.Mae:
                 case EvaluationMetricEnum.Mse:
+                case EvaluationMetricEnum.MseOfLog:
                 case EvaluationMetricEnum.Rmse:
-                case EvaluationMetricEnum.BinaryCrossentropy: //?D
                     return false; // lower is better
                 default:
                     throw new NotImplementedException($"unknown {nameof(EvaluationMetricEnum)} : {evaluationMetric}");
             }
         }
-
-
         /// <summary>
         /// true if score 'a' is better then score 'b'
         /// </summary>
@@ -194,7 +191,6 @@ namespace SharpNet
                 return a < b;
             }
         }
-
         /// <summary>
         /// duplicate the input list 'data' by 'repeatCount' time:
         /// Each element of the initial list will be duplicated 'repeatCount' time:
@@ -217,7 +213,6 @@ namespace SharpNet
             }
             return result;
         }
-
         public static string ShapeToStringWithBatchSize(int[] shape)
         {
             if (shape == null)
@@ -227,7 +222,6 @@ namespace SharpNet
 
             return "(None, " + string.Join(", ", shape.Skip(1)) + ")";
         }
-
         public static string ShapeToString(int[] shape)
         {
             if (shape == null)
@@ -237,7 +231,6 @@ namespace SharpNet
 
             return "(" + string.Join(", ", shape) + ")";
         }
-
         public static ulong Sum(this IEnumerable<ulong> vector)
         {
             ulong result = 0;
@@ -248,7 +241,6 @@ namespace SharpNet
 
             return result;
         }
-
         public static string MemoryBytesToString(ulong bytes)
         {
             if (bytes > 15_000_000_000)
@@ -268,7 +260,6 @@ namespace SharpNet
 
             return bytes + "B";
         }
-
         public static double Interpolate(List<Tuple<double, double>> values, double x, bool constantByInterval = false)
         {
             if (values.Count == 1)
@@ -304,14 +295,12 @@ namespace SharpNet
 
             return values.Last().Item2;
         }
-
         public static double Interpolate(double x1, double y1, double x2, double y2, double xToInterpolate)
         {
             double dEpoch = (xToInterpolate - x1) / (x2 - x1);
             double deltaLearningRate = (y2 - y1);
             return y1 + dEpoch * deltaLearningRate;
         }
-
         public static void UniformDistribution(Span<float> toRandomize, Random rand, double minValue, double maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
@@ -319,7 +308,6 @@ namespace SharpNet
                 toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
             }
         }
-
         public static void UniformDistribution(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
@@ -327,7 +315,6 @@ namespace SharpNet
                 toRandomize[j] = (byte)(minValue + rand.Next(maxValue - minValue + 1));
             }
         }
-
         public static void NormalDistribution(Span<float> toRandomize, Random rand, double mean, double stdDev)
         {
             for (int j = 0; j < toRandomize.Length; ++j)
@@ -335,8 +322,6 @@ namespace SharpNet
                 toRandomize[j] = (float)NextDoubleNormalDistribution(rand, mean, stdDev);
             }
         }
-
-
         /// <summary>
         /// compute the mean and volatility of 'data'
         /// </summary>
@@ -363,7 +348,6 @@ namespace SharpNet
             var volatility = Math.Sqrt(Math.Max(0, variance));
             return ((float)mean, (float)volatility);
         }
-
         public static void Shuffle<T>(IList<T> list, Random rand)
         {
             int n = list.Count;
@@ -376,7 +360,6 @@ namespace SharpNet
                 list[n] = value;
             }
         }
-
         public static void Shuffle<T>(IList<T> list, Random rand, int blockSize)
         {
             Debug.Assert(list.Count%blockSize == 0);
@@ -391,7 +374,6 @@ namespace SharpNet
                 }
             }
         }
-
         public static int FirstMultipleOfAtomicValueAboveOrEqualToMinimum(int minimum, int atomicValue)
         {
             if (minimum % atomicValue != 0)
@@ -401,7 +383,6 @@ namespace SharpNet
 
             return minimum;
         }
-
         public static string UpdateFilePathChangingExtension(string filePath, string prefix, string suffix,
             string newExtension)
         {
@@ -414,7 +395,6 @@ namespace SharpNet
             string path = GetDirectoryName(filePath);
             return ConcatenatePathWithFileName(path, prefix + fileNameWithoutExtension + suffix + newExtension);
         }
-
         public static string ConcatenatePathWithFileName(string path, params string[] subPaths)
         {
             string result = path;
@@ -425,8 +405,6 @@ namespace SharpNet
 
             return result;
         }
-
-
         //private static readonly Dictionary<string, List<string[]>> ReadCsvCache = new();
         //private static readonly object LockObject = new();
         //public static List<string[]> ReadCsvWithCache(string csvPath, char? mandatorySeparator = null)
@@ -440,9 +418,6 @@ namespace SharpNet
         //        return ReadCsvCache[csvPath];
         //    }
         //}
-
-
-
         /// <summary>
         /// Read all rows of a CSV file
         /// if the separator (parameter: mandatorySeparator) is not provided, it will be detected automatically
@@ -483,8 +458,6 @@ namespace SharpNet
                 yield return row;
             }
         }
-
-
         /// <summary>
         /// return the intersection of list a and b
         /// (elements that are in both 'a' and 'b')
@@ -510,7 +483,6 @@ namespace SharpNet
             }
             return result;
         }
-
         public static List<T> Without<T>(IEnumerable<T> a, IEnumerable<T> b)
         {
             var result = new List<T>();
@@ -529,7 +501,7 @@ namespace SharpNet
             }
             return result;
         }
-
+        // ReSharper disable once UnusedMember.Global
         public static List<T> Join<T>(IEnumerable<T> a, IEnumerable<T> b)
         {
             var result = new List<T>();
@@ -547,12 +519,10 @@ namespace SharpNet
             first.AddRange(b);
             return first;
         }
-
         public static long FileLength(string path)
         {
             return new FileInfo(path).Length;
         }
-
         /// <summary>
         /// read a part of a binary file, starting at position 'startIndex' in the file
         /// </summary>
@@ -571,7 +541,6 @@ namespace SharpNet
                 return b.ReadBytes(byteCount);
             }
         }
-
         public static bool TryGet<T>(this IDictionary<string, object> serialized, string key, out T value)
         {
             if (serialized.TryGetValue(key, out var resAsObject))
@@ -583,7 +552,6 @@ namespace SharpNet
             value = default;
             return false;
         }
-
         //public static T GetOrDefault<T>(this IDictionary<string, object> serialized, string key, T defaultValue)
         //{
         //    if (serialized.TryGetValue(key, out var resAsObject))
@@ -594,6 +562,7 @@ namespace SharpNet
         //    return defaultValue;
         //}
 
+        // ReSharper disable once UnusedMember.Global
         public static T TryGet<T>(this IDictionary<string, object> serialized, string key)
         {
             if (serialized.TryGetValue(key, out var resAsObject))
@@ -603,7 +572,6 @@ namespace SharpNet
 
             return default;
         }
-
         //public static bool Equals<T>(T a, T b, string id, ref string errors)
         //{
         //    if (!Equals(a, b))
@@ -614,7 +582,6 @@ namespace SharpNet
 
         //    return true;
         //}
-
         public static bool Equals(double a, double b, double epsilon, string id, ref string errors)
         {
             if (Math.Abs(a - b) > epsilon)
@@ -625,7 +592,6 @@ namespace SharpNet
 
             return true;
         }
-
         public static double BetaDistribution(double a, double b, Random rand)
         {
             var alpha = a + b;
@@ -656,7 +622,6 @@ namespace SharpNet
 
             return w / (b + w);
         }
-
         public static string LoadResourceContent(Assembly assembly, string resourceName)
         {
             using (var resourceStream = assembly.GetManifestResourceStream(resourceName))
@@ -666,7 +631,6 @@ namespace SharpNet
                 return reader.ReadToEnd();
             }
         }
-
         public static T2[] Select<T1, T2>(this ReadOnlySpan<T1> s, Func<T1, T2> select)
         {
             var res = new T2[s.Length];
@@ -677,7 +641,6 @@ namespace SharpNet
 
             return res;
         }
-
         public static int Count<T>(this ReadOnlySpan<T> s, Func<T, bool> isIncluded)
         {
             int result = 0;
@@ -691,7 +654,6 @@ namespace SharpNet
 
             return result;
         }
-
         public static float Max(this ReadOnlySpan<float> s)
         {
             var result = float.MinValue;
@@ -702,7 +664,6 @@ namespace SharpNet
 
             return result;
         }
-
         public static float Min(this ReadOnlySpan<float> s)
         {
             var result = float.MaxValue;
@@ -713,18 +674,6 @@ namespace SharpNet
 
             return result;
         }
-
-        private static float Sum(this ReadOnlySpan<float> s)
-        {
-            var result = 0f;
-            foreach (var t in s)
-            {
-                result += t;
-            }
-
-            return result;
-        }
-
         public static float Average(this ReadOnlySpan<float> s)
         {
             if (s == null || s.Length == 0)
@@ -734,79 +683,23 @@ namespace SharpNet
 
             return Sum(s) / s.Length;
         }
-
-        private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
-        {
-            if (i == data.Count - 1)
-            {
-                result.Add(new List<T>(data));
-                return;
-            }
-
-            //var alreadyUsed = new HashSet<T>(); //to discard duplicate solutions
-            for (var j = i; j < data.Count; ++j)
-            {
-                //if (!alreadyUsed.Add(data[j])) continue; //to discard duplicate solutions
-                var tmp = data[i];
-                data[i] = data[j];
-                data[j] = tmp;
-                AllPermutationsHelper(data, i + 1, result);
-                tmp = data[i];
-                data[i] = data[j];
-                data[j] = tmp;
-            }
-        }
-
-        private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
-        {
-            //uniform(0,1) random double
-            var u1 = rand.NextDouble();
-            //uniform(0,1) random double
-            var u2 = rand.NextDouble();
-            //random normal(0,1)
-            var randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-            //random normal(mean,stdDev^2)
-            return mean + stdDev * randStdNormal;
-        }
-
-        private static string GetDirectoryName(string path)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(path))
-                {
-                    return "";
-                }
-
-                return Path.GetDirectoryName(path);
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Sigmoid(float x)
         {
             return (float)(1 / (1 + Math.Exp(-x)));
         }
-
         public static string GetString(XmlNode node, string keyName)
         {
             return node?.SelectSingleNode(keyName)?.InnerText ?? "";
         }
-
         public static int GetInt(XmlNode node, string keyName, int defaultValue)
         {
             return int.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
         }
-
         public static bool GetBool(XmlNode node, string keyName, bool defaultValue)
         {
             return bool.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
         }
-
         public static void ConfigureGlobalLog4netProperties(string logDirectory, string logFile)
         {
             lock (lockConfigureLog4netProperties)
@@ -816,7 +709,6 @@ namespace SharpNet
                     new FileInfo(@"log4net.config"));
             }
         }
-
         public static void ConfigureThreadLog4netProperties(string logDirectory, string logFile)
         {
             lock (lockConfigureLog4netProperties)
@@ -825,7 +717,6 @@ namespace SharpNet
                 XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
             }
         }
-
         public static void ConfigureThreadIdLog4netProperties()
         {
             lock (lockConfigureLog4netProperties)
@@ -833,16 +724,6 @@ namespace SharpNet
                 ThreadContext.Properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
             }
         }
-
-        private static readonly object lockConfigureLog4netProperties = new object();
-
-        private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)
-        {
-            properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
-            properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
-            properties["logfile"] = logFile;
-        }
-
         /// <summary>
         /// return the SHA-1 of the image file (160 bits stored in a string of 40 bytes in hexadecimal format: 0=>f)
         /// ignoring all metadata associated with the image
@@ -864,7 +745,6 @@ namespace SharpNet
                 return "";
             }
         }
-
         /// <summary>
         /// return the SHA-1 of a file (160 bits stored in a string of 40 bytes in hexadecimal format: 0=>f)
         /// </summary>
@@ -893,12 +773,10 @@ namespace SharpNet
 
             return formatted.ToString();
         }
-
         public static int NearestInt(double d)
         {
             return (int)Math.Round(d);
         }
-
         public static bool SameContent(float[] a, float[] b, double epsilon)
         {
             if (a.Length != b.Length)
@@ -921,7 +799,6 @@ namespace SharpNet
 
             return true;
         }
-
         /// <summary>
         ///  version contains(1000 major + 100 minor + build).
         /// For example, 7.6.5 would be represented by 7605
@@ -935,7 +812,6 @@ namespace SharpNet
             var build = version % 100;
             return new Version(major, minor, build);
         }
-
         /// <summary>
         ///  version contains(1000 major + 10 minor).
         /// For example, 9.2 would be represented by 9020
@@ -948,7 +824,6 @@ namespace SharpNet
             var minor = (version % 1000) / 10;
             return new Version(major, minor);
         }
-
         public static string ComputeHash(string input, int maxLength)
         {
             // Use input string to calculate MD5 hash
@@ -965,7 +840,6 @@ namespace SharpNet
 
             return sb.ToString().Substring(0, maxLength);
         }
-
         public static int CoreCount
         {
             get
@@ -978,8 +852,6 @@ namespace SharpNet
                 return coreCount;
             }
         }
-
-
         /// <summary>
         /// Compute the % of time to invest on each use case, knowing the error associated with each use case
         /// </summary>
@@ -1065,8 +937,6 @@ namespace SharpNet
             Debug.Assert(Math.Abs(result.ToList().Sum()-1)<=1e-5);
             return result;
         }
-
-
         public static int RandomIndexBasedOnWeights(double[] weights, Random rand)
         {
             if (weights.Length <= 1)
@@ -1086,9 +956,6 @@ namespace SharpNet
             }
             return weights.Length - 1;
         }
-
-
-
         public static string FieldValueToJsonString(object fieldValue)
         {
             if (fieldValue == null)
@@ -1117,8 +984,6 @@ namespace SharpNet
             }
             return asString;
         }
-
-
         public static string FieldValueToString(object fieldValue)
         {
             if (fieldValue == null)
@@ -1158,7 +1023,6 @@ namespace SharpNet
 
             throw new ArgumentException($"can transform to string field {fieldValue} of type {fieldValue.GetType()}");
         }
-
         public static IDictionary<string, object> FromString2String_to_String2Object(IDictionary<string, string> dicoString2String)
         {
             var dicoString2Object = new Dictionary<string, object>();
@@ -1168,7 +1032,6 @@ namespace SharpNet
             }
             return dicoString2Object;
         }
-
         public static bool TryDelete(string filePath)
         {
             if (string.IsNullOrEmpty(filePath))
@@ -1190,8 +1053,6 @@ namespace SharpNet
             }
         }
         public static string ChallengesPath => @"C:\Projects\Challenges";
-
-
         public static void Launch(string workingDirectory, string exePath, string arguments, ILog log)
         {
             var errorDataReceived = "";
@@ -1258,7 +1119,70 @@ namespace SharpNet
             }
         }
 
+        private static float Sum(this ReadOnlySpan<float> s)
+        {
+            var result = 0f;
+            foreach (var t in s)
+            {
+                result += t;
+            }
 
+            return result;
+        }
+        private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
+        {
+            if (i == data.Count - 1)
+            {
+                result.Add(new List<T>(data));
+                return;
+            }
+
+            //var alreadyUsed = new HashSet<T>(); //to discard duplicate solutions
+            for (var j = i; j < data.Count; ++j)
+            {
+                //if (!alreadyUsed.Add(data[j])) continue; //to discard duplicate solutions
+                var tmp = data[i];
+                data[i] = data[j];
+                data[j] = tmp;
+                AllPermutationsHelper(data, i + 1, result);
+                tmp = data[i];
+                data[i] = data[j];
+                data[j] = tmp;
+            }
+        }
+        private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
+        {
+            //uniform(0,1) random double
+            var u1 = rand.NextDouble();
+            //uniform(0,1) random double
+            var u2 = rand.NextDouble();
+            //random normal(0,1)
+            var randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+            //random normal(mean,stdDev^2)
+            return mean + stdDev * randStdNormal;
+        }
+        private static string GetDirectoryName(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path))
+                {
+                    return "";
+                }
+
+                return Path.GetDirectoryName(path);
+            }
+            catch (Exception)
+            {
+                return "";
+            }
+        }
+        private static readonly object lockConfigureLog4netProperties = new object();
+        private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)
+        {
+            properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
+            properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
+            properties["logfile"] = logFile;
+        }
     }
-
 }

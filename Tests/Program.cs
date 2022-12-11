@@ -78,9 +78,11 @@ namespace SharpNetTests
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
-            KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\5ADF527ECE_FULL_modelformat_predict_test_.csv");
+            //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\5ADF527ECE_FULL_modelformat_predict_test_.csv");return;
+            //KaggleDaysDatasetSample.Enrich(@"\\ryzen2700\Challenges\KaggleDays\submission\4A0F9F595A_KFOLD_FULL_modelformat_predict_test_.csv"); return;
             //KaggleDaysDatasetSample.CreateEnrichedDataSet();
-            //KaggleDaysDatasetSample.LaunchLightGBMHPO(10,10);
+            KaggleDaysDatasetSample.LaunchLightGBMHPO(50,0);
+            //KaggleDaysDatasetSample.LaunchCatBoostHPO(30, 0);
 
             //CFM60Tests(); return;
             //CFM60DatasetSample.TrainNetwork(10);

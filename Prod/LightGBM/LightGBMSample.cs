@@ -188,6 +188,7 @@ public class LightGBMSample : AbstractSample, IModelSample
     //max number of leaves in one tree
     //aliases: num_leaf, max_leaves, max_leaf, max_leaf_nodes
     //constraints: 1 < num_leaves <= 131072
+    //default: 31
     public int num_leaves = DEFAULT_VALUE;
 
     //used only in train, prediction and refit tasks or in correspondent functions of language-specific packages

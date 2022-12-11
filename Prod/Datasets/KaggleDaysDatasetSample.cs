@@ -16,25 +16,26 @@ namespace SharpNet.Datasets;
 
 public class KaggleDaysDatasetSample : AbstractDatasetSample
 {
-
-
-    //public string ToRemove = "product_id,subbrand,keyword";
-    public string ToRemove = "product_id,subbrand,keyword,market";
-
-
     #region private fields
     private const string NAME = "KaggleDays";
-    private static readonly DataFrame xytrain_string_df;
-    private static readonly DataFrame xtest_string_df;
+    private static DataFrame xytrain_string_df;
+    private static DataFrame xtest_string_df;
     private static readonly ConcurrentDictionary<string, Tuple<DataSetV2, DataSetV2, DatasetEncoder>> CacheDataset = new();
     #endregion
-    /*
-    static KaggleDaysDatasetSample()
+  
+    private readonly object lockObject = new();
+    private KaggleDaysDatasetSample() : base(new HashSet<string>())
     {
-        xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile);
-        xtest_string_df = DataFrame.read_string_csv(XTestRawFile);
+        lock (lockObject)
+        {
+            if (xytrain_string_df == null)
+            {
+                xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile);
+                xtest_string_df = DataFrame.read_string_csv(XTestRawFile);
+            }
+        }
     }
-    */
+
 
     public static string[] RemoveComma(string[] str)
     {
@@ -83,8 +84,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
         var idFile = Utils.ReadCsv(Path.Combine(DataDirectory, "idsContent.csv")).Skip(1).ToArray();
 
-        Dictionary<string, List<string>> sessionIdToProducts = new();
-
 
         Dictionary<string, List<Tuple<string,float>>> losses = new ();
         for (int i = 0; i < idFile.Length; i++)
@@ -111,7 +110,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             }
             else
             {
-                string[] sorted = losses[sess].OrderByDescending(t => t.Item2).ToArray().Take(12).Select(t=>t.Item1).ToArray();
+                string[] sorted = losses[sess].OrderBy(t => t.Item2).ToArray().Take(12).Select(t=>t.Item1).ToArray();
                 linePred.Add(sess + ","+string.Join(' ', sorted));
             }
         }
@@ -140,10 +139,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
           var file1 = DataFrame.read_string_csv(Path.Combine(DataDirectory, "search_test_v2.csv"))["keyword"];
           var file2 = DataFrame.read_string_csv(Path.Combine(DataDirectory, "search_train_v2.csv"))["keyword"];
           var file = DataFrame.MergeVertically(file1, file2);
-
-          //review_file = review_file.TfIdfEncode("property_4", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true)
-          //            .TfIdfEncode("property_5", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true)
-          //            .TfIdfEncode("property_7", 20, keepEncodedColumnName: true, reduceEmbeddingDimIfNeeded: true);
           var encoded_review_df = file
               .TfIdfEncode("keyword", tfidf_count, norm:TfIdfEncoding.TfIdfEncoding_norm.L2, scikitLearnCompatibilityMode:false, keepEncodedColumnName:true)
               .AverageBy("keyword");
@@ -330,10 +325,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     }
 
 
-    private KaggleDaysDatasetSample() : base(new HashSet<string>())
-    {
-    }
-
     #region Hyper-Parameters
     // ReSharper disable once UnusedMember.Global
     // ReSharper disable once MemberCanBePrivate.Global
@@ -343,6 +334,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     /// the embedding dim to use to enrich the dataset with the reviews
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
+    //public string ToRemove = "product_id,subbrand,keyword";
+    public string ToRemove = "product_id,subbrand,keyword,market";
     #endregion
 
     public override int NumClass => 1;
@@ -350,7 +343,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
     public override Objective_enum GetObjective() => Objective_enum.Classification;
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.BinaryCrossentropy;
-    //public override IScore MinimumScoreToSaveModel => new Score(0.32f, GetRankingEvaluationMetric());
     public override string[] CategoricalFeatures => new[] { "channel_grouping", "country", "region", "device_category", "category", "name", "market" };
     public override string[] IdColumns => new[] { "session_id" };
     public override string[] TargetLabels => new[] { "ok" };
@@ -401,8 +393,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
     private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    private static string XYTrainRawFile => Path.Combine(DataDirectory, "search_train_v2.csvv3.csv");
-    private static string XTestRawFile => Path.Combine(DataDirectory, "search_test_v2.csvv3.csv");
+    private static string XYTrainRawFile => Path.Combine(DataDirectory, "search_train_v2.csvv4.csv");
+    private static string XTestRawFile => Path.Combine(DataDirectory, "search_test_v2.csvv4.csv");
 
 
     // ReSharper disable once UnusedMember.Global
@@ -417,30 +409,43 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             //uncomment appropriate one
             //{"LossFunction", "Rmse"},                     //for Regression Tasks: Rmse, Mse, Mae, etc.
             //{"LossFunction", "BinaryCrossentropy"},       //for binary classification
-            //{"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
+            {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
 
             // Optimizer 
-            { "OptimizerType", new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
-            { "AdamW_L2Regularization", new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
-            { "SGD_usenesterov", new[] { true, false } },
-            { "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { "OptimizerType", new[] { "AdamW"} },
+            //{ "OptimizerType", "AdamW" },
+            { "AdamW_L2Regularization", new[] {0.001f, 0.01f } },
+            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.001f/4, 0.001f*4, AbstractHyperParameterSearchSpace.range_type.normal) },
+            //{ "AdamW_L2Regularization", 0.001f },
+            //{ "SGD_usenesterov", new[] { true, false } },
+            //{ "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, } },
 
             // Learning Rate
-            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.001f/4, 0.001f*4, AbstractHyperParameterSearchSpace.range_type.normal) },
+            //{ "InitialLearningRate", 0.001f },
             // Learning Rate Scheduler
-            { "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
-            { "EmbeddingDim", new[] { 0, 4, 8, 12 } },
+            { "LearningRateSchedulerType", new[] { "OneCycle" } },
+            //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
+            //{ "EmbeddingDim", new[] { 0, 4, 8, 12 } },
+            { "EmbeddingDim", new[]{4, 8} },
             //{"weight_norm", new[]{true, false}},
             //{"leaky_relu", new[]{true, false}},
             { "dropout_top", new[] { 0, 0.1, 0.2 } },
             { "dropout_mid", new[] { 0, 0.3, 0.5 } },
             { "dropout_bottom", new[] { 0, 0.2, 0.4 } },
-            { "BatchSize", new[] { 256, 512, 1024, 2048 } },
+            { "BatchSize", new[] {1024, 2048, 4096} },
             { "NumEpochs", new[] { numEpochs } },
 
-        };
 
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new KaggleDaysDatasetSample()), WorkingDirectory);
+            { "hidden_size", new[]{512, 1024,2048} },
+            { "channel_1", 128},
+            { "channel_2", 256},
+            { "channel_3", 256},
+
+    };
+
+        //var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new KaggleDaysDatasetSample()), WorkingDirectory);
+        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new KaggleDaysDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
@@ -466,14 +471,16 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             { "iterations", iterations },
             { "od_type", "Iter"},
             { "od_wait",iterations/10},
-            { "depth", AbstractHyperParameterSearchSpace.Range(2, 10) },
-            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
-            { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
-            { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
-            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
+            { "depth", 7 /* AbstractHyperParameterSearchSpace.Range(7, 8)*/ },
+            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.3f, 0.7f)}, //0.5204
+            { "random_strength",AbstractHyperParameterSearchSpace.Range(0.01f, 0.1f, AbstractHyperParameterSearchSpace.range_type.normal)}, //0.07
+            { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
+            { "l2_leaf_reg", 2 /*AbstractHyperParameterSearchSpace.Range(0, 10)*/},
         };
+        
 
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
+        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
+        //var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
@@ -485,8 +492,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            //{"KFold", 2},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
             
             { "num_threads", 1},
@@ -507,25 +514,25 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             
             
             //{ "boosting", new []{"gbdt", "dart"}},
-            { "boosting", "gbdt"},
-            //?D { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
+            { "boosting", "dart"},
+            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
 
-            //{ "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
             { "learning_rate", new[]{0.001, 0.01, 0.1}},
             //{ "max_depth", new[]{10, 20, 50, 100, 255} },
-            { "max_depth", new[]{10, 20} },
-            //{ "min_data_in_leaf", new[]{20, 50 /*,100*/} },
-            //{ "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
-            { "num_leaves", new[]{3,10,20} },
+            { "max_depth", new[]{10, 20, 50} },
+            { "min_data_in_leaf", new[]{20, 50 ,100} },
+            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
+            //{ "num_leaves", new[]{3,15,50} },
 
             ////medium priority
             //{ "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
-            //{ "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             //{ "min_data_in_bin", new[]{3, 10, 100, 150}  },
             //{ "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
-            //{ "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
-            //{ "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
+            { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
+            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
 
             ////low priority
             //{ "extra_trees", new[] { true , false } }, //low priority 

@@ -64,7 +64,7 @@ _ReSharper*/
 #other tempory files
 *.prfsession
 
-
+Misc.cs
 test_*.jpg
 test_*.png
 Demo-MNist/

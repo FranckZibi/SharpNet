@@ -53,7 +53,26 @@ public class TestUtils
         Assert.AreEqual(expectedResult, Utils.IsBetterScore(a, b, metric));
     }
 
-    [Test]
+    [TestCase(true, EvaluationMetricEnum.Accuracy)]
+    [TestCase(true, EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)]
+    [TestCase(true, EvaluationMetricEnum.CosineSimilarity504)]
+    [TestCase(true, EvaluationMetricEnum.F1Micro)]
+    [TestCase(false, EvaluationMetricEnum.Huber)]
+    [TestCase(false, EvaluationMetricEnum.Mae)]
+    [TestCase(false, EvaluationMetricEnum.Mse)]
+    [TestCase(false, EvaluationMetricEnum.MseOfLog)]
+    [TestCase(false, EvaluationMetricEnum.Rmse)]
+    [TestCase(false, EvaluationMetricEnum.BinaryCrossentropy)]
+    [TestCase(false, EvaluationMetricEnum.CategoricalCrossentropy)]
+    [TestCase(false, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy)]
+    public void TestHigherScoreIsBetter(bool expectedResult, EvaluationMetricEnum metric)
+    {
+        Assert.AreEqual(12, Enum.GetNames(typeof(EvaluationMetricEnum)).Length, $"expecting {Enum.GetNames(typeof(EvaluationMetricEnum)).Length} distinct tests for each {typeof(EvaluationMetricEnum)}");
+        Assert.AreEqual(expectedResult, Utils.HigherScoreIsBetter(metric));
+    }
+    
+
+        [Test]
     public void TestBetaDistribution()
     {
         double sum = 0.0;
