@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 using SharpNet.MathTools;
 
 namespace SharpNet.Datasets;
@@ -11,6 +9,7 @@ namespace SharpNet.Datasets;
 public class ColumnStatistics
 {
     private readonly bool _standardizeDoubleValues;
+    private readonly bool _allDataFrameAreAlreadyNormalized;
 
     #region private fields
     private readonly Dictionary<string, int> _distinctCategoricalValueToCount = new();
@@ -45,6 +44,7 @@ public class ColumnStatistics
 
 
     #region constructors
+
     /// <summary>
     /// 
     /// </summary>
@@ -55,9 +55,11 @@ public class ColumnStatistics
     /// true if we should standardize double values (mean 0 and volatility 1)
     /// false if we should not transform double values
     /// </param>
-    public ColumnStatistics(bool isCategorical, bool isTargetLabel, bool isId, bool standardizeDoubleValues)
+    /// <param name="allDataFrameAreAlreadyNormalized"></param>
+    public ColumnStatistics(bool isCategorical, bool isTargetLabel, bool isId, bool standardizeDoubleValues, bool allDataFrameAreAlreadyNormalized)
     {
         _standardizeDoubleValues = standardizeDoubleValues;
+        _allDataFrameAreAlreadyNormalized = allDataFrameAreAlreadyNormalized;
         IsCategorical = isCategorical;
         IsTargetLabel = isTargetLabel;
         IsId = isId;
@@ -69,7 +71,10 @@ public class ColumnStatistics
         ++Count;
         if (IsCategorical)
         {
-            val_before_encoding = NormalizeCategoricalFeatureValue(val_before_encoding);
+            if (!_allDataFrameAreAlreadyNormalized)
+            {
+                val_before_encoding = Utils.NormalizeCategoricalFeatureValue(val_before_encoding);
+            }
             if (val_before_encoding.Length == 0)
             {
                 ++CountEmptyElements;
@@ -135,7 +140,10 @@ public class ColumnStatistics
     {
         if (IsCategorical)
         {
-            val_before_encoding = NormalizeCategoricalFeatureValue(val_before_encoding);
+            if (!_allDataFrameAreAlreadyNormalized)
+            {
+                val_before_encoding = Utils.NormalizeCategoricalFeatureValue(val_before_encoding);
+            }
             if (val_before_encoding.Length == 0 || !_distinctCategoricalValueToCount.ContainsKey(val_before_encoding))
             {
                 return -1;
@@ -296,56 +304,5 @@ public class ColumnStatistics
         return isNegative ? -result : result;
 
     }
-
-    private static string NormalizeCategoricalFeatureValue(string value)
-    {
-        value = value.Trim();
-        if (!value.Any(CharToBeRemovedInStartOrEnd))
-        {
-            return value;
-        }
-        int nbToRemoveStart = 0;
-        foreach (var c in value)
-        {
-            if (!CharToBeRemovedInStartOrEnd(c))
-            {
-                break;
-            }
-            ++nbToRemoveStart;
-        }
-
-        if (nbToRemoveStart != 0)
-        {
-            value = value.Substring(nbToRemoveStart);
-        }
-
-        int nbToRemoveEnd = 0;
-        for (int i = value.Length - 1; i >= 0; --i)
-        {
-            if (!CharToBeRemovedInStartOrEnd(value[i]))
-            {
-                break;
-            }
-            ++nbToRemoveEnd;
-        }
-        if (nbToRemoveEnd != 0)
-        {
-            value = value.Substring(0, value.Length - nbToRemoveEnd);
-        }
-
-        if (value.Any(CharToBeRemovedInStartOrEnd))
-        {
-            var sb = new StringBuilder();
-            foreach (var c in value)
-            {
-                sb.Append(CharToBeRemovedInStartOrEnd(c)?' ':c);
-            }
-            value = sb.ToString();
-        }
-        return value;
-    }
-    private static bool CharToBeRemovedInStartOrEnd(char c)
-    {
-        return char.IsWhiteSpace(c) || c == '\'' || c == '\"' || c == '\n' || c == '\r' || c == ';' || c == ',';
-    }
+   
 }

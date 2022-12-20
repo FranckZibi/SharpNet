@@ -12,7 +12,7 @@ public class KFoldSample : AbstractSample, IModelSample
     private KFoldSample() : base(new HashSet<string>())
     {
     }
-    public KFoldSample(int nSplits, string embeddedModelWorkingDirectory, EvaluationMetricEnum embeddedModelLoss, int countMustBeMultipleOf) : base(new HashSet<string>())
+    public KFoldSample(int nSplits, string embeddedModelWorkingDirectory, string embeddedModelName, EvaluationMetricEnum embeddedModelLoss, int countMustBeMultipleOf) : base(new HashSet<string>())
     {
         if (nSplits <= 1)
         {
@@ -20,6 +20,7 @@ public class KFoldSample : AbstractSample, IModelSample
         }
         n_splits = nSplits;
         EmbeddedModelWorkingDirectory = embeddedModelWorkingDirectory;
+        EmbeddedModelName = embeddedModelName;
         EmbeddedModelLoss = embeddedModelLoss;
         CountMustBeMultipleOf = countMustBeMultipleOf;
     }
@@ -29,6 +30,7 @@ public class KFoldSample : AbstractSample, IModelSample
     public int n_splits = 5;
     // ReSharper disable once MemberCanBePrivate.Global
     public string EmbeddedModelWorkingDirectory;
+    public string EmbeddedModelName;
     // ReSharper disable once MemberCanBePrivate.Global
     public EvaluationMetricEnum EmbeddedModelLoss;
     public int CountMustBeMultipleOf = 1;

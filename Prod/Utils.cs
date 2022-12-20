@@ -458,6 +458,74 @@ namespace SharpNet
                 yield return row;
             }
         }
+
+        //!D TODO Add tests
+        public static float TryParseFloat(ReadOnlySpan<char> lineSpan, int nextItemStart, int nextItemLength)
+        {
+            const float invalid_float = float.NaN;
+            switch (nextItemLength)
+            {
+                case <= 0: return invalid_float;
+                case 1: return char.IsDigit(lineSpan[nextItemStart]) ? (lineSpan[nextItemStart] - '0') : invalid_float;
+                default: return float.TryParse(lineSpan.Slice(nextItemStart, nextItemLength), out var floatValue) ? floatValue : invalid_float;
+            }
+        }
+
+        //!D TODO Add tests
+        public static int TryParseInt(ReadOnlySpan<char> lineSpan, int nextItemStart, int nextItemLength)
+        {
+            const int invalid_int = 0; //TODO: return something more specific
+            switch (nextItemLength)
+            {
+                case <= 0: return invalid_int;
+                case 1: return char.IsDigit(lineSpan[nextItemStart]) ? (lineSpan[nextItemStart] - '0') : invalid_int;
+                default: return int.TryParse(lineSpan.Slice(nextItemStart, nextItemLength), out var intValue) ? intValue : invalid_int;
+            }
+        }
+
+        public static string NormalizeCategoricalFeatureValue(string value)
+        {
+            if (!value.Any(CharToBeRemovedInStartOrEnd))
+            {
+                return value;
+            }
+
+            var sb = new StringBuilder(value.Length);
+            int currentContinuousSpaces = 0;
+            foreach (var c in value)
+            {
+                if (!CharToBeRemovedInStartOrEnd(c))
+                {
+                    currentContinuousSpaces = 0;
+                    sb.Append(c);
+                }
+                else
+                {
+                    if (sb.Length != 0)
+                    {
+                        sb.Append(' ');
+                        ++currentContinuousSpaces;
+                    }
+                }
+            }
+            if (currentContinuousSpaces != 0)
+            {
+                sb.Remove(sb.Length - currentContinuousSpaces, currentContinuousSpaces);
+            }
+            return sb.ToString();
+        }
+
+        private static bool CharToBeRemovedInStartOrEnd(char c)
+        {
+            return char.IsWhiteSpace(c) ||c == '\"' || c == '\n' || c == '\r' || c == ';' || c == ',';
+        }
+        private static bool CharToBeRemovedInMiddle(char c)
+        {
+            // space is a valid character in the middle of a token
+            return CharToBeRemovedInStartOrEnd(c)&&(c!= ' ');
+        }
+
+
         /// <summary>
         /// return the intersection of list a and b
         /// (elements that are in both 'a' and 'b')
@@ -840,16 +908,24 @@ namespace SharpNet
 
             return sb.ToString().Substring(0, maxLength);
         }
+
+        private static int? _cacheCoreCount;
         public static int CoreCount
         {
             get
             {
-                int coreCount = 0;
-                foreach (var item in new System.Management.ManagementObjectSearcher("Select * from Win32_Processor").Get())
+                if (!_cacheCoreCount.HasValue)
                 {
-                    coreCount += int.Parse(item["NumberOfCores"].ToString()??"");
+                    int coreCount = 0;
+                    foreach (var item in new System.Management.ManagementObjectSearcher("Select * from Win32_Processor").Get())
+                    {
+                        coreCount += int.Parse(item["NumberOfCores"].ToString() ?? "");
+                    }
+                    _cacheCoreCount = coreCount;
                 }
-                return coreCount;
+
+                return _cacheCoreCount.Value;
+
             }
         }
         /// <summary>
@@ -1183,6 +1259,18 @@ namespace SharpNet
             properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
             properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
             properties["logfile"] = logFile;
+        }
+
+
+        public static string GetEncoding(string filename)
+        {
+            using (FileStream fs = File.OpenRead(filename))
+            {
+                Ude.CharsetDetector cdet = new ();
+                cdet.Feed(fs);
+                cdet.DataEnd();
+                return cdet.Charset;
+            }
         }
     }
 }

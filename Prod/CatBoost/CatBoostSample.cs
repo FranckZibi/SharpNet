@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 
@@ -252,15 +254,21 @@ public class CatBoostSample : AbstractSample, IModelSample
     public bool allow_writing_files = true;
     #endregion
 
-    public override void Save(string workingDirectory, string modelName)
+    public override string ToPath(string workingDirectory, string sampleName)
     {
-        var configFile = ISample.ToJsonPath(workingDirectory, modelName);
-        Save(configFile);
+        return Path.Combine(workingDirectory, sampleName + "_conf." + GetType().Name + ".json");
     }
 
-    protected override string GetContent()
+
+    protected override string ToConfigContent(Func<string, object, bool> accept)
     {
-        return ToJsonConfigContent(DefaultAcceptForConfigContent);
+        var result = new List<string>();
+        foreach (var (parameterName, fieldValue) in ToDictionaryConfigContent(accept).OrderBy(f => f.Key))
+        {
+            var fieldValueAsJsonString = Utils.FieldValueToJsonString(fieldValue);
+            result.Add($"\t\"{parameterName}\": {fieldValueAsJsonString}");
+        }
+        return "{" + Environment.NewLine + string.Join("," + Environment.NewLine, result) + Environment.NewLine + "}";
     }
 
 
@@ -278,10 +286,6 @@ public class CatBoostSample : AbstractSample, IModelSample
         {
             return "gpu";
         }
-    }
-    public override List<string> SampleFiles(string workingDirectory, string modelName)
-    {
-        return new List<string> { ISample.ToJsonPath(workingDirectory, modelName) };
     }
     public EvaluationMetricEnum GetLoss()
     {

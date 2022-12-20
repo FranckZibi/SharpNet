@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
 using SharpNet.Models;
 
 namespace SharpNet.CatBoost
@@ -70,7 +69,7 @@ namespace SharpNet.CatBoost
             }
 
 
-            var tempModelSamplePath = ISample.ToJsonPath(TempPath, ModelName);
+            var tempModelSamplePath = CatBoostSample.ToPath(TempPath, ModelName);
             string arguments = "fit " +
                                " --learn-set " + trainDatasetPath_InModelFormat +
                                " --delimiter=\"" + separator + "\"" +

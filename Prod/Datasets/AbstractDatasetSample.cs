@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.Datasets.Natixis70;
 using SharpNet.GPU;
 using SharpNet.HyperParameters;
 
@@ -83,14 +82,6 @@ public abstract class AbstractDatasetSample : AbstractSample
     protected AbstractDatasetSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(mandatoryCategoricalHyperParameters)
     {
         Name = GetType().Name.Replace("DatasetSample", "");
-    }
-    public static AbstractDatasetSample ValueOf(string workingDirectory, string sampleName)
-    {
-        try { return ISample.LoadSample<Natixis70DatasetSample>(workingDirectory, sampleName); } catch { }
-        //try { return ISample.LoadSample<AmazonEmployeeAccessChallengeDatasetSample>(workingDirectory, sampleName); } catch { }
-        try { return ISample.LoadSample<WasYouStayWorthItsPriceDatasetSample>(workingDirectory, sampleName); } catch { }
-        try { return ISample.LoadSample<KaggleDaysDatasetSample>(workingDirectory, sampleName); } catch { }
-        throw new ArgumentException($"can't load a {nameof(AbstractDatasetSample)} with name {sampleName} from directory {workingDirectory}");
     }
     #endregion
 

@@ -264,7 +264,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             DatasetEncoder = result.Item3;
             return (result.Item1, result.Item2);
         }
-        DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues);
+        DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues, true);
 
         var xTrain_InTargetFormat = DataFrame.read_float_csv(XTrainRawFile);
         var yTrain_InTargetFormat = DataFrame.read_float_csv(YTrainRawFile);

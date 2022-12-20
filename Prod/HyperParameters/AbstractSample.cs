@@ -11,6 +11,11 @@ public abstract class AbstractSample : ISample
     private readonly HashSet<string> _mandatoryCategoricalHyperParameters;
     #endregion
 
+
+    public virtual string ToPath(string workingDirectory, string sampleName)
+    {
+        return Path.Combine(workingDirectory, sampleName + "."+GetType().Name+".conf");
+    }
     public const int DEFAULT_VALUE = -6666;
 
     #region constructors
@@ -43,18 +48,19 @@ public abstract class AbstractSample : ISample
     }
     public virtual void Save(string workingDirectory, string modelName)
     {
-        var configFile = ISample.ToPath(workingDirectory, modelName);
-        Save(configFile);
+        var path = ToPath(workingDirectory, modelName);
+        Save(path);
     }
     public virtual bool UseGPU => false;
 
     public void Save(string path)
     {
-        File.WriteAllText(path, GetContent());
+        var content = ToConfigContent(DefaultAcceptForConfigContent);
+        File.WriteAllText(path, content);
     }
     public virtual List<string> SampleFiles(string workingDirectory, string modelName)
     {
-        return new List<string> { ISample.ToPath(workingDirectory, modelName) };
+        return new List<string> { ToPath(workingDirectory, modelName) };
     }
     public virtual void Set(string fieldName, object fieldValue)
     {
@@ -113,10 +119,6 @@ public abstract class AbstractSample : ISample
     }
     #endregion
 
-    protected virtual string GetContent()
-    {
-        return ToConfigContent(DefaultAcceptForConfigContent);
-    }
     public virtual HashSet<string> FieldsToDiscardInComputeHash()
     {
         return new HashSet<string>();
@@ -125,18 +127,8 @@ public abstract class AbstractSample : ISample
     {
         return !IsDefaultValue(fieldValue);
     }
-    protected string ToJsonConfigContent(Func<string,object, bool> accept)
-    {
-        var result = new List<string>();
-        foreach (var (parameterName, fieldValue) in ToDictionaryConfigContent(accept).OrderBy(f => f.Key))
-        {
-            var fieldValueAsJsonString = Utils.FieldValueToJsonString(fieldValue);
-            result.Add($"\t\"{parameterName}\": {fieldValueAsJsonString}");
-        }
-        return "{"+Environment.NewLine+string.Join(","+Environment.NewLine, result) + Environment.NewLine+"}";
-    }
-
-    private string ToConfigContent(Func<string, object, bool> accept)
+   
+    protected virtual string ToConfigContent(Func<string, object, bool> accept)
     {
         var result = new List<string>();
         foreach (var (parameterName,fieldValue) in ToDictionaryConfigContent(accept).OrderBy(f => f.Key))
@@ -146,7 +138,7 @@ public abstract class AbstractSample : ISample
         }
         return string.Join(Environment.NewLine, result) + Environment.NewLine;
     }
-    private IDictionary<string,object> ToDictionaryConfigContent(Func<string, object, bool> accept)
+    protected IDictionary<string,object> ToDictionaryConfigContent(Func<string, object, bool> accept)
     {
         var result = new Dictionary<string, object>();
         foreach (var parameterName in HyperParameterNames())

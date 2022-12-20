@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
 using SharpNet.Models;
 
 namespace SharpNet.LightGBM
@@ -53,7 +52,7 @@ namespace SharpNet.LightGBM
             var validation_XYDatasetPath_InModelFormat = validationDatasetIfAny?.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             LightGbmSample.UpdateForDataset(trainDataset);
             //we save in 'tmpLightGBMSamplePath' the model sample used for training
-            var tmpLightGBMSamplePath = ISample.ToPath(TempPath, ModelName);
+            var tmpLightGBMSamplePath = LightGbmSample.ToPath(TempPath, ModelName);
             var tmpLightGBMSample = (LightGBMSample)LightGbmSample.Clone();
             tmpLightGBMSample.Set(new Dictionary<string, object> {
                 {"task", LightGBMSample.task_enum.train},

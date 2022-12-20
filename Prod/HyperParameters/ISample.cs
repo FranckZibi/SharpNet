@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using log4net;
@@ -12,10 +11,20 @@ public interface ISample
     #region public fields & properties
     public static readonly ILog Log = LogManager.GetLogger(typeof(ISample));
     #endregion
+    #region private fields & properties
+    private static readonly Dictionary<string, Type> sampleClassName_to_type = new ();
+    #endregion
 
     #region constructor
     static ISample()
     {
+        var sampleTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(s => s.GetTypes())
+            .Where(p => typeof(ISample).IsAssignableFrom(p));
+        foreach (var t in sampleTypes)
+        {
+            sampleClassName_to_type[t.Name] = t;
+        }
     }
     #endregion
 
@@ -30,7 +39,6 @@ public interface ISample
     object Get(string fieldName);
     Type GetFieldType(string hyperParameterName);
     bool IsCategoricalHyperParameter(string hyperParameterName);
-    void Save(string workingDirectory, string modelName);
     /// <summary>
     /// all Hyper-Parameters file associated with the Sample
     /// </summary>
@@ -60,14 +68,7 @@ public interface ISample
     /// <param name="taskId"></param>
     void SetTaskId(int taskId);
 
-    public static string ToPath(string workingDirectory, string sampleName)
-    {
-        return Path.Combine(workingDirectory, sampleName + ".conf");
-    }
-    public static string ToJsonPath(string workingDirectory, string sampleName)
-    {
-        return Path.Combine(workingDirectory, sampleName + "_conf.json");
-    }
+   
     public static string SampleName(string modelName, int sampleIndex)
     {
         if (sampleIndex == 0)
@@ -76,32 +77,25 @@ public interface ISample
         }
         return modelName + "_" + sampleIndex;
     }
-    public static IDictionary<string, string> LoadConfig(string workingDirectory, string sampleName)
-    {
-        var textPath = ToPath(workingDirectory, sampleName);
-        var jsonPath = ToJsonPath(workingDirectory, sampleName);
 
-        if (File.Exists(textPath) && File.Exists(jsonPath))
-        {
-            throw new ArgumentException($"both files {textPath} and {jsonPath} exist");
-        }
-        if (!File.Exists(textPath) && !File.Exists(jsonPath))
-        {
-            throw new ArgumentException($"both files {textPath} and {jsonPath} are missing");
-        }
-        return File.Exists(textPath)
-            ?LoadTextConfig(textPath)
-            :LoadJsonConfig(jsonPath);
-    }
-    public static T LoadSample<T>(string workingDirectory, string sampleName) where T:ISample
+    #region serialization and deserialization
+    public static ISample Load(string workingDirectory, string sampleName)
     {
-        var sample = (T)Activator.CreateInstance(typeof(T), true);
-        var content = LoadConfig(workingDirectory, sampleName);
-        sample.Set(Utils.FromString2String_to_String2Object(content));
+        var allMatchingFiles = new DirectoryInfo(workingDirectory).GetFileSystemInfos(sampleName + ".*.conf").Union(new DirectoryInfo(workingDirectory).GetFileSystemInfos(sampleName + "_conf.*.json")).Select(t=>t.Name).OrderBy(x=>x).ToList();
+        if (allMatchingFiles.Count >= 2)
+        {
+            Log.Warn($"found several files in directory {workingDirectory} for sample {sampleName} : {string.Join(" ", allMatchingFiles)}, keeping only the first one {allMatchingFiles[0]}");
+        }
+        var fileName = allMatchingFiles[0];
+        var filePath = Path.Combine(workingDirectory, fileName);
+        var className = fileName.Split('.')[^2];
+        var classType = sampleClassName_to_type[className];
+        var sample = (ISample)Activator.CreateInstance(classType, true);
+        var content = fileName.ToLower().EndsWith("json") ? LoadJsonConfig(filePath) : LoadTextConfig(filePath);
+        sample?.Set(Utils.FromString2String_to_String2Object(content));
         return sample;
     }
-
-    [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
+    void Save(string workingDirectory, string modelName);
     private static IDictionary<string, string> LoadTextConfig(string path)
     {
         if (!File.Exists(path))
@@ -163,6 +157,7 @@ public interface ISample
         }
         return res;
     }
+    #endregion
 
     void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace);
 }

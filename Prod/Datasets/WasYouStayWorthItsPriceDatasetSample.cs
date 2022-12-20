@@ -79,10 +79,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     }
 
     #region Hyper-Parameters
-    // ReSharper disable once UnusedMember.Global
-    // ReSharper disable once MemberCanBePrivate.Global
-    // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public string WasYouStayWorthItsPriceDatasetSample_Version = "v1";
     /// <summary>
     /// the embedding dim to use to enrich the dataset with the reviews
     /// </summary>
@@ -266,10 +262,10 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             DatasetEncoder = result.Item3;
             return (result.Item1, result.Item2);
         }
-        DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues);
+        DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues, true);
         
-        var xyTrain = UpdateFeatures(xytrain_string_df.Clone());
-        var xtest = UpdateFeatures(xtest_string_df.Clone());
+        var xyTrain = UpdateFeatures(xytrain_string_df);
+        var xtest = UpdateFeatures(xtest_string_df);
         DatasetEncoder.Fit(xyTrain);
         DatasetEncoder.Fit(xtest);
 

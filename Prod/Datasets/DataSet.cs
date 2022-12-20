@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -696,68 +695,73 @@ namespace SharpNet.Datasets
         /// <param name="separator"></param>
         private void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
         {
-            if (File.Exists(path) && !overwriteIfExists)
-            {
-                Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
-                return;
-            }
-            Log.Debug($"Saving dataset {Name} in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
-
-            var sb = new StringBuilder();
-            if (addTargetColumnAsFirstColumn)
-            {
-                sb.Append("y" + separator);
-            }
-            // ReSharper disable once PossibleNullReferenceException
-            var yDataAsSpan = (addTargetColumnAsFirstColumn&&Y!=null) ? Y.AsFloatCpuSpan : null;
-
-
-            List<int> validIdxColumns;
-            if (includeIdColumns)
-            {
-                validIdxColumns = Enumerable.Range(0, ColumnNames.Length).ToList();
-            }
-            else
-            {
-                validIdxColumns = new List<int>();
-                for (var index = 0; index < ColumnNames.Length; index++)
-                {
-                    if (Array.IndexOf(IdColumns, ColumnNames[index]) == -1)
-                    {
-                        validIdxColumns.Add(index);
-                    }
-                }
-            }
-
-            //we construct the header
-            sb.Append(string.Join(separator, validIdxColumns.Select(idx => ColumnNames[idx])) + Environment.NewLine);
-
-            using CpuTensor<float> singleRow = new(new[] { 1, ColumnNames.Length});
-            var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
-            for (int row = 0; row < Count; ++row)
-            {
-                if (addTargetColumnAsFirstColumn)
-                {
-                    float yValue;
-                    if (yDataAsSpan == null) { yValue = AbstractSample.DEFAULT_VALUE; }
-                    else if (IsRegressionProblem) { yValue = yDataAsSpan[row]; }
-                    else { yValue = ElementIdToCategoryIndex(row); }
-                    sb.Append(yValue.ToString(CultureInfo.InvariantCulture) + separator);
-                }
-                LoadAt(row, 0, singleRow, null, false);
-                foreach (var colIdx in validIdxColumns)
-                {
-                    sb.Append(singleRowAsSpan[colIdx].ToString(CultureInfo.InvariantCulture));
-                    sb.Append( colIdx == validIdxColumns.Last() ? Environment.NewLine  : separator);
-                }
-            }
-
-            var fileContent = sb.ToString();
             lock (Lock_to_csv)
             {
-                File.WriteAllText(path, fileContent);
+                if (File.Exists(path) && !overwriteIfExists)
+                {
+                    Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
+                    return;
+                }
+
+                var sw = Stopwatch.StartNew();
+                Log.Debug($"Saving dataset {Name} in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
+
+                // ReSharper disable once PossibleNullReferenceException
+                var yDataAsSpan = (addTargetColumnAsFirstColumn && Y != null) ? Y.AsFloatCpuSpan : null;
+
+                List<int> validIdxColumns;
+                if (includeIdColumns)
+                {
+                    validIdxColumns = Enumerable.Range(0, ColumnNames.Length).ToList();
+                }
+                else
+                {
+                    validIdxColumns = new List<int>();
+                    for (var index = 0; index < ColumnNames.Length; index++)
+                    {
+                        if (Array.IndexOf(IdColumns, ColumnNames[index]) == -1)
+                        {
+                            validIdxColumns.Add(index);
+                        }
+                    }
+                }
+
+                //we construct the header
+                var header = new List<string>();
+                if (addTargetColumnAsFirstColumn)
+                {
+                    header.Add("y");
+                }
+                header.AddRange(validIdxColumns.Select(idx => ColumnNames[idx]));
+
+                int rows = Count;
+                int cols = (addTargetColumnAsFirstColumn ? 1 : 0) + validIdxColumns.Count;
+                using var floatTensor = new CpuTensor<float>(new[] { rows, cols });
+                using var singleRow = new CpuTensor<float>(new[] { 1, ColumnNames.Length });
+                var floatTensorSpan = floatTensor.SpanContent;
+                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
+                int idx = 0;
+                for (int row = 0; row < Count; ++row)
+                {
+                    if (addTargetColumnAsFirstColumn)
+                    {
+                        float yValue;
+                        if (yDataAsSpan == null) { yValue = AbstractSample.DEFAULT_VALUE; }
+                        else if (IsRegressionProblem) { yValue = yDataAsSpan[row]; }
+                        else  { yValue = ElementIdToCategoryIndex(row); }
+                        floatTensorSpan[idx++] = yValue;
+                    }
+                    LoadAt(row, 0, singleRow, null, false);
+                    foreach (var colIdx in validIdxColumns)
+                    {
+                        floatTensorSpan[idx++] = singleRowAsSpan[colIdx];
+                    }
+                }
+
+                var df = DataFrame.New(floatTensor, header);
+                df.to_csv(path, separator, true);
+                Log.Debug($"Dataset {Name} saved in path {path} in {Math.Round(sw.Elapsed.TotalSeconds, 1)}s (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
             }
-            Log.Debug($"Dataset {Name} saved in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
         }
 
         /// <summary>
@@ -781,7 +785,7 @@ namespace SharpNet.Datasets
         }
 
 
-        public static readonly object Lock_to_csv = new();
+        private static readonly object Lock_to_csv = new();
 
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {

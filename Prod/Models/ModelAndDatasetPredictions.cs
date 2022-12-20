@@ -26,7 +26,8 @@ public class ModelAndDatasetPredictions
             {
                 throw new ArgumentException($"PercentageInTraining must be 100% if KFold is enabled (found {DatasetSample.PercentageInTraining}");
             }
-            var kfoldSample = new KFoldSample(DatasetSample.KFold, embeddedModel.WorkingDirectory, embeddedModel.ModelSample.GetLoss(), DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+            var kfoldSample = new KFoldSample(DatasetSample.KFold, embeddedModel.WorkingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+            ModelAndDatasetPredictionsSample = modelAndDatasetPredictionsSample.CopyWithNewModelSample(kfoldSample);
             Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel, embeddedModel);
         }
     }

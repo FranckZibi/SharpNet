@@ -14,6 +14,10 @@ public abstract class MultiSamples : ISample
     protected MultiSamples(ISample[] samples)
     {
         Samples = samples;
+        if (samples.Any(s => s == null))
+        {
+            throw new ArgumentException($"some null samples found in {nameof(MultiSamples)}");
+        }
     }
     #endregion
 

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -49,21 +48,6 @@ namespace SharpNet.Networks
         public int RandomizeOrderBlockSize = 1;
         public Optimizer.OptimizationEnum OptimizerType = Optimizer.OptimizationEnum.VanillaSGD;
         #endregion
-
-
-
-        [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
-        public static NetworkSample ValueOf(string workingDirectory, string modelName)
-        {
-            try { return ISample.LoadSample<EfficientNetNetworkSample>(workingDirectory, modelName); } catch { }
-            try { return ISample.LoadSample<NetworkSample_1DCNN>(workingDirectory, modelName); } catch { }
-            try { return ISample.LoadSample<Cfm60NetworkSampleOld>(workingDirectory, modelName); } catch { }
-            try { return ISample.LoadSample<WideResNetNetworkSample>(workingDirectory, modelName); } catch { }
-            //try { return ValueOfNetworkSample(workingDirectory, modelName); } catch { }
-            throw new Exception($"can't load sample from model {modelName} in directory {workingDirectory}");
-        }
-
-        
 
         #region Learning Rate Hyper-Parameters
 

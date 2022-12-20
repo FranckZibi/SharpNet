@@ -41,6 +41,11 @@ public class KFoldModel : Model
     //Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel);
 
 
+    public IModelSample EmbeddedModelSample(int embeddedModelIndex)
+    {
+        return _embeddedModels[embeddedModelIndex].ModelSample;
+    }
+
     private Model LoadEmbeddedModel(int embeddedModelIndex, AbstractDatasetSample datasetSample)
     {
         var e = new Exception();

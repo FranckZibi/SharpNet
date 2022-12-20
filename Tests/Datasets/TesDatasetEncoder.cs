@@ -25,7 +25,7 @@ public class TesDatasetEncoder
     public void TestEncodingDecoding(bool standardizeDoubleValues)
     {
         var testDatasetSample = new TestDatasetSample(new [] { "cat2" }, new[] { "id" }, new [] { "y" });
-        var encoder = new DatasetEncoder(testDatasetSample, standardizeDoubleValues);
+        var encoder = new DatasetEncoder(testDatasetSample, standardizeDoubleValues, true);
 
         var df_raw = SimpleTestDataFrame();
         var df_encoded = encoder.Fit_Transform(df_raw);

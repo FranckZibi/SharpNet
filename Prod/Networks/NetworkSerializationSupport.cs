@@ -6,6 +6,7 @@ using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.Data;
 using SharpNet.GPU;
+using SharpNet.HyperParameters;
 using SharpNet.Layers;
 
 namespace SharpNet.Networks
@@ -42,7 +43,7 @@ namespace SharpNet.Networks
             //we load the model (network description)
             var allLines = File.ReadAllLines(modelFilePath);
             var dicoFirstLine = Serializer.Deserialize(allLines[0]);
-            var sample = Networks.NetworkSample.ValueOf(workingDirectory, modelName);
+            var sample = (NetworkSample) ISample.Load(workingDirectory, modelName);
             if (!string.IsNullOrEmpty(workingDirectory) && !Directory.Exists(workingDirectory))
             {
                 // ReSharper disable once PossibleNullReferenceException

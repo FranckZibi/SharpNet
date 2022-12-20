@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,7 +19,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     private const string NAME = "KaggleDays";
     private static DataFrame xytrain_string_df;
     private static DataFrame xtest_string_df;
-    private static readonly ConcurrentDictionary<string, Tuple<DataSetV2, DataSetV2, DatasetEncoder>> CacheDataset = new();
     #endregion
   
     private readonly object lockObject = new();
@@ -30,8 +28,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         {
             if (xytrain_string_df == null)
             {
-                xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile);
-                xtest_string_df = DataFrame.read_string_csv(XTestRawFile);
+                xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile, true, true);
+                xtest_string_df = DataFrame.read_string_csv(XTestRawFile, true, true);
             }
         }
     }
@@ -326,10 +324,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
 
     #region Hyper-Parameters
-    // ReSharper disable once UnusedMember.Global
-    // ReSharper disable once MemberCanBePrivate.Global
-    // ReSharper disable once FieldCanBeMadeReadOnly.Global
-    public string KaggleDaysDatasetSample_Version = "v1";
     /// <summary>
     /// the embedding dim to use to enrich the dataset with the reviews
     /// </summary>
@@ -358,30 +352,32 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;
     }
 
+
+    private static readonly Dictionary<string, Tuple<DataSetV2, DataSetV2, DatasetEncoder>> CacheDataset = new();
+
     private (DataSetV2 fullTrainingAndValidation, DataSetV2 testDataset) LoadAndEncodeDataset_If_Needed()
     {
         var key = ComputeHash();
-        if (CacheDataset.TryGetValue(key, out var result))
+        lock(CacheDataset)
         {
-            DatasetEncoder = result.Item3;
-            return (result.Item1, result.Item2);
+            if (CacheDataset.TryGetValue(key, out var result))
+            {
+                DatasetEncoder = result.Item3;
+                return (result.Item1, result.Item2);
+            }
+            DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues, true);
+            var xyTrain = UpdateFeatures(xytrain_string_df);
+            var xtest = UpdateFeatures(xtest_string_df);
+            DatasetEncoder.Fit(xyTrain);
+            DatasetEncoder.Fit(xtest);
+            var xTrain_Encoded = DatasetEncoder.Transform(xyTrain.Drop(TargetLabels));
+            var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
+            var xtest_Encoded = DatasetEncoder.Transform(xtest);
+            var fullTrainingAndValidation = new DataSetV2(this, xTrain_Encoded, yTrain_Encoded, false);
+            var testDataset = new DataSetV2(this, xtest_Encoded, null, false);
+            CacheDataset[key] = Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder);
+            return (fullTrainingAndValidation, testDataset);
         }
-        DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues);
-
-        var xyTrain = UpdateFeatures(xytrain_string_df.Clone());
-        var xtest = UpdateFeatures(xtest_string_df.Clone());
-        DatasetEncoder.Fit(xyTrain);
-        DatasetEncoder.Fit(xtest);
-
-        var xTrain_Encoded = DatasetEncoder.Transform(xyTrain.Drop(TargetLabels));
-        var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
-        var xtest_Encoded = DatasetEncoder.Transform(xtest);
-
-        var fullTrainingAndValidation = new DataSetV2(this, xTrain_Encoded, yTrain_Encoded, false);
-        var testDataset = new DataSetV2(this, xtest_Encoded, null, false);
-
-        CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
-        return (fullTrainingAndValidation, testDataset);
     }
 
     private DataFrame UpdateFeatures(DataFrame x)

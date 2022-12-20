@@ -162,4 +162,17 @@ public class TestUtils
         Debug.Assert(Math.Abs(indexes[1] - 7000) < 500);
         Debug.Assert( Math.Abs(indexes[2]-2000)<200 );
     }
+
+    [TestCase("", "")]
+    [TestCase("", " ")]
+    [TestCase("", "\t")]
+    [TestCase("a b", "\t \"a b;")]
+    [TestCase("a b", " a b,;;;")]
+    [TestCase("a b", " a\tb")]
+    [TestCase("a  b", "a\n\rb")]
+    public void TestNormalizeCategoricalFeatureValue(string expected, string str)
+    {
+        Assert.AreEqual(expected, Utils.NormalizeCategoricalFeatureValue(str));
+    }
+    
 }

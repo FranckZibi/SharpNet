@@ -19,7 +19,7 @@ namespace SharpNet.HyperParameters
     
         public static AbstractDatasetSample LoadDatasetSample(string workingDirectory, string modelName)
         {
-            return AbstractDatasetSample.ValueOf(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1));
+            return (AbstractDatasetSample)ISample.Load(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1));
         }
 
         public static PredictionsSample LoadPredictions(string workingDirectory, string modelName)
@@ -28,7 +28,7 @@ namespace SharpNet.HyperParameters
             //If it is missing, we'll just use an empty prediction file
             try
             {
-                return ISample.LoadSample<PredictionsSample>(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2));
+                return (PredictionsSample)ISample.Load(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 2));
             }
             catch
             {
@@ -51,6 +51,15 @@ namespace SharpNet.HyperParameters
                 });
         }
 
+        public ModelAndDatasetPredictionsSample CopyWithNewModelSample(IModelSample newModelSample)
+        {
+            var clonedSamples = new List<ISample>();
+            foreach (var s in Samples)
+            {
+                clonedSamples.Add(s is IModelSample ? newModelSample : s.Clone());
+            }
+            return new ModelAndDatasetPredictionsSample(clonedSamples.ToArray());
+        }
         public ModelAndDatasetPredictionsSample CopyWithNewPercentageInTrainingAndKFold(double newPercentageInTraining, int newKFold)
         {
             var clonedSamples = new List<ISample>();

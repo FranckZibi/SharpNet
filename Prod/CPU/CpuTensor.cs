@@ -2004,26 +2004,32 @@ namespace SharpNet.CPU
         /// </summary>
         /// <param name="columnIndexesToKeep">the column indexes to keep</param>
         /// <returns></returns>
-        public CpuTensor<T> KeepColumns(IEnumerable<int> columnIndexesToKeep)
+        public CpuTensor<T> KeepColumns(List<int> columnIndexesToKeep)
         {
             if (Shape.Length != 2)
             {
                 throw new Exception($"{nameof(KeepColumns)} only works with matrix");
             }
-            var columnIndexesToKeepHash = new HashSet<int>(columnIndexesToKeep);
+            if (columnIndexesToKeep.Count == Shape[1])
+            {
+                return this;
+            }
             var dataAsSpan = SpanContent;
-            var newShape = new[] {Shape[0], columnIndexesToKeepHash.Count};
+            var shouldBeKept = new bool[Shape[1]];
+            columnIndexesToKeep.ForEach(oldCol => shouldBeKept[oldCol]=true);
+            var newShape = new[] {Shape[0], columnIndexesToKeep.Count};
             var newData = new T[newShape[0]* newShape[1]];
+            int newIdx = 0;
+            int oldIdx = 0;
             for (int row = 0; row < Shape[0]; ++row)
             {
-                int newCol = 0;
                 for (int col = 0; col < Shape[1]; ++col)
                 {
-                    if (columnIndexesToKeepHash.Contains(col))
+                    if (shouldBeKept[col])
                     {
-                        newData[row * newShape[1] + newCol] = dataAsSpan[row * Shape[1] + col];
-                        ++newCol;
+                        newData[newIdx++] = dataAsSpan[oldIdx];
                     }
+                    ++oldIdx;
                 }
             }
             return new CpuTensor<T>(newShape, newData);

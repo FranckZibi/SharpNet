@@ -19,6 +19,7 @@ public class DatasetEncoder
     #region Private Fields
     private readonly AbstractDatasetSample _datasetSample;
     private readonly bool _standardizeDoubleValues;
+    private readonly bool _allDataFrameAreAlreadyNormalized;
 
     /// <summary>
     /// list of all categorical features in the dataset
@@ -51,10 +52,19 @@ public class DatasetEncoder
     private int _inverseTransformCallCount = 0;
 
     #endregion
-    public DatasetEncoder(AbstractDatasetSample datasetSample, bool standardizeDoubleValues)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="datasetSample"></param>
+    /// <param name="standardizeDoubleValues"></param>
+    /// <param name="allDataFrameAreAlreadyNormalized">
+    /// true if we are sure that all fields have already been normalized (with all special characters removed)
+    /// </param>
+    public DatasetEncoder(AbstractDatasetSample datasetSample, bool standardizeDoubleValues, bool allDataFrameAreAlreadyNormalized)
     {
         _datasetSample = datasetSample;
         _standardizeDoubleValues = standardizeDoubleValues;
+        _allDataFrameAreAlreadyNormalized = allDataFrameAreAlreadyNormalized;
     }
     public ColumnStatistics this[string featureName] => _columnStats[featureName];
 
@@ -144,7 +154,7 @@ public class DatasetEncoder
         {
             if (!_columnStats.ContainsKey(c))
             {
-                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues);
+                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
             }
         }
     
@@ -166,7 +176,7 @@ public class DatasetEncoder
                 var c = df.Columns[index];
                 if (!_columnStats.ContainsKey(c) && IsCategoricalColumn(c))
                 {
-                    _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues);
+                    _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
                     FitColumn(df, index);
                 }
             }
@@ -273,6 +283,7 @@ public class DatasetEncoder
         Debug.Assert(float_df.IsFloatDataFrame);
         //we display a warning for column names without known encoding
         var unknownFeatureName = Utils.Without(float_df.Columns, _columnStats.Keys);
+        unknownFeatureName.Remove("0");
         if (unknownFeatureName.Count != 0)
         {
             Log.Warn($"{unknownFeatureName.Count} unknown feature name(s): '{string.Join(' ', unknownFeatureName)}' (not in '{string.Join(' ', _columnStats.Keys)}')");
@@ -298,6 +309,7 @@ public class DatasetEncoder
         Debug.Assert(float_df.IsFloatDataFrame);
         //we display a warning for column names without known encoding
         var unknownFeatureName = Utils.Without(float_df.Columns, _columnStats.Keys);
+        unknownFeatureName.Remove("0");
         if (unknownFeatureName.Count != 0)
         {
             Log.Warn($"{unknownFeatureName.Count} unknown feature name(s): '{string.Join(' ', unknownFeatureName)}' (not in '{string.Join(' ', _columnStats.Keys)}')");
