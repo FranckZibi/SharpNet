@@ -25,10 +25,10 @@ public class ChallengeTools
     [Test, Explicit]
     public void ComputeAndSaveFeatureImportance()
     {
-        const string workingDirectory = @"C:\Projects\Challenges\WasYouStayWorthItsPrice\sub2\";
-        const string modelName = "D875D0F56C_KFOLD_FULL";
-        SharpNet.Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
-        SharpNet.Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
+        const string workingDirectory = @"C:\Projects\Challenges\KaggleDays\";
+        const string modelName = "F7579BB9FE_KFOLD_FULL";
+        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
+        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
         m.ComputeAndSaveFeatureImportance();
     }
@@ -39,82 +39,39 @@ public class ChallengeTools
     /// <param name="directory"></param>
     /// <param name="hasHeader"></param>
     /// <param name="removeAccentedCharacters"></param>
-    [TestCase(@"C:\Projects\Challenges\perfs\raw", true, true, "normalize"), Explicit]
+    [TestCase(@"C:\Projects\Challenges\KaggleDays\Data", true, true), Explicit]
     public void NormalizeAllCsvInDirectory(string directory, bool hasHeader, bool removeAccentedCharacters)
     {
-        const string subDirectory = nameof(NormalizeAllCsvInDirectory);
-        SharpNet.Utils.ConfigureGlobalLog4netProperties(directory, $"{nameof(NormalizeAllCsvInDirectory)}");
-        SharpNet.Utils.ConfigureThreadLog4netProperties(directory, $"{nameof(NormalizeAllCsvInDirectory)}");
-        foreach (var file in Directory.GetFiles(directory, "*.csv"))
-        {
-            DataFrame.Normalize(file, hasHeader, removeAccentedCharacters, subDirectory);
-        }
+        Utils.ConfigureGlobalLog4netProperties(Path.Combine(directory), $"{nameof(NormalizeAllCsvInDirectory)}");
+        Utils.ConfigureThreadLog4netProperties(Path.Combine(directory), $"{nameof(NormalizeAllCsvInDirectory)}");
+        DataFrame.NormalizeAllCsvInDirectory(directory, hasHeader, removeAccentedCharacters);
     }
 
 
-    [TestCase(new []{ @"C:\Projects\Challenges\perfs\raw\normalize\search_train.csv", @"C:\Projects\Challenges\perfs\raw\normalize\search_test.csv" }, true, true, "keyword", 300), Explicit]
-    [TestCase(new []{ @"C:\Projects\Challenges\perfs\raw\normalize\item_info.csv"}, true, true, "name", 300)]
-    public void TfIdfEncode(string[] csvFiles, bool hasHeader, bool isNormalized, string columnToEncode, int embeddingDim)
+    [Test, Explicit]
+    public void TfIdfEncode()
     {
+        string[] csvFiles = { @"C:\Projects\Challenges\KaggleDays\Data\search_train.csv", @"C:\Projects\Challenges\KaggleDays\Data\search_test.csv" };
+        string columnToEncode = "keyword";
+
+
+        //string[] csvFiles = { @"C:\Projects\Challenges\KaggleDays\Data\item_info.csv" };
+        //string columnToEncode = "name";
+
+        int embeddingDim = 300;
+        bool hasHeader = true;
+        bool isNormalized = true;
         var keepEncodedColumnName = false;
         var reduceEmbeddingDimIfNeeded = false;
         var norm = TfIdfEncoding.TfIdfEncoding_norm.L2;
         var scikitLearnCompatibilityMode = false;
 
-
-        const string subDirectory = nameof(TfIdfEncode);
-        string directory = Path.GetDirectoryName(csvFiles[0])??"";
-        string targetDirectory = Path.Combine(directory, subDirectory);
-        if (!Directory.Exists(targetDirectory))
-        {
-            Directory.CreateDirectory(targetDirectory);
-        }
-        SharpNet.Utils.ConfigureGlobalLog4netProperties(directory, $"{nameof(TfIdfEncode)}");
-        SharpNet.Utils.ConfigureThreadLog4netProperties(directory, $"{nameof(TfIdfEncode)}");
-
-        var dfs = new List<DataFrame>();
-        List<string> columnContent = new();
-        foreach (var fileName in csvFiles)
-        {
-            ISample.Log.Info($"loading CSV file {fileName}");
-            var df = DataFrame.read_string_csv(fileName, hasHeader, isNormalized);
-            ISample.Log.Info($"extracting content of column {columnToEncode} in CSV file {fileName}");
-            columnContent.AddRange(df.StringColumnContent(columnToEncode));
-            dfs.Add(df);
-        }
-        columnContent.Sort();
-
-        var df_ColumnToEncode = DataFrame.New(columnContent.ToArray(), new[] { columnToEncode });
-
-        ISample.Log.Info($"Encoding column {columnToEncode}");
-        var encoded_column_df = df_ColumnToEncode
-            .TfIdfEncode(columnToEncode, embeddingDim, true, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)
-            .AverageBy(columnToEncode);
-
-        var encoded_column_df_path = Path.Combine(targetDirectory, columnToEncode+"_"+DateTime.Now.Ticks+".csv");
-        ISample.Log.Info($"Encoded column file {encoded_column_df_path}");
-        encoded_column_df.to_csv(encoded_column_df_path, ',', hasHeader);
-
-        for (var index = 0; index < dfs.Count; index++)
-        {
-            var targetPath = Path.Combine(targetDirectory, Path.GetFileName(csvFiles[index]));
-            ISample.Log.Info($"Creating encoded DataFrame for {csvFiles[index]} and saving it to {targetPath}");
-            var df = dfs[index];
-            var df2 = df.LeftJoinWithoutDuplicates(encoded_column_df, columnToEncode);
-            if (!keepEncodedColumnName)
-            {
-                df2 = df2.Drop(columnToEncode);
-            }
-            df2.to_csv(targetPath, ',', hasHeader);
-        }
-        ISample.Log.Info($"All CSV files have been encoded and saved to directory {targetDirectory}");
-
-        //foreach (var file in Directory.GetFiles(directory, "*.csv"))
-        //{
-        //    DataFrame.Normalize(file, hasHeader, removeAccentedCharacters, subDirectory);
-        //}
+        string directory = Path.GetDirectoryName(csvFiles[0]) ?? "";
+        Utils.ConfigureGlobalLog4netProperties(directory, $"{nameof(TfIdfEncode)}");
+        Utils.ConfigureThreadLog4netProperties(directory, $"{nameof(TfIdfEncode)}");
+        DataFrame.TfIdfEncode(csvFiles, hasHeader, isNormalized, columnToEncode, embeddingDim, 
+            keepEncodedColumnName, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode);
     }
-
 
     ///// <summary>
     ///// encode the string column 'columnToEncode' using Tf*Idf with 'embeddingDim' words and return a new DataFrame with this encoding
@@ -144,32 +101,17 @@ public class ChallengeTools
     public void StackedEnsemble(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         //const string workingDirectory = @"C:/Projects/Challenges/WasYouStayWorthItsPrice/submission";
-        const string workingDirectory = @"C:\Projects\Challenges\Natixis70\aaa7\";
+        const string workingDirectory = @"C:\Projects\Challenges\KaggleDays\aaa7\";
         var modelName = new[]
         {
-            ////Natixis70
-            "35CB39CB45_KFOLD", //LightGBM
-            "CAD2F81CEB_KFOLD", //LightGBM
-            "B222453FF6_KFOLD", //CatBoost
-            "7598B6F2E4_KFOLD", //CatBoost
-
-            //WasYouStayWorthItsPrice
-            //"F2CC39BB32_KFOLD", //1D-CNN    F2CC39BB32_KFOLD_FULL_predict_test_0.31976.csv
-            //"D875D0F56C_KFOLD", //LightGBM  D875D0F56C_KFOLD_FULL_predict_test_0.3204.csv
-            //"3F2CB236DB_KFOLD", //CatBoost  3F2CB236DB_KFOLD_FULL_predict_test_0.31759.csv
-            //"0EF01A90D8_KFOLD", //Deep Learning
-            //"3580990008_KFOLD",
-            //"395B343296_KFOLD", //LightGBM GBDT
-            ////"48F31E6543_KFOLD",
-            ////"56E668E7DB_KFOLD",
-            //"66B4F3653A_KFOLD",
-            //"8CF93D9FA0_KFOLD",
-            //"90840F212D_KFOLD",
-            ////"90DAFFB8FC_KFOLD",
-            //"E72AD5B74B_KFOLD"
+            "9F587BDFA9_KFOLD",
+            "DEBB5D22D9_KFOLD",
+           
         };
         const bool use_features_in_secondary = true;
         const int cv = 2;
+
+        Console.WriteLine($"Performing Stacked Ensemble Training with {modelName.Length} models in directory {workingDirectory}");
 
         var workingDirectoryAndModelNames = modelName.Select(m => Tuple.Create(workingDirectory, m, m + "_FULL")).ToList();
         var datasetSample = StackingCVClassifierDatasetSample.New(workingDirectoryAndModelNames, workingDirectory, use_features_in_secondary, cv);
@@ -209,16 +151,6 @@ public class ChallengeTools
             //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
         };
 
-        if (!Directory.Exists(workingDirectory))
-        {
-            Directory.CreateDirectory(workingDirectory);
-        }
-        var dataDirectory = Path.Combine(workingDirectory, "Data");
-        if (!Directory.Exists(dataDirectory))
-        {
-            Directory.CreateDirectory(dataDirectory);
-        }
-
         var hpoWorkingDirectory = Path.Combine(workingDirectory, "hpo");
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), hpoWorkingDirectory); IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, hpoWorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
@@ -234,51 +166,52 @@ public class ChallengeTools
 
         foreach (var modelName in new[]
                 {
-                    "EE8A305CBE_KFOLD",
+                    //"EAFC16223E_KFOLD"
+                    "849E438B37_KFOLD_FULL_DART"
+
+                    //"EE8A305CBE_KFOLD",
                    
                 })
         {
-
             const string workingDirectory = @"C:\Projects\Challenges\KaggleDays";
 
-            SharpNet.Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-            SharpNet.Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+            Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+            Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+
+            ISample.Log.Info($"Retraining model {modelName} with {nameof(n_splits)}={n_splits} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
 
             var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
-            //var embeddedModel = mKfold.Model;
-            var mKfoldModelAndDatasetPredictionsSample = m.ModelAndDatasetPredictionsSample;
-            if (m.Model is not KFoldModel)
+            var modelAndDatasetPredictionsSample = m.ModelAndDatasetPredictionsSample;
+
+            if (n_splits>=2 && m.Model is not KFoldModel)
             {
+                ISample.Log.Info($"Applying KFold to model {modelName} with {nameof(n_splits)}={n_splits} ");
                 var embeddedModel = m.Model;
-                var kfoldSample = new KFoldSample(n_splits, workingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), mKfoldModelAndDatasetPredictionsSample.DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+                var kfoldSample = new KFoldSample(n_splits, workingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), modelAndDatasetPredictionsSample.DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
                 var sample = new ModelAndDatasetPredictionsSample(new ISample[]
                 {
                     kfoldSample,
-                    mKfoldModelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, kfoldSample.n_splits),
-                    mKfoldModelAndDatasetPredictionsSample.PredictionsSample
+                    modelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, kfoldSample.n_splits),
+                    new PredictionsSample()
                 });
                 m = new ModelAndDatasetPredictions(sample, workingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel);
             }
-
-
-            var kfoldModelName = m.Model.ModelName;
-            if (n_splits >= 2)
-            {
-                m.Model.Use_All_Available_Cores();
-                m.Fit(true, true, true);
-                m.Save(workingDirectory, kfoldModelName);
-            }
+            ISample.Log.Info($"Training model {modelName} with KFold: {nameof(n_splits)}={n_splits} ");
+            m.Model.Use_All_Available_Cores();
+            m.Fit(true, true, true);
+            m.Save(workingDirectory);
 
             if (retrainOnFullDataset)
             {
+                var fullDatasetModelName = m.Model.ModelName + "_FULL";
+                Model.Log.Info($"Retraining Model '{modelName}' on full Dataset no KFold (Model on full Dataset name: {fullDatasetModelName})");
                 var sampleFullDataset = new ModelAndDatasetPredictionsSample(new []
                 {
-                    ((KFoldModel)m.Model).EmbeddedModelSample(0).Clone(),
-                    mKfoldModelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1),
+                    m.Model is KFoldModel kfoldModel ? kfoldModel.EmbeddedModelSample(0).Clone() : m.Model.ModelSample.Clone(),
+                    modelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1),
                     new PredictionsSample()
                 });
-                var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(sampleFullDataset, workingDirectory, kfoldModelName + "_FULL");
-                Model.Log.Info($"Retraining Model '{modelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");
+                var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(sampleFullDataset, workingDirectory, fullDatasetModelName);
                 modelAndDatasetOnFullDataset.Model.Use_All_Available_Cores();
                 modelAndDatasetOnFullDataset.Fit(true, true, true);
             }

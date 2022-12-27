@@ -86,6 +86,12 @@ public interface ISample
         {
             Log.Warn($"found several files in directory {workingDirectory} for sample {sampleName} : {string.Join(" ", allMatchingFiles)}, keeping only the first one {allMatchingFiles[0]}");
         }
+        if (allMatchingFiles.Count == 0)
+        {
+            string errorMsg = $"No file in directory {workingDirectory} for sample {sampleName}";
+            Log.Error(errorMsg);
+            throw new Exception(errorMsg);
+        }
         var fileName = allMatchingFiles[0];
         var filePath = Path.Combine(workingDirectory, fileName);
         var className = fileName.Split('.')[^2];

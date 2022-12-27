@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using SharpNet.CatBoost;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.Networks;
+
 // ReSharper disable UnusedParameter.Global
 
 // ReSharper disable UnusedMember.Local
@@ -28,18 +31,17 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         {
             if (xytrain_string_df == null)
             {
+                var sw = Stopwatch.StartNew();
+                ISample.Log.Info($"Loading file {XYTrainRawFile}");
                 xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile, true, true);
+                ISample.Log.Info($"Loading file {XTestRawFile}");
                 xtest_string_df = DataFrame.read_string_csv(XTestRawFile, true, true);
+                Console.WriteLine($"Loading files took {sw.ElapsedMilliseconds / 1000.0} seconds");
             }
         }
     }
 
-
-    public static string[] RemoveComma(string[] str)
-    {
-        return str.Select(s => s.Replace(',', ' ').Replace(';', ' ').Replace('\"', ' ')).ToArray();
-    }
-
+    
     public static string[] SplitProducts(string str)
     {
         if (string.IsNullOrEmpty(str) || string.IsNullOrEmpty(str.Trim()))
@@ -49,146 +51,147 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         return str.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).ToArray();
     }
 
-
-    public static string ExtraFeatures(string session_id, string search_results, Dictionary<string, Dictionary<string, HashSet<string>>> before_search_to_line)
-    {
-
-
-        string extraFeartures = "";
-
-        foreach (var id in new[] { "ADD_TO_CART", "CHECKOUT", "ITEM_DETAILS", "ITEM_LIST", "PURCHASE", "REMOVE_FROM_CART" })
-        {
-
-            if (before_search_to_line.ContainsKey(session_id)
-                && before_search_to_line[session_id].ContainsKey(search_results)
-                && before_search_to_line[session_id][search_results].Contains(id))
-            {
-                extraFeartures += "1,";
-            }
-            else
-            {
-                extraFeartures += "0,";
-            }
-        }
-
-        return extraFeartures.TrimEnd(',');
-
-    }
-
-
     public static void Enrich(string predictions)
     {
         var preds = File.ReadAllLines(predictions).Skip(1).Select(float.Parse).ToArray();
 
-        var idFile = Utils.ReadCsv(Path.Combine(DataDirectory, "idsContent.csv")).Skip(1).ToArray();
+        var idFile = Utils.ReadCsv(Path.Combine(DataDirectory, "search_test_v2.csv")).Skip(1).ToArray();
 
 
         Dictionary<string, List<Tuple<string,float>>> losses = new ();
         for (int i = 0; i < idFile.Length; i++)
         {
-            var sessonId = idFile[i][0];
+            var sessionId = idFile[i][0];
             var productId = idFile[i][1];
             var pred = preds[i];
-            if (!losses.ContainsKey(sessonId))
+            if (!losses.ContainsKey(sessionId))
             {
-                losses[sessonId] = new List<Tuple<string, float>>();
+                losses[sessionId] = new List<Tuple<string, float>>();
             }
-            losses[sessonId].Add(Tuple.Create(productId, pred));
+            losses[sessionId].Add(Tuple.Create(productId, pred));
         }
 
 
-        var sesssion_ids = DataFrame.read_string_csv(Path.Combine(DataDirectory, "sample_submission.csv")).StringColumnContent("session_id");
+        var session_ids = DataFrame.read_string_csv(Path.Combine(DataDirectory, "sample_submission.csv")).StringColumnContent("session_id");
         var linePred =new List<string>();
         linePred.Add("session_id,best_products");
-        foreach (var sess in sesssion_ids)
+        foreach (var sessionId in session_ids)
         {
-            if (!losses.ContainsKey(sess))
+            if (!losses.ContainsKey(sessionId))
             {
-                linePred.Add(sess+",");
+                linePred.Add(sessionId+",");
             }
             else
             {
-                string[] sorted = losses[sess].OrderBy(t => t.Item2).ToArray().Take(12).Select(t=>t.Item1).ToArray();
-                linePred.Add(sess + ","+string.Join(' ', sorted));
+                string[] sorted = losses[sessionId].OrderBy(t => t.Item2).ToArray().Take(12).Select(t=>t.Item1).ToArray();
+                linePred.Add(sessionId + ","+string.Join(' ', sorted));
             }
         }
         File.WriteAllLines(predictions+"_final.csv", linePred);
+    }
 
+    // ReSharper disable once UnusedMember.Global
+    public static void Create_search_train_v2()
+    {
+        var search_train_path = Path.Combine(DataDirectory, "search_train.csv");
+        var allLines = Utils.ReadCsv(search_train_path);
+        //session_id,search_results,keyword,best_products
+        var rand = new Random(0);
+        var sb = new StringBuilder();
+        sb.Append("session_id,product_id,keyword,y");
+        foreach (var line in allLines.Skip(1))
+        {
+            var allProducts = SplitProducts(line[1]);
+            Utils.Shuffle(allProducts, rand);
+            var best_products = SplitProducts(line[3]);
+            foreach (var s in best_products)
+            {
+                sb.Append(Environment.NewLine+ line[0]+","+s+","+line[2]+",1");
+            }
+            var bad_products = Utils.Without(allProducts, best_products);
+            foreach (var s in bad_products.Take(5*best_products.Length))
+            {
+                sb.Append(Environment.NewLine + line[0] + "," + s + "," + line[2] + ",0");
+            }
+        }
+        File.WriteAllText(Path.Combine(DataDirectory, "search_train_v2.csv"), sb.ToString());
+    }
 
+    public static void Create_search_test_v2()
+    {
+        var search_train_path = Path.Combine(DataDirectory, "search_test.csv");
+        var allLines = Utils.ReadCsv(search_train_path);
+        var sb = new StringBuilder();
+        sb.Append("session_id,product_id,keyword");
+        foreach (var line in allLines.Skip(1))
+        {
+            foreach (var s in SplitProducts(line[1]))
+            {
+                sb.Append(Environment.NewLine + line[0] + "," + s + "," + line[2]);
+            }
+        }
+        File.WriteAllText(Path.Combine(DataDirectory, "search_test_v2.csv"), sb.ToString());
+    }
 
+    private static readonly HashSet<string> StringColumns = new()
+    {
+        "action_type",
+        "search_results","keyword","best_products",
+        "session_id" , "product_id", "channel_grouping", "country", "region", "device_category", "category", "name", "market", "subbrand"
+    };
 
-
-        //session_id,best_products
-        //52764a1dcd6addc9,4efa378890596517 5d0ea89215a8e8fa dfc2aededec87b26 706fd4eac2f5cb32 58e4e987cc9899bf
-        //20ed7cda57581baa,09db50dfc9abbf12 6028359e23034acd df90d7b1179e43fe b9b3c024a75ae0b1 74073f15a63d290e 9fa83166f46410ea 510336c108f32187 7246c26b86ec2d36 7bba2d1762a9ffb8 8f175349022ed02c 5ed1f985367f50b9 3d12fd27b15931cb 3d16fecdce91d7a6 df2ac739d8c0228d bfb6af14a7b03a34 b4efdc17770199d1 ea909cb1eb52d3de 7b490bbfeb01900d 02373c1c21513129 f36e046a71211ca7 ca56dd967fb4b154 8e994c2785b3c95a ad0d0fbdb67d36e8 78d8db418009f3e3 d5ed5e63fc8b56d3 af610ab7d6aa8554 7afefad841749aa7 49f9e4334c17dbef a025d9984761bccc 0d809eebb5e37fc5 c38fcc88485b051e f82f2f0282cf5900 f92fb63e11131150
+    private static Type GetColumnType(string columnName)
+    {
+        return StringColumns.Contains(columnName) ? typeof(string) : typeof(float);
 
     }
 
 
-    // ReSharper disable once UnusedMember.Global
-    public static void CreateEnrichedDataSet()
+    public static void Create_search_train_test_v3()
     {
-        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
-        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
-        //var sw = Stopwatch.StartNew();
+        IModelSample.Log.Info("starting Create_search_train_test_v3");
+        var user_info = DataFrame.read_csv(Path.Combine(DataDirectory, "user_info.csv"), true, GetColumnType);
+        var item_info = DataFrame.read_csv(Path.Combine(DataDirectory, "item_info.csv"), true, GetColumnType);
 
-        int tfidf_count = 300;
-        /*
-          var file1 = DataFrame.read_string_csv(Path.Combine(DataDirectory, "search_test_v2.csv"))["keyword"];
-          var file2 = DataFrame.read_string_csv(Path.Combine(DataDirectory, "search_train_v2.csv"))["keyword"];
-          var file = DataFrame.MergeVertically(file1, file2);
-          var encoded_review_df = file
-              .TfIdfEncode("keyword", tfidf_count, norm:TfIdfEncoding.TfIdfEncoding_norm.L2, scikitLearnCompatibilityMode:false, keepEncodedColumnName:true)
-              .AverageBy("keyword");
-          var reviewsTfIdfEncodedRawFile = Path.Combine(DataDirectory, "tfidf.csv");
-          encoded_review_df.to_csv(reviewsTfIdfEncodedRawFile);
-          */
+        var before_search = DataFrame.read_csv(Path.Combine(DataDirectory, "before_search_v2.csv"), true, GetColumnType);
 
-        var user_info_header = "session_id,channel_grouping,country,region,device_category";
-        var item_info_header = "product_id,category,name,market,subbrand,price";
+        var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
+        var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
+        IModelSample.Log.Info("Finished loading ref dataset");
 
+        var train = DataFrame.read_csv(Path.Combine(DataDirectory, "search_train_v2.csv"), true, GetColumnType);
+        var train_v3 = train
+            .LeftJoinWithoutDuplicates(before_search, new[] { "session_id", "product_id" })
+            .LeftJoinWithoutDuplicates(user_info, new[] { "session_id"})
+            .LeftJoinWithoutDuplicates(item_info, new[] { "product_id"})
+            .LeftJoinWithoutDuplicates(keyword, new[] { "keyword"})
+            .LeftJoinWithoutDuplicates(name, new []{"name"})
+            ;
+        train_v3 = train_v3.DropIgnoreErrors("product_id", "keyword", "name");
+        train_v3.to_csv(Path.Combine(DataDirectory, "search_train_v3.csv"));
+        IModelSample.Log.Info("Finished building train dataset ref dataset");
 
+        var test = DataFrame.read_csv(Path.Combine(DataDirectory, "search_test_v2.csv"), true, GetColumnType);
+        var test_v3 = test
+            .LeftJoinWithoutDuplicates(before_search, new[] { "session_id", "product_id" })
+            .LeftJoinWithoutDuplicates(user_info, new[] { "session_id"})
+            .LeftJoinWithoutDuplicates(item_info, new[] { "product_id" })
+            .LeftJoinWithoutDuplicates(keyword, new[] { "keyword" })
+            .LeftJoinWithoutDuplicates(name, new[] { "name" })
+            ;
+        test_v3 = test_v3.DropIgnoreErrors("product_id", "keyword", "name");
+        test_v3.to_csv(Path.Combine(DataDirectory, "search_test_v3.csv"));
+        IModelSample.Log.Info("Finished building test dataset ref dataset");
 
-
-        //product_id,category,name,market,subbrand,price
-
-        //var allItems = File.ReadAllLines(item_info_path);
-        //var item_info_header = allItems[0];
-        var item_info_path = Path.Combine(DataDirectory, "item_info_v2.csv");
-        Dictionary<string, string> product_id_to_line = new();
-        foreach (var l in File.ReadAllLines(item_info_path).Skip(1))
-        {
-            var id = l.Split(',')[0];
-            product_id_to_line[id] = l;
-        }
-
-        var user_info_path = Path.Combine(DataDirectory, "user_info_v2.csv");
-        Dictionary<string, string> session_id_to_line = new();
-        foreach (var l in File.ReadAllLines(user_info_path).Skip(1))
-        {
-            var id = l.Split(',')[0];
-            session_id_to_line[id] = l;
-        }
-
-        var tfidf_path = Path.Combine(DataDirectory, "tfidf.csv");
-        Dictionary<string, string> keyword_to_line = new();
-        var tfidf_header = File.ReadAllLines(tfidf_path)[0];
-        foreach (var l in File.ReadAllLines(tfidf_path).Skip(1))
-        {
-            var id = l.Split(',')[0];
-            keyword_to_line[id] = l;
-        }
+    }
 
 
-        //Sep=,
-        //session_id,search_results,action_type
-        //82aff0d6665cd26b,9fc0cc21322f9fc3,ITEM_LIST
-
+    public static void AddBeforeSearchDataV2()
+    {
         var before_search_path = Path.Combine(DataDirectory, "before_search.csv");
         Dictionary<string, Dictionary<string, HashSet<string>>> before_search_to_line = new();
         foreach (var l in Utils.ReadCsv(before_search_path).Skip(1))
         {
-
             var session_id = l[0];
             var search_results = l[1];
             var action_type = l[2];
@@ -206,120 +209,57 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
         }
 
-        ////product_id,category,name,market,subbrand,price
-        //var user_info_path = Path.Combine(DataDirectory, "user_info.csv");
-        //var allUsers = System.IO.File.ReadAllLines(user_info_path);
-        //Dictionary<string, string> session_id_to_line = new();
-        //var user_info_header = allUsers[0];
-        //var use_info_lines = new List<string>();
-        //use_info_lines.Add(user_info_header);
-        //foreach (string[] splitted in Utils.ReadCsv(user_info_path).Skip(1))
-        //{
-        //    var splitted2 = RemoveComma(splitted);
-        //    var session_id = splitted[0];
-        //    session_id_to_line[session_id] = string.Join(',', splitted2);
-        //    use_info_lines.Add(string.Join(',', splitted2));
-
-        //}
-        //File.WriteAllText(Path.Combine(DataDirectory, "user_info_v2.csv"), string.Join(Environment.NewLine, use_info_lines));
-
-        
-
-
-
-        //session_id,search_results,keyword,best_products
-
-
-        foreach (var token in new[] { "search_train_v2", "search_test_v2" })
+        var categories = "ADD_TO_CART,CHECKOUT,ITEM_DETAILS,ITEM_LIST,PURCHASE,REMOVE_FROM_CART".Split(',');
+        var sb = new StringBuilder();
+        sb.AppendFormat("session_id,product_id," + string.Join(',', categories));
+        foreach (var (session_id, data) in before_search_to_line)
         {
-
-            var search_train_path = Path.Combine(DataDirectory, token+".csv");
-            var search_train = Utils.ReadCsv(search_train_path).ToList();
-
-            var rand = new Random();
-            List<string> newLines = new();
-
-            if (token == "search_test_v2")
+            foreach (var (product_id, values) in data)
             {
-                newLines.Add(user_info_header + ",ADD_TO_CART,CHECKOUT,ITEM_DETAILS,ITEM_LIST,PURCHASE,REMOVE_FROM_CART," + item_info_header + ","+ tfidf_header);
+                sb.Append(Environment.NewLine + session_id + "," + product_id);
+                foreach (var h in categories)
+                {
+                    sb.Append("," + (values.Contains(h) ? 1 : 0));
+                }
             }
-            else
-            {
-                newLines.Add(user_info_header + ",ADD_TO_CART,CHECKOUT,ITEM_DETAILS,ITEM_LIST,PURCHASE,REMOVE_FROM_CART," + item_info_header + ","+ tfidf_header+",ok");
-            }
-
-
-            var search_train_header = (token == "search_train_v2")
-                        ?"session_id,search_results,keyword,best_products"
-                        : "session_id,search_results,keyword";
-            var search_train_lines = new List<string>();
-            search_train_lines.Add(search_train_header);
-            for (int row = 1; row < search_train.Count; ++row)
-            {
-                search_train[row] = RemoveComma(search_train[row]);
-                var session_id = search_train[row][0];
-                var search_results = SplitProducts(search_train[row][1]);
-                search_train_lines.Add(string.Join(',', search_train[row]));
-
-                Utils.Shuffle(search_results, rand);
-
-
-                var keyword = search_train[row][2];
-
-                string keywords = "";
-                if (keyword_to_line.ContainsKey(keyword))
-                {
-                    keywords = keyword_to_line[keyword];
-                }
-                else
-                {
-                    keywords = "keyword,"+string.Join(',', Enumerable.Repeat(0, tfidf_count).Select(t=>t.ToString()));
-
-                }
-
-
-
-
-                if (token == "search_test_v2")
-                {
-                    foreach (var s in search_results)
-                    {
-
-                        
-
-                        var line = session_id_to_line[session_id] + "," + ExtraFeatures(session_id, s, before_search_to_line) + ","+ product_id_to_line[s] + "," + keywords;
-                        newLines.Add(line);
-                    }
-
-                }
-                else
-                {
-                    var best_products = new HashSet<string>(SplitProducts(search_train[row][3]));
-                    foreach (var s in best_products)
-                    {
-                        var line = session_id_to_line[session_id] + "," + ExtraFeatures(session_id, s, before_search_to_line) + "," + product_id_to_line[s] + "," + keywords + ",1";
-                        newLines.Add(line);
-                    }
-
-                    search_results = Utils.Without(search_results, best_products).ToArray();
-
-                    foreach (var s in search_results.Take(best_products.Count))
-                    {
-                        var line = session_id_to_line[session_id] + "," + ExtraFeatures(session_id, s, before_search_to_line) + "," + product_id_to_line[s] + "," + keywords + ",0";
-                        newLines.Add(line);
-                    }
-
-                }
-
-            }
-            File.WriteAllLines(search_train_path + "v5.csv", newLines);
-            //File.WriteAllText(Path.Combine(DataDirectory, token + "_v3.csv"), string.Join(Environment.NewLine, search_train_lines));
         }
+        File.WriteAllText(Path.Combine(DataDirectory, "before_search_v2.csv"), sb.ToString());
+    }
 
-        return;
+    // ReSharper disable once UnusedMember.Global
+    public static void CreateEnrichedDataSet()
+    {
 
-        //session_id,search_results,keyword,best_products
-        //e00f4cc4c9ffc860,c2318f182e808960 304ea1877587818c 7fbdef73858d43fc 269b512402d656ef e59afed6684f043c 7c10e75637637cdc 2268c99d06e5dd7e 4d4140667796ed29 83d86674a2c6bb4e 38d3340da2ff724a 11695f0f12630727 926aac3ef31cfa81,Rare,c2318f182e808960
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
+        //var sw = Stopwatch.StartNew();
+
+        DataFrame.NormalizeAllCsvInDirectory(DataDirectory, true, true);
+
+        //TfIdf Encoding
+        const int embeddingDim = 150;
+        const bool hasHeader = true;
+        const bool isNormalized = true;
+        var search_train_path = Path.Combine(DataDirectory, "search_train.csv");
+        var search_test_path = Path.Combine(DataDirectory, "search_test.csv");
+        var item_info_path = Path.Combine(DataDirectory, "item_info.csv");
+
+        foreach (var path in new[] { search_train_path, search_test_path })
+        {
+            var df1 =DataFrame.read_string_csv(path, true, true);
+            df1.UpdateColumnInPlace("keyword", c => c?.ToLower());
+            df1.to_csv(path);
+        }
+        var df2 = DataFrame.read_string_csv(item_info_path, true, true);
+        df2.UpdateColumnInPlace("name", c => c?.ToLower());
+        df2.to_csv(item_info_path);
+
+        DataFrame.TfIdfEncode(new[] { search_train_path, search_test_path }, hasHeader, isNormalized, "keyword", embeddingDim, false);
+        DataFrame.TfIdfEncode(new[] { item_info_path }, hasHeader, isNormalized, "name", embeddingDim, false);
+        AddBeforeSearchDataV2();
+        Create_search_train_v2();
+        Create_search_test_v2();
+        Create_search_train_test_v3();
     }
 
 
@@ -339,12 +279,13 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.BinaryCrossentropy;
     public override string[] CategoricalFeatures => new[] { "channel_grouping", "country", "region", "device_category", "category", "name", "market" };
     public override string[] IdColumns => new[] { "session_id" };
-    public override string[] TargetLabels => new[] { "ok" };
+    public override string[] TargetLabels => new[] { "y" };
     public override DataSet TestDataset()
     {
         return LoadAndEncodeDataset_If_Needed().testDataset;
     }
 
+    
 
 
     public override DataSetV2 FullTrainingAndValidation()
@@ -389,8 +330,10 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
     private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    private static string XYTrainRawFile => Path.Combine(DataDirectory, "search_train_v2.csvv4.csv");
-    private static string XTestRawFile => Path.Combine(DataDirectory, "search_test_v2.csvv4.csv");
+    //private static string XYTrainRawFile => Path.Combine(DataDirectory, "search_train_v2.csvv4.csv");
+    private static string XYTrainRawFile => Path.Combine(DataDirectory, "search_train_v3.csv");
+    //private static string XTestRawFile => Path.Combine(DataDirectory, "search_test_v2.csvv4.csv");
+    private static string XTestRawFile => Path.Combine(DataDirectory, "search_test_v3.csv");
 
 
     // ReSharper disable once UnusedMember.Global
@@ -488,8 +431,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{"KFold", 2},
+            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
             
             { "num_threads", 1},
@@ -506,18 +449,20 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             //high priority
             { "bagging_fraction", 0.8},
             //{ "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
-            { "bagging_freq", new[]{0, 1} },
+            { "bagging_freq", new[]{0, 10} },
             
             
             //{ "boosting", new []{"gbdt", "dart"}},
             { "boosting", "dart"},
-            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
+            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.6f, 1.0f)},
 
             { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
+            
             { "learning_rate", new[]{0.001, 0.01, 0.1}},
-            //{ "max_depth", new[]{10, 20, 50, 100, 255} },
+
             { "max_depth", new[]{10, 20, 50} },
+            
             { "min_data_in_leaf", new[]{20, 50 ,100} },
             { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
             //{ "num_leaves", new[]{3,15,50} },
@@ -527,8 +472,10 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             //{ "min_data_in_bin", new[]{3, 10, 100, 150}  },
             //{ "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
-            { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
-            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
+            
+            //{ "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
+
+            //{ "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
 
             ////low priority
             //{ "extra_trees", new[] { true , false } }, //low priority 
@@ -536,6 +483,26 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
             //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
         };
+
+
+        searchSpace = new Dictionary<string, object>
+        {
+
+            //related to Dataset 
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            { "num_threads", -1},
+            { "boosting", "gbdt"},
+            {"objective", "binary"},          //for binary classification
+            { "learning_rate", 0.15},
+            { "colsample_bytree",0.9},
+            { "bagging_fraction", 0.7},
+            { "bagging_freq", 10},
+            { "verbosity", "0" },
+            { "max_depth", 11},
+            { "num_iterations", num_iterations },
+        };
+
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;

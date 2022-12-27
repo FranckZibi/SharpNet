@@ -37,7 +37,7 @@ public static class SampleUtils
             {
                 var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
                 modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
-                modelAndDataset.Save(workingDirectory, model.ModelName);
+                modelAndDataset.Save(workingDirectory);
                 var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
                 var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
                 Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: {modelAndDatasetOnFullDataset.Model.ModelName})");

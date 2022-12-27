@@ -90,13 +90,27 @@ public class TesDataFrame
         expectedFloatTensor = new CpuTensor<float>(new[] { 3, 2 }, new[] { 0.3f, 0.6f, 0.2f, 0.5f, 0.1f, 0.4f});
         Assert.IsTrue(TestTensor.SameContent(df_c2_ascending.FloatTensor, expectedFloatTensor, 1e-5));
         Assert.AreEqual(new[] { "B", "A", "C" }, df_c2_ascending.StringColumnContent("id"));
-
     }
 
     [Test]
     public void TestLeftJoinWithoutDuplicatesStringType()
     {
-        var leftFloatTensor = CpuTensor<float>.New(new[] { 7f, 5.0f, 6.0f, 0.4f, 0.2f, 0.3f, 0.3f, 0.1f, 0.2f, }, 3);
+        /*
+        left
+        2       id      0       1
+        3f 		"id2"	5.0f	6.0f 
+        0.4f 	"id0"	0.2f	0.3f 
+        7f 	    "id1"	0.1f	0.2f
+
+        right:
+        e1      id      letter  e2
+        1f 		"id2"	"a"		2f	 
+        3f 		"id2"	"b" 	4f 
+        5f 		"id12"	"c" 	6f 
+        0.4f 	"id0"	"d" 	8f
+        */
+
+        var leftFloatTensor = CpuTensor<float>.New(new[] { 3f, 5.0f, 6.0f, 0.4f, 0.2f, 0.3f, 7f, 0.1f, 0.2f, }, 3);
         var leftStringTensor = CpuTensor<string>.New(new[] { "id2", "id0", "id1" }, 1);
         var left = new DataFrame(
             new List<Tuple<string, int, int>>
@@ -108,7 +122,7 @@ public class TesDataFrame
             },
             leftFloatTensor, leftStringTensor, null);
 
-        var rightFloatTensor = CpuTensor<float>.New(new float[] { 1, 2, 3, 4, 5, 6, 7, 8, }, 2);
+        var rightFloatTensor = CpuTensor<float>.New(new float[] { 1, 2, 3, 4, 5, 6, 0.4f, 8, }, 2);
         var rightStringTensor = CpuTensor<string>.New(new[] { "id2", "a", "id2", "b", "id12", "c", "id0", "d" }, 2);
         var right = new DataFrame(
             new List<Tuple<string, int, int>>
@@ -120,11 +134,34 @@ public class TesDataFrame
             },
             rightFloatTensor, rightStringTensor, null);
 
-        var observed = left.LeftJoinWithoutDuplicates(right, "id");
-
+        /*
+        join("id")
+        3f 		"id2"	5.0f 	6.0f 	1 	"a"	 	2
+        0.4f 	"id0"	0.2f 	0.3f 	0.4	"d"		8
+        7f 	    "id1"	0.1f 	0.2f    0	null 	0
+        */
+        var observed = left.LeftJoinWithoutDuplicates(right, new[] { "id" });
         Assert.AreEqual(observed.Columns, new[] { "2", "id", "0", "1", "e1", "e2", "letter" });
-        var expectedFloatTensor = new CpuTensor<float>(new[] { 3, 5 }, new[] { 7f, 5.0f, 6.0f, 1, 2, 0.4f, 0.2f, 0.3f, 7, 8, 0.3f, 0.1f, 0.2f, 0, 0 });
+        var expectedFloatTensor = new CpuTensor<float>(new[] { 3, 5 }, new[] { 3f, 5.0f, 6.0f, 1, 2, 0.4f, 0.2f, 0.3f, 0.4f, 8, 7f, 0.1f, 0.2f, 0, 0 });
         var expectedStringTensor = new CpuTensor<string>(new[] { 3, 2 }, new[] { "id2", "a", "id0", "d", "id1", null });
+        Assert.IsTrue(TestTensor.SameContent(expectedFloatTensor, observed.FloatTensor, 1e-5));
+        Assert.IsTrue(TestTensor.SameStringContent(expectedStringTensor, observed.StringTensor));
+
+        /*
+       join("2", "id")
+        3f      "id2"   5.0f    6.0f    "b"     4f
+        0.4f    "id0"   0.2f    0.3f    "d"     8f
+        7f      "id1"   0.1f    0.2f    null,   0
+       */
+        observed = left.LeftJoinWithoutDuplicates(right, new[] { "2", "id" }, new[] { "e1", "id" });
+        Assert.AreEqual(observed.Columns, new[] { "2", "id", "0", "1", "e2", "letter" });
+        expectedFloatTensor = new CpuTensor<float>(new[] { 3, 4 }, new[]
+        {
+            3f, 5.0f, 6.0f, 4,
+            0.4f, 0.2f, 0.3f, 8, 
+            7f, 0.1f, 0.2f, 0
+        });
+        expectedStringTensor = new CpuTensor<string>(new[] { 3, 2 }, new[] { "id2", "b", "id0", "d", "id1", null });
         Assert.IsTrue(TestTensor.SameContent(expectedFloatTensor, observed.FloatTensor, 1e-5));
         Assert.IsTrue(TestTensor.SameStringContent(expectedStringTensor, observed.StringTensor));
     }
@@ -132,8 +169,39 @@ public class TesDataFrame
     [Test]
     public void TestLeftJoinWithoutDuplicatesFloat()
     {
-        var leftFloatTensor = CpuTensor<float>.New(new[] { 7f, 5.0f, 2005, 0.4f, 0.2f, 2018, 0.3f, 0.1f, 2020, }, 3);
-        var leftStringTensor = CpuTensor<string>.New(new[] { "1", "9", "5" }, 1);
+        /*
+        left:
+        col0	col1	digit	year
+        7f 		5.0f  	"1"		2005
+        0.4f 	0.2f 	"9"		2018
+        0.3f 	0.1f	"5"		2020
+
+        right:
+        month	letter	year
+        1 		"a" 	2020 
+        3 		"b" 	2020 
+        5 		"c" 	2001 
+        7 		"d" 	2005
+
+        join("year"):
+        col0	col1	digit	year	month letter
+        7f 		5.0f  	"1"		2005	7		"d"
+        0.4f 	0.2f 	"9"		2018	na		na
+        0.3f 	0.1f	"5"		2020	1		"a"
+        */
+
+        var leftFloatTensor = CpuTensor<float>.New(new[]
+        {
+            7f, 5.0f, 2005, 
+            0.4f, 0.2f, 2018, 
+            0.3f, 0.1f, 2020,
+        }, 3);
+        var leftStringTensor = CpuTensor<string>.New(new[]
+        {
+            "1", 
+            "9", 
+            "5"
+        }, 1);
         var left = new DataFrame(
             new List<Tuple<string, int, int>>
             {
@@ -144,8 +212,20 @@ public class TesDataFrame
             },
             leftFloatTensor, leftStringTensor, null);
 
-        var rightFloatTensor = CpuTensor<float>.New(new float[] { 1, 2020, 3, 2020, 5, 2001, 7, 2005, }, 2);
-        var rightStringTensor = CpuTensor<string>.New(new[] { "a", "b", "c", "d", }, 1);
+        var rightFloatTensor = CpuTensor<float>.New(new float[]
+        {
+            1, 2020, 
+            3, 2020, 
+            5, 2001, 
+            7, 2005,
+        }, 2);
+        var rightStringTensor = CpuTensor<string>.New(new[]
+        {
+            "a", 
+            "b", 
+            "c", 
+            "d",
+        }, 1);
         var right = new DataFrame(
             new List<Tuple<string, int, int>>
             {
@@ -155,7 +235,7 @@ public class TesDataFrame
             },
             rightFloatTensor, rightStringTensor, null);
 
-        var observed = left.LeftJoinWithoutDuplicates(right, "year");
+        var observed = left.LeftJoinWithoutDuplicates(right, new[] { "year" });
 
         Assert.AreEqual(observed.Columns, new[] { "col0", "col1", "digit", "year", "month", "letter" });
         var expectedFloatTensor = new CpuTensor<float>(new[] { 3, 4 }, new[] { 7f, 5.0f, 2005, 7, 0.4f, 0.2f, 2018, 0, 0.3f, 0.1f, 2020, 1 });

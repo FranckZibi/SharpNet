@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -430,16 +431,15 @@ namespace SharpNet
         public static IEnumerable<string[]> ReadCsv(string csvPath, char? mandatorySeparator = null)
         {
             using System.IO.TextReader fileReader = System.IO.File.OpenText(csvPath);
-
             var csvConfig = new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                TrimOptions = CsvHelper.Configuration.TrimOptions.InsideQuotes | CsvHelper.Configuration.TrimOptions.Trim
+                TrimOptions = CsvHelper.Configuration.TrimOptions.InsideQuotes | CsvHelper.Configuration.TrimOptions.Trim,
+                BadDataFound = null,
             };
             if (mandatorySeparator.HasValue)
             {
                 csvConfig.DetectDelimiter = false;
                 csvConfig.Delimiter = mandatorySeparator.Value.ToString();
-                csvConfig.BadDataFound = null;
             }
             else
             {
@@ -481,6 +481,20 @@ namespace SharpNet
                 case 1: return char.IsDigit(lineSpan[nextItemStart]) ? (lineSpan[nextItemStart] - '0') : invalid_int;
                 default: return int.TryParse(lineSpan.Slice(nextItemStart, nextItemLength), out var intValue) ? intValue : invalid_int;
             }
+        }
+
+        public static string SubStringWithCache(ReadOnlySpan<char> lineSpan, int nextItemStart, int nextItemLength, ConcurrentDictionary<int, string> cache)
+        {
+            var strSpan = lineSpan.Slice(nextItemStart, nextItemLength);
+            var hashStrSpan = string.GetHashCode(strSpan);
+            if (cache.TryGetValue(hashStrSpan, out var str) && strSpan.Equals(str, StringComparison.Ordinal))
+            {
+                return str;
+            }
+            //we need to allocate the string
+            str = strSpan.ToString();
+            cache.TryAdd(hashStrSpan, str);
+            return str;
         }
 
         public static string NormalizeCategoricalFeatureValue(string value)
@@ -1260,7 +1274,6 @@ namespace SharpNet
             properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
             properties["logfile"] = logFile;
         }
-
 
         public static string GetEncoding(string filename)
         {

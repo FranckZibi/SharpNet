@@ -59,8 +59,8 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var testDf = DataFrame.read_string_csv(RawTestFile);
         var res = new List<DataFrame> { trainDf, testDf };
 
-        res[0] = res[0].LeftJoinWithoutDuplicates(fullReviewsForEmbeddingDim, "id");
-        res[1] = res[1].LeftJoinWithoutDuplicates(fullReviewsForEmbeddingDim, "id");
+        res[0] = res[0].LeftJoinWithoutDuplicates(fullReviewsForEmbeddingDim, new[] { "id" });
+        res[1] = res[1].LeftJoinWithoutDuplicates(fullReviewsForEmbeddingDim, new[] { "id" });
         res[0].to_csv(RawTrainFile + FILE_EXT);
         res[1].to_csv(RawTestFile + FILE_EXT);
 

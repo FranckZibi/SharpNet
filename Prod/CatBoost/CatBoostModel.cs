@@ -29,10 +29,6 @@ namespace SharpNet.CatBoost
             {
                 throw new Exception($"Missing exe {ExePath}");
             }
-            if (!Directory.Exists(RootDatasetPath))
-            {
-                Directory.CreateDirectory(RootDatasetPath);
-            }
             if (!Directory.Exists(TempPath))
             {
                 Directory.CreateDirectory(TempPath);

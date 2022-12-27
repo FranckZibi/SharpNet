@@ -13,9 +13,7 @@ namespace SharpNetTests
 {
     static class Program
     {
-
         private static readonly log4net.ILog Log = log4net.LogManager.GetLogger(typeof(Program));
-
 
         // ReSharper disable once UnusedMember.Global
         public static bool Accept(CancelDatabaseEntry entry, string mandatoryPrefix)
@@ -75,14 +73,13 @@ namespace SharpNetTests
             //SharpNet.Datasets.Natixis70.Natixis70DatasetSample.LaunchCatBoostHPO(10, 1*60); return;
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_bis", "5F73F0353D", 5);
             //new ChallengeTools().StackedEnsemble(30, 0);
-            //new ChallengeTools().Retrain(2); return;
+            //new ChallengeTools().Retrain(-1); return;
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
-            //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\5ADF527ECE_FULL_modelformat_predict_test_.csv");return;
-            //KaggleDaysDatasetSample.Enrich(@"\\ryzen2700\Challenges\KaggleDays\submission\4A0F9F595A_KFOLD_FULL_modelformat_predict_test_.csv"); return;
-            //KaggleDaysDatasetSample.CreateEnrichedDataSet();
-            //KaggleDaysDatasetSample.LaunchLightGBMHPO(20,120); return;
+            //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\849E438B37_KFOLD_FULL_DART_modelformat_predict_test_.csv"); return;
+            KaggleDaysDatasetSample.CreateEnrichedDataSet();
+            //KaggleDaysDatasetSample.LaunchLightGBMHPO(2000,3600); return;
             //KaggleDaysDatasetSample.LaunchCatBoostHPO(30, 0);
 
             //KFoldSample.Compute12();
@@ -146,6 +143,7 @@ namespace SharpNetTests
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().BenchmarkDataAugmentation();
         }
+
 
         #region DenseNet Training
         private static void DenseNetTests()

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
+using DataSet = SharpNet.Datasets.DataSet;
 
 namespace SharpNet.Models;
 
@@ -82,7 +83,7 @@ public class ModelAndDatasetPredictions
         }
         if (saveTrainedModel)
         {
-            Save(Model.WorkingDirectory, Model.ModelName);
+            Save(Model.WorkingDirectory);
         }
         return validationRankingScore;
     }
@@ -198,6 +199,12 @@ public class ModelAndDatasetPredictions
         res.AddRange(Model.AllFiles());
         return res;
     }
+
+    public void Save(string workingDirectory)
+    {
+        Save(workingDirectory, Model.ModelName);
+    }
+
     public virtual void Save(string workingDirectory, string modelName)
     {
         var start = Stopwatch.StartNew();

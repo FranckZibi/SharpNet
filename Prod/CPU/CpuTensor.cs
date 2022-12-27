@@ -2332,6 +2332,22 @@ namespace SharpNet.CPU
             return new CpuTensor<T>((int[])sliceShape.Clone(), this, startIndex);
         }
 
+
+        public Span<T> RowSpanSlice(int startRowIndex, int nbRows)
+        {
+            Debug.Assert(Shape.Length >= 2);
+            Debug.Assert(startRowIndex >= 0);
+            Debug.Assert(startRowIndex < Shape[0]);
+            Debug.Assert(startRowIndex + nbRows - 1 < Shape[0]);
+            return SpanSlice(startRowIndex* MultDim0, MultDim0);
+        }
+        
+        public Span<T> SpanSlice(int start, int length)
+        {
+            Debug.Assert(start >= 0);
+            return Content.Slice(start, length).Span;
+        }
+        
         public override void YOLOV3Forward(Tensor x, int inputImageHeight, int inputImageWidth, int[] anchors)
         {
             Debug.Assert(anchors.Length %2 == 0);

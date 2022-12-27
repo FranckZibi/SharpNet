@@ -171,7 +171,21 @@ public abstract class Model
     }
 
 
-    public virtual string RootDatasetPath => Path.Combine(WorkingDirectory, "Dataset");
+    public virtual string RootDatasetPath
+    {
+        get
+        {
+            if (WorkingDirectory.StartsWith(Utils.ChallengesPath))
+            {
+                var subDirectoriesAfterChallengesPath = WorkingDirectory.Substring(Utils.ChallengesPath.Length).Split(new[]{ '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+                if (subDirectoriesAfterChallengesPath.Length != 0)
+                {
+                    return Path.Combine(Utils.ChallengesPath, subDirectoriesAfterChallengesPath[0], "Dataset");
+                }
+            }
+            return Path.Combine(WorkingDirectory, "Dataset");
+        }
+    }
 
     public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
         Fit(DataSet trainDataset, DataSet validationDatasetIfAny);

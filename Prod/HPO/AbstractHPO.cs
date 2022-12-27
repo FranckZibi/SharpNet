@@ -54,6 +54,9 @@ namespace SharpNet.HPO
             Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log");
             Utils.ConfigureThreadLog4netProperties(workingDirectory, "log");
 
+
+            Log.Info($"Performing Hyper-Parameter Optimization in directory {workingDirectory}");
+
             CreateDefaultSample = createDefaultSample;
             _workingDirectory = workingDirectory;
             SearchSpace = new Dictionary<string, AbstractHyperParameterSearchSpace>();
