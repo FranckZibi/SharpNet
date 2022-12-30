@@ -36,7 +36,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
                 xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile, true, true);
                 ISample.Log.Info($"Loading file {XTestRawFile}");
                 xtest_string_df = DataFrame.read_string_csv(XTestRawFile, true, true);
-                Console.WriteLine($"Loading files took {sw.ElapsedMilliseconds / 1000.0} seconds");
+                ISample.Log.Debug($"Loading files took {sw.ElapsedMilliseconds / 1000.0} seconds");
             }
         }
     }
@@ -98,20 +98,27 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         //session_id,search_results,keyword,best_products
         var rand = new Random(0);
         var sb = new StringBuilder();
-        sb.Append("session_id,product_id,keyword,y");
+        sb.Append("session_id,product_id,keyword,rank,count,y");
         foreach (var line in allLines.Skip(1))
         {
-            var allProducts = SplitProducts(line[1]);
+            string[] allProducts = SplitProducts(line[1]);
+            var productToRank = new Dictionary<string, int>();
+            for (var rank = 0; rank < allProducts.Length; rank++)
+            {
+                var product = allProducts[rank];
+                productToRank[product] = rank;
+            }
+
             Utils.Shuffle(allProducts, rand);
             var best_products = SplitProducts(line[3]);
             foreach (var s in best_products)
             {
-                sb.Append(Environment.NewLine+ line[0]+","+s+","+line[2]+",1");
+                sb.Append(Environment.NewLine+ line[0] + "," + s + "," + line[2] + "," + productToRank[s] + ","+ allProducts.Length + ",1");
             }
             var bad_products = Utils.Without(allProducts, best_products);
-            foreach (var s in bad_products.Take(5*best_products.Length))
+            foreach (var s in bad_products)
             {
-                sb.Append(Environment.NewLine + line[0] + "," + s + "," + line[2] + ",0");
+                sb.Append(Environment.NewLine + line[0] + "," + s + "," + line[2] + "," + productToRank[s] + "," + allProducts.Length + ",0");
             }
         }
         File.WriteAllText(Path.Combine(DataDirectory, "search_train_v2.csv"), sb.ToString());
@@ -122,12 +129,20 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         var search_train_path = Path.Combine(DataDirectory, "search_test.csv");
         var allLines = Utils.ReadCsv(search_train_path);
         var sb = new StringBuilder();
-        sb.Append("session_id,product_id,keyword");
+        sb.Append("session_id,product_id,keyword,rank,count");
         foreach (var line in allLines.Skip(1))
         {
-            foreach (var s in SplitProducts(line[1]))
+            var allProducts = SplitProducts(line[1]);
+            var productToRank = new Dictionary<string, int>();
+            for (var rank = 0; rank < allProducts.Length; rank++)
             {
-                sb.Append(Environment.NewLine + line[0] + "," + s + "," + line[2]);
+                var product = allProducts[rank];
+                productToRank[product] = rank;
+            }
+
+            foreach (var s in allProducts)
+            {
+                sb.Append(Environment.NewLine + line[0] + "," + s +"," + line[2] + "," + productToRank[s] + "," + allProducts.Length);
             }
         }
         File.WriteAllText(Path.Combine(DataDirectory, "search_test_v2.csv"), sb.ToString());
@@ -155,8 +170,17 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
         var before_search = DataFrame.read_csv(Path.Combine(DataDirectory, "before_search_v2.csv"), true, GetColumnType);
 
-        var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
-        var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
+
+        var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name_embedded_distiluse-base-multilingual-cased-v1.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
+        name = name[name.Columns.Take(1 + embeddingDim_name).ToArray()];
+
+        var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword_embedded_distiluse-base-multilingual-cased-v1.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
+        keyword = keyword[keyword.Columns.Take(1 + embeddingDim_keyword).ToArray()];
+
+        //var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
+        //var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
+
+
         IModelSample.Log.Info("Finished loading ref dataset");
 
         var train = DataFrame.read_csv(Path.Combine(DataDirectory, "search_train_v2.csv"), true, GetColumnType);
@@ -226,6 +250,9 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         File.WriteAllText(Path.Combine(DataDirectory, "before_search_v2.csv"), sb.ToString());
     }
 
+    const int embeddingDim_keyword = 100;
+    const int embeddingDim_name = 100;
+
     // ReSharper disable once UnusedMember.Global
     public static void CreateEnrichedDataSet()
     {
@@ -234,12 +261,12 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
         //var sw = Stopwatch.StartNew();
 
-        DataFrame.NormalizeAllCsvInDirectory(DataDirectory, true, true);
 
-        //TfIdf Encoding
-        const int embeddingDim = 150;
-        const bool hasHeader = true;
-        const bool isNormalized = true;
+        //Create_search_train_test_v3(); return;
+
+
+        //?D DataFrame.NormalizeAllCsvInDirectory(DataDirectory, true, true);
+
         var search_train_path = Path.Combine(DataDirectory, "search_train.csv");
         var search_test_path = Path.Combine(DataDirectory, "search_test.csv");
         var item_info_path = Path.Combine(DataDirectory, "item_info.csv");
@@ -254,8 +281,11 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         df2.UpdateColumnInPlace("name", c => c?.ToLower());
         df2.to_csv(item_info_path);
 
-        DataFrame.TfIdfEncode(new[] { search_train_path, search_test_path }, hasHeader, isNormalized, "keyword", embeddingDim, false);
-        DataFrame.TfIdfEncode(new[] { item_info_path }, hasHeader, isNormalized, "name", embeddingDim, false);
+        //TfIdf Encoding
+        const bool hasHeader = true;
+        const bool isNormalized = true;
+        DataFrame.TfIdfEncode(new[] { search_train_path, search_test_path }, hasHeader, isNormalized, "keyword", embeddingDim_keyword, false);
+        DataFrame.TfIdfEncode(new[] { item_info_path }, hasHeader, isNormalized, "name", embeddingDim_name, false);
         AddBeforeSearchDataV2();
         Create_search_train_v2();
         Create_search_test_v2();
@@ -269,7 +299,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
     //public string ToRemove = "product_id,subbrand,keyword";
-    public string ToRemove = "product_id,subbrand,keyword,market";
+    //public string ToRemove = "product_id,subbrand,keyword,market";
+    public string ToRemove = "product_id,subbrand,keyword,market,count";
     #endregion
 
     public override int NumClass => 1;

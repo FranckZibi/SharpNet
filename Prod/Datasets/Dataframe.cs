@@ -1028,11 +1028,7 @@ public sealed class DataFrame
     {
         int rows = Shape[0];
         int cols = Shape[1];
-        var lines = new string[(addHeader ? 1 : 0) + rows];
-        if (addHeader)
-        {
-            lines[0] = string.Join(sep, Columns);
-        }
+        var buffer = new string[Math.Min(100000, rows + 1)];
 
         //we create the directory if missing
         var directory = Path.GetDirectoryName(path)??"";
@@ -1040,15 +1036,14 @@ public sealed class DataFrame
         {
             Directory.CreateDirectory(directory);
         }
+        File.WriteAllText(path + ".tmp", addHeader ? string.Join(sep, Columns) : "");
 
-        var embeddedTensors = EmbeddedTensors;
-        int currentIndex = index ?? -1;
-        void ProcessRow(int row)
+        void ProcessRow(int row, int index_of_first_element_in_buffer)
         {
             var sb = new StringBuilder();
-            var floatContent = _floatTensor == null ? null : _floatTensor.ReadonlyContent;
-            var stringContent = _stringTensor == null ? null : _stringTensor.ReadonlyContent;
-            var intContent = _intTensor == null ? null : _intTensor.ReadonlyContent;
+            var floatContent = _floatTensor == null ? null : _floatTensor.RowSpanSlice(row,1);
+            var stringContent = _stringTensor == null ? null : _stringTensor.RowSpanSlice(row, 1);
+            var intContent = _intTensor == null ? null : _intTensor.RowSpanSlice(row, 1);
 
             for (int col = 0; col < cols; col++)
             {
@@ -1056,8 +1051,8 @@ public sealed class DataFrame
                 {
                     if (index.HasValue)
                     {
-                        sb.Append(currentIndex + sep);
-                        ++currentIndex;
+                        sb.Append(index.Value+row);
+                        sb.Append(sep);
                     }
                 }
                 else
@@ -1066,7 +1061,7 @@ public sealed class DataFrame
                 }
 
                 var c = _columns[col];
-                var idx = c.Item3 + row * embeddedTensors[c.Item2].Shape[1];
+                var idx = c.Item3;
                 switch (c.Item2)
                 {
                     case FLOAT_TYPE_IDX:
@@ -1088,17 +1083,23 @@ public sealed class DataFrame
                         break;
                     default: throw new Exception($"invalid type index {c.Item2}");
                 }
-
             }
-
-            lines[(addHeader ? 1 : 0) + row] = sb.ToString();
+            buffer[row-index_of_first_element_in_buffer] = sb.ToString();
         }
 
-        Parallel.For(0, rows, ProcessRow);
+        int[] full_list = Enumerable.Range(0, rows).ToArray();
+        foreach (var subList in Utils.SplitIntoSubListOfLength(full_list, buffer.Length))
+        {
+            Parallel.For(subList[0], subList.Last()+1, row=>ProcessRow(row, subList[0]));
+            int row_count = subList.Last() - subList[0] + 1;
+            var fileContent = string.Join(Environment.NewLine, buffer.Take(row_count));
+            if (addHeader || subList[0]>0)
+            {
+                fileContent = Environment.NewLine + fileContent;
+            }
+            File.AppendAllText(path + ".tmp", fileContent);
+        }
 
-
-        var fileContent = string.Join(Environment.NewLine, lines);
-        File.WriteAllText(path + ".tmp", fileContent);
         if (File.Exists(path))
         {
             File.Delete(path);

@@ -40,7 +40,7 @@ public class ModelAndDatasetPredictions
     {
         var start = Stopwatch.StartNew();
         var modelAndDatasetSample = ModelAndDatasetPredictionsSample.Load(workingDirectory, modelName);
-        ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample.Load)} took {start.Elapsed.TotalSeconds}s");
+        ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample.Load)} of model '{modelName}' took {start.Elapsed.TotalSeconds}s");
         return new ModelAndDatasetPredictions(modelAndDatasetSample, workingDirectory, modelName);
     }
     #endregion

@@ -1285,5 +1285,17 @@ namespace SharpNet
                 return cdet.Charset;
             }
         }
+
+        public static List<List<int>> SplitIntoSubListOfLength(int[] full_list, int length)
+        {
+            var res = new List<List<int>>();
+            for (var i = 0; i < full_list.Length / length + 1; i++)
+            {
+                res.Add(full_list.Skip(i * length).Take(length).ToList());
+            }
+
+            return res;
+        }
+        
     }
 }
