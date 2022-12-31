@@ -12,6 +12,20 @@ public class ModelAndDatasetPredictions
 {
     #region public fields and properties
     public Model Model { get; }
+
+    public Model EmbeddedModel
+    {
+        get
+        {
+            if (Model is KFoldModel kfoldModel)
+            {
+                return kfoldModel.EmbeddedModel(0);
+            }
+            return Model;
+        }
+    }
+
+
     public ModelAndDatasetPredictionsSample ModelAndDatasetPredictionsSample { get; }
     #endregion
 
@@ -130,14 +144,18 @@ public class ModelAndDatasetPredictions
             }
         }
 
-        ISample.Log.Debug($"Model '{Model.ModelName}' score on Training: {trainRankingScore_InTargetFormat}");
+        if (trainRankingScore_InTargetFormat != null)
+        {
+            ISample.Log.Debug($"Model '{Model.ModelName}' score on Training: {trainRankingScore_InTargetFormat}");
+        }
         SaveTrainPredictionsInModelFormat(trainPredictions_InModelFormat, trainLoss_InModelFormat);
         SaveTrainPredictionsInTargetFormat(trainPredictions_InTargetFormat, trainDataset, trainRankingScore_InTargetFormat);
-
-        ISample.Log.Info($"Model '{Model.ModelName}' score on Validation: {validationRankingScore_InTargetFormat}");
+        if (validationRankingScore_InTargetFormat != null)
+        {
+            ISample.Log.Info($"Model '{Model.ModelName}' score on Validation: {validationRankingScore_InTargetFormat}");
+        }
         SaveValidationPredictionsInModelFormat(validationPredictions_InModelFormat, validationLoss_InModelFormat);
         SaveValidationPredictionsInTargetFormat(validationPredictions_InTargetFormat, validationDataset, validationRankingScore_InTargetFormat);
-
 
         var testDatasetIfAny = DatasetSample.TestDataset();
         if (testDatasetIfAny != null)

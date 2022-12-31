@@ -117,12 +117,24 @@ public abstract class Model
         }
     }
 
-    protected static bool LoggingForModelShouldBeDebug(string modelName)
+    private static bool LoggingForModelShouldBeDebug(string modelName)
     {
         //Log related to embedded KFold training are in debug mode
         return modelName.Contains("_kfold_");
     }
 
+
+    protected virtual void LogForModel(string msg)
+    {
+        if (LoggingForModelShouldBeDebug(ModelName))
+        {
+            LogDebug(msg);
+        }
+        else
+        {
+            LogInfo(msg);
+        }
+    }
 
     public static string MetricsToString(IDictionary<EvaluationMetricEnum, double> metrics, string prefix)
     {
@@ -211,8 +223,7 @@ public abstract class Model
     }
 
     public abstract (DataFrame predictions, string datasetPath) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd);
-
-
+    
     public abstract void Save(string workingDirectory, string modelName);
     public virtual string DeviceName() => "";
     public virtual int TotalParams() => -1;

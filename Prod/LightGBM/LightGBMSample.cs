@@ -1008,7 +1008,44 @@ public class LightGBMSample : AbstractSample, IModelSample
         return searchSpace;
     }
 
-
+    public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
+    {
+        const string objectiveKeyName = nameof(objective);
+        if (!existingHyperParameterValues.ContainsKey(objectiveKeyName))
+        {
+            existingHyperParameterValues[objectiveKeyName] = GetDefaultHyperParameterValueForLightGBM(objectiveKeyName, datasetSample);
+        }
+        const string numClassKeyName = nameof(num_class);
+        if (!existingHyperParameterValues.ContainsKey(numClassKeyName) && datasetSample.GetObjective() == Objective_enum.Classification)
+        {
+            existingHyperParameterValues[numClassKeyName] = GetDefaultHyperParameterValueForLightGBM(numClassKeyName, datasetSample);
+        }
+    }
+    private static object GetDefaultHyperParameterValueForLightGBM(string hyperParameterName, AbstractDatasetSample datasetSample)
+    {
+        switch (hyperParameterName)
+        {
+            case nameof(objective):
+                if (datasetSample.GetObjective() == Objective_enum.Regression)
+                {
+                    return nameof(objective_enum.regression);
+                }
+                if (datasetSample.GetObjective() == Objective_enum.Classification)
+                {
+                    if (datasetSample.NumClass >= 2)
+                    {
+                        return nameof(objective_enum.multiclass);
+                    }
+                    return nameof(objective_enum.binary);
+                }
+                break;
+            case nameof(num_class):
+                return datasetSample.NumClass;
+        }
+        var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(LightGBMModel)}";
+        ISample.Log.Error(errorMsg);
+        throw new ArgumentException(errorMsg);
+    }
 
     private static readonly HashSet<string> _categoricalHyperParameters = new()
     {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -39,6 +40,7 @@ namespace SharpNet.CatBoost
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
+            var sw = Stopwatch.StartNew();
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
@@ -53,16 +55,7 @@ namespace SharpNet.CatBoost
 
             string datasetColumnDescriptionPath = trainDatasetPath_InModelFormat + ".co";
             to_column_description(datasetColumnDescriptionPath, trainDataset, addTargetColumnAsFirstColumn, false);
-
-            var logMsg = $"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}";
-            if (LoggingForModelShouldBeDebug(ModelName))
-            {
-                LogDebug(logMsg);
-            }
-            else
-            {
-                LogInfo(logMsg);
-            }
+            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}'");
 
 
             var tempModelSamplePath = CatBoostSample.ToPath(TempPath, ModelName);
@@ -103,6 +96,7 @@ namespace SharpNet.CatBoost
             //}
 
             Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
+            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}' took {sw.Elapsed.TotalSeconds}s");
             return (null, null, trainDatasetPath_InModelFormat, null, null, validationDatasetPathIfAny_InModelFormat);
         }
 

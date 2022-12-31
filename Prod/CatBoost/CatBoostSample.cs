@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using SharpNet.Datasets;
+using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 
@@ -317,6 +319,61 @@ public class CatBoostSample : AbstractSample, IModelSample
         "od_type"
     };
 
+    public override bool UseGPU => GPUWrapper.GetDeviceCount() >= 1;
+
+    public override void SetTaskId(int taskId)
+    {
+        devices = UseGPU ? taskId.ToString() : null;
+    }
+
+    public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
+    {
+        const string lossFunctionKeyName = nameof(CatBoostSample.loss_function);
+        if (!existingHyperParameterValues.ContainsKey(lossFunctionKeyName))
+        {
+            existingHyperParameterValues[lossFunctionKeyName] = GetDefaultHyperParameterValueForCatBoost(lossFunctionKeyName, datasetSample);
+        }
+        const string taskTypeName = nameof(CatBoostSample.task_type);
+        if (!existingHyperParameterValues.ContainsKey(taskTypeName))
+        {
+            const string devicesKeyName = nameof(CatBoostSample.devices);
+            const string threadCountName = nameof(CatBoostSample.thread_count);
+            existingHyperParameterValues.Remove(devicesKeyName); //need to be set after for GPU
+            if (UseGPU)
+            {
+                existingHyperParameterValues[taskTypeName] = nameof(CatBoostSample.task_type_enum.GPU);
+                existingHyperParameterValues[threadCountName] = Math.Max(1, Utils.CoreCount / GPUWrapper.GetDeviceCount());
+            }
+            else
+            {
+                existingHyperParameterValues[taskTypeName] = nameof(CatBoostSample.task_type_enum.CPU);
+                existingHyperParameterValues[threadCountName] = 1;
+            }
+        }
+    }
+    private static object GetDefaultHyperParameterValueForCatBoost(string hyperParameterName, AbstractDatasetSample DatasetSample)
+    {
+        switch (hyperParameterName)
+        {
+            case nameof(CatBoostSample.loss_function):
+                if (DatasetSample.GetObjective() == Objective_enum.Regression)
+                {
+                    return nameof(CatBoostSample.loss_function_enum.RMSE);
+                }
+                if (DatasetSample.GetObjective() == Objective_enum.Classification)
+                {
+                    if (DatasetSample.NumClass >= 2)
+                    {
+                        return nameof(CatBoostSample.loss_function_enum.MultiClass);
+                    }
+                    return nameof(CatBoostSample.loss_function_enum.Logloss);
+                }
+                break;
+        }
+        var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(CatBoostModel)}";
+        ISample.Log.Error(errorMsg);
+        throw new ArgumentException(errorMsg);
+    }
 
     /// <summary>
     /// The default Search Space for CatBoost Model
@@ -344,7 +401,6 @@ public class CatBoostSample : AbstractSample, IModelSample
             { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
             { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
         };
-
         return searchSpace;
     }
 

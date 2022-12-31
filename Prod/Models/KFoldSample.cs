@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 // ReSharper disable FieldCanBeMadeReadOnly.Global
 
@@ -38,5 +39,10 @@ public class KFoldSample : AbstractSample, IModelSample
     public EvaluationMetricEnum GetLoss()
     {
         return EmbeddedModelLoss;
+    }
+
+    public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
+    {
+        throw new NotImplementedException();
     }
 }

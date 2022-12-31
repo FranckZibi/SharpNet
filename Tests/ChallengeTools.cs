@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -164,57 +165,49 @@ public class ChallengeTools
     public void Retrain(int n_splits = 3, bool retrainOnFullDataset = true)
     {
 
+        const string workingDirectory = @"C:\Projects\Challenges\KaggleDays\catboost";
+        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
         foreach (var modelName in new[]
-                {
-                    //"EAFC16223E_KFOLD"
-                    "849E438B37_KFOLD_FULL_DART"
-
-                    //"EE8A305CBE_KFOLD",
-                   
-                })
+                 {
+                     "a",
+                 })
         {
-            const string workingDirectory = @"C:\Projects\Challenges\KaggleDays";
 
-            Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-            Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
 
+            var sw = Stopwatch.StartNew();
             ISample.Log.Info($"Retraining model {modelName} with {nameof(n_splits)}={n_splits} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
-
             var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
-            var modelAndDatasetPredictionsSample = m.ModelAndDatasetPredictionsSample;
 
-            if (n_splits>=2 && m.Model is not KFoldModel)
+            if (n_splits>=2)
             {
-                ISample.Log.Info($"Applying KFold to model {modelName} with {nameof(n_splits)}={n_splits} ");
-                var embeddedModel = m.Model;
-                var kfoldSample = new KFoldSample(n_splits, workingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), modelAndDatasetPredictionsSample.DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
-                var sample = new ModelAndDatasetPredictionsSample(new ISample[]
+                if (m.Model is not KFoldModel)
                 {
-                    kfoldSample,
-                    modelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, kfoldSample.n_splits),
-                    new PredictionsSample()
-                });
-                m = new ModelAndDatasetPredictions(sample, workingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel);
+                    throw new ArgumentException($"model is not a KFold model but {nameof(n_splits)}={n_splits}");
+                }
+                ISample.Log.Info($"Training model {modelName} with KFold: {nameof(n_splits)}={n_splits} ");
+                m.Model.Use_All_Available_Cores();
+                m.Fit(true, true, true);
+                m.Save(workingDirectory);
             }
-            ISample.Log.Info($"Training model {modelName} with KFold: {nameof(n_splits)}={n_splits} ");
-            m.Model.Use_All_Available_Cores();
-            m.Fit(true, true, true);
-            m.Save(workingDirectory);
 
             if (retrainOnFullDataset)
             {
                 var fullDatasetModelName = m.Model.ModelName + "_FULL";
-                Model.Log.Info($"Retraining Model '{modelName}' on full Dataset no KFold (Model on full Dataset name: {fullDatasetModelName})");
+                Model.Log.Info($"Retraining Model '{modelName}' on full Dataset no KFold (Model on full Dataset name: '{fullDatasetModelName}')");
                 var sampleFullDataset = new ModelAndDatasetPredictionsSample(new []
                 {
-                    m.Model is KFoldModel kfoldModel ? kfoldModel.EmbeddedModelSample(0).Clone() : m.Model.ModelSample.Clone(),
-                    modelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1),
+                    m.EmbeddedModel.ModelSample.Clone(),
+                    m.ModelAndDatasetPredictionsSample.DatasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1),
                     new PredictionsSample()
                 });
                 var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(sampleFullDataset, workingDirectory, fullDatasetModelName);
                 modelAndDatasetOnFullDataset.Model.Use_All_Available_Cores();
                 modelAndDatasetOnFullDataset.Fit(true, true, true);
             }
+            ISample.Log.Info($"Model {modelName} retrained in {sw.Elapsed.TotalSeconds}");
+
+            //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\catboost\a_FULL_modelformat_predict_test_.csv"); return;
         }
     }
 }

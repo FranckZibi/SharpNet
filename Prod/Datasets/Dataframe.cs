@@ -1087,13 +1087,14 @@ public sealed class DataFrame
             buffer[row-index_of_first_element_in_buffer] = sb.ToString();
         }
 
-        int[] full_list = Enumerable.Range(0, rows).ToArray();
-        foreach (var subList in Utils.SplitIntoSubListOfLength(full_list, buffer.Length))
+        for(int i=0; i<rows; i+= buffer.Length)
         {
-            Parallel.For(subList[0], subList.Last()+1, row=>ProcessRow(row, subList[0]));
-            int row_count = subList.Last() - subList[0] + 1;
+            var index_first_element_in_buffer = i;
+            int index_last_element_excluded = Math.Min(rows, index_first_element_in_buffer + buffer.Length);
+            Parallel.For(index_first_element_in_buffer, index_last_element_excluded, row=>ProcessRow(row, index_first_element_in_buffer));
+            int row_count = index_last_element_excluded - index_first_element_in_buffer;
             var fileContent = string.Join(Environment.NewLine, buffer.Take(row_count));
-            if (addHeader || subList[0]>0)
+            if (addHeader || i > 0)
             {
                 fileContent = Environment.NewLine + fileContent;
             }

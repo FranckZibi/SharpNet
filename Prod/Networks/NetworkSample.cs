@@ -652,5 +652,27 @@ namespace SharpNet.Networks
         #endregion
 
 
+
+        public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
+        {
+            ApplyDataset(datasetSample);
+            const string lossFunctionKeyName = nameof(LossFunction);
+            if (!existingHyperParameterValues.ContainsKey(lossFunctionKeyName))
+            {
+                existingHyperParameterValues[lossFunctionKeyName] = GetDefaultHyperParameterValue(lossFunctionKeyName, datasetSample);
+            }
+        }
+        private static object GetDefaultHyperParameterValue(string hyperParameterName, AbstractDatasetSample datasetSample)
+        {
+            switch (hyperParameterName)
+            {
+                case nameof(LossFunction):
+                    return datasetSample.DefaultLossFunction.ToString();
+            }
+            var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(Network)}";
+            ISample.Log.Error(errorMsg);
+            throw new ArgumentException(errorMsg);
+        }
+
     }
 }

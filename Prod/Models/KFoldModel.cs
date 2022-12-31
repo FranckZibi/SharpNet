@@ -43,7 +43,12 @@ public class KFoldModel : Model
 
     public IModelSample EmbeddedModelSample(int embeddedModelIndex)
     {
-        return _embeddedModels[embeddedModelIndex].ModelSample;
+        return EmbeddedModel(embeddedModelIndex).ModelSample;
+    }
+
+    public Model EmbeddedModel(int embeddedModelIndex)
+    {
+        return _embeddedModels[embeddedModelIndex];
     }
 
     private Model LoadEmbeddedModel(int embeddedModelIndex, AbstractDatasetSample datasetSample)

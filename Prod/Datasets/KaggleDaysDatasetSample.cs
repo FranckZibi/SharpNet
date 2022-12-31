@@ -117,6 +117,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             }
             var bad_products = Utils.Without(allProducts, best_products);
             foreach (var s in bad_products)
+            //foreach (var s in bad_products.Take(2* best_products.Length))
             {
                 sb.Append(Environment.NewLine + line[0] + "," + s + "," + line[2] + "," + productToRank[s] + "," + allProducts.Length + ",0");
             }
@@ -171,14 +172,13 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         var before_search = DataFrame.read_csv(Path.Combine(DataDirectory, "before_search_v2.csv"), true, GetColumnType);
 
 
-        var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name_embedded_distiluse-base-multilingual-cased-v1.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
-        name = name[name.Columns.Take(1 + embeddingDim_name).ToArray()];
+        //var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name_embedded_distiluse-base-multilingual-cased-v1.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
+        //name = name[name.Columns.Take(1 + embeddingDim_name).ToArray()];
+        //var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword_embedded_distiluse-base-multilingual-cased-v1.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
+        //keyword = keyword[keyword.Columns.Take(1 + embeddingDim_keyword).ToArray()];
 
-        var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword_embedded_distiluse-base-multilingual-cased-v1.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
-        keyword = keyword[keyword.Columns.Take(1 + embeddingDim_keyword).ToArray()];
-
-        //var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
-        //var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
+        var name = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_name.csv"), true, c => c == "name" ? typeof(string) : typeof(float));
+        var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
 
 
         IModelSample.Log.Info("Finished loading ref dataset");
@@ -259,13 +259,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, $"{nameof(CreateEnrichedDataSet)}");
-        //var sw = Stopwatch.StartNew();
 
-
-        //Create_search_train_test_v3(); return;
-
-
-        //?D DataFrame.NormalizeAllCsvInDirectory(DataDirectory, true, true);
+        DataFrame.NormalizeAllCsvInDirectory(DataDirectory, true, true);
 
         var search_train_path = Path.Combine(DataDirectory, "search_train.csv");
         var search_test_path = Path.Combine(DataDirectory, "search_test.csv");
@@ -298,9 +293,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     /// the embedding dim to use to enrich the dataset with the reviews
     /// </summary>
     // ReSharper disable once MemberCanBePrivate.Global
-    //public string ToRemove = "product_id,subbrand,keyword";
-    //public string ToRemove = "product_id,subbrand,keyword,market";
-    public string ToRemove = "product_id,subbrand,keyword,market,count";
+    public string ToRemove = "product_id,subbrand,keyword,name,market";
     #endregion
 
     public override int NumClass => 1;
@@ -427,12 +420,12 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{"KFold", 2},
+            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
             //uncomment appropriate one
             //{"loss_function", "RMSE"},          //for Regression Tasks: RMSE, etc.
-            //{"loss_function", "Logloss"},     //for binary classification
+            {"loss_function", "Logloss"},     //for binary classification
             //{"loss_function", "MultiClass"},  //for multi class classification
 
             { "logging_level", "Silent"},
@@ -447,7 +440,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)},
             { "l2_leaf_reg", 2 /*AbstractHyperParameterSearchSpace.Range(0, 10)*/},
         };
-        
+
 
         var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new KaggleDaysDatasetSample()), WorkingDirectory);
         //var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new KaggleDaysDatasetSample()), WorkingDirectory);

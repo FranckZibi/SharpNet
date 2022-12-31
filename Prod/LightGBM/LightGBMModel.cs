@@ -41,6 +41,7 @@ namespace SharpNet.LightGBM
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
+            var sw = Stopwatch.StartNew();
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
@@ -60,19 +61,12 @@ namespace SharpNet.LightGBM
                 {"header", true},
                 {"save_binary", false},
             });
-            var logMsg = $"Training model '{ModelName}' with training dataset {Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}" +(string.IsNullOrEmpty(validation_XYDatasetPath_InModelFormat) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validation_XYDatasetPath_InModelFormat)}");
-            if (LoggingForModelShouldBeDebug(ModelName))
-            {
-                LogDebug(logMsg);
-            }
-            else
-            {
-                LogInfo(logMsg);
-            }
+            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}" +(string.IsNullOrEmpty(validation_XYDatasetPath_InModelFormat) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validation_XYDatasetPath_InModelFormat)}'"));
             tmpLightGBMSample.Save(tmpLightGBMSamplePath);
 
             Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, Log);
             Utils.TryDelete(tmpLightGBMSamplePath);
+            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' took {sw.Elapsed.TotalSeconds}s");
             return (null, null, train_XYDatasetPath_InModelFormat, null, null, validation_XYDatasetPath_InModelFormat);
         }
 
