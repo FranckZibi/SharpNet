@@ -324,7 +324,7 @@ namespace SharpNet.Networks
                     break;
             }
 
-            if (!UseGPU)
+            if (!MustUseGPU)
             {
                 //this is the only supported mode on CPU
                 ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST;
@@ -335,10 +335,10 @@ namespace SharpNet.Networks
 
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4;
-        public override bool UseGPU => ResourceIds.Max() >= 0;
+        public override bool MustUseGPU => ResourceIds.Max() >= 0;
         public override void SetTaskId(int taskId)
         {
-            if (UseGPU)
+            if (MustUseGPU)
             {
                 ResourceIds = new List<int> { taskId };
             }

@@ -1077,7 +1077,7 @@ namespace SharpNet.Networks
         {
             return Layers.Count(l => l.GetType() == layerType);
         }
-        public bool UseGPU => Sample.UseGPU;
+        public bool UseGPU => Sample.MustUseGPU;
         private string MemoryInfo()
         {
             string result = "Private Memory: " + Utils.MemoryBytesToString((ulong)Process.GetCurrentProcess().PrivateMemorySize64);

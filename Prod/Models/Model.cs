@@ -147,6 +147,7 @@ public abstract class Model
 
     public static DataFrame LoadProbaFile(string predictionResultPath, bool hasHeader, bool hasIndex, char ?separator, DataSet dataset)
     {
+        var sw = Stopwatch.StartNew();
         Func<string, string[]> split = separator.HasValue ? (s => s.Split(s, separator.Value)) : s=>s.Split();
         var readAllLines = File.ReadAllLines(predictionResultPath);
         float[][] predictionResultContent = readAllLines
@@ -168,10 +169,11 @@ public abstract class Model
         var predictionsCpuTensor = new CpuTensor<float>(new[] { rows, columns }, content);
 
         var predictionsDf = DataFrame.New(predictionsCpuTensor);
-        if (predictionsDf.Shape[0] != dataset.Count)
+        if (dataset != null && predictionsDf.Shape[0] != dataset.Count)
         {
             throw new Exception($"Invalid number of predictions, received {predictionsDf.Shape[0]} but expected {dataset.Count}");
         }
+        Log.Debug($"Loading Proba File for {predictionResultPath} took {sw.Elapsed.TotalSeconds}s");
         return predictionsDf;
     }
 

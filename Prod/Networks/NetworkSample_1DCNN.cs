@@ -40,7 +40,7 @@ public class NetworkSample_1DCNN : NetworkSample
     
 
     #endregion
-    public override bool UseGPU => NetworkSample_1DCNN_UseGPU;
+    public override bool MustUseGPU => NetworkSample_1DCNN_UseGPU;
     public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
     {
         //nn.PropagationManager.LogPropagation = true;

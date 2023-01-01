@@ -319,11 +319,11 @@ public class CatBoostSample : AbstractSample, IModelSample
         "od_type"
     };
 
-    public override bool UseGPU => GPUWrapper.GetDeviceCount() >= 1;
+    public override bool MustUseGPU => GPUWrapper.GetDeviceCount() >= 1;
 
     public override void SetTaskId(int taskId)
     {
-        devices = UseGPU ? taskId.ToString() : null;
+        devices = MustUseGPU ? taskId.ToString() : null;
     }
 
     public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
@@ -339,13 +339,17 @@ public class CatBoostSample : AbstractSample, IModelSample
             const string devicesKeyName = nameof(CatBoostSample.devices);
             const string threadCountName = nameof(CatBoostSample.thread_count);
             existingHyperParameterValues.Remove(devicesKeyName); //need to be set after for GPU
-            if (UseGPU)
+            if (MustUseGPU)
             {
+                //Each GPU will be run in parallel, and will have some CPU dedicated to him
+                //So if we have 4 GPU, we'll run 4 tasks in parallel, and each task will have 1/4 of the total CPU resources
                 existingHyperParameterValues[taskTypeName] = nameof(CatBoostSample.task_type_enum.GPU);
                 existingHyperParameterValues[threadCountName] = Math.Max(1, Utils.CoreCount / GPUWrapper.GetDeviceCount());
             }
             else
             {
+                //Each CPU will be run in parallel (no GPU)
+                //So if we have 4 CPU, we'll run 4 tasks in parallel
                 existingHyperParameterValues[taskTypeName] = nameof(CatBoostSample.task_type_enum.CPU);
                 existingHyperParameterValues[threadCountName] = 1;
             }

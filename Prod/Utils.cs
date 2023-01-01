@@ -1145,6 +1145,7 @@ namespace SharpNet
         public static string ChallengesPath => @"C:\Projects\Challenges";
         public static void Launch(string workingDirectory, string exePath, string arguments, ILog log)
         {
+            Log.Debug($"Launching {exePath} {arguments} with WorkingDirectory={workingDirectory}");
             var errorDataReceived = "";
             var engineName = Path.GetFileNameWithoutExtension(exePath);
             var psi = new ProcessStartInfo(exePath)

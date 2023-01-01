@@ -22,7 +22,7 @@ public abstract class MultiSamples : ISample
     #endregion
 
 
-    public bool UseGPU => Samples.Any(s => s.UseGPU);
+    public bool MustUseGPU => Samples.Any(s => s.MustUseGPU);
 
     public virtual void SetTaskId(int taskId)
     {

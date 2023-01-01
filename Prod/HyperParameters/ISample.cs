@@ -55,11 +55,11 @@ public interface ISample
     ISample Clone();
 
     /// <summary>
-    /// true if the sample runs on GPU
-    /// false if it runs on CPU
+    /// true if the sample must be run on GPU
+    /// false if it should run on CPU
     /// </summary>
     // ReSharper disable once UnusedMember.Global
-    bool UseGPU { get; }
+    bool MustUseGPU { get; }
     /// <summary>
     /// When training several models in parallel, 'taskId' is the index of the model being trained
     /// (in range [0, number_of_models_trained_in_parallel[ )

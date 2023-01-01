@@ -162,7 +162,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
     #endregion
 
-    public override bool UseGPU => EncoderDecoder_NetworkSample_UseGPU;
+    public override bool MustUseGPU => EncoderDecoder_NetworkSample_UseGPU;
 
     public override void BuildLayers(Network network, AbstractDatasetSample datasetSample)
     {

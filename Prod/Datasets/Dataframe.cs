@@ -875,7 +875,6 @@ public sealed class DataFrame
 
     private static readonly object Lock_read_csv = new();
 
-
     /// <summary>
     /// read a csv that has been normalized:
     ///     we are sure that each field doesn't contain any special characters (new lines, comma, semi colon, separator, double quotes)
@@ -910,7 +909,7 @@ public sealed class DataFrame
         // this cache is used to avoid re creating the same string again and again
         var cacheString = new ConcurrentDictionary<int, string>();
 
-        void ProcessRowReadAllLines(int row)
+        void ProcessRow(int row)
         {
             string line = allLinesReadAllLines[(hasHeader ? 1 : 0) + row];
             var lineSpan = line.AsSpan();
@@ -947,11 +946,9 @@ public sealed class DataFrame
                 nextItemStart = nextItemEndExcluded+1;
             }
         }
-        Parallel.For(0, rows, ProcessRowReadAllLines);
+        Parallel.For(0, rows, ProcessRow);
         return df;
     }
-
-
 
 
     /// <summary>
@@ -1028,20 +1025,28 @@ public sealed class DataFrame
     {
         int rows = Shape[0];
         int cols = Shape[1];
-        var buffer = new string[Math.Min(100000, rows + 1)];
-
+        //we'll process the file by chunk of 2000 rows
+        var buffer = new StringBuilder[Math.Min(2000, rows + 1)];
+        for (int i = 0; i < buffer.Length; ++i)
+        {
+            buffer[i] = new StringBuilder();
+        }
         //we create the directory if missing
-        var directory = Path.GetDirectoryName(path)??"";
+        var directory = Path.GetDirectoryName(path) ?? "";
         if (!Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
         }
         File.WriteAllText(path + ".tmp", addHeader ? string.Join(sep, Columns) : "");
+        var sbBuffer = new StringBuilder();
 
-        void ProcessRow(int row, int index_of_first_element_in_buffer)
+        // initialize the StringBuilder buffer at buffer[row - index_of_first_element_in_buffer]
+        // with the row 'row' of the file
+        void ProcessRow(int row, int row_in_first_index_of_buffer)
         {
-            var sb = new StringBuilder();
-            var floatContent = _floatTensor == null ? null : _floatTensor.RowSpanSlice(row,1);
+            var sb = buffer[row - row_in_first_index_of_buffer];
+            sb.Clear();
+            var floatContent = _floatTensor == null ? null : _floatTensor.RowSpanSlice(row, 1);
             var stringContent = _stringTensor == null ? null : _stringTensor.RowSpanSlice(row, 1);
             var intContent = _intTensor == null ? null : _intTensor.RowSpanSlice(row, 1);
 
@@ -1051,7 +1056,7 @@ public sealed class DataFrame
                 {
                     if (index.HasValue)
                     {
-                        sb.Append(index.Value+row);
+                        sb.Append(index.Value + row);
                         sb.Append(sep);
                     }
                 }
@@ -1084,21 +1089,36 @@ public sealed class DataFrame
                     default: throw new Exception($"invalid type index {c.Item2}");
                 }
             }
-            buffer[row-index_of_first_element_in_buffer] = sb.ToString();
         }
 
-        for(int i=0; i<rows; i+= buffer.Length)
+        for (int i = 0; i < rows; i += buffer.Length)
         {
-            var index_first_element_in_buffer = i;
-            int index_last_element_excluded = Math.Min(rows, index_first_element_in_buffer + buffer.Length);
-            Parallel.For(index_first_element_in_buffer, index_last_element_excluded, row=>ProcessRow(row, index_first_element_in_buffer));
-            int row_count = index_last_element_excluded - index_first_element_in_buffer;
-            var fileContent = string.Join(Environment.NewLine, buffer.Take(row_count));
-            if (addHeader || i > 0)
+            // we process the file by chunk of 'buffer.Length' rows
+            var first_row_to_process = i;
+            //the first row to process will be in the buffer at index 0
+            int last_row_excluded = Math.Min(rows, first_row_to_process + buffer.Length);
+            Parallel.For(first_row_to_process, last_row_excluded, row => ProcessRow(row, first_row_to_process));
+            //for each processed row, we append the content to a StringBuilder buffer (sbBuffer)
+            //when this StringBuilder buffer is more than 200MBytes, we write it to the file
+            for (int row = first_row_to_process; row < last_row_excluded; ++row)
             {
-                fileContent = Environment.NewLine + fileContent;
+                if (row != 0 || addHeader)
+                {
+                    sbBuffer.Append(Environment.NewLine);
+                }
+                sbBuffer.Append(buffer[row - first_row_to_process]);
+                if (sbBuffer.Length >= 200_000_000 || row == last_row_excluded - 1)
+                {
+                    File.AppendAllText(path + ".tmp", sbBuffer.ToString());
+                    sbBuffer.Clear();
+                }
             }
-            File.AppendAllText(path + ".tmp", fileContent);
+        }
+        Debug.Assert(sbBuffer.Length == 0);
+        sbBuffer.Clear();
+        foreach (var t in buffer)
+        {
+            t.Clear();
         }
 
         if (File.Exists(path))
@@ -1106,8 +1126,8 @@ public sealed class DataFrame
             File.Delete(path);
         }
         File.Move(path + ".tmp", path);
-
     }
+
     private static CpuTensor<T> ToCpuTensor<T>(List<T> content, Dictionary<int, int> tensorIndexToCount, int tensorIndex)
     {
         if (content == null || content.Count == 0 || !tensorIndexToCount.TryGetValue(tensorIndex, out var columnCount))

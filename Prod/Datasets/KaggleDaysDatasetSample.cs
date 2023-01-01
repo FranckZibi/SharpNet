@@ -25,7 +25,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     #endregion
   
     private readonly object lockObject = new();
-    private KaggleDaysDatasetSample() : base(new HashSet<string>())
+    public KaggleDaysDatasetSample() : base(new HashSet<string>())
     {
         lock (lockObject)
         {
@@ -36,6 +36,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
                 xytrain_string_df = DataFrame.read_string_csv(XYTrainRawFile, true, true);
                 ISample.Log.Info($"Loading file {XTestRawFile}");
                 xtest_string_df = DataFrame.read_string_csv(XTestRawFile, true, true);
+                GC.Collect();
                 ISample.Log.Debug($"Loading files took {sw.ElapsedMilliseconds / 1000.0} seconds");
             }
         }
@@ -156,7 +157,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         "session_id" , "product_id", "channel_grouping", "country", "region", "device_category", "category", "name", "market", "subbrand"
     };
 
-    private static Type GetColumnType(string columnName)
+    public static Type GetColumnType(string columnName)
     {
         return StringColumns.Contains(columnName) ? typeof(string) : typeof(float);
 
@@ -322,6 +323,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
     private (DataSetV2 fullTrainingAndValidation, DataSetV2 testDataset) LoadAndEncodeDataset_If_Needed()
     {
+        var sw = Stopwatch.StartNew();
         var key = ComputeHash();
         lock(CacheDataset)
         {
@@ -330,6 +332,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
                 DatasetEncoder = result.Item3;
                 return (result.Item1, result.Item2);
             }
+            ISample.Log.Debug($"Loading Encoded Dataset for key '{key}'");
             DatasetEncoder = new DatasetEncoder(this, StandardizeDoubleValues, true);
             var xyTrain = UpdateFeatures(xytrain_string_df);
             var xtest = UpdateFeatures(xtest_string_df);
@@ -341,6 +344,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             var fullTrainingAndValidation = new DataSetV2(this, xTrain_Encoded, yTrain_Encoded, false);
             var testDataset = new DataSetV2(this, xtest_Encoded, null, false);
             CacheDataset[key] = Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder);
+            ISample.Log.Debug($"Loading Encoded Dataset for key '{key}' took {sw.Elapsed.TotalSeconds}s");
             return (fullTrainingAndValidation, testDataset);
         }
     }
@@ -420,8 +424,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            //{"KFold", 2},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {"KFold", 2},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
             //uncomment appropriate one
             //{"loss_function", "RMSE"},          //for Regression Tasks: RMSE, etc.

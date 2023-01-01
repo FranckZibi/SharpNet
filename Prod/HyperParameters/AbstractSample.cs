@@ -51,7 +51,7 @@ public abstract class AbstractSample : ISample
         var path = ToPath(workingDirectory, modelName);
         Save(path);
     }
-    public virtual bool UseGPU => false;
+    public virtual bool MustUseGPU => false;
 
     public void Save(string path)
     {
