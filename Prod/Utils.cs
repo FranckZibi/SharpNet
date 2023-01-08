@@ -1143,8 +1143,9 @@ namespace SharpNet
             }
         }
         public static string ChallengesPath => @"C:\Projects\Challenges";
-        public static void Launch(string workingDirectory, string exePath, string arguments, ILog log)
+        public static List<string> Launch(string workingDirectory, string exePath, string arguments, ILog log, bool returnOutputedLines)
         {
+            var outputLines = returnOutputedLines?new List<string>():null;
             Log.Debug($"Launching {exePath} {arguments} with WorkingDirectory={workingDirectory}");
             var errorDataReceived = "";
             var engineName = Path.GetFileNameWithoutExtension(exePath);
@@ -1174,29 +1175,26 @@ namespace SharpNet
             };
             process.OutputDataReceived += (_, e) =>
             {
+                outputLines?.Add(e.Data);
                 if (string.IsNullOrEmpty(e.Data)
                     || e.Data.Contains("Object info sizes") 
                     || e.Data.Contains("Skipping test eval output") 
                     || e.Data.Contains(" min passed")
                     || e.Data.Contains("No further splits with positive gain")
-                    )
+                    || e.Data.Contains("remaining:")
+                    || e.Data.Contains("seconds elapsed")
+                    || e.Data.Contains("[Info] Iteration:")
+                   )
                 {
                     return;
                 }
-                if (e.Data.Contains("[Warning] ") 
-                    ||e.Data.Contains("to remove the overhead")
-                    ||e.Data.Contains("And if memory is not enough, you can set")
-                    )
-                {
-                    log.Debug(e.Data.Replace("[Warning] ", ""));
-                }
-                else if (e.Data.Contains("[Info] "))
+                if (false)
                 {
                     log.Info(e.Data.Replace("[Info] ", ""));
                 }
                 else
                 {
-                    log.Info(e.Data);
+                    log.Debug(e.Data);
                 }
             };
             process.BeginErrorReadLine();
@@ -1208,6 +1206,7 @@ namespace SharpNet
                 log.Fatal(errorMsg);
                 throw new Exception(errorMsg);
             }
+            return outputLines;
         }
 
         private static float Sum(this ReadOnlySpan<float> s)
@@ -1297,6 +1296,47 @@ namespace SharpNet
 
             return res;
         }
-        
+
+        /// <summary>
+        /// process the log of a model to look for values after some specific token
+        /// the last value found for a token is always the one to use
+        /// </summary>
+        /// <param name="lines"></param>
+        /// <param name="indexValueAfterToken"></param>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public static double[] ExtractValuesFromOutputLog(IEnumerable<string> lines, int indexValueAfterToken, params string[] token)
+        {
+            var results = Enumerable.Repeat(double.NaN, token.Length).ToArray();
+            foreach(var line in lines.Reverse())
+            {
+                if (string.IsNullOrEmpty(line))
+                {
+                    continue;
+                }
+                if (results.All(val => !double.IsNaN(val)))
+                {
+                    return results; //we already have filled all values, no need to look in other lines
+                }
+                for (var j = 0; j < token.Length; j++)
+                {
+                    if (!double.IsNaN(results[j]))
+                    {
+                        continue; //we have already filled the value for token 'token[j]'
+                    }
+                    int idx = line.IndexOf(token[j], StringComparison.Ordinal);
+                    if (idx < 0)
+                    {
+                        continue;
+                    }
+                    var splitted = line.Substring(idx + token[j].Length).Trim().Split();
+                    if (indexValueAfterToken< splitted.Length && double.TryParse(splitted[indexValueAfterToken], out var d))
+                    {
+                        results[j] = d;
+                    }
+                }
+            }
+            return results;
+        }
     }
 }

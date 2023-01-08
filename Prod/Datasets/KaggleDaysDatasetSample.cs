@@ -270,11 +270,11 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         foreach (var path in new[] { search_train_path, search_test_path })
         {
             var df1 =DataFrame.read_string_csv(path, true, true);
-            df1.UpdateColumnInPlace("keyword", c => c?.ToLower());
+            df1["keyword"].UpdateInPlace(c => c?.ToLower());
             df1.to_csv(path);
         }
         var df2 = DataFrame.read_string_csv(item_info_path, true, true);
-        df2.UpdateColumnInPlace("name", c => c?.ToLower());
+        df2["name"].UpdateInPlace(c => c?.ToLower());
         df2.to_csv(item_info_path);
 
         //TfIdf Encoding

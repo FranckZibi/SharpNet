@@ -29,28 +29,38 @@ public sealed class DataFrame
     private readonly CpuTensor<float> _floatTensor;
     private readonly CpuTensor<string> _stringTensor;
     private readonly CpuTensor<int> _intTensor;
+    /// <summary>
+    /// the original DataFrame for which the 'this' DataFrame is a view (a pointer) to some of the columns of the original DataFrame
+    /// Both the original and the view share the same tensors
+    /// null if the 'this' DataFrame is not a column view to another DataFrame
+    /// </summary>
+    private readonly DataFrame _originalDataFrameForColumnView;
+
+
+    /// <summary>
+    /// the original DataFrame for which the 'this' DataFrame is a view (a pointer) to a slice of rows of the original DataFrame
+    /// Both the original and the view share the same tensors
+    /// null if the 'this' DataFrame is not a row subset of another DataFrame
+    /// </summary>
+    private readonly DataFrame _originalDataFrameForRowView;
+
     private static readonly Type[] TensorIndexToType;
     private static readonly object[] TensorIndexToNonNullDefaultValue;
     private static readonly Dictionary<Type, int> TypeToTensorIndex = new();
     public const int FLOAT_TYPE_IDX = 0;
     public const int STRING_TYPE_IDX = 1;
-    private const int INT_TYPE_IDX = 2;
+    public const int INT_TYPE_IDX = 2;
     //protected static readonly ILog Log = LogManager.GetLogger(typeof(DataFrame));
 
     #endregion
 
     #region public fields and properties
+
     public string[] Columns { get; }
+    //public string[] Columns => _columns.Select(c => c.Item1).ToArray();
     public int[] Shape => new[] { Rows, _columns.Count };
 
-    /// <summary>
-    /// total number of cells in the DataFrame (including null/empty/nan cells
-    /// </summary>
-    public int CellCount => Utils.Product(Shape);
-
     public List<Tuple<string, int, int>> ColumnsDesc => _columns;
-
-
     #endregion
 
 
@@ -121,13 +131,17 @@ public sealed class DataFrame
     public DataFrame(List<Tuple<string, int, int>> columns,
         CpuTensor<float> floatTensor,
         CpuTensor<string> stringTensor,
-        CpuTensor<int> intTensor)
+        CpuTensor<int> intTensor,
+        DataFrame originalDataFrameForColumnView = null,
+        DataFrame originalDataFrameForRowView = null)
     {
         Columns = columns.Select(t => t.Item1).ToArray();
         _columns = columns;
         _floatTensor = floatTensor;
         _stringTensor = stringTensor;
         _intTensor = intTensor;
+        _originalDataFrameForColumnView = originalDataFrameForColumnView;
+        _originalDataFrameForRowView = originalDataFrameForRowView;
     }
     public static DataFrame New(CpuTensor<float> floatTensor, CpuTensor<string> stringTensor, CpuTensor<int> intTensor, IList<string> columnsNames)
     {
@@ -190,28 +204,84 @@ public sealed class DataFrame
         {
             throw new ArgumentException($"{this} is not a Float DataFrame");
         }
-        return _floatTensor;
+        return FloatTensor;
     }
-    public CpuTensor<float> FloatTensor =>_floatTensor;
-    public CpuTensor<string> StringTensor =>_stringTensor;
-    public CpuTensor<int> IntTensor =>_intTensor;
     public CpuTensor<string> StringCpuTensor()
     {
         if (!IsStringDataFrame)
         {
             throw new ArgumentException($"{this} is not a String DataFrame");
         }
-        return _stringTensor;
+        return StringTensor;
     }
-    // ReSharper disable once UnusedMember.Global
     public CpuTensor<int> IntCpuTensor()
     {
         if (!IsIntDataFrame)
         {
             throw new ArgumentException($"{this} is not a Int DataFrame");
         }
-        return _intTensor;
+        return IntTensor;
     }
+
+    /// <summary>
+    /// return the tensor even if the 'this' DataFrame is a view to another DataFrame
+    /// </summary>
+    public CpuTensor<float> FloatTensorEvenIfView => _floatTensor;
+    public CpuTensor<string> StringTensorEvenIfView => _stringTensor;
+    public CpuTensor<int> IntTensorEvenIfView => _intTensor;
+
+
+    public CpuTensor<float> FloatTensor
+    {
+        get
+        {
+            AssertIsNotViewToOtherDataFrame();
+            return _floatTensor;
+        }
+    }
+
+    public CpuTensor<string> StringTensor
+    {
+        get
+        {
+            AssertIsNotViewToOtherDataFrame();
+            return _stringTensor;
+        }
+
+    }
+    public CpuTensor<int> IntTensor
+    {
+        get
+        {
+            AssertIsNotViewToOtherDataFrame();
+            return _intTensor;
+        }
+    }
+
+    private void AssertIsNotViewToOtherDataFrame()
+    {
+        AssertIsNotColumnViewToOtherDataFrame();
+        AssertIsNotRowViewToOtherDataFrame();
+    }
+    private void AssertIsNotColumnViewToOtherDataFrame()
+    {
+        if (IsColumnViewToOtherDataFrame)
+        {
+            var msg = $"{this} is a column view";
+            ISample.Log.Error(msg);
+            throw new Exception(msg);
+        }
+    }
+    private void AssertIsNotRowViewToOtherDataFrame()
+    {
+        if (IsRowViewToOtherDataFrame)
+        {
+            var msg = $"{this} is a row view";
+            ISample.Log.Error(msg);
+            throw new Exception(msg);
+        }
+    }
+
     public string[] StringColumnContent(string columnName)
     {
         var colDesc= GetColumnDesc(columnName);
@@ -227,22 +297,34 @@ public sealed class DataFrame
         }
         return res;
     }
-    public void UpdateColumnInPlace(string columnName, Func<string, string> update) => UpdateColumnInPlace(columnName, StringTensor, update);
-    public void UpdateColumnInPlace(string columnName, Func<float, float> update) => UpdateColumnInPlace(columnName, FloatTensor, update);
-    public void UpdateColumnInPlace(string columnName, Func<int,int> update) => UpdateColumnInPlace(columnName, IntTensor, update);
-    private void UpdateColumnInPlace<T>(string columnName, CpuTensor<T> tensor, Func<T, T> update)
+    public void UpdateColumnsInPlace(Func<string, string> update, params string[] columnNames) => UpdateColumnsInPlace(_stringTensor, update, columnNames);
+    public void UpdateColumnsInPlace(Func<float, float> update, params string[] columnNames) => UpdateColumnsInPlace(_floatTensor, update, columnNames);
+    public void UpdateColumnsInPlace(Func<int,int> update, params string[] columnNames) => UpdateColumnsInPlace(_intTensor, update, columnNames);
+    private void UpdateColumnsInPlace<T>(CpuTensor<T> tensor, Func<T, T> update, params string[] columnNames)
     {
-        var colDesc = GetColumnDesc(columnName);
-        if (typeof(T) != TensorIndexToType[colDesc.Item2])
+        var colDesc = GetColumnsDesc(columnNames);
+        if (colDesc.Any(c => typeof(T) != TensorIndexToType[c.Item2]))
         {
-            throw new ArgumentException($"column {columnName} is not a {typeof(T)} column but a {TensorIndexToType[colDesc.Item2]} column");
+            throw new ArgumentException($"some columns among {string.Join(' ', columnNames)} are not a {typeof(T)}");
         }
-        var content = tensor.SpanContent;
-        for (int idx = colDesc.Item3; idx < content.Length; idx += tensor.Shape[1])
+        tensor.UpdateInPlace(update, colDesc.Select(c=>c.Item3).ToArray());
+    }
+    public void UpdateInPlace(Func<string, string> update) => UpdateInPlace(_stringTensor, update);
+    public void UpdateInPlace(Func<float, float> update) => UpdateInPlace(_floatTensor, update);
+    public void UpdateInPlace(Func<int, int> update) => UpdateInPlace(_intTensor, update);
+    private void UpdateInPlace<T>(CpuTensor<T> tensor, Func<T, T> update)
+    {
+        if (IsViewToOtherDataFrame)
         {
-            content[idx] = update(content[idx]);
+            int tensorIndex = TypeToTensorIndex[typeof(T)];
+            tensor.UpdateInPlace(update, GetIndexesForTensorType(_columns, tensorIndex).ToArray());
+        }
+        else
+        {
+            tensor.UpdateInPlace(update);
         }
     }
+
 
     /// <summary>
     /// rename column 'originalColumnName' to 'newColumnName'
@@ -250,22 +332,21 @@ public sealed class DataFrame
     /// <param name="originalColumnName"></param>
     /// <param name="newColumnName"></param>
     /// <exception cref="ArgumentException"></exception>
-    public DataFrame RenameInPlace(string originalColumnName, string newColumnName)
+    public void RenameInPlace(string originalColumnName, string newColumnName)
     {
         if (!Columns.Contains(originalColumnName) || Columns.Contains(newColumnName))
         {
             throw new ArgumentException($"can't rename column {originalColumnName} to {newColumnName} because of existing columns {string.Join(' ', Columns)}");
         }
-        var idxColumn = Array.IndexOf(Columns, originalColumnName);
-        Columns[idxColumn] = newColumnName;
         for (var i = 0; i < _columns.Count; i++)
         {
             if (_columns[i].Item1 == originalColumnName)
             {
                 _columns[i] = Tuple.Create(newColumnName, _columns[i].Item2, _columns[i].Item3);
+                Columns[i] = newColumnName;
+                return;
             }
         }
-        return this;
     }
     public static DataFrame read_float_csv(string path, bool hasHeader = true, bool isNormalized = false)
     {
@@ -281,21 +362,28 @@ public sealed class DataFrame
         return read_csv(path, hasHeader, _ => typeof(int));
     }
     /// <summary>
-    /// drop the columns 'columnsToDrop', and return a DataFrame without those columns
+    /// Return a view to the 'this' DataFrame with the columns 'columnsToDrop' removed
+    /// This is a view (= Pointer) to the 'this' DataFrame, so the returned object will share the same tensors as the original one
     /// throws an exception if a column name is invalid
     /// </summary>
     /// <param name="columnsToDrop"></param>
     /// <returns>a DataFrame without the specified columns</returns>
     public DataFrame Drop(params string[] columnsToDrop)
     {
-        if (columnsToDrop == null || columnsToDrop.Length == 0)
-        {
-            return this;
-        }
         AssertValidColumns(columnsToDrop);
-        var columnsToKeep = Utils.Without(Columns, columnsToDrop).ToArray();
-        return this[columnsToKeep];
+        var newColumnDesc = GetColumnsDesc(Utils.Without(Columns, columnsToDrop));
+        return ColumnView(newColumnDesc);
     }
+
+    private DataFrame ColumnView(List<Tuple<string, int, int>> columnsDesc)
+    {
+        return new DataFrame(columnsDesc, _floatTensor, _stringTensor, _intTensor, this, _originalDataFrameForRowView);
+    }
+    private DataFrame RowView(List<Tuple<string, int, int>> columnsDesc)
+    {
+        return new DataFrame(columnsDesc, _floatTensor, _stringTensor, _intTensor, _originalDataFrameForColumnView, this);
+    }
+
     /// <summary>
     /// drop the columns 'columnsToDrop', and return a DataFrame without those columns
     /// ignore invalid columns from the input list
@@ -307,36 +395,28 @@ public sealed class DataFrame
     {
         return Drop(Utils.Intersect(Columns, columnsToDrop).ToArray());
     }
+
+    /// <summary>
+    /// returns a view of the current DataFrame with only the specified columns
+    /// The returned DataFrame is only a view to the 'this' DataFrame (like a pointer), not a deep copy
+    /// </summary>
+    /// <param name="columnsToKeep"></param>
+    /// <returns></returns>
     public DataFrame this[params string[] columnsToKeep]
     {
         get
         {
-            List<Tuple<string, int, int>> newColumns = new();
-            Dictionary<int, List<int>> tensorIndexToColumnsToKeep = new();
-            foreach (var c in _columns)
-            {
-                if (columnsToKeep.Contains(c.Item1))
-                {
-                    var tensorIndex = c.Item2;
-                    var oldIndex = c.Item3;
-                    if (!tensorIndexToColumnsToKeep.ContainsKey(tensorIndex))
-                    {
-                        tensorIndexToColumnsToKeep[tensorIndex] = new List<int>();
-                    }
-                    var newIdx = tensorIndexToColumnsToKeep[tensorIndex].Count;
-                    newColumns.Add(Tuple.Create(c.Item1, tensorIndex, newIdx));
-                    tensorIndexToColumnsToKeep[c.Item2].Add(oldIndex);
-                }
-            }
-            return new DataFrame(newColumns,
-                tensorIndexToColumnsToKeep.ContainsKey(FLOAT_TYPE_IDX)? _floatTensor.KeepColumns(tensorIndexToColumnsToKeep[FLOAT_TYPE_IDX]) : null,
-                tensorIndexToColumnsToKeep.ContainsKey(STRING_TYPE_IDX)? _stringTensor.KeepColumns(tensorIndexToColumnsToKeep[STRING_TYPE_IDX]) : null,
-                tensorIndexToColumnsToKeep.ContainsKey(INT_TYPE_IDX)? _intTensor.KeepColumns(tensorIndexToColumnsToKeep[INT_TYPE_IDX]) : null);
+            AssertValidColumns(columnsToKeep);
+            var newColumnDesc = columnsToKeep.Select(GetColumnDesc).ToList();
+            return ColumnView(newColumnDesc);
         }
-
-
     }
 
+
+    public bool IsColumnViewToOtherDataFrame => _originalDataFrameForColumnView != null;
+    public bool IsRowViewToOtherDataFrame => _originalDataFrameForRowView != null;
+
+    public bool IsViewToOtherDataFrame => IsColumnViewToOtherDataFrame|| IsRowViewToOtherDataFrame;
 
     // ReSharper disable once UnusedMember.Global
     public static DataFrame MergeVertically(DataFrame top, DataFrame bottom)
@@ -367,6 +447,8 @@ public sealed class DataFrame
         {
             return left;
         }
+        left = left.CloneIfNeeded();
+        right = right.CloneIfNeeded();
         var leftRows = left.EmbeddedTensors.Select(t => t?.Shape[1]??0).ToArray();
         var newColumns = left._columns.ToList();
         foreach (var c in right._columns)
@@ -376,9 +458,9 @@ public sealed class DataFrame
         }
         return new DataFrame(
             newColumns,
-            CpuTensor<float>.MergeHorizontally(left._floatTensor, right._floatTensor),
-            CpuTensor<string>.MergeHorizontally(left._stringTensor, right._stringTensor),
-            CpuTensor<int>.MergeHorizontally(left._intTensor, right._intTensor)
+            CpuTensor<float>.MergeHorizontally(left.FloatTensor, right.FloatTensor),
+            CpuTensor<string>.MergeHorizontally(left.StringTensor, right.StringTensor),
+            CpuTensor<int>.MergeHorizontally(left.IntTensor, right.IntTensor)
         );
     }
     public DataFrame SumBy(params string[] idColumns)
@@ -391,22 +473,6 @@ public sealed class DataFrame
         Debug.Assert(idColumns.Length == 1);
         return SumOrAvgForColumns(idColumns[0], true);
     }
-    //public List<int> ColumnNamesToIndexes(IEnumerable<string> columnNames)
-    //{
-    //    var indexes = new List<int>();
-    //    foreach (var f in columnNames)
-    //    {
-    //        int idx = Array.IndexOf(Columns, f);
-    //        if (idx < 0)
-    //        {
-    //            throw new Exception($"Invalid {nameof(Columns)} name {f}");
-    //        }
-    //        indexes.Add(idx);
-    //    }
-
-    //    return indexes;
-    //}
-
     /// <summary>
     /// encode the string column 'columnToEncode' using Tf*Idf with 'embeddingDim' words and return a new DataFrame with this encoding
     /// </summary>
@@ -469,25 +535,6 @@ public sealed class DataFrame
         ISample.Log.Info($"All CSV files have been encoded");
     }
 
-
-
-
-    //public DataFrame Normalize()
-    //{
-    //    return new DataFrame(_columns,
-    //        _floatTensor?.Normalize().normalizedTensor,
-    //        _stringTensor,
-    //        _intTensor);
-    //}
-
-    //public DataFrame DeduceRowMean()
-    //{
-    //    return new DataFrame(_columns,
-    //        _floatTensor?.DeduceRowMean(),
-    //        _stringTensor,
-    //        _intTensor);
-    //}
-
     /// <summary>
     /// join the 2 DataFrame ('this' and 'right_df' using the key 'joinKey' to join.
     /// this key is considered as a unique key in the 'right_df' DataFrame
@@ -502,6 +549,7 @@ public sealed class DataFrame
     /// <exception cref="ArgumentException"></exception>
     public DataFrame LeftJoinWithoutDuplicates(DataFrame right, string[] leftJoinKey, string[] rightJoinKeys = null)
     {
+        AssertIsNotViewToOtherDataFrame();
         var left = this;
         rightJoinKeys = rightJoinKeys ?? leftJoinKey;
         if (rightJoinKeys.Length != leftJoinKey.Length)
@@ -571,26 +619,10 @@ public sealed class DataFrame
 
         return target;
     }
-
-
-    private int[] TensorIndexToColumnCount()
-    {
-        var embeddedTensors = EmbeddedTensors;
-        var tensorIndexToColumnCount = new int[embeddedTensors.Length];
-        for (var tensorIndex = 0; tensorIndex < embeddedTensors.Length; tensorIndex++)
-        {
-            var t = embeddedTensors[tensorIndex];
-            if (t != null)
-            {
-                tensorIndexToColumnCount[tensorIndex] += t.Shape[1];
-            }
-        }
-        return tensorIndexToColumnCount;
-    }
-
-
+    
     private DataFrame SumOrAvgForColumns(string keyColumn, bool IsAverage)
     {
+        AssertIsNotViewToOtherDataFrame();
         var rows = Shape[0];
         var idxKeyColumn = Array.IndexOf(Columns, keyColumn);
 
@@ -619,8 +651,8 @@ public sealed class DataFrame
         Dictionary<object, int> keyToCount = new();
         List<object> sortedKeys = new();
 
-        var floatContent = _floatTensor == null ? new float[0] : _floatTensor.ReadonlyContent;
-        var intContent = _intTensor == null ? new int[0] : _intTensor.ReadonlyContent;
+        var floatContent = FloatTensor == null ? new float[0] : FloatTensor.ReadonlyContent;
+        var intContent = IntTensor == null ? new int[0] : IntTensor.ReadonlyContent;
         var embeddedTensors = EmbeddedTensors;
 
         for (int row = 0; row < rows; ++row)
@@ -702,25 +734,55 @@ public sealed class DataFrame
         return RowSlice(n - Shape[0], n, false);
     }
 
+
+    /// <summary>
+    /// if the this DataFrame is a view to another DataFrame:
+    ///     returns a (deep) copy of the DataFrame
+    /// else
+    ///     return the 'this' DataFrame
+    /// </summary>
+    /// <returns></returns>
+    public DataFrame CloneIfNeeded()
+    {
+        if (!IsViewToOtherDataFrame)
+        {
+            return this;
+        }
+        return Clone();
+    }
+
     public DataFrame Clone()
     {
-        return new DataFrame(_columns.ToList(),
-            (CpuTensor<float>)_floatTensor?.Clone(),
-            (CpuTensor<string>)_stringTensor?.Clone(),
-            (CpuTensor<int>)_intTensor?.Clone());
+        var nextIndex = new int[EmbeddedTensors.Length];
+        List<Tuple<string, int, int>> newColumnDesc = new();
+        foreach (var d in _columns)
+        {
+            newColumnDesc.Add(Tuple.Create(d.Item1, d.Item2, nextIndex[d.Item2]));
+            ++nextIndex[d.Item2];
+        }
+        var indexesForEachTensorType = ToIndexesForEachTensorType(Columns);
+        return new DataFrame(
+            newColumnDesc,
+            _floatTensor?.KeepColumns(indexesForEachTensorType[FLOAT_TYPE_IDX]),
+            _stringTensor?.KeepColumns(indexesForEachTensorType[STRING_TYPE_IDX]),
+            _intTensor?.KeepColumns(indexesForEachTensorType[INT_TYPE_IDX])
+            );
     }
 
     public void Add(DataFrame other)
     {
+        AssertIsNotColumnViewToOtherDataFrame(); // no problem if the current DataFrame is a row view (slice) of another DataFrame
+        other.AssertIsNotColumnViewToOtherDataFrame();
         AssertSameShapeAndColumns(this, other);
         _floatTensor?.AddTensor(1, other._floatTensor, 1);
-        other._intTensor?.CopyTo(_intTensor); //!D todo: do same thing for _intTensor
+        other._intTensor?.CopyTo(_intTensor); //!D todo: do same thing for __intTensor
         other._stringTensor?.CopyTo(_stringTensor);
     }
 
     public void Mult(float multiplier)
     {
-        _floatTensor?.Update_Multiplying_By_Alpha(multiplier);
+        // no problem is the 'this' DataFrame is a view to another DataFrame
+        UpdateInPlace(_floatTensor, f => f* multiplier);
         if (_intTensor != null)
         {
             //!D TODO: do the same thing for integers
@@ -731,36 +793,37 @@ public sealed class DataFrame
 
     public DataFrame sort_values(string columnName, bool ascending = true)
     {
+        AssertIsNotViewToOtherDataFrame();
         var colDesc = GetColumnDesc(columnName);
 
         int[] orderedRows = null;
         if (colDesc.Item2 == FLOAT_TYPE_IDX)
         {
-            var floatSpan = _floatTensor.ReadonlyContent;
+            var floatSpan = FloatTensor.ReadonlyContent;
             List<Tuple<int, float>> columnContent = new();
             for (int row = 0; row < Shape[0]; ++row)
             {
-                columnContent.Add(Tuple.Create(row, floatSpan[colDesc.Item3 + row * _floatTensor.Shape[1]]));
+                columnContent.Add(Tuple.Create(row, floatSpan[colDesc.Item3 + row * FloatTensor.Shape[1]]));
             }
             orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
         }
         else if (colDesc.Item2 == INT_TYPE_IDX)
         {
-            var intSpan = _intTensor.ReadonlyContent;
+            var intSpan = IntTensor.ReadonlyContent;
             List<Tuple<int, int>> columnContent = new();
             for (int row = 0; row < Shape[0]; ++row)
             {
-                columnContent.Add(Tuple.Create(row, intSpan[colDesc.Item3 + row * _intTensor.Shape[1]]));
+                columnContent.Add(Tuple.Create(row, intSpan[colDesc.Item3 + row * IntTensor.Shape[1]]));
             }
             orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
         }
         else if (colDesc.Item2 == STRING_TYPE_IDX)
         {
-            var stringSpan = _stringTensor.ReadonlyContent;
+            var stringSpan = StringTensor.ReadonlyContent;
             List<Tuple<int, string>> columnContent = new();
             for (int row = 0; row < Shape[0]; ++row)
             {
-                columnContent.Add(Tuple.Create(row, stringSpan[colDesc.Item3 + row * _stringTensor.Shape[1]]));
+                columnContent.Add(Tuple.Create(row, stringSpan[colDesc.Item3 + row * StringTensor.Shape[1]]));
             }
             orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
         }
@@ -776,32 +839,20 @@ public sealed class DataFrame
 
         return new DataFrame(
             _columns.ToList(),
-            _floatTensor?.ApplyRowOrder(orderedRows),
-            _stringTensor?.ApplyRowOrder(orderedRows),
-            _intTensor?.ApplyRowOrder(orderedRows)
+            FloatTensor?.ApplyRowOrder(orderedRows),
+            StringTensor?.ApplyRowOrder(orderedRows),
+            IntTensor?.ApplyRowOrder(orderedRows)
             );
     }
 
-
-    //public void ClearContent()
-    //{
-    //    SetContent(_floatTensor, 0.0f);
-    //    SetContent(_intTensor, 0);
-    //    SetContent(_stringTensor, null);
-    //}
-
-    //private static void SetContent<T>(CpuTensor<T> t, T newValue)
-    //{
-    //    if (t == null)
-    //    {
-    //        return;
-    //    }
-    //    var content = t.Content.Span;
-    //    for (int i = 0; i < content.Length; ++i)
-    //    {
-    //        content[i] = newValue;
-    //    }
-    //}
+    public void ShuffleInPlace([NotNull] Random r, params string[] columnNamesToShuffle)
+    {
+        var indexes = ToIndexesForEachTensorType(columnNamesToShuffle);
+        FloatTensor?.ShuffleInPlace(r, indexes[FLOAT_TYPE_IDX].ToArray());
+        StringTensor?.ShuffleInPlace(r, indexes[STRING_TYPE_IDX].ToArray());
+        IntTensor?.ShuffleInPlace(r, indexes[INT_TYPE_IDX].ToArray());
+    }
+    
 
     public static bool SameShape(IList<DataFrame> df)
     {
@@ -836,9 +887,11 @@ public sealed class DataFrame
             return this;
         }
         return new DataFrame(_columns,
-            (CpuTensor<float>)_floatTensor?.RowSlice(startRowIndex, nbRows),
-            (CpuTensor<string>)_stringTensor?.RowSlice(startRowIndex, nbRows),
-            (CpuTensor<int>)_intTensor?.RowSlice(startRowIndex, nbRows)
+            (CpuTensor<float>)FloatTensor?.RowSlice(startRowIndex, nbRows),
+            (CpuTensor<string>)StringTensor?.RowSlice(startRowIndex, nbRows),
+            (CpuTensor<int>)IntTensor?.RowSlice(startRowIndex, nbRows),
+            _originalDataFrameForColumnView,
+            this
         );
     }
 
@@ -1046,9 +1099,9 @@ public sealed class DataFrame
         {
             var sb = buffer[row - row_in_first_index_of_buffer];
             sb.Clear();
-            var floatContent = _floatTensor == null ? null : _floatTensor.RowSpanSlice(row, 1);
-            var stringContent = _stringTensor == null ? null : _stringTensor.RowSpanSlice(row, 1);
-            var intContent = _intTensor == null ? null : _intTensor.RowSpanSlice(row, 1);
+            var floatContent = FloatTensor == null ? null : FloatTensor.RowSpanSlice(row, 1);
+            var stringContent = StringTensor == null ? null : StringTensor.RowSpanSlice(row, 1);
+            var intContent = IntTensor == null ? null : IntTensor.RowSpanSlice(row, 1);
 
             for (int col = 0; col < cols; col++)
             {
@@ -1128,14 +1181,6 @@ public sealed class DataFrame
         File.Move(path + ".tmp", path);
     }
 
-    private static CpuTensor<T> ToCpuTensor<T>(List<T> content, Dictionary<int, int> tensorIndexToCount, int tensorIndex)
-    {
-        if (content == null || content.Count == 0 || !tensorIndexToCount.TryGetValue(tensorIndex, out var columnCount))
-        {
-            return null;
-        }
-        return CpuTensor<T>.New(content.ToArray(), columnCount);
-    }
     public Tensor[] EmbeddedTensors => new Tensor[] { _floatTensor, _stringTensor, _intTensor };
 
 
@@ -1143,6 +1188,23 @@ public sealed class DataFrame
     {
         return _columns.First(c => c.Item1 == columnName);
     }
+
+    private List<Tuple<string, int, int>> GetColumnsDesc(IList<string> columnNames)
+    {
+        AssertValidColumns(columnNames);
+        return columnNames.Select(GetColumnDesc).ToList();
+    }
+
+    private static List<int> GetIndexesForTensorType(IEnumerable<Tuple<string, int, int>> columnDesc, int tensorType)
+    {
+        return columnDesc.Where(c => c.Item2 == tensorType).Select(c => c.Item3).ToList();
+    }
+
+    private static List<int> GetIndexesForFloatTensor(IList<Tuple<string, int, int>> columnDesc) => GetIndexesForTensorType(columnDesc, FLOAT_TYPE_IDX);
+    private static List<int> GetIndexesForStringTensor(IList<Tuple<string, int, int>> columnDesc) => GetIndexesForTensorType(columnDesc, STRING_TYPE_IDX);
+    private static List<int> GetIndexesForIntTensor(IList<Tuple<string, int, int>> columnDesc) => GetIndexesForTensorType(columnDesc, INT_TYPE_IDX);
+    
+
 
     private List<List<int>> ToIndexesForEachTensorType(IEnumerable<string> columnNames)
     {
@@ -1241,6 +1303,13 @@ public sealed class DataFrame
         }
     }
 
+    public bool SameContent(DataFrame other, double epsilon, out string difference)
+    {
+        return TensorExtensions.SameFloatContent(FloatTensor, other.FloatTensor, epsilon, out difference)
+               &&TensorExtensions.SameStringContent(StringTensor, other.StringTensor, out difference)
+               &&TensorExtensions.SameIntContent(IntTensor, other.IntTensor, out difference);
+    }
+
 
     private float ExtractFloatValue(int row, int colIndex)
     {
@@ -1294,17 +1363,17 @@ public sealed class DataFrame
     //private Type[] Dtypes => _columns.Select(t => TensorIndexToType[t.Item2]).ToArray();
     public DataFrame ReduceFloatDimension(int totalReviewsEmbeddingDim)
     {
-        if (_floatTensor.Shape[1] < totalReviewsEmbeddingDim)
+        if (FloatTensor.Shape[1] < totalReviewsEmbeddingDim)
         {
             throw new ArgumentException($"can't reduce dimension to {totalReviewsEmbeddingDim}, dimension is already {totalReviewsEmbeddingDim}");
         }
 
-        var rows = _floatTensor.Shape[0];
-        var oldCols = _floatTensor.Shape[1];
+        var rows = FloatTensor.Shape[0];
+        var oldCols = FloatTensor.Shape[1];
         var newCols = totalReviewsEmbeddingDim;
         var newContent = new float[rows * newCols];
 
-        var srcContent = _floatTensor.AsReadonlyFloatCpuContent;
+        var srcContent = FloatTensor.AsReadonlyFloatCpuContent;
         for (int row = 0; row < rows; ++row)
         {
             for (int oldCol = 0; oldCol < oldCols; ++oldCol)
@@ -1316,7 +1385,7 @@ public sealed class DataFrame
 
         var newColumnDesc = _columns.Where(c => c.Item2 != FLOAT_TYPE_IDX || c.Item3 < newCols).ToList();
         var newFloatTensor = new CpuTensor<float>(new[] { rows, newCols }, newContent);
-        return new DataFrame(newColumnDesc, newFloatTensor, _stringTensor, _intTensor);
+        return new DataFrame(newColumnDesc, newFloatTensor, StringTensor, IntTensor);
     }
 
 

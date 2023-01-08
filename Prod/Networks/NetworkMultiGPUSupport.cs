@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using SharpNet.Data;
+using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 
@@ -175,7 +176,7 @@ namespace SharpNet.Networks
         #endregion
 
         #region methods used in slave networks only
-        private static void SlaveThread(Network master, bool buildLayers, int slaveDeviceId)
+        private static void SlaveThread(Network master, bool buildLayers, AbstractDatasetSample datasetSample, int slaveDeviceId)
         {
             //if slave thread will run on a GPU
             if (slaveDeviceId >= 0)
@@ -187,7 +188,7 @@ namespace SharpNet.Networks
             var slaveNetworkSample = (NetworkSample) master.Sample.Clone();
             slaveNetworkSample.ResourceIds = new List<int> { slaveDeviceId };
 
-            var slave = new Network(slaveNetworkSample, master.DatasetSample, master.WorkingDirectory, master.ModelName+"_"+ slaveDeviceId, buildLayers, master);
+            var slave = new Network(slaveNetworkSample, datasetSample, master.WorkingDirectory, master.ModelName+"_"+ slaveDeviceId, buildLayers, master);
             lock (master._slaveNetworks)
             {
                 master._slaveNetworks.Add(slave);

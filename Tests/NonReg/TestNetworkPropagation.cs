@@ -10,7 +10,6 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
-using SharpNetTests.Data;
 
 namespace SharpNetTests.NonReg
 {
@@ -1184,7 +1183,7 @@ namespace SharpNetTests.NonReg
         {
             var observedPrediction = network.Predict(X, false);
             var expectedPrediction = FromNumpyArray(expectedPredictionAsString);
-            Assert.IsTrue(TestTensor.SameContent(observedPrediction, expectedPrediction, epsilon), "expecting: " + Environment.NewLine + expectedPrediction.ToNumpy()+Environment.NewLine+ " but was:" + Environment.NewLine + observedPrediction.ToNumpy());
+            Assert.IsTrue(TensorExtensions.SameFloatContent(observedPrediction, expectedPrediction, epsilon), "expecting: " + Environment.NewLine + expectedPrediction.ToNumpy()+Environment.NewLine+ " but was:" + Environment.NewLine + observedPrediction.ToNumpy());
         }
         private static void TestLossAccuracy(Network network, CpuTensor<float> X, CpuTensor<float> Y_expected, double? expectedLoss, double? expectedAccuracy, double epsilon = 1e-5)
         {

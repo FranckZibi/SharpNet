@@ -51,8 +51,8 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var reviewsTfIdfEncodedRawFile = Path.Combine(DataDirectory, "reviews_embedded_transformers_avg.csv");
         #endregion
 
-        var fullReviewsForEmbeddingDim = DataFrame.read_csv(reviewsTfIdfEncodedRawFile, true, c => (c == "listing_id" ? typeof(string) : typeof(float)))
-            .RenameInPlace("listing_id", "id");
+        var fullReviewsForEmbeddingDim = DataFrame.read_csv(reviewsTfIdfEncodedRawFile, true, c => (c == "listing_id" ? typeof(string) : typeof(float)));
+        fullReviewsForEmbeddingDim.RenameInPlace("listing_id", "id");
         //fullReviewsForEmbeddingDim = fullReviewsForEmbeddingDim.ReduceFloatDimension(TOTAL_Reviews_EmbeddingDim / 4);
 
         var trainDf = DataFrame.read_string_csv(RawTrainFile);

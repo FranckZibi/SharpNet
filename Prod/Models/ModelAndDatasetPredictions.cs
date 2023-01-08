@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using SharpNet.Datasets;
@@ -8,7 +7,7 @@ using DataSet = SharpNet.Datasets.DataSet;
 
 namespace SharpNet.Models;
 
-public class ModelAndDatasetPredictions
+public sealed class ModelAndDatasetPredictions
 {
     #region public fields and properties
     public Model Model { get; }
@@ -31,21 +30,46 @@ public class ModelAndDatasetPredictions
 
     #region constructor
     public ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, string modelName)
+        : this(modelAndDatasetPredictionsSample, Model.NewModel(modelAndDatasetPredictionsSample.ModelSample, modelAndDatasetPredictionsSample.DatasetSample, workingDirectory, modelName))
+    {
+    }
+
+    private ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, Model model)
     {
         ModelAndDatasetPredictionsSample = modelAndDatasetPredictionsSample;
-        Model = Model.NewModel(ModelAndDatasetPredictionsSample.ModelSample, DatasetSample, workingDirectory, modelName);
-        if (DatasetSample.KFold >= 2 && Model is not KFoldModel /*&& Model is not WeightedModel*/)
+        Model = model;
+        if (modelAndDatasetPredictionsSample.DatasetSample.KFold >= 2 && model is not KFoldModel)
         {
-            var embeddedModel = Model;
-            if (DatasetSample.PercentageInTraining < 1.0)
-            {
-                throw new ArgumentException($"PercentageInTraining must be 100% if KFold is enabled (found {DatasetSample.PercentageInTraining}");
-            }
-            var kfoldSample = new KFoldSample(DatasetSample.KFold, embeddedModel.WorkingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
-            ModelAndDatasetPredictionsSample = modelAndDatasetPredictionsSample.CopyWithNewModelSample(kfoldSample);
-            Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel, embeddedModel);
+            var withKFold = WithKFold(modelAndDatasetPredictionsSample.DatasetSample.KFold);
+            ModelAndDatasetPredictionsSample = withKFold.ModelAndDatasetPredictionsSample;
+            Model = withKFold.Model;
         }
     }
+
+    public ModelAndDatasetPredictions WithKFold(int n_splits)
+    {
+        Debug.Assert(n_splits >= 2);
+        var embeddedModel = EmbeddedModel;
+        var kfoldSample = new KFoldSample(n_splits, embeddedModel.WorkingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+        var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample
+            .CopyWithNewModelSample(kfoldSample)
+            .CopyWithNewPercentageInTrainingAndKFold(1.0, n_splits);
+        
+        var kfoldModelName = KFoldModel.EmbeddedModelNameToModelNameWithKfold(embeddedModel.ModelName, n_splits);
+        var kfoldModel = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, kfoldModelName, embeddedModel, DatasetSample);
+        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, kfoldModel);
+    }
+
+
+    public ModelAndDatasetPredictions WithFullTrainingNoKFold()
+    {
+        var embeddedModel = EmbeddedModel;
+        var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample
+            .CopyWithNewModelSample(embeddedModel.ModelSample)
+            .CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
+        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName+"_FULL");
+    }
+
     public static ModelAndDatasetPredictions New(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory)
     {
         return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash());
@@ -64,44 +88,41 @@ public class ModelAndDatasetPredictions
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="saveTrainValidAndTestsPredictions"></param>
+    /// <param name="computeAndSavePredictions"></param>
     /// <param name="computeValidationRankingScore"></param>
     /// <param name="saveTrainedModel"></param>
     /// <returns>validation ranking score</returns>
-    public IScore Fit(bool saveTrainValidAndTestsPredictions, bool computeValidationRankingScore, bool saveTrainedModel)
+    public IScore Fit(bool computeAndSavePredictions, bool computeValidationRankingScore, bool saveTrainedModel)
     {
         var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
         var validationDataSet = trainingAndValidation.Test;
         var trainDataset = trainingAndValidation.Training;
         (DatasetSample.Train_XDatasetPath_InModelFormat, DatasetSample.Train_YDatasetPath_InModelFormat, DatasetSample.Train_XYDatasetPath_InModelFormat, 
-         DatasetSample.Validation_XDatasetPath_InModelFormat, DatasetSample.Validation_YDatasetPath_InModelFormat, DatasetSample.Validation_XYDatasetPath_InModelFormat) = 
-            Model.Fit(trainDataset, validationDataSet);
+         DatasetSample.Validation_XDatasetPath_InModelFormat, DatasetSample.Validation_YDatasetPath_InModelFormat, DatasetSample.Validation_XYDatasetPath_InModelFormat,
+         var trainScoreIfAvailable, var validationScoreIfAvailable) = Model.Fit(trainDataset, validationDataSet);
         IScore validationRankingScore = null;
-        if (saveTrainValidAndTestsPredictions)
+        if (computeAndSavePredictions)
         {
             var start = Stopwatch.StartNew();
-            validationRankingScore = ComputeAndSavePredictions(trainingAndValidation).validationRankingScore;
+            (_,validationRankingScore) = ComputeAndSavePredictions(trainingAndValidation);
             ISample.Log.Debug($"{nameof(ComputeAndSavePredictions)} took '{start.Elapsed.TotalSeconds}'s");
         }
         else if (computeValidationRankingScore)
         {
-            if (Model is KFoldModel kfoldModel)
-            {
-                Debug.Assert(validationDataSet == null);
-                validationRankingScore = kfoldModel.ComputeEvaluationMetricOnFullDataset(trainDataset, DatasetSample).validationRankingScore_InTargetFormat;
-            }
-            else
-            {
-                validationRankingScore = ComputePredictionsAndRankingScore(validationDataSet?? trainDataset).rankingScore;
-            }
+            var start = Stopwatch.StartNew();
+            validationRankingScore = Model.ComputePredictionsAndRankingScore(trainingAndValidation, DatasetSample, false).validationRankingScore_InTargetFormat;
+            ISample.Log.Debug($"{nameof(Model.ComputePredictionsAndRankingScore)} took '{start.Elapsed.TotalSeconds}'s");
         }
         if (saveTrainedModel)
         {
             Save(Model.WorkingDirectory);
         }
+
+        ISample.Log.Debug($"Model {Model.ModelName} scores: trainScore = {trainScoreIfAvailable} / validationScore  = {validationScoreIfAvailable} / validationRankingScore = {validationRankingScore}");
         return validationRankingScore;
     }
-    public (IScore trainRankingScore, IScore validationRankingScore) ComputeAndSavePredictions(ITrainingAndTestDataSet trainingAndValidation)
+    public (IScore trainRankingScore, IScore validationRankingScore) 
+        ComputeAndSavePredictions(ITrainingAndTestDataSet trainingAndValidation)
     {
         var trainDataset = trainingAndValidation.Training;
         var validationDataset = trainingAndValidation.Test;
@@ -114,34 +135,16 @@ public class ModelAndDatasetPredictions
         const bool includeIdColumns = true;
         const bool overwriteIfExists = false;
 
-        ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Training Dataset");
+        ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Training & Validation Dataset");
         DatasetSample.Train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
-        IScore trainRankingScore_InTargetFormat = null;
-        IScore validationRankingScore_InTargetFormat = null;
-
-        IScore trainLoss_InModelFormat = null;
-        IScore validationLoss_InModelFormat = null;
-
-
-        DataFrame trainPredictions_InModelFormat = null, trainPredictions_InTargetFormat = null, validationPredictions_InModelFormat = null, validationPredictions_InTargetFormat = null;
-        if (Model is KFoldModel kfoldModel)
+        var (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, 
+         trainPredictions_InModelFormat, trainLoss_InModelFormat,
+         validationPredictions_InTargetFormat, validationRankingScore_InTargetFormat,
+         validationPredictions_InModelFormat, validationLoss_InModelFormat) = 
+            Model.ComputePredictionsAndRankingScore(trainingAndValidation, DatasetSample, true);
+        if (validationPredictions_InModelFormat != null && validationDataset == null)
         {
-            Debug.Assert(validationDataset == null);
-            (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, 
-             trainPredictions_InModelFormat, trainLoss_InModelFormat,
-             validationPredictions_InTargetFormat, validationRankingScore_InTargetFormat,
-             validationPredictions_InModelFormat, validationLoss_InModelFormat) = 
-                kfoldModel.ComputeEvaluationMetricOnFullDataset(trainDataset, DatasetSample);
             validationDataset = trainDataset;
-        }
-        else
-        {
-            (trainPredictions_InTargetFormat, trainPredictions_InModelFormat, trainRankingScore_InTargetFormat, _) = ComputePredictionsAndRankingScore(trainDataset);
-            if (validationDataset != null)
-            {
-                (validationPredictions_InTargetFormat, validationPredictions_InModelFormat, validationRankingScore_InTargetFormat, _) = ComputePredictionsAndRankingScore(validationDataset);
-                DatasetSample.Validation_XYDatasetPath_InTargetFormat = validationDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
-            }
         }
 
         if (trainRankingScore_InTargetFormat != null)
@@ -161,7 +164,7 @@ public class ModelAndDatasetPredictions
         if (testDatasetIfAny != null)
         {
             ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Test Dataset");
-            var (testPredictionsInTargetFormat, testPredictionsInModelFormat, testRankingScore, testDatasetPath_InModelFormat) = ComputePredictionsAndRankingScore(testDatasetIfAny);
+            var (testPredictionsInTargetFormat, testPredictionsInModelFormat, testRankingScore, testDatasetPath_InModelFormat) = DatasetSample.ComputePredictionsAndRankingScore(testDatasetIfAny, Model);
             if (testRankingScore == null)
             {
                 DatasetSample.Test_XDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, false, includeIdColumns, overwriteIfExists);
@@ -223,7 +226,7 @@ public class ModelAndDatasetPredictions
         Save(workingDirectory, Model.ModelName);
     }
 
-    public virtual void Save(string workingDirectory, string modelName)
+    public void Save(string workingDirectory, string modelName)
     {
         var start = Stopwatch.StartNew();
         ModelAndDatasetPredictionsSample.Save(workingDirectory, modelName);
@@ -310,20 +313,5 @@ public class ModelAndDatasetPredictions
         PredictionsSample.Test_PredictionsFileName_InModelFormat = fileName;
         DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
-    private (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat, IScore rankingScore, string datasetPath)
-        ComputePredictionsAndRankingScore(DataSet dataset)
-    {
-        Debug.Assert(dataset != null);
-        var start = Stopwatch.StartNew();
-        var (y_pred_InModelFormat, datasetPath) = Model.PredictWithPath(dataset, false);
-        var y_pred_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat);
-        IScore rankingScore = null;
-        if (dataset.Y != null)
-        {
-            var y_true_InTargetFormat = DatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(dataset.Y));
-            rankingScore = DatasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
-        }
-        ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScore)} took {start.Elapsed.TotalSeconds}s");
-        return (y_pred_InTargetFormat, y_pred_InModelFormat, rankingScore, datasetPath);
-    }
+  
 }

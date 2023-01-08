@@ -8,6 +8,7 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.HyperParameters;
+using SharpNet.Models;
 
 namespace SharpNet.Datasets;
 
@@ -41,6 +42,24 @@ public abstract class AbstractDatasetSample : AbstractSample
     private int[] _cacheInputShape_CHW = null;
     protected string[] _cacheColumns = null;
     private readonly object lockInputShape_CHW = new();
+
+
+    public (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat, IScore rankingScore, string path_pred_InModelFormat)
+        ComputePredictionsAndRankingScore(DataSet dataset, Model model)
+    {
+        Debug.Assert(dataset != null);
+        var start = Stopwatch.StartNew();
+        var (y_pred_InModelFormat, path_pred_InModelFormat) = model.PredictWithPath(dataset, false);
+        var y_pred_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat);
+        IScore rankingScore = null;
+        if (dataset.Y != null)
+        {
+            var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(dataset.Y));
+            rankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
+        }
+        ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScore)} took {start.Elapsed.TotalSeconds}s");
+        return (y_pred_InTargetFormat, y_pred_InModelFormat, rankingScore, path_pred_InModelFormat);
+    }
 
     public virtual int[] GetInputShapeOfSingleElement()
     {

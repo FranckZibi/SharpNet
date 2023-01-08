@@ -5,7 +5,6 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNetTests.CPU;
-using SharpNetTests.Data;
 
 namespace SharpNetTests.GPU
 {
@@ -34,7 +33,7 @@ namespace SharpNetTests.GPU
             Tensor b = bCpu.ToGPU<float>(GpuWrapper);
             Tensor resultGpu = new GPUTensor<float>(shape, null, GpuWrapper);
             km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
-            Assert.IsTrue(TestTensor.SameContent(resultCpu, resultGpu, 1e-2));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(resultCpu, resultGpu, 1e-2));
         }
 
         [TestCase(1,1,0,2048,20,32)]

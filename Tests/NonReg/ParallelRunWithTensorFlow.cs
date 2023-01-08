@@ -18,7 +18,7 @@ using SharpNet.Models;
 using SharpNet.Networks;
 using SharpNet.Pictures;
 using SharpNet.TextPreprocessing;
-using SharpNetTests.Data;
+
 // ReSharper disable AccessToDisposedClosure
 
 namespace SharpNetTests.NonReg
@@ -51,7 +51,7 @@ namespace SharpNetTests.NonReg
             networkBuilder.SetResourceId(0);
             var network = networkBuilder.EfficientNetB0(NetworkSample.DefaultWorkingDirectory, true, "imagenet", new[] {3, 224, 224});
             var yPredicted = network.Predict(X, false);
-            Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredicted, 1e-5));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(yExpectedFromKeras, yPredicted, 1e-5));
 
             //we save the network
             network.Save(network.WorkingDirectory, network.ModelName);
@@ -60,7 +60,7 @@ namespace SharpNetTests.NonReg
             //we ensure that the saved version of the network behave the same as the original one
             var networkFromSavedFile = Network.LoadTrainedNetworkModel(network.WorkingDirectory, network.ModelName);
             var yPredictedFromSavedFile = networkFromSavedFile.Predict(X, false);
-            Assert.IsTrue(TestTensor.SameContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(yExpectedFromKeras, yPredictedFromSavedFile, 1e-5));
 
             var savedModelFile = Network.ToModelFilePath(network.WorkingDirectory, network.ModelName);
             File.Delete(savedModelFile);

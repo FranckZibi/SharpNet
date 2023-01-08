@@ -20,13 +20,13 @@ namespace SharpNetTests.Data
             Tensor a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5);
             var aSerialized = new Serializer().Add("a", a).ToString();
             var aDeserialized = (Tensor)Serializer.Deserialize(aSerialized)["a"];
-            Assert.IsTrue(SameContent(a, aDeserialized, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(a, aDeserialized, 1e-9));
 
             //float test
             a = TestCpuTensor.RandomFloatTensor(shape, rand, -1.5, +1.5);
             aSerialized = new Serializer().Add("a", a).ToString();
             aDeserialized = (Tensor)Serializer.Deserialize(aSerialized)["a"];
-            Assert.IsTrue(SameContent(a, aDeserialized, 1e-5));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(a, aDeserialized, 1e-5));
         }
 
         [Test]
@@ -129,23 +129,5 @@ namespace SharpNetTests.Data
 	        Assert.AreEqual(7, t.Shape[0]);
         }
 
-        public static bool SameContent(Tensor a, Tensor b, double epsilon)
-        {
-            if (!a.SameShape(b))
-            {
-                return false;
-            }
-            return SharpNet.Utils.SameContent(a.ContentAsFloatArray(), b.ContentAsFloatArray(), epsilon);
-        }
-        public static bool SameStringContent(CpuTensor<string> a, CpuTensor<string> b)
-        {
-            if (!a.SameShape(b))
-            {
-                return false;
-            }
-            var aContent = a.Content.ToArray();
-            var bContent = b.Content.ToArray();
-            return aContent.SequenceEqual(bContent);
-        }
     }
 }

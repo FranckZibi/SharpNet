@@ -2000,43 +2000,32 @@ namespace SharpNet.CPU
         //}
 
         /// <summary>
-        /// return a new Tensor keeping only columns at index 'columnIndexesToKeep'
+        /// Return a new Tensor keeping only columns at index 'columnIndexesToKeep'
+        /// Those columns will be in the same order as the one provided in 'columnIndexesToKeep'
         /// </summary>
-        /// <param name="columnIndexesToKeep">the column indexes to keep</param>
+        /// <param name="columnIndexesToKeep"></param>
         /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public CpuTensor<T> KeepColumns(List<int> columnIndexesToKeep)
         {
             if (Shape.Length != 2)
             {
                 throw new Exception($"{nameof(KeepColumns)} only works with matrix");
             }
-            if (columnIndexesToKeep.Count == Shape[1])
-            {
-                return this;
-            }
-            var dataAsSpan = SpanContent;
-            var shouldBeKept = new bool[Shape[1]];
-            columnIndexesToKeep.ForEach(oldCol => shouldBeKept[oldCol]=true);
-            var newShape = new[] {Shape[0], columnIndexesToKeep.Count};
-            var newData = new T[newShape[0]* newShape[1]];
+            var srcContent = SpanContent;
+            var srcCols = Shape[1];
+            var targetShape = new[] { Shape[0], columnIndexesToKeep.Count };
+            var targetContent = new T[targetShape[0] * targetShape[1]];
             int newIdx = 0;
-            int oldIdx = 0;
             for (int row = 0; row < Shape[0]; ++row)
             {
-                for (int col = 0; col < Shape[1]; ++col)
+                foreach (var srcCol in columnIndexesToKeep)
                 {
-                    if (shouldBeKept[col])
-                    {
-                        newData[newIdx++] = dataAsSpan[oldIdx];
-                    }
-                    ++oldIdx;
+                    targetContent[newIdx++] = srcContent[srcCol+row*srcCols];
                 }
             }
-            return new CpuTensor<T>(newShape, newData);
+            return new CpuTensor<T>(targetShape, targetContent);
         }
-
-
-
 
         public static CpuTensor<float> CreateOneHotTensor(Func<int, int> elementIdToCategoryIndex, int elementCount, int categoryCount)
         {
@@ -2645,6 +2634,48 @@ namespace SharpNet.CPU
                 thisSpan[i] = funcInput(thisSpan[i], bSpan[i]);
             }
         }
+
+
+        /// <summary>
+        /// update the entire tensor in place
+        /// </summary>
+        /// <param name="update"></param>
+        public void UpdateInPlace(Func<T, T> update)
+        {
+            var content = SpanContent;
+            for (int i = 0; i < Count; ++i)
+            {
+                content[i] = update(content[i]);
+            }
+        }
+
+
+        /// <summary>
+        /// for each column index in 'columnIndexToUpdate' ,
+        /// update the column values by applying 'update' function
+        /// </summary>
+        /// <param name="update"></param>
+        /// <param name="columnIndexToUpdate"></param>
+        public void UpdateInPlace(Func<T, T> update, params int[] columnIndexToUpdate)
+        {
+            if (columnIndexToUpdate.Length == 0)
+            {
+                return; //nothing to do
+            }
+            Debug.Assert(Shape.Length == 2);
+            var rows = Shape[0];
+            var cols = Shape[1];
+            var content = SpanContent;
+            for(int row=0;row<rows;++row)
+            {
+                foreach (var col in columnIndexToUpdate)
+                {
+                    var idx = row * cols + col;
+                    content[idx] = update(content[idx]);
+                }
+            }
+        }
+
         public void BuildEntirelyFromInput(Tensor a, Tensor b, Func<T, T, T> funcInput)
         {
             Debug.Assert(AreCompatible(new List<Tensor> {this, a, b}));
@@ -2754,24 +2785,52 @@ namespace SharpNet.CPU
             System.IO.File.WriteAllText(filePath, sb.ToString());
         }
 
-        public CpuTensor<T> ApplyRowOrder(int[] newRowOrder)
+
+
+        public void ShuffleInPlace([NotNull] Random r, params int[] columnIndexToShuffle)
+        {
+            if (columnIndexToShuffle.Length == 0)
+            {
+                return; //nothing to do
+            }
+            Debug.Assert(Shape.Length == 2);
+            var rows = Shape[0];
+            var cols = Shape[1];
+            var content = SpanContent;
+            var srcRow = rows;
+            while (srcRow > 1)
+            {
+                srcRow--;
+                var targetRow = r.Next(srcRow + 1);
+                foreach (var col in columnIndexToShuffle)
+                {
+                    Debug.Assert(col<cols);
+                    var srcIdx = srcRow * cols+col;
+                    var targetIdx = targetRow * cols+col;
+                    (content[srcIdx], content[targetIdx]) = (content[targetIdx], content[srcIdx]);
+                }
+            }
+        }
+
+        public CpuTensor<T> ApplyRowOrder(int[] targetRowToSrcRow)
         {
             Debug.Assert(Shape.Length == 2);
-            var newTensor = new CpuTensor<T>(Shape);
+            int cols = Shape[1];
+            var targetTensor = new CpuTensor<T>(new []{targetRowToSrcRow.Length, cols});
 
-            var oldTensorContent = ReadonlyContent;
-            var newTensorContent = newTensor.SpanContent;
+            var srcContent = ReadonlyContent;
+            var targetContent = targetTensor.SpanContent;
 
-            for (int newRow = 0; newRow < newTensor.Shape[0]; ++newRow)
+            for (int targetRow = 0; targetRow < targetRowToSrcRow.Length; ++targetRow)
             {
-                var oldRow = newRowOrder[newRow];
-                for (int col = 0; col < Shape[1]; ++col)
+                var srcRow = targetRowToSrcRow[targetRow];
+                for (int col = 0; col < cols; ++col)
                 {
-                    newTensorContent[col+ newRow * Shape[1]] = oldTensorContent[col + oldRow*Shape[1]];
+                    targetContent[col+ targetRow * cols] = srcContent[col + srcRow* cols];
                 }
-                //RowSlice(oldRow, 1).CopyTo(newTensor.RowSlice(newRow, 1));
+                //RowSlice(srcRow, 1).CopyTo(newTensor.RowSlice(newRow, 1));
             }
-            return newTensor;
+            return targetTensor;
         }
     }
 }

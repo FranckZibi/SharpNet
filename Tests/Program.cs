@@ -73,22 +73,25 @@ namespace SharpNetTests
             //SharpNet.Datasets.Natixis70.Natixis70DatasetSample.LaunchCatBoostHPO(10, 1*60); return;
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_bis", "5F73F0353D", 5);
             //new ChallengeTools().StackedEnsemble(30, 0);
-            //new ChallengeTools().Retrain(-1); return;
+
+            //Model.LoadProbaFile(@"C:\Projects\Challenges\KaggleDays\catboost\Temp\a_FULL_predict_A4C28F4395.tsv", true, true, null, null);
+            //Model.LoadProbaFile(@"C:\Projects\Challenges\KaggleDays\catboost\Temp\a_FULL_predict_D3D1ED8387.tsv", true, true, null, null);
+            //return;
+
+
+            //new ChallengeTools().Retrain(3, true); return;
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
-            //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\849E438B37_KFOLD_FULL_DART_modelformat_predict_test_.csv"); return;
-            KaggleDaysDatasetSample.CreateEnrichedDataSet();
-            //KaggleDaysDatasetSample.LaunchLightGBMHPO(2000,3600); return;
-            //KaggleDaysDatasetSample.LaunchCatBoostHPO(30, 0);
+            //KaggleDaysDatasetSample.Enrich(@"\\ryzen2700\Challenges\KaggleDays\526FA40EC2_KFOLD_modelformat_predict_test_.csv"); return;
+            //KaggleDaysDatasetSample.CreateEnrichedDataSet(); return;
+            KaggleDaysDatasetSample.LaunchLightGBMHPO(100,3600); return;
+            //KaggleDaysDatasetSample.LaunchCatBoostHPO(25, 0);
 
             //KFoldSample.Compute12();
             //AbstractSample.Compute12();
-            ;
-
 
             //SharpNet.Misc.DoStuff();
-
             //CFM60Tests(); return;
             //CFM60DatasetSample.TrainNetwork(10);
 
@@ -100,6 +103,7 @@ namespace SharpNetTests
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(10, 10);
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
+            return;
 
 
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);

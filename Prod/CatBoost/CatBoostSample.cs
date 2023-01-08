@@ -393,7 +393,7 @@ public class CatBoostSample : AbstractSample, IModelSample
             //{"loss_function", "Logloss"},     //for binary classification
             //{"loss_function", "MultiClass"},  //for multi class classification
 
-            { "logging_level", "Silent"},
+            { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
             { "allow_writing_files",false},
             { "thread_count",1},
             { "iterations", iterations },

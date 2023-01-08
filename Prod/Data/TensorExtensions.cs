@@ -275,5 +275,91 @@ namespace SharpNet.Data
             using var buffer = new CpuTensor<float>(new[] { y_true.Shape[0] });
             return y_true.ComputeAccuracy(y_pred, buffer);
         }
+
+
+        public static bool SameFloatContent(Tensor a, Tensor b, double epsilon)
+        {
+            return SameFloatContent(a, b, epsilon, out _);
+        }
+        public static bool SameFloatContent(Tensor a, Tensor b, double epsilon, out string difference)
+        {
+            difference = "";
+            if (!SameShapeContent(a, b, out difference))
+            {
+                return false;
+            }
+            if (a == null || b == null)
+            {
+                return true;
+            }
+            return Utils.SameContent(a.ContentAsFloatArray(), b.ContentAsFloatArray(), epsilon);
+        }
+
+        private static bool SameShapeContent(Tensor a, Tensor b, out string difference)
+        {
+            difference = "";
+            if (a == null || b == null)
+            {
+                if (a == null && b == null)
+                {
+                    return true;
+                }
+                difference = $"only one of the 2 tensors is null";
+                return false;
+            }
+            if (!a.SameShape(b))
+            {
+                difference = $"different shapes between first ({Tensor.ShapeToString(a.Shape)}) and second ({Tensor.ShapeToString(b.Shape)}) tensor";
+                return false;
+            }
+            return true;
+        }
+
+        public static bool SameIntContent(CpuTensor<int> a, CpuTensor<int> b, out string difference)
+        {
+            difference = "";
+            if (!SameShapeContent(a, b, out difference))
+            {
+                return false;
+            }
+            if (a == null || b == null)
+            {
+                return true;
+            }
+            var aContent = a.Content.ToArray();
+            var bContent = b.Content.ToArray();
+            for (int i = 0; i < aContent.Length; ++i)
+            {
+                if (aContent[i] != bContent[i])
+                {
+                    difference = $"different content at index {i} between first ({aContent[i]}) and second ({bContent[i]}) tensor";
+                    return false;
+                }
+            }
+            return true;
+        }
+        public static bool SameStringContent(CpuTensor<string> a, CpuTensor<string> b, out string difference)
+        {
+            difference = "";
+            if (!SameShapeContent(a, b, out difference))
+            {
+                return false;
+            }
+            if (a == null || b == null)
+            {
+                return true;
+            }
+            var aContent = a.Content.ToArray();
+            var bContent = b.Content.ToArray();
+            for (int i = 0; i < aContent.Length; ++i)
+            {
+                if (aContent[i] != bContent[i])
+                {
+                    difference = $"different content at index {i} between first ({aContent[i]}) and second ({bContent[i]}) tensor";
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 }

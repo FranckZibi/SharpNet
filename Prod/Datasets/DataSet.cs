@@ -699,7 +699,7 @@ namespace SharpNet.Datasets
             {
                 if (File.Exists(path) && !overwriteIfExists)
                 {
-                    Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
+                    //Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
                     return;
                 }
 

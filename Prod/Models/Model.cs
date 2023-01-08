@@ -27,7 +27,6 @@ public abstract class Model
     public string WorkingDirectory { get; }
     public string ModelName { get; }
     public IModelSample ModelSample { get; }
-    public virtual AbstractDatasetSample DatasetSample { get; } = null;
     #endregion
 
 
@@ -73,6 +72,41 @@ public abstract class Model
     #endregion
 
     public abstract List<string> AllFiles();
+
+
+    public virtual (DataFrame trainPredictions_InTargetFormat, IScore trainRankingScore_InTargetFormat,
+        DataFrame trainPredictions_InModelFormat, IScore trainLoss_InModelFormat,
+        DataFrame validationPredictions_InTargetFormat, IScore validationRankingScore_InTargetFormat,
+        DataFrame validationPredictions_InModelFormat, IScore validationLoss_InModelFormat)
+        ComputePredictionsAndRankingScore(ITrainingAndTestDataSet trainingAndValidation, AbstractDatasetSample datasetSample, bool computeTrainMetrics)
+    {
+        var validationDataset = trainingAndValidation.Test;
+        var trainDataset = trainingAndValidation.Training;
+
+        DataFrame trainPredictions_InTargetFormat = null;
+        IScore trainRankingScore_InTargetFormat = null;
+        DataFrame trainPredictions_InModelFormat = null;
+        IScore trainLoss_InModelFormat = null;
+        if (computeTrainMetrics)
+        {
+            (trainPredictions_InTargetFormat, trainPredictions_InModelFormat, trainRankingScore_InTargetFormat, _) =
+                datasetSample.ComputePredictionsAndRankingScore(trainDataset, this);
+        }
+
+        DataFrame validationPredictions_InTargetFormat = null;
+        IScore validationRankingScore_InTargetFormat = null;
+        DataFrame validationPredictions_InModelFormat = null;
+        IScore validationLoss_InModelFormat = null;
+        if (validationDataset != null)
+        {
+            (validationPredictions_InTargetFormat, validationPredictions_InModelFormat, validationRankingScore_InTargetFormat, _) =
+                datasetSample.ComputePredictionsAndRankingScore(validationDataset, this);
+            datasetSample.Validation_XYDatasetPath_InTargetFormat = validationDataset.to_csv_in_directory(RootDatasetPath, true, true, false);
+        }
+
+        return (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, trainPredictions_InModelFormat, trainLoss_InModelFormat,
+            validationPredictions_InTargetFormat, validationRankingScore_InTargetFormat, validationPredictions_InModelFormat, validationLoss_InModelFormat);
+    }
 
     public IScore ComputeLoss(CpuTensor<float> y_true, CpuTensor<float> y_pred)
     {
@@ -201,7 +235,7 @@ public abstract class Model
         }
     }
 
-    public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
+    public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainScoreIfAvailable, IScore validationScoreIfAvailable) 
         Fit(DataSet trainDataset, DataSet validationDatasetIfAny);
 
     /// <summary>

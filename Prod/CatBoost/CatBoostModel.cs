@@ -37,7 +37,8 @@ namespace SharpNet.CatBoost
         }
         #endregion
 
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat,
+            IScore trainScoreIfAvailable, IScore validationScoreIfAvailable) 
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             var sw = Stopwatch.StartNew();
@@ -57,7 +58,6 @@ namespace SharpNet.CatBoost
             to_column_description(datasetColumnDescriptionPath, trainDataset, addTargetColumnAsFirstColumn, false);
             LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}'");
 
-
             var tempModelSamplePath = CatBoostSample.ToPath(TempPath, ModelName);
             string arguments = "fit " +
                                " --learn-set " + trainDatasetPath_InModelFormat +
@@ -66,13 +66,13 @@ namespace SharpNet.CatBoost
                                " --params-file " + tempModelSamplePath +
                                " --column-description " + datasetColumnDescriptionPath +
                                " --allow-writing-files false " + //to disable the creation of tmp files
-                               " --model-file " + ModelPath +
-                               " --logging-level Silent "+
-                               " --verbose false "
-                             ;
+                               " --model-file " + ModelPath
+                              +" --logging-level Verbose "
+                ;
 
             if (!string.IsNullOrEmpty(validationDatasetPathIfAny_InModelFormat))
             {
+                CatBoostSample.use_best_model = true;
                 arguments += " --test-set " + validationDatasetPathIfAny_InModelFormat;
             }
             else
@@ -82,22 +82,15 @@ namespace SharpNet.CatBoost
 
             CatBoostSample.Save(tempModelSamplePath);
 
-
-            //if (CatBoostSample.allow_writing_files)
-            //{
-            //    var tmpDirectory = Path.Combine(WorkingDirectory, ModelName + "_temp");
-            //    Directory.CreateDirectory(tmpDirectory);
-            //    arguments +=
-            //        " --learn-err-log " + Path.Combine(tmpDirectory, "learn_error.tsv") +
-            //        "  --test-err-log " + Path.Combine(tmpDirectory, "test_error.tsv") +
-            //        " --json-log " + Path.Combine(tmpDirectory, "catboost_training.json") +
-            //        " --profile-log " + Path.Combine(tmpDirectory, "profile-log") +
-            //        " --trace-log " + Path.Combine(tmpDirectory, "trace.log");
-            //}
-
-            Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
-            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}' took {sw.Elapsed.TotalSeconds}s");
-            return (null, null, trainDatasetPath_InModelFormat, null, null, validationDatasetPathIfAny_InModelFormat);
+            var lines = Utils.Launch(WorkingDirectory, ExePath, arguments, Log, true);
+            var extractedScores = Utils.ExtractValuesFromOutputLog(lines, 0, "learn:", "test:", "best:");
+            var trainValue = extractedScores[0];
+            var validationValue = extractedScores[CatBoostSample.use_best_model ?2:1];
+            var trainScoreIfAvailable = double.IsNaN(trainValue) ? null : new Score((float)trainValue, ModelSample.GetLoss());
+            var validationScoreIfAvailable = double.IsNaN(validationValue) ? null : new Score((float)validationValue, ModelSample.GetLoss());
+            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}' took {sw.Elapsed.TotalSeconds}s (trainScore = {trainScoreIfAvailable} / validationScore = {validationScoreIfAvailable})");
+            return (null, null, trainDatasetPath_InModelFormat, null, null, validationDatasetPathIfAny_InModelFormat,
+                trainScoreIfAvailable, validationScoreIfAvailable);
         }
 
         public override (DataFrame,string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
@@ -112,7 +105,7 @@ namespace SharpNet.CatBoost
             string datasetPath = dataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
 
             string datasetColumnDescriptionPath = datasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, dataset, addTargetColumnAsFirstColumn, true);
+            to_column_description(datasetColumnDescriptionPath, dataset, addTargetColumnAsFirstColumn, false);
 
 
             var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(datasetPath) + ".tsv");
@@ -140,7 +133,7 @@ namespace SharpNet.CatBoost
                 arguments += " --prediction-type Probability ";
             }
 
-            Utils.Launch(WorkingDirectory, ExePath, arguments, Log);
+            Utils.Launch(WorkingDirectory, ExePath, arguments, Log, false);
             var predictionsDf = LoadProbaFile(predictionResultPath, true, true, null, dataset);
             Utils.TryDelete(configFilePath);
             Utils.TryDelete(predictionResultPath);
@@ -189,36 +182,42 @@ namespace SharpNet.CatBoost
         //    return new CatBoostModel(sample, workingDirectory, modelName);
         //}
 
+        private static readonly object Lock_to_column_description = new();
+
+
         private static void to_column_description([JetBrains.Annotations.NotNull] string path, DataSet dataset, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
         {
-            if (File.Exists(path) && !overwriteIfExists)
+            lock (Lock_to_column_description)
             {
-                Log.Debug($"No need to save dataset column description in path {path} : it already exists");
-                return;
-            }
-            var categoricalColumns = dataset.CategoricalFeatures;
-            var sb = new StringBuilder();
-            int nextColumnIdx = 0;
-            if (addTargetColumnAsFirstColumn)
-            {
-                //this first column is the target
-                sb.Append($"{nextColumnIdx++}\tLabel" + Environment.NewLine);
-            }
-            foreach (var columnName in dataset.ColumnNames)
-            {
-                if (categoricalColumns.Contains(columnName))
+                if (File.Exists(path) && !overwriteIfExists)
                 {
-                    sb.Append($"{nextColumnIdx}\tCateg"+Environment.NewLine); //this column is a categorical feature
+                    //Log.Debug($"No need to save dataset column description in path {path} : it already exists");
+                    return;
                 }
-                ++nextColumnIdx;
+                var categoricalColumns = dataset.CategoricalFeatures;
+                var sb = new StringBuilder();
+                int nextColumnIdx = 0;
+                if (addTargetColumnAsFirstColumn)
+                {
+                    //this first column is the target
+                    sb.Append($"{nextColumnIdx++}\tLabel" + Environment.NewLine);
+                }
+                foreach (var columnName in dataset.ColumnNames)
+                {
+                    if (categoricalColumns.Contains(columnName))
+                    {
+                        sb.Append($"{nextColumnIdx}\tCateg"+Environment.NewLine); //this column is a categorical feature
+                    }
+                    ++nextColumnIdx;
+                }
+                Log.Debug($"Saving dataset column description in path {path}");
+                var fileContent = sb.ToString().Trim();
+                lock (LockToColumnDescription)
+                {
+                    File.WriteAllText(path, fileContent);
+                }
+                Log.Debug($"Dataset column description saved in path {path}");
             }
-            Log.Debug($"Saving dataset column description in path {path}");
-            var fileContent = sb.ToString().Trim();
-            lock (LockToColumnDescription)
-            {
-                File.WriteAllText(path, fileContent);
-            }
-            Log.Debug($"Dataset column description saved in path {path}");
         }
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "catboost.exe");
 

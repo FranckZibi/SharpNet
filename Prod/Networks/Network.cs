@@ -55,7 +55,6 @@ namespace SharpNet.Networks
         /// <param name="workingDirectory"></param>
         public Network(NetworkSample modelSample, AbstractDatasetSample datasetSample, string workingDirectory, string modelName, bool buildLayers, Network masterNetworkIfAny = null) : base(modelSample, workingDirectory, modelName)
         {
-            DatasetSample = datasetSample;
             //Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, Config.LogFile);
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
             Debug.Assert(masterNetworkIfAny == null || Sample.ResourceIds.Count == 1);
@@ -76,7 +75,7 @@ namespace SharpNet.Networks
                 foreach (var slaveResourceId in Sample.ResourceIds.Skip(1))
                 {
                     LogDebug("starting thread for network running on deviceId " + slaveResourceId);
-                    new Thread(() => SlaveThread(this, buildLayers, slaveResourceId)).Start();
+                    new Thread(() => SlaveThread(this, buildLayers, datasetSample, slaveResourceId)).Start();
                 }
                 while (_slaveNetworks.Count != Sample.ResourceIds.Count - 1)
                 {
@@ -84,9 +83,6 @@ namespace SharpNet.Networks
                 }
             }
         }
-
-        public override AbstractDatasetSample DatasetSample { get; }
-
 
         public void Dispose()
         {
@@ -555,9 +551,8 @@ namespace SharpNet.Networks
         /// Weights Update =       =       =       =       = [in,out] = [in]  =
         /// ===================================================================
         /// </summary>
-        /// <param name="trainingDataset"></param>
-        /// <param name="validationDatasetIfAny"></param>
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat) 
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat,
+            IScore trainScoreIfAvailable, IScore validationScoreIfAvailable)
             Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
             //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
@@ -736,7 +731,8 @@ namespace SharpNet.Networks
                 LogError(e.ToString());
                 throw;
             }
-            return (null, null, null, null, null, null);
+            //!D TODO : try to return training & validation score if available
+            return (null, null, null, null, null, null, null, null);
         }
 
 

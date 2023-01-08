@@ -89,7 +89,7 @@ public class VanillaSgdOrtho : Optimizer
 
         weights.Update_Adding_Alpha_X(-ponderedLearningRate, buffer_mn);
         weights.QRFactorization(Q,R, QRFactorization_buffer);
-        //?D TODO update weights to make it unique
+        //!D TODO update weights to make it unique
         Q.CopyTo(weights);
 
         /*

@@ -5,7 +5,6 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
 using SharpNet.Networks;
-using SharpNetTests.Data;
 
 namespace SharpNetTests
 {
@@ -72,7 +71,7 @@ namespace SharpNetTests
                 Debug.Assert(datasetKeras.Count == datasetSharpNet.Count);
                 foreach (var a in datasetKeras)
                 {
-                    Assert.IsTrue(TestTensor.SameContent(datasetKeras[a.Key], datasetSharpNet[a.Key], 1e-5));
+                    Assert.IsTrue(TensorExtensions.SameFloatContent(datasetKeras[a.Key], datasetSharpNet[a.Key], 1e-5));
                 }
             }
             networkFiles.ForEach(File.Delete);

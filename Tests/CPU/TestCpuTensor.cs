@@ -7,7 +7,6 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
-using SharpNetTests.Data;
 using SharpNetTests.Datasets;
 using SharpNetTests.NonReg;
 
@@ -24,7 +23,7 @@ namespace SharpNetTests.CPU
             var a = new CpuTensor<float>(new[] { 3, 3 }, new []{1f,2,3,-5,2,6,9,2,1 });
             var (aNormalized, _, _) = a.Normalize();
             var expected = new CpuTensor<float>(a.Shape, new [] { -0.0949158f, 0, -0.1324532f, -0.949158f, 0, 1.05962586f, 1.04407382f, 0, -0.9271726f });
-            Assert.IsTrue(TestTensor.SameContent(expected, aNormalized, 1e-5));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, aNormalized, 1e-5));
         }
 
         [Test]
@@ -33,11 +32,11 @@ namespace SharpNetTests.CPU
             var a = new CpuTensor<float>(new []{10, 5});
             var b = new CpuTensor<float>(new[] { 10, 5 });
             var c = new CpuTensor<float>(new[] { 11, 5 });
-            Assert.IsTrue(TestTensor.SameContent(a, b, 0.0));
-            Assert.IsFalse(TestTensor.SameContent(a, c, 10));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(a, b, 0.0));
+            Assert.IsFalse(TensorExtensions.SameFloatContent(a, c, 10));
             b[0] += 1e-4f;
-            Assert.IsTrue(TestTensor.SameContent(a, b, 1e-3));
-            Assert.IsFalse(TestTensor.SameContent(a, c, 1e-5));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(a, b, 1e-3));
+            Assert.IsFalse(TensorExtensions.SameFloatContent(a, c, 1e-5));
         }
         /*
          *  1 2 3      
@@ -85,19 +84,19 @@ namespace SharpNetTests.CPU
             var src = new CpuTensor<float>(new[] { 1, 1 }, new [] { 1f });
             var output = new CpuTensor<float>(src.Shape);
             src.Transpose(output);
-            Assert.IsTrue(TestTensor.SameContent(src, output, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, output, 1e-6));
 
             src = new CpuTensor<float>(new[] { 1, 6 }, new[] { 0f, 1f, 2f, 3f, 4f, 5f });
             output = new CpuTensor<float>(new[] { 6, 1 });
             src.Transpose(output);
             var expectedTranspose = new CpuTensor<float>(new[] { 6, 1 }, new[] { 0f, 1f, 2f, 3f, 4f, 5f });
-            Assert.IsTrue(TestTensor.SameContent(expectedTranspose, output, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedTranspose, output, 1e-6));
 
             src = new CpuTensor<float>(new[] { 2, 3 }, new[] { 0f, 1f, 2f, 3f, 4f, 5f });
             output = new CpuTensor<float>(new[] { 3, 2 });
             src.Transpose(output);
             expectedTranspose = new CpuTensor<float>(new[] { 3, 2 }, new[] { 0f, 3f, 1f, 4f, 2f, 5f });
-            Assert.IsTrue(TestTensor.SameContent(expectedTranspose, output, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedTranspose, output, 1e-6));
         }
 
         [Test]
@@ -106,33 +105,33 @@ namespace SharpNetTests.CPU
             var src = new CpuTensor<float>(new[] { 1, 1 }, new[] { 1f });
             src.SetToZeroAllElementsBelowMainDiagonal();
             var expected = new CpuTensor<float>(src.Shape, new[] { 1f });
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
 
             var data = new[] { 0.5f, 1f, 2f, 3f, 4f, 5f };
             src = new CpuTensor<float>(new[] { 1, 6 }, (float[])data.Clone());
             src.SetToZeroAllElementsBelowMainDiagonal();
             expected = new CpuTensor<float>(src.Shape, (float[])data.Clone());
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
 
             src = new CpuTensor<float>(new[] { 6, 1 }, (float[])data.Clone());
             src.SetToZeroAllElementsBelowMainDiagonal();
             expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 0, 0, 0, 0, 0});
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
 
             src = new CpuTensor<float>(new[] { 2, 3 }, (float[])data.Clone());
             src.SetToZeroAllElementsBelowMainDiagonal();
             expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 1f, 2f, 0f, 4f, 5f });
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
 
             src = new CpuTensor<float>(new[] { 3, 2 }, (float[])data.Clone());
             src.SetToZeroAllElementsBelowMainDiagonal();
             expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 1f, 0f, 3f, 0f, 0f });
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
 
             src = new CpuTensor<float>(new[] { 3, 3 }, new[] { 0.5f, 1, 2, 3, 4, 5, 6, 7, 8 });
             src.SetToZeroAllElementsBelowMainDiagonal();
             expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, 1, 2, 0, 4, 5, 0, 0, 8 });
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
         }
 
         [Test]
@@ -143,12 +142,12 @@ namespace SharpNetTests.CPU
             var src = RandomFloatTensor(new []{1, 1}, rand, -maxValue, maxValue);
             src.SetIdentityMatrix();
             var expected = new CpuTensor<float>(src.Shape, new[] { 1f });
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
 
             src = RandomFloatTensor(new[] { 3, 3 }, rand, -maxValue, maxValue);
             src.SetIdentityMatrix();
             expected = new CpuTensor<float>(src.Shape, new[] { 1f,0,0,0,1,0,0,0,1 });
-            Assert.IsTrue(TestTensor.SameContent(src, expected, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
         }
 
 
@@ -167,7 +166,7 @@ namespace SharpNetTests.CPU
                 expected.SpanContent[i] = a.ReadonlyContent[i]*x.ReadonlyContent[i];
             }
             c.MultiplyTensor(a, x);
-            Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, c, 1e-6));
             c = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             a = RandomFloatTensor(shape, rand, -maxValue, maxValue);
             x = RandomFloatTensor(new[] { 32, 1157, 1, 1 }, rand, -maxValue, maxValue);
@@ -177,7 +176,7 @@ namespace SharpNetTests.CPU
                 expected.SpanContent[i] = a.ReadonlyContent[i] * x.ReadonlyContent[i/(7*7)];
             }
             c.MultiplyTensor(a, x);
-            Assert.IsTrue(TestTensor.SameContent(expected, c, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, c, 1e-6));
         }
 
 
@@ -190,15 +189,15 @@ namespace SharpNetTests.CPU
             
             var result = CpuTensor<float>.InsertAtColumnIndex(source, toAdd, 1);
             var expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 1, 100, 200, 2, 3, 4, 300, 400, 5, 6});
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, result, 1e-6));
 
             result = CpuTensor<float>.InsertAtColumnIndex(source, toAdd, 3);
             expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 1, 2, 3, 100, 200, 4, 5, 6, 300, 400});
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, result, 1e-6));
 
             result = CpuTensor<float>.InsertAtColumnIndex(source, toAdd, 0);
             expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 100, 200, 1, 2, 3, 300, 400, 4, 5, 6});
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, result, 1e-6));
         }
 
         [Test]
@@ -209,15 +208,15 @@ namespace SharpNetTests.CPU
 
             var result = CpuTensor<float>.InsertAtRowIndex(source, toAdd, 0);
             var expectedResult = new CpuTensor<float>(new[] { 4, 3 }, new float[] { 100, 200, 300, 400, 500, 600, 1, 2, 3, 4, 5, 6 });
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, result, 1e-6));
 
             result = CpuTensor<float>.InsertAtRowIndex(source, toAdd, 1);
             expectedResult = new CpuTensor<float>(new[] { 4, 3 }, new float[] { 1, 2, 3, 100, 200, 300, 400, 500, 600, 4, 5, 6 });
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, result, 1e-6));
 
             result = CpuTensor<float>.InsertAtRowIndex(source, toAdd, 2);
             expectedResult = new CpuTensor<float>(new[] { 4, 3 }, new float[] { 1, 2, 3, 4, 5, 6, 100, 200, 300, 400, 500, 600 });
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, result, 1e-6));
         }
 
         [Test]
@@ -228,11 +227,11 @@ namespace SharpNetTests.CPU
 
             var toUpdateCopy = (CpuTensor<float>)toUpdate.Clone();
             toUpdateCopy.LoadColumnsFromSource(source, new int[] { });
-            Assert.IsTrue(TestTensor.SameContent(toUpdate, toUpdateCopy, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(toUpdate, toUpdateCopy, 1e-6));
 
             toUpdate.LoadColumnsFromSource(source, new[]{1,3});
             var expectedResult = new CpuTensor<float>(new[] { 2, 4 }, new float[] { 1, 102, 3, 104, 5, 106, 7, 108 });
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, toUpdate, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, toUpdate, 1e-6));
         }
 
         
@@ -246,7 +245,7 @@ namespace SharpNetTests.CPU
 
             var result = CpuTensor<float>.MergeHorizontally(source, toAdd);
             var expectedResult = new CpuTensor<float>(new[] { 2, 5 }, new float[] { 1, 2, 3, 100, 200, 4, 5, 6, 300, 400 });
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, result, 1e-6));
         }
         
 
@@ -332,7 +331,7 @@ namespace SharpNetTests.CPU
             var predictedLoss = new CpuTensor<float>(expected.Shape);
             predictedLoss.CategoricalCrossentropyWithHierarchyGradient(expected, predicted);
             var expectedLoss= new CpuTensor<float>(predictedLoss.Shape, expectedLossContent);
-            Assert.IsTrue(TestTensor.SameContent(expectedLoss, predictedLoss, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedLoss, predictedLoss, 1e-6));
         }
 
         [Test]
@@ -428,7 +427,7 @@ namespace SharpNetTests.CPU
                     {
                         expectedDest.Set(n, c, h + top_pad, w + left_pad, src.Get(n, c, h, w));
                     }
-                    Assert.IsTrue(TestTensor.SameContent(expectedDest, observedDest, 1e-6));
+                    Assert.IsTrue(TensorExtensions.SameFloatContent(expectedDest, observedDest, 1e-6));
                 }
             }
         }
@@ -449,7 +448,7 @@ namespace SharpNetTests.CPU
             {
                 expected.SpanContent[i/(7*7)] += a.ReadonlyContent[i] * b.ReadonlyContent[i];
             }
-            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, result, 1e-6));
         }
 
         [TestCase(100000, 0.5, false, 0, 0)] //when not training, dropout is disabled
@@ -480,7 +479,7 @@ namespace SharpNetTests.CPU
             var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingSize, stride, stride);
             var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] {5});
-            Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedOutput, output, 1e-6));
 
             input = new CpuTensor<float>(new[] { 3, 1, 4, 4 });
             for (int i = 1; i <= input.Count; ++i)
@@ -491,7 +490,7 @@ namespace SharpNetTests.CPU
             output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingSize, poolingSize, stride, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingSize, poolingSize, stride, stride);
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2, 2 }, new float[] { 333, 8, 14, 16, 22, 24, 30, 32, 38, 40, 46, 48 });
-            Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedOutput, output, 1e-6));
         }
 
         [Test]
@@ -505,7 +504,7 @@ namespace SharpNetTests.CPU
             var output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingHeight, poolingWidth, stride, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, stride, stride);
             var expectedOutput = new CpuTensor<float>(new[] { 1, 1, 1, 1 }, new float[] { 2 });
-            Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedOutput, output, 1e-6));
 
             input = new CpuTensor<float>(new[] { 3, 1, 4, 4});
             for (int i = 1; i <= input.Count; ++i)
@@ -516,7 +515,7 @@ namespace SharpNetTests.CPU
             output = new CpuTensor<float>(PoolingLayer.PoolingOutputShape(input.Shape, poolingHeight, poolingWidth, stride, stride));
             input.Pooling(output, cudnnPoolingMode_t.CUDNN_POOLING_MAX_DETERMINISTIC, poolingHeight, poolingWidth, stride, stride);
             expectedOutput = new CpuTensor<float>(new[] { 3, 1, 2, 2}, new float[] { 333,7,13,15,21,23,29,31,37,39,45,47});
-            Assert.IsTrue(TestTensor.SameContent(expectedOutput, output, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedOutput, output, 1e-6));
         }
 
         [Test]
@@ -552,20 +551,19 @@ namespace SharpNetTests.CPU
             Debug.Assert(yPredicted.Count% timeSeriesLength == 0);
             var observedLoss = new CpuTensor<float>(new []{ timeSeriesLength });
             observedLoss.CosineSimilarityLoss(yExpected, yPredicted, timeSeriesLength);
-            Assert.IsTrue(TestTensor.SameContent(expectedLoss, observedLoss, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedLoss, observedLoss, 1e-6));
         }
 
         [Test]
         public void TestCosineSimilarityGradient()
         {
-            //?D
+            //!D TODO 
             var yExpected = TestNetworkPropagation.FromNumpyArray("[[[0, 1], [0, 0]]]");
             var yPredicted = TestNetworkPropagation.FromNumpyArray("[[[0.6, 0.4], [0.4, 0.6]]]");
             var expectedGradient = TestNetworkPropagation.FromNumpyArray("[[[0.15, -0.15], [0.1, 0.15]]]");
             var observedGradient = new CpuTensor<float>(expectedGradient.Shape);
             observedGradient.CosineSimilarityGradient(yExpected, yPredicted, 2);
-            //?D
-            Assert.IsTrue(TestTensor.SameContent(expectedGradient, observedGradient, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedGradient, observedGradient, 1e-6));
         }
 
         [Test]
@@ -576,7 +574,7 @@ namespace SharpNetTests.CPU
             var expectedGradient = TestNetworkPropagation.FromNumpyArray("[[[0.15, -0.15], [0.1, 0.15]]]");
             var observedGradient = new CpuTensor<float>(expectedGradient.Shape);
             observedGradient.HuberGradient(yExpected, yPredicted, 1f);
-            Assert.IsTrue(TestTensor.SameContent(expectedGradient, observedGradient, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedGradient, observedGradient, 1e-6));
         }
 
 
@@ -591,7 +589,7 @@ namespace SharpNetTests.CPU
             var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[301,302,303],[101,102,103]], [ [201,202,203],[101,102,103]], [ [201,202,203],[301,302,303]], [[101,102,103],[201,202,203]] ]");
             var yPredicted = RandomTensor(yExpected.Shape);
             yPredicted.WordEmbeddingForwardPropagation(x, wordEmbedding, 0, 0, 0, 0);
-            Assert.IsTrue(TestTensor.SameContent(yExpected, yPredicted, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(yExpected, yPredicted, 1e-6));
         }
 
         [Test]
@@ -606,7 +604,7 @@ namespace SharpNetTests.CPU
             var yPredicted = RandomTensor(yExpected.Shape);
             const int xIndexInLastDimensionToUse = 1;
             yPredicted.WordEmbeddingForwardPropagation(x, wordEmbedding, xIndexInLastDimensionToUse, xIndexInLastDimensionToUse, xIndexInLastDimensionToUse, x.Shape[2]- xIndexInLastDimensionToUse-1);
-            Assert.IsTrue(TestTensor.SameContent(yExpected, yPredicted, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(yExpected, yPredicted, 1e-6));
         }
 
         [Test]
@@ -622,8 +620,8 @@ namespace SharpNetTests.CPU
             var dwExpected = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [3.9,4.2,4.5], [7.2,7.5,7.8], [6.5,6.7,6.9]]");
             var dwPredicted = RandomTensor(dwExpected.Shape);
             dwPredicted.WordEmbeddingBackwardPropagation(x, dxPredicted, dy, 0, 0, 0, 0);
-            Assert.IsTrue(TestTensor.SameContent(dwExpected, dwPredicted, 1e-6));
-            Assert.IsTrue(TestTensor.SameContent(dxExpected, dxPredicted, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(dwExpected, dwPredicted, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(dxExpected, dxPredicted, 1e-6));
         }
 
         [Test]
@@ -640,8 +638,8 @@ namespace SharpNetTests.CPU
             var dwPredicted = RandomTensor(dwExpected.Shape);
             const int xIndexInLastDimensionToUse = 1;
             dwPredicted.WordEmbeddingBackwardPropagation(x, dxPredicted, dy, xIndexInLastDimensionToUse, xIndexInLastDimensionToUse, xIndexInLastDimensionToUse, x.Shape[2]-xIndexInLastDimensionToUse-1);
-            Assert.IsTrue(TestTensor.SameContent(dwExpected, dwPredicted, 1e-6));
-            Assert.IsTrue(TestTensor.SameContent(dxExpected, dxPredicted, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(dwExpected, dwPredicted, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(dxExpected, dxPredicted, 1e-6));
         }
 
 
@@ -674,7 +672,7 @@ namespace SharpNetTests.CPU
 
             var a_clone = A.Clone();
             a_clone.Dot(Q, R);
-            Assert.IsTrue(TestTensor.SameContent(a_clone, A, 1e-4));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(a_clone, A, 1e-4));
             var maxError = Q.MaxErrorIfOrthogonalMatrix();
             Assert.IsTrue(Math.Abs(maxError)<1e-6);
         }
@@ -690,9 +688,9 @@ namespace SharpNetTests.CPU
             var expected_Q = TestNetworkPropagation.FromNumpyArray(expectedOutput);
             var observed_Q = A.Clone();
             A.Q_Factorization(observed_Q);
-            Assert.IsTrue(TestTensor.SameContent(expected_Q, observed_Q, 1e-6), observed_Q.ToNumpy());
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected_Q, observed_Q, 1e-6), observed_Q.ToNumpy());
             A.Q_Factorization();
-            Assert.IsTrue(TestTensor.SameContent(expected_Q, A, 1e-6), A.ToNumpy());
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected_Q, A, 1e-6), A.ToNumpy());
 
         }
 
@@ -712,7 +710,7 @@ namespace SharpNetTests.CPU
         {
             var outputCPU = new CpuTensor<float>(expectedOutput.Shape);
             input.Convolution(convolution, paddingTop, paddingBottom, paddingLeft, paddingRight, stride, outputCPU, false, GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, null);
-            Assert.IsTrue(TestTensor.SameContent(expectedOutput, outputCPU, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedOutput, outputCPU, 1e-6));
         }
         public static CpuTensor<float> RandomOneHotTensor(int[] shape, Random rand)
         {

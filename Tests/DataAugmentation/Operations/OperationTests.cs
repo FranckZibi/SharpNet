@@ -4,10 +4,10 @@ using System.Linq;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.DataAugmentation.Operations;
 using SharpNet.Pictures;
-using SharpNetTests.Data;
 
 namespace SharpNetTests.DataAugmentation.Operations
 {
@@ -97,10 +97,10 @@ namespace SharpNetTests.DataAugmentation.Operations
                 xBufferForDataAugmentedMiniBatch);
 
             var xExpectedDataAugmented = new CpuTensor<float>(inputShape, expectedOutput);
-            Assert.IsTrue(TestTensor.SameContent(xExpectedDataAugmented, xDataAugmentedMiniBatch, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(xExpectedDataAugmented, xDataAugmentedMiniBatch, 1e-6));
             if (yOriginal != null)
             {
-                Assert.IsTrue(TestTensor.SameContent(yExpected, yOriginal, 1e-6));
+                Assert.IsTrue(TensorExtensions.SameFloatContent(yExpected, yOriginal, 1e-6));
             }
         }
     }

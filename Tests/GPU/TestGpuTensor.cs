@@ -3,8 +3,8 @@ using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.GPU;
-using SharpNetTests.Data;
 
 namespace SharpNetTests.GPU
 {
@@ -40,7 +40,7 @@ namespace SharpNetTests.GPU
 
             var a_clone = A.Clone();
             a_clone.Dot(Q, R);
-            Assert.IsTrue(TestTensor.SameContent(a_clone, A, 1e-4));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(a_clone, A, 1e-4));
 
             var maxError = Q.MaxErrorIfOrthogonalMatrix();
             Assert.IsTrue(Math.Abs(maxError) < 1e-6);
@@ -58,7 +58,7 @@ namespace SharpNetTests.GPU
             var result = new GPUTensor<float>(new[] { 1, 1 }, null, GpuWrapper);
             result.Dot(a, false, b, false, 1, 0);
             var expected = new CpuTensor<float>(new[] { 1, 1 }, new[] { 10f });
-            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, result, 1e-9));
 
             // [2x2] x [2x2] matrix
             float[] data2 = new []{1f,2, 3, 4 };
@@ -68,7 +68,7 @@ namespace SharpNetTests.GPU
             result = new GPUTensor<float>(new[] { 2, 2}, null, GpuWrapper);
             result.Dot(a, false, b, false, 1, 0);
             expected = new CpuTensor<float>(new[] { 2, 2 }, new[] { 7f, 10f, 15f, 22f });
-            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, result, 1e-9));
 
             // [1x2] x [2x1] matrix
             float[] data4 = new[] { 1f, 2};
@@ -78,7 +78,7 @@ namespace SharpNetTests.GPU
             result = new GPUTensor<float>(new[] { 1, 1 }, null, GpuWrapper);
             result.Dot(a, false, b, false, 1, 0);
             expected = new CpuTensor<float>(new[] { 1, 1 }, new[] { 11f });
-            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, result, 1e-9));
 
             // [2x1] x [1x2] matrix
             float[] data6 = new[] { 1f, 2 };
@@ -88,7 +88,7 @@ namespace SharpNetTests.GPU
             result = new GPUTensor<float>(new[] { 2, 2 }, null, GpuWrapper);
             result.Dot(a, false, b, false, 1, 0);
             expected = new CpuTensor<float>(new[] { 2, 2 }, new[] { 3f, 4, 6, 8 });
-            Assert.IsTrue(TestTensor.SameContent(expected,result, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected,result, 1e-9));
 
             // [2x1x1] x [1x1x2] matrix
             float[] data8 = new[] { 1f, 2 };
@@ -98,7 +98,7 @@ namespace SharpNetTests.GPU
             result = new GPUTensor<float>(new[] { 2, 2 }, null, GpuWrapper);
             result.Dot(a, false, b, false, 1, 0);
             expected = new CpuTensor<float>(new[] { 2, 2 }, new[] { 3f, 4, 6, 8 });
-            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, result, 1e-9));
 
             // [10x1x28x28] x [784x100] matrix
             a = new GPUTensor<float>(new[] { 10, 1, 28,28 }, null, GpuWrapper);
@@ -106,7 +106,7 @@ namespace SharpNetTests.GPU
             result = new GPUTensor<float>(new[] { 10, 1,1,100 }, null, GpuWrapper);
             result.Dot(a, false, b, false, 1, 0);
             expected = new CpuTensor<float>(new[] { 10, 1,1,100 });
-            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, result, 1e-9));
 
             // [35x124] x [124x21] matrix
             var data10 = new float[35*124];
@@ -116,7 +116,7 @@ namespace SharpNetTests.GPU
             result = new GPUTensor<float>(new[] { 35, 21 }, null, GpuWrapper);
             result.Dot(a, false, b, false, 1, 0);
             expected = new CpuTensor<float>(new[] { 35, 21}, new float[35*21]);
-            Assert.IsTrue(TestTensor.SameContent(expected, result, 1e-9));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expected, result, 1e-9));
         }
 
         [Test]
@@ -127,9 +127,9 @@ namespace SharpNetTests.GPU
             dest.InitializeFromDeviceMemory(src);
             src.ZeroMemory();
             var expectedDest = new GPUTensor<float>(new[] { 5 }, new float[] { 0, 1, 2, 3, 4 }, GpuWrapper);
-            Assert.IsTrue(TestTensor.SameContent(dest, expectedDest, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(dest, expectedDest, 1e-6));
             var expectedSrc = new GPUTensor<float>(new[] { 5 }, new float[] { 0, 0, 0, 0, 0 }, GpuWrapper);
-            Assert.IsTrue(TestTensor.SameContent(src, expectedSrc, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expectedSrc, 1e-6));
         }
 
 
@@ -176,7 +176,7 @@ namespace SharpNetTests.GPU
 
             //we ensure that the data has been successfully computed in 2nd device copied to 1st device
             var expectedResult = new GPUTensor<float>(shape, new float[] { 0 * 5, 2 * 7, 3 * 11 }, fistDeviceWrapper);
-            Assert.IsTrue(TestTensor.SameContent(expectedResult, resultInFirstGpuDevice, 1e-6));
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedResult, resultInFirstGpuDevice, 1e-6));
         }
         //volatile to avoid any optimizations made by the compiler/jitter
         private volatile bool ComputationInProgressInFirstDevice;

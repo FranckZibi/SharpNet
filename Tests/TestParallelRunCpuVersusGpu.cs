@@ -11,7 +11,6 @@ using SharpNet.CPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
 using SharpNetTests.CPU;
-using SharpNetTests.Data;
 using SharpNetTests.Datasets;
 using SharpNetTests.GPU;
 using SharpNetTests.NonReg;
@@ -981,7 +980,7 @@ namespace SharpNetTests
         private static void AreEquals(CpuTensor<float> floatCpu, GPUTensor<float> floatGpu)
 	    {
 	        Assert.IsTrue(floatCpu.SameShape(floatGpu));
-            Assert.IsTrue(TestTensor.SameContent(floatCpu, floatGpu, 1e-2), floatCpu + Environment.NewLine + floatGpu);
+            Assert.IsTrue(TensorExtensions.SameFloatContent(floatCpu, floatGpu, 1e-2), floatCpu + Environment.NewLine + floatGpu);
         }
 	    [SuppressMessage("ReSharper", "CoVariantArrayConversion")]
 	    private void TestAll(CpuTensor<float>[] data, Action<Tensor[]> work, List<int> tensorIdsToIgnore = null)

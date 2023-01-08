@@ -195,14 +195,14 @@ public class DatasetEncoder
         switch (tensorType)
         {
             case DataFrame.STRING_TYPE_IDX:
-                var strReadonlyContent = df.StringTensor.ReadonlyContent;
+                var strReadonlyContent = df.StringTensorEvenIfView.ReadonlyContent;
                 for (var rowIndex = 0; rowIndex < rows; rowIndex++)
                 {
                     columnStats.Fit(strReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
                 }
                 break;
             case DataFrame.FLOAT_TYPE_IDX:
-                var floatReadonlyContent = df.FloatTensor.ReadonlyContent;
+                var floatReadonlyContent = df.FloatTensorEvenIfView.ReadonlyContent;
                 for (var rowIndex = 0; rowIndex < rows; rowIndex++)
                 {
                     columnStats.Fit(floatReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
@@ -244,16 +244,16 @@ public class DatasetEncoder
             switch (tensorType)
             {
                 case DataFrame.STRING_TYPE_IDX:
-                    var strReadonlyContent = df.StringTensor.ReadonlyContent;
+                    var strReadonlyContent = df.StringTensorEvenIfView.ReadonlyContent;
                     for (var rowIndex = 0; rowIndex < rows; rowIndex++)
                     {
-                        var contentIndexInDataFrame = columnIdxIdDataFrame + rowIndex * df.Columns.Length;
+                        var contentIndexInDataFrame = columnIdxIdDataFrame + rowIndex * df.ColumnsDesc.Count;
                         var contentIndexInTensor = columnIdxInTensor + rowIndex * tensorCols;
                         content[contentIndexInDataFrame] = (float)columnStats.Transform(strReadonlyContent[contentIndexInTensor]);
                     }
                     break;
                 case DataFrame.FLOAT_TYPE_IDX:
-                    var floatReadonlyContent = df.FloatTensor.ReadonlyContent;
+                    var floatReadonlyContent = df.FloatTensorEvenIfView.ReadonlyContent;
                     for (var rowIndex = 0; rowIndex < rows; rowIndex++)
                     {
                         var contentIndexInDataFrame = columnIdxIdDataFrame + rowIndex * df.Columns.Length;
@@ -320,7 +320,7 @@ public class DatasetEncoder
         for (int idx = 0; idx < encodedContent.Length; ++idx)
         {
             var encodedValue = encodedContent[idx];
-            int col = idx % float_df.Columns.Length;
+            int col = idx % float_df.ColumnsDesc.Count;
             var decodedValueAsString = _columnStats.TryGetValue(float_df.Columns[col], out var featureStat)
                 ? featureStat.Inverse_Transform_float(encodedValue)
                 : encodedValue;

@@ -28,7 +28,7 @@ public interface IScore
 
     public static IScore Average(IList<IScore> scores)
     {
-        if (scores == null)
+        if (scores == null || scores.Count == 0)
         {
             return null;
         }
