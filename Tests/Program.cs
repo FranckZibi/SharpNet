@@ -79,13 +79,13 @@ namespace SharpNetTests
             //return;
 
 
-            //new ChallengeTools().Retrain(3, true); return;
+            new ChallengeTools().Retrain(3, true); return;
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
             //KaggleDaysDatasetSample.Enrich(@"\\ryzen2700\Challenges\KaggleDays\526FA40EC2_KFOLD_modelformat_predict_test_.csv"); return;
             //KaggleDaysDatasetSample.CreateEnrichedDataSet(); return;
-            KaggleDaysDatasetSample.LaunchLightGBMHPO(100,3600); return;
+            //KaggleDaysDatasetSample.LaunchLightGBMHPO(100,3600); return;
             //KaggleDaysDatasetSample.LaunchCatBoostHPO(25, 0);
 
             //KFoldSample.Compute12();

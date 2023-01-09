@@ -2812,6 +2812,20 @@ namespace SharpNet.CPU
             }
         }
 
+        public void CopyToSingleRow(int srcRow, int targetRow, IList<int> srcToTargetIndexes, CpuTensor<T> targetTensor)
+        {
+            var srcTensor = this;
+            var srcContent = srcTensor.RowSpanSlice(srcRow, 1);
+            var targetContent = targetTensor.RowSpanSlice(targetRow, 1);
+            for (var srcIndex = 0; srcIndex < srcToTargetIndexes.Count; srcIndex++)
+            {
+                var targetIndex = srcToTargetIndexes[srcIndex];
+                if (targetIndex >= 0)
+                {
+                    targetContent[targetIndex] = srcContent[srcIndex];
+                }
+            }
+        }
         public CpuTensor<T> ApplyRowOrder(int[] targetRowToSrcRow)
         {
             Debug.Assert(Shape.Length == 2);

@@ -235,7 +235,7 @@ public sealed class DataFrame
     {
         get
         {
-            AssertIsNotViewToOtherDataFrame();
+            AssertIsNotColumnViewToOtherDataFrame();
             return _floatTensor;
         }
     }
@@ -244,7 +244,7 @@ public sealed class DataFrame
     {
         get
         {
-            AssertIsNotViewToOtherDataFrame();
+            AssertIsNotColumnViewToOtherDataFrame();
             return _stringTensor;
         }
 
@@ -253,30 +253,15 @@ public sealed class DataFrame
     {
         get
         {
-            AssertIsNotViewToOtherDataFrame();
+            AssertIsNotColumnViewToOtherDataFrame();
             return _intTensor;
         }
-    }
-
-    private void AssertIsNotViewToOtherDataFrame()
-    {
-        AssertIsNotColumnViewToOtherDataFrame();
-        AssertIsNotRowViewToOtherDataFrame();
     }
     private void AssertIsNotColumnViewToOtherDataFrame()
     {
         if (IsColumnViewToOtherDataFrame)
         {
             var msg = $"{this} is a column view";
-            ISample.Log.Error(msg);
-            throw new Exception(msg);
-        }
-    }
-    private void AssertIsNotRowViewToOtherDataFrame()
-    {
-        if (IsRowViewToOtherDataFrame)
-        {
-            var msg = $"{this} is a row view";
             ISample.Log.Error(msg);
             throw new Exception(msg);
         }
@@ -314,7 +299,7 @@ public sealed class DataFrame
     public void UpdateInPlace(Func<int, int> update) => UpdateInPlace(_intTensor, update);
     private void UpdateInPlace<T>(CpuTensor<T> tensor, Func<T, T> update)
     {
-        if (IsViewToOtherDataFrame)
+        if (IsColumnViewToOtherDataFrame)
         {
             int tensorIndex = TypeToTensorIndex[typeof(T)];
             tensor.UpdateInPlace(update, GetIndexesForTensorType(_columns, tensorIndex).ToArray());
@@ -412,11 +397,8 @@ public sealed class DataFrame
         }
     }
 
-
-    public bool IsColumnViewToOtherDataFrame => _originalDataFrameForColumnView != null;
-    public bool IsRowViewToOtherDataFrame => _originalDataFrameForRowView != null;
-
-    public bool IsViewToOtherDataFrame => IsColumnViewToOtherDataFrame|| IsRowViewToOtherDataFrame;
+    private bool IsColumnViewToOtherDataFrame => _originalDataFrameForColumnView != null;
+    private bool IsRowViewToOtherDataFrame => _originalDataFrameForRowView != null;
 
     // ReSharper disable once UnusedMember.Global
     public static DataFrame MergeVertically(DataFrame top, DataFrame bottom)
@@ -549,7 +531,7 @@ public sealed class DataFrame
     /// <exception cref="ArgumentException"></exception>
     public DataFrame LeftJoinWithoutDuplicates(DataFrame right, string[] leftJoinKey, string[] rightJoinKeys = null)
     {
-        AssertIsNotViewToOtherDataFrame();
+        AssertIsNotColumnViewToOtherDataFrame();
         var left = this;
         rightJoinKeys = rightJoinKeys ?? leftJoinKey;
         if (rightJoinKeys.Length != leftJoinKey.Length)
@@ -622,7 +604,7 @@ public sealed class DataFrame
     
     private DataFrame SumOrAvgForColumns(string keyColumn, bool IsAverage)
     {
-        AssertIsNotViewToOtherDataFrame();
+        AssertIsNotColumnViewToOtherDataFrame();
         var rows = Shape[0];
         var idxKeyColumn = Array.IndexOf(Columns, keyColumn);
 
@@ -742,13 +724,13 @@ public sealed class DataFrame
     ///     return the 'this' DataFrame
     /// </summary>
     /// <returns></returns>
-    public DataFrame CloneIfNeeded()
+    private DataFrame CloneIfNeeded()
     {
-        if (!IsViewToOtherDataFrame)
+        if (IsColumnViewToOtherDataFrame || IsRowViewToOtherDataFrame)
         {
-            return this;
+            return Clone();
         }
-        return Clone();
+        return this;
     }
 
     public DataFrame Clone()
@@ -793,7 +775,7 @@ public sealed class DataFrame
 
     public DataFrame sort_values(string columnName, bool ascending = true)
     {
-        AssertIsNotViewToOtherDataFrame();
+        AssertIsNotColumnViewToOtherDataFrame();
         var colDesc = GetColumnDesc(columnName);
 
         int[] orderedRows = null;
@@ -1188,21 +1170,15 @@ public sealed class DataFrame
     {
         return _columns.First(c => c.Item1 == columnName);
     }
-
     private List<Tuple<string, int, int>> GetColumnsDesc(IList<string> columnNames)
     {
         AssertValidColumns(columnNames);
         return columnNames.Select(GetColumnDesc).ToList();
     }
-
     private static List<int> GetIndexesForTensorType(IEnumerable<Tuple<string, int, int>> columnDesc, int tensorType)
     {
         return columnDesc.Where(c => c.Item2 == tensorType).Select(c => c.Item3).ToList();
     }
-
-    private static List<int> GetIndexesForFloatTensor(IList<Tuple<string, int, int>> columnDesc) => GetIndexesForTensorType(columnDesc, FLOAT_TYPE_IDX);
-    private static List<int> GetIndexesForStringTensor(IList<Tuple<string, int, int>> columnDesc) => GetIndexesForTensorType(columnDesc, STRING_TYPE_IDX);
-    private static List<int> GetIndexesForIntTensor(IList<Tuple<string, int, int>> columnDesc) => GetIndexesForTensorType(columnDesc, INT_TYPE_IDX);
     
 
 
@@ -1221,42 +1197,27 @@ public sealed class DataFrame
         return res;
     }
 
-    public void CopyTo(List<IList<int>> srcToTargetIndexes, DataFrame target)
+    /// <summary>
+    /// no problem is the DataFrames are views to other DataFrame
+    /// </summary>
+    /// <param name="srcToTargetIndexes"></param>
+    /// <param name="target"></param>
+    private void CopyTo(List<IList<int>> srcToTargetIndexes, DataFrame target)
     {
         Debug.Assert(srcToTargetIndexes.Count == EmbeddedTensors.Length);
         for (int row = 0; row < Shape[0]; ++row)
         {
-            CopyTo(row, row, srcToTargetIndexes[FLOAT_TYPE_IDX], FloatTensor, target.FloatTensor);
-            CopyTo(row, row, srcToTargetIndexes[STRING_TYPE_IDX], StringTensor, target.StringTensor);
-            CopyTo(row, row, srcToTargetIndexes[INT_TYPE_IDX], IntTensor, target.IntTensor);
+            CopyToSingleRow(row, row, srcToTargetIndexes, target);
         }
     }
 
-    public void CopyToSingleRow(int srcRow, int targetRow, List<IList<int>> srcToTargetIndexes, DataFrame target)
+    private void CopyToSingleRow(int srcRow, int targetRow, List<IList<int>> srcToTargetIndexes, DataFrame target)
     {
-        CopyTo(srcRow, targetRow, srcToTargetIndexes[FLOAT_TYPE_IDX], FloatTensor, target.FloatTensor);
-        CopyTo(srcRow, targetRow, srcToTargetIndexes[STRING_TYPE_IDX], StringTensor, target.StringTensor);
-        CopyTo(srcRow, targetRow, srcToTargetIndexes[INT_TYPE_IDX], IntTensor, target.IntTensor);
-
+        _floatTensor?.CopyToSingleRow(srcRow, targetRow, srcToTargetIndexes[FLOAT_TYPE_IDX], target._floatTensor);
+        _stringTensor?.CopyToSingleRow(srcRow, targetRow, srcToTargetIndexes[STRING_TYPE_IDX], target._stringTensor);
+        _intTensor?.CopyToSingleRow(srcRow, targetRow, srcToTargetIndexes[INT_TYPE_IDX], target._intTensor);
     }
 
-    public static void CopyTo<T>(int srcRow, int targetRow, IList<int> srcToTargetIndexes, CpuTensor<T> srcTensor, CpuTensor<T> targetTensor)
-    {
-        if (srcTensor == null)
-        {
-            return;
-        }
-        var srcContent = srcTensor.RowSpanSlice(srcRow, 1);
-        var targetContent = targetTensor.RowSpanSlice(targetRow, 1);
-        for (var srcIndex = 0; srcIndex < srcToTargetIndexes.Count; srcIndex++)
-        {
-            var targetIndex = srcToTargetIndexes[srcIndex];
-            if (targetIndex >= 0)
-            {
-                targetContent[targetIndex] = srcContent[srcIndex];
-            }
-        }
-    }
 
     private IDictionary<string,List<int>> ExtractKeyToRows(List<List<int>> keyIndexes)
     {
@@ -1360,7 +1321,6 @@ public sealed class DataFrame
         }
 
     }
-    //private Type[] Dtypes => _columns.Select(t => TensorIndexToType[t.Item2]).ToArray();
     public DataFrame ReduceFloatDimension(int totalReviewsEmbeddingDim)
     {
         if (FloatTensor.Shape[1] < totalReviewsEmbeddingDim)
@@ -1387,8 +1347,6 @@ public sealed class DataFrame
         var newFloatTensor = new CpuTensor<float>(new[] { rows, newCols }, newContent);
         return new DataFrame(newColumnDesc, newFloatTensor, StringTensor, IntTensor);
     }
-
-
     public static void NormalizeAllCsvInDirectory(string directory, bool hasHeader = true, bool removeAccentedCharacters =false)
     {
         foreach (var file in Directory.GetFiles(directory, "*.csv"))
