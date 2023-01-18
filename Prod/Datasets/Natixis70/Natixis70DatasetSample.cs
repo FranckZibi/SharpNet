@@ -542,7 +542,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new Natixis70DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
     // ReSharper disable once UnusedMember.Global
     public static void LaunchCatBoostHPO(int iterations = 1000, float maxAllowedSecondsForAllComputation = 0)
@@ -573,7 +573,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new Natixis70DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
     // ReSharper disable once UnusedMember.Global
     //public static void SearchForBestWeights()
@@ -666,7 +666,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new Natixis70DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
     #endregion

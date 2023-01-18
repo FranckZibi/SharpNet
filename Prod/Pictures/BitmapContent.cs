@@ -87,9 +87,9 @@ namespace SharpNet.Pictures
             var hashBytes = sha1.ComputeHash(byteArray);
             return BitConverter.ToString(hashBytes).Replace("-", "");
         }
-        public void Save(List<string> fileNames)
+        public void Save(params string[] fileNames)
         {
-            if (fileNames.Count == 1)
+            if (fileNames.Length== 1)
             {
                 Debug.Assert(GetChannels() == 3);
                 var bmp = AsBitmap();
@@ -98,7 +98,7 @@ namespace SharpNet.Pictures
             }
             else
             {
-                Debug.Assert(GetChannels() == fileNames.Count);
+                Debug.Assert(GetChannels() == fileNames.Length);
                 for (int channel = 0; channel < GetChannels(); ++channel)
                 {
                     var bmp = AsBitmapForChannel(channel);
@@ -173,48 +173,7 @@ namespace SharpNet.Pictures
             MagicImageProcessor.ProcessImage(path, stream, settings);
             return ValueFromBmpContent(stream.ToArray(), targetWidth, targetHeight);
         }
-
-        //public static BitmapContent CropAndResize(Bitmap bmp, Rectangle croppedRectangle, int targetWidth, int targetHeight, InterpolationMode interpolationMode = InterpolationMode.NearestNeighbor)
-        //{
-        //    if (interpolationMode != InterpolationMode.NearestNeighbor)
-        //    {
-        //        using var croppedBitmap = PictureTools.CropImage(bmp, croppedRectangle);
-        //        using var resizedBitmap = PictureTools.ResizeImage(croppedBitmap, targetWidth, targetHeight, interpolationMode);
-        //        return ValueFomSingleRgbBitmap(resizedBitmap);
-        //    }
-
-        //    var src = ValueFomSingleRgbBitmap(bmp);
-
-        //    int destCountByChannel = targetHeight * targetWidth;
-        //    var dest = new BitmapContent(new[] { src.Shape[0], targetHeight, targetWidth }, new byte[src.Shape[0] * destCountByChannel]);
-        //    double zoomedWidth = ((double)targetWidth) / croppedRectangle.Width;
-        //    double zoomedHeight = ((double)targetHeight) / croppedRectangle.Height;
-
-        //    var srcPointer = src.SpanContent;
-        //    var destPointer = dest.SpanContent;
-        //    int destNexIdx = 0;
-        //    for (int c = 0; c < dest.Shape[0]; ++c)
-        //    {
-        //        for (int rowDest = 0; rowDest < dest.Shape[1]; ++rowDest)
-        //        {
-
-        //            int rowSrc = croppedRectangle.Top + (int)(rowDest / zoomedHeight + 0.5);
-        //            rowSrc = Math.Min(rowSrc, src.Shape[1] - 1);
-        //            var srcShift = src.Idx(c, rowSrc, 0);
-
-        //            for (int colDest = 0; colDest < dest.Shape[2]; ++colDest)
-        //            {
-        //                int colSrc = croppedRectangle.Left + (int)(colDest / zoomedWidth + 0.5);
-        //                colSrc = Math.Min(colSrc, src.Shape[2] - 1);
-        //                destPointer[destNexIdx++] = srcPointer[srcShift + colSrc];
-        //            }
-        //        }
-        //    }
-        //    //src.Dispose();
-        //    return dest;
-        //}
-
-
+        
         private static BitmapContent ValueFromBmpContent(byte[] bmpData, int width, int height)
         {
             var shape = new[] { 3, height, width };
@@ -310,7 +269,50 @@ namespace SharpNet.Pictures
             return avgDistance < epsilon;
         }
 
-        private Bitmap AsBitmap()
+        public RGBColor[,] RGBColorContent(RGBColorFactoryWithCache cache)
+        {
+            var result = new RGBColor[GetHeight(), GetWidth()];
+            var aContent = SpanContent;
+            int aIndex = 0;
+            for (int row = 0; row < GetHeight(); row++)
+            {
+                for (int col = 0; col < GetWidth(); col++)
+                {
+                    result[row,col] = cache.Build(aContent[aIndex], aContent[aIndex + MultDim0], aContent[aIndex + 2 * MultDim0]);
+                    ++aIndex;
+                }
+            }
+            return result;
+        }
+
+        public Bitmap AsBitmap(Func<int, int, byte, byte, byte, (byte R, byte G, byte B)> get)
+        {
+            Debug.Assert(GetChannels() == 3);
+            var bmp = new Bitmap(GetWidth(), GetHeight(), PixelFormat.Format24bppRgb);
+            var rect = new Rectangle(0, 0, GetWidth(), GetHeight());
+            // Lock the bitmap bits.  
+            var bmpData = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+            var rgbValues = new byte[bmpData.Stride * bmpData.Height];
+            int index = 0;
+            for (int row = 0; row < bmpData.Height; row++)
+            {
+                for (int col = 0; col < bmpData.Width; col++)
+                {
+                    var (R, G, B) = get(row, col, Get(0, row, col), Get(1, row, col), Get(2, row, col));
+                    rgbValues[index + 2] = R;
+                    rgbValues[index + 1] = G;
+                    rgbValues[index] = B;
+                    index += 3;
+                }
+                index += bmpData.Stride - bmpData.Width * 3;
+            }
+            Marshal.Copy(rgbValues, 0, bmpData.Scan0, rgbValues.Length);
+            // Unlock the bits.
+            bmp.UnlockBits(bmpData);
+            return bmp;
+        }
+
+        public Bitmap AsBitmap()
         {
             Debug.Assert(GetChannels() == 3);
             var bmp = new Bitmap(GetWidth(), GetHeight(), PixelFormat.Format24bppRgb);

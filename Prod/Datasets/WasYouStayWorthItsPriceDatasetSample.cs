@@ -144,7 +144,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -174,7 +174,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
     
 
@@ -234,7 +234,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
         return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
     }
 

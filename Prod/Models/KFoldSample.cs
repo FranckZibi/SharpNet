@@ -45,4 +45,9 @@ public class KFoldSample : AbstractSample, IModelSample
     {
         throw new NotImplementedException();
     }
+
+    public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+    {
+        return new KFoldModel(this, datasetSample, workingDirectory, modelName);
+    }
 }

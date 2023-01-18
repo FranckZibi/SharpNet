@@ -6,17 +6,14 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using log4net;
-using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
-using SharpNet.LightGBM;
-using SharpNet.Networks;
 
 namespace SharpNet.Models;
 
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
-public abstract class Model
+public abstract class Model: IDisposable
 {
     #region private & protected fields
     private static readonly object LockUpdateFileObject = new();
@@ -37,38 +34,6 @@ public abstract class Model
         ModelName = modelName;
         ModelSample = modelSample;
     }
-    public static Model NewModel(IModelSample sample, AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
-    {
-        if (sample is CatBoostSample catBoostSample)
-        {
-            return new CatBoostModel(catBoostSample, workingDirectory, modelName);
-        }
-        if (sample is LightGBMSample lightGBMSample)
-        {
-            return new LightGBMModel(lightGBMSample, workingDirectory, modelName);
-        }
-        //if (sample is WeightedModelSample weightedModelSample)
-        //{
-        //    return new WeightedModel(weightedModelSample, workingDirectory, modelName);
-        //}
-        if (sample is KFoldSample kFoldSample)
-        {
-            return new KFoldModel(kFoldSample, datasetSample, workingDirectory, modelName);
-        }
-        if (sample is NetworkSample networkSample)
-        {
-            return new Network(networkSample, datasetSample, workingDirectory, modelName, true);
-        }
-        throw new ArgumentException($"cant' load model {modelName} from {workingDirectory} for sample type {sample.GetType()}");
-    }
-    //protected static AbstractModel LoadTrainedAbstractModel(string workingDirectory, string modelName)
-    //{
-    //    //try { return ModelAndDataset.LoadAutoTrainableModel(workingDirectory, modelName); } catch { }
-    //    //try { return KFoldModel.LoadTrainedKFoldModel(workingDirectory, modelName); } catch { }
-    //    try { return Network.LoadTrainedNetworkModel(workingDirectory, modelName); } catch { }
-    //    try { return LightGBMModel.LoadTrainedLightGBMModel(workingDirectory, modelName); } catch { }
-    //    try { return CatBoostModel.LoadTrainedCatBoostModel(workingDirectory, modelName); } catch { }
-    //    throw new ArgumentException($"can't load model {modelName} from {workingDirectory}");
     #endregion
 
     public abstract List<string> AllFiles();
@@ -272,4 +237,8 @@ public abstract class Model
     protected static void LogInfo(string message) { Log.Info(message); }
     protected static void LogWarn(string message) { Log.Warn(message); }
     protected static void LogError(string message) { Log.Error(message); }
+
+    public virtual void Dispose()
+    {
+    }
 }

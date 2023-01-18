@@ -34,6 +34,6 @@ public static class AmazonEmployeeAccessChallengeUtils
         };
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new AmazonEmployeeAccessChallengeDatasetSample()), workingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, ref bestScoreSoFar));
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, workingDirectory, true, ref bestScoreSoFar));
     }
 }

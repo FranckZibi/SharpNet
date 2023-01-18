@@ -49,13 +49,15 @@ namespace SharpNet.Datasets
         /// <param name="elementId"></param>
         /// <param name="indexInBuffer"></param>
         /// <param name="xBuffer">
-        /// shape: (batchSize, timeSteps, inputSize = 1)
+        ///     shape: (batchSize, timeSteps, inputSize = 1)
         /// </param>
         /// <param name="yBuffer">
-        /// shape: (batchSize, outputSize = 1)
+        ///     shape: (batchSize, outputSize = 1)
         /// </param>
         /// <param name="withDataAugmentation"></param>
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
+        /// <param name="isTraining"></param>
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
+            CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
             Debug.Assert(xBuffer.SameShapeExceptFirstDimension(X_Shape));

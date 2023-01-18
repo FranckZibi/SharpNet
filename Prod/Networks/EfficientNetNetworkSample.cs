@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using SharpNet.DataAugmentation;
+using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
@@ -25,7 +26,14 @@ public class EfficientNetNetworkSample : NetworkSample
     /// used for transfer learning
     /// </summary>
     public string WeightForTransferLearning = "";
+    /// <summary>
+    /// number of elements in the Default MobileBlocksDescription List
+    /// -1 means all 7 blocks
+    /// </summary>
+    public int DefaultMobileBlocksDescriptionCount = -1;
     #endregion
+
+
 
     /// <summary>
     /// The default EfficientNet Hyper-Parameters for ImageNet
@@ -171,16 +179,52 @@ public class EfficientNetNetworkSample : NetworkSample
         int[] inputShape_CHW,
         POOLING_BEFORE_DENSE_LAYER pooling,
         int categoryCount //= 1000
+    )
+    {
+        return EfficientNet(
+            widthCoefficient,
+            depthCoefficient,
+            defaultResolution,
+            dropoutRate,
+            dropConnectRate,
+            depthDivisor,
+            blocks,
+            BuildNetworkWithoutLayers(workingDirectory, modelName),
+            includeTop,
+            weights,
+            inputShape_CHW,
+            pooling,
+            categoryCount
+            );
+    }
+
+    private Network EfficientNet(
+            float widthCoefficient,
+            float depthCoefficient,
+            // ReSharper disable once UnusedParameter.Local
+            int defaultResolution,
+            float dropoutRate,
+            float dropConnectRate,
+            int depthDivisor,
+            List<MobileBlocksDescription> blocks,
+            Network network, /* network without layers */
+            bool includeTop,
+            string weights,
+            int[] inputShape_CHW,
+            POOLING_BEFORE_DENSE_LAYER pooling,
+            int categoryCount //= 1000
         )
     {
+        if (network.Layers.Count != 0)
+        {
+            throw new ArgumentException($"The input network has {network.Layers.Count} layers");
+        }
+
         //dropoutRate = dropConnectRate = 0; //to disable all Dropout layers
 
         blocks = blocks.Select(x => x.ApplyScaling(widthCoefficient, depthDivisor, depthCoefficient)).ToList();
-        var network = BuildNetworkWithoutLayers(workingDirectory, modelName);
+        //var network = BuildNetworkWithoutLayers(workingDirectory, modelName);
         var config = network.Sample;
-
-        //TODO compute actual inputShape_CHW
-        //inputShape_CHW = _obtain_input_shape(inputShape_CHW, default_size=defaultResolution, min_size=32, data_format="NCHW", require_flatten=includeTop, weights=weights)
 
         network.Input(inputShape_CHW);
 
@@ -250,7 +294,7 @@ public class EfficientNetNetworkSample : NetworkSample
             {
                 throw new ArgumentException("categoryCount must be 1000 for " + weights);
             }
-            var modelPath = GetKerasModelPath(modelName + "_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
+            var modelPath = GetKerasModelPath(network.ModelName + "_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
             if (!File.Exists(modelPath))
             {
                 throw new ArgumentException("missing " + weights + " model file " + modelPath);
@@ -335,6 +379,21 @@ public class EfficientNetNetworkSample : NetworkSample
         return net;
     }
 
+
+
+    public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
+    {
+        var mobileBlocksDescriptions = MobileBlocksDescription.Default();
+        if (DefaultMobileBlocksDescriptionCount != -1)
+        {
+            mobileBlocksDescriptions = mobileBlocksDescriptions.Take(DefaultMobileBlocksDescriptionCount).ToList();
+        }
+        EfficientNetB0(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+    }
+
+    
+
+
     public Network EfficientNetB0(
         string workingDirectory,
         bool includeTop, //= True,
@@ -343,8 +402,26 @@ public class EfficientNetNetworkSample : NetworkSample
         int categoryCount = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.0f, 1.0f, 224, 0.2f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b0", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+        return EfficientNetB0(
+            BuildNetworkWithoutLayers(workingDirectory, "efficientnet-b0"),
+            MobileBlocksDescription.Default(),
+            includeTop,
+            weights,
+            inputShape_CHW,
+            categoryCount,
+            pooling);
+    }
+
+    public Network EfficientNetB0(
+            Network network, /* network without layers */
+            List<MobileBlocksDescription> blocks,
+            bool includeTop, //= True,
+            string weights, //= 'imagenet',
+            int[] inputShape_CHW, //= None,
+            int categoryCount = 1000,
+            POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
+        {
+            return EfficientNet(1.0f, 1.0f, 224, 0.2f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, categoryCount);
     }
 
     public Network EfficientNetB1(

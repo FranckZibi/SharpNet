@@ -28,7 +28,7 @@ namespace SharpNet.Datasets
         private static List<Tuple<float, float>> MeanAndVolatilityOfEachChannel => new List<Tuple<float, float>> {Tuple.Create(123.68f, 58.395f), Tuple.Create(116.28f, 57.12f), Tuple.Create(103.53f, 57.375f)};
       
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation)
+            CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
             Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]);
             Debug.Assert(xBuffer.Shape[1] == Channels);

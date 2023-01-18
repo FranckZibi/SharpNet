@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace SharpNet.Datasets
 {
-    public sealed class DirectoryDataSet : DataSet
+    public class DirectoryDataSet : DataSet
     {
         #region private fields
         /// <summary>
@@ -78,7 +78,7 @@ namespace SharpNet.Datasets
                 channels, 
                 meanAndVolatilityForEachChannel, 
                 resizeStrategy,
-                featureNames,
+                featureNames?? new string[0],
                 new string[0],
                 new string[0],
                 true,
@@ -90,7 +90,7 @@ namespace SharpNet.Datasets
 
             if (meanAndVolatilityForEachChannel == null)
             {
-                ComputeMeanAndVolatilityForEachChannel();
+                meanAndVolatilityForEachChannel = ComputeMeanAndVolatilityForEachChannel();
                 throw new ArgumentException("please update mean and volatility for dataSet " + name);
             }
 
@@ -107,13 +107,14 @@ namespace SharpNet.Datasets
         }
         #endregion
 
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
+            CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
             Debug.Assert(Channels == xBuffer.Shape[1]);
             int targetHeight = xBuffer.Shape[2];
             int targetWidth = xBuffer.Shape[3];
             
-            var data = OriginalElementContent(elementId, targetHeight, targetWidth, withDataAugmentation);
+            var data = OriginalElementContent(elementId, targetHeight, targetWidth, withDataAugmentation, isTraining);
             if (data == null)
             {
                 return;
@@ -139,7 +140,10 @@ namespace SharpNet.Datasets
                 Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
             }
         }
-
+        public override string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
+        {
+            return ""; //!D we do nothing
+        }
         public override int Count => _elementIdToCategoryIndex.Count;
         public override int ElementIdToCategoryIndex(int elementId)
         {
@@ -172,8 +176,10 @@ namespace SharpNet.Datasets
         /// <param name="targetHeight">the mandatory height of the output bitmap (or -1 if we should keep the same height of the original image)</param>
         /// <param name="targetWidth">the mandatory width of the output bitmap (or -1 if we should keep the same width of the original image)</param>
         /// <param name="withDataAugmentation"></param>
+        /// <param name="isTraining"></param>
         /// <returns></returns>
-        public override BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth, bool withDataAugmentation)
+        public override BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth,
+            bool withDataAugmentation, bool isTraining)
         {
             try
             {
@@ -254,7 +260,7 @@ namespace SharpNet.Datasets
         private void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(int elementId, float[] _sum_SumSquare_Count_For_Each_Channel, ref int nbPerformed)
         {
             UpdateStatus(ref nbPerformed);
-            OriginalElementContent(elementId,-1,-1, false).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
+            OriginalElementContent(elementId,-1,-1, false, false).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
         }
     }
 }

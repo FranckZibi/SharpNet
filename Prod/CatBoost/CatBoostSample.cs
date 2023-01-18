@@ -7,6 +7,7 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
+using SharpNet.Models;
 
 namespace SharpNet.CatBoost;
 
@@ -355,6 +356,12 @@ public class CatBoostSample : AbstractSample, IModelSample
             }
         }
     }
+
+    public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+    {
+        return new CatBoostModel(this, workingDirectory, modelName);
+    }
+
     private static object GetDefaultHyperParameterValueForCatBoost(string hyperParameterName, AbstractDatasetSample DatasetSample)
     {
         switch (hyperParameterName)

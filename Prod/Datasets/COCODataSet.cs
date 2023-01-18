@@ -36,7 +36,7 @@ namespace SharpNet.Datasets
 
 
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation)
+            CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
             throw new NotImplementedException();
         }

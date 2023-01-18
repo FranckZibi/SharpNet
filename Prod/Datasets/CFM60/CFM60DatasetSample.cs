@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using SharpNet.HPO;
@@ -435,7 +436,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
         {
             var splitted = l.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries);
             var ID = int.Parse(splitted[0]);
-            var Y = double.Parse(splitted[1]);
+            var Y = double.Parse(splitted[1], CultureInfo.InvariantCulture);
             res[ID] = Y;
         }
         return res;
@@ -502,7 +503,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new EncoderDecoder_NetworkSample(), new CFM60DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 }

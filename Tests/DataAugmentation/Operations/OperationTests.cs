@@ -72,7 +72,7 @@ namespace SharpNetTests.DataAugmentation.Operations
             }
 
             var t = new BitmapContent(bmp.Shape, xDataAugmentedMiniBatch.ReadonlyContent.Select(x => (byte)Math.Max(0,Math.Min(255,x))).ToArray());
-            t.Save(new List<string> { augmentedPicturePath });
+            t.Save(augmentedPicturePath);
         }
 
         private static void Check(List<Operation> subPolicy, float[] input, int[] inputShape, float[] expectedOutput,

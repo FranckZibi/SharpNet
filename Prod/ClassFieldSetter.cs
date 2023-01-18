@@ -206,7 +206,7 @@ namespace SharpNet
             var f = GetFieldInfo(objectType, fieldName);
             if (value is string)
             {
-                value = double.Parse((string)value);
+                value = double.Parse((string)value, CultureInfo.InvariantCulture);
             }
             else if (value is int)
             {

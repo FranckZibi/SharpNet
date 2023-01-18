@@ -338,12 +338,14 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
     /// <param name="elementId">gives the entry to predict</param>
     /// <param name="indexInBuffer"></param>
     /// <param name="all_xBuffer">
-    /// input shape: (batchSize, TimeSteps, InputSize)</param>
+    ///     input shape: (batchSize, TimeSteps, InputSize)</param>
     /// <param name="yBuffer">
-    /// output shape: (batchSize, 1)
+    ///     output shape: (batchSize, 1)
     /// </param>
     /// <param name="withDataAugmentation"></param>
-    protected override void LoadAt(int elementId, int indexInBuffer, List<CpuTensor<float>> all_xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
+    /// <param name="isTraining"></param>
+    protected override void LoadAt(int elementId, int indexInBuffer, List<CpuTensor<float>> all_xBuffer,
+        CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
     {
         var xEncoder = all_xBuffer[0];
         Debug.Assert(xEncoder.Shape.Length == 3);
@@ -367,7 +369,8 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
             Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
     }
-    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
+    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer,
+        bool withDataAugmentation, bool isTraining)
     {
         throw new Exception("should never be called");
     }

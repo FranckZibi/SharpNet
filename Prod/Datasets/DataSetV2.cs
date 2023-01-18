@@ -58,7 +58,8 @@ public class DataSetV2 : DataSet, IGetDatasetSample
         YDataFrame_InModelFormat = y_df;
 
     }
-    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation)
+    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer,
+        bool withDataAugmentation, bool isTraining)
     {
         Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
         //same number of channels / same height  / same width

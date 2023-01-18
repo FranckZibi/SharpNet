@@ -662,6 +662,12 @@ namespace SharpNet.Networks
                 existingHyperParameterValues[lossFunctionKeyName] = GetDefaultHyperParameterValue(lossFunctionKeyName, datasetSample);
             }
         }
+
+        public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+        {
+            return new Network(this, datasetSample, workingDirectory, modelName, true);
+        }
+
         private static object GetDefaultHyperParameterValue(string hyperParameterName, AbstractDatasetSample datasetSample)
         {
             switch (hyperParameterName)

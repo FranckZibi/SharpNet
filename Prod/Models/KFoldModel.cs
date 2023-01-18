@@ -29,12 +29,12 @@ public class KFoldModel : Model
         }
     }
 
-    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName, Model embeddedModel, AbstractDatasetSample datasetSample) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
+    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName, IModelSample embeddedModelSample, AbstractDatasetSample datasetSample) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
     {
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
         {
-            _embeddedModels.Add(NewModel(embeddedModel.ModelSample, datasetSample, kfoldWorkingDirectory, KFoldModelNameEmbeddedModelName(ModelName, i)));
+            _embeddedModels.Add(embeddedModelSample.NewModel(datasetSample, kfoldWorkingDirectory, KFoldModelNameEmbeddedModelName(ModelName, i)));
         }
     }
 
@@ -97,7 +97,7 @@ public class KFoldModel : Model
             //we try to load the embedded model from its original name
             embeddedModelSample = IModelSample.LoadModelSample(directory, KFoldModelNameEmbeddedModelName(ModelName, -1));
         }
-        return NewModel(embeddedModelSample, datasetSample, WorkingDirectory, embeddedModelName);
+        return embeddedModelSample.NewModel(datasetSample, WorkingDirectory, embeddedModelName);
     }
 
     #endregion

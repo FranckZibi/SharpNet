@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using ProtoBuf;
 // ReSharper disable MemberCanBePrivate.Global
@@ -46,8 +47,8 @@ namespace SharpNet.Datasets.CFM60
                     rel_vol[i] = (float)tmp;
                 }
             }
-            LS = (float)double.Parse(splitted[index++]);
-            NLV = (float)double.Parse(splitted[index]);
+            LS = (float)double.Parse(splitted[index++], CultureInfo.InvariantCulture);
+            NLV = (float)double.Parse(splitted[index], CultureInfo.InvariantCulture);
         }
 
         [ProtoMember(1)]

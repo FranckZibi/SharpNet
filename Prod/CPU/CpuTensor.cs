@@ -2406,9 +2406,9 @@ namespace SharpNet.CPU
             Debug.Assert(Dimension >= 2);
 
             BlasServices.DotMkl(a.AsFloatPointer, a.Shape[0], a.MultDim0, transposeA, b.AsFloatPointer, b.Shape[0], b.MultDim0, transposeB, AsFloatPointer, alpha, beta);
-            //MathServices.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
+            //Utils.DotOpenblas(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, y.Content);
             //var tmpTranspose = new double[b.Count];
-            //MathServices.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
+            //Utils.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
         }
 
         public override void SetToZeroAllElementsBelowMainDiagonal()

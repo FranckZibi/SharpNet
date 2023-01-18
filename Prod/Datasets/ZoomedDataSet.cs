@@ -31,10 +31,10 @@ namespace SharpNet.Datasets
             _colFactor = colFactor;
         }
         public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation)
+            CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
             _xBufferBeforeZoom.Reshape_ThreadSafe(new []{xBuffer.Shape[0], _originalShape_CHW[1], _originalShape_CHW [2], _originalShape_CHW[3]});
-            _original.LoadAt(subElementId, indexInBuffer, _xBufferBeforeZoom, yBuffer, withDataAugmentation);
+            _original.LoadAt(subElementId, indexInBuffer, _xBufferBeforeZoom, yBuffer, withDataAugmentation, isTraining);
             var tensorBeforeUpSampling = _xBufferBeforeZoom.ElementSlice(indexInBuffer);
             var tensorAfterUpSampling = xBuffer.ElementSlice(indexInBuffer);
             tensorAfterUpSampling.UpSampling2D(tensorBeforeUpSampling, _rowFactor, _colFactor, UpSampling2DLayer.InterpolationEnum.Nearest);

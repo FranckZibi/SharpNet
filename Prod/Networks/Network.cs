@@ -20,7 +20,7 @@ using H5GroupId = System.Int64;
 
 namespace SharpNet.Networks
 {
-    public partial class Network : Model, IDisposable
+    public partial class Network : Model
     {
         #region private fields
         public readonly List<EpochData> EpochData = new();
@@ -84,7 +84,7 @@ namespace SharpNet.Networks
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             if (IsMaster)
             {
@@ -966,7 +966,7 @@ namespace SharpNet.Networks
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 bool withDataAugmentation = Sample.UseDataAugmentation && (epoch >= 2) && isTraining;
-                int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, shuffledElementId, firstIndexInShuffledElementId, Sample, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
+                int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, isTraining, shuffledElementId, firstIndexInShuffledElementId, Sample, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 //we copy yExpected_miniBatch_cpu_allWorkers from CPU to appropriate target (CPU or GPU)
                 var yExpectedForMiniBatch_allWorkers = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForAllWorkers);

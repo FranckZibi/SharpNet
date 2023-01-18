@@ -9,6 +9,7 @@ using System.Diagnostics.CodeAnalysis;
 using SharpNet.Datasets;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
+using SharpNet.Models;
 
 namespace SharpNet.LightGBM;
 
@@ -1021,6 +1022,12 @@ public class LightGBMSample : AbstractSample, IModelSample
             existingHyperParameterValues[numClassKeyName] = GetDefaultHyperParameterValueForLightGBM(numClassKeyName, datasetSample);
         }
     }
+
+    public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+    {
+        return new LightGBMModel(this, workingDirectory, modelName);
+    }
+
     private static object GetDefaultHyperParameterValueForLightGBM(string hyperParameterName, AbstractDatasetSample datasetSample)
     {
         switch (hyperParameterName)

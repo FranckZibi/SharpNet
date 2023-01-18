@@ -78,8 +78,11 @@ namespace SharpNetTests
             //Model.LoadProbaFile(@"C:\Projects\Challenges\KaggleDays\catboost\Temp\a_FULL_predict_D3D1ED8387.tsv", true, true, null, null);
             //return;
 
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Run();return;
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("efficientnet-b0"); return;
+            SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(10, -1); return;
 
-            new ChallengeTools().Retrain(3, true); return;
+            //new ChallengeTools().Retrain(3, true); return;
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
@@ -102,8 +105,7 @@ namespace SharpNetTests
             //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(1, 1);
             //new ChallengeTools().ComputeAndSaveFeatureImportance();
             //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(10, 10);
-            //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();
-            return;
+            //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();return;
 
 
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);
@@ -260,6 +262,7 @@ namespace SharpNetTests
             network.Fit(trainingAndValidation.Training, trainingAndValidation.Test);
         }
         #endregion
+
 
         #region EfficientNet Training
         private static void EfficientNetTests()
@@ -493,7 +496,7 @@ namespace SharpNetTests
         /// <param name="gpuId">GPU deviceId to use 
         /// int.MaxValue means uses all available GPU</param>
         /// <param name="allActionsToPerform"></param>
-        private static void PerformActionsInSingleGpu(int gpuId, List<Action<int>> allActionsToPerform)
+        public static void PerformActionsInSingleGpu(int gpuId, List<Action<int>> allActionsToPerform)
         {
             for (; ; )
             {
@@ -522,7 +525,7 @@ namespace SharpNetTests
                 }
             }
         }
-        private static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkMetaParameters, List<Action<T, int>> networkGeometriesOrderedFromSmallestToBiggest, bool useMultiGPU = false) where T : NetworkSample
+        public static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkMetaParameters, List<Action<T, int>> networkGeometriesOrderedFromSmallestToBiggest, bool useMultiGPU = false) where T : NetworkSample
         {
             var taskToBePerformed = new List<Action<int>>();
 

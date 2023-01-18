@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using SharpNet.Data;
+using System.Globalization;
 
 namespace SharpNet.Networks
 {
@@ -104,7 +105,7 @@ namespace SharpNet.Networks
             InputShape_CHW = new[] { int.Parse(block["channels"]), int.Parse(block["height"]), int.Parse(block["width"]) };
             if (block.ContainsKey("momentum"))
             {
-                BatchNormMomentum = double.Parse(block["momentum"]);
+                BatchNormMomentum = double.Parse(block["momentum"], CultureInfo.InvariantCulture);
             }
             _blockIdToLastLayerIndex[0] = 0;
             //TODO: support decay

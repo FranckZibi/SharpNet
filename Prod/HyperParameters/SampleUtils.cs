@@ -18,11 +18,14 @@ public static class SampleUtils
     /// </summary>
     /// <param name="modelAndDatasetPredictionsSample">the 'model sample' and dataset to use for training the model</param>
     /// <param name="workingDirectory">the directory where the 'model sample' and 'dataset description' is located</param>
+    /// <param name="retrainOnFullDatasetIfBetterModelFound"></param>
     /// <param name="bestScoreSoFar">the best score associated with the best sample found so far for the model</param>
     /// <returns>the score of the ranking evaluation metric for the validation dataset</returns>
-    public static IScore TrainWithHyperParameters([NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, ref IScore bestScoreSoFar)
+    public static IScore TrainWithHyperParameters(
+        [NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory,
+        bool retrainOnFullDatasetIfBetterModelFound, ref IScore bestScoreSoFar)
     {
-        var modelAndDataset = ModelAndDatasetPredictions.New(modelAndDatasetPredictionsSample, workingDirectory);
+        using var modelAndDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash());
         var model = modelAndDataset.Model;
         var validationRankingScore = modelAndDataset.Fit(false, true, false);
 
@@ -33,16 +36,21 @@ public static class SampleUtils
             Model.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;
             var datasetSample = modelAndDataset.DatasetSample;
-            if (datasetSample.MinimumScoreToSaveModel == null || bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
+            if (bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
             {
-                var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
-                modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
-                modelAndDataset.Save(workingDirectory);
-                var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
-                var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
-                Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: '{modelAndDatasetOnFullDataset.Model.ModelName}')");
-                modelAndDatasetOnFullDataset.Fit(true, true, true);
-                //modelAndDatasetOnFullDataset.ComputeAndSaveFeatureImportance();
+                if (retrainOnFullDatasetIfBetterModelFound)
+                {
+                    var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
+                    modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
+                    modelAndDataset.Save(workingDirectory);
+                    modelAndDataset.Dispose();
+                    // ReSharper disable once RedundantAssignment
+                    var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
+                    using var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
+                    Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: '{modelAndDatasetOnFullDataset.Model.ModelName}')");
+                    modelAndDatasetOnFullDataset.Fit(true, true, true);
+                    //modelAndDatasetOnFullDataset.ComputeAndSaveFeatureImportance();
+                }
             }
             else
             {

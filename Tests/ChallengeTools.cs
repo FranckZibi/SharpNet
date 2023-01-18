@@ -30,7 +30,7 @@ public class ChallengeTools
         const string modelName = "F7579BB9FE_KFOLD_FULL";
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
-        var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
+        using var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
         m.ComputeAndSaveFeatureImportance();
     }
 
@@ -154,7 +154,7 @@ public class ChallengeTools
 
         var hpoWorkingDirectory = Path.Combine(workingDirectory, "hpo");
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), hpoWorkingDirectory); IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, hpoWorkingDirectory, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, hpoWorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -177,11 +177,11 @@ public class ChallengeTools
 
             var sw = Stopwatch.StartNew();
             ISample.Log.Info($"Retraining model '{modelName}' with {nameof(n_splits)}={n_splits} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
-            var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
+            using var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName);
 
             if (n_splits>=2)
             {
-                var mKFold = m.WithKFold(n_splits);
+                using var mKFold = m.WithKFold(n_splits);
                 ISample.Log.Info($"Training model '{modelName}' with KFold: {nameof(n_splits)}={n_splits} (KFold Model name: '{mKFold.Model.ModelName}')");
                 mKFold.Model.Use_All_Available_Cores();
                 mKFold.Fit(true, true, true);
@@ -190,7 +190,7 @@ public class ChallengeTools
 
             if (retrainOnFullDataset)
             {
-                var modelAndDatasetOnFullDataset = m.WithFullTrainingNoKFold();
+                using var modelAndDatasetOnFullDataset = m.WithFullTrainingNoKFold();
                 Model.Log.Info($"Retraining Model '{modelName}' on full Dataset no KFold (Full Dataset Model name: '{modelAndDatasetOnFullDataset.Model.ModelName}')");
                 modelAndDatasetOnFullDataset.Model.Use_All_Available_Cores();
                 modelAndDatasetOnFullDataset.Fit(true, true, true);

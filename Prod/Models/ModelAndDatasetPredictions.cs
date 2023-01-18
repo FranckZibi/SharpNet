@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using SharpNet.Datasets;
@@ -7,12 +8,12 @@ using DataSet = SharpNet.Datasets.DataSet;
 
 namespace SharpNet.Models;
 
-public sealed class ModelAndDatasetPredictions
+public sealed class ModelAndDatasetPredictions : IDisposable    
 {
     #region public fields and properties
-    public Model Model { get; }
+    public Model Model { get; private set; }
 
-    public Model EmbeddedModel
+    private Model EmbeddedModel
     {
         get
         {
@@ -30,7 +31,7 @@ public sealed class ModelAndDatasetPredictions
 
     #region constructor
     public ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, string modelName)
-        : this(modelAndDatasetPredictionsSample, Model.NewModel(modelAndDatasetPredictionsSample.ModelSample, modelAndDatasetPredictionsSample.DatasetSample, workingDirectory, modelName))
+        : this(modelAndDatasetPredictionsSample, modelAndDatasetPredictionsSample.ModelSample.NewModel(modelAndDatasetPredictionsSample.DatasetSample, workingDirectory, modelName))
     {
     }
 
@@ -56,7 +57,7 @@ public sealed class ModelAndDatasetPredictions
             .CopyWithNewPercentageInTrainingAndKFold(1.0, n_splits);
         
         var kfoldModelName = KFoldModel.EmbeddedModelNameToModelNameWithKfold(embeddedModel.ModelName, n_splits);
-        var kfoldModel = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, kfoldModelName, embeddedModel, DatasetSample);
+        var kfoldModel = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, kfoldModelName, embeddedModel.ModelSample, DatasetSample);
         return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, kfoldModel);
     }
 
@@ -70,10 +71,6 @@ public sealed class ModelAndDatasetPredictions
         return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName+"_FULL");
     }
 
-    public static ModelAndDatasetPredictions New(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory)
-    {
-        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash());
-    }
     public static ModelAndDatasetPredictions Load(string workingDirectory, string modelName)
     {
         var start = Stopwatch.StartNew();
@@ -242,7 +239,7 @@ public sealed class ModelAndDatasetPredictions
         {
             return;
         }
-        ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Training Dataset (score={trainScore})");
+        ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Target Format for Training Dataset (score={trainScore})");
         var fileName = Model.ModelName + "_predict_train_" + IScore.ToString(trainScore, 5) + ".csv";
         PredictionsSample.Train_PredictionsFileName = fileName;
         DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
@@ -254,7 +251,7 @@ public sealed class ModelAndDatasetPredictions
         {
             return;
         }
-        ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Validation Dataset (score={validationScore})");
+        ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Target Format for Validation Dataset (score={validationScore})");
         var fileName = Model.ModelName + "_predict_valid_" + IScore.ToString(validationScore, 5) + ".csv";
         PredictionsSample.Validation_PredictionsFileName = fileName;
         DatasetSample.SavePredictionsInTargetFormat(validationPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
@@ -272,7 +269,7 @@ public sealed class ModelAndDatasetPredictions
         {
             return;
         }
-        ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions for Test Dataset");
+        ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Target Format for Test Dataset");
         var fileName = Model.ModelName + "_predict_test_" + IScore.ToString(testScore, 5) + ".csv";
         PredictionsSample.Test_PredictionsFileName = fileName;
         DatasetSample.SavePredictionsInTargetFormat(testPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
@@ -313,5 +310,10 @@ public sealed class ModelAndDatasetPredictions
         PredictionsSample.Test_PredictionsFileName_InModelFormat = fileName;
         DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
-  
+
+    public void Dispose()
+    {
+        Model?.Dispose();
+        Model = null;
+    }
 }

@@ -19,7 +19,7 @@ namespace SharpNetTests.Datasets
             var dataSet = GetRandomDataSet(tensorX, 2, rand);
             for (int elementId = 0; elementId < shape[0]; ++elementId)
             {
-                var bmp = dataSet.OriginalElementContent(elementId, shape[2], shape[3], false);
+                var bmp = dataSet.OriginalElementContent(elementId, shape[2], shape[3], false, false);
                 for (int channel = 0; channel < shape[1]; ++channel)
                 {
                     for (int row = 0; row < shape[2]; ++row)
