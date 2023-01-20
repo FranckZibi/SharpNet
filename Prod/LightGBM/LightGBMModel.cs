@@ -254,11 +254,6 @@ namespace SharpNet.LightGBM
             return LightGbmSample.learning_rate;
         }
 
-        public override void Use_All_Available_Cores()
-        {
-            LightGbmSample.num_threads = Utils.CoreCount;
-        }
-
         public override List<string> AllFiles()
         {
             return new List<string> { ModelPath };

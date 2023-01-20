@@ -35,11 +35,18 @@ public class KFoldSample : AbstractSample, IModelSample
     // ReSharper disable once MemberCanBePrivate.Global
     public EvaluationMetricEnum EmbeddedModelLoss;
     public int CountMustBeMultipleOf = 1;
+    public bool Should_Use_All_Available_Cores = false;
     #endregion
     public EvaluationMetricEnum GetLoss()
     {
         return EmbeddedModelLoss;
     }
+
+    public void Use_All_Available_Cores()
+    {
+        Should_Use_All_Available_Cores = true;
+    }
+
 
     public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
     {
@@ -48,6 +55,6 @@ public class KFoldSample : AbstractSample, IModelSample
 
     public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
     {
-        return new KFoldModel(this, datasetSample, workingDirectory, modelName);
+        return new KFoldModel(this, workingDirectory, modelName, datasetSample);
     }
 }

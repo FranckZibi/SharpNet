@@ -285,6 +285,18 @@ namespace SharpNet.Networks
         }
         #endregion
 
+        public void Use_All_Available_Cores()
+        {
+            if (GetDeviceCount() == 0)
+            {
+                SetResourceId(-1); //we'll use all available CPU
+            }
+            else
+            {
+                SetResourceId(int.MaxValue); //we'll use all available GPU
+            }
+        }
+
 
         public override bool FixErrors()
         {
@@ -328,6 +340,19 @@ namespace SharpNet.Networks
             {
                 //this is the only supported mode on CPU
                 ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST;
+            }
+
+            if (AlphaMixup>0 && AlphaCutMix>0)
+            {
+                // Mixup and CutMix can not be used at the same time: we neeed to disable one of them
+                if (Utils.RandomCoinFlip())
+                {
+                    AlphaMixup = 0; //We disable Mixup
+                }
+                else
+                {
+                    AlphaCutMix = 0; //We disable CutMix
+                }
             }
 
             return true;

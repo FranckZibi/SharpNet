@@ -852,11 +852,6 @@ namespace SharpNet.Networks
             throw new NotImplementedException();
         }
 
-        public override void Use_All_Available_Cores()
-        {
-            throw new NotImplementedException();
-        }
-
         public CpuTensor<float> Predict(DataSet dataset, int miniBatchSizeForAllWorkers)
         {
             var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataset, miniBatchSizeForAllWorkers);

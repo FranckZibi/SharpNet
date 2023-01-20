@@ -34,9 +34,9 @@ namespace SharpNet.HyperParameters
             }
         }
 
-        public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName)
+        public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName, bool useAllAvailableCores)
         {
-            var modelSample = IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0));
+            var modelSample = IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0), useAllAvailableCores);
             var datasetSample = LoadDatasetSample(workingDirectory, modelName);
             var predictionsSample = LoadPredictions(workingDirectory, modelName);
 

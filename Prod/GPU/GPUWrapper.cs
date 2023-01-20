@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpNet.Layers;
+using SharpNet.HyperParameters;
+using log4net;
 
 namespace SharpNet.GPU
 {
@@ -15,6 +17,7 @@ namespace SharpNet.GPU
     {
         #region Private fields
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
+        public static readonly ILog Log = LogManager.GetLogger(typeof(GPUWrapper));
         private readonly IntPtr _deviceHandle;
         private readonly string _deviceName;
         private readonly Version _cublasVersion;
@@ -763,8 +766,8 @@ namespace SharpNet.GPU
             var res = CudartWrapper.cudaSetDevice(DeviceId);
             CheckStatus(res);
             _threadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            //Log.Debug($"{nameof(GPUWrapper)}#{DeviceId} is associated with ManagedThreadId {_threadId}");
         }
-
       
         private static void CuMemGetInfoV2(out size_t freeMemoryInBytes, out size_t totalMemoryInBytes)
         {
@@ -804,7 +807,9 @@ namespace SharpNet.GPU
         {
             if (_threadId != System.Threading.Thread.CurrentThread.ManagedThreadId)
             {
-                throw new Exception("invalid Thread Id");
+                var errorMsg = $"invalid Thread Id: expecting {_threadId} but got {System.Threading.Thread.CurrentThread.ManagedThreadId}";
+                ISample.Log.Error(errorMsg);
+                throw new Exception(errorMsg);
             }
         }
     }

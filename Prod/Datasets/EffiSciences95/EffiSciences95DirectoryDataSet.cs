@@ -48,7 +48,8 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
     public override int NumClass => 2;
     public override DataSet TestDataset()
     {
-        return EffiSciences95DirectoryDataSet.ValueOf(false);
+        return null;
+        //!D return EffiSciences95DirectoryDataSet.ValueOf(false);
     }
 
     public override DataSet FullTrainingAndValidation()
@@ -118,7 +119,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         );
     }
 
-    private static readonly List<Tuple<float, float>> MeanAndVolatilityForEachChannel = new()
+    private static readonly List<Tuple<float, float>> PrecomputedMeanAndVolatilityForEachChannel = new()
     {
         Tuple.Create(128.42516f, 79.42157f),
         Tuple.Create(107.48822f, 74.195564f),
@@ -143,7 +144,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             Objective_enum.Classification, 
             3,
             new []{"old", "young"},
-            MeanAndVolatilityForEachChannel,
+            PrecomputedMeanAndVolatilityForEachChannel,
             ResizeStrategyEnum.None, 
             null)
     {

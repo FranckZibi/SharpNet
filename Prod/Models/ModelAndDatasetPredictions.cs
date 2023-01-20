@@ -57,27 +57,37 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             .CopyWithNewPercentageInTrainingAndKFold(1.0, n_splits);
         
         var kfoldModelName = KFoldModel.EmbeddedModelNameToModelNameWithKfold(embeddedModel.ModelName, n_splits);
-        var kfoldModel = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, kfoldModelName, embeddedModel.ModelSample, DatasetSample);
+        var kfoldModel = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, kfoldModelName, DatasetSample, embeddedModel.ModelSample);
         return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, kfoldModel);
     }
 
 
-    public ModelAndDatasetPredictions WithFullTrainingNoKFold()
-    {
-        var embeddedModel = EmbeddedModel;
-        var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample
-            .CopyWithNewModelSample(embeddedModel.ModelSample)
-            .CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
-        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName+"_FULL");
-    }
-
-    public static ModelAndDatasetPredictions Load(string workingDirectory, string modelName)
+    public static ModelAndDatasetPredictions Load(string workingDirectory, string modelName, bool useAllAvailableCores)
     {
         var start = Stopwatch.StartNew();
-        var modelAndDatasetSample = ModelAndDatasetPredictionsSample.Load(workingDirectory, modelName);
+        var modelAndDatasetSample = ModelAndDatasetPredictionsSample.Load(workingDirectory, modelName, useAllAvailableCores);
         ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample.Load)} of model '{modelName}' took {start.Elapsed.TotalSeconds}s");
         return new ModelAndDatasetPredictions(modelAndDatasetSample, workingDirectory, modelName);
     }
+
+    public static ModelAndDatasetPredictions LoadWithKFold(string workingDirectory, string modelName, int n_splits, bool useAllAvailableCores)
+    {
+        using var m = Load(workingDirectory, modelName, useAllAvailableCores);
+        return m.WithKFold(n_splits);
+    }
+
+    public static ModelAndDatasetPredictions LoadWithFullTrainingNoKFold(string workingDirectory, string modelName, bool useAllAvailableCores)
+    {
+        using var m = Load(workingDirectory, modelName, useAllAvailableCores);
+        var embeddedModel = m.EmbeddedModel;
+        var modelAndDatasetPredictionsSample = m.ModelAndDatasetPredictionsSample
+                .CopyWithNewModelSample(embeddedModel.ModelSample)
+                .CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
+        m.Dispose();
+        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + "_FULL");
+    }
+
+
     #endregion
 
     public AbstractDatasetSample DatasetSample => ModelAndDatasetPredictionsSample.DatasetSample;
@@ -91,7 +101,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     /// <returns>validation ranking score</returns>
     public IScore Fit(bool computeAndSavePredictions, bool computeValidationRankingScore, bool saveTrainedModel)
     {
-        var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
+        using var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
         var validationDataSet = trainingAndValidation.Test;
         var trainDataset = trainingAndValidation.Training;
         (DatasetSample.Train_XDatasetPath_InModelFormat, DatasetSample.Train_YDatasetPath_InModelFormat, DatasetSample.Train_XYDatasetPath_InModelFormat, 

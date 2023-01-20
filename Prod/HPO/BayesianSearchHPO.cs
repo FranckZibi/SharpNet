@@ -159,7 +159,7 @@ public class BayesianSearchHPO : AbstractHpo
 
             // For the first 'samplesUsingRandomSearch' samples, we'll use a random search
             // Then we'll use the surrogate Model to select the samples to use
-            const int samplesUsingRandomSearch = 30;
+            const int samplesUsingRandomSearch = 50;
             //if (SamplesWithScore.Count >= Math.Max(samplesUsingRandomSearch, Math.Sqrt(2) * (_samplesUsedForModelTraining)))
             if (SamplesWithScore.Count >= Math.Max(samplesUsingRandomSearch, 2*_samplesUsedForModelTraining))
             {

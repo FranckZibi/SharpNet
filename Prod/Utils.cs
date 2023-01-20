@@ -1275,6 +1275,18 @@ namespace SharpNet
             properties["logfile"] = logFile;
         }
 
+
+        /// <summary>
+        /// make a random coin flip, and returns:
+        ///     true if head
+        ///     false if tail
+        /// </summary>
+        /// <returns></returns>
+        public static bool RandomCoinFlip()
+        {
+            return new Random(Guid.NewGuid().GetHashCode()).NextDouble() > 0.5;
+        }
+
         public static string GetEncoding(string filename)
         {
             using (FileStream fs = File.OpenRead(filename))

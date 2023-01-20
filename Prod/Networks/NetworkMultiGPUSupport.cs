@@ -178,6 +178,8 @@ namespace SharpNet.Networks
         #region methods used in slave networks only
         private static void SlaveThread(Network master, bool buildLayers, AbstractDatasetSample datasetSample, int slaveDeviceId)
         {
+            //LogDebug($"in SlaveThread with slaveDeviceId={slaveDeviceId} and ManagedThreadId={Thread.CurrentThread.ManagedThreadId}");
+
             //if slave thread will run on a GPU
             if (slaveDeviceId >= 0)
             {
@@ -188,7 +190,7 @@ namespace SharpNet.Networks
             var slaveNetworkSample = (NetworkSample) master.Sample.Clone();
             slaveNetworkSample.ResourceIds = new List<int> { slaveDeviceId };
 
-            var slave = new Network(slaveNetworkSample, datasetSample, master.WorkingDirectory, master.ModelName+"_"+ slaveDeviceId, buildLayers, master);
+            var slave = new Network(slaveNetworkSample, datasetSample, master.WorkingDirectory, master.ModelName+"_"+ slaveDeviceId, false, master);
             lock (master._slaveNetworks)
             {
                 master._slaveNetworks.Add(slave);
@@ -224,7 +226,7 @@ namespace SharpNet.Networks
                         break;
                     case SLAVE_NETWORK_STATUS.TO_ABORT:
                         slave._spInternalFit.Stop();
-                        LogDebug("stopping thread for network " + slave.ModelName);
+                        LogDebug($"stopping thread for network {slave.ModelName} (ManagedThreadId={Thread.CurrentThread.ManagedThreadId})");
                         LogDebug(slave.MemoryInfo());
                         LogDebug(slave.LayersKpi());
                         slave.Dispose();
@@ -267,6 +269,7 @@ namespace SharpNet.Networks
                     var tmp_x_miniBatch = all_x_miniBatch[x];
                     MemoryPool.GetFloatTensor(ref tmp_x_miniBatch, all_x_miniBatch_cpu_slave[x].Shape);
                 }
+                all_x_miniBatch_cpu_slave[x].CopyTo(all_x_miniBatch[x]);
             }
 
            

@@ -80,9 +80,9 @@ namespace SharpNetTests
 
             //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Run();return;
             //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("efficientnet-b0"); return;
-            SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(10, -1); return;
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(10, -1); return;
 
-            //new ChallengeTools().Retrain(3, true); return;
+            new ChallengeTools().Retrain(-1, true); return;
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 

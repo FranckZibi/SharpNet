@@ -263,6 +263,13 @@ public class CatBoostSample : AbstractSample, IModelSample
     }
 
 
+    public void Use_All_Available_Cores()
+    {
+        thread_count = Utils.CoreCount;
+        devices = null;
+        task_type = MustUseGPU ? task_type_enum.GPU : task_type_enum.CPU;
+    }
+
     protected override string ToConfigContent(Func<string, object, bool> accept)
     {
         var result = new List<string>();

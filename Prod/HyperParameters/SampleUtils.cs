@@ -38,12 +38,12 @@ public static class SampleUtils
             var datasetSample = modelAndDataset.DatasetSample;
             if (bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
             {
+                var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
+                modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
+                modelAndDataset.Save(workingDirectory);
+                modelAndDataset.Dispose();
                 if (retrainOnFullDatasetIfBetterModelFound)
                 {
-                    var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
-                    modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
-                    modelAndDataset.Save(workingDirectory);
-                    modelAndDataset.Dispose();
                     // ReSharper disable once RedundantAssignment
                     var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
                     using var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");

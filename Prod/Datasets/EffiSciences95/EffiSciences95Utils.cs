@@ -63,38 +63,6 @@ public static class EffiSciences95Utils
     }
 
 
-    /// <summary>
-    /// The default EfficientNet Hyper-Parameters for CIFAR10
-    /// </summary>
-    /// <returns></returns>
-    public static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
-    {
-        var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
-            {
-                LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-                lambdaL2Regularization = 0.0005,
-                //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
-                NumEpochs = 10,
-                BatchSize = 64,
-                InitialLearningRate = 0.01,
-
-                //Data augmentation
-                DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-                WidthShiftRangeInPercentage = 0.0,
-                HeightShiftRangeInPercentage = 0.0,
-                HorizontalFlip = true,
-                VerticalFlip = false,
-                FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                AlphaMixup = 0.0,
-                AlphaCutMix = 1.0,
-                CutoutPatchPercentage = 0.0
-            }
-            .WithSGD(0.9, false)
-            .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
-        return config;
-
-    }
     public static void Run()
     {
         BoxFinder.FindBox(false);
@@ -128,6 +96,39 @@ public static class EffiSciences95Utils
     }
 
 
+    /// <summary>
+    /// The default EfficientNet Hyper-Parameters for CIFAR10
+    /// </summary>
+    /// <returns></returns>
+    public static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
+    {
+        var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
+        {
+            LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
+            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+            lambdaL2Regularization = 0.0005,
+            //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
+            NumEpochs = 10,
+            BatchSize = 64,
+            InitialLearningRate = 0.01,
+
+            //Data augmentation
+            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
+            WidthShiftRangeInPercentage = 0.0,
+            HeightShiftRangeInPercentage = 0.0,
+            HorizontalFlip = true,
+            VerticalFlip = false,
+            FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+            AlphaMixup = 0.0,
+            AlphaCutMix = 1.0,
+            CutoutPatchPercentage = 0.0
+        }
+            .WithSGD(0.9, false)
+            .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
+        return config;
+
+    }
+
     public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
@@ -137,33 +138,40 @@ public static class EffiSciences95Utils
             //related to Dataset 
             //{"KFold", 2},
             {"PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
-            { "BatchSize", new[] {64} },
-            { "NumEpochs", new[] { numEpochs } },
 
+            { "BatchSize", new[] {96} },
+            { "NumEpochs", new[] { numEpochs } },
             
-            //uncomment appropriate one
-            //{"LossFunction", "Rmse"},                   //for Regression Tasks: Rmse, Mse, Mae, etc.
-            //{"LossFunction", "BinaryCrossentropy"},     //for binary classification
             {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
 
+
+            // DataAugmentation
+            { "HorizontalFlip", new[] { true /*, false*/} }, //true
+            { "VerticalFlip", new[] { false /*, true*/} }, //false
+            { "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
+            //{ "CutoutPatchPercentage", new[] { 0.0, 0.1, 0.3} },
+            //{ "RotationRangeInDegrees", new[] { 0.0, 5, 10 /*, 20*/} },
+            { "RotationRangeInDegrees", new[]{5.0, 7.0 } },
+            //{ "ZoomRange", new[] { 0.0, 0.1, 0.2} },
+            //{ "EqualizeOperationProbability", new[] { 0.0, 0.2} },
+            //{ "AutoContrastOperationProbability", new[] { 0.0, 0.2} },
+
+
+      
             // Optimizer 
             //{ "OptimizerType", new[] { "AdamW"} },
-            //{ "OptimizerType", "AdamW" },
-            //{ "AdamW_L2Regularization", new[] {0.001f, 0.01f } },
-            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.001f/4, 0.001f*4, AbstractHyperParameterSearchSpace.range_type.normal) },
-            //{ "AdamW_L2Regularization", 0.001f },
             //{ "SGD_usenesterov", new[] { true, false } },
-            //{ "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, } },
-            {"DefaultMobileBlocksDescriptionCount", new[]{/*-1,*/ 5}},
+            { "lambdaL2Regularization", new[] { 0.0005, /*0.001, 0.00005*/ } },
+            //{"DefaultMobileBlocksDescriptionCount", new[]{5}},
             // Learning Rate
-            { "InitialLearningRate", new []{0.01}},
+            { "InitialLearningRate", new []{0.01 , 0.015 /* , 0.02, 0.005*/}},
             //{ "InitialLearningRate", 0.001f },
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
             //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
         };
 
-        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new EffiSciences95DatasetSample()), WorkingDirectory);
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new EffiSciences95DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);

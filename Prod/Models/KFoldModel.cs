@@ -20,7 +20,7 @@ public class KFoldModel : Model
     private const string SuffixKfoldModel = "_KFOLD";
 
     #region constructors
-    public KFoldModel(KFoldSample modelSample, AbstractDatasetSample datasetSample, string kfoldWorkingDirectory, string kfoldModelName) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
+    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName, AbstractDatasetSample datasetSample) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
     {
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
@@ -29,7 +29,7 @@ public class KFoldModel : Model
         }
     }
 
-    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName, IModelSample embeddedModelSample, AbstractDatasetSample datasetSample) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
+    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName, AbstractDatasetSample datasetSample, IModelSample embeddedModelSample) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
     {
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
@@ -90,12 +90,12 @@ public class KFoldModel : Model
         IModelSample embeddedModelSample;
         try
         {
-            embeddedModelSample = IModelSample.LoadModelSample(directory, embeddedModelName);
+            embeddedModelSample = IModelSample.LoadModelSample(directory, embeddedModelName, KFoldSample.Should_Use_All_Available_Cores);
         }
         catch
         {
             //we try to load the embedded model from its original name
-            embeddedModelSample = IModelSample.LoadModelSample(directory, KFoldModelNameEmbeddedModelName(ModelName, -1));
+            embeddedModelSample = IModelSample.LoadModelSample(directory, KFoldModelNameEmbeddedModelName(ModelName, -1), KFoldSample.Should_Use_All_Available_Cores);
         }
         return embeddedModelSample.NewModel(datasetSample, WorkingDirectory, embeddedModelName);
     }
@@ -309,11 +309,6 @@ public class KFoldModel : Model
     {
         return _embeddedModels[0].GetLearningRate();
     }
-    public override void Use_All_Available_Cores()
-    {
-        _embeddedModels.ForEach(m=>m.Use_All_Available_Cores());
-    }
-
     public override int TotalParams()
     {
         return -1; //TODO

@@ -231,8 +231,6 @@ public abstract class Model: IDisposable
     public virtual int GetNumEpochs() => -1;
     public virtual double GetLearningRate() => double.NaN;
 
-    public virtual void Use_All_Available_Cores() { }
-    
     protected static void LogDebug(string message) { Log.Debug(message); }
     protected static void LogInfo(string message) { Log.Info(message); }
     protected static void LogWarn(string message) { Log.Warn(message); }

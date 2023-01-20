@@ -170,12 +170,6 @@ namespace SharpNet.CatBoost
         {
             return new List<string> { ModelPath };
         }
-        public override void Use_All_Available_Cores()
-        {
-            CatBoostSample.thread_count = Utils.CoreCount;
-            CatBoostSample.devices = null;
-            CatBoostSample.task_type = CatBoostSample.MustUseGPU ? CatBoostSample.task_type_enum.GPU : CatBoostSample.task_type_enum.CPU;
-        }
         //public static CatBoostModel LoadTrainedCatBoostModel(string workingDirectory, string modelName)
         //{
         //    var sample = ISample.LoadSample<CatBoostSample>(workingDirectory, modelName);
