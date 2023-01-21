@@ -5,30 +5,10 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets.EffiSciences95;
 
-public class ThreadSafeRandom
-{
-    private static readonly Random _global = new Random();
-    [ThreadStatic] private static Random _local;
-
-    // ReSharper disable once MemberCanBeMadeStatic.Global
-    public int Next(int maxValue)
-    {
-        if (_local == null)
-        {
-            int seed;
-            lock (_global)
-            {
-                seed = _global.Next();
-            }
-            _local = new Random(seed);
-        }
-
-        return _local.Next(maxValue);
-    }
-}
-
 public class EffiSciences95DatasetSample : AbstractDatasetSample
 {
+    private EffiSciences95DirectoryDataSet _LazyFullTrainingAndValidation;
+    private EffiSciences95DirectoryDataSet _LazyTestDataset;
     public EffiSciences95DatasetSample() : base(new HashSet<string>())
     {
     }
@@ -48,29 +28,60 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
     public override int NumClass => 2;
     public override DataSet TestDataset()
     {
-        return null;
-        //!D return EffiSciences95DirectoryDataSet.ValueOf(false);
+        if (_LazyTestDataset == null)
+        {
+            _LazyTestDataset = null;
+            //_LazyTestDataset = EffiSciences95DirectoryDataSet.ValueOf(false);
+        }
+        return _LazyTestDataset;
     }
+
 
     public override DataSet FullTrainingAndValidation()
     {
-        return EffiSciences95DirectoryDataSet.ValueOf(true);
+        if (_LazyFullTrainingAndValidation == null)
+        {
+            _LazyFullTrainingAndValidation = EffiSciences95DirectoryDataSet.ValueOf(true);
+        }
+
+        return _LazyFullTrainingAndValidation;
     }
 
     public override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
         return EvaluationMetricEnum.Accuracy;
     }
+
+    #region Dispose pattern
+    protected override void Dispose(bool disposing)
+    {
+        if (disposed)
+        {
+            return;
+        }
+        disposed = true;
+        //Release Unmanaged Resources
+        if (disposing)
+        {
+            _LazyFullTrainingAndValidation?.Dispose();
+            _LazyTestDataset?.Dispose();
+            //Release Managed Resources
+        }
+    }
+    #endregion
 }
 
 public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 {
     private readonly List<EffiSciences95Row> _boxes;
-    private readonly ThreadSafeRandom _r = new ();
+    private readonly Random _r = new (Utils.RandomSeed());
 
     public static EffiSciences95DirectoryDataSet ValueOf(bool isLabeled, int maxElementCount = -1)
     {
+        //maxElementCount = 1000; //!D
+
         var idToBoxes = new EffiSciences95BoxesDataset(isLabeled).Content;
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
         var idToTextLabel = isLabeled?EffiSciences95Utils.IdToTextTarget(isLabeled):null;
         
         List<List<string>> elementIdToPaths = new();
@@ -90,6 +101,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             {
                 if (!idToTextLabel.ContainsKey(id))
                 {
+                    // ReSharper disable once ConditionIsAlwaysTrueOrFalse
                     throw new Exception($"no label for {EffiSciences95Utils.IdToPath(id, isLabeled)}");
                 }
                 if (box == null)

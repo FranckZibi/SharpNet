@@ -1284,8 +1284,15 @@ namespace SharpNet
         /// <returns></returns>
         public static bool RandomCoinFlip()
         {
-            return new Random(Guid.NewGuid().GetHashCode()).NextDouble() > 0.5;
+            return new Random(RandomSeed()).NextDouble() > 0.5;
         }
+
+        public static int RandomSeed()
+        {
+            var randomSeed = Guid.NewGuid().GetHashCode();
+            return randomSeed;
+        }
+
 
         public static string GetEncoding(string filename)
         {

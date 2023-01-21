@@ -7,6 +7,7 @@ using log4net;
 using SharpNet.DataAugmentation;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
+using SharpNet.MathTools;
 using SharpNet.Networks;
 
 namespace SharpNet.Datasets.EffiSciences95;
@@ -63,6 +64,7 @@ public static class EffiSciences95Utils
     }
 
 
+    // ReSharper disable once UnusedMember.Global
     public static void Run()
     {
         BoxFinder.FindBox(false);
@@ -70,28 +72,40 @@ public static class EffiSciences95Utils
 
 
 
-    public static void InferenceUnlabeledEffiSciences95(string modelName)
+    // ReSharper disable once UnusedMember.Global
+    public static void InferenceUnlabeledEffiSciences95(string modelDirectory, string modelName)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
         const bool isLabeled = false;
-        using var network = Network.LoadTrainedNetworkModel(WorkingDirectory, modelName);
+
+        using var network = Network.LoadTrainedNetworkModel(modelDirectory, modelName);
         using var unlabeledDataset = EffiSciences95DirectoryDataSet.ValueOf(isLabeled);
         Log.Info($"computing predictions of model {modelName} on dataset of {unlabeledDataset.Count} rows");
         var p = network.Predict(unlabeledDataset, 64);
         var sb = new StringBuilder();
-        sb.Append("index,labels");
+        sb.Append("index,labels"+ Environment.NewLine);
 
+
+        var idToTextTarget = IdToTextTarget(false);
+        LinearRegression lr = new();
         for (int id = 0; id < p.Shape[0]; ++id)
         {
             var rowWithPrediction = p.RowSlice(id, 1);
             var predictionWithProba = rowWithPrediction.ContentAsFloatArray();
             int prediction = predictionWithProba[0] > predictionWithProba[1] ? 0 : 1;
-            sb.Append(Environment.NewLine + id + "," + prediction);
+
+            if (idToTextTarget.ContainsKey(id))
+            {
+                lr.Add(idToTextTarget[id], prediction);
+            }
+            sb.Append(id + "," + prediction+ Environment.NewLine);
         }
 
-        var predictionPaths = Path.Combine(WorkingDirectory, "predictions_unlabeled_" + modelName + "_" + DateTime.Now.Ticks + ".csv");
-        Log.Info($"saving predictions in file {predictionPaths}");
+        var correl = Math.Round(lr.PearsonCorrelationCoefficient, 4);
+        var predictionPaths = Path.Combine(WorkingDirectory, modelName +"_predict_tests_correl_"+correl+".csv");
+        Log.Info($"Saving predictions in file {predictionPaths}");
+        Log.Info($"Observed correlation with Text Target (should be 0): {correl}");
         File.WriteAllText(predictionPaths, sb.ToString());
     }
 
@@ -129,6 +143,7 @@ public static class EffiSciences95Utils
 
     }
 
+    // ReSharper disable once UnusedMember.Global
     public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");

@@ -32,7 +32,7 @@ namespace SharpNet.Networks
             }
             if (fixedResult.Count == 0)
             {
-                fixedResult.Add(-1);
+                fixedResult.Add(gpuCount >=1?0:-1);
             }
             return fixedResult.ToArray();
         }

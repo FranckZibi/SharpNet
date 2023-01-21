@@ -26,7 +26,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     }
 
 
-    public ModelAndDatasetPredictionsSample ModelAndDatasetPredictionsSample { get; }
+    public ModelAndDatasetPredictionsSample ModelAndDatasetPredictionsSample { get; private set; }
     #endregion
 
     #region constructor
@@ -321,9 +321,34 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
 
+
+    #region Dispose pattern
+    private bool disposed = false;
+    private void Dispose(bool disposing)
+    {
+        if (disposed)
+        {
+            return;
+        }
+        disposed = true;
+        //Release Unmanaged Resources
+        if (disposing)
+        {
+            //Release Managed Resources
+            Model?.Dispose();
+            Model = null;
+            ModelAndDatasetPredictionsSample?.Dispose();
+            ModelAndDatasetPredictionsSample = null;
+        }
+    }
     public void Dispose()
     {
-        Model?.Dispose();
-        Model = null;
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
+    ~ModelAndDatasetPredictions()
+    {
+        Dispose(false);
+    }
+    #endregion
 }

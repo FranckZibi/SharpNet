@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
@@ -17,7 +18,7 @@ namespace SharpNet.Datasets
                 original.ColumnNames,
                 original.CategoricalFeatures, 
                 original.IdColumns,
-                original.UseBackgroundThreadToLoadNextMiniBatch,
+                false,
                 original.Separator)
         {
             _original = original;
@@ -52,5 +53,14 @@ namespace SharpNet.Datasets
         }
 
         public override CpuTensor<float> Y { get; }
+
+        #region Dispose pattern
+        protected override void Dispose(bool disposing)
+        {
+            disposed = true;
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+
     }
 }

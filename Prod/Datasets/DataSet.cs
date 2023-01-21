@@ -501,16 +501,34 @@ namespace SharpNet.Datasets
         {
             return "";
         }
-
-        public virtual void Dispose()
+        
+        #region Dispose pattern
+        public void Dispose()
         {
-            all_xOriginalNotAugmentedMiniBatch.ForEach(t=>t.Dispose());
-            all_xOriginalNotAugmentedMiniBatch.Clear();
-            all_xDataAugmentedMiniBatch.ForEach(t => t.Dispose());
-            all_xDataAugmentedMiniBatch.Clear();
-            all_xBufferForDataAugmentedMiniBatch.ForEach(t => t.Dispose());
-            all_xBufferForDataAugmentedMiniBatch.Clear();
-            yDataAugmentedMiniBatch?.Dispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        // ReSharper disable once RedundantDefaultMemberInitializer
+        protected bool disposed = false;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed)
+            {
+                return;
+            }
+            disposed = true;
+            //Release Unmanaged Resources
+            if (disposing)
+            {
+                //Release Managed Resources
+                all_xOriginalNotAugmentedMiniBatch.ForEach(t => t.Dispose());
+                all_xOriginalNotAugmentedMiniBatch.Clear();
+                all_xDataAugmentedMiniBatch.ForEach(t => t.Dispose());
+                all_xDataAugmentedMiniBatch.Clear();
+                all_xBufferForDataAugmentedMiniBatch.ForEach(t => t.Dispose());
+                all_xBufferForDataAugmentedMiniBatch.Clear();
+                yDataAugmentedMiniBatch?.Dispose();
+            }
             if (UseBackgroundThreadToLoadNextMiniBatch)
             {
                 //we stop the background thread
@@ -525,6 +543,12 @@ namespace SharpNet.Datasets
                 }
             }
         }
+        ~DataSet()
+        {
+            Dispose(false);
+        }
+        #endregion
+
         public virtual int[] YMiniBatch_Shape(int miniBatchSize)
         {
             var yMiniBatchShape = (int[])Y.Shape.Clone();

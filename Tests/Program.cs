@@ -79,8 +79,10 @@ namespace SharpNetTests
             //return;
 
             //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Run();return;
-            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("efficientnet-b0"); return;
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("C:/Projects/Challenges/EffiSciences95/Data", "F3454EBDFF"); return;
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95(@"\\ryzen2700\Challenges\EffiSciences95\", "761C9ADBE1_FULL"); return;
             //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(10, -1); return;
+            
 
             new ChallengeTools().Retrain(-1, true); return;
 

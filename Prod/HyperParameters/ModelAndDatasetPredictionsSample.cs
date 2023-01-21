@@ -4,7 +4,7 @@ using SharpNet.Datasets;
 
 namespace SharpNet.HyperParameters
 {
-    public class ModelAndDatasetPredictionsSample : MultiSamples
+    public sealed class ModelAndDatasetPredictionsSample : MultiSamples, IDisposable
     {
         #region Constructor
 
@@ -121,5 +121,34 @@ namespace SharpNet.HyperParameters
         public IModelSample ModelSample => (IModelSample)Samples[0];
         public AbstractDatasetSample DatasetSample => (AbstractDatasetSample)Samples[1];
         public PredictionsSample PredictionsSample  => (PredictionsSample) Samples[2];
+
+
+        #region Dispose pattern
+        private bool disposed = false;
+        private void Dispose(bool disposing)
+        {
+            if (disposed)
+            {
+                return;
+            }
+            disposed = true;
+            //Release Unmanaged Resources
+            if (disposing)
+            {
+                //Release Managed Resources
+                DatasetSample?.Dispose();
+                Samples[1] = null;
+            }
+        }
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        ~ModelAndDatasetPredictionsSample()
+        {
+            Dispose(false);
+        }
+        #endregion
     }
 }

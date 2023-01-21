@@ -13,7 +13,7 @@ using SharpNet.Models;
 namespace SharpNet.Datasets;
 
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
-public abstract class AbstractDatasetSample : AbstractSample
+public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 {
     #region public properties
 
@@ -558,4 +558,30 @@ public abstract class AbstractDatasetSample : AbstractSample
     //    }
     //    return df.Drop(IdColumns);
     //}
+
+    #region Dispose pattern
+    protected bool disposed = false;
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed)
+        {
+            return;
+        }
+        disposed = true;
+        //Release Unmanaged Resources
+        if (disposing)
+        {
+            //Release Managed Resources
+        }
+    }
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    ~AbstractDatasetSample()
+    {
+        Dispose(false);
+    }
+    #endregion
 }

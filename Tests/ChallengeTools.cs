@@ -170,7 +170,7 @@ public class ChallengeTools
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
         foreach (var modelName in new[]
                  {
-                     "761C9ADBE1",
+                     "F3454EBDFF",
                  })
         {
 
