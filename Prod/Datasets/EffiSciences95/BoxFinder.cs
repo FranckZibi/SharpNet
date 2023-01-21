@@ -14,6 +14,7 @@ public static class BoxFinder
     {
         var cache = new RGBColorFactoryWithCache(false);
         bool debug = false;
+        using var datasetSample = new EffiSciences95DatasetSample();
         var dataset = new EffiSciences95BoxesDataset(isLabeled);
 
         int totalProcessed = 0;

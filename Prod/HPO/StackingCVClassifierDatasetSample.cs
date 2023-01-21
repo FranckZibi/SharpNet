@@ -13,17 +13,17 @@ namespace SharpNet.HPO
     public class StackingCVClassifierDatasetSample : DelegatedDatasetSample
     {
         #region private fields
-        private readonly DataSetV2 TrainingDataSet;
-        private readonly DataSetV2 InferenceDataSet;
+        private readonly DataFrameDataSet _trainingDataFrameDataSet;
+        private readonly DataFrameDataSet _inferenceDataFrameDataSet;
         #endregion
 
         #region constructor
 
         // ReSharper disable once UnusedMember.Global
-        private StackingCVClassifierDatasetSample(DataSetV2 trainingDataSet, DataSetV2 inferenceDataSet, int cv) : base(trainingDataSet.DatasetSample)
+        private StackingCVClassifierDatasetSample(DataFrameDataSet trainingDataFrameDataSet, DataFrameDataSet inferenceDataFrameDataSet, int cv) : base(trainingDataFrameDataSet.DatasetSample)
         {
-            TrainingDataSet = trainingDataSet;
-            InferenceDataSet= inferenceDataSet;
+            _trainingDataFrameDataSet = trainingDataFrameDataSet;
+            _inferenceDataFrameDataSet= inferenceDataFrameDataSet;
             KFold = cv;
             EmbeddedDatasetSample.KFold = cv;
             if (KFold == 1)
@@ -44,7 +44,7 @@ namespace SharpNet.HPO
             List<DataFrame> y_preds_for_training_InModelFormat = new();
             List<DataFrame> y_preds_for_inference_InModelFormat = new();
             DataFrame y_true_training_InModelFormat = null;
-            DataSetV2 validationDataset = null, testDataset = null;
+            DataFrameDataSet validationDataset = null, testDataset = null;
 
             if (!Directory.Exists(workingDirectory))
             {
@@ -138,13 +138,13 @@ namespace SharpNet.HPO
                 throw new Exception($"training and inference dataset must have the same number of columns");
             }
 
-            var TrainingDataSet = new DataSetV2(
+            var TrainingDataSet = new DataFrameDataSet(
                 embeddedDatasetSample,
                 x_training_InModelFormat_df,
                 y_true_training_InModelFormat, //y_true_training_InTargetFormat,
                 false);
 
-            var InferenceDataSet = new DataSetV2(
+            var InferenceDataSet = new DataFrameDataSet(
                 embeddedDatasetSample,
                 x_inference_InModelFormat_df,
                 null,
@@ -165,18 +165,18 @@ namespace SharpNet.HPO
 
         public override ISample Clone()
         {
-            return new StackingCVClassifierDatasetSample(TrainingDataSet, InferenceDataSet, KFold);
+            return new StackingCVClassifierDatasetSample(_trainingDataFrameDataSet, _inferenceDataFrameDataSet, KFold);
         }
 
 
         public override DataSet TestDataset()
         {
-            return InferenceDataSet;
+            return _inferenceDataFrameDataSet;
         }
 
         public override DataSet FullTrainingAndValidation()
         {
-            return TrainingDataSet;
+            return _trainingDataFrameDataSet;
         }
     }
 }

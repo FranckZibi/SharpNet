@@ -215,19 +215,22 @@ namespace SharpNet.Datasets
 
             yDataAugmentedMiniBatch.CopyTo(yMiniBatch.AsCpu<float>());
 
+
             //uncomment to store data augmented pictures
             //if (withDataAugmentation && (firstIndexInShuffledElementId == 0))
             //{
             //    //CIFAR10
-            //    var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
+            //    //var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
             //    //SVHN
             //    //var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
-            //    var xCpuChunkBytes = xDataAugmentedMiniBatch.Select((n, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
-            //    for (int i = firstIndexInShuffledElementId; i < Math.Min((firstIndexInShuffledElementId + xMiniBatch.Shape[0]), 100); ++i)
+            //    //EffiScience95
+            //    var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(128.42516f, 79.42157f), Tuple.Create(107.48822f, 74.195564f), Tuple.Create(97.46115f, 73.76817f) };
+            //    var xCpuChunkBytes = all_xDataAugmentedMiniBatch[0].Select((_, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));
+            //    for (int i = firstIndexInShuffledElementId; i < (firstIndexInShuffledElementId + all_xDataAugmentedMiniBatch[0].Shape[0]); ++i)
             //    {
             //        int elementId = shuffledElementId[i];
             //        var categoryIndex = ElementIdToCategoryIndex(elementId);
-            //        PictureTools.SaveBitmap(xCpuChunkBytes, i, System.IO.Path.Combine(NetworkSample.DefaultLogDirectory, "Train"), elementId.ToString("D5") + "_cat" + categoryIndex, "");
+            //        PictureTools.SaveBitmap(xCpuChunkBytes, i- firstIndexInShuffledElementId, Path.Combine(NetworkSample.DefaultWorkingDirectory, "Train"), elementId.ToString("D5") + "_cat" + categoryIndex, "");
             //    }
             //}
 
@@ -509,14 +512,14 @@ namespace SharpNet.Datasets
             GC.SuppressFinalize(this);
         }
         // ReSharper disable once RedundantDefaultMemberInitializer
-        protected bool disposed = false;
+        public bool Disposed { get; set; } = false;
         protected virtual void Dispose(bool disposing)
         {
-            if (disposed)
+            if (Disposed)
             {
                 return;
             }
-            disposed = true;
+            Disposed = true;
             //Release Unmanaged Resources
             if (disposing)
             {

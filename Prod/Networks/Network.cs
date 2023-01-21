@@ -960,7 +960,11 @@ namespace SharpNet.Networks
 
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-                bool withDataAugmentation = Sample.UseDataAugmentation && (epoch >= 2) && isTraining;
+
+                var withDataAugmentation = Sample.UseDataAugmentation && (epoch >= 2) && isTraining;
+                //TODO: check if following line is better:
+                //bool withDataAugmentation = Sample.UseDataAugmentation && isTraining;
+
                 int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, isTraining, shuffledElementId, firstIndexInShuffledElementId, Sample, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 //we copy yExpected_miniBatch_cpu_allWorkers from CPU to appropriate target (CPU or GPU)

@@ -77,7 +77,7 @@ public class DatasetEncoder
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public DataSetV2 Transform_XYDataset(DataFrame xyDataset_df)
+    public DataFrameDataSet Transform_XYDataset(DataFrame xyDataset_df)
     {
         var xTrainEncoded = Transform(xyDataset_df.Drop(Targets));
         var yTrain = xyDataset_df[Targets];
@@ -89,14 +89,14 @@ public class DatasetEncoder
     /// (so that it can be processed by LightGBM)
     /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
     /// </summary>
-    public DataSetV2 Transform_X_and_Y_Dataset([NotNull] DataFrame x_df, [CanBeNull] DataFrame y_df)
+    public DataFrameDataSet Transform_X_and_Y_Dataset([NotNull] DataFrame x_df, [CanBeNull] DataFrame y_df)
     {
         return NewDataSetV2(Transform(x_df), y_df, _datasetSample);
     }
 
-    private static DataSetV2 NewDataSetV2(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
+    private static DataFrameDataSet NewDataSetV2(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
     {
-        return new DataSetV2(
+        return new DataFrameDataSet(
             datasetSample,
             xTrainEncoded,
             yTrainEncoded,

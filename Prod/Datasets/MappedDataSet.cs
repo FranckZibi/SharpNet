@@ -57,8 +57,10 @@ namespace SharpNet.Datasets
         #region Dispose pattern
         protected override void Dispose(bool disposing)
         {
-            disposed = true;
+            Disposed = true;
+#pragma warning disable CA1816
             GC.SuppressFinalize(this);
+#pragma warning restore CA1816
         }
         #endregion
 

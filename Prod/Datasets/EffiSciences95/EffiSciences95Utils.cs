@@ -80,7 +80,8 @@ public static class EffiSciences95Utils
         const bool isLabeled = false;
 
         using var network = Network.LoadTrainedNetworkModel(modelDirectory, modelName);
-        using var unlabeledDataset = EffiSciences95DirectoryDataSet.ValueOf(isLabeled);
+        using var datasetSample = new EffiSciences95DatasetSample();
+        using var unlabeledDataset = EffiSciences95DirectoryDataSet.ValueOf(datasetSample, isLabeled);
         Log.Info($"computing predictions of model {modelName} on dataset of {unlabeledDataset.Count} rows");
         var p = network.Predict(unlabeledDataset, 64);
         var sb = new StringBuilder();
@@ -134,7 +135,7 @@ public static class EffiSciences95Utils
             VerticalFlip = false,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
             AlphaMixup = 0.0,
-            AlphaCutMix = 1.0,
+            AlphaCutMix = 0.0,
             CutoutPatchPercentage = 0.0
         }
             .WithSGD(0.9, false)
@@ -154,33 +155,36 @@ public static class EffiSciences95Utils
             //{"KFold", 2},
             {"PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
 
-            { "BatchSize", new[] {96} },
+            { "BatchSize", new[] {64} },
             { "NumEpochs", new[] { numEpochs } },
-            
             {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
 
 
+            { "MinEnlargeForBox", new[] {0}},
+            { "MaxEnlargeForBox", new[] {3}},
+            { "EnlargeOldBoxToYoungBoxShape", new[] { false, true} },
+            { "AddNewBoxOfOtherCategory", new[] { false, true} },
+    
             // DataAugmentation
-            { "HorizontalFlip", new[] { true /*, false*/} }, //true
-            { "VerticalFlip", new[] { false /*, true*/} }, //false
-            { "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
-            //{ "CutoutPatchPercentage", new[] { 0.0, 0.1, 0.3} },
-            //{ "RotationRangeInDegrees", new[] { 0.0, 5, 10 /*, 20*/} },
-            { "RotationRangeInDegrees", new[]{5.0, 7.0 } },
-            //{ "ZoomRange", new[] { 0.0, 0.1, 0.2} },
+            //{ "HorizontalFlip", new[] { true /*, false*/} }, //true
+            //{ "VerticalFlip", new[] { false /*, true*/} }, //false
+            //{ "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
+            //{ "AlphaCutMix", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
+            { "CutoutPatchPercentage", new[] { 0.0, 0.15, 0.3} },
+            { "RotationRangeInDegrees", new[] { 0.0, 5, 10.0} },
+            //{ "ZoomRange", new[] { 0.05} },
             //{ "EqualizeOperationProbability", new[] { 0.0, 0.2} },
-            //{ "AutoContrastOperationProbability", new[] { 0.0, 0.2} },
-
+            //{ "AutoContrastOperationProbability", new[] { 1.0} },
+            
 
       
             // Optimizer 
             //{ "OptimizerType", new[] { "AdamW"} },
             //{ "SGD_usenesterov", new[] { true, false } },
             { "lambdaL2Regularization", new[] { 0.0005, /*0.001, 0.00005*/ } },
-            //{"DefaultMobileBlocksDescriptionCount", new[]{5}},
+            {"DefaultMobileBlocksDescriptionCount", new[]{5}},
             // Learning Rate
-            { "InitialLearningRate", new []{0.01 , 0.015 /* , 0.02, 0.005*/}},
-            //{ "InitialLearningRate", 0.001f },
+            { "InitialLearningRate", new []{0.01 , 0.015, 0.005}},
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
             //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },

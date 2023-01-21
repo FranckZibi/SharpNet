@@ -313,15 +313,15 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     
 
 
-    public override DataSetV2 FullTrainingAndValidation()
+    public override DataFrameDataSet FullTrainingAndValidation()
     {
         return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;
     }
 
 
-    private static readonly Dictionary<string, Tuple<DataSetV2, DataSetV2, DatasetEncoder>> CacheDataset = new();
+    private static readonly Dictionary<string, Tuple<DataFrameDataSet, DataFrameDataSet, DatasetEncoder>> CacheDataset = new();
 
-    private (DataSetV2 fullTrainingAndValidation, DataSetV2 testDataset) LoadAndEncodeDataset_If_Needed()
+    private (DataFrameDataSet fullTrainingAndValidation, DataFrameDataSet testDataset) LoadAndEncodeDataset_If_Needed()
     {
         var sw = Stopwatch.StartNew();
         var key = ComputeHash();
@@ -341,8 +341,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             var xTrain_Encoded = DatasetEncoder.Transform(xyTrain.Drop(TargetLabels));
             var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
             var xtest_Encoded = DatasetEncoder.Transform(xtest);
-            var fullTrainingAndValidation = new DataSetV2(this, xTrain_Encoded, yTrain_Encoded, false);
-            var testDataset = new DataSetV2(this, xtest_Encoded, null, false);
+            var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, false);
+            var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, false);
             CacheDataset[key] = Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder);
             ISample.Log.Debug($"Loading Encoded Dataset for key '{key}' took {sw.Elapsed.TotalSeconds}s");
             return (fullTrainingAndValidation, testDataset);

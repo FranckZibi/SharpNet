@@ -25,7 +25,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     public static readonly string[] HorizonNames = { "1d", "1w", "2w" };
 
     #region private fields
-    private static readonly ConcurrentDictionary<string, Tuple<DataSetV2, DataSetV2, DatasetEncoder>> CacheDataset = new();
+    private static readonly ConcurrentDictionary<string, Tuple<DataFrameDataSet, DataFrameDataSet, DatasetEncoder>> CacheDataset = new();
     private static DoubleAccumulator[] YStatsInTargetFormat { get; }
     private static DoubleAccumulator[] YAbsStatsInTargetFormat { get; }
     #endregion
@@ -250,13 +250,13 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         return LoadAndEncodeDataset_If_Needed().testDataset;
     }
 
-    public override DataSetV2 FullTrainingAndValidation()
+    public override DataFrameDataSet FullTrainingAndValidation()
     {
         return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;
     }
 
 
-    private (DataSetV2 fullTrainingAndValidation, DataSetV2 testDataset) LoadAndEncodeDataset_If_Needed()
+    private (DataFrameDataSet fullTrainingAndValidation, DataFrameDataSet testDataset) LoadAndEncodeDataset_If_Needed()
     {
         var key = ComputeHash();
         if (CacheDataset.TryGetValue(key, out var result))
@@ -284,8 +284,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
         DatasetEncoder.FitMissingCategoricalColumns(xTrain_Encoded_InModelFormat, xTest_Encoded_InModelFormat);
 
-        var fullTrainingAndValidation = new DataSetV2(this, xTrain_Encoded_InModelFormat, yTrain_Encoded_InModelFormat, false);
-        var testDataset = new DataSetV2(this, xTest_Encoded_InModelFormat, null, false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded_InModelFormat, yTrain_Encoded_InModelFormat, false);
+        var testDataset = new DataFrameDataSet(this, xTest_Encoded_InModelFormat, null, false);
         CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         return (fullTrainingAndValidation, testDataset);
     }

@@ -20,7 +20,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     private const string NAME = "WasYouStayWorthItsPrice";
     private static readonly DataFrame xytrain_string_df;
     private static readonly DataFrame xtest_string_df;
-    private static readonly ConcurrentDictionary<string, Tuple<DataSetV2, DataSetV2, DatasetEncoder>> CacheDataset = new();
+    private static readonly ConcurrentDictionary<string, Tuple<DataFrameDataSet, DataFrameDataSet, DatasetEncoder>> CacheDataset = new();
     #endregion
 
 
@@ -249,12 +249,12 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         return LoadAndEncodeDataset_If_Needed().testDataset;
     }
 
-    public override DataSetV2 FullTrainingAndValidation()
+    public override DataFrameDataSet FullTrainingAndValidation()
     {
         return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;
     }
 
-    private (DataSetV2 fullTrainingAndValidation, DataSetV2 testDataset) LoadAndEncodeDataset_If_Needed()
+    private (DataFrameDataSet fullTrainingAndValidation, DataFrameDataSet testDataset) LoadAndEncodeDataset_If_Needed()
     {
         var key = ComputeHash();
         if ( CacheDataset.TryGetValue(key, out var result))
@@ -273,8 +273,8 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataSetV2(this, xTrain_Encoded, yTrain_Encoded, false);
-        var testDataset = new DataSetV2(this, xtest_Encoded, null, false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, false);
+        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, false);
 
         CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         return (fullTrainingAndValidation, testDataset);

@@ -75,7 +75,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             }
 
             var fullTrainingAndValidation = FullTrainingAndValidation();
-            var full = fullTrainingAndValidation as DataSetV2;
+            var full = fullTrainingAndValidation as DataFrameDataSet;
             if (full == null)
             {
                 throw new ArgumentException($"can't compute shape for dataset type {fullTrainingAndValidation.GetType()}");
@@ -276,9 +276,9 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         Validation_XDatasetPath_InModelFormat = Validation_YDatasetPath_InModelFormat = Validation_XYDatasetPath_InModelFormat = newValue;
     }
 
-    public DataSetV2 LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
-    public DataSetV2 LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
-    public DataSetV2 LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
+    public DataFrameDataSet LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
+    public DataFrameDataSet LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
+    public DataFrameDataSet LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
 
     //// ReSharper disable once MemberCanBeMadeStatic.Global
     public DataFrame LoadPredictionsInModelFormat(string directory, string fileName)
@@ -499,7 +499,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// <returns></returns>
     public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
 
-    private DataSetV2 LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
+    private DataFrameDataSet LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
     {
         DataFrame x = null;
         DataFrame y = null;
@@ -538,7 +538,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             var yTensor = CpuTensor<float>.FromClassIndexToProba(y.FloatTensor, NumClass);
             y = DataFrame.New(yTensor);
         }
-        return new DataSetV2(this, x, y, false);
+        return new DataFrameDataSet(this, x, y, false);
     }
     //private DataFrame DropIdColumnsIfFound(DataFrame df)
     //{

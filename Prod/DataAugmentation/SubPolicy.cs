@@ -97,9 +97,7 @@ namespace SharpNet.DataAugmentation
                         }
                     }
                 }
-                var tmp = previous;
-                previous = next;
-                next = tmp;
+                (previous, next) = (next, previous);
             }
             subPolicy.ForEach(x => x.UpdateY(yDataAugmentedMiniBatch, indexInMiniBatch, indexInOriginalMiniBatchToCategoryIndex));
         }

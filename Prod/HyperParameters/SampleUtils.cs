@@ -25,7 +25,7 @@ public static class SampleUtils
         [NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory,
         bool retrainOnFullDatasetIfBetterModelFound, ref IScore bestScoreSoFar)
     {
-        using var modelAndDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash());
+        using var modelAndDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash(), false);
         var model = modelAndDataset.Model;
         var validationRankingScore = modelAndDataset.Fit(false, true, false);
 
@@ -35,10 +35,9 @@ public static class SampleUtils
         {
             Model.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;
-            var datasetSample = modelAndDataset.DatasetSample;
-            if (bestScoreSoFar.IsBetterThan(datasetSample.MinimumScoreToSaveModel))
+            if (bestScoreSoFar.IsBetterThan(modelAndDataset.DatasetSample.MinimumScoreToSaveModel))
             {
-                var trainAndValidation = datasetSample.SplitIntoTrainingAndValidation();
+                var trainAndValidation = modelAndDataset.DatasetSample.SplitIntoTrainingAndValidation();
                 modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
                 modelAndDataset.Save(workingDirectory);
                 modelAndDataset.Dispose();
@@ -46,7 +45,7 @@ public static class SampleUtils
                 {
                     // ReSharper disable once RedundantAssignment
                     var modelAndDatasetPredictionsSampleOnFullDataset = modelAndDatasetPredictionsSample.CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
-                    using var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL");
+                    using var modelAndDatasetOnFullDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSampleOnFullDataset, workingDirectory, model.ModelName+"_FULL", true);
                     Model.Log.Info($"Retraining Model '{model.ModelName}' on full Dataset no KFold (Model on full Dataset name: '{modelAndDatasetOnFullDataset.Model.ModelName}')");
                     modelAndDatasetOnFullDataset.Fit(true, true, true);
                     //modelAndDatasetOnFullDataset.ComputeAndSaveFeatureImportance();
@@ -54,7 +53,7 @@ public static class SampleUtils
             }
             else
             {
-                Model.Log.Info($"No interest to save the Model because best score {bestScoreSoFar} is better than threshold {datasetSample.MinimumScoreToSaveModel}");
+                Model.Log.Info($"No interest to save the Model because best score {bestScoreSoFar} is better than threshold");
             }
         }
         else

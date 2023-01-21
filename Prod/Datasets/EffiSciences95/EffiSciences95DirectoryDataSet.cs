@@ -1,84 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using SharpNet.CPU;
 using SharpNet.Pictures;
 
 namespace SharpNet.Datasets.EffiSciences95;
 
-public class EffiSciences95DatasetSample : AbstractDatasetSample
-{
-    private EffiSciences95DirectoryDataSet _LazyFullTrainingAndValidation;
-    private EffiSciences95DirectoryDataSet _LazyTestDataset;
-    public EffiSciences95DatasetSample() : base(new HashSet<string>())
-    {
-    }
-
-    public override string[] CategoricalFeatures => new string[0];
-    public override string[] IdColumns => new[] { "index" };
-    public override string[] TargetLabels => new []{"labels"};
-    public override Objective_enum GetObjective()
-    {
-        return Objective_enum.Classification;
-    }
-
-    public override int[] GetInputShapeOfSingleElement()
-    {
-        return EffiSciences95Utils.Shape_CHW;
-    }
-    public override int NumClass => 2;
-    public override DataSet TestDataset()
-    {
-        if (_LazyTestDataset == null)
-        {
-            _LazyTestDataset = null;
-            //_LazyTestDataset = EffiSciences95DirectoryDataSet.ValueOf(false);
-        }
-        return _LazyTestDataset;
-    }
-
-
-    public override DataSet FullTrainingAndValidation()
-    {
-        if (_LazyFullTrainingAndValidation == null)
-        {
-            _LazyFullTrainingAndValidation = EffiSciences95DirectoryDataSet.ValueOf(true);
-        }
-
-        return _LazyFullTrainingAndValidation;
-    }
-
-    public override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.Accuracy;
-    }
-
-    #region Dispose pattern
-    protected override void Dispose(bool disposing)
-    {
-        if (disposed)
-        {
-            return;
-        }
-        disposed = true;
-        //Release Unmanaged Resources
-        if (disposing)
-        {
-            _LazyFullTrainingAndValidation?.Dispose();
-            _LazyTestDataset?.Dispose();
-            //Release Managed Resources
-        }
-    }
-    #endregion
-}
-
 public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 {
     private readonly List<EffiSciences95Row> _boxes;
+    private readonly EffiSciences95DatasetSample _datasetSample;
+
     private readonly Random _r = new (Utils.RandomSeed());
 
-    public static EffiSciences95DirectoryDataSet ValueOf(bool isLabeled, int maxElementCount = -1)
+    public static EffiSciences95DirectoryDataSet ValueOf(EffiSciences95DatasetSample datasetSample, bool isLabeled, int maxElementCount = -1)
     {
-        //maxElementCount = 1000; //!D
+        //maxElementCount = 100; //!D
 
         var idToBoxes = new EffiSciences95BoxesDataset(isLabeled).Content;
         // ReSharper disable once ConditionIsAlwaysTrueOrFalse
@@ -122,7 +59,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         }
 
         return new EffiSciences95DirectoryDataSet(
-            isLabeled,
+            datasetSample,
             boxes,
             elementIdToPaths,
             elementIdToDescription,
@@ -138,10 +75,8 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         Tuple.Create(97.46115f, 73.76817f)
     };
 
-
-
     private EffiSciences95DirectoryDataSet(
-        bool isLabeled,
+        EffiSciences95DatasetSample datasetSample,
         List<EffiSciences95Row> boxes,
         List<List<string>> elementIdToPaths,
         List<string> elementIdToDescription,
@@ -160,6 +95,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             ResizeStrategyEnum.None, 
             null)
     {
+        _datasetSample = datasetSample;
         _boxes = boxes;
     }
 
@@ -174,36 +110,53 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 
         //we need to draw a black box on the picture
         var boxToRemove0 = _boxes[elementId];
+        var rectBoxToRemove = boxToRemove0.Shape;
 
-        int row_Start = boxToRemove0.Row_start;
-        int row_End = boxToRemove0.Row_start + boxToRemove0.Height - 1;
-        int col_Start = boxToRemove0.Col_start;
-        int width = boxToRemove0.Width;
-
-        if (boxToRemove0.Label == "o")
+        if (boxToRemove0.Label == "o" && _datasetSample.EnlargeOldBoxToYoungBoxShape)
         {
             var otherBox = FindBiggerBoxWithLabels(boxToRemove0, "y", 20);
             if (otherBox != null)
             {
-                row_Start -= (otherBox.Height - boxToRemove0.Height) / 2;
-                row_End = row_Start + otherBox.Height - 1;
-                col_Start -= (otherBox.Width - boxToRemove0.Width)/2;
-                width = otherBox.Width;
+                rectBoxToRemove.Y -= (otherBox.Height - boxToRemove0.Height) / 2;
+                rectBoxToRemove.Height = otherBox.Height;
+                rectBoxToRemove.X -= (otherBox.Width - boxToRemove0.Width) / 2;
+                rectBoxToRemove.Width = otherBox.Width;
             }
         }
+        ClearBitmap(res, rectBoxToRemove);
 
-        row_Start -= _r.Next(3);
-        row_End += _r.Next(3);
-        col_Start -= _r.Next(3);
-        width += _r.Next(6);
+        if (_datasetSample.AddNewBoxOfOtherCategory)
+        {
+            var otherCategoryBox = RandomBoxWithLabels(boxToRemove0.Label == "o"?"y":"o", 20);
+            if (otherCategoryBox != null)
+            {
+                ClearBitmap(res, otherCategoryBox.Shape);
+            }
+        }
+        return res;
+    }
 
-        row_Start = Math.Max(row_Start, 0);
-        row_End = Math.Min(row_End, 217);
-        col_Start = Math.Max(col_Start, 0);
-        width = Math.Min(width, 178 - col_Start);
 
+    public void ClearBitmap(BitmapContent res, Rectangle rect)
+    {
+        if (_datasetSample.MaxEnlargeForBox > 0 || _datasetSample.MinEnlargeForBox > 0)
+        {
+            int min_value = Math.Min(_datasetSample.MinEnlargeForBox, _datasetSample.MaxEnlargeForBox);
+            int max_value = Math.Max(_datasetSample.MinEnlargeForBox, _datasetSample.MaxEnlargeForBox);
+            var toAdd = _r.Next(min_value, max_value + 1);
+            rect.Y -= toAdd;
+            rect.Height += 2* toAdd;
+            rect.X -= toAdd;
+            rect.Width += 2 * toAdd;
+        }
 
+        var row_Start = Math.Max(rect.Top, 0);
+        var row_End = Math.Min(rect.Bottom-1, 217);
 
+        var col_Start = Math.Max(rect.Left, 0);
+        var col_End = Math.Min(rect.Right - 1, 177);
+
+        var width = col_End - col_Start + 1;
 
         var span = res.SpanContent;
         for (int c = 0; c < Channels; ++c)
@@ -214,11 +167,22 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
                 span.Slice(idx, width).Clear();
             }
         }
-        //res.Save("c:/temp/toto_"+ ElementIdToDescription(elementId)+".png");
-        return res;
     }
 
 
+    private EffiSciences95Row RandomBoxWithLabels(string mandatoryLabel, int remainingTries)
+    {
+        for (int i = 0; i <= remainingTries; ++i)
+        {
+            var otherBox = _boxes[_r.Next(_boxes.Count)];
+            if (otherBox != null && !otherBox.IsEmpty && otherBox.Label == mandatoryLabel)
+            {
+                return otherBox;
+            }
+        }
+        return null;
+
+    }
     private EffiSciences95Row FindBiggerBoxWithLabels(EffiSciences95Row box, string mandatoryLabel, int remainingTries)
     {
         for (int i = 0; i <= remainingTries; ++i)

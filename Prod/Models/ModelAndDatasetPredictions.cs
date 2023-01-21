@@ -11,6 +11,13 @@ namespace SharpNet.Models;
 public sealed class ModelAndDatasetPredictions : IDisposable    
 {
     #region public fields and properties
+
+    /// <summary>
+    /// true if the 'this' object has created the 'ModelAndDatasetPredictionsSample' and will need to dispose it
+    /// false if the 'this' object has received the 'ModelAndDatasetPredictionsSample' as a parameter (no need to dispose it)
+    /// </summary>
+    private readonly bool isOwnerOfModelAndDatasetPredictionsSample;
+
     public Model Model { get; private set; }
 
     private Model EmbeddedModel
@@ -30,9 +37,10 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     #endregion
 
     #region constructor
-    public ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, string modelName)
+    public ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, string modelName, bool isOwnerOfModelAndDatasetPredictionsSample)
         : this(modelAndDatasetPredictionsSample, modelAndDatasetPredictionsSample.ModelSample.NewModel(modelAndDatasetPredictionsSample.DatasetSample, workingDirectory, modelName))
     {
+        this.isOwnerOfModelAndDatasetPredictionsSample = isOwnerOfModelAndDatasetPredictionsSample;
     }
 
     private ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, Model model)
@@ -67,7 +75,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         var start = Stopwatch.StartNew();
         var modelAndDatasetSample = ModelAndDatasetPredictionsSample.Load(workingDirectory, modelName, useAllAvailableCores);
         ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample.Load)} of model '{modelName}' took {start.Elapsed.TotalSeconds}s");
-        return new ModelAndDatasetPredictions(modelAndDatasetSample, workingDirectory, modelName);
+        return new ModelAndDatasetPredictions(modelAndDatasetSample, workingDirectory, modelName, true);
     }
 
     public static ModelAndDatasetPredictions LoadWithKFold(string workingDirectory, string modelName, int n_splits, bool useAllAvailableCores)
@@ -84,7 +92,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
                 .CopyWithNewModelSample(embeddedModel.ModelSample)
                 .CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
         m.Dispose();
-        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + "_FULL");
+        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + "_FULL", true);
     }
 
 
@@ -337,8 +345,11 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             //Release Managed Resources
             Model?.Dispose();
             Model = null;
-            ModelAndDatasetPredictionsSample?.Dispose();
-            ModelAndDatasetPredictionsSample = null;
+            if (isOwnerOfModelAndDatasetPredictionsSample)
+            {
+                ModelAndDatasetPredictionsSample?.Dispose();
+                ModelAndDatasetPredictionsSample = null;
+            }
         }
     }
     public void Dispose()

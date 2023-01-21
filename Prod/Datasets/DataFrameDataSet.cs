@@ -8,7 +8,7 @@ using SharpNet.Datasets.CFM60;
 
 namespace SharpNet.Datasets;
 
-public class DataSetV2 : DataSet, IGetDatasetSample
+public class DataFrameDataSet : DataSet, IGetDatasetSample
 {
     // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
 
@@ -18,7 +18,7 @@ public class DataSetV2 : DataSet, IGetDatasetSample
     #endregion
 
     
-    public DataSetV2(
+    public DataFrameDataSet(
         AbstractDatasetSample datasetSample,
         [NotNull] DataFrame x_df,
         [CanBeNull] DataFrame y_df,
@@ -58,8 +58,7 @@ public class DataSetV2 : DataSet, IGetDatasetSample
         YDataFrame_InModelFormat = y_df;
 
     }
-    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer,
-        bool withDataAugmentation, bool isTraining)
+    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
     {
         Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
         //same number of channels / same height  / same width

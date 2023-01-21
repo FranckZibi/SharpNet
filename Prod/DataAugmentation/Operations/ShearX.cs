@@ -1,5 +1,6 @@
 namespace SharpNet.DataAugmentation.Operations
 {
+    //TODO : correct bug in this deformation
     public class ShearX : Operation
     {
         private readonly double _level;
