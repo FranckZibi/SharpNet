@@ -1,18 +1,17 @@
 namespace SharpNet.DataAugmentation.Operations
 {
-    //TODO : correct bug in this deformation
     public class ShearY : Operation
     {
-        private readonly double _level;
+        private readonly double _verticalMultiplier;
 
-        public ShearY(double level)
+        public ShearY(double verticalMultiplier)
         {
-            _level = level;
+            _verticalMultiplier = verticalMultiplier;
         }
 
         public override (double row, double col) Unconvert_Slow(double row, double col)
         {
-            return (row - col*_level, col );
+            return (row/_verticalMultiplier, col );
         }
     }
 }

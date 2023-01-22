@@ -108,20 +108,20 @@ namespace SharpNet.DataAugmentation
             var nbCols = xOriginalMiniBatch.Shape[3];
             result.Add(Rotate.ValueOf(_sample.RotationRangeInDegrees, rand, nbRows, nbCols));
 
-            double widthMultiplier = 1.0;
+            double horizontalMultiplier = 1.0;
             if (_sample.ZoomRange > 0)
             {
                 //random zoom multiplier in range [1.0-zoomRange, 1.0+zoomRange]
                 var zoom = 2 * _sample.ZoomRange * rand.NextDouble() - _sample.ZoomRange;
-                widthMultiplier = (1.0 + zoom);
-                result.Add(new ShearX(widthMultiplier));
+                horizontalMultiplier = (1.0 + zoom);
+                result.Add(new ShearX(horizontalMultiplier));
             }
             result.Add(TranslateX.ValueOf(_sample.WidthShiftRangeInPercentage, rand, nbCols));
 
             if (_sample.ZoomRange > 0)
             {
-                double heightMultiplier = widthMultiplier;
-                result.Add(new ShearY(heightMultiplier));
+                double verticalMultiplier = horizontalMultiplier;
+                result.Add(new ShearY(verticalMultiplier));
             }
             result.Add(TranslateY.ValueOf(_sample.HeightShiftRangeInPercentage, rand, nbRows));
 

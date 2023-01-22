@@ -1,18 +1,17 @@
 namespace SharpNet.DataAugmentation.Operations
 {
-    //TODO : correct bug in this deformation
     public class ShearX : Operation
     {
-        private readonly double _level;
+        private readonly double _horizontalMultiplier;
 
-        public ShearX(double level)
+        public ShearX(double horizontalMultiplier)
         {
-            _level = level;
+            _horizontalMultiplier = horizontalMultiplier;
         }
 
         public override (double row, double col) Unconvert_Slow(double row, double col)
         {
-            return (row, col - row * _level );
+            return (row, col/_horizontalMultiplier );
         }
     }
 }

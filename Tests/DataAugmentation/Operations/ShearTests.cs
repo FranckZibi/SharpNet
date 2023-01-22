@@ -9,7 +9,7 @@ namespace SharpNetTests.DataAugmentation.Operations
     public class ShearTests
     {
         [Test]
-        public void TestShearX()
+        public void  TestShearX()
         {
             //single element
             var input = new[] { 12f };
@@ -22,8 +22,9 @@ namespace SharpNetTests.DataAugmentation.Operations
             // 4x4 matrix
             input = Enumerable.Range(0, 16).Select(x => (float)x).ToArray();
             inputShape = new[] { 1, 1, 4, 4 };
-            expected = new[] { 0f, 1, 2, 3, 4, 4, 5, 6, 8, 8, 9, 10, 12, 12, 12, 13 };
-            var operation = new ShearX(0.5);
+            expected = new[] { 0f, 0, 1, 1, 4, 4, 5, 5, 8, 8, 9, 9, 12, 12, 13, 13 };
+
+            var operation = new ShearX(2.0);
             OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
 
             Assert.IsTrue(operation.ChangeCoordinates());
@@ -43,9 +44,9 @@ namespace SharpNetTests.DataAugmentation.Operations
             // 4x4 matrix
             input = Enumerable.Range(0, 16).Select(x => (float)x).ToArray();
             inputShape = new[] { 1, 1, 4, 4 };
-            expected = new[] { 0f, 1, 2, 3, 4, 1, 2, 3, 8, 5, 6, 3, 12, 9, 10, 7 };
+            expected = new[] { 0f, 1, 2, 3, 0f, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7 };
 
-            var operation = new ShearY(0.5);
+            var operation = new ShearY(2);
             OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
 
             Assert.IsTrue(operation.ChangeCoordinates());
