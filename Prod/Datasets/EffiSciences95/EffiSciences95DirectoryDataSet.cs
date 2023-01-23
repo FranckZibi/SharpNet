@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using SharpNet.CPU;
 using SharpNet.Pictures;
@@ -139,32 +141,34 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 
     public void ClearBitmap(BitmapContent res, Rectangle rect)
     {
-        if (_datasetSample.MaxEnlargeForBox > 0 || _datasetSample.MinEnlargeForBox > 0)
+        Debug.Assert(_datasetSample.MaxEnlargeForBox >= _datasetSample.MinEnlargeForBox);
+        if (_datasetSample.MaxEnlargeForBox > 0)
         {
-            int min_value = Math.Min(_datasetSample.MinEnlargeForBox, _datasetSample.MaxEnlargeForBox);
-            int max_value = Math.Max(_datasetSample.MinEnlargeForBox, _datasetSample.MaxEnlargeForBox);
-            var toAdd = _r.Next(min_value, max_value + 1);
-            rect.Y -= toAdd;
-            rect.Height += 2* toAdd;
-            rect.X -= toAdd;
-            rect.Width += 2 * toAdd;
+            int min = _datasetSample.MinEnlargeForBox;
+            int max = _datasetSample.MaxEnlargeForBox;
+            int dy = _r.Next(min, max+1);
+            rect.Y -= dy;
+            rect.Height += dy+_r.Next(min, max + 1);
+            int dx = _r.Next(min, max + 1);
+            rect.X -= dx;
+            rect.Width += dx + _r.Next(min, max + 1);
         }
 
         var row_Start = Math.Max(rect.Top, 0);
         var row_End = Math.Min(rect.Bottom-1, 217);
-
         var col_Start = Math.Max(rect.Left, 0);
         var col_End = Math.Min(rect.Right - 1, 177);
-
         var width = col_End - col_Start + 1;
 
         var span = res.SpanContent;
         for (int c = 0; c < Channels; ++c)
         {
+            //!D TO CHECK: var meanValue = (byte)PrecomputedMeanAndVolatilityForEachChannel[c].Item1;
             for (int row = row_Start; row <= row_End; ++row)
             {
                 int idx = res.Idx(c, row, col_Start);
                 span.Slice(idx, width).Clear();
+                //TODO: TO CHECK: for (int col = idx; col < idx + width; ++col) {span[col] = meanValue;}
             }
         }
     }

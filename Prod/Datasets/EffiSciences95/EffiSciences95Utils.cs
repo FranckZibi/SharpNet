@@ -73,13 +73,13 @@ public static class EffiSciences95Utils
 
 
     // ReSharper disable once UnusedMember.Global
-    public static void InferenceUnlabeledEffiSciences95(string modelDirectory, string modelName)
+    public static void InferenceUnlabeledEffiSciences95(string modelDirectory, string modelName, bool useAllAvailableCores)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
         const bool isLabeled = false;
 
-        using var network = Network.LoadTrainedNetworkModel(modelDirectory, modelName);
+        using var network = Network.LoadTrainedNetworkModel(modelDirectory, modelName, useAllAvailableCores: useAllAvailableCores);
         using var datasetSample = new EffiSciences95DatasetSample();
         using var unlabeledDataset = EffiSciences95DirectoryDataSet.ValueOf(datasetSample, isLabeled);
         Log.Info($"computing predictions of model {modelName} on dataset of {unlabeledDataset.Count} rows");
@@ -155,23 +155,26 @@ public static class EffiSciences95Utils
             //{"KFold", 2},
             {"PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
 
-            { "BatchSize", new[] {64} },
+            { "BatchSize", new[] {64 /*, 96*/} },
             { "NumEpochs", new[] { numEpochs } },
             {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
 
 
-            { "MinEnlargeForBox", new[] {0}},
-            { "MaxEnlargeForBox", new[] {3}},
-            { "EnlargeOldBoxToYoungBoxShape", new[] { false, true} },
-            { "AddNewBoxOfOtherCategory", new[] { false, true} },
+            { "WidthShiftRangeInPercentage", new[] {0.1}},
+            { "HeightShiftRangeInPercentage", new[] {0.1}},
+
+            { "MinEnlargeForBox", new[] {3/*,3*/}},
+            { "MaxEnlargeForBox", new[] {10}},
+            { "EnlargeOldBoxToYoungBoxShape", new[] { /*false,*/ true} },
+            { "AddNewBoxOfOtherCategory", new[] { false /*, true*/} },
     
             // DataAugmentation
             //{ "HorizontalFlip", new[] { true /*, false*/} }, //true
             //{ "VerticalFlip", new[] { false /*, true*/} }, //false
             //{ "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
-            //{ "AlphaCutMix", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
-            { "CutoutPatchPercentage", new[] { 0.0, 0.15, 0.3} },
-            { "RotationRangeInDegrees", new[] { 0.0, 5, 10.0} },
+            { "AlphaCutMix", new[] { 1.0, 2.0 } }, //0.0
+            //{ "CutoutPatchPercentage", new[] { 0.0, 0.15, 0.3} },
+            //{ "RotationRangeInDegrees", new[] { 0.0, 5.0, 10.0} },
             //{ "ZoomRange", new[] { 0.05} },
             //{ "EqualizeOperationProbability", new[] { 0.0, 0.2} },
             //{ "AutoContrastOperationProbability", new[] { 1.0} },
@@ -181,10 +184,11 @@ public static class EffiSciences95Utils
             // Optimizer 
             //{ "OptimizerType", new[] { "AdamW"} },
             //{ "SGD_usenesterov", new[] { true, false } },
-            { "lambdaL2Regularization", new[] { 0.0005, /*0.001, 0.00005*/ } },
-            {"DefaultMobileBlocksDescriptionCount", new[]{5}},
+            //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
+            { "lambdaL2Regularization", new[] { 0.0005 /*, 0.001, 0.00005*/ } },
+            {"DefaultMobileBlocksDescriptionCount", new[]{4, 5}},
             // Learning Rate
-            { "InitialLearningRate", new []{0.01 , 0.015, 0.005}},
+            { "InitialLearningRate", new []{0.01 /*, 0.015, 0.005*/}},
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
             //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },

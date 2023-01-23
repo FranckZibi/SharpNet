@@ -37,13 +37,13 @@ namespace SharpNet.Networks
             return fixedResult.ToArray();
         }
         
-        public static Network LoadTrainedNetworkModel(string workingDirectory, string modelName)
+        public static Network LoadTrainedNetworkModel(string workingDirectory, string modelName, bool useAllAvailableCores = false)
         {
             var modelFilePath = Path.Combine(workingDirectory, modelName + ".txt");
             //we load the model (network description)
             var allLines = File.ReadAllLines(modelFilePath);
             var dicoFirstLine = Serializer.Deserialize(allLines[0]);
-            var sample = (NetworkSample) ISample.Load(workingDirectory, modelName);
+            var sample = (NetworkSample) IModelSample.LoadModelSample(workingDirectory, modelName, useAllAvailableCores);
             if (!string.IsNullOrEmpty(workingDirectory) && !Directory.Exists(workingDirectory))
             {
                 // ReSharper disable once PossibleNullReferenceException

@@ -54,6 +54,34 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
         return EvaluationMetricEnum.Accuracy;
     }
 
+    public override bool FixErrors()
+    {
+        if (!base.FixErrors())
+        {
+            return false;
+        }
+
+        if (MinEnlargeForBox > MaxEnlargeForBox)
+        {
+            return false;
+        }
+
+        if (!EnlargeOldBoxToYoungBoxShape && !AddNewBoxOfOtherCategory)
+        {
+            if (Utils.RandomCoinFlip())
+            {
+                EnlargeOldBoxToYoungBoxShape = true;
+                AddNewBoxOfOtherCategory = false;
+            }
+            else
+            {
+                EnlargeOldBoxToYoungBoxShape = false;
+                AddNewBoxOfOtherCategory = true;
+            }
+        }
+        return true;
+    }
+
     #region Dispose pattern
     protected override void Dispose(bool disposing)
     {

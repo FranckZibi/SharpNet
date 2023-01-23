@@ -78,13 +78,11 @@ namespace SharpNetTests
             //Model.LoadProbaFile(@"C:\Projects\Challenges\KaggleDays\catboost\Temp\a_FULL_predict_D3D1ED8387.tsv", true, true, null, null);
             //return;
 
-            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Run();return;
-            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("C:/Projects/Challenges/EffiSciences95/Data", "F3454EBDFF"); return;
-            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95(@"\\ryzen2700\Challenges\EffiSciences95\", "761C9ADBE1_FULL"); return;
-            SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(10, -1); return;
-            
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("C:/Projects/Challenges/EffiSciences95/", "F1040C26F7_FULL", true); return;
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(30, -1); return;
 
-            new ChallengeTools().Retrain(-1, true); return;
+
+            //new ChallengeTools().Retrain(-1, true); return;
 
             //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
 
