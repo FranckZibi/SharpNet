@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Text;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 using DataSet = SharpNet.Datasets.DataSet;
@@ -84,15 +88,18 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         return m.WithKFold(n_splits);
     }
 
-    public static ModelAndDatasetPredictions LoadWithFullTrainingNoKFold(string workingDirectory, string modelName, bool useAllAvailableCores)
+    public static ModelAndDatasetPredictions LoadWithNewPercentageInTrainingNoKFold(double newPercentageInTraining, string workingDirectory, string modelName, bool useAllAvailableCores)
     {
         using var m = Load(workingDirectory, modelName, useAllAvailableCores);
         var embeddedModel = m.EmbeddedModel;
         var modelAndDatasetPredictionsSample = m.ModelAndDatasetPredictionsSample
-                .CopyWithNewModelSample(embeddedModel.ModelSample)
-                .CopyWithNewPercentageInTrainingAndKFold(1.0, 1);
+            .CopyWithNewModelSample(embeddedModel.ModelSample)
+            .CopyWithNewPercentageInTrainingAndKFold(newPercentageInTraining, 1);
+        var newModelName = (newPercentageInTraining >= 0.999)
+            ? embeddedModel.ModelName + "_FULL"
+            : modelAndDatasetPredictionsSample.ComputeHash();
         m.Dispose();
-        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + "_FULL", true);
+        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, newModelName, true);
     }
 
 
@@ -107,15 +114,18 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     /// <param name="computeValidationRankingScore"></param>
     /// <param name="saveTrainedModel"></param>
     /// <returns>validation ranking score</returns>
+    [SuppressMessage("ReSharper", "UnusedVariable")]
     public IScore Fit(bool computeAndSavePredictions, bool computeValidationRankingScore, bool saveTrainedModel)
     {
         using var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
         var validationDataSet = trainingAndValidation.Test;
-        var trainDataset = trainingAndValidation.Training;
+        DataSet trainDataset = trainingAndValidation.Training;
         (DatasetSample.Train_XDatasetPath_InModelFormat, DatasetSample.Train_YDatasetPath_InModelFormat, DatasetSample.Train_XYDatasetPath_InModelFormat, 
          DatasetSample.Validation_XDatasetPath_InModelFormat, DatasetSample.Validation_YDatasetPath_InModelFormat, DatasetSample.Validation_XYDatasetPath_InModelFormat,
-         var trainScoreIfAvailable, var validationScoreIfAvailable) = Model.Fit(trainDataset, validationDataSet);
-        IScore validationRankingScore = null;
+         var trainScoreIfAvailable, var validationScoreIfAvailable, var trainMetricIfAvailable, var validationMetricIfAvailable) 
+            = Model.Fit(trainDataset, validationDataSet);
+        var trainRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(trainScoreIfAvailable, trainMetricIfAvailable);
+        var validationRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(validationScoreIfAvailable, validationMetricIfAvailable);
         if (computeAndSavePredictions)
         {
             var start = Stopwatch.StartNew();
@@ -124,20 +134,173 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         }
         else if (computeValidationRankingScore)
         {
-            var start = Stopwatch.StartNew();
-            validationRankingScore = Model.ComputePredictionsAndRankingScore(trainingAndValidation, DatasetSample, false).validationRankingScore_InTargetFormat;
-            ISample.Log.Debug($"{nameof(Model.ComputePredictionsAndRankingScore)} took '{start.Elapsed.TotalSeconds}'s");
+            if (validationRankingScore != null)
+            {
+                ISample.Log.Debug($"No need to compute Validation Ranking score because it is already known {validationRankingScore}");
+            }
+            else
+            {
+                var start = Stopwatch.StartNew();
+                validationRankingScore = Model.ComputePredictionsAndRankingScore(trainingAndValidation, DatasetSample, false).validationRankingScore_InTargetFormat;
+                ISample.Log.Debug($"{nameof(Model.ComputePredictionsAndRankingScore)} took '{start.Elapsed.TotalSeconds}'s");
+            }
         }
         if (saveTrainedModel)
         {
             Save(Model.WorkingDirectory);
         }
 
-        ISample.Log.Debug($"Model {Model.ModelName} scores: trainScore = {trainScoreIfAvailable} / validationScore  = {validationScoreIfAvailable} / validationRankingScore = {validationRankingScore}");
+        ISample.Log.Debug($"Model {Model.ModelName} scores: trainScore = {trainScoreIfAvailable} / validationScore  = {validationScoreIfAvailable} / trainRankingScore = {trainRankingScore} / validationRankingScore = {validationRankingScore}");
         return validationRankingScore;
     }
+
+
+    #region Contribution to Loss
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="computeAlsoRankingScore">
+    /// if true:
+    ///     we compute both the contribution to the model loss and the contribution to the ranking score
+    /// else (false):
+    ///     we compute only the contribution to the model loss and the contribution to the ranking score
+    /// </param>
+    /// <param name="maxGroupSize">
+    /// max number of columns in a group.
+    /// if 1:
+    ///     a contribution will be computed for each column
+    /// if int.MaxValue:
+    ///     a contribution will be computed for each group
+    /// </param>
+    public void EstimateLossContribution(bool computeAlsoRankingScore = true, int maxGroupSize = int.MaxValue)
+    {
+        var sb = new StringBuilder();
+        sb.Append("ModelLossMetric,TrainModelLoss,TrainLossContribution,ValidationModelLoss,ValidationLossContribution,RankingMetric,TrainRankingScore,TrainRankingScoreContribution,ValidationRankingScore,ValidationRankingScoreContribution,RandomizedColumnsCount,RandomizedColumnNames" + Environment.NewLine);
+
+        using var trainingAndValidation = (AbstractTrainingAndTestDataset)DatasetSample.SplitIntoTrainingAndValidation();
+        var (_, trainLoss, _, trainRankingScore, _) = DatasetSample.ComputePredictionsAndRankingScoreV2(trainingAndValidation.Training, Model, removeAllTemporaryFilesAtEnd:false, computeAlsoRankingScore: computeAlsoRankingScore);
+        var (_, validationLoss, _, validationRankingScore, _) = DatasetSample.ComputePredictionsAndRankingScoreV2(trainingAndValidation.Test, Model, removeAllTemporaryFilesAtEnd: false, computeAlsoRankingScore: computeAlsoRankingScore);
+        sb.Append(LossContributionLine(trainLoss, trainLoss, validationLoss, validationLoss, trainRankingScore, trainRankingScore, validationRankingScore, validationRankingScore, new List<string>(), "All Features") + Environment.NewLine);
+
+        var r = new Random(0);
+        
+        var listOfGroupOfFeaturesToRandomize = GroupOfColumnsToShuffle(trainingAndValidation.Training, maxGroupSize);
+        // in the first group, we'll randomize all features
+        var allFeatures = listOfGroupOfFeaturesToRandomize.SelectMany(c => c).ToList();
+        listOfGroupOfFeaturesToRandomize.Insert(0, allFeatures);
+        for (var index = 0; index < listOfGroupOfFeaturesToRandomize.Count; index++)
+        {
+            var featuresToRandomize = listOfGroupOfFeaturesToRandomize[index];
+            var groupName = index == 0 ? "No Feature" : string.Join("_", featuresToRandomize).Replace(',', ' ');
+            ISample.Log.Info($"Computing Loss Contribution of feature(s): {string.Join(",", featuresToRandomize)}");
+            var randomized = trainingAndValidation.WithRandomizeColumnDataSet(featuresToRandomize, r);
+            const bool removeAllTemporaryFilesAtEnd = true;
+            var (_, groupTrainLoss, _, groupTrainRankingScore, _) = DatasetSample.ComputePredictionsAndRankingScoreV2(randomized.Training, Model, removeAllTemporaryFilesAtEnd: removeAllTemporaryFilesAtEnd, computeAlsoRankingScore: computeAlsoRankingScore);
+            var (_, groupValidationLoss, _, groupValidationRankingScore, _) = DatasetSample.ComputePredictionsAndRankingScoreV2(randomized.Test, Model, removeAllTemporaryFilesAtEnd: removeAllTemporaryFilesAtEnd, computeAlsoRankingScore: computeAlsoRankingScore);
+            sb.Append(LossContributionLine(trainLoss, groupTrainLoss, validationLoss, groupValidationLoss, trainRankingScore, groupTrainRankingScore, validationRankingScore, groupValidationRankingScore, featuresToRandomize, groupName) + Environment.NewLine);
+        }
+
+        var outputPath = Path.Combine(Model.WorkingDirectory, Model.ModelName + "_LossContribution_" + DateTime.Now.Ticks + ".csv");
+        ISample.Log.Info($"Contribution to loss written to file {outputPath}");
+        File.WriteAllText(outputPath, sb.ToString());
+    }
+
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="dataset"></param>
+    /// <param name="maxGroupSize">
+    /// max number of columns in a group.
+    /// if 1:
+    ///     a contribution will be computed for each column
+    /// if int.MaxValue:
+    ///     a contribution will be computed for each group
+    /// </param>
+    /// <returns></returns>
+    private static List<List<string>> GroupOfColumnsToShuffle(DataSet dataset, int maxGroupSize = int.MaxValue)
+    {
+        var stemmingColumnNameToColumnNames = new Dictionary<string, List<string>>();
+        foreach (var c in dataset.ColumnNames)
+        {
+            if (dataset.IdColumns.Contains(c))
+            {
+                continue;
+            }
+            //we remove the digits at start and end of the column name to get a 'stem' column name
+            // Ex: "12_r25" => "_r"
+            var stem = c.Trim('1', '2', '3', '4', '5', '6', '7', '8', '9', '0');
+            if (stem.Length == 0)
+            {
+                stem = c;
+            }
+            if (!stemmingColumnNameToColumnNames.TryGetValue(stem, out var list))
+            {
+                list = new List<string>();
+                stemmingColumnNameToColumnNames[stem] = list;
+            }
+            list.Add(c);
+            if (list.Count >= maxGroupSize)
+            {
+                stemmingColumnNameToColumnNames[stem + "_" + c] = list;
+                stemmingColumnNameToColumnNames.Remove(stem);
+            }
+        }
+        return stemmingColumnNameToColumnNames.Values.ToList();
+    }
+
+
+    private static float LossContribution(IScore baseScore, IScore updatedScore)
+    {
+        if (baseScore == null || updatedScore == null)
+        {
+            return 0;
+        }
+        if (baseScore.HigherIsBetter)
+        {
+            return updatedScore.Value - baseScore.Value;
+        }
+        return baseScore.Value - updatedScore.Value;
+    }
+
+    private static string ToString(IScore a)
+    {
+        if (a == null)
+        {
+            return "";
+        }
+        return a.Value.ToString(CultureInfo.InvariantCulture);
+    }
+    private string LossContributionLine(
+        IScore baseTrainLoss, IScore trainLoss, IScore baseValidationLoss, IScore validationLoss,
+        IScore baseTrainRankingScore, IScore trainRankingScore, IScore baseValidationRankingScore,
+        IScore validationRankingScore,
+        List<string> columnsToRandomize,
+        string groupName)
+    {
+        //sb.Append("ModelLossMetricName,
+        //TrainModelLoss,TrainContributionToLoss,ValidationModelLoss,//ValidationContributionToLoss,
+        //RankingMetric,TrainRankingScore,TrainContributionToRankingScore,ValidationRankingScore,ValidationContributionToRankingScore,RandomizedColumnsCount,RandomizedColumnNames" + Environment.NewLine);
+        return $"{Model.ModelSample.GetLoss()},"
+               + $"{ToString(trainLoss)},"
+               + $"{LossContribution(trainLoss, baseTrainLoss)},"
+               + $"{ToString(validationLoss)},"
+               + $"{LossContribution(validationLoss, baseValidationLoss)},"
+               + $"{DatasetSample.GetRankingEvaluationMetric()},"
+               + $"{ToString(trainRankingScore)},"
+               + $"{LossContribution(trainRankingScore, baseTrainRankingScore)},"
+               + $"{ToString(validationRankingScore)},"
+               + $"{LossContribution(validationRankingScore, baseValidationRankingScore)},"
+               + $"{columnsToRandomize.Count},"
+               + $"{groupName}"
+            ;
+
+    }
+
+    #endregion
+
     public (IScore trainRankingScore, IScore validationRankingScore) 
-        ComputeAndSavePredictions(ITrainingAndTestDataSet trainingAndValidation)
+        ComputeAndSavePredictions(ITrainingAndTestDataset trainingAndValidation)
     {
         var trainDataset = trainingAndValidation.Training;
         var validationDataset = trainingAndValidation.Test;
@@ -179,7 +342,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         if (testDatasetIfAny != null)
         {
             ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Test Dataset");
-            var (testPredictionsInTargetFormat, testPredictionsInModelFormat, testRankingScore, testDatasetPath_InModelFormat) = DatasetSample.ComputePredictionsAndRankingScore(testDatasetIfAny, Model);
+            var (testPredictionsInModelFormat, _,testPredictionsInTargetFormat, testRankingScore, testDatasetPath_InModelFormat) = DatasetSample.ComputePredictionsAndRankingScoreV2(testDatasetIfAny, Model, false);
             if (testRankingScore == null)
             {
                 DatasetSample.Test_XDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, false, includeIdColumns, overwriteIfExists);

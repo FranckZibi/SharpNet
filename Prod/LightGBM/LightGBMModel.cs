@@ -38,8 +38,11 @@ namespace SharpNet.LightGBM
         }
         #endregion
 
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat,
-            IScore trainScoreIfAvailable, IScore validationScoreIfAvailable) 
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
+            train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
+            validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
+            trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
+            validationMetricIfAvailable)
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             var sw = Stopwatch.StartNew();
@@ -61,27 +64,25 @@ namespace SharpNet.LightGBM
                 {"prediction_result", ""},
                 {"header", true},
                 {"save_binary", false},
-
-                //this is need to retrieve the train and validation metrics
+                //this is needed to retrieve the train and validation metrics
                 {nameof(LightGbmSample.verbosity), "1"}, 
                 //this is need to retrieve the train metric
                 {nameof(LightGbmSample.is_provide_training_metric), true},
             });
-            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}" +(string.IsNullOrEmpty(validation_XYDatasetPath_InModelFormat) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validation_XYDatasetPath_InModelFormat)}'"));
-            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
 
-            var lines = Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, Log, true);
-            var extractedScores = Utils.ExtractValuesFromOutputLog(lines, 2, "training", "valid_1");
-            var trainValue = extractedScores[0];
-            var validationValue = extractedScores[1];
+            tmpLightGBMSample.AddExtraMetricToComputeForTraining();
+            tmpLightGBMSample.Save(tmpLightGBMSamplePath);
+            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}" + (string.IsNullOrEmpty(validation_XYDatasetPath_InModelFormat) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validation_XYDatasetPath_InModelFormat)}'"));
+            var linesFromLog = Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, Log, true);
+            var (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable) = tmpLightGBMSample.ExtractScores(linesFromLog);
 
             Utils.TryDelete(tmpLightGBMSamplePath);
 
-            var trainScoreIfAvailable = double.IsNaN(trainValue) ? null : new Score((float)trainValue, ModelSample.GetLoss());
-            var validationScoreIfAvailable = double.IsNaN(validationValue) ? null : new Score((float)validationValue, ModelSample.GetLoss());
-            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' took {sw.Elapsed.TotalSeconds}s (trainScore = {trainScoreIfAvailable} / validationScore = {validationScoreIfAvailable})");
-            return (null, null, train_XYDatasetPath_InModelFormat, null, null, validation_XYDatasetPath_InModelFormat, trainScoreIfAvailable, validationScoreIfAvailable);
+            LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable} / trainMetric = {trainMetricIfAvailable} / validationMetric = {validationMetricIfAvailable})");
+            return (null, null, train_XYDatasetPath_InModelFormat, null, null, validation_XYDatasetPath_InModelFormat, trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
         }
+
+      
 
         public override DataFrame ComputeFeatureImportance(AbstractDatasetSample datasetSample, AbstractDatasetSample.DatasetType datasetType)
         {

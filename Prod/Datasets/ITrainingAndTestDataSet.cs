@@ -1,8 +1,7 @@
 ﻿using System;
-
 namespace SharpNet.Datasets
 {
-    public interface ITrainingAndTestDataSet : IDisposable
+    public interface ITrainingAndTestDataset : IDisposable
     {
         DataSet Training { get; }
         DataSet Test { get; }

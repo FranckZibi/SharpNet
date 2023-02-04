@@ -111,7 +111,7 @@ public interface ISample
         var res = new Dictionary<string, string>();
         foreach (var e in File.ReadAllLines(path))
         {
-            if (string.IsNullOrEmpty(e.Trim()))
+            if (string.IsNullOrEmpty(e.Trim()) || e.StartsWith("#"))
             {
                 continue;
             }

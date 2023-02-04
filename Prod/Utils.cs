@@ -1343,10 +1343,19 @@ namespace SharpNet
         /// </summary>
         /// <param name="lines"></param>
         /// <param name="indexValueAfterToken"></param>
-        /// <param name="token"></param>
+        /// <param name="tokenAndMandatoryItemAfterToken"></param>
         /// <returns></returns>
-        public static double[] ExtractValuesFromOutputLog(IEnumerable<string> lines, int indexValueAfterToken, params string[] token)
+        public static double[] ExtractValuesFromOutputLog(IEnumerable<string> lines, int indexValueAfterToken, params string[] tokenAndMandatoryItemAfterToken)
         {
+            Debug.Assert(tokenAndMandatoryItemAfterToken.Length%2 == 0);
+            var token = new string[tokenAndMandatoryItemAfterToken.Length / 2];
+            var mandatoryItemAfterToken = new string[token.Length];
+            for (int i = 0; i < tokenAndMandatoryItemAfterToken.Length; i += 2)
+            {
+                token[i / 2] = tokenAndMandatoryItemAfterToken[i];
+                mandatoryItemAfterToken[i / 2] = tokenAndMandatoryItemAfterToken[i + 1];
+            }
+
             var results = Enumerable.Repeat(double.NaN, token.Length).ToArray();
             foreach(var line in lines.Reverse())
             {
@@ -1370,7 +1379,9 @@ namespace SharpNet
                         continue;
                     }
                     var splitted = line.Substring(idx + token[j].Length).Trim().Split();
-                    if (indexValueAfterToken< splitted.Length && double.TryParse(splitted[indexValueAfterToken], out var d))
+                    if (   indexValueAfterToken< splitted.Length
+                           && (mandatoryItemAfterToken[j] == null || mandatoryItemAfterToken[j] == splitted[0])
+                           && double.TryParse(splitted[indexValueAfterToken], out var d))
                     {
                         results[j] = d;
                     }

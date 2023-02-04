@@ -59,7 +59,7 @@ public class KFoldModel : Model
     }
 
 
-    private static string KFoldModelNameEmbeddedModelName(string kfoldModelName, int index)
+    public static string KFoldModelNameEmbeddedModelName(string kfoldModelName, int index)
     {
         if (index < 0)
         {
@@ -122,8 +122,11 @@ public class KFoldModel : Model
     //    }
     //}
 
-    public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat,
-    IScore trainScoreIfAvailable, IScore validationScoreIfAvailable) 
+    public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
+        train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
+        validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
+        trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
+        validationMetricIfAvailable)
         Fit(DataSet trainDataset, DataSet nullValidationDataset)
     {
         if (nullValidationDataset != null)
@@ -134,21 +137,32 @@ public class KFoldModel : Model
         const bool includeIdColumns = true;
         const bool overwriteIfExists = false;
         int n_splits = KFoldSample.n_splits;
-        var foldedTrainAndValidationDataset = KFold(trainDataset, n_splits, KFoldSample.CountMustBeMultipleOf);
+        var foldedTrainAndValidationDataset = trainDataset.KFoldSplit(n_splits, KFoldSample.CountMustBeMultipleOf);
         var train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(RootDatasetPath, true, includeIdColumns, overwriteIfExists);
 
         List<IScore> allFoldTrainScoreIfAvailable = new();
         List<IScore> allFoldValidationScoreIfAvailable = new();
+        List<IScore> allFoldTrainMetricIfAvailable = new();
+        List<IScore> allFoldValidationMetricIfAvailable = new();
 
         for (int fold = 0; fold < n_splits; ++fold)
         {
             var embeddedModel = _embeddedModels[fold];
             LogDebug($"Training embedded model '{embeddedModel.ModelName}' on fold[{fold}/{n_splits}]");
             var trainAndValidation = foldedTrainAndValidationDataset[fold];
-            var (_, _, _, _, _, _, foldTrainScoreIfAvailable, foldValidationScoreIfAvailable) = embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
+            var (_, _, _, _, _, _, foldTrainScoreIfAvailable, foldValidationScoreIfAvailable, foldTrainMetricIfAvailable, foldValidationMetricIfAvailable) = embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
             if (foldTrainScoreIfAvailable != null)
             {
                 allFoldTrainScoreIfAvailable.Add(foldTrainScoreIfAvailable);
+            }
+
+            if (foldTrainMetricIfAvailable != null)
+            {
+                allFoldTrainMetricIfAvailable.Add(foldTrainMetricIfAvailable);
+            }
+            if (foldValidationMetricIfAvailable != null)
+            {
+                allFoldValidationMetricIfAvailable.Add(foldValidationMetricIfAvailable);
             }
 
             // we retrieve (or recompute if required) the validation score 
@@ -168,19 +182,21 @@ public class KFoldModel : Model
         }
         var trainScoreIfAvailable = IScore.Average(allFoldTrainScoreIfAvailable);
         var validationScoreIfAvailable = IScore.Average(allFoldValidationScoreIfAvailable);
-        return (null, null, train_XYDatasetPath_InTargetFormat, null, null, train_XYDatasetPath_InTargetFormat, trainScoreIfAvailable, validationScoreIfAvailable);
+        var trainMetricIfAvailable = IScore.Average(allFoldTrainMetricIfAvailable);
+        var validationMetricIfAvailable = IScore.Average(allFoldValidationMetricIfAvailable);
+        return (null, null, train_XYDatasetPath_InTargetFormat, null, null, train_XYDatasetPath_InTargetFormat, trainScoreIfAvailable, validationScoreIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
     }
 
     public override (DataFrame trainPredictions_InTargetFormat, IScore trainRankingScore_InTargetFormat,
         DataFrame trainPredictions_InModelFormat, IScore trainLoss_InModelFormat,
         DataFrame validationPredictions_InTargetFormat, IScore validationRankingScore_InTargetFormat,
         DataFrame validationPredictions_InModelFormat, IScore validationLoss_InModelFormat)
-        ComputePredictionsAndRankingScore(ITrainingAndTestDataSet trainingAndValidation, AbstractDatasetSample datasetSample, bool computeTrainMetrics)
+        ComputePredictionsAndRankingScore(ITrainingAndTestDataset trainingAndValidation, AbstractDatasetSample datasetSample, bool computeTrainMetrics)
     {
         var trainDataset = trainingAndValidation.Training;
         Debug.Assert(trainingAndValidation.Test == null);
         int n_splits = KFoldSample.n_splits;
-        var foldedTrainAndValidationDataset = KFold(trainDataset, n_splits, KFoldSample.CountMustBeMultipleOf);
+        var foldedTrainAndValidationDataset = trainDataset.KFoldSplit(n_splits, KFoldSample.CountMustBeMultipleOf);
         var validationIntervalForKfold = KFoldIntervals(n_splits, trainDataset.Count, KFoldSample.CountMustBeMultipleOf);
 
         DataFrame trainPredictions_InModelFormat = null;
@@ -316,7 +332,7 @@ public class KFoldModel : Model
 
     private KFoldSample KFoldSample => (KFoldSample)ModelSample;
     //TODO add tests
-    private static List<Tuple<int, int>> KFoldIntervals(int n_splits, int count, int countMustBeMultipleOf)
+    public static List<Tuple<int, int>> KFoldIntervals(int n_splits, int count, int countMustBeMultipleOf)
     {
         Debug.Assert(n_splits >= 1);
         List<Tuple<int, int>> validationIntervalForKfold = new();
@@ -334,19 +350,6 @@ public class KFoldModel : Model
             validationIntervalForKfold.Add(Tuple.Create(start, end));
         }
         return validationIntervalForKfold;
-    }
-    private static List<TrainingAndTestDataset> KFold(DataSet dataset, int kfold, int countMustBeMultipleOf)
-    {
-        var validationIntervalForKfold = KFoldIntervals(kfold, dataset.Count, countMustBeMultipleOf);
-        List<TrainingAndTestDataset> res = new();
-        for (var index = 0; index < validationIntervalForKfold.Count; index++)
-        {
-            var intervalForValidation = validationIntervalForKfold[index];
-            var training = dataset.SubDataSet(id => id < intervalForValidation.Item1 || id > intervalForValidation.Item2);
-            var test = dataset.SubDataSet(id => id >= intervalForValidation.Item1 && id <= intervalForValidation.Item2);
-            res.Add(new TrainingAndTestDataset(training, test, KFoldModelNameEmbeddedModelName(dataset.Name, index)));
-        }
-        return res;
     }
 
 

@@ -501,7 +501,7 @@ public class CFM60DataSetOld : DataSet, ITimeSeriesDataSet
             }
         }
     }
-    public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
+    public override ITrainingAndTestDataset SplitIntoTrainingAndValidation(double percentageInTrainingSet)
     {
         var dayThreshold = CFM60DatasetSample.DayThreshold(Entries, percentageInTrainingSet);
         var training = new CFM60DataSetOld(Entries.Where(e => e.day <= dayThreshold).ToArray(), _cfm60NetworkSampleOld);

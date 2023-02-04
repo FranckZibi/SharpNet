@@ -106,7 +106,7 @@ namespace SharpNet.Data
         /// and store it in the output tensor
         /// </summary>
         /// <param name="input">a tensor of shape (rows, columns) </param>
-        /// <returns>a tensor of shape (rows, 1), each row contains the index of the max element of the row 'row' in 'inpute</returns>
+        /// <returns>a tensor of shape (rows, 1), each row contains the index of the max element of the row 'row' in 'input'</returns>
         public static CpuTensor<float> ArgMax(this CpuTensor<float> input)
         {
             Debug.Assert(input.Shape.Length == 2);

@@ -52,6 +52,11 @@ namespace SharpNet.Datasets
             return _original.ElementIdToPathIfAny(_elementIdToOriginalElementId[elementId]);
         }
 
+        public override List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
+        {
+            return _original.KFoldSplit(kfold, countMustBeMultipleOf);
+        }
+
         public override CpuTensor<float> Y { get; }
 
         #region Dispose pattern

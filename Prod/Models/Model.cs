@@ -43,7 +43,7 @@ public abstract class Model: IDisposable
         DataFrame trainPredictions_InModelFormat, IScore trainLoss_InModelFormat,
         DataFrame validationPredictions_InTargetFormat, IScore validationRankingScore_InTargetFormat,
         DataFrame validationPredictions_InModelFormat, IScore validationLoss_InModelFormat)
-        ComputePredictionsAndRankingScore(ITrainingAndTestDataSet trainingAndValidation, AbstractDatasetSample datasetSample, bool computeTrainMetrics)
+        ComputePredictionsAndRankingScore(ITrainingAndTestDataset trainingAndValidation, AbstractDatasetSample datasetSample, bool computeTrainMetrics)
     {
         var validationDataset = trainingAndValidation.Test;
         var trainDataset = trainingAndValidation.Training;
@@ -54,8 +54,8 @@ public abstract class Model: IDisposable
         IScore trainLoss_InModelFormat = null;
         if (computeTrainMetrics)
         {
-            (trainPredictions_InTargetFormat, trainPredictions_InModelFormat, trainRankingScore_InTargetFormat, _) =
-                datasetSample.ComputePredictionsAndRankingScore(trainDataset, this);
+            (trainPredictions_InModelFormat, trainLoss_InModelFormat, trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, _) =
+                datasetSample.ComputePredictionsAndRankingScoreV2(trainDataset, this, false);
         }
 
         DataFrame validationPredictions_InTargetFormat = null;
@@ -64,8 +64,8 @@ public abstract class Model: IDisposable
         IScore validationLoss_InModelFormat = null;
         if (validationDataset != null)
         {
-            (validationPredictions_InTargetFormat, validationPredictions_InModelFormat, validationRankingScore_InTargetFormat, _) =
-                datasetSample.ComputePredictionsAndRankingScore(validationDataset, this);
+            (validationPredictions_InModelFormat, validationLoss_InModelFormat, validationPredictions_InTargetFormat, validationRankingScore_InTargetFormat, _) =
+                datasetSample.ComputePredictionsAndRankingScoreV2(validationDataset, this, false);
             datasetSample.Validation_XYDatasetPath_InTargetFormat = validationDataset.to_csv_in_directory(RootDatasetPath, true, true, false);
         }
 
@@ -200,13 +200,17 @@ public abstract class Model: IDisposable
         }
     }
 
-    public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainScoreIfAvailable, IScore validationScoreIfAvailable) 
+    public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
+        train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
+        validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
+        trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
+        validationMetricIfAvailable)
         Fit(DataSet trainDataset, DataSet validationDatasetIfAny);
 
     /// <summary>
     /// do Model inference for dataset 'dataset' and returns the predictions
     /// </summary>
-    /// <param name="dataset">teh dataset we want to make the inference</param>
+    /// <param name="dataset">the dataset we want to make the inference</param>
     /// <param name="removeAllTemporaryFilesAtEnd">
     ///     if true:
     ///     all temporary files needed by the model for inference will be deleted</param>
@@ -222,6 +226,15 @@ public abstract class Model: IDisposable
     {
         return PredictWithPath(dataset, removeAllTemporaryFilesAtEnd).predictions;
     }
+
+
+    public IScore ComputeLoss(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
+    {
+        var y_pred = Predict(dataset, removeAllTemporaryFilesAtEnd);
+        var y_true = dataset.Y;
+        return ComputeLoss(y_true, y_pred.FloatTensor);
+    }
+
 
     public abstract (DataFrame predictions, string datasetPath) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd);
     

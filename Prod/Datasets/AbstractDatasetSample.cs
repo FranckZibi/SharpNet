@@ -15,6 +15,48 @@ namespace SharpNet.Datasets;
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 {
+
+    #region Hyper-Parameters
+    //For numerical features:
+    // should we standardize them (with mean=0 & volatility=1) before sending them to the model ?
+    public bool StandardizeDoubleValues = false;
+    public double PercentageInTraining = 0.8;
+    /// <summary>
+    /// number of splits for KFold
+    /// a value less or equal 1 will disable KFold
+    /// a value of 2 or more will enable KFold
+    ///  1/ the dataset will be splitted into 'KFold' part:
+    ///  2/ we'll perform 'KFold' distinct training
+    ///     in each training we'll use a distinct 'Kfold' part for validation,
+    ///     and all the remaining 'Kfold-1' parts for training
+    /// </summary>
+    public int KFold = 1;
+    public string Train_XDatasetPath_InTargetFormat;
+    public string Train_YDatasetPath_InTargetFormat;
+    public string Train_XYDatasetPath_InTargetFormat;
+    public string Train_XDatasetPath_InModelFormat;
+    public string Train_YDatasetPath_InModelFormat;
+    public string Train_XYDatasetPath_InModelFormat;
+
+    public string Validation_XDatasetPath_InTargetFormat;
+    public string Validation_YDatasetPath_InTargetFormat;
+    public string Validation_XYDatasetPath_InTargetFormat;
+    public string Validation_XDatasetPath_InModelFormat;
+    public string Validation_YDatasetPath_InModelFormat;
+    public string Validation_XYDatasetPath_InModelFormat;
+
+    public string Test_XDatasetPath_InTargetFormat;
+    public string Test_YDatasetPath_InTargetFormat;
+    public string Test_XYDatasetPath_InTargetFormat;
+    public string Test_XDatasetPath_InModelFormat;
+    public string Test_YDatasetPath_InModelFormat;
+    public string Test_XYDatasetPath_InModelFormat;
+
+    public bool RandomizeOrderWhileTraining = false;
+    #endregion
+
+
+
     #region public properties
 
     public string Name { get; }
@@ -44,21 +86,26 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     private readonly object lockInputShape_CHW = new();
 
 
-    public (DataFrame predictionsInTargetFormat, DataFrame predictionsInModelFormat, IScore rankingScore, string path_pred_InModelFormat)
-        ComputePredictionsAndRankingScore(DataSet dataset, Model model)
+    public (DataFrame predictionsInModelFormat, IScore modelLossScore, DataFrame predictionsInTargetFormat, IScore targetRankingScore, string path_pred_InModelFormat)
+        ComputePredictionsAndRankingScoreV2(DataSet dataset, Model model, bool removeAllTemporaryFilesAtEnd, bool computeAlsoRankingScore = true)
     {
         Debug.Assert(dataset != null);
         var start = Stopwatch.StartNew();
-        var (y_pred_InModelFormat, path_pred_InModelFormat) = model.PredictWithPath(dataset, false);
+        var (y_pred_InModelFormat, path_pred_InModelFormat) = model.PredictWithPath(dataset, removeAllTemporaryFilesAtEnd);
+        var modelLossScore = model.ComputeLoss(dataset.Y, y_pred_InModelFormat.FloatTensor);
+        if (!computeAlsoRankingScore)
+        {
+            return (y_pred_InModelFormat, modelLossScore, null, null, path_pred_InModelFormat);
+        }
         var y_pred_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat);
-        IScore rankingScore = null;
+        IScore targetRankingScore = null;
         if (dataset.Y != null)
         {
             var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(dataset.Y));
-            rankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
+            targetRankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
         }
-        ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScore)} took {start.Elapsed.TotalSeconds}s");
-        return (y_pred_InTargetFormat, y_pred_InModelFormat, rankingScore, path_pred_InModelFormat);
+        ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScoreV2)} took {start.Elapsed.TotalSeconds}s");
+        return (y_pred_InModelFormat, modelLossScore, y_pred_InTargetFormat, targetRankingScore, path_pred_InModelFormat);
     }
 
     public virtual int[] GetInputShapeOfSingleElement()
@@ -94,7 +141,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
         return _cacheColumns;
     }
-
+    
     #endregion
 
     #region constructors
@@ -188,6 +235,13 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
     }
 
+    //public virtual List<TrainingAndTestDataset> KFoldSplit(DataSet dataset, int kfold, int countMustBeMultipleOf)
+    //{
+    //    return dataset.KFoldSplit(kfold, countMustBeMultipleOf);
+    //}
+
+
+
 
     public enum DatasetType
     {
@@ -217,43 +271,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
     }
 
-
-    #region Hyper-Parameters
-    //For numerical features:
-    // should we standardize them (with mean=0 & volatility=1) before sending them to the model ?
-    public bool StandardizeDoubleValues = false;
-    public double PercentageInTraining = 0.8;
-    /// <summary>
-    /// number of splits for KFold
-    /// a value less or equal 1 will disable KFold
-    /// a value of 2 or more will enable KFold
-    ///  1/ the dataset will be splitted into 'KFold' part:
-    ///  2/ we'll perform 'KFold' distinct training
-    ///     in each training we'll use a distinct 'Kfold' part for validation,
-    ///     and all the remaining 'Kfold-1' parts for training
-    /// </summary>
-    public int KFold = 1;
-    public string Train_XDatasetPath_InTargetFormat;
-    public string Train_YDatasetPath_InTargetFormat;
-    public string Train_XYDatasetPath_InTargetFormat;
-    public string Train_XDatasetPath_InModelFormat;
-    public string Train_YDatasetPath_InModelFormat;
-    public string Train_XYDatasetPath_InModelFormat;
-
-    public string Validation_XDatasetPath_InTargetFormat;
-    public string Validation_YDatasetPath_InTargetFormat;
-    public string Validation_XYDatasetPath_InTargetFormat;
-    public string Validation_XDatasetPath_InModelFormat;
-    public string Validation_YDatasetPath_InModelFormat;
-    public string Validation_XYDatasetPath_InModelFormat;
-
-    public string Test_XDatasetPath_InTargetFormat;
-    public string Test_YDatasetPath_InTargetFormat;
-    public string Test_XYDatasetPath_InTargetFormat;
-    public string Test_XDatasetPath_InModelFormat;
-    public string Test_YDatasetPath_InModelFormat;
-    public string Test_XYDatasetPath_InModelFormat;
-    #endregion
 
     public AbstractDatasetSample CopyWithNewPercentageInTrainingAndKFold(double newPercentageInTraining, int newKFold)
     {
@@ -394,7 +411,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// </summary>
     /// <returns></returns>
     public abstract DataSet FullTrainingAndValidation();
-    public virtual ITrainingAndTestDataSet SplitIntoTrainingAndValidation()
+    public virtual ITrainingAndTestDataset SplitIntoTrainingAndValidation()
     {
         var fullTrain = FullTrainingAndValidation();
         int rowsForTraining = (int)(PercentageInTraining * fullTrain.Count + 0.1);
@@ -498,6 +515,17 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// </summary>
     /// <returns></returns>
     public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
+
+
+    /// <summary>
+    /// try to use one of the metric computed when training the model as a ranking score
+    /// </summary>
+    /// <param name="modelMetrics">the metrics computed when training the model</param>
+    /// <returns></returns>
+    public virtual IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
+    {
+        return null;
+    }
 
     private DataFrameDataSet LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
     {

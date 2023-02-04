@@ -2336,6 +2336,18 @@ namespace SharpNet.CPU
             Debug.Assert(start >= 0);
             return Content.Slice(start, length).Span;
         }
+
+        public T[] ColumnContent(int columnIndex)
+        {
+            Debug.Assert(Shape.Length == 2);
+            var res = new T[Shape[0]];
+            var content = ReadonlyContent;
+            for (int row = 0; row < res.Length; row++)
+            {
+                res[row] = content[columnIndex + row * Shape[1]];
+            }
+            return res;
+        }
         
         public override void YOLOV3Forward(Tensor x, int inputImageHeight, int inputImageWidth, int[] anchors)
         {

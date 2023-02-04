@@ -412,7 +412,7 @@ public class BayesianSearchHPO : AbstractHpo
         y_pred.FloatCpuTensor().Dispose();
         return xRows.Count;
     }
-    private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath, IScore trainScoreIfAvailable, IScore validationScoreIfAvailable) _surrogateTrainedFiles = (null, null, null, null, null, null, null, null);
+    private (string train_XDatasetPath, string train_YDatasetPath, string train_XYDatasetPath, string validation_XDatasetPath, string validation_YDatasetPath, string validation_XYDatasetPath, IScore trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) _surrogateTrainedFiles = (null, null, null, null, null, null, null, null, null, null);
     private void AdjustSurrogateModelSampleForTrainingDatasetCount(int trainingDatasetCount)
     {
         if (_surrogateModel is LightGBMModel lightGbmModel)

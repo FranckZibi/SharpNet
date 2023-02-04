@@ -47,6 +47,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <Folder Include="Datasets\CFM84\" />
     <Folder Include="Datasets\QRT72\" />
   </ItemGroup>
 

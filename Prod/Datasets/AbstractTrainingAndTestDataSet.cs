@@ -1,6 +1,9 @@
-﻿namespace SharpNet.Datasets
+﻿using System.Collections.Generic;
+using System;
+
+namespace SharpNet.Datasets
 {
-    public abstract class AbstractTrainingAndTestDataset : ITrainingAndTestDataSet
+    public abstract class AbstractTrainingAndTestDataset : ITrainingAndTestDataset
     {
         #region public properties
         public abstract DataSet Training { get; }
@@ -28,5 +31,20 @@
         {
             return (byte)categoryIndex;
         }
+
+
+
+        public AbstractTrainingAndTestDataset WithRandomizeColumnDataSet(List<string> columnsToRandomize, Random r)
+        {
+            if (columnsToRandomize.Count == 0)
+            {
+                return this;
+            }
+            var randomizedTraining = Training == null ? null : new RandomizeColumnDataSet(Training, columnsToRandomize, r);
+            var randomizedValidation = Test == null ? null : new RandomizeColumnDataSet(Test, columnsToRandomize, r);
+            return new TrainingAndTestDataset(randomizedTraining, randomizedValidation, nameof(RandomizeColumnDataSet)+"_");
+        }
+
+
     }
 }

@@ -22,6 +22,23 @@ public class CatBoostSample : AbstractSample, IModelSample
     }
     #endregion
 
+    // ReSharper disable once MemberCanBeMadeStatic.Global
+    public void AddExtraMetricToComputeForTraining()
+    {
+    }
+    public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
+    {
+        List<string> tokenAndMandatoryTokenAfterToken = new() { "learn:", null, "test:", null, "best:", null };
+        var extractedScores = Utils.ExtractValuesFromOutputLog(linesFromLog, 0, tokenAndMandatoryTokenAfterToken.ToArray());
+        var trainValue = extractedScores[0];
+        var validationValue = extractedScores[use_best_model ? 2 : 1];
+        var trainLossIfAvailable = double.IsNaN(trainValue) ? null : new Score((float)trainValue, GetLoss());
+        var validationLossIfAvailable = double.IsNaN(validationValue) ? null : new Score((float)validationValue, GetLoss());
+        IScore trainMetricIfAvailable = null;
+        IScore validationMetricIfAvailable = null;
+        return (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+    }
+
     #region Common parameters
 
     /// <summary>
@@ -284,6 +301,15 @@ public class CatBoostSample : AbstractSample, IModelSample
 
     public override bool FixErrors()
     {
+        if (grow_policy != grow_policy_enum.SymmetricTree && grow_policy != grow_policy_enum.Depthwise)
+        {
+            min_data_in_leaf = DEFAULT_VALUE;
+        }
+        if (!langevin)
+        {
+            diffusion_temperature = DEFAULT_VALUE;
+        }
+
         return true; //TODO
     }
     public string DeviceName()

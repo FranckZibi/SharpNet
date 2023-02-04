@@ -37,8 +37,11 @@ namespace SharpNet.CatBoost
         }
         #endregion
 
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat,
-            IScore trainScoreIfAvailable, IScore validationScoreIfAvailable) 
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
+            train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
+            validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
+            trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
+            validationMetricIfAvailable)
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             var sw = Stopwatch.StartNew();
@@ -56,7 +59,6 @@ namespace SharpNet.CatBoost
 
             string datasetColumnDescriptionPath = trainDatasetPath_InModelFormat + ".co";
             to_column_description(datasetColumnDescriptionPath, trainDataset, addTargetColumnAsFirstColumn, false);
-            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}'");
 
             var tempModelSamplePath = CatBoostSample.ToPath(TempPath, ModelName);
             string arguments = "fit " +
@@ -80,17 +82,14 @@ namespace SharpNet.CatBoost
                 CatBoostSample.use_best_model = false;
             }
 
+            CatBoostSample.AddExtraMetricToComputeForTraining();
             CatBoostSample.Save(tempModelSamplePath);
-
-            var lines = Utils.Launch(WorkingDirectory, ExePath, arguments, Log, true);
-            var extractedScores = Utils.ExtractValuesFromOutputLog(lines, 0, "learn:", "test:", "best:");
-            var trainValue = extractedScores[0];
-            var validationValue = extractedScores[CatBoostSample.use_best_model ?2:1];
-            var trainScoreIfAvailable = double.IsNaN(trainValue) ? null : new Score((float)trainValue, ModelSample.GetLoss());
-            var validationScoreIfAvailable = double.IsNaN(validationValue) ? null : new Score((float)validationValue, ModelSample.GetLoss());
-            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}' took {sw.Elapsed.TotalSeconds}s (trainScore = {trainScoreIfAvailable} / validationScore = {validationScoreIfAvailable})");
+            LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}'");
+            var linesFromLog = Utils.Launch(WorkingDirectory, ExePath, arguments, Log, true);
+            var (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable) = CatBoostSample.ExtractScores(linesFromLog);
+            LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable})");
             return (null, null, trainDatasetPath_InModelFormat, null, null, validationDatasetPathIfAny_InModelFormat,
-                trainScoreIfAvailable, validationScoreIfAvailable);
+                trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
         }
 
         public override (DataFrame,string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)

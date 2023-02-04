@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
@@ -56,8 +57,13 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
 
         XDataFrame = x_df;
         YDataFrame_InModelFormat = y_df;
-
     }
+
+    //public override List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
+    //{
+    //    return DatasetSample.KFoldSplit(this, kfold, countMustBeMultipleOf);
+    //}
+
     public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
     {
         Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
@@ -77,6 +83,11 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         return new[] { miniBatchSize, DatasetSample.NumClass };
     }
 
+
+    public void ShuffleColumns(Random r, IList<string> columnToShuffle)
+    {
+        XDataFrame.ShuffleInPlace(r, columnToShuffle.ToArray());
+    }
 
     public override int Count => _x.Shape[0];
 

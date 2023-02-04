@@ -97,11 +97,11 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         return result;
     }
 
-    public override ITrainingAndTestDataSet IntSplitIntoTrainingAndValidation(int countInTrainingSet)
+    public override ITrainingAndTestDataset IntSplitIntoTrainingAndValidation(int countInTrainingSet)
     {
         return SplitIntoTrainingAndValidation(((float)countInTrainingSet) / Entries.Length);
     }
-    public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
+    public override ITrainingAndTestDataset SplitIntoTrainingAndValidation(double percentageInTrainingSet)
     {
         float dayThreshold = DayThreshold(Entries, percentageInTrainingSet);
         var training = new TimeSeriesDataset(

@@ -274,14 +274,27 @@ public sealed class DataFrame
         {
             throw new ArgumentException($"column {columnName} is not a string column");
         }
-        var res = new string[Shape[0]];
-        var content = _stringTensor.ReadonlyContent;
-        for (int row = 0; row < res.Length; row++)
-        {
-            res[row] = content[colDesc.Item3 + row * _stringTensor.Shape[1]];
-        }
-        return res;
+        return _stringTensor.ColumnContent(colDesc.Item3);
     }
+    public float[] FloatColumnContent(string columnName)
+    {
+        var colDesc = GetColumnDesc(columnName);
+        if (colDesc.Item2 != FLOAT_TYPE_IDX)
+        {
+            throw new ArgumentException($"column {columnName} is not a float column");
+        }
+        return _floatTensor.ColumnContent(colDesc.Item3);
+    }
+    public int[] IntColumnContent(string columnName)
+    {
+        var colDesc = GetColumnDesc(columnName);
+        if (colDesc.Item2 != INT_TYPE_IDX)
+        {
+            throw new ArgumentException($"column {columnName} is not a int column");
+        }
+        return _intTensor.ColumnContent(colDesc.Item3);
+    }
+
     public void UpdateColumnsInPlace(Func<string, string> update, params string[] columnNames) => UpdateColumnsInPlace(_stringTensor, update, columnNames);
     public void UpdateColumnsInPlace(Func<float, float> update, params string[] columnNames) => UpdateColumnsInPlace(_floatTensor, update, columnNames);
     public void UpdateColumnsInPlace(Func<int,int> update, params string[] columnNames) => UpdateColumnsInPlace(_intTensor, update, columnNames);
@@ -333,6 +346,7 @@ public sealed class DataFrame
             }
         }
     }
+
     public static DataFrame read_float_csv(string path, bool hasHeader = true, bool isNormalized = false)
     {
         return read_csv(path, hasHeader, _ => typeof(float), isNormalized);
@@ -575,7 +589,7 @@ public sealed class DataFrame
         var targetStringTensor = targetCountByTensorType[STRING_TYPE_IDX] == 0 ? null : new CpuTensor<string>(new[] { targetRows, targetCountByTensorType[STRING_TYPE_IDX] });
         var targetIntTensor = targetCountByTensorType[INT_TYPE_IDX] == 0 ? null : new CpuTensor<int>(new[] { targetRows, targetCountByTensorType[INT_TYPE_IDX] });
 
-             var target = new DataFrame(
+        var target = new DataFrame(
             targetColumnDesc,
             targetFloatTensor,
             targetStringTensor,

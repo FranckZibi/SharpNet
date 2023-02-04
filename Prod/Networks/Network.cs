@@ -551,8 +551,11 @@ namespace SharpNet.Networks
         /// Weights Update =       =       =       =       = [in,out] = [in]  =
         /// ===================================================================
         /// </summary>
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat,
-            IScore trainScoreIfAvailable, IScore validationScoreIfAvailable)
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
+            train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
+            validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
+            trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
+            validationMetricIfAvailable)
             Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
             //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
@@ -732,7 +735,7 @@ namespace SharpNet.Networks
                 throw;
             }
             //!D TODO : try to return training & validation score if available
-            return (null, null, null, null, null, null, null, null);
+            return (null, null, null, null, null, null, null, null, null, null);
         }
 
 

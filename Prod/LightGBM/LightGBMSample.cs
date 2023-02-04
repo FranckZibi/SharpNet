@@ -117,6 +117,52 @@ public class LightGBMSample : AbstractSample, IModelSample
         categorical_feature = (categoricalFeatures.Length >= 1) ? ("name:" + string.Join(',', categoricalFeatures)) : "";
     }
 
+    public void AddExtraMetricToComputeForTraining()
+    {
+        switch (objective)
+        {
+            case objective_enum.multiclass:
+                metric = "multi_logloss,multi_error";
+                first_metric_only = true;
+                break;
+            case objective_enum.binary:
+                metric = "binary_logloss,binary_error";
+                first_metric_only = true;
+                break;
+        }
+    }
+    public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
+    {
+        List<string> tokenAndMandatoryTokenAfterToken = new() { "training", null, "valid_1", null };
+        var allMetrics = (metric ?? "").Split(',');
+        if (allMetrics.Length >= 2)
+        {
+            tokenAndMandatoryTokenAfterToken = new List<string> { "training", allMetrics[0], "valid_1", allMetrics[0], "training", allMetrics[1], "valid_1", allMetrics[1] };
+        }
+
+        var extractedScoresFromLogs = Utils.ExtractValuesFromOutputLog(linesFromLog, 2, tokenAndMandatoryTokenAfterToken.ToArray());
+
+        var trainLossValue = extractedScoresFromLogs[0];
+        var trainLossIfAvailable = double.IsNaN(trainLossValue) ? null : new Score((float)trainLossValue, GetLoss());
+        var validationLossValue = extractedScoresFromLogs[1];
+        var validationLossIfAvailable = double.IsNaN(validationLossValue) ? null : new Score((float)validationLossValue, GetLoss());
+
+        var trainMetricValue = (extractedScoresFromLogs.Length >= 3) ? extractedScoresFromLogs[2] : double.NaN;
+        Score trainMetricIfAvailable = null;
+        if (IsClassification && !double.IsNaN(trainMetricValue))
+        {
+            var trainErrorValue = (float)trainMetricValue;
+            trainMetricIfAvailable = new Score(1 - trainErrorValue, EvaluationMetricEnum.Accuracy);
+        }
+        var validationMetricValue = (extractedScoresFromLogs.Length >= 4) ? extractedScoresFromLogs[3] : double.NaN;
+        Score validationMetricIfAvailable = null;
+        if (IsClassification && !double.IsNaN(validationMetricValue))
+        {
+            var validationErrorValue = (float)validationMetricValue;
+            validationMetricIfAvailable = new Score(1 - validationErrorValue, EvaluationMetricEnum.Accuracy);
+        }
+        return (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+    }
 
     #region Core Parameters
 
@@ -1064,4 +1110,5 @@ public class LightGBMSample : AbstractSample, IModelSample
         "device_type",
         "tree_learner",
     };
+
 }

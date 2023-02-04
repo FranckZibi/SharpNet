@@ -54,7 +54,6 @@ namespace SharpNet.Datasets
         [NotNull] public string[] IdColumns { get; }
         public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
         public char Separator { get; }
-
         #endregion
 
         #region constructor
@@ -575,12 +574,12 @@ namespace SharpNet.Datasets
         public int TypeSize => 4; //float size
         public override string ToString() {return Name;}
 
-        public virtual ITrainingAndTestDataSet SplitIntoTrainingAndValidation(double percentageInTrainingSet)
+        public virtual ITrainingAndTestDataset SplitIntoTrainingAndValidation(double percentageInTrainingSet)
         {
             int countInTrainingSet = (int)(percentageInTrainingSet * Count+0.1);
             return IntSplitIntoTrainingAndValidation(countInTrainingSet);
         }
-        public virtual ITrainingAndTestDataSet IntSplitIntoTrainingAndValidation(int countInTrainingSet)
+        public virtual ITrainingAndTestDataset IntSplitIntoTrainingAndValidation(int countInTrainingSet)
         {
             var training = SubDataSet(id => id < countInTrainingSet);
             var test = SubDataSet(id => id >= countInTrainingSet);
@@ -821,6 +820,20 @@ namespace SharpNet.Datasets
             var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn, includeIdColumns) + ".csv");
             to_csv(datasetPath, Separator, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             return datasetPath;
+        }
+
+        public virtual List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
+        {
+            var validationIntervalForKfold = KFoldModel.KFoldIntervals(kfold, Count, countMustBeMultipleOf);
+            List<TrainingAndTestDataset> res = new();
+            for (var index = 0; index < validationIntervalForKfold.Count; index++)
+            {
+                var intervalForValidation = validationIntervalForKfold[index];
+                var training = SubDataSet(id => id < intervalForValidation.Item1 || id > intervalForValidation.Item2);
+                var test = SubDataSet(id => id >= intervalForValidation.Item1 && id <= intervalForValidation.Item2);
+                res.Add(new TrainingAndTestDataset(training, test, KFoldModel.KFoldModelNameEmbeddedModelName(Name, index)));
+            }
+            return res;
         }
 
 

@@ -26,8 +26,8 @@ public class ChallengeTools
     [Test, Explicit]
     public void ComputeAndSaveFeatureImportance()
     {
-        const string workingDirectory = @"C:\Projects\Challenges\KaggleDays\";
-        const string modelName = "F7579BB9FE_KFOLD_FULL";
+        const string workingDirectory = @"C:\Projects\Challenges\CFM84\";
+        const string modelName = "64C740FBCE";
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         using var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName, true);
@@ -162,35 +162,58 @@ public class ChallengeTools
     /// retrain some models 
     /// </summary>
     [Test, Explicit]
-    public void Retrain(int n_splits = 3, bool retrainOnFullDataset = true)
+    public void Retrain(int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true)
     {
+        if (n_splits.HasValue && percentageInTraining.HasValue)
+        {
+            throw new ArgumentException($"at most one of the 2 parameters {nameof(n_splits)} and {nameof(percentageInTraining)} can be specified");
+        }
+        if (n_splits.HasValue && n_splits.Value < 2)
+        {
+            throw new ArgumentException($"When specified, {nameof(n_splits)} must be at least 2");
+        }
+        if (percentageInTraining.HasValue && (percentageInTraining.Value > 1|| percentageInTraining.Value < 0) )
+        {
+            throw new ArgumentException($"When specified, {nameof(percentageInTraining)} must be between 0 and 1");
+        }
 
-        const string workingDirectory = @"C:\Projects\Challenges\EffiSciences95";
+        const string workingDirectory = @"C:\Projects\Challenges\CFM84\dump";
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
         foreach (var modelName in new[]
                  {
-                     "F3454EBDFF",
+                     "6C5DF90DD8",
                  })
         {
 
 
             var sw = Stopwatch.StartNew();
-            ISample.Log.Info($"Retraining model '{modelName}' with {nameof(n_splits)}={n_splits} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
+            ISample.Log.Info($"Retraining model '{modelName}' with {nameof(n_splits)}={n_splits}, {nameof(percentageInTraining)}={percentageInTraining} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
 
-            if (n_splits>=2)
+            if (n_splits.HasValue)
             {
-                using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits, true);
-                ISample.Log.Info($"Training model '{modelName}' with KFold: {nameof(n_splits)}={n_splits} (KFold Model name: '{mKFold.Model.ModelName}')");
+                var swKfold = Stopwatch.StartNew();
+                using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits.Value, true);
+                ISample.Log.Info($"Training Model '{mKFold.Model.ModelName}' (= Model '{modelName}' with KFold={n_splits})");
                 mKFold.Fit(true, true, true);
                 mKFold.Save(workingDirectory);
+                ISample.Log.Info($"Model '{mKFold.Model.ModelName}' trained in {swKfold.Elapsed.TotalSeconds}");
             }
-
+            if (percentageInTraining.HasValue)
+            {
+                var swPercentageInTraining = Stopwatch.StartNew();
+                using var modelAndDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(percentageInTraining.Value, workingDirectory, modelName, true);
+                Model.Log.Info($"Training Model '{modelAndDataset.Model.ModelName}' (= Model '{modelName}' with {Math.Round(100* percentageInTraining.Value,1)}% in training no KFold)");
+                modelAndDataset.Fit(true, true, true);
+                ISample.Log.Info($"Model '{modelAndDataset.Model.ModelName}' trained in {swPercentageInTraining.Elapsed.TotalSeconds}");
+            }
             if (retrainOnFullDataset)
             {
-                using var modelAndDatasetOnFullDataset = ModelAndDatasetPredictions.LoadWithFullTrainingNoKFold(workingDirectory, modelName, true);
-                Model.Log.Info($"Retraining Model '{modelName}' on full Dataset no KFold (Full Dataset Model name: '{modelAndDatasetOnFullDataset.Model.ModelName}')");
+                var swRetrainOnFullDataset = Stopwatch.StartNew();
+                using var modelAndDatasetOnFullDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(1.0, workingDirectory, modelName, true); ;
+                Model.Log.Info($"Training Model '{modelAndDatasetOnFullDataset.Model.ModelName}' (= Model '{modelName}' on full Dataset no KFold)");
                 modelAndDatasetOnFullDataset.Fit(true, true, true);
+                ISample.Log.Info($"Model '{modelAndDatasetOnFullDataset.Model.ModelName}' trained in {swRetrainOnFullDataset.Elapsed.TotalSeconds}");
             }
             ISample.Log.Info($"Model {modelName} retrained in {sw.Elapsed.TotalSeconds}");
             //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\catboost\a_KFOLD_modelformat_predict_test_.csv"); return;
