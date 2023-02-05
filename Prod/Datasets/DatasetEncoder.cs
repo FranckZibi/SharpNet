@@ -17,24 +17,26 @@ namespace SharpNet.Datasets;
 public class DatasetEncoder
 {
     #region Private Fields
-    private readonly AbstractDatasetSample _datasetSample;
     private readonly bool _standardizeDoubleValues;
     private readonly bool _allDataFrameAreAlreadyNormalized;
 
     /// <summary>
     /// list of all categorical features in the dataset
     /// </summary>
-    private string[] CategoricalFeatures => _datasetSample.CategoricalFeatures;
+    private string[] CategoricalFeatures { get; }
     /// <summary>
     /// name of the target features (to predict)
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private string[] Targets => _datasetSample.TargetLabels;
+    [NotNull] private string[] TargetLabels { get; }
     /// <summary>
     /// the list of features that will be used to uniquely identify a row
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private string[] IdColumns => _datasetSample.IdColumns;
+    [NotNull] private string[] IdColumns { get; }
+
+    private Objective_enum DatasetObjective { get; }
+
     [NotNull] private readonly Dictionary<string, ColumnStatistics> _columnStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
 
@@ -62,7 +64,10 @@ public class DatasetEncoder
     /// </param>
     public DatasetEncoder(AbstractDatasetSample datasetSample, bool standardizeDoubleValues, bool allDataFrameAreAlreadyNormalized)
     {
-        _datasetSample = datasetSample;
+        CategoricalFeatures = datasetSample.CategoricalFeatures.ToArray();
+        TargetLabels = datasetSample.TargetLabels.ToArray();
+        IdColumns = datasetSample.IdColumns.ToArray();
+        DatasetObjective = datasetSample.GetObjective();
         _standardizeDoubleValues = standardizeDoubleValues;
         _allDataFrameAreAlreadyNormalized = allDataFrameAreAlreadyNormalized;
     }
@@ -74,14 +79,15 @@ public class DatasetEncoder
     /// this dataset contains both features (the 'x') and target columns (the 'y')
     /// </summary>
     /// <param name="xyDataset_df"></param>
+    /// <param name="datasetSample"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     // ReSharper disable once UnusedMember.Global
-    public DataFrameDataSet Transform_XYDataset(DataFrame xyDataset_df)
+    public DataFrameDataSet Transform_XYDataset(DataFrame xyDataset_df, AbstractDatasetSample datasetSample)
     {
-        var xTrainEncoded = Transform(xyDataset_df.Drop(Targets));
-        var yTrain = xyDataset_df[Targets];
-        return NewDataSetV2(xTrainEncoded, yTrain, _datasetSample);
+        var xTrainEncoded = Transform(xyDataset_df.Drop(TargetLabels));
+        var yTrain = xyDataset_df[TargetLabels];
+        return NewDataFrameDataSet(xTrainEncoded, yTrain, datasetSample);
     }
 
     /// <summary>
@@ -89,34 +95,18 @@ public class DatasetEncoder
     /// (so that it can be processed by LightGBM)
     /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
     /// </summary>
-    public DataFrameDataSet Transform_X_and_Y_Dataset([NotNull] DataFrame x_df, [CanBeNull] DataFrame y_df)
+    public DataFrameDataSet Transform_X_and_Y_Dataset([NotNull] DataFrame x_df, [CanBeNull] DataFrame y_df, AbstractDatasetSample datasetSample)
     {
-        return NewDataSetV2(Transform(x_df), y_df, _datasetSample);
+        return NewDataFrameDataSet(Transform(x_df), y_df, datasetSample);
     }
 
-    private static DataFrameDataSet NewDataSetV2(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
+    private static DataFrameDataSet NewDataFrameDataSet(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
     {
         return new DataFrameDataSet(
             datasetSample,
             xTrainEncoded,
             yTrainEncoded,
             false);
-    }
-
-    public string[] TargetLabelDistinctValues
-    {
-        get{
-            if (_datasetSample.GetObjective() == Objective_enum.Regression)
-            {
-                return new string[0];
-            }
-            if (_datasetSample.TargetLabels.Length != 1)
-            {
-                throw new NotImplementedException($"invalid number of target labels {_datasetSample.TargetLabels.Length}, only 1 is supported");
-            }
-            var targetLabel = _datasetSample.TargetLabels[0];
-            return GetDistinctCategoricalValues(targetLabel).ToArray();
-        }
     }
 
     public DataFrame Fit_Transform(DataFrame string_df)
@@ -154,7 +144,7 @@ public class DatasetEncoder
         {
             if (!_columnStats.ContainsKey(c))
             {
-                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
             }
         }
     
@@ -176,7 +166,7 @@ public class DatasetEncoder
                 var c = df.Columns[index];
                 if (!_columnStats.ContainsKey(c) && IsCategoricalColumn(c))
                 {
-                    _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), Targets.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                    _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
                     FitColumn(df, index);
                 }
             }
@@ -353,7 +343,7 @@ public class DatasetEncoder
         {
             return true;
         }
-        if (_datasetSample.GetObjective() == Objective_enum.Classification && Targets.Contains(columnName))
+        if (DatasetObjective == Objective_enum.Classification && TargetLabels.Contains(columnName))
         {
             return true;
         }

@@ -48,13 +48,13 @@ namespace SharpNet.CatBoost
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
-            string trainDatasetPath_InModelFormat = trainDataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            string trainDatasetPath_InModelFormat = trainDataset.to_csv_in_directory(DatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             char separator = trainDataset.Separator;
 
             string validationDatasetPathIfAny_InModelFormat = "";
             if (validationDatasetIfAny != null)
             {
-                validationDatasetPathIfAny_InModelFormat = validationDatasetIfAny.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+                validationDatasetPathIfAny_InModelFormat = validationDatasetIfAny.to_csv_in_directory(DatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             }
 
             string datasetColumnDescriptionPath = trainDatasetPath_InModelFormat + ".co";
@@ -101,7 +101,7 @@ namespace SharpNet.CatBoost
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
-            string datasetPath = dataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            string datasetPath = dataset.to_csv_in_directory(DatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
 
             string datasetColumnDescriptionPath = datasetPath + ".co";
             to_column_description(datasetColumnDescriptionPath, dataset, addTargetColumnAsFirstColumn, false);
@@ -214,7 +214,6 @@ namespace SharpNet.CatBoost
         }
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "catboost.exe");
 
-        private string TempPath => Path.Combine(WorkingDirectory, "Temp");
         [JetBrains.Annotations.NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".json");
         //[JetBrains.Annotations.NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".bin");
         private CatBoostSample CatBoostSample => (CatBoostSample)ModelSample;

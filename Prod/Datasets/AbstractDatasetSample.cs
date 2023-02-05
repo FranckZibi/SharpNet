@@ -52,7 +52,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     public string Test_YDatasetPath_InModelFormat;
     public string Test_XYDatasetPath_InModelFormat;
 
-    public bool RandomizeOrderWhileTraining = false;
     #endregion
 
 
@@ -314,7 +313,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 
 
 
-    public virtual int NumClass
+    public int NumClass
     {
         get
         {
@@ -322,9 +321,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             {
                 return 1;
             }
-            var errorMsg = $"the method {nameof(NumClass)} must be override for classification problem";
-            ISample.Log.Error(errorMsg);
-            throw new NotImplementedException(errorMsg);
+            return TargetLabelDistinctValues.Length;
         }
     }
 
@@ -336,12 +333,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             {
                 return Array.Empty<string>();
             }
-
-            if (DatasetEncoder != null)
-            {
-                return DatasetEncoder.TargetLabelDistinctValues;
-            }
-            var errorMsg = $"the method {nameof(TargetLabelDistinctValues)} must be overriden for problem";
+            const string errorMsg = $"the method {nameof(TargetLabelDistinctValues)} must be overriden for classification problem";
             ISample.Log.Error(errorMsg);
             throw new NotImplementedException(errorMsg);
         }
@@ -600,6 +592,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         if (disposing)
         {
             //Release Managed Resources
+            DatasetEncoder = null;
         }
     }
     public void Dispose()

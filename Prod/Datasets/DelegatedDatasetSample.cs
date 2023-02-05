@@ -14,7 +14,6 @@ public abstract class DelegatedDatasetSample : AbstractDatasetSample
     public override string[] CategoricalFeatures => EmbeddedDatasetSample.CategoricalFeatures;
     public override string[] IdColumns => EmbeddedDatasetSample.IdColumns;
     public override string[] TargetLabels => EmbeddedDatasetSample.TargetLabels;
-    public override int NumClass => EmbeddedDatasetSample.NumClass;
     public override string[] TargetLabelDistinctValues => EmbeddedDatasetSample.TargetLabelDistinctValues;
     public override Objective_enum GetObjective() => EmbeddedDatasetSample.GetObjective();
     public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat) => EmbeddedDatasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);

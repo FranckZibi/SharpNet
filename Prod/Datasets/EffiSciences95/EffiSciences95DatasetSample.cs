@@ -30,7 +30,9 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
     {
         return EffiSciences95Utils.Shape_CHW;
     }
-    public override int NumClass => 2;
+
+    public override string[] TargetLabelDistinctValues => new[] {"old" , "young"};
+
     public override DataSet TestDataset()
     {
         if (_lazyTestDataset == null || _lazyFullTrainingAndValidation.Disposed)

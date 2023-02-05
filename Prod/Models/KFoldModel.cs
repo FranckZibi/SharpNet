@@ -138,7 +138,7 @@ public class KFoldModel : Model
         const bool overwriteIfExists = false;
         int n_splits = KFoldSample.n_splits;
         var foldedTrainAndValidationDataset = trainDataset.KFoldSplit(n_splits, KFoldSample.CountMustBeMultipleOf);
-        var train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(RootDatasetPath, true, includeIdColumns, overwriteIfExists);
+        var train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(DatasetPath, true, includeIdColumns, overwriteIfExists);
 
         List<IScore> allFoldTrainScoreIfAvailable = new();
         List<IScore> allFoldValidationScoreIfAvailable = new();

@@ -31,6 +31,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
     public bool use_vol_r_dataset_equity;
     public bool use_r_dataset = false; //not used
     public bool use_vol_r_dataset = false; //not used
+    public int rr_count = 0;
     #endregion
 
 
@@ -68,8 +69,6 @@ public class CFM84DatasetSample : AbstractDatasetSample
     public override IScore MinimumScoreToSaveModel => new Score(0.48f, GetRankingEvaluationMetric());
 
     public override string[] TargetLabelDistinctValues => CFM84Utils.TargetLabelDistinctValues;
-
-    public override int NumClass => TargetLabelDistinctValues.Length;
 
     public override DataSet TestDataset()
     {
@@ -268,7 +267,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
         if (!use_vol_r_dataset_equity) { toDrop.Add("vol_r_dataset_equity"); }
         if (!use_r_dataset) { toDrop.Add("r_dataset"); }
         if (!use_vol_r_dataset) { toDrop.Add("vol_r_dataset"); }
-
+        toDrop.AddRange(Enumerable.Range(rr_count, 10).Select(i => "rr"+i));
         xWithStats = xWithStats.DropIgnoreErrors(toDrop.ToArray()).Clone();
         return xWithStats;
     }

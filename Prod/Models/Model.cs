@@ -66,7 +66,7 @@ public abstract class Model: IDisposable
         {
             (validationPredictions_InModelFormat, validationLoss_InModelFormat, validationPredictions_InTargetFormat, validationRankingScore_InTargetFormat, _) =
                 datasetSample.ComputePredictionsAndRankingScoreV2(validationDataset, this, false);
-            datasetSample.Validation_XYDatasetPath_InTargetFormat = validationDataset.to_csv_in_directory(RootDatasetPath, true, true, false);
+            datasetSample.Validation_XYDatasetPath_InTargetFormat = validationDataset.to_csv_in_directory(DatasetPath, true, true, false);
         }
 
         return (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, trainPredictions_InModelFormat, trainLoss_InModelFormat,
@@ -184,20 +184,20 @@ public abstract class Model: IDisposable
     }
 
 
-    public virtual string RootDatasetPath
+    public virtual string DatasetPath => GetRootPath("Dataset");
+    public virtual string TempPath => GetRootPath("Temp");
+
+    private string GetRootPath(string subDirectory)
     {
-        get
+        if (WorkingDirectory.StartsWith(Utils.ChallengesPath))
         {
-            if (WorkingDirectory.StartsWith(Utils.ChallengesPath))
+            var subDirectoriesAfterChallengesPath = WorkingDirectory.Substring(Utils.ChallengesPath.Length).Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            if (subDirectoriesAfterChallengesPath.Length != 0)
             {
-                var subDirectoriesAfterChallengesPath = WorkingDirectory.Substring(Utils.ChallengesPath.Length).Split(new[]{ '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
-                if (subDirectoriesAfterChallengesPath.Length != 0)
-                {
-                    return Path.Combine(Utils.ChallengesPath, subDirectoriesAfterChallengesPath[0], "Dataset");
-                }
+                return Path.Combine(Utils.ChallengesPath, subDirectoriesAfterChallengesPath[0], subDirectory);
             }
-            return Path.Combine(WorkingDirectory, "Dataset");
         }
+        return Path.Combine(WorkingDirectory, subDirectory);
     }
 
     public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string

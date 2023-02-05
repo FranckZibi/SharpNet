@@ -49,8 +49,8 @@ namespace SharpNet.LightGBM
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
-            var train_XYDatasetPath_InModelFormat = trainDataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
-            var validation_XYDatasetPath_InModelFormat = validationDatasetIfAny?.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            var train_XYDatasetPath_InModelFormat = trainDataset.to_csv_in_directory(DatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            var validation_XYDatasetPath_InModelFormat = validationDatasetIfAny?.to_csv_in_directory(DatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             LightGbmSample.UpdateForDataset(trainDataset);
             //we save in 'tmpLightGBMSamplePath' the model sample used for training
             var tmpLightGBMSamplePath = LightGbmSample.ToPath(TempPath, ModelName);
@@ -204,7 +204,7 @@ namespace SharpNet.LightGBM
             const bool addTargetColumnAsFirstColumn = false;
             const bool includeIdColumns = false;
             const bool overwriteIfExists = false;
-            string datasetPath = dataset.to_csv_in_directory(RootDatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            string datasetPath = dataset.to_csv_in_directory(DatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
             var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(datasetPath) + ".txt");
 
             //we save in 'tmpLightGbmSamplePath' the model sample used for prediction
@@ -266,7 +266,6 @@ namespace SharpNet.LightGBM
         //}
 
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "lightgbm.exe");
-        private string TempPath => Path.Combine(WorkingDirectory, "Temp");
 
         /// <summary>
         /// path of a trained model.

@@ -296,10 +296,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     // ReSharper disable once MemberCanBePrivate.Global
     public string ToRemove = "product_id,subbrand,keyword,name,market";
     #endregion
-
-    public override int NumClass => 1;
-
-
     public override Objective_enum GetObjective() => Objective_enum.Classification;
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.BinaryCrossentropy;
     public override string[] CategoricalFeatures => new[] { "channel_grouping", "country", "region", "device_category", "category", "name", "market" };

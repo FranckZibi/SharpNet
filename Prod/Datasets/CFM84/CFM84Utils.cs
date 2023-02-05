@@ -12,7 +12,6 @@ using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.MathTools;
-using SharpNet.Models;
 
 namespace SharpNet.Datasets.CFM84;
 
@@ -62,7 +61,7 @@ public static class CFM84Utils
             return float.NaN;
         }
 
-        return r;
+        return r/10000;
     }
 
     public static void BuildStatNormalizeFile()
@@ -70,8 +69,26 @@ public static class CFM84Utils
         var train = DataFrame.read_csv(XTrainPath, true, ColumnNameToType, true);
         var return_columns = train.Columns.Where(c => c.StartsWith("r")).ToArray();
         train.UpdateColumnsInPlace(NormalizeReturn, return_columns);
+
+        train = train.sort_values("day");
         train.to_csv(XTrainPath.Replace(".csv","")+"_normalized.csv");
 
+        //we re order the y train dataset so it has the same order as the x train dataset
+        var y_train = DataFrame.read_string_csv(YTrainPath, true, true);
+        var y_train_dico = new Dictionary<string, string>();
+        var y_train_ID = y_train.StringColumnContent("ID");
+        var y_train_reod = y_train.StringColumnContent("reod");
+        for (int i = 0; i < y_train_ID.Length; ++i)
+        {
+            y_train_dico.Add(y_train_ID[i], y_train_reod[i]);
+        }
+        var y_train_ordered = new List<string>();
+        foreach(var sorted_id in train.StringColumnContent("ID"))
+        {
+            y_train_ordered.Add(sorted_id);
+            y_train_ordered.Add(y_train_dico[sorted_id]);
+        }
+        DataFrame.New(y_train_ordered.ToArray(), y_train.Columns).to_csv(YTrainPath.Replace(".csv", "") + "_normalized.csv");
         var test = DataFrame.read_csv(XTestPath, true, ColumnNameToType, true);
         test.UpdateColumnsInPlace(NormalizeReturn, return_columns);
         test.to_csv(XTestPath.Replace(".csv", "") + "_normalized.csv");
@@ -84,91 +101,171 @@ public static class CFM84Utils
         var test = DataFrame.read_csv(XTestPath, true, ColumnNameToType, true);
         var df = DataFrame.MergeVertically(train, test);
 
+
+        var indexBySubDay = new List<int[]>()
+        {
+            //new [] { 0, 10 },
+            //new [] { 11, 20 },
+            //new [] { 21, 31 },
+            //new [] { 32, 41 },
+            //new [] { 42, 52 }
+        };
+        int nb_splits_by_day = indexBySubDay.Count;
+        const int rr_count = 10;
+
         var return_columns = train.Columns.Where(c => c.StartsWith("r")).ToArray();
-        var equityToDayToReturn = new Dictionary<string, Dictionary<float, float>>();
-        var equityToDayToVol = new Dictionary<string, Dictionary<float, float>>();
-        var dayToReturns = new Dictionary<float, DoubleAccumulator>();
-        var dayToEachReturn = new Dictionary<float, List<DoubleAccumulator>>();
+        var equityToDayToReturn = new Dictionary<string, Dictionary<int, float>>();
+        var equityToDayToReturnBySubDay = new Dictionary<string, Dictionary<int, float[]>>();
+        var equityToDayToVol = new Dictionary<string, Dictionary<int, float>>();
+        var equityToDayToRow = new Dictionary<string, Dictionary<int, int>>();
+        var equityToDayToVolBySubDay = new Dictionary<string, Dictionary<int, float[]>>();
+        var dayToReturns = new Dictionary<int, DoubleAccumulator>();
+        var dayToReturnsBySubDay = new Dictionary<int, DoubleAccumulator[]>();
+        var dayToEachReturn = new Dictionary<int, List<DoubleAccumulator>>();
 
         var rows = df.Shape[0];
+        
         for (int row = 0; row < rows; ++row)
         {
             var stringContent = df.StringTensor.RowSpanSlice(row,1);
             var floatContent = df.FloatTensor.RowSpanSlice(row, 1);
-            Debug.Assert(floatContent.Length == 1+ return_columns.Length); //day + r0=>r52
+            var intContent = df.IntTensor.RowSpanSlice(row, 1);
+            Debug.Assert(floatContent.Length == return_columns.Length);
             var ID = stringContent[0];
             var equity = stringContent[1];
-            var day = floatContent[0];
+            var day = intContent[0];
 
             if (!equityToDayToReturn.ContainsKey(equity))
             {
-                equityToDayToReturn[equity] = new Dictionary<float, float>();
-                equityToDayToVol[equity] = new Dictionary<float, float>();
+                equityToDayToReturn[equity] = new Dictionary<int, float>();
+                equityToDayToReturnBySubDay[equity] = new Dictionary<int, float[]>();
+                equityToDayToVol[equity] = new Dictionary<int, float>();
+                equityToDayToVolBySubDay[equity] = new Dictionary<int, float[]>();
+                equityToDayToRow[equity] = new Dictionary<int, int>();
             }
+            equityToDayToRow[equity][day] = row;
+
+            if (!equityToDayToReturnBySubDay[equity].ContainsKey(day))
+            {
+                equityToDayToReturnBySubDay[equity][day] = new float[nb_splits_by_day];
+                equityToDayToVolBySubDay[equity][day] = new float[nb_splits_by_day];
+            }
+
             if (!dayToReturns.ContainsKey(day))
             {
                 dayToReturns[day] = new DoubleAccumulator();
-
                 dayToEachReturn[day] = new List<DoubleAccumulator>();
                 while (dayToEachReturn[day].Count < return_columns.Length)
                 {
                     dayToEachReturn[day].Add(new DoubleAccumulator());
                 }
+
+                dayToReturnsBySubDay[day] = new DoubleAccumulator[nb_splits_by_day];
+                for (int i = 0; i < nb_splits_by_day; ++i)
+                {
+                    dayToReturnsBySubDay[day][i] = new DoubleAccumulator();
+                }
             }
 
             var acc = new DoubleAccumulator();
             var total_return = 1f;
-            for (int col = 1; col < floatContent.Length; ++col)
+            for (int col = 0; col < floatContent.Length; ++col)
             {
-                var basisPoints = floatContent[col];
-                if (float.IsNaN(basisPoints))
+                var r = floatContent[col];
+                if (float.IsNaN(r))
                 {
-                    continue;
+                    r = 0;
                 }
-                var r = basisPoints / 10000;
                 total_return *= 1 + r;
                 acc.Add(r, 1);
-                dayToEachReturn[day][col-1].Add(r, 1);
+                dayToEachReturn[day][col].Add(r, 1);
             }
-
-            equityToDayToReturn[equity][day] = total_return-1;
+            equityToDayToReturn[equity][day] = total_return - 1;
             equityToDayToVol[equity][day] = (float)acc.Volatility;
             dayToReturns[day].Add(total_return - 1, 1);
+
+            for (int i = 0; i < nb_splits_by_day; ++i)
+            {
+                var startIdx = indexBySubDay[i][0];
+                var endIdx = indexBySubDay[i][1];
+                acc = new DoubleAccumulator();
+                total_return = 1f;
+                
+                for (int col = startIdx; col < endIdx; ++col)
+                {
+                    var r = floatContent[col];
+                    if (float.IsNaN(r))
+                    {
+                        r = 0;
+                    }
+                    total_return *= 1 + r;
+                    acc.Add(r, 1);
+                }
+                equityToDayToReturnBySubDay[equity][day][i] = total_return - 1;
+                equityToDayToVolBySubDay[equity][day][i] = (float)acc.Volatility;
+                dayToReturnsBySubDay[day][i].Add(total_return - 1, 1);
+            }
         }
 
         var ids = df["ID", "day", "equity"].Clone();
-        var computedColumns = new[]
+        var computedColumns = new List<string>();
+
+        for (int i = 0; i < nb_splits_by_day; ++i)
         {
+            var startIdx = indexBySubDay[i][0];
+            var endIdx = indexBySubDay[i][1];
+            var rName = "r" + startIdx.ToString("00") + endIdx.ToString("00");
+            computedColumns.Add($"{rName}_day_equity");
+            computedColumns.Add($"vol_{rName}_day_equity");
+            computedColumns.Add($"{rName}_day_market");
+            computedColumns.Add($"vol_{rName}_day_market");
+        }
+        computedColumns.AddRange(new []
+        { 
             "r_day_equity",     // return for equity 'equity' and day 'day' (0.01 => increase by 1% )
             "vol_r_day_equity", // volatility of the return for equity 'equity' for day 'day'
             "r_day_market",     // average return of the market for day 'day'
             "vol_r_day_market", // volatility of the return of all market equities for day 'day'
             "market_correl_r_day_equity" //correlation between the return of 'equity' and the return of the market for day 'day' 
-        };
-        var data = DataFrame.New(new float[rows*computedColumns.Length], computedColumns);
+        });
+
+
+        for (int i = 0; i < rr_count; ++i)
+        {
+            computedColumns.Add($"rr{i}");
+        }
+
+        var data = DataFrame.New(new float[rows*computedColumns.Count], computedColumns);
         var results = DataFrame.MergeHorizontally(ids, data);
         void ProcessResultRow(int row)
         {
-            var stringContent = results.StringTensor.RowSpanSlice(row, 1);
+            var equity = results.StringTensor.RowSpanSlice(row, 1)[1];
+            var day = df.IntTensor.RowSpanSlice(row, 1)[0];
             var floatContent = results.FloatTensor.RowSpanSlice(row, 1);
-            var ID = stringContent[0];
-            var equity = stringContent[1];
-            var day = floatContent[0];
 
-            var r_day_equity = equityToDayToReturn[equity][day];
-            var vol_r_day_equity = equityToDayToVol[equity][day];
-            var mean_r_day = (float)dayToReturns[day].Average;
-            var vol_r_day = (float)dayToReturns[day].Volatility;
+            int col = floatContent.Length - nb_splits_by_day * 4 - 5 - rr_count;
+            for (int i = 0; i < nb_splits_by_day; ++i)
+            {
+                floatContent[col++] = equityToDayToReturnBySubDay[equity][day][i];           //rXXYY_day_equity
+                floatContent[col++] = equityToDayToVolBySubDay[equity][day][i];            //vol_rXXYY_day_equity
+                floatContent[col++] = (float)dayToReturnsBySubDay[day][i].Average;       //rXXYY_day_market
+                floatContent[col++] = (float)dayToReturnsBySubDay[day][i].Volatility;    //vol_rXXYY_day_market
+            }
+
+            floatContent[col++] = equityToDayToReturn[equity][day];    //r_day_equity
+            floatContent[col++] = equityToDayToVol[equity][day];       //vol_r_day_equity
+            floatContent[col++] = (float)dayToReturns[day].Average;    //r_day_market
+            floatContent[col++] = (float)dayToReturns[day].Volatility; //vol_r_day_market
 
             // we compute the correl of the equity return with the market for this day
             var floatReturnContent = df.FloatTensor.RowSpanSlice(row, 1);
             var lr = new LinearRegression();
             for (int r_index = 0; r_index < return_columns.Length; ++r_index)
             {
-                var basisPoint = floatReturnContent[r_index+1];
-                if (!float.IsNaN(basisPoint))
+                var r = floatReturnContent[r_index];
+                if (!float.IsNaN(r))
                 {
-                    lr.Add(basisPoint/10000, dayToEachReturn[day][r_index].Average);
+                    lr.Add(r, dayToEachReturn[day][r_index].Average);
                 }
             }
             var market_correl_r_day_equity = (float)lr.PearsonCorrelationCoefficient;
@@ -176,12 +273,40 @@ public static class CFM84Utils
             {
                 market_correl_r_day_equity = 0;
             }
+            floatContent[col++] = market_correl_r_day_equity;
 
-            floatContent[^5] = r_day_equity;
-            floatContent[^4] = vol_r_day_equity;
-            floatContent[^3] = mean_r_day;
-            floatContent[^2] = vol_r_day;
-            floatContent[^1] = market_correl_r_day_equity;
+            if (rr_count > 0)
+            {
+                int rrRow = -1;
+                for (int rrDay = day+1; rrDay < day+100; ++rrDay)
+                {
+                    if (equityToDayToRow[equity].ContainsKey(rrDay))
+                    {
+                        rrRow = equityToDayToRow[equity][rrDay];
+                        break;
+                    }
+                }
+
+                if (rrRow >= 0)
+                {
+                    var floatContentRRRow = df.FloatTensor.RowSpanSlice(rrRow, 1);
+                    for (int i = 0; i < rr_count; ++i)
+                    {
+                        floatContent[col++] = floatContentRRRow[i];
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < rr_count; ++i)
+                    {
+                        floatContent[col++] = 0;
+                    }
+                }
+
+
+
+
+            }
         }
 
         Parallel.For(0, rows, ProcessResultRow);
@@ -191,16 +316,16 @@ public static class CFM84Utils
 
     public static void Run()
     {
-        Log.Info("starting");
-        using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);
-        m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
+        //BuildStatNormalizeFile();
+        //BuildStatFile();
+
+        //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);
+        //m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
 
 
         //AverageTestPredictions(@"C:\Projects\Challenges\CFM84\submit\9DE295AB09_modelformat_predict_test_.csv",  @"C:\Projects\Challenges\CFM84\submit\CF37BAB198_modelformat_predict_test_.csv");
-        //BuildStatNormalizeFile();
-        //BuildStatFile();
-        //LaunchLightGBMHPO(500);
-        //LaunchCatBoostHPO(2000);
+        //LaunchLightGBMHPO(10);
+        LaunchCatBoostHPO(2000);
         //FitDistribution();
         //FixDistribution();
     }
@@ -231,18 +356,20 @@ public static class CFM84Utils
             //uncomment appropriate one
             {"loss_function", "MultiClass"},  //for multi class classification
             
-            {"use_r_day_equity", new []{true /*, false*/}},
-            {"use_vol_r_day_equity", new []{true /*, false*/}},
-            {"use_r_day_market", new []{true /*, false*/}},
-            {"use_vol_r_day_market", new []{true /*, false*/}},
-            {"use_market_correl_r_day_equity", new []{true /*, false*/}},
-            //{"use_r_dataset_equity", new []{true , false}},
-            //{"use_vol_r_dataset_equity", new []{true , false}},
+            {"use_r_day_equity", new []{true , false}},                 //0.48218 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_market", new []{true , false}},             //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
+            {"use_r_dataset_equity", new []{true, false}},              //0.48294 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_equity", new []{true, false}},              //0.48194 Valid Accuracy (False) vs 0.47949 Valid Accuracy (True) 
+            {"use_r_day_market", new []{true /*, false*/}},             //0.47531 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_market_correl_r_day_equity", new []{true, false}},    //0.48109 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_dataset_equity", new []{true, false}},          //0.48194 Valid Accuracy (False) vs 0.48116 Valid Accuracy (True)
+            {"rr_count", AbstractHyperParameterSearchSpace.Range(0, 5)},
+
+
             {"use_r_dataset", new []{/*true ,*/ false}}, //must be false
             {"use_vol_r_dataset", new []{/*true,*/ false}}, //must be false
 
             //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
-
 
             { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
             { "allow_writing_files",false},
@@ -272,16 +399,17 @@ public static class CFM84Utils
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
 
-            {"use_r_day_equity", new []{true /*, false*/}},
-            {"use_vol_r_day_equity", new []{true /*, false*/}},
-            {"use_r_day_market", new []{true /*, false*/}},
-            {"use_vol_r_day_market", new []{true /*, false*/}},
-            {"use_market_correl_r_day_equity", new []{true /*, false*/}},
-            //{"use_r_dataset_equity", new []{true /*, false*/}},
-            //{"use_vol_r_dataset_equity", new []{true /*, false*/}},
+            {"use_r_day_equity", new []{true , false}},                 //0.48218 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_market", new []{true , false}},             //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
+            {"use_r_dataset_equity", new []{true, false}},              //0.48294 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_equity", new []{true, false}},              //0.48194 Valid Accuracy (False) vs 0.47949 Valid Accuracy (True) 
+            {"use_r_day_market", new []{true /*, false*/}},             //0.47531 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_market_correl_r_day_equity", new []{true, false}},    //0.48109 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_dataset_equity", new []{true, false}},          //0.48194 Valid Accuracy (False) vs 0.48116 Valid Accuracy (True)
+            {"rr_count", AbstractHyperParameterSearchSpace.Range(0, 3)},
+
             {"use_r_dataset", new []{/*true ,*/ false}}, //must be false
             {"use_vol_r_dataset", new []{/*true,*/ false}}, //must be false
-
 
 
             { "num_threads", -1},
@@ -295,11 +423,14 @@ public static class CFM84Utils
 
             { "colsample_bytree",0.9},
 
-            { "bagging_fraction", 0.8},
-            //{ "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
+            //{ "bagging_fraction", 0.8},
+            { "bagging_fraction", new[]{0.8f, 1.0f} },
             { "bagging_freq", new[]{/*0,*/ 10} },
 
+            { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.2f)},
+            { "max_depth", new[]{10, 20, 50} },
             { "min_data_in_leaf", new[]{20, 100 , 200} },
 
 

@@ -314,7 +314,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         const bool overwriteIfExists = false;
 
         ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Training & Validation Dataset");
-        DatasetSample.Train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
+        DatasetSample.Train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(Model.DatasetPath, true, includeIdColumns, overwriteIfExists);
         var (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, 
          trainPredictions_InModelFormat, trainLoss_InModelFormat,
          validationPredictions_InTargetFormat, validationRankingScore_InTargetFormat,
@@ -345,7 +345,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             var (testPredictionsInModelFormat, _,testPredictionsInTargetFormat, testRankingScore, testDatasetPath_InModelFormat) = DatasetSample.ComputePredictionsAndRankingScoreV2(testDatasetIfAny, Model, false);
             if (testRankingScore == null)
             {
-                DatasetSample.Test_XDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, false, includeIdColumns, overwriteIfExists);
+                DatasetSample.Test_XDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.DatasetPath, false, includeIdColumns, overwriteIfExists);
                 DatasetSample.Test_XDatasetPath_InModelFormat = testDatasetPath_InModelFormat;
                 DatasetSample.Test_YDatasetPath_InTargetFormat = DatasetSample.Test_XYDatasetPath_InTargetFormat = null;
                 DatasetSample.Test_YDatasetPath_InModelFormat = DatasetSample.Test_XYDatasetPath_InModelFormat = null;
@@ -353,7 +353,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             else
             {
                 ISample.Log.Info($"Model '{Model.ModelName}' score on Test: {testRankingScore}");
-                DatasetSample.Test_XYDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.RootDatasetPath, true, includeIdColumns, overwriteIfExists);
+                DatasetSample.Test_XYDatasetPath_InTargetFormat = testDatasetIfAny.to_csv_in_directory(Model.DatasetPath, true, includeIdColumns, overwriteIfExists);
                 DatasetSample.Test_XYDatasetPath_InModelFormat = testDatasetPath_InModelFormat;
                 DatasetSample.Test_YDatasetPath_InTargetFormat = DatasetSample.Test_XDatasetPath_InTargetFormat = null;
                 DatasetSample.Test_YDatasetPath_InModelFormat = DatasetSample.Test_XDatasetPath_InModelFormat = null;

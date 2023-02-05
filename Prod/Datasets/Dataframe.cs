@@ -356,9 +356,9 @@ public sealed class DataFrame
         return read_csv(path, hasHeader, _ => typeof(string), isNormalized);
     }
     // ReSharper disable once UnusedMember.Global
-    public static DataFrame read_int_csv(string path, bool hasHeader = true)
+    public static DataFrame read_int_csv(string path, bool hasHeader = true, bool isNormalized = false)
     {
-        return read_csv(path, hasHeader, _ => typeof(int));
+        return read_csv(path, hasHeader, _ => typeof(int), isNormalized);
     }
     /// <summary>
     /// Return a view to the 'this' DataFrame with the columns 'columnsToDrop' removed
