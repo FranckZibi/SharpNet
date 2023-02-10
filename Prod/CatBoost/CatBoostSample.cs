@@ -329,6 +329,8 @@ public class CatBoostSample : AbstractSample, IModelSample
         {
             case loss_function_enum.RMSE:
                 return EvaluationMetricEnum.Rmse;
+            case loss_function_enum.MAE:
+                return EvaluationMetricEnum.Mae;
             case loss_function_enum.Logloss:
                 return EvaluationMetricEnum.BinaryCrossentropy;
             case loss_function_enum.MultiClass:
@@ -352,6 +354,7 @@ public class CatBoostSample : AbstractSample, IModelSample
         "task_type",
         "od_type"
     };
+
 
     public override bool MustUseGPU => GPUWrapper.GetDeviceCount() >= 1;
 
@@ -437,13 +440,14 @@ public class CatBoostSample : AbstractSample, IModelSample
             { "allow_writing_files",false},
             { "thread_count",1},
             { "iterations", iterations },
-            { "od_type", "Iter"},
-            { "od_wait",iterations/10},
+            //{ "od_type", "Iter"},
+            //{ "od_wait",iterations/10},
             { "depth", AbstractHyperParameterSearchSpace.Range(2, 10) },
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
             { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
             { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
             { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
+            //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
         };
         return searchSpace;
     }

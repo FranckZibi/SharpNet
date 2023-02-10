@@ -198,6 +198,13 @@ public class DatasetEncoder
                     columnStats.Fit(floatReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
                 }
                 break;
+            case DataFrame.INT_TYPE_IDX:
+                var intReadonlyContent = df.IntTensorEvenIfView.ReadonlyContent;
+                for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+                {
+                    columnStats.Fit(intReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
+                }
+                break;
             default:
                 throw new NotImplementedException($"Tensor Type {tensorType} not supported");
         }
@@ -249,6 +256,15 @@ public class DatasetEncoder
                         var contentIndexInDataFrame = columnIdxIdDataFrame + rowIndex * df.Columns.Length;
                         var contentIndexInTensor = columnIdxInTensor + rowIndex * tensorCols;
                         content[contentIndexInDataFrame] = (float)columnStats.Transform(floatReadonlyContent[contentIndexInTensor]);
+                    }
+                    break;
+                case DataFrame.INT_TYPE_IDX:
+                    var intReadonlyContent = df.IntTensorEvenIfView.ReadonlyContent;
+                    for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+                    {
+                        var contentIndexInDataFrame = columnIdxIdDataFrame + rowIndex * df.Columns.Length;
+                        var contentIndexInTensor = columnIdxInTensor + rowIndex * tensorCols;
+                        content[contentIndexInDataFrame] = (float)columnStats.Transform(intReadonlyContent[contentIndexInTensor]);
                     }
                     break;
                 default:

@@ -81,15 +81,34 @@ public sealed class DataFrame
 
     public static DataFrame Average(params DataFrame[] dfs)
     {
-        //TODO: ensure that each DataFrame has same chape and same format for columns
+        return WeightedSum(Enumerable.Repeat(1.0, dfs.Length).ToArray(), dfs);
+    }
+
+
+
+    public static DataFrame WeightedSum(double[] weights, params DataFrame[] dfs)
+    {
+        if (weights.Length != dfs.Length)
+        {
+            throw new ArgumentException($"weights.Length ({weights.Length}) != dfs.Length ({dfs.Length})");
+        }
+
+        var sumWeights = Math.Max(weights.Sum(),1);
+        for (int index = 0; index < weights.Length; ++index)
+        {
+            weights[index] /= sumWeights;
+        }
+
+        //TODO: ensure that each DataFrame has same shape and same format for columns
         var cpuTensor = new CpuTensor<float>(dfs[0].FloatTensor.Shape);
         var content = cpuTensor.SpanContent;
-        foreach (var df in dfs)
+        for (var index = 0; index < dfs.Length; index++)
         {
+            var df = dfs[index];
             var dfContent = df.FloatTensor.ReadonlyContent;
             for (int i = 0; i < content.Length; i++)
             {
-                content[i] += (dfContent[i]) / dfs.Length;
+                content[i] += (float) weights[index]*dfContent[i];
             }
         }
 
@@ -100,7 +119,7 @@ public sealed class DataFrame
             dfs[0].IntTensor);
     }
 
-    private  static CpuTensor<T> ResizeWithNewNumberOfRows<T>(CpuTensor<T> a, int newRows)
+    private static CpuTensor<T> ResizeWithNewNumberOfRows<T>(CpuTensor<T> a, int newRows)
     {
         if (a == null)
         {
@@ -1423,6 +1442,22 @@ public sealed class DataFrame
         {
             var newContent = Tokenizer.RemoveDiacritics(File.ReadAllText(path));
             File.WriteAllText(path, newContent);
+        }
+    }
+
+    public void fillna_inplace(float newFloatValue)
+    {
+        if (_floatTensor == null)
+        {
+            return;
+        }
+        var span = _floatTensor.SpanContent;
+        for (int i = 0; i < span.Length; ++i)
+        {
+            if (float.IsNaN(span[i]))
+            {
+                span[i] = newFloatValue;
+            }
         }
     }
 }

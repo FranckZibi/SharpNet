@@ -32,6 +32,10 @@
     <Compile Remove="Properties\AssemblyInfo.cs" />
     <None Remove="packages.config" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\Temp\Misc.cs" Link="Misc.cs" />
+  </ItemGroup>
   
   <ItemGroup>
 		<Reference Include="HDF.PInvoke">
@@ -48,6 +52,7 @@
   
   <ItemGroup>
     <Folder Include="Datasets\CFM84\" />
+    <Folder Include="Datasets\QRT97\" />
     <Folder Include="Datasets\QRT72\" />
   </ItemGroup>
 

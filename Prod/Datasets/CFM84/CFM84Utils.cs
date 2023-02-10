@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using log4net;
 using SharpNet.CatBoost;
 using SharpNet.Data;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
-using SharpNet.MathTools;
+using SharpNet.Networks;
 
 namespace SharpNet.Datasets.CFM84;
 
@@ -38,11 +36,11 @@ public static class CFM84Utils
 
 
 
-    public static void AverageTestPredictions(params string[] predictionsPaths)
+    public static void AverageTestPredictions(double[] weights, params string[] predictionsPaths)
     {
         var outputTestRandom_df = DataFrame.read_float_csv(OutputTestRandomPath);
         var id_df = outputTestRandom_df["ID"].Clone();
-        var avg = DataFrame.Average(predictionsPaths.Select(p => DataFrame.read_float_csv(p)).ToArray());
+        var avg = DataFrame.WeightedSum(weights, predictionsPaths.Select(p => DataFrame.read_float_csv(p)).ToArray());
         Debug.Assert(id_df.Shape[0] == avg.Shape[0]);
         var floatTensorArgMax = avg.FloatTensor.ArgMax().AsFloatCpuSpan.ToArray().Select(f=>Utils.NearestInt(f));
         var strContent = floatTensorArgMax.Select(i => TargetLabelDistinctValues[i]).ToArray();
@@ -74,258 +72,48 @@ public static class CFM84Utils
         train.to_csv(XTrainPath.Replace(".csv","")+"_normalized.csv");
 
         //we re order the y train dataset so it has the same order as the x train dataset
-        var y_train = DataFrame.read_string_csv(YTrainPath, true, true);
-        var y_train_dico = new Dictionary<string, string>();
-        var y_train_ID = y_train.StringColumnContent("ID");
-        var y_train_reod = y_train.StringColumnContent("reod");
-        for (int i = 0; i < y_train_ID.Length; ++i)
-        {
-            y_train_dico.Add(y_train_ID[i], y_train_reod[i]);
-        }
+        var y_train_dico = CFM84Utils.PredToDico(YTrainPath);
         var y_train_ordered = new List<string>();
         foreach(var sorted_id in train.StringColumnContent("ID"))
         {
             y_train_ordered.Add(sorted_id);
             y_train_ordered.Add(y_train_dico[sorted_id]);
         }
-        DataFrame.New(y_train_ordered.ToArray(), y_train.Columns).to_csv(YTrainPath.Replace(".csv", "") + "_normalized.csv");
+        DataFrame.New(y_train_ordered.ToArray(), new []{ "ID", "reod"}).to_csv(YTrainPath.Replace(".csv", "") + "_normalized.csv");
         var test = DataFrame.read_csv(XTestPath, true, ColumnNameToType, true);
         test.UpdateColumnsInPlace(NormalizeReturn, return_columns);
         test.to_csv(XTestPath.Replace(".csv", "") + "_normalized.csv");
     }
 
-    [SuppressMessage("ReSharper", "UnusedVariable")]
-    public static void BuildStatFile()
+    public static Dictionary<string, string> PredToDico(string path)
     {
-        var train = DataFrame.read_csv(XTrainPath, true, ColumnNameToType, true);
-        var test = DataFrame.read_csv(XTestPath, true, ColumnNameToType, true);
-        var df = DataFrame.MergeVertically(train, test);
-
-
-        var indexBySubDay = new List<int[]>()
+        var res = new Dictionary<string, string>();
+        var y_pred_df = DataFrame.read_string_csv(path, true, true);
+        var y_ID = y_pred_df.StringColumnContent("ID");
+        var y_reod = y_pred_df.StringColumnContent("reod");
+        for (int i = 0; i < y_ID.Length; ++i)
         {
-            //new [] { 0, 10 },
-            //new [] { 11, 20 },
-            //new [] { 21, 31 },
-            //new [] { 32, 41 },
-            //new [] { 42, 52 }
-        };
-        int nb_splits_by_day = indexBySubDay.Count;
-        const int rr_count = 10;
-
-        var return_columns = train.Columns.Where(c => c.StartsWith("r")).ToArray();
-        var equityToDayToReturn = new Dictionary<string, Dictionary<int, float>>();
-        var equityToDayToReturnBySubDay = new Dictionary<string, Dictionary<int, float[]>>();
-        var equityToDayToVol = new Dictionary<string, Dictionary<int, float>>();
-        var equityToDayToRow = new Dictionary<string, Dictionary<int, int>>();
-        var equityToDayToVolBySubDay = new Dictionary<string, Dictionary<int, float[]>>();
-        var dayToReturns = new Dictionary<int, DoubleAccumulator>();
-        var dayToReturnsBySubDay = new Dictionary<int, DoubleAccumulator[]>();
-        var dayToEachReturn = new Dictionary<int, List<DoubleAccumulator>>();
-
-        var rows = df.Shape[0];
-        
-        for (int row = 0; row < rows; ++row)
-        {
-            var stringContent = df.StringTensor.RowSpanSlice(row,1);
-            var floatContent = df.FloatTensor.RowSpanSlice(row, 1);
-            var intContent = df.IntTensor.RowSpanSlice(row, 1);
-            Debug.Assert(floatContent.Length == return_columns.Length);
-            var ID = stringContent[0];
-            var equity = stringContent[1];
-            var day = intContent[0];
-
-            if (!equityToDayToReturn.ContainsKey(equity))
-            {
-                equityToDayToReturn[equity] = new Dictionary<int, float>();
-                equityToDayToReturnBySubDay[equity] = new Dictionary<int, float[]>();
-                equityToDayToVol[equity] = new Dictionary<int, float>();
-                equityToDayToVolBySubDay[equity] = new Dictionary<int, float[]>();
-                equityToDayToRow[equity] = new Dictionary<int, int>();
-            }
-            equityToDayToRow[equity][day] = row;
-
-            if (!equityToDayToReturnBySubDay[equity].ContainsKey(day))
-            {
-                equityToDayToReturnBySubDay[equity][day] = new float[nb_splits_by_day];
-                equityToDayToVolBySubDay[equity][day] = new float[nb_splits_by_day];
-            }
-
-            if (!dayToReturns.ContainsKey(day))
-            {
-                dayToReturns[day] = new DoubleAccumulator();
-                dayToEachReturn[day] = new List<DoubleAccumulator>();
-                while (dayToEachReturn[day].Count < return_columns.Length)
-                {
-                    dayToEachReturn[day].Add(new DoubleAccumulator());
-                }
-
-                dayToReturnsBySubDay[day] = new DoubleAccumulator[nb_splits_by_day];
-                for (int i = 0; i < nb_splits_by_day; ++i)
-                {
-                    dayToReturnsBySubDay[day][i] = new DoubleAccumulator();
-                }
-            }
-
-            var acc = new DoubleAccumulator();
-            var total_return = 1f;
-            for (int col = 0; col < floatContent.Length; ++col)
-            {
-                var r = floatContent[col];
-                if (float.IsNaN(r))
-                {
-                    r = 0;
-                }
-                total_return *= 1 + r;
-                acc.Add(r, 1);
-                dayToEachReturn[day][col].Add(r, 1);
-            }
-            equityToDayToReturn[equity][day] = total_return - 1;
-            equityToDayToVol[equity][day] = (float)acc.Volatility;
-            dayToReturns[day].Add(total_return - 1, 1);
-
-            for (int i = 0; i < nb_splits_by_day; ++i)
-            {
-                var startIdx = indexBySubDay[i][0];
-                var endIdx = indexBySubDay[i][1];
-                acc = new DoubleAccumulator();
-                total_return = 1f;
-                
-                for (int col = startIdx; col < endIdx; ++col)
-                {
-                    var r = floatContent[col];
-                    if (float.IsNaN(r))
-                    {
-                        r = 0;
-                    }
-                    total_return *= 1 + r;
-                    acc.Add(r, 1);
-                }
-                equityToDayToReturnBySubDay[equity][day][i] = total_return - 1;
-                equityToDayToVolBySubDay[equity][day][i] = (float)acc.Volatility;
-                dayToReturnsBySubDay[day][i].Add(total_return - 1, 1);
-            }
+            res.Add(y_ID[i], y_reod[i]);
         }
-
-        var ids = df["ID", "day", "equity"].Clone();
-        var computedColumns = new List<string>();
-
-        for (int i = 0; i < nb_splits_by_day; ++i)
-        {
-            var startIdx = indexBySubDay[i][0];
-            var endIdx = indexBySubDay[i][1];
-            var rName = "r" + startIdx.ToString("00") + endIdx.ToString("00");
-            computedColumns.Add($"{rName}_day_equity");
-            computedColumns.Add($"vol_{rName}_day_equity");
-            computedColumns.Add($"{rName}_day_market");
-            computedColumns.Add($"vol_{rName}_day_market");
-        }
-        computedColumns.AddRange(new []
-        { 
-            "r_day_equity",     // return for equity 'equity' and day 'day' (0.01 => increase by 1% )
-            "vol_r_day_equity", // volatility of the return for equity 'equity' for day 'day'
-            "r_day_market",     // average return of the market for day 'day'
-            "vol_r_day_market", // volatility of the return of all market equities for day 'day'
-            "market_correl_r_day_equity" //correlation between the return of 'equity' and the return of the market for day 'day' 
-        });
-
-
-        for (int i = 0; i < rr_count; ++i)
-        {
-            computedColumns.Add($"rr{i}");
-        }
-
-        var data = DataFrame.New(new float[rows*computedColumns.Count], computedColumns);
-        var results = DataFrame.MergeHorizontally(ids, data);
-        void ProcessResultRow(int row)
-        {
-            var equity = results.StringTensor.RowSpanSlice(row, 1)[1];
-            var day = df.IntTensor.RowSpanSlice(row, 1)[0];
-            var floatContent = results.FloatTensor.RowSpanSlice(row, 1);
-
-            int col = floatContent.Length - nb_splits_by_day * 4 - 5 - rr_count;
-            for (int i = 0; i < nb_splits_by_day; ++i)
-            {
-                floatContent[col++] = equityToDayToReturnBySubDay[equity][day][i];           //rXXYY_day_equity
-                floatContent[col++] = equityToDayToVolBySubDay[equity][day][i];            //vol_rXXYY_day_equity
-                floatContent[col++] = (float)dayToReturnsBySubDay[day][i].Average;       //rXXYY_day_market
-                floatContent[col++] = (float)dayToReturnsBySubDay[day][i].Volatility;    //vol_rXXYY_day_market
-            }
-
-            floatContent[col++] = equityToDayToReturn[equity][day];    //r_day_equity
-            floatContent[col++] = equityToDayToVol[equity][day];       //vol_r_day_equity
-            floatContent[col++] = (float)dayToReturns[day].Average;    //r_day_market
-            floatContent[col++] = (float)dayToReturns[day].Volatility; //vol_r_day_market
-
-            // we compute the correl of the equity return with the market for this day
-            var floatReturnContent = df.FloatTensor.RowSpanSlice(row, 1);
-            var lr = new LinearRegression();
-            for (int r_index = 0; r_index < return_columns.Length; ++r_index)
-            {
-                var r = floatReturnContent[r_index];
-                if (!float.IsNaN(r))
-                {
-                    lr.Add(r, dayToEachReturn[day][r_index].Average);
-                }
-            }
-            var market_correl_r_day_equity = (float)lr.PearsonCorrelationCoefficient;
-            if (float.IsNaN(market_correl_r_day_equity))
-            {
-                market_correl_r_day_equity = 0;
-            }
-            floatContent[col++] = market_correl_r_day_equity;
-
-            if (rr_count > 0)
-            {
-                int rrRow = -1;
-                for (int rrDay = day+1; rrDay < day+100; ++rrDay)
-                {
-                    if (equityToDayToRow[equity].ContainsKey(rrDay))
-                    {
-                        rrRow = equityToDayToRow[equity][rrDay];
-                        break;
-                    }
-                }
-
-                if (rrRow >= 0)
-                {
-                    var floatContentRRRow = df.FloatTensor.RowSpanSlice(rrRow, 1);
-                    for (int i = 0; i < rr_count; ++i)
-                    {
-                        floatContent[col++] = floatContentRRRow[i];
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < rr_count; ++i)
-                    {
-                        floatContent[col++] = 0;
-                    }
-                }
-
-
-
-
-            }
-        }
-
-        Parallel.For(0, rows, ProcessResultRow);
-
-        results.to_csv(Path.Combine(DataDirectory, StatPath));
+        return res;
     }
 
     public static void Run()
     {
+        //Misc.CreateAllFiles(); return;
+        //Misc.FitDistribution();
         //BuildStatNormalizeFile();
-        //BuildStatFile();
+        Misc.BuildStatFile();
 
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);
         //m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
 
 
-        //AverageTestPredictions(@"C:\Projects\Challenges\CFM84\submit\9DE295AB09_modelformat_predict_test_.csv",  @"C:\Projects\Challenges\CFM84\submit\CF37BAB198_modelformat_predict_test_.csv");
-        //LaunchLightGBMHPO(10);
-        LaunchCatBoostHPO(2000);
+        //AverageTestPredictions(new []{0.5,0.5}, @"C:\Projects\Challenges\CFM84\submit\9DE295AB09_modelformat_predict_test_.csv",  @"C:\Projects\Challenges\CFM84\submit\CF37BAB198_modelformat_predict_test_.csv");
+        //AverageTestPredictions(new[] { 0.6, 0.4 }, @"C:\Projects\Challenges\CFM84\avg\26A5D7BA9E_modelformat_predict_test_.csv", @"C:\Projects\Challenges\CFM84\avg\CFB81C1361_modelformat_predict_test_.csv");
+        //LaunchLightGBMHPO(100);
+        //LaunchCatBoostHPO(2000);
+        //LaunchNeuralNetworkHPO(10);
         //FitDistribution();
         //FixDistribution();
     }
@@ -366,8 +154,8 @@ public static class CFM84Utils
             {"rr_count", AbstractHyperParameterSearchSpace.Range(0, 5)},
 
 
-            {"use_r_dataset", new []{/*true ,*/ false}}, //must be false
-            {"use_vol_r_dataset", new []{/*true,*/ false}}, //must be false
+            //{"use_r_dataset", new []{/*true ,*/ false}}, //must be false
+            //{"use_vol_r_dataset", new []{/*true,*/ false}}, //must be false
 
             //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
 
@@ -377,7 +165,7 @@ public static class CFM84Utils
             { "iterations", iterations },
             { "od_type", "Iter"},
             { "od_wait",iterations/10},
-            { "depth", AbstractHyperParameterSearchSpace.Range(4, 10) },
+            { "depth", AbstractHyperParameterSearchSpace.Range(4, 8) }, //no need to go more than 8
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.10f)},
             { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
             { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
@@ -487,41 +275,61 @@ public static class CFM84Utils
     }
 
 
-    private static (double accuracy, int numCorrect) PrintAccuracy(int[] y_true, int[] y_predicted, string name)
+    public static void LaunchNeuralNetworkHPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
-        var (accuracy, numCorrect) = ComputeAccuracy(y_true, y_predicted);
-        Console.WriteLine($"{name} Accuracy: {accuracy} ({numCorrect}/{y_true.Length})");
-        return (accuracy, numCorrect);
-    }
-    private static (int[] class2Count, float[] class2Frequency) ToClassCountAndFrequency(int numClass, int[] y_true)
-    {
-        var class2Count = new int[numClass];
-        foreach (var c in y_true)
+        var searchSpace = new Dictionary<string, object>
         {
-            ++class2Count[c];
-        }
+            //Dataset specific
+            //{ "KFold", 3 },
+            {"PercentageInTraining", new[]{0.8}},
+            
+            {"use_r_day_equity", new []{true , false}},                 //0.48218 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_market", new []{/*true , */ false}},             //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
+            {"use_r_dataset_equity", new []{true, false}},              //0.48294 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_equity", new []{true, false}},              //0.48194 Valid Accuracy (False) vs 0.47949 Valid Accuracy (True) 
+            {"use_r_day_market", new []{true /*, false*/}},             //0.47531 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_market_correl_r_day_equity", new []{true, false}},    //0.48109 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_dataset_equity", new []{true, false}},          //0.48194 Valid Accuracy (False) vs 0.48116 Valid Accuracy (True)
+            {"rr_count", new[]{0,1,2}},
 
-        var class2Frequency = new float[numClass];
-        for (int c = 0; c < numClass; ++c)
-        {
-            class2Frequency[c] = (float)class2Count[c] / y_true.Length;
-        }
+            {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
+            
+            {"fillna_with_0", true},  //NaN are not supported in Neural Networks
 
-        return (class2Count, class2Frequency);
+            // Optimizer 
+            { "OptimizerType", new[] { "AdamW" } },
+            //{ "OptimizerType", "SGD" },
+            { "AdamW_L2Regularization", new[] { 0.01 } },
+            //{ "SGD_usenesterov", new[] { true, false } },
+            //{ "lambdaL2Regularization", 0},
+
+            // Learning Rate
+            //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            { "InitialLearningRate", new[]{ 0.001 } },
+            // Learning Rate Scheduler
+            ////{ "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
+            { "LearningRateSchedulerType", "CyclicCosineAnnealing"},
+            //{ "EmbeddingDim", new[] { 4} },
+            //{"weight_norm", new[]{true, false}},
+            //{"leaky_relu", new[]{true, false}},
+            //{ "dropout_top", new[] { 0, 0.1, 0.2 } },
+            //{ "dropout_mid", new[] { 0, 0.3, 0.5 } },
+            //{ "dropout_bottom", new[] { 0, 0.2, 0.4 } },
+            
+            { "BatchSize", new[] { 1024,2048,4096 } },
+            { "NumEpochs", numEpochs },
+
+
+            { "hidden_size", 1024 },
+            { "channel_1", 256},
+            { "channel_2", 512},
+            { "channel_3", 512},
+
+        };
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new CFM84DatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
-    private static (double accuracy, int numCorrect) ComputeAccuracy(int[] y_true, int[] y_predicted)
-    {
-        int numCorrect = 0;
-        for (int i = 0; i < y_true.Length; ++i)
-        {
-            if (y_true[i] == y_predicted[i])
-            {
-                ++numCorrect;
-            }
-        }
-        var accuracy = Math.Round(numCorrect / (double)y_true.Length, 5);
-        return (accuracy, numCorrect);
-    }
-
 
 }

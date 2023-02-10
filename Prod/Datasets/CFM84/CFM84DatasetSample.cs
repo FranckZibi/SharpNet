@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using SharpNet.MathTools;
+using SharpNet.Data;
 
 namespace SharpNet.Datasets.CFM84;
 
@@ -32,6 +33,9 @@ public class CFM84DatasetSample : AbstractDatasetSample
     public bool use_r_dataset = false; //not used
     public bool use_vol_r_dataset = false; //not used
     public int rr_count = 0;
+    public bool use_ccat = false;
+
+    public bool fillna_with_0 = false;
     #endregion
 
 
@@ -66,7 +70,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
     {
         return Objective_enum.Classification;
     }
-    public override IScore MinimumScoreToSaveModel => new Score(0.48f, GetRankingEvaluationMetric());
+    //public override IScore MinimumScoreToSaveModel => new Score(0.48f, GetRankingEvaluationMetric());
 
     public override string[] TargetLabelDistinctValues => CFM84Utils.TargetLabelDistinctValues;
 
@@ -79,7 +83,6 @@ public class CFM84DatasetSample : AbstractDatasetSample
     {
         return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;
     }
-
 
     public override ITrainingAndTestDataset SplitIntoTrainingAndValidation()
     {
@@ -97,6 +100,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
         int indexDayForTraining = (int)(PercentageInTraining * daysSorted.Length + 0.1);
         indexDayForTraining -= indexDayForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
         var maxDayForTraining = daysSorted[indexDayForTraining];
+        Log.Debug($"All days up to {maxDayForTraining} will be in training, and the rest in validation");
 
         var training = fullTrain.SubDataSet(id => days[id]<= maxDayForTraining+0.1);
         var test = fullTrain.SubDataSet(id => days[id] > maxDayForTraining + 0.1);
@@ -267,8 +271,16 @@ public class CFM84DatasetSample : AbstractDatasetSample
         if (!use_vol_r_dataset_equity) { toDrop.Add("vol_r_dataset_equity"); }
         if (!use_r_dataset) { toDrop.Add("r_dataset"); }
         if (!use_vol_r_dataset) { toDrop.Add("vol_r_dataset"); }
+        if (!use_ccat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("ccat"))); }
+
         toDrop.AddRange(Enumerable.Range(rr_count, 10).Select(i => "rr"+i));
         xWithStats = xWithStats.DropIgnoreErrors(toDrop.ToArray()).Clone();
+
+        if (fillna_with_0)
+        {
+            xWithStats.fillna_inplace(0);
+        }
+
         return xWithStats;
     }
 

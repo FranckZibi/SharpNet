@@ -966,6 +966,18 @@ namespace SharpNet.Networks
                 bool withDataAugmentation = Sample.UseDataAugmentation && isTraining;
 
                 int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, isTraining, shuffledElementId, firstIndexInShuffledElementId, Sample, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
+                #if DEBUG
+                foreach (var t in all_x_miniBatch_cpu_allWorkers)
+                {
+                    var span = t.SpanContent;
+                    for (var index = 0; index < span.Length; index++)
+                    {
+                        if (float.IsNaN(span[index]))  { throw new Exception($"NaN in input X Tensor at index {index}"); }
+                    }
+                }
+                #endif
+
+
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 //we copy yExpected_miniBatch_cpu_allWorkers from CPU to appropriate target (CPU or GPU)
                 var yExpectedForMiniBatch_allWorkers = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForAllWorkers);

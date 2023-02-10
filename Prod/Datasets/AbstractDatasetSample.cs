@@ -440,7 +440,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// </summary>
     /// <param name="df"></param>
     /// <exception cref="Exception"></exception>
-    private void AssertNoIdColumns(DataFrame df)
+    protected void AssertNoIdColumns(DataFrame df)
     {
         if (df == null)
         {

@@ -127,12 +127,17 @@ public class ColumnStatistics
         }
 
         //it is a numerical field
-        if (double.IsNaN(val_before_encoding))
+        if (float.IsNaN(val_before_encoding))
         {
             ++CountEmptyElements;
             return; //missing numerical value
         }
         _numericalValues.Add(val_before_encoding, 1);
+    }
+
+    public void Fit(int val_before_encoding)
+    {
+        Fit((float)val_before_encoding);
     }
 
 

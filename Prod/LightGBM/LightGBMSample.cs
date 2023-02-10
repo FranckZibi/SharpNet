@@ -25,6 +25,8 @@ public class LightGBMSample : AbstractSample, IModelSample
         {
             case objective_enum.regression:
                 return EvaluationMetricEnum.Rmse;
+            case objective_enum.regression_l1:
+                return EvaluationMetricEnum.Mae;
             case objective_enum.binary:
                 return EvaluationMetricEnum.BinaryCrossentropy;
             case objective_enum.multiclass:
@@ -1026,7 +1028,7 @@ public class LightGBMSample : AbstractSample, IModelSample
             { "bagging_freq", new[]{0, 1} },
             { "boosting", new []{"gbdt", "dart"}},
             { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
-            { "early_stopping_round", num_iterations/10 },
+            //{ "early_stopping_round", num_iterations/10 },
             { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
             { "max_depth", new[]{10, 20, 50, 100, 255} },
