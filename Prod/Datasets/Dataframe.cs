@@ -64,6 +64,19 @@ public sealed class DataFrame
     #endregion
 
 
+    public void SetColumnNames(string[] newColumnNames)
+    {
+        if (newColumnNames.Length != Columns.Length)
+        {
+            throw new ArgumentException($"newColumnNames.Length={newColumnNames.Length} != Columns.Length={Columns.Length}");
+        }
+        for (int i = 0; i < newColumnNames.Length; ++i)
+        {
+            _columns[i] = Tuple.Create(newColumnNames[i], _columns[i].Item2, _columns[i].Item3);
+            Columns[i] = newColumnNames[i];
+        }
+    }
+
     public override string ToString()
     {
         return Tensor.ShapeToString(Shape);
@@ -194,8 +207,16 @@ public sealed class DataFrame
         var tensor = CpuTensor<float>.New(content, columnsNames.Count);
         return New(tensor, columnsNames);
     }
+    public static DataFrame New(double[] content, IList<string> columnsNames)
+    {
+        return New(content.Select(d => (float)d).ToArray(), columnsNames);
+    }
     public static DataFrame New(CpuTensor<float> tensor, IList<string> columnsNames)
     {
+        if (tensor == null)
+        {
+            return null;
+        }
         return New(tensor, null, null, columnsNames);
     }
     public static DataFrame New(CpuTensor<float> tensor)
@@ -284,6 +305,30 @@ public sealed class DataFrame
             ISample.Log.Error(msg);
             throw new Exception(msg);
         }
+    }
+
+
+    public DataFrame Filter(bool[] toKeep)
+    {
+        AssertIsNotColumnViewToOtherDataFrame();
+        int newRows= toKeep.Count(t => t);
+        int nextIdxNewRow = 0;
+        int rows = Shape[0];
+        var newFloatTensor = (FloatTensor == null) ? null : new CpuTensor<float>(new[] { newRows, FloatTensor.Shape[1] });
+        var newStringTensor = (StringTensor == null) ? null : new CpuTensor<string>(new[] { newRows, StringTensor.Shape[1] });
+        var newIntTensor = (IntTensor == null) ? null : new CpuTensor<int>(new[] { newRows, IntTensor.Shape[1] });
+        for (int row = 0; row < rows; ++row)
+        {
+            if (toKeep[row])
+            {
+                FloatTensor?.RowSpanSlice(row, 1).CopyTo(newFloatTensor.RowSpanSlice(nextIdxNewRow, 1));
+                StringTensor?.RowSpanSlice(row, 1).CopyTo(newStringTensor.RowSpanSlice(nextIdxNewRow, 1));
+                IntTensor?.RowSpanSlice(row, 1).CopyTo(newIntTensor.RowSpanSlice(nextIdxNewRow, 1));
+                ++nextIdxNewRow;
+            }
+        }
+        return new DataFrame(ColumnsDesc, newFloatTensor, newStringTensor, newIntTensor);
+
     }
 
     public string[] StringColumnContent(string columnName)
@@ -411,7 +456,8 @@ public sealed class DataFrame
     // ReSharper disable once UnusedMember.Global
     public DataFrame DropIgnoreErrors(params string[] columnsToDrop)
     {
-        return Drop(Utils.Intersect(Columns, columnsToDrop).ToArray());
+        columnsToDrop = Utils.Intersect(Columns, columnsToDrop).ToArray();
+        return columnsToDrop.Length == 0 ? this : Drop(columnsToDrop);
     }
 
     /// <summary>
@@ -852,12 +898,21 @@ public sealed class DataFrame
             Array.Reverse(orderedRows);
         }
 
+        return ReorderRows(orderedRows);
+    }
+
+    public DataFrame ReorderRows(int[] orderedRows)
+    {
+        if (orderedRows.Length != Shape[0])
+        {
+            throw new ArgumentException($"invalid orderedRows length {orderedRows.Length} (expected {Shape[0]})");
+        }
         return new DataFrame(
             _columns.ToList(),
             FloatTensor?.ApplyRowOrder(orderedRows),
             StringTensor?.ApplyRowOrder(orderedRows),
             IntTensor?.ApplyRowOrder(orderedRows)
-            );
+        );
     }
 
     public void ShuffleInPlace([NotNull] Random r, params string[] columnNamesToShuffle)
@@ -1445,6 +1500,20 @@ public sealed class DataFrame
         }
     }
 
+
+    public static IScore ComputeEvaluationMetric(DataFrame y_true_df, DataFrame y_pred_df, EvaluationMetricEnum metric)
+    {
+        if (y_true_df == null || y_pred_df == null)
+        {
+            return null;
+        }
+        var y_true_tensor = y_true_df.FloatCpuTensor();
+        var y_pred_tensor = y_pred_df.FloatCpuTensor();
+        Debug.Assert(y_true_tensor.Shape.SequenceEqual(y_pred_tensor.Shape));
+        using var buffer = new CpuTensor<float>(y_true_tensor.ComputeMetricBufferShape(metric));
+        var evaluationMetric = y_true_tensor.ComputeEvaluationMetric(y_pred_tensor, metric, buffer);
+        return new Score((float)evaluationMetric, metric);
+    }
     public void fillna_inplace(float newFloatValue)
     {
         if (_floatTensor == null)

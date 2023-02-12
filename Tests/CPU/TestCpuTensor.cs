@@ -334,6 +334,31 @@ namespace SharpNetTests.CPU
             Assert.IsTrue(TensorExtensions.SameFloatContent(expectedLoss, predictedLoss, 1e-6));
         }
 
+
+        [TestCase(new [] { 35f, 23, 47, 17, 10, 43, 9, 6, 28 }, new [] { 30f, 33, 45, 23, 8, 49, 12, 4, 31 }, 0.9f)]
+        [TestCase(new []{86f,97,99,100,101,103,106,110,112,113},new [] {2f,20,28,27,50,29,7,17,6,12}, -0.1757575f)]
+        public void Test_ComputeEvaluationMetric_SpearmanCorrelation(float[] y_true_array, float[] y_pred_array, float expected_value)
+        {
+            var y_true = CpuTensor<float>.New(y_true_array, 1);
+            var y_pred = CpuTensor<float>.New(y_pred_array, 1);
+            const EvaluationMetricEnum metric = EvaluationMetricEnum.SpearmanCorrelation;
+            var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
+            var observedLoss = y_true.ComputeEvaluationMetric(y_pred,  metric, buffer);
+            Assert.AreEqual(expected_value, observedLoss, 1e-6);
+        }
+
+        [TestCase(new [] { 35f, 23, 47, 17, 10, 43, 9, 6, 28 }, new [] { 30f, 33, 45, 23, 8, 49, 12, 4, 31 }, 0.9498663391f)]
+        [TestCase(new [] { 86f, 97, 99, 100, 101, 103, 106, 110, 112, 113 }, new [] { 2f, 20, 28, 27, 50, 29, 7, 17, 6, 12 }, -0.070216326029056739f)]
+        public void Test_ComputeEvaluationMetric_PearsonCorrelation(float[] y_true_array, float[] y_pred_array, float expected_value)
+        {
+            var y_true = CpuTensor<float>.New(y_true_array, 1);
+            var y_pred = CpuTensor<float>.New(y_pred_array, 1);
+            const EvaluationMetricEnum metric = EvaluationMetricEnum.PearsonCorrelation;
+            var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
+            var observedLoss = y_true.ComputeEvaluationMetric(y_pred, metric, buffer);
+            Assert.AreEqual(expected_value, observedLoss, 1e-6);
+        }
+
         [Test]
         public void TestComputeCategoricalCrossentropyWithHierarchyLoss()
         {

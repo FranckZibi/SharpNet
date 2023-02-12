@@ -104,7 +104,10 @@ namespace SharpNet
 
         CosineSimilarity504, // ok for loss, higher is better
 
-        F1Micro // ok for loss, higher is better
+        F1Micro, // ok for loss, higher is better
+
+        PearsonCorrelation, // works only for metric (to rank submission), do not work as a loss function, higher s better
+        SpearmanCorrelation, // works only for metric (to rank submission), do not work as a loss function, higher s better
     }
 
 
@@ -152,6 +155,8 @@ namespace SharpNet
                 case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
                 case EvaluationMetricEnum.CosineSimilarity504:
                 case EvaluationMetricEnum.F1Micro:
+                case EvaluationMetricEnum.PearsonCorrelation:
+                case EvaluationMetricEnum.SpearmanCorrelation:
                     return true; // higher is better
                 case EvaluationMetricEnum.BinaryCrossentropy:
                 case EvaluationMetricEnum.CategoricalCrossentropy:

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Layers;
+using SharpNet.MathTools;
 using SharpNet.Networks;
 using static SharpNet.GPU.GPUWrapper;
 
@@ -1556,6 +1557,12 @@ namespace SharpNet.CPU
                 case EvaluationMetricEnum.Accuracy:
                     cost = ComputeAccuracy(yPredicted, buffer);
                     break;
+                case EvaluationMetricEnum.PearsonCorrelation:
+                    cost = ComputePearsonCorrelation(yPredicted);
+                    break;
+                case EvaluationMetricEnum.SpearmanCorrelation:
+                    cost = ComputeSpearmanCorrelation(yPredicted);
+                    break;
                 case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
                     cost = ComputeAccuracyCategoricalCrossentropyWithHierarchy(yPredicted, buffer);
                     break;
@@ -1599,6 +1606,67 @@ namespace SharpNet.CPU
 
             return cost;
         }
+
+        public double ComputePearsonCorrelation([NotNull] Tensor y_pred)
+        {
+            var y_true = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { y_true, y_pred }));
+            Debug.Assert(y_true.Shape.Length == 2);
+            Debug.Assert(y_true.Shape[1] == 1);
+            Debug.Assert(y_true.SameShape(y_pred));
+            Debug.Assert(!y_true.UseGPU);
+            var y_true_span = y_true.AsReadonlyFloatCpuContent;
+            var y_pred_span = y_pred.AsReadonlyFloatCpuContent;
+
+            var lr = new LinearRegression();
+            for (int i = 0; i < y_true_span.Length; i++)
+            {
+                lr.Add(y_true_span[i], y_pred_span[i]);
+            }
+            return lr.PearsonCorrelationCoefficient;  
+        }
+        
+        public double ComputeSpearmanCorrelation([NotNull] Tensor y_pred)
+        {
+            static int[] CreateRankForSpearmanCorrelation(ReadOnlySpan<float> s)
+            {
+                var res = new int[s.Length];
+                var sorted = new List<Tuple<float, int>>();
+                for (int i = 0; i < s.Length; i++)
+                {
+                    sorted.Add(new Tuple<float, int>(s[i], i));
+                }
+                int currentRank = 0;
+                foreach (var e in sorted.OrderByDescending(a => a.Item1))
+                {
+                    res[e.Item2] = currentRank++;
+                }
+                return res;
+            }
+            
+            var y_true = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { y_true, y_pred }));
+            Debug.Assert(y_true.Shape.Length == 2);
+            Debug.Assert(y_true.Shape[1] == 1);
+            Debug.Assert(y_true.SameShape(y_pred));
+            Debug.Assert(!y_true.UseGPU);
+            var y_true_rank = CreateRankForSpearmanCorrelation(y_true.AsReadonlyFloatCpuContent);
+            var y_pred_rank = CreateRankForSpearmanCorrelation(y_pred.AsReadonlyFloatCpuContent);
+
+            double sum_delta_rank_square = 0;
+            for (int i = 0; i < y_true_rank.Length; i++)
+            {
+                double delta_rank = y_true_rank[i] - y_pred_rank[i];
+                sum_delta_rank_square += delta_rank * delta_rank;
+            }
+            double n = y_true.Shape[0];
+            var spearmanCorrelation  = 1.0 - (6 * sum_delta_rank_square) / (n * (n * n - 1));
+            Debug.Assert(spearmanCorrelation < 1.001);
+            Debug.Assert(spearmanCorrelation > -1.001);
+            return spearmanCorrelation;
+        }
+
+
 
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         public override double ComputeAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer)

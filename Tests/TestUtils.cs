@@ -48,6 +48,12 @@ public class TestUtils
     [TestCase(true, 1f, 0f, EvaluationMetricEnum.Accuracy)]
     [TestCase(false, 0f, 1f, EvaluationMetricEnum.Accuracy)]
     [TestCase(false, 0f, 0f, EvaluationMetricEnum.Accuracy)]
+    [TestCase(true, 1f, -0.5f, EvaluationMetricEnum.PearsonCorrelation)]
+    [TestCase(false, 0f, 0.5f, EvaluationMetricEnum.PearsonCorrelation)]
+    [TestCase(false, 0f, 0f, EvaluationMetricEnum.PearsonCorrelation)]
+    [TestCase(true, 1f, -0.5f, EvaluationMetricEnum.SpearmanCorrelation)]
+    [TestCase(false, 0f, 0.5f, EvaluationMetricEnum.SpearmanCorrelation)]
+    [TestCase(false, 0f, 0f, EvaluationMetricEnum.SpearmanCorrelation)]
     public void TestIsBetterScore(bool expectedResult, float a, float b, EvaluationMetricEnum metric)
     {
         Assert.AreEqual(expectedResult, Utils.IsBetterScore(a, b, metric));
@@ -57,6 +63,8 @@ public class TestUtils
     [TestCase(true, EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)]
     [TestCase(true, EvaluationMetricEnum.CosineSimilarity504)]
     [TestCase(true, EvaluationMetricEnum.F1Micro)]
+    [TestCase(true, EvaluationMetricEnum.PearsonCorrelation)]
+    [TestCase(true, EvaluationMetricEnum.SpearmanCorrelation)]
     [TestCase(false, EvaluationMetricEnum.Huber)]
     [TestCase(false, EvaluationMetricEnum.Mae)]
     [TestCase(false, EvaluationMetricEnum.Mse)]

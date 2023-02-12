@@ -102,7 +102,7 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
     public AbstractDatasetSample DatasetSample { get; }
 
     public DataFrame XDataFrame { get; }
-    private DataFrame YDataFrame_InModelFormat { get; }
+    public DataFrame YDataFrame_InModelFormat { get; }
     public override CpuTensor<float> Y => YDataFrame_InModelFormat?.FloatCpuTensor();
     public override string ToString()
     {

@@ -14,8 +14,10 @@ namespace SharpNet.MathTools
 
         public int Count { get; private set; }
         public double Average => (Count == 0) ? 0 : (sum / Count);
+        public double Min => min;
+        public double Max => max;
 
-		public void Add(double t, int count)
+        public void Add(double t, int count)
         {
             min = (Count == 0) ? t : System.Math.Min(t, min);
             max = (Count == 0) ? t : System.Math.Max(t, max);

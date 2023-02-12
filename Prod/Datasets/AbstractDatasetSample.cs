@@ -342,20 +342,9 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     public abstract Objective_enum GetObjective();
     public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat)
     {
-        if (y_true_InTargetFormat == null || y_pred_InTargetFormat == null)
-        {
-            return null;
-        }
         AssertNoIdColumns(y_true_InTargetFormat);
         AssertNoIdColumns(y_pred_InTargetFormat);
-
-        var y_true = y_true_InTargetFormat.FloatCpuTensor();
-        var y_pred = y_pred_InTargetFormat.FloatCpuTensor();
-        Debug.Assert(y_true.Shape.SequenceEqual(y_pred.Shape));
-        var rankingEvaluationMetric = GetRankingEvaluationMetric();
-        using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(rankingEvaluationMetric));
-        var evaluationMetric = y_true.ComputeEvaluationMetric(y_pred, rankingEvaluationMetric, buffer);
-        return new Score((float)evaluationMetric, rankingEvaluationMetric);
+        return DataFrame.ComputeEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, GetRankingEvaluationMetric());
     }
 
     /// <summary>

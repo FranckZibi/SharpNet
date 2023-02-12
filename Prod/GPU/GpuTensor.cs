@@ -644,6 +644,9 @@ namespace SharpNet.GPU
                     return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
                 case EvaluationMetricEnum.Rmse:
                     return Math.Sqrt(ComputeEvaluationMetric(yPredicted, EvaluationMetricEnum.Mse, buffer));
+                case EvaluationMetricEnum.PearsonCorrelation:
+                case EvaluationMetricEnum.SpearmanCorrelation:
+                    throw new NotImplementedException($"{evaluationMetric} can not be used on GPU (only available on CPU)");
                 default:
                     var kernelName = evaluationMetric + "Loss";
                     _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpected, yPredicted });
