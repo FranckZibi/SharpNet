@@ -8,6 +8,7 @@ using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.Networks;
+using SharpNet.Svm;
 
 namespace SharpNet.Datasets.QRT97;
 
@@ -27,24 +28,14 @@ public static class QRT97Utils
     public static string XTrainPath => Path.Combine(DataDirectory, "X_train_NHkHMNU.csv");
     public static string YTrainPath => Path.Combine(DataDirectory, "y_train_ZAN5mwg.csv");
     public static string XTestPath => Path.Combine(DataDirectory, "X_test_final.csv");
-    public static string OutputTestRandomPath => Path.Combine(DataDirectory, "y_test_random_final.csv");
+    //public static string OutputTestRandomPath => Path.Combine(DataDirectory, "y_test_random_final.csv");
 
-
-    public static float NormalizeReturn(float r)
+    public static Dictionary<string, double> IdToPrediction(string path)
     {
-        if (float.IsNaN(r) || Math.Abs(r) > 10000)
-        {
-            return float.NaN;
-        }
-
-        return r / 10000;
-    }
-    public static Dictionary<string, string> PredToDico(string path)
-    {
-        var res = new Dictionary<string, string>();
-        var y_pred_df = DataFrame.read_string_csv(path, true, true);
+        var res = new Dictionary<string, double>();
+        var y_pred_df = DataFrame.read_csv(path, true, ColumnNameToType);
         var y_ID = y_pred_df.StringColumnContent("ID");
-        var y_reod = y_pred_df.StringColumnContent("TARGET");
+        var y_reod = y_pred_df.FloatColumnContent("TARGET");
         for (int i = 0; i < y_ID.Length; ++i)
         {
             res.Add(y_ID[i], y_reod[i]);
@@ -53,28 +44,77 @@ public static class QRT97Utils
     }
 
 
+    public static void ReorderColumns()
+    {
+        for(int i=0;i<2;++i)
+        {
+            var datasetPath = (i == 0) ? XTrainPath : XTestPath;
+            var dataset = DataFrame.read_csv(datasetPath, true, ColumnNameToType, true); ;
+            var originalIdOrder = dataset.StringColumnContent("ID");
+            var idToRow = new Dictionary<string, int>();
+            for (int j = 0; j < originalIdOrder.Length; ++j)
+            {
+                idToRow[originalIdOrder[j]] = j;
+            }
+            var country_FR = dataset.StringColumnContent("COUNTRY").Select(c => c == "FR").ToArray();
+            var dataset_FR = dataset.Filter(country_FR);
+            dataset_FR = dataset_FR["ID", "DAY_ID", "COUNTRY", "FR_NET_EXPORT", "FR_CONSUMPTION", "FR_DE_EXCHANGE", "FR_GAS", "FR_COAL", "FR_HYDRO", "FR_NUCLEAR", "FR_SOLAR", "FR_WINDPOW", "FR_RESIDUAL_LOAD", "FR_RAIN", "FR_WIND", "FR_TEMP", "DE_NET_EXPORT", "DE_CONSUMPTION", "DE_GAS", "DE_COAL", "DE_HYDRO", "DE_NUCLEAR", "DE_SOLAR", "DE_WINDPOW", "DE_RESIDUAL_LOAD", "DE_RAIN", "DE_WIND", "DE_TEMP", "GAS_RET", "COAL_RET", "CARBON_RET", "DE_LIGNITE"];
+            var country_DE = country_FR.Select(c => !c).ToArray();
+            var dataset_DE = dataset.Filter(country_DE);
+            dataset_DE = dataset_DE["ID", "DAY_ID", "COUNTRY", "DE_NET_EXPORT", "DE_CONSUMPTION", "DE_FR_EXCHANGE", "DE_GAS", "DE_COAL", "DE_HYDRO", "DE_NUCLEAR", "DE_SOLAR", "DE_WINDPOW", "DE_RESIDUAL_LOAD", "DE_RAIN", "DE_WIND", "DE_TEMP", "FR_NET_EXPORT", "FR_CONSUMPTION", "FR_GAS", "FR_COAL", "FR_HYDRO", "FR_NUCLEAR", "FR_SOLAR", "FR_WINDPOW", "FR_RESIDUAL_LOAD", "FR_RAIN", "FR_WIND", "FR_TEMP", "GAS_RET", "COAL_RET", "CARBON_RET", "DE_LIGNITE"];
+            var newColumnNames = new[]
+            {
+                "ID", "DAY_ID", "COUNTRY",
+                "NET_EXPORT", "CONSUMPTION", "EXCHANGE", "GAS", "COAL", "HYDRO", "NUCLEAR", "SOLAR", "WINDPOW", "RESIDUAL_LOAD", "RAIN", "WIND", "TEMP",
+                "OTHER_NET_EXPORT", "OTHER_CONSUMPTION",                   "OTHER_GAS", "OTHER_COAL", "OTHER_HYDRO", "OTHER_NUCLEAR", "OTHER_SOLAR", "OTHER_WINDPOW", "OTHER_RESIDUAL_LOAD", "OTHER_RAIN", "OTHER_WIND", "OTHER_TEMP",
+                "GAS_RET", "COAL_RET", "CARBON_RET", "DE_LIGNITE"
+            };
+            dataset_FR.SetColumnNames(newColumnNames);
+            dataset_DE.SetColumnNames(newColumnNames);
+            var merged = DataFrame.MergeVertically(dataset_FR, dataset_DE);
+
+            var invalidIdOrder = merged.StringColumnContent("ID");
+            var targetRowToSrcRow = new int[invalidIdOrder.Length];
+            for (int srcRow = 0; srcRow < invalidIdOrder.Length; ++srcRow)
+            {
+                var id = invalidIdOrder[srcRow];
+                var targetRow = idToRow[id];
+                targetRowToSrcRow[targetRow] = srcRow;
+            }
+            merged = merged.ReorderRows(targetRowToSrcRow);
+            merged.to_csv(datasetPath.Replace(".csv", "") + "_reordered.csv");
+        }
+    }
+
 
     public static void BuildStatNormalizeFile()
     {
         var train = DataFrame.read_csv(XTrainPath, true, ColumnNameToType, true);
-        var return_columns = train.Columns.Where(c => c.StartsWith("r")).ToArray();
-        train.UpdateColumnsInPlace(NormalizeReturn, return_columns);
+        var test = DataFrame.read_csv(XTestPath, true, ColumnNameToType, true);
 
+        foreach (var colDesc in train.ColumnsDesc.Where(c => c.Item2 == DataFrame.FLOAT_TYPE_IDX))
+        {
+            train.UpdateColumnsInPlace(f => QRT97DatasetSample.NormalizeReturn(f, colDesc.Item1), colDesc.Item1);
+            test.UpdateColumnsInPlace(f => QRT97DatasetSample.NormalizeReturn(f, colDesc.Item1), colDesc.Item1);
+        }
         train = train.sort_values("DAY_ID");
         train.to_csv(XTrainPath.Replace(".csv", "") + "_normalized.csv");
-
-        //we re order the y train dataset so it has the same order as the x train dataset
-        var y_train_dico = QRT97Utils.PredToDico(YTrainPath);
-        var y_train_ordered = new List<string>();
-        foreach (var sorted_id in train.StringColumnContent("ID"))
-        {
-            y_train_ordered.Add(sorted_id);
-            y_train_ordered.Add(y_train_dico[sorted_id]);
-        }
-        DataFrame.New(y_train_ordered.ToArray(), new[] { "ID", "TARGET" }).to_csv(YTrainPath.Replace(".csv", "") + "_normalized.csv");
-        var test = DataFrame.read_csv(XTestPath, true, ColumnNameToType, true);
-        test.UpdateColumnsInPlace(NormalizeReturn, return_columns);
         test.to_csv(XTestPath.Replace(".csv", "") + "_normalized.csv");
+
+        var ids = train.StringColumnContent("ID");
+        var targets = new float[ids.Length];
+        //we re order the y train dataset so it has the same order as the x train dataset
+        var idToPrediction = IdToPrediction(YTrainPath);
+        if (idToPrediction.Count != ids.Length)
+        {
+            throw new Exception("y_train_dico.Count != ids.Length");
+        }
+        for (int i = 0;i < ids.Length; ++i)
+        {
+            targets[i] = (float)idToPrediction[ids[i]];
+        }
+        var y_train_df = DataFrame.MergeHorizontally(DataFrame.New(ids, new[] { "ID" }), DataFrame.New(targets, new[] { "TARGET" }));
+        y_train_df.to_csv(YTrainPath.Replace(".csv", "") + "_normalized.csv");
     }
 
 
@@ -82,9 +122,17 @@ public static class QRT97Utils
 
     public static void Run()
     {
+        //ChallengeTools.Retrain(@"C:\Projects\Challenges\QRT97\dump", "E8A881A122", null, 0.8, false);
+        //ChallengeTools.ComputeAndSaveFeatureImportance(@"C:\Projects\Challenges\QRT97\Submit", "9B9DFA97F2_KFOLD_FULL");
+        //ChallengeTools.EstimateLossContribution(@"C:\Projects\Challenges\QRT97\dump", "D885B11678");
+        //ChallengeTools.Retrain(@"C:\Projects\Challenges\QRT97\dump", "9B9DFA97F2_KFOLD_FULL", null, 0.8, false);
+
+
         //BuildStatNormalizeFile();
+        //ReorderColumns();
         //LaunchLightGBMHPO(50, 2000);
-        LaunchCatBoostHPO(50, 2000);
+        LaunchCatBoostHPO(500, 1000);
+        //LaunchSvmHPO();
     }
 
 
@@ -107,14 +155,20 @@ public static class QRT97Utils
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            //{"KFold", 2},
+            //{"KFold", 3},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{"fillna_with_0", true},  //NaN are not supported in Device (GPU)
+            {"use_DAY_ID", false},
+            {"use_COUNTRY", true},
 
 
-            {"loss_function", "MAE"},
+            {"loss_function", "RMSE"},
             { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
             { "allow_writing_files",false},
             { "thread_count",1},
+
+            { "task_type","GPU"},
+
             { "iterations", AbstractHyperParameterSearchSpace.Range(iterations_min, iterations_max)},
             //{ "od_type", "Iter"},
             //{ "od_wait",iterations/10},
@@ -122,10 +176,10 @@ public static class QRT97Utils
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
             { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
             { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
-            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
+            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 20)},
             //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
-
-      };
+            //{"boosting_type", new []{ "Ordered", "Plain"}},
+        };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new QRT97DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
@@ -138,9 +192,10 @@ public static class QRT97Utils
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            //{"KFold", 2},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {"KFold", 5},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
           
+            
             { "num_threads", -1},
             { "verbosity", "0" },
             {"objective", "regression_l1"},      //for Regression Tasks
@@ -181,6 +236,41 @@ public static class QRT97Utils
     }
 
 
+
+    public static (ISample bestSample, IScore bestScore) LaunchSvmHPO(int maxAllowedSecondsForAllComputation = 0)
+    {
+        var searchSpace = new Dictionary<string, object>
+        {
+            //related to Dataset 
+            {"KFold", 5},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            
+            //{"n_fold_svm", 5},
+            {"use_DAY_ID", false},
+            {"use_COUNTRY", new []{true, false}},
+
+      
+            {"svm_type", new[]{"epsilon_SVR", "nu_SVR"}},      //for Regression Tasks
+            //{"svm_type", "nu_SVR"},       //for Regression Tasks
+
+            { "kernel_type", "radial_basis_function" },
+            //{ "kernel_type", new[]{ "linear", "polynomial", "radial_basis_function" /*, "sigmoid"*/ } },
+            
+            { "nu", AbstractHyperParameterSearchSpace.Range(0.0f, 1.0f) },
+            { "cost", new[]{ 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 100 } },
+            { "gamma", new[]{ 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 100 } },
+            { "epsilon_SVR", new[]{ 0.1, 0.05, 0.01,0.001,0.0001} },
+            
+            
+        };
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new SVMSample(), new QRT97DatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        const bool retrainOnFullDatasetIfBetterModelFound = true;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
+    }
+    
     public static void LaunchNeuralNetworkHPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>

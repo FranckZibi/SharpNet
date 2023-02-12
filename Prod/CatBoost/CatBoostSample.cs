@@ -301,6 +301,11 @@ public class CatBoostSample : AbstractSample, IModelSample
 
     public override bool FixErrors()
     {
+        // On GPU: grow policy Depthwise can't be used with ordered boosting
+        if (grow_policy == grow_policy_enum.Depthwise && boosting_type == boosting_type_enum.Ordered && task_type == task_type_enum.GPU)
+        {
+            grow_policy = grow_policy_enum.SymmetricTree;
+        }
         if (grow_policy != grow_policy_enum.SymmetricTree && grow_policy != grow_policy_enum.Depthwise)
         {
             min_data_in_leaf = DEFAULT_VALUE;
@@ -309,7 +314,6 @@ public class CatBoostSample : AbstractSample, IModelSample
         {
             diffusion_temperature = DEFAULT_VALUE;
         }
-
         return true; //TODO
     }
     public string DeviceName()

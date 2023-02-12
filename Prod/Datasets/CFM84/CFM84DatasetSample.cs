@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using SharpNet.MathTools;
-using SharpNet.Data;
 
 namespace SharpNet.Datasets.CFM84;
 

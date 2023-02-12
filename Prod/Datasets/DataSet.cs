@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -405,6 +406,18 @@ namespace SharpNet.Datasets
             return DataFrame.New(content, IdColumns);
         }
 
+        public (DataFrame X, DataFrame Y) ExtractXYDataFrame()
+        {
+            int cols = ColumnNames.Length;
+            CpuTensor<float> X = new(new[] { Count, cols });
+            for (int row = 0; row < Count; ++row)
+            {
+                LoadAt(row, row, X, null, false, false);
+            }
+            return (DataFrame.New(X, ColumnNames), DataFrame.New(Y, new List<string>{"y"}));
+        }
+
+
         /// <summary>
         /// number of channels of each elements
         /// </summary>
@@ -714,6 +727,69 @@ namespace SharpNet.Datasets
             return rand;
         }
 
+
+        /// <summary>
+        /// save the dataset in path 'path' in 'libsvm' format.
+        /// </summary>
+        /// <param name="path">the path where to save the dataset (it contains both the directory and the filename)</param>
+        /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
+        /// <param name="separator"></param>
+        private void to_libsvm(string path, char separator, bool overwriteIfExists)
+        {
+            lock (Lock_to_csv)
+            {
+                if (File.Exists(path) && !overwriteIfExists)
+                {
+                    //Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
+                    return;
+                }
+
+                var sw = Stopwatch.StartNew();
+                Log.Debug($"Saving dataset {Name} in path {path}");
+
+                // ReSharper disable once PossibleNullReferenceException
+                var yDataAsSpan = Y != null ? Y.AsFloatCpuSpan : null;
+
+                List<int> validIdxColumns = new();
+                for (var index = 0; index < ColumnNames.Length; index++)
+                {
+                    if (Array.IndexOf(IdColumns, ColumnNames[index]) == -1)
+                    {
+                        validIdxColumns.Add(index);
+                    }
+                }
+
+                var sb = new StringBuilder();
+                using var singleRow = new CpuTensor<float>(new[] { 1, ColumnNames.Length });
+                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
+                int idx = 0;
+                for (int row = 0; row < Count; ++row)
+                {
+                    float yValue;
+                    if (yDataAsSpan == null) { yValue = AbstractSample.DEFAULT_VALUE; }
+                    else if (IsRegressionProblem) { yValue = yDataAsSpan[row]; }
+                    else { yValue = ElementIdToCategoryIndex(row); }
+                    sb.Append(yValue.ToString(CultureInfo.InvariantCulture)+" ");
+                    LoadAt(row, 0, singleRow, null, false, false);
+                    for (var index = 0; index < validIdxColumns.Count; index++)
+                    {
+                        var val = singleRowAsSpan[validIdxColumns[index]];
+                        if (!float.IsNaN(val) && !float.IsInfinity(val))
+                        {
+                            sb.Append($"{1 + index}:{val.ToString(CultureInfo.InvariantCulture)} ");
+                        }
+                    }
+
+                    sb.Append(Environment.NewLine);
+                }
+
+                File.WriteAllText(path, sb.ToString());
+                Log.Debug($"Dataset {Name} saved in path {path} in {Math.Round(sw.Elapsed.TotalSeconds, 1)}s)");
+            }
+
+        }
+
+
         /// <summary>
         /// save the dataset in path 'path' in 'LightGBM' format.
         /// if addTargetColumnAsFirstColumn == true:
@@ -822,6 +898,24 @@ namespace SharpNet.Datasets
             return datasetPath;
         }
 
+        /// <summary>
+        /// save the dataset in directory 'directory' in 'libsvm' format.
+        /// </summary>
+        /// <param name="directory">the directory where to save to dataset</param>
+        /// <param name="overwriteIfExists"></param>
+        /// <returns>the path (directory+filename) where the dataset has been saved</returns>
+        public virtual string to_libsvm_in_directory(string directory, bool overwriteIfExists)
+        {
+            if (ColumnNames.Length == 0)
+            {
+                return ""; //nothing to save
+            }
+            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, true, false) + ".csv");
+            to_libsvm(datasetPath, Separator, overwriteIfExists);
+            return datasetPath;
+        }
+
+      
         public virtual List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
         {
             var validationIntervalForKfold = KFoldModel.KFoldIntervals(kfold, Count, countMustBeMultipleOf);
@@ -838,6 +932,7 @@ namespace SharpNet.Datasets
 
 
         private static readonly object Lock_to_csv = new();
+        private static readonly object Lock_to_libsvm = new();
 
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {

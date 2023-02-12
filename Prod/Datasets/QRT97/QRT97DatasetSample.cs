@@ -3,6 +3,7 @@ using log4net;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using SharpNet.MathTools;
 
 namespace SharpNet.Datasets.QRT97;
 
@@ -12,17 +13,40 @@ public class QRT97DatasetSample : AbstractDatasetSample
     private static readonly DataFrame x_training_raw;
     private static readonly DataFrame y_training_raw;
     private static readonly DataFrame x_test_raw;
+    private static readonly Dictionary<string, Dictionary<string, DoubleAccumulator>> IdToFeatureToStats = new();
     #endregion
-    
-    #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(QRT97DatasetSample));
+    #region private fields & properties
+    private static readonly ILog Log = LogManager.GetLogger(typeof(QRT97DatasetSample));
     #endregion
 
     #region HyperParameters
-   
+    public bool use_DAY_ID = true;
+    public bool use_COUNTRY = true;
+    public bool fillna_with_0 = false;
     #endregion
 
 
+
+
+    public static float NormalizeReturn(float r, string featureName)
+    {
+        if (float.IsNaN(r))
+        {
+            return float.NaN;
+        }
+
+        var featureNameToStats = IdToFeatureToStats["*_*"];
+        if (featureNameToStats.TryGetValue(featureName, out var stats))
+        {
+            var mean = stats.Average;
+            var rAdjusted = r - mean;
+            var minAdjusted = stats.Min - mean;
+            var maxAdjusted = stats.Max - mean;
+            var divider = Math.Max(Math.Abs(minAdjusted), Math.Abs(maxAdjusted));
+            return (float)(rAdjusted / Math.Max(divider, 1));
+        }
+        return r;
+    }
 
     static QRT97DatasetSample()
     {
@@ -34,6 +58,82 @@ public class QRT97DatasetSample : AbstractDatasetSample
         y_training_raw = DataFrame.read_csv_normalized(QRT97Utils.YTrainPath, ',', true, QRT97Utils.ColumnNameToType);
         x_test_raw = DataFrame.read_csv_normalized(QRT97Utils.XTestPath, ',', true, QRT97Utils.ColumnNameToType);
         Log.Debug($"Loading of raw files took {sw.Elapsed.Seconds}s");
+
+
+        var idToProcessedDays = new Dictionary<string, HashSet<int>>();
+        
+        for (var index = 0; index < 2; index++)
+        {
+            var df = new[] { x_training_raw, x_test_raw }[index];
+            var datasetName = index==0?"TRAIN":"TEST";
+            int rows = df.FloatTensor.Shape[0];
+            int colsInDf = df.Shape[1]; 
+            int colsInFloatTensor = df.FloatTensor.Shape[1]; 
+            var dfSpan = df.FloatTensor.SpanContent;
+
+            var countries = df.StringColumnContent("COUNTRY");
+            var days = df.IntColumnContent("DAY_ID");
+
+            foreach (var datasetFilter in new[] { "TRAIN", "TEST", "*" })
+            {
+                foreach (var countryFilter in new[] { "FR", "DE", "*" })
+                {
+                    var id = datasetFilter + "_" + countryFilter;
+                    if (!idToProcessedDays.TryGetValue(id, out var processedDays))
+                    {
+                        processedDays = new HashSet<int>();
+                        idToProcessedDays[id] = processedDays;
+                    }
+                    for (int row = 0; row < rows; ++row)
+                    {
+                        var countryName = countries[row];
+                        var day = days[row];
+                        if (datasetFilter != "*" && datasetFilter != datasetName)
+                        {
+                            continue;
+                        }
+                        if (countryFilter != "*" && countryFilter != countryName)
+                        {
+                            continue;
+                        }
+                        if (!processedDays.Add(day))
+                        {
+                            continue;
+                        }
+                        for (int col=0;col< colsInDf; ++col)
+                        {
+                            if (df.ColumnsDesc[col].Item2 != DataFrame.FLOAT_TYPE_IDX)
+                            {
+                                continue;
+                            }
+
+                            int colInTensor = df.ColumnsDesc[col].Item3;
+
+                            var featureValue = dfSpan[colInTensor + row* colsInFloatTensor];
+                            if (float.IsNaN(featureValue))
+                            {
+                                continue;
+                            }
+                            var featureName = df.ColumnsDesc[col].Item1;
+
+                        
+                            if (!IdToFeatureToStats.TryGetValue(id, out var featureToStats))
+                            {
+                                featureToStats = new Dictionary<string, DoubleAccumulator>();
+                                IdToFeatureToStats[id] = featureToStats;
+                            }
+                            if (!IdToFeatureToStats[id].TryGetValue(featureName, out var stats))
+                            {
+                                stats = new DoubleAccumulator();
+                                IdToFeatureToStats[id][featureName] = stats;
+                            }
+                        
+                            stats.Add(featureValue,1);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public QRT97DatasetSample() : base(new HashSet<string>())
@@ -124,13 +224,21 @@ public class QRT97DatasetSample : AbstractDatasetSample
 
     private DataFrame UpdateFeatures(DataFrame x)
     {
+        var toDrop = new List<string>();
+        if (!use_DAY_ID) { toDrop.Add("DAY_ID"); }
+        if (!use_COUNTRY) { toDrop.Add("COUNTRY"); }
+        x = x.DropIgnoreErrors(toDrop.ToArray()).Clone();
+        if (fillna_with_0)
+        {
+            x.fillna_inplace(0);
+        }
         return x;
     }
 
 
     public override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
-        return EvaluationMetricEnum.Mae;
+        return EvaluationMetricEnum.SpearmanCorrelation;
     }
 
 

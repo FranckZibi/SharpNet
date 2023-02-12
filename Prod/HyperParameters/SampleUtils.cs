@@ -58,7 +58,7 @@ public static class SampleUtils
         }
         else
         {
-            Model.Log.Debug($"Removing all model '{model.ModelName}' files because of low score ({validationRankingScore})");
+            Model.Log.Info($"Removing all model '{model.ModelName}' files because of low score ({validationRankingScore})");
             modelAndDataset.AllFiles().ForEach(path => Utils.TryDelete(path));
         }
 

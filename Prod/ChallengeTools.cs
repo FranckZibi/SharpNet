@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
-using SharpNet;
 using SharpNet.Datasets;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
@@ -12,27 +10,30 @@ using SharpNet.LightGBM;
 using SharpNet.Models;
 using SharpNet.TextPreprocessing;
 
-// ReSharper disable ConvertToConstant.Local
-// ReSharper disable ConditionIsAlwaysTrueOrFalse
+namespace SharpNet;
 
-namespace SharpNetTests;
-
-[TestFixture]
-public class ChallengeTools
+public static class ChallengeTools
 {
     /// <summary>
     ///  compute feature importance of a Model
     /// </summary>
-    [Test, Explicit]
-    public void ComputeAndSaveFeatureImportance()
+    public static void ComputeAndSaveFeatureImportance(string workingDirectory, string modelName)
     {
-        const string workingDirectory = @"C:\Projects\Challenges\CFM84\";
-        const string modelName = "64C740FBCE";
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         using var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName, true);
         m.ComputeAndSaveFeatureImportance();
     }
+
+    public static void EstimateLossContribution(string workingDirectory, string modelName)
+    {
+        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(EstimateLossContribution)}");
+        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(EstimateLossContribution)}");
+        using var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName, true);
+        m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000); ;
+    }
+    
+
 
     /// <summary>
     /// normalize all CSV files in directory 'directory' and put the normalized files in sub directory 'subDirectory'
@@ -40,8 +41,8 @@ public class ChallengeTools
     /// <param name="directory"></param>
     /// <param name="hasHeader"></param>
     /// <param name="removeAccentedCharacters"></param>
-    [TestCase(@"C:\Projects\Challenges\KaggleDays\Data", true, true), Explicit]
-    public void NormalizeAllCsvInDirectory(string directory, bool hasHeader, bool removeAccentedCharacters)
+    //[TestCase(@"C:\Projects\Challenges\KaggleDays\Data", true, true), Explicit]
+    public static void NormalizeAllCsvInDirectory(string directory, bool hasHeader, bool removeAccentedCharacters)
     {
         Utils.ConfigureGlobalLog4netProperties(Path.Combine(directory), $"{nameof(NormalizeAllCsvInDirectory)}");
         Utils.ConfigureThreadLog4netProperties(Path.Combine(directory), $"{nameof(NormalizeAllCsvInDirectory)}");
@@ -49,8 +50,7 @@ public class ChallengeTools
     }
 
 
-    [Test, Explicit]
-    public void TfIdfEncode()
+    public static void TfIdfEncode()
     {
         string[] csvFiles = { @"C:\Projects\Challenges\KaggleDays\Data\search_train.csv", @"C:\Projects\Challenges\KaggleDays\Data\search_test.csv" };
         string columnToEncode = "keyword";
@@ -98,8 +98,8 @@ public class ChallengeTools
     /// Stack several trained models together to compute new predictions
     /// (through a new LightGBM model that will be trained to do the stacking)
     /// </summary>
-    [TestCase(100,0), Explicit]
-    public void StackedEnsemble(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
+//    [TestCase(100,0), Explicit]
+    public static void StackedEnsemble(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         //const string workingDirectory = @"C:/Projects/Challenges/WasYouStayWorthItsPrice/submission";
         const string workingDirectory = @"C:\Projects\Challenges\KaggleDays\aaa7\";
@@ -161,8 +161,7 @@ public class ChallengeTools
     /// <summary>
     /// retrain some models 
     /// </summary>
-    [Test, Explicit]
-    public void Retrain(int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true)
+    public static void Retrain(string workingDirectory, string modelName, int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true)
     {
         if (n_splits.HasValue && percentageInTraining.HasValue)
         {
@@ -177,46 +176,50 @@ public class ChallengeTools
             throw new ArgumentException($"When specified, {nameof(percentageInTraining)} must be between 0 and 1");
         }
 
-        const string workingDirectory = @"C:\Projects\Challenges\CFM84\dump";
-        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-        foreach (var modelName in new[]
-                 {
-                     "6C5DF90DD8",
-                 })
+        //const string workingDirectory = @"C:\Projects\Challenges\CFM84\dump";
+        //const string workingDirectory = @"C:\Projects\Challenges\QRT97";
+        //Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+        //Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+        //foreach (var modelName in new[]
+        //         {
+        //             "D526515F85"
+        //             //"6C5DF90DD8",
+        //             //"16D9F95A1D",
+
+        //         })
+        //{
+
+
+        var sw = Stopwatch.StartNew();
+        ISample.Log.Info($"Retraining model '{modelName}' with {nameof(n_splits)}={n_splits}, {nameof(percentageInTraining)}={percentageInTraining} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
+
+        if (n_splits.HasValue)
         {
-
-
-            var sw = Stopwatch.StartNew();
-            ISample.Log.Info($"Retraining model '{modelName}' with {nameof(n_splits)}={n_splits}, {nameof(percentageInTraining)}={percentageInTraining} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
-
-            if (n_splits.HasValue)
-            {
-                var swKfold = Stopwatch.StartNew();
-                using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits.Value, true);
-                ISample.Log.Info($"Training Model '{mKFold.Model.ModelName}' (= Model '{modelName}' with KFold={n_splits})");
-                mKFold.Fit(true, true, true);
-                mKFold.Save(workingDirectory);
-                ISample.Log.Info($"Model '{mKFold.Model.ModelName}' trained in {swKfold.Elapsed.TotalSeconds}");
-            }
-            if (percentageInTraining.HasValue)
-            {
-                var swPercentageInTraining = Stopwatch.StartNew();
-                using var modelAndDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(percentageInTraining.Value, workingDirectory, modelName, true);
-                Model.Log.Info($"Training Model '{modelAndDataset.Model.ModelName}' (= Model '{modelName}' with {Math.Round(100* percentageInTraining.Value,1)}% in training no KFold)");
-                modelAndDataset.Fit(true, true, true);
-                ISample.Log.Info($"Model '{modelAndDataset.Model.ModelName}' trained in {swPercentageInTraining.Elapsed.TotalSeconds}");
-            }
-            if (retrainOnFullDataset)
-            {
-                var swRetrainOnFullDataset = Stopwatch.StartNew();
-                using var modelAndDatasetOnFullDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(1.0, workingDirectory, modelName, true); ;
-                Model.Log.Info($"Training Model '{modelAndDatasetOnFullDataset.Model.ModelName}' (= Model '{modelName}' on full Dataset no KFold)");
-                modelAndDatasetOnFullDataset.Fit(true, true, true);
-                ISample.Log.Info($"Model '{modelAndDatasetOnFullDataset.Model.ModelName}' trained in {swRetrainOnFullDataset.Elapsed.TotalSeconds}");
-            }
-            ISample.Log.Info($"Model {modelName} retrained in {sw.Elapsed.TotalSeconds}");
-            //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\catboost\a_KFOLD_modelformat_predict_test_.csv"); return;
+            var swKfold = Stopwatch.StartNew();
+            using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits.Value, true);
+            ISample.Log.Info($"Training Model '{mKFold.Model.ModelName}' (= Model '{modelName}' with KFold={n_splits})");
+            mKFold.Fit(true, true, true);
+            mKFold.Save(workingDirectory);
+            ISample.Log.Info($"Model '{mKFold.Model.ModelName}' trained in {swKfold.Elapsed.TotalSeconds}");
         }
+        if (percentageInTraining.HasValue)
+        {
+            var swPercentageInTraining = Stopwatch.StartNew();
+            using var modelAndDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(percentageInTraining.Value, workingDirectory, modelName, true);
+            Model.Log.Info($"Training Model '{modelAndDataset.Model.ModelName}' (= Model '{modelName}' with {Math.Round(100* percentageInTraining.Value,1)}% in training no KFold)");
+            modelAndDataset.Fit(true, true, true);
+            ISample.Log.Info($"Model '{modelAndDataset.Model.ModelName}' trained in {swPercentageInTraining.Elapsed.TotalSeconds}");
+        }
+        if (retrainOnFullDataset)
+        {
+            var swRetrainOnFullDataset = Stopwatch.StartNew();
+            using var modelAndDatasetOnFullDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(1.0, workingDirectory, modelName, true); ;
+            Model.Log.Info($"Training Model '{modelAndDatasetOnFullDataset.Model.ModelName}' (= Model '{modelName}' on full Dataset no KFold)");
+            modelAndDatasetOnFullDataset.Fit(true, true, true);
+            ISample.Log.Info($"Model '{modelAndDatasetOnFullDataset.Model.ModelName}' trained in {swRetrainOnFullDataset.Elapsed.TotalSeconds}");
+        }
+        ISample.Log.Info($"Model {modelName} retrained in {sw.Elapsed.TotalSeconds}");
+        //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\catboost\a_KFOLD_modelformat_predict_test_.csv"); return;
+        //}
     }
 }
