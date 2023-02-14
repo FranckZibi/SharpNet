@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using log4net;
 using SharpNet.CatBoost;
+using SharpNet.Data;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;

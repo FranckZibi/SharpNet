@@ -163,6 +163,10 @@ public static class ChallengeTools
     /// </summary>
     public static void Retrain(string workingDirectory, string modelName, int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true)
     {
+        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+
+
         if (n_splits.HasValue && percentageInTraining.HasValue)
         {
             throw new ArgumentException($"at most one of the 2 parameters {nameof(n_splits)} and {nameof(percentageInTraining)} can be specified");

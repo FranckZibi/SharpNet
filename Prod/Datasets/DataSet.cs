@@ -910,7 +910,7 @@ namespace SharpNet.Datasets
             {
                 return ""; //nothing to save
             }
-            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, true, false) + ".csv");
+            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, true, false) + ".libsvm.txt");
             to_libsvm(datasetPath, Separator, overwriteIfExists);
             return datasetPath;
         }

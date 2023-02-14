@@ -77,8 +77,8 @@ namespace SharpNet.Svm
             parameters += " " + ModelPath;
 
             LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}'");
-            var linesFromLog = Utils.Launch(WorkingDirectory, TrainExePath, parameters, Log, true);
-            (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) = SVMSample.ExtractScores(linesFromLog);
+            Utils.Launch(WorkingDirectory, TrainExePath, parameters, Log, true);
+            (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) = (null,null,null,null);
 
             LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable} / trainMetric = {trainMetricIfAvailable} / validationMetric = {validationMetricIfAvailable})");
             return (null, null, train_XYDatasetPath_InModelFormat, null, null, null, trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
