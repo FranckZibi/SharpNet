@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -10,6 +11,7 @@ using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.Networks;
+using static System.Net.WebRequestMethods;
 
 namespace SharpNet.Datasets.CFM84;
 
@@ -140,43 +142,72 @@ public static class CFM84Utils
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
-            //{"KFold", 2},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {"KFold", 5},
+            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
             //uncomment appropriate one
             {"loss_function", "MultiClass"},  //for multi class classification
             
             {"use_r_day_equity", new []{true , false}},                 //0.48218 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
-            {"use_vol_r_day_market", new []{true , false}},             //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
+            {"use_vol_r_day_market", new []{/*true ,*/ false}},         //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
             {"use_r_dataset_equity", new []{true, false}},              //0.48294 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
             {"use_vol_r_day_equity", new []{true, false}},              //0.48194 Valid Accuracy (False) vs 0.47949 Valid Accuracy (True) 
             {"use_r_day_market", new []{true /*, false*/}},             //0.47531 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
             {"use_market_correl_r_day_equity", new []{true, false}},    //0.48109 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
             {"use_vol_r_dataset_equity", new []{true, false}},          //0.48194 Valid Accuracy (False) vs 0.48116 Valid Accuracy (True)
-            {"rr_count", AbstractHyperParameterSearchSpace.Range(0, 5)},
+            {"rr_count", new[]{0,1,2} },
 
 
             //{"use_r_dataset", new []{/*true ,*/ false}}, //must be false
             //{"use_vol_r_dataset", new []{/*true,*/ false}}, //must be false
 
+
+
             //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
+
 
             { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
             { "allow_writing_files",false},
             { "thread_count",1},
             { "iterations", iterations },
-            { "od_type", "Iter"},
-            { "od_wait",iterations/10},
+            //{ "use_best_model",true},
+            //{ "od_type", "Iter"},
+            //{ "od_wait",iterations/10},
+            { "depth", AbstractHyperParameterSearchSpace.Range(4, 8) }, //no need to go more than 8
+
+            { "use_best_model",false},
+
             { "depth", AbstractHyperParameterSearchSpace.Range(4, 8) }, //no need to go more than 8
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.10f)},
-            { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
+            //{ "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
             { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
-            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
+            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 15)},
         };
+
+
+        //best params:
+        //searchSpace["depth"] = 6;
+        //searchSpace["learning_rate"] = 0.08989349;
+        //searchSpace["random_strength"] = 0.00037680444;
+        //searchSpace["bagging_temperature"] = 0.9402393;
+        //searchSpace["l2_leaf_reg"] = 9;
+        //searchSpace["iterations"] = 10000;
+
+        /*
+        rr_count = 1
+        use_market_correl_r_day_equity = True
+        use_r_dataset_equity = True
+        use_r_day_equity = True
+        use_r_day_market = True
+        use_vol_r_dataset_equity = True
+        use_vol_r_day_equity = True
+        use_vol_r_day_market = False
+        */
+
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new CFM84DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        const bool retrainOnFullDatasetIfBetterModelFound = true;
+        const bool retrainOnFullDatasetIfBetterModelFound = false;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
     

@@ -70,11 +70,12 @@ namespace SharpNet.CatBoost
 
             if (!string.IsNullOrEmpty(validationDatasetPathIfAny_InModelFormat))
             {
-                CatBoostSample.use_best_model = true;
+                //CatBoostSample.use_best_model = true;
                 arguments += " --test-set " + validationDatasetPathIfAny_InModelFormat;
             }
             else
             {
+                //without validation dataset there is nothing such as 'best model'
                 CatBoostSample.use_best_model = false;
             }
 

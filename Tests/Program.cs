@@ -108,6 +108,9 @@ namespace SharpNetTests
             //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();return;
 
 
+
+            //SharpNet.Datasets.CFM84.CFM84Utils.Run();return;
+
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);
             //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "A3699BA7D3", 5, 3);
 
