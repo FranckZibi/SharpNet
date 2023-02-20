@@ -62,7 +62,7 @@ namespace SharpNet.Data
                 int idx = column + row * columns;
                 normalizedContent[idx] = varianceValue < 1e-5
                     ? 0
-                    : (normalizedContent[idx] - meanValue) / (float)Math.Sqrt(varianceValue);
+                    : (normalizedContent[idx] - meanValue) / MathF.Sqrt(varianceValue);
             }
             return (new CpuTensor<float>(toNormalize.Shape, normalizedContent), mean, variance);
         }

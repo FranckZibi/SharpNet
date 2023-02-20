@@ -73,6 +73,10 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
     protected DatasetEncoder DatasetEncoder { get; set; }
 
+    public virtual List<EvaluationMetricEnum> GetMetrics()
+    {
+        return  new List<EvaluationMetricEnum>() { DefaultLossFunction, GetRankingEvaluationMetric() };
+    }
 
     /// <summary>
     /// list of target feature names (usually a single element)
@@ -132,6 +136,12 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         return _cacheInputShape_CHW;
     }
 
+    public int FeatureByElement()
+    {
+        return Utils.Product(GetInputShapeOfSingleElement());
+
+    }
+
     public virtual string[] GetColumnNames()
     {
         if (_cacheColumns == null)
@@ -177,7 +187,8 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 
         string[] columnNames = GetColumnNames();
 
-        for (var i = 0; i < columnNames.Length; i++)
+        var columnNamesLength = columnNames?.Length??0;
+        for (var i = 0; i < columnNamesLength; i++)
         {
             var column = columnNames[i];
 
@@ -313,7 +324,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 
 
 
-    public int NumClass
+    public virtual int NumClass
     {
         get
         {

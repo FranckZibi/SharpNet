@@ -19,6 +19,7 @@ public class EfficientNetNetworkSample : NetworkSample
 
     #region Hyper-Parameters
     public cudnnActivationMode_t DefaultActivation = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
+    public cudnnActivationMode_t LastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
     public double BatchNormMomentum = 0.99;
     public double BatchNormEpsilon = 0.001;
     /// <summary>
@@ -198,7 +199,7 @@ public class EfficientNetNetworkSample : NetworkSample
             );
     }
 
-    private Network EfficientNet(
+    private Network  EfficientNet(
             float widthCoefficient,
             float depthCoefficient,
             // ReSharper disable once UnusedParameter.Local
@@ -273,7 +274,7 @@ public class EfficientNetNetworkSample : NetworkSample
 
             network.Flatten();
             network.Dense(categoryCount, config.lambdaL2Regularization, false, "probs");
-            network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+            network.Activation(LastActivationLayer);
         }
         else
         {

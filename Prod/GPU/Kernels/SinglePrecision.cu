@@ -671,6 +671,22 @@
 		}
 	}
 
+	__global__ void MeanSquaredLogErrorLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * lineSize;
+			int endIndexExcluded = startIndex + lineSize;
+			float loss = 0.0f;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float diff = logf(1+yPredicted[j]) - logf(1+yExpected[j]);
+				loss += diff * diff;
+			}
+			losses[i] = loss / lineSize;
+		}
+	}
+
 	__global__ void MseOfLogLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted, float epsilon)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -687,6 +703,7 @@
 			losses[i] = loss / lineSize;
 		}
 	}
+
 
 	__global__ void MseOfLogGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted, float epsilon)
 	{

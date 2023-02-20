@@ -69,6 +69,7 @@ public class TestUtils
     [TestCase(false, EvaluationMetricEnum.Mae)]
     [TestCase(false, EvaluationMetricEnum.Mse)]
     [TestCase(false, EvaluationMetricEnum.MseOfLog)]
+    [TestCase(false, EvaluationMetricEnum.MeanSquaredLogError)]
     [TestCase(false, EvaluationMetricEnum.Rmse)]
     [TestCase(false, EvaluationMetricEnum.BinaryCrossentropy)]
     [TestCase(false, EvaluationMetricEnum.CategoricalCrossentropy)]
@@ -119,32 +120,32 @@ public class TestUtils
     [Test]
     public void TestTargetCpuInvestmentTime()
     {
-        AssertAreEqual(Array.Empty<double>(), Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>>()), 1e-6);
+        AssertAreEqual(Array.Empty<double>(), Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, long>>()), 1e-6);
 
-        var empty = Tuple.Create(0.0, 0.0, 0);
-        var single_lowError = Tuple.Create(5.0, 0.0, 1);
-        var single_highError = Tuple.Create(10.0, 0.0, 1);
-        var lowError = Tuple.Create(5.0, 5.0, 99);
-        var highError = Tuple.Create(10.0, 5.0, 99);
+        var empty = Tuple.Create(0.0, 0.0, 0L);
+        var single_lowError = Tuple.Create(5.0, 0.0, 1L);
+        var single_highError = Tuple.Create(10.0, 0.0, 1L);
+        var lowError = Tuple.Create(5.0, 5.0, 99L);
+        var highError = Tuple.Create(10.0, 5.0, 99L);
 
         foreach (var e in new [] { empty, single_highError, single_lowError, lowError, highError })
         {
-            AssertAreEqual(new[] { 1.0 },  Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { e }), 1e-6);
+            AssertAreEqual(new[] { 1.0 },  Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, long>> { e }), 1e-6);
         }
 
         foreach (var e in new[] { empty, single_highError, single_lowError, lowError, highError })
         {
-            AssertAreEqual(new[] { 0.5, 0.5 }, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { empty, e }), 1e-6);
+            AssertAreEqual(new[] { 0.5, 0.5 }, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, long>> { empty, e }), 1e-6);
         }
 
         foreach (var e in new[] { empty, single_highError, single_lowError, lowError, highError })
         {
-            AssertAreEqual(new[] { 0.25, 0.25, 0.25 , 0.25 }, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { empty, e, single_highError, single_lowError }), 1e-6);
+            AssertAreEqual(new[] { 0.25, 0.25, 0.25 , 0.25 }, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, long>> { empty, e, single_highError, single_lowError }), 1e-6);
         }
 
-        AssertAreEqual(new[] { 0.75, 0.25}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { lowError, highError }), 1e-6);
-        AssertAreEqual(new[] { 0.25, 0.75}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { highError, lowError  }), 1e-6);
-        AssertAreEqual(new[] { 0.25, 0.25/2, 0.75/2, 0.25}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, int>> { single_highError, highError, lowError, single_lowError  }), 1e-6);
+        AssertAreEqual(new[] { 0.75, 0.25}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, long>> { lowError, highError }), 1e-6);
+        AssertAreEqual(new[] { 0.25, 0.75}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, long>> { highError, lowError  }), 1e-6);
+        AssertAreEqual(new[] { 0.25, 0.25/2, 0.75/2, 0.25}, Utils.TargetCpuInvestmentTime(new List<Tuple<double, double, long>> { single_highError, highError, lowError, single_lowError  }), 1e-6);
     }
 
     private static void AssertAreEqual(double[] expected, double[] observed, double epsilon)

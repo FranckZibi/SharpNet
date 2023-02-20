@@ -91,7 +91,7 @@ namespace SharpNet.Datasets
             }
             CategoricalFeatures = categoricalFeatures;
 
-            if (idColumns.Length != 0)
+            if (idColumns.Length != 0 && ColumnNames.Length != 0)
             {
                 var foundIdColumns = Utils.Intersect(idColumns, ColumnNames);
                 if (foundIdColumns.Count < idColumns.Length)
@@ -351,7 +351,7 @@ namespace SharpNet.Datasets
             var intersection = Utils.Intersect(df.Columns, IdColumns);
             if (intersection.Count == 0)
             {
-                return DataFrame.MergeHorizontally(ExtractIdDataFrame(), df);
+                return DataFrame.MergeHorizontally(ExtractIdDataFrame(df.Shape[0]), df);
             }
 
             if (intersection.Count == IdColumns.Length)
@@ -380,8 +380,13 @@ namespace SharpNet.Datasets
             model.Save(workingDirectory, modelName);
         }
 
-        public virtual DataFrame ExtractIdDataFrame()
+        public virtual DataFrame ExtractIdDataFrame(int rows)
         {
+            if (UseRowIndexAsId) ;
+            {
+                Debug.Assert(IdColumns.Length == 1);
+                return DataFrame.New(Enumerable.Range(0, rows).Select(i => (float)i).ToArray(), IdColumns);
+            }
             if (IdColumns.Length == 0)
             {
                 // can't extract id columns because the DataFrame doesn't contain any
@@ -789,6 +794,17 @@ namespace SharpNet.Datasets
 
         }
 
+        /// <summary>
+        /// true if the DataSet can ve saved in CSV format
+        /// false if it is not possible
+        /// </summary>
+        public virtual bool CanBeSavedInCSV => true;
+
+        /// <summary>
+        /// true if we should use the row index as the id of the row
+        /// false if you should actualy retrieved the Id of the row
+        /// </summary>
+        public virtual bool UseRowIndexAsId => false;
 
         /// <summary>
         /// save the dataset in path 'path' in 'LightGBM' format.
@@ -805,6 +821,11 @@ namespace SharpNet.Datasets
         /// <param name="separator"></param>
         private void to_csv([NotNull] string path, char separator, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
         {
+            if (!CanBeSavedInCSV)
+            {
+                return;
+            }
+
             lock (Lock_to_csv)
             {
                 if (File.Exists(path) && !overwriteIfExists)
@@ -887,8 +908,12 @@ namespace SharpNet.Datasets
         /// <param name="includeIdColumns"></param>
         /// <param name="overwriteIfExists"></param>
         /// <returns>the path (directory+filename) where the dataset has been saved</returns>
-        public virtual string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
+        public string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
         {
+            if (!CanBeSavedInCSV)
+            {
+                return ""; //nothing to save
+            }
             if (ColumnNames.Length == 0)
             {
                 return ""; //nothing to save

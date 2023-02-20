@@ -90,7 +90,7 @@ namespace SharpNet.Datasets
                 var timeSeriesAsSpan = _univariateTimeSeries.Span;
                 for (int i = 1; i < timeSeriesAsSpan.Length; ++i)
                 {
-                    result += Math.Abs(timeSeriesAsSpan[i] - timeSeriesAsSpan[i - 1]);
+                    result += MathF.Abs(timeSeriesAsSpan[i] - timeSeriesAsSpan[i - 1]);
                 }
                 return result / (timeSeriesAsSpan.Length - 1);
             }

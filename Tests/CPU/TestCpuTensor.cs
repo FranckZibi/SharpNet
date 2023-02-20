@@ -347,6 +347,17 @@ namespace SharpNetTests.CPU
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
+        [TestCase(new[] { 3, 5, 2.5f, 7 }, new[] { 2.5f, 5, 4, 8 }, 0.039730120450f)]
+        public void Test_ComputeEvaluationMetric_MeanSquaredLogError(float[] y_true_array, float[] y_pred_array, float expected_value)
+        {
+            var y_true = CpuTensor<float>.New(y_true_array, 1);
+            var y_pred = CpuTensor<float>.New(y_pred_array, 1);
+            const EvaluationMetricEnum metric = EvaluationMetricEnum.MeanSquaredLogError;
+            var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
+            var observedLoss = y_true.ComputeEvaluationMetric(y_pred, metric, buffer);
+            Assert.AreEqual(expected_value, observedLoss, 1e-6);
+        }
+
         [TestCase(new [] { 35f, 23, 47, 17, 10, 43, 9, 6, 28 }, new [] { 30f, 33, 45, 23, 8, 49, 12, 4, 31 }, 0.9498663391f)]
         [TestCase(new [] { 86f, 97, 99, 100, 101, 103, 106, 110, 112, 113 }, new [] { 2f, 20, 28, 27, 50, 29, 7, 17, 6, 12 }, -0.070216326029056739f)]
         public void Test_ComputeEvaluationMetric_PearsonCorrelation(float[] y_true_array, float[] y_pred_array, float expected_value)
@@ -371,15 +382,15 @@ namespace SharpNetTests.CPU
                 //no clue
                 0f, 
                 //star/pleine
-                (float)-Math.Log(0.5), 
+                -MathF.Log(0.5f), 
                 //1 digit star
-                (float)-Math.Log(0.3), 
+                -MathF.Log(0.3f), 
                 //star 5
-                (float)-Math.Log(0.3)+(float)-Math.Log(0.25), 
+                -MathF.Log(0.3f)+-MathF.Log(0.25f), 
                 //star 16
-                (float)-Math.Log(0.2)+(float)-Math.Log(0.35)+(float)-Math.Log(0.6), 
+                -MathF.Log(0.2f)+-MathF.Log(0.35f)+-MathF.Log(0.6f), 
                 //star *6
-                (float)-Math.Log(0.2)+(float)-Math.Log(0.6),
+                -MathF.Log(0.2f)+-MathF.Log(0.6f),
             };
             Assert.IsTrue(Utils.SameContent(expectedLossBuffer, buffer.ContentAsFloatArray(), 1e-6));
             var expectedLoss = expectedLossBuffer.Average();

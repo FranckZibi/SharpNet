@@ -101,12 +101,14 @@ public static class CFM84Utils
     public static void Run()
     {
         //Misc.CreateAllFiles(); return;
-        //Misc.FitDistribution();
+        Misc.FitDistribution();
         //BuildStatNormalizeFile();
-        Misc.BuildStatFile();
+        //Misc.BuildStatFile();
 
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);
         //m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
+
+        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "dump"), "26A5D7BA9E", null, 0.8, false);
 
 
         //AverageTestPredictions(new []{0.5,0.5}, @"C:\Projects\Challenges\CFM84\submit\9DE295AB09_modelformat_predict_test_.csv",  @"C:\Projects\Challenges\CFM84\submit\CF37BAB198_modelformat_predict_test_.csv");

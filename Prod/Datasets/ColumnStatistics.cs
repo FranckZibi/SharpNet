@@ -101,7 +101,7 @@ public class ColumnStatistics
             ++CountEmptyElements;
             return; //missing numerical value
         }
-        _numericalValues.Add(numeric_val_before_encoding, 1);
+        _numericalValues.Add(numeric_val_before_encoding);
     }
 
     public void Fit(float val_before_encoding)
@@ -117,7 +117,7 @@ public class ColumnStatistics
                 _distinctCategoricalValueToCount[str_val_before_encoding] = 1;
                 _distinctCategoricalValues.Add(str_val_before_encoding);
                 _distinctCategoricalValueToIndex[str_val_before_encoding] = Utils.NearestInt(val_before_encoding);
-                Debug.Assert(Math.Abs(Utils.NearestInt(val_before_encoding) - val_before_encoding) < 1e-5);
+                Debug.Assert(MathF.Abs(Utils.NearestInt(val_before_encoding) - val_before_encoding) < 1e-5f);
             }
             else
             {
@@ -132,7 +132,7 @@ public class ColumnStatistics
             ++CountEmptyElements;
             return; //missing numerical value
         }
-        _numericalValues.Add(val_before_encoding, 1);
+        _numericalValues.Add(val_before_encoding);
     }
 
     public void Fit(int val_before_encoding)

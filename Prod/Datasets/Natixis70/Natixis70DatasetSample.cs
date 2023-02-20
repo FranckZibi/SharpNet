@@ -504,9 +504,9 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             var yValue = ySpan[i];
             if (useAbsValues)
             {
-                yValue = Math.Abs(yValue);
+                yValue = MathF.Abs(yValue);
             }
-            result[i % y.Shape[1]].Add(yValue, 1);
+            result[i % y.Shape[1]].Add(yValue);
         }
         return result.ToArray();
     }

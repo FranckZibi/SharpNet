@@ -120,7 +120,7 @@ public class BayesianSearchHPO : AbstractHpo
                 _higherScoreIsBetter = Utils.HigherScoreIsBetter(actualScore.Metric);
                 Log.Info($"Higher Score Is Better = {_higherScoreIsBetter}");
             }
-            _allActualScores.Add(actualScore.Value, 1);
+            _allActualScores.Add(actualScore.Value);
             var sampleTuple = _samplesWithScoreIfAvailable[sampleId];
             var sampleAsFloatVector = sampleTuple.Item2;
 

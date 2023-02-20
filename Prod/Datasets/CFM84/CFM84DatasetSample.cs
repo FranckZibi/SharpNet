@@ -220,7 +220,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
             }
             var floatStatContent = stats_raw.FloatTensor.RowSpanSlice(row, 1);
             var r_day_equity = floatStatContent[1];
-            acc.Add(r_day_equity, 1);
+            acc.Add(r_day_equity);
         }
         var dataFrameReturnsAccumulator = DoubleAccumulator.Sum(equityToReturnsAccumulator.Values.ToArray());
         var r_dataset = (float)dataFrameReturnsAccumulator.Average;

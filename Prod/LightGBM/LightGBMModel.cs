@@ -148,7 +148,7 @@ namespace SharpNet.LightGBM
             object lockLoadFeatureImportance = new();
             void ProcessLine(int lineIdx)
             {
-                float[] elements = stringsEnumerable[lineIdx].Split('\t').Select(s=> Math.Abs(float.Parse(s))).ToArray();
+                float[] elements = stringsEnumerable[lineIdx].Split('\t').Select(s=> MathF.Abs(float.Parse(s))).ToArray();
                 if (entireFeatureImportance != null && elements.Length != entireFeatureImportance.Length)
                 {
                     throw new ArgumentException($"found line with {elements.Length} elements but expecting {entireFeatureImportance.Length}");

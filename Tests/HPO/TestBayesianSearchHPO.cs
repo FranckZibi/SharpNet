@@ -33,13 +33,13 @@ public class TestBayesianSearchHPO
         public IScore Cost()
         {
             var cost = A * A
-                       + Math.Pow(B - 1, 2)
-                       + Math.Abs(C - 2)
-                       + Math.Pow(D - 3, 2)
-                       + Math.Abs(E - 4)
-                       + Math.Abs((E - 4) * (D - 3))
-                       + Math.Abs(G);  
-            return new Score((float)cost,EvaluationMetricEnum.Mae);
+                       + MathF.Pow(B - 1, 2)
+                       + MathF.Abs(C - 2)
+                       + MathF.Pow(D - 3, 2)
+                       + MathF.Abs(E - 4)
+                       + MathF.Abs((E - 4) * (D - 3))
+                       + MathF.Abs(G);  
+            return new Score(cost,EvaluationMetricEnum.Mae);
         }
 
         public override string ToString()

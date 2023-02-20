@@ -164,7 +164,7 @@ public abstract class AbstractSample : ISample
         }
         if (   (fieldValue.GetType().IsEnum && ((int)fieldValue ==  DEFAULT_VALUE) )
             || (fieldValue is int fieldValueInt && (fieldValueInt == DEFAULT_VALUE))
-            || (fieldValue is float fieldValueFloat && Math.Abs(fieldValueFloat - DEFAULT_VALUE) < 1e-6)
+            || (fieldValue is float fieldValueFloat && MathF.Abs(fieldValueFloat - DEFAULT_VALUE) < 1e-6f)
             || (fieldValue is double fieldValueDouble && Math.Abs(fieldValueDouble - DEFAULT_VALUE) < 1e-6)
            )
         {

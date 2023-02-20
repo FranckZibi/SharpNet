@@ -145,7 +145,7 @@ namespace SharpNet.Datasets
 
             var bytesInSingleElement = (Utils.Product(_singleElementShape_CHW) + 1);
             int positionInFile = (elementId - FirstElementIdInFile[fileIndex]) * bytesInSingleElement;
-            return Utils.ReadPartOfFile(Files[fileIndex], positionInFile, bytesInSingleElement);
+            return Utils.ReadArrayFromBinaryFile<byte>(Files[fileIndex], positionInFile, bytesInSingleElement);
         }
     }
 }

@@ -476,7 +476,7 @@ namespace SharpNet.Networks
         public virtual void ApplyDataset(AbstractDatasetSample datasetSample)
         {
             LossFunction = datasetSample.DefaultLossFunction;
-            Metrics = new() { datasetSample.DefaultLossFunction, datasetSample.GetRankingEvaluationMetric() };
+            Metrics = datasetSample.GetMetrics();
         }
 
         public NetworkSample WithSGD(double momentum = 0.9, bool useNesterov = true)

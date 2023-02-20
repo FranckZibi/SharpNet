@@ -1,65 +1,38 @@
 ﻿using SharpNet.CPU;
 using SharpNet.Layers;
 
-namespace SharpNet.Datasets
+namespace SharpNet.Datasets;
+
+public class ZoomedDataSet : WrappedDataSet
 {
-    public class ZoomedDataSet : DataSet
+    #region private fields
+    private readonly DataSet _original;
+    private readonly int[] _originalShape_CHW;
+    private readonly int _rowFactor;
+    private readonly int _colFactor;
+    private readonly CpuTensor<float> _xBufferBeforeZoom = new CpuTensor<float>(new[] { 1 });
+    #endregion
+
+    public ZoomedDataSet(DataSet original, int[] originalShape_CHW, int rowFactor, int colFactor)
+        : base(original, useBackgroundThreadToLoadNextMiniBatch:true)
     {
-        #region private fields
-        private readonly DataSet _original;
-        private readonly int[] _originalShape_CHW;
-        private readonly int _rowFactor;
-        private readonly int _colFactor;
-        private readonly CpuTensor<float> _xBufferBeforeZoom = new CpuTensor<float>(new[] { 1 });
-        #endregion
+        _original = original;
+        _originalShape_CHW = originalShape_CHW;
+        _rowFactor = rowFactor;
+        _colFactor = colFactor;
+    }
+    public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer,
+        CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
+    {
+        _xBufferBeforeZoom.Reshape_ThreadSafe(new []{xBuffer.Shape[0], _originalShape_CHW[1], _originalShape_CHW [2], _originalShape_CHW[3]});
+        _original.LoadAt(subElementId, indexInBuffer, _xBufferBeforeZoom, yBuffer, withDataAugmentation, isTraining);
+        var tensorBeforeUpSampling = _xBufferBeforeZoom.ElementSlice(indexInBuffer);
+        var tensorAfterUpSampling = xBuffer.ElementSlice(indexInBuffer);
+        tensorAfterUpSampling.UpSampling2D(tensorBeforeUpSampling, _rowFactor, _colFactor, UpSampling2DLayer.InterpolationEnum.Nearest);
+    }
 
-        public ZoomedDataSet(DataSet original, int[] originalShape_CHW, int rowFactor, int colFactor)
-            : base(original.Name, 
-                original.Objective, 
-                original.Channels, 
-                original.MeanAndVolatilityForEachChannel, 
-                original.ResizeStrategy, 
-                original.ColumnNames,
-                original.CategoricalFeatures,
-                original.IdColumns,
-                true,
-                original.Separator)
-        {
-            _original = original;
-            _originalShape_CHW = originalShape_CHW;
-            _rowFactor = rowFactor;
-            _colFactor = colFactor;
-        }
-        public override void LoadAt(int subElementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
-        {
-            _xBufferBeforeZoom.Reshape_ThreadSafe(new []{xBuffer.Shape[0], _originalShape_CHW[1], _originalShape_CHW [2], _originalShape_CHW[3]});
-            _original.LoadAt(subElementId, indexInBuffer, _xBufferBeforeZoom, yBuffer, withDataAugmentation, isTraining);
-            var tensorBeforeUpSampling = _xBufferBeforeZoom.ElementSlice(indexInBuffer);
-            var tensorAfterUpSampling = xBuffer.ElementSlice(indexInBuffer);
-            tensorAfterUpSampling.UpSampling2D(tensorBeforeUpSampling, _rowFactor, _colFactor, UpSampling2DLayer.InterpolationEnum.Nearest);
-        }
-
-        public override int Count => _original.Count;
-        public override int ElementIdToCategoryIndex(int elementId)
-        {
-            return _original.ElementIdToCategoryIndex(elementId);
-        }
-        public override string ElementIdToDescription(int elementId)
-        {
-            return _original.ElementIdToDescription(elementId);
-        }
-
-        public override string ElementIdToPathIfAny(int elementId)
-        {
-            return _original.ElementIdToPathIfAny(elementId);
-        }
-
-        public override CpuTensor<float> Y => _original.Y;
-
-        public override string ToString()
-        {
-            return _original+" Zoom [x"+ _rowFactor+", x"+ _colFactor+"]";
-        }
+    public override string ToString()
+    {
+        return _original+" Zoom [x"+ _rowFactor+", x"+ _colFactor+"]";
     }
 }

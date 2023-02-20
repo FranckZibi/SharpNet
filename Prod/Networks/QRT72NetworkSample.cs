@@ -63,7 +63,7 @@ public class QRT72NetworkSample : NetworkSample
         //We ensure that the matrix is orthogonal (max allowed error : 1e-6)
         var maxError = A.MaxErrorIfOrthogonalMatrix();
         Model.Log.Info($"Observed Error for orthogonal Matrix: {maxError}");
-        if (Math.Abs(maxError) > 1e-6)
+        if (MathF.Abs(maxError) > 1e-6f)
         {
             var errorMsg = $"Max Error is too big: {maxError}";
             Model.Log.Error(errorMsg);

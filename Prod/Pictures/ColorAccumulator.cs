@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using SharpNet.MathTools;
 
 namespace SharpNet.Pictures
@@ -20,12 +19,8 @@ namespace SharpNet.Pictures
         {
             return "E(Color)=" + Average + " ; Volatility="+Math.Round(Volatility,1)+" ; "  + Count + "pixels;";
         }
-        public KeyValuePair<RGBColor, int> AsKeyValuePair()
-        {
-            return new KeyValuePair<RGBColor, int>(Average, Count);
-        }
 
-        public int Count => L.Count;
+        public long Count => L.Count;
 
         public void Add(RGBColor color, int count = 1)
         {

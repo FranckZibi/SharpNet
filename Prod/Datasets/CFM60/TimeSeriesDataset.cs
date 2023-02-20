@@ -37,15 +37,9 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
 
     private readonly TimeSeriesDataset _trainingDataSetOldIfAny;
 
-    public override string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
-    {
-        //!D we do nothing
-        return "";
-    }
+    public override bool CanBeSavedInCSV => false;
 
-
-
-    public override DataFrame ExtractIdDataFrame()
+    public override DataFrame ExtractIdDataFrame(int rows)
     {
         var ids = Enumerable.Range(0, _elementIdToLastAssociateEntry.Count).Select(i => _elementIdToLastAssociateEntry[i].UniqueId).ToArray();
         return DataFrame.New(ids, IdColumns);

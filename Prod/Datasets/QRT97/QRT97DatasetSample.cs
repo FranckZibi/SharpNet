@@ -128,7 +128,7 @@ public class QRT97DatasetSample : AbstractDatasetSample
                                 IdToFeatureToStats[id][featureName] = stats;
                             }
                         
-                            stats.Add(featureValue,1);
+                            stats.Add(featureValue);
                         }
                     }
                 }

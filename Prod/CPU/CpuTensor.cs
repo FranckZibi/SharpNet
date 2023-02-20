@@ -1600,6 +1600,9 @@ namespace SharpNet.CPU
                     buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
                     cost = buffer.AsReadonlyFloatCpuContent.Average();
                     break;
+                case EvaluationMetricEnum.MeanSquaredLogError:
+                    cost = (1.0f / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float) Math.Pow(Math.Log(1 + expected) - Math.Log(1 + prediction), 2f)).NaNSum();
+                    break;
                 default:
                     throw new NotImplementedException("don't know how to calculate cost for " + evaluationMetric);
             }
@@ -1896,10 +1899,10 @@ namespace SharpNet.CPU
             var l2_norm_expected = Math.Sqrt(expectedSquares);
             var l2_norm_predicted = Math.Sqrt(predictedSquares);
             var multiplier1 = 1.0f/(l2_norm_expected * l2_norm_predicted);
-            var mutliplier2 = (-top)/(l2_norm_predicted* l2_norm_predicted * l2_norm_predicted * l2_norm_expected);
+            var multiplier2 = (-top)/(l2_norm_predicted* l2_norm_predicted * l2_norm_predicted * l2_norm_expected);
             for (int t = day; t < expected.Length; t += timeSeriesLength)
             {
-                cosineSimilarityGradient[t] = -(float) (multiplier1*expected[t] + mutliplier2*predicted[t]);
+                cosineSimilarityGradient[t] = -(float) (multiplier1*expected[t] + multiplier2*predicted[t]);
             }
         }
 

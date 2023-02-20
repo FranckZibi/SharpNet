@@ -12,8 +12,8 @@ namespace SharpNet.HPO
         {
             //the cost is something we want to minimize
             var costToDecrease = score.HigherIsBetter ? -score.Value : score.Value;
-            CostToDecrease.Add(costToDecrease,1);
-            ElapsedTimeInSeconds.Add(elapsedTimeInSeconds, 1);
+            CostToDecrease.Add(costToDecrease);
+            ElapsedTimeInSeconds.Add(elapsedTimeInSeconds);
         }
 
         public override string ToString()

@@ -12,12 +12,12 @@ namespace SharpNet.MathTools
         private double max;
         #endregion
 
-        public int Count { get; private set; }
+        public long Count { get; private set; }
         public double Average => (Count == 0) ? 0 : (sum / Count);
         public double Min => min;
         public double Max => max;
 
-        public void Add(double t, int count)
+        public void Add(double t, int count = 1)
         {
             min = (Count == 0) ? t : System.Math.Min(t, min);
             max = (Count == 0) ? t : System.Math.Max(t, max);
@@ -29,17 +29,17 @@ namespace SharpNet.MathTools
         {
             foreach (var e in list)
             {
-                Add(e, 1);
+                Add(e);
             }
         }
         public void Add(IEnumerable<double> list)
         {
             foreach (var e in list)
             {
-                Add(e, 1);
+                Add(e);
             }
         }
-        private void Add(DoubleAccumulator b)
+        public void Add(DoubleAccumulator b)
         {
             min = (Count == 0) ? b.min : System.Math.Min(b.min, min);
             max = (Count == 0) ? b.max : System.Math.Max(b.max, max);

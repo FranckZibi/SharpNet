@@ -140,10 +140,7 @@ namespace SharpNet.Datasets
                 Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
             }
         }
-        public override string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
-        {
-            return ""; //!D we do nothing
-        }
+        public override bool CanBeSavedInCSV => false;
         public override int Count => _elementIdToCategoryIndex.Count;
         public override int ElementIdToCategoryIndex(int elementId)
         {
@@ -178,8 +175,7 @@ namespace SharpNet.Datasets
         /// <param name="withDataAugmentation"></param>
         /// <param name="isTraining"></param>
         /// <returns></returns>
-        public override BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth,
-            bool withDataAugmentation, bool isTraining)
+        public override BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth, bool withDataAugmentation, bool isTraining)
         {
             try
             {
@@ -251,7 +247,7 @@ namespace SharpNet.Datasets
                 var count = sumSumSquareCountForEachChannel[DistinctValuesToComputeInEachChannel * channel + 2];
                 var mean = (sum / count);
                 var variance = (sumSquare / count) - mean * mean;
-                var volatility = (float)Math.Sqrt(Math.Max(0, variance));
+                var volatility = MathF.Sqrt(Math.Max(0, variance));
                 Log.Info("Mean and volatility for channel#" + channel + " : " + mean.ToString(CultureInfo.InvariantCulture) + " ; " + volatility.ToString(CultureInfo.InvariantCulture));
                 result.Add(Tuple.Create(mean, volatility));
             }

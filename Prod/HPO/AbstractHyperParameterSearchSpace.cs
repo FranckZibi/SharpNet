@@ -46,7 +46,7 @@ public abstract class AbstractHyperParameterSearchSpace
 
     protected static double[] TargetCpuInvestmentTime(IEnumerable<SingleHyperParameterValueStatistics> t)
     {
-        Tuple<double, double, int> ToTuple(DoubleAccumulator acc)
+        Tuple<double, double, long> ToTuple(DoubleAccumulator acc)
         {
             return Tuple.Create(acc.Average, acc.Volatility, acc.Count);
         }

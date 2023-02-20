@@ -32,7 +32,7 @@ public class FloatRangeHyperParameterSearchSpace : AbstractRangeHyperParameterSe
         return ((LowerValueForBucket(index) + UpperValueForBucket(index)) / 2).ToString(CultureInfo.InvariantCulture);
     }
 
-    public override bool IsConstant => Math.Abs(_min - _max)<1e-6;
+    public override bool IsConstant => MathF.Abs(_min - _max)<1e-6f;
     protected override float LowerValueForBucket(int bucketIndex)
     {
         return BucketIndexToBucketLowerValue(bucketIndex, _min, _max, _rangeType);

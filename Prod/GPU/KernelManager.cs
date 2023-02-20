@@ -50,6 +50,7 @@ namespace SharpNet.GPU
                     "MseGradient",
                     "MseOfLogLoss",
                     "MseOfLogGradient",
+                    "MeanSquaredLogErrorLoss",
                     "MaeLoss",
                     "MaeGradient",
                     "ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy",

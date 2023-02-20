@@ -99,7 +99,7 @@ namespace SharpNet.HPO
 
         protected virtual void RegisterSampleScore(ISample sample, int sampleId, IScore actualScore, double elapsedTimeInSeconds)
         {
-            _allActualScores.Add(actualScore.Value, 1);
+            _allActualScores.Add(actualScore.Value);
             RegisterSampleScore(SearchSpace, sample, actualScore, elapsedTimeInSeconds);
         }
         protected static void RegisterSampleScore(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, [NotNull] IScore actualScore, double elapsedTimeInSeconds)
@@ -184,7 +184,7 @@ namespace SharpNet.HPO
         /// <summary>
         /// number of processed search spaces
         /// </summary>
-        private int Processed => _allActualScores.Count;
+        private long Processed => _allActualScores.Count;
         private string StatisticsDescription()
         {
             string res = "";

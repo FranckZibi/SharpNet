@@ -46,7 +46,7 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
     protected static float Next_BayesianSearchFloatValue(float min, float max, Random rand, range_type rangeType, RANDOM_SEARCH_OPTION randomSearchOption, SingleHyperParameterValueStatistics[] statsByBucket)
     {
         Debug.Assert(max>=min);
-        if (Math.Abs(max - min) < 1e-6)
+        if (MathF.Abs(max - min) < 1e-6f)
         {
             return max;
         }
@@ -115,9 +115,9 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
         Debug.Assert(max>=min);
         Debug.Assert(randomUniformBetween_0_and_1>=0);
         Debug.Assert(randomUniformBetween_0_and_1<=1);
-        const double epsilon = 1e-3; //TODO tune this parameter
-        var logSampleValue = Math.Log(epsilon) + (Math.Log(max - min + epsilon) - Math.Log(epsilon)) * randomUniformBetween_0_and_1;
-        return (float)(min + Math.Exp(logSampleValue) - epsilon);
+        const float epsilon = 1e-3f; //TODO tune this parameter
+        var logSampleValue = MathF.Log(epsilon) + (MathF.Log(max - min + epsilon) - MathF.Log(epsilon)) * randomUniformBetween_0_and_1;
+        return min + MathF.Exp(logSampleValue) - epsilon;
     }
     private static float UniformValue(float min, float max, float randomUniformBetween_0_and_1)
     {

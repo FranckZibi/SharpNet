@@ -168,14 +168,14 @@ public static class TfIdfEncoding
                 if (scikitLearnCompatibilityMode)
                 {
                     float df = (1f+documentsContainingWord[wordIdx]) / (1f+documents.Count);
-                    float idf = (float)Math.Log(1 / df)+1;
+                    float idf = MathF.Log(1 / df)+1;
                     tfIdf[documentId * embeddingDim + wordIdx] = tf * idf;
                 }
                 else
                 {
                     // % of document containing (at least one time) the word at 'wordIdx'
                     float df = ((float)documentsContainingWord[wordIdx]) / documents.Count;
-                    float idf = (float)Math.Log(1 / df);
+                    float idf = MathF.Log(1 / df);
                     tfIdf[documentId * embeddingDim + wordIdx] = tf * idf;
                 }
             }

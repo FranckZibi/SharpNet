@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -108,6 +109,10 @@ namespace SharpNet
 
         PearsonCorrelation, // works only for metric (to rank submission), do not work as a loss function, higher s better
         SpearmanCorrelation, // works only for metric (to rank submission), do not work as a loss function, higher s better
+
+        //Mean Squared Log Error, see: https://scikit-learn.org/stable/modules/model_evaluation.html#mean-squared-log-error
+        //loss = (log(1+predicted) - log(1+expected)) ^ 2
+        MeanSquaredLogError // ok for loss, lower is better
     }
 
 
@@ -165,6 +170,7 @@ namespace SharpNet
                 case EvaluationMetricEnum.Mae:
                 case EvaluationMetricEnum.Mse:
                 case EvaluationMetricEnum.MseOfLog:
+                case EvaluationMetricEnum.MeanSquaredLogError:
                 case EvaluationMetricEnum.Rmse:
                     return false; // lower is better
                 default:
@@ -401,6 +407,40 @@ namespace SharpNet
             string path = GetDirectoryName(filePath);
             return ConcatenatePathWithFileName(path, prefix + fileNameWithoutExtension + suffix + newExtension);
         }
+
+        public static void WriteBinaryFile<T>(string fileName, T[] values) where T : struct
+        {
+            using var stream = File.Open(fileName, FileMode.Create);
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, false);
+            var bytes = MemoryMarshal.Cast<T, byte>(values);
+            writer.Write(bytes);
+        }
+
+
+        /// <summary>
+        /// read a part of a binary file, starting at position 'startIndex' in the file
+        /// </summary>
+        /// <param name="fileName">file to read</param>
+        /// <param name="startIndex">the fistIndex to read in the file</param>
+        /// <param name="arrayLength">number of elements to read</param>
+        /// <returns>an array of 'arrayLength' elements of type 'T'</returns>
+        public static T[] ReadArrayFromBinaryFile<T>(string fileName, int startIndex, int arrayLength) where T : struct
+        {
+            var res = new T[arrayLength];
+            LoadBufferFromBinaryFile(fileName, startIndex, res.AsSpan());
+            return res;
+        }
+
+        public static void LoadBufferFromBinaryFile<T>(string fileName, int startIndex, Span<T> buffer) where T : struct
+        {
+            var bytesSpan = MemoryMarshal.Cast<T, byte>(buffer);
+            int tSize = Marshal.SizeOf(typeof(T));
+            // Open file with a BinaryReader
+            using var b = new BinaryReader(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read));
+            // Seek to our required position 'startIndex'
+            b.BaseStream.Seek(startIndex * tSize, SeekOrigin.Begin);
+            b.Read(bytesSpan);
+        }
         public static string ConcatenatePathWithFileName(string path, params string[] subPaths)
         {
             string result = path;
@@ -610,24 +650,7 @@ namespace SharpNet
         {
             return new FileInfo(path).Length;
         }
-        /// <summary>
-        /// read a part of a binary file, starting at position 'startIndex' in the file
-        /// </summary>
-        /// <param name="fileName">file to read</param>
-        /// <param name="startIndex">the fistIndex to read in the file</param>
-        /// <param name="byteCount">number of bytes to read</param>
-        /// <returns>an array of 'byteCount' bytes</returns>
-        public static byte[] ReadPartOfFile(string fileName, int startIndex, int byteCount)
-        {
-            // Open file with a BinaryReader
-            using (var b = new BinaryReader(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read)))
-            {
-                // Seek to our required position 'startIndex'
-                b.BaseStream.Seek(startIndex, SeekOrigin.Begin);
-                // Read the next 'byteCount' bytes.
-                return b.ReadBytes(byteCount);
-            }
-        }
+        
         public static bool TryGet<T>(this IDictionary<string, object> serialized, string key, out T value)
         {
             if (serialized.TryGetValue(key, out var resAsObject))
@@ -961,7 +984,7 @@ namespace SharpNet
         ///  => a value close to 1 means we want to invest most of our time on this use case (because it seems very promising
         ///  => a value close to 0 means we want to invest very little time on this use case (because it doesn't seem use full)
         /// </returns>
-        public static double[] TargetCpuInvestmentTime(List<Tuple<double, double, int>> errors)
+        public static double[] TargetCpuInvestmentTime(List<Tuple<double, double, long>> errors)
         {
             double[] result = new double[errors.Count];
             //by default we want to invest the exact same time for each parameter
@@ -974,7 +997,7 @@ namespace SharpNet
                 return result;
             }
 
-            var valueWithIndex = new List<Tuple<Tuple<double, double, int>, int>>();
+            var valueWithIndex = new List<Tuple<Tuple<double, double, long>, int>>();
             for (int i = 0; i < errors.Count; ++i)
             {
                 if (errors[i].Item3 >= 3)

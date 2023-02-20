@@ -159,7 +159,7 @@ public abstract class Model: IDisposable
         {
             if (columns != predictionResultContent[row].Length)
             {
-                var errorMsg = $"invalid number of predictions in line {row} of file {predictionResultPath}, expecting {columns} ";
+                var errorMsg = $"invalid number of predictions in line {row} of file {predictionResultPath}, expecting {columns} but received {predictionResultContent[row].Length}";
                 LogError(errorMsg);
                 throw new Exception(errorMsg);
             }
