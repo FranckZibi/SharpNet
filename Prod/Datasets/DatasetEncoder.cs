@@ -33,7 +33,7 @@ public class DatasetEncoder
     /// the list of features that will be used to uniquely identify a row
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private string[] IdColumns { get; }
+    [NotNull] private string IdColumn { get; }
 
     private Objective_enum DatasetObjective { get; }
 
@@ -66,49 +66,13 @@ public class DatasetEncoder
     {
         CategoricalFeatures = datasetSample.CategoricalFeatures.ToArray();
         TargetLabels = datasetSample.TargetLabels.ToArray();
-        IdColumns = datasetSample.IdColumns.ToArray();
+        IdColumn = datasetSample.IdColumn;
         DatasetObjective = datasetSample.GetObjective();
         _standardizeDoubleValues = standardizeDoubleValues;
         _allDataFrameAreAlreadyNormalized = allDataFrameAreAlreadyNormalized;
     }
     public ColumnStatistics this[string featureName] => _columnStats[featureName];
-
-    /// <summary>
-    /// load the dataset 'xyDataset' and encode all categorical features into numerical values
-    /// (so that it can be processed by LightGBM)
-    /// this dataset contains both features (the 'x') and target columns (the 'y')
-    /// </summary>
-    /// <param name="xyDataset_df"></param>
-    /// <param name="datasetSample"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
-    // ReSharper disable once UnusedMember.Global
-    public DataFrameDataSet Transform_XYDataset(DataFrame xyDataset_df, AbstractDatasetSample datasetSample)
-    {
-        var xTrainEncoded = Transform(xyDataset_df.Drop(TargetLabels));
-        var yTrain = xyDataset_df[TargetLabels];
-        return NewDataFrameDataSet(xTrainEncoded, yTrain, datasetSample);
-    }
-
-    /// <summary>
-    /// load the dataset 'xDataset' and encode all categorical features into numerical values
-    /// (so that it can be processed by LightGBM)
-    /// if 'yDataset' is not empty, it means that this second dataset contains the target 'y'
-    /// </summary>
-    public DataFrameDataSet Transform_X_and_Y_Dataset([NotNull] DataFrame x_df, [CanBeNull] DataFrame y_df, AbstractDatasetSample datasetSample)
-    {
-        return NewDataFrameDataSet(Transform(x_df), y_df, datasetSample);
-    }
-
-    private static DataFrameDataSet NewDataFrameDataSet(DataFrame xTrainEncoded, DataFrame yTrainEncoded, AbstractDatasetSample datasetSample)
-    {
-        return new DataFrameDataSet(
-            datasetSample,
-            xTrainEncoded,
-            yTrainEncoded,
-            false);
-    }
-
+    
     public DataFrame Fit_Transform(DataFrame string_df)
     {
         Fit(string_df);
@@ -144,7 +108,7 @@ public class DatasetEncoder
         {
             if (!_columnStats.ContainsKey(c))
             {
-                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
             }
         }
     
@@ -166,7 +130,7 @@ public class DatasetEncoder
                 var c = df.Columns[index];
                 if (!_columnStats.ContainsKey(c) && IsCategoricalColumn(c))
                 {
-                    _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), IdColumns.Contains(c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                    _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
                     FitColumn(df, index);
                 }
             }
@@ -355,7 +319,7 @@ public class DatasetEncoder
     }
     private bool IsCategoricalColumn(string columnName)
     {
-        if (CategoricalFeatures.Contains(columnName) || IdColumns.Contains(columnName))
+        if (CategoricalFeatures.Contains(columnName) || Equals(IdColumn, columnName))
         {
             return true;
         }

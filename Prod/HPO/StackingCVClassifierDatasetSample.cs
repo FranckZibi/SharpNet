@@ -10,7 +10,7 @@ using SharpNet.HyperParameters;
 
 namespace SharpNet.HPO
 {
-    public class StackingCVClassifierDatasetSample : DelegatedDatasetSample
+    public class StackingCVClassifierDatasetSample : WrappedDatasetSample
     {
         #region private fields
         private readonly DataFrameDataSet _trainingDataFrameDataSet;
@@ -25,7 +25,7 @@ namespace SharpNet.HPO
             _trainingDataFrameDataSet = trainingDataFrameDataSet;
             _inferenceDataFrameDataSet= inferenceDataFrameDataSet;
             KFold = cv;
-            EmbeddedDatasetSample.KFold = cv;
+            Original.KFold = cv;
             if (KFold == 1)
             {
                 if (PercentageInTraining >= 1.0)
@@ -129,9 +129,6 @@ namespace SharpNet.HPO
                 x_training_InModelFormat_df = DataFrame.MergeHorizontally(validationDataset.XDataFrame, x_training_InModelFormat_df);
                 x_inference_InModelFormat_df = DataFrame.MergeHorizontally(testDataset.XDataFrame, x_inference_InModelFormat_df);
             }
-            x_training_InModelFormat_df = validationDataset.AddIdColumnsAtLeftIfNeeded(x_training_InModelFormat_df);
-            x_inference_InModelFormat_df = testDataset.AddIdColumnsAtLeftIfNeeded(x_inference_InModelFormat_df);
-
 
             if (x_training_InModelFormat_df.Shape[1] != x_inference_InModelFormat_df.Shape[1])
             {
@@ -142,12 +139,14 @@ namespace SharpNet.HPO
                 embeddedDatasetSample,
                 x_training_InModelFormat_df,
                 y_true_training_InModelFormat, //y_true_training_InTargetFormat,
+                null, //TODO
                 false);
 
             var InferenceDataSet = new DataFrameDataSet(
                 embeddedDatasetSample,
                 x_inference_InModelFormat_df,
                 null,
+                null, //TODO
                 false);
 
             //TrainingDataSet.to_csv_in_directory(workingDirectory, true, true, true);

@@ -923,7 +923,7 @@ namespace SharpNet.Networks
                 shuffledElementId[i] = i%dataSet.Count;
             }
 
-            if ( (epoch >= 2||dataSet is ITimeSeriesDataSet) && Sample.RandomizeOrder && isTraining)
+            if (Sample.RandomizeOrder && isTraining)
             {
                 if (Sample.RandomizeOrderBlockSize <= 1)
                 {

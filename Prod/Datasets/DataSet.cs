@@ -52,7 +52,13 @@ namespace SharpNet.Datasets
         /// </summary>
         [NotNull] public string[] ColumnNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
-        [NotNull] public string[] IdColumns { get; }
+        [CanBeNull] public string[] Y_IDs { get; }
+
+
+        /// <summary>
+        /// name of the Id Column, null or empty if no Id columns are available
+        /// </summary>
+        [NotNull] public string IdColumn { get; }
         public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
         public char Separator { get; }
         #endregion
@@ -65,23 +71,27 @@ namespace SharpNet.Datasets
             ResizeStrategyEnum resizeStrategy,
             [NotNull] string[] columnNames,
             [NotNull] string[] categoricalFeatures,
-            [NotNull] string[] idColumns,
+            string idColumn,
+            [CanBeNull] string[] Y_IDs,
             bool useBackgroundThreadToLoadNextMiniBatch,
             char separator)
         {
-            Separator = separator;
             Name = name;
             Objective = objective;
             Channels = channels;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
+            ColumnNames = columnNames;
+            Separator = separator;
+            IdColumn = idColumn;
+            this.Y_IDs = Y_IDs;
             UseBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
+
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
             {
                 _rands[i] = new Random(i);
             }
-            ColumnNames = columnNames;
 
             var invalidCategoricalFeatures = Utils.Without(categoricalFeatures, ColumnNames);
             if (invalidCategoricalFeatures.Count != 0)
@@ -90,20 +100,6 @@ namespace SharpNet.Datasets
                 categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
             }
             CategoricalFeatures = categoricalFeatures;
-
-            if (idColumns.Length != 0 && ColumnNames.Length != 0)
-            {
-                var foundIdColumns = Utils.Intersect(idColumns, ColumnNames);
-                if (foundIdColumns.Count < idColumns.Length)
-                {
-                    var missingIdColumns = Utils.Without(idColumns, foundIdColumns);
-
-                    var errorMsg = $" {missingIdColumns.Count} missing IdColumns: {string.Join(' ', missingIdColumns)}";
-                    Log.Error(errorMsg);
-                    throw new ArgumentException(errorMsg);
-                }
-            }
-            IdColumns = idColumns;
 
             if (UseBackgroundThreadToLoadNextMiniBatch)
             {
@@ -344,25 +340,15 @@ namespace SharpNet.Datasets
         public abstract int Count { get; }
         public virtual DataFrame AddIdColumnsAtLeftIfNeeded(DataFrame df)
         {
-            if (IdColumns.Length == 0)
+            if (string.IsNullOrEmpty(IdColumn))
             {
                 return df;
             }
-            var intersection = Utils.Intersect(df.Columns, IdColumns);
-            if (intersection.Count == 0)
+            if (df.Columns.Contains(IdColumn))
             {
-                return DataFrame.MergeHorizontally(ExtractIdDataFrame(df.Shape[0]), df);
+                return df; // Id Column is already in the DataFrame, nothing to do
             }
-
-            if (intersection.Count == IdColumns.Length)
-            {
-                // all Id Columns are already in the DataFrame, nothing to do
-                return df;
-            }
-            //some Id Columns are in the DataFrame and some other are not
-            var errorMsg = $"found only a part {string.Join(' ', intersection)} of Id Columns ({string.Join(' ', IdColumns)})";
-            Log.Error(errorMsg);
-            throw new Exception(errorMsg);
+            return DataFrame.MergeHorizontally(ExtractIdDataFrame(df.Shape[0]), df);
         }
 
         public string Name { get; }
@@ -382,46 +368,28 @@ namespace SharpNet.Datasets
 
         public virtual DataFrame ExtractIdDataFrame(int rows)
         {
-            if (UseRowIndexAsId) ;
+            if (string.IsNullOrEmpty(IdColumn))
             {
-                Debug.Assert(IdColumns.Length == 1);
-                return DataFrame.New(Enumerable.Range(0, rows).Select(i => (float)i).ToArray(), IdColumns);
+                return null; // can't extract id columns because the DataFrame doesn't contain any
             }
-            if (IdColumns.Length == 0)
+            var content = new string[rows];
+            for (int row = 0; row < rows; ++row)
             {
-                // can't extract id columns because the DataFrame doesn't contain any
-                return null;
+                content[row] = ID_Y_row_InTargetFormat(row);
             }
-            var columnIndexesOfIds = IdColumns.Select(id => Array.IndexOf(ColumnNames, id)).ToList();
-            columnIndexesOfIds.Sort();
-
-            var content = new float[Count * IdColumns.Length];
-            int cols = ColumnNames.Length;
-            using CpuTensor<float> singleRow = new(new[] { 1, cols });
-            var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
-            int nextIdx = 0;
-            for (int row = 0; row < Count; ++row)
-            {
-                LoadAt(row, 0, singleRow, null, false, false);
-                foreach (var colIdx in columnIndexesOfIds)
-                {
-                    content[nextIdx++] = singleRowAsSpan[colIdx];
-                }
-            }
-            return DataFrame.New(content, IdColumns);
+            return DataFrame.New(content, new [] { IdColumn });
+            //int columnIndexesOfId = Array.IndexOf(ColumnNames, IdColumn);
+            //int cols = ColumnNames.Length;
+            //using CpuTensor<float> singleRow = new(new[] { 1, cols });
+            //var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
+            //int nextIdx = 0;
+            //for (int row = 0; row < Count; ++row)
+            //{
+            //    LoadAt(row, 0, singleRow, null, false, false);
+            //    content[nextIdx++] = singleRowAsSpan[columnIndexesOfId];
+            //}
+            //return DataFrame.New(content, new string[] { IdColumn });
         }
-
-        public (DataFrame X, DataFrame Y) ExtractXYDataFrame()
-        {
-            int cols = ColumnNames.Length;
-            CpuTensor<float> X = new(new[] { Count, cols });
-            for (int row = 0; row < Count; ++row)
-            {
-                LoadAt(row, row, X, null, false, false);
-            }
-            return (DataFrame.New(X, ColumnNames), DataFrame.New(Y, new List<string>{"y"}));
-        }
-
 
         /// <summary>
         /// number of channels of each elements
@@ -507,9 +475,19 @@ namespace SharpNet.Datasets
 
 
 
-        public virtual string ElementIdToDescription(int elementId)
+        /// <summary>
+        /// returns the ID associated with the row 'Y_row_InTargetFormat' in the
+        /// prediction file in target format
+        /// </summary>
+        /// <param name="Y_row_InTargetFormat"></param>
+        /// <returns></returns>
+        public virtual string ID_Y_row_InTargetFormat(int Y_row_InTargetFormat)
         {
-            return elementId.ToString();
+            if (Y_IDs != null)
+            {
+                return Y_IDs[Y_row_InTargetFormat];  
+            }
+            return Y_row_InTargetFormat.ToString();
         }
         /// <summary>
         /// retrieve the category associated with a specific element
@@ -758,7 +736,7 @@ namespace SharpNet.Datasets
                 List<int> validIdxColumns = new();
                 for (var index = 0; index < ColumnNames.Length; index++)
                 {
-                    if (Array.IndexOf(IdColumns, ColumnNames[index]) == -1)
+                    if (string.IsNullOrEmpty(IdColumn) || !Equals(ColumnNames[index], IdColumn))
                     {
                         validIdxColumns.Add(index);
                     }
@@ -850,7 +828,7 @@ namespace SharpNet.Datasets
                     validIdxColumns = new List<int>();
                     for (var index = 0; index < ColumnNames.Length; index++)
                     {
-                        if (Array.IndexOf(IdColumns, ColumnNames[index]) == -1)
+                        if (string.IsNullOrEmpty(IdColumn) || !Equals(ColumnNames[index], IdColumn))
                         {
                             validIdxColumns.Add(index);
                         }

@@ -13,6 +13,7 @@ public class QRT97DatasetSample : AbstractDatasetSample
     private static readonly DataFrame x_training_raw;
     private static readonly DataFrame y_training_raw;
     private static readonly DataFrame x_test_raw;
+    private static readonly DataFrame y_test_random_raw;
     private static readonly Dictionary<string, Dictionary<string, DoubleAccumulator>> IdToFeatureToStats = new();
     #endregion
     #region private fields & properties
@@ -57,6 +58,7 @@ public class QRT97DatasetSample : AbstractDatasetSample
         x_training_raw = DataFrame.read_csv_normalized(QRT97Utils.XTrainPath, ',', true, QRT97Utils.ColumnNameToType);
         y_training_raw = DataFrame.read_csv_normalized(QRT97Utils.YTrainPath, ',', true, QRT97Utils.ColumnNameToType);
         x_test_raw = DataFrame.read_csv_normalized(QRT97Utils.XTestPath, ',', true, QRT97Utils.ColumnNameToType);
+        y_test_random_raw = DataFrame.read_csv_normalized(QRT97Utils.YTestRandomPath, ',', true, QRT97Utils.ColumnNameToType);
         Log.Debug($"Loading of raw files took {sw.Elapsed.Seconds}s");
 
 
@@ -147,7 +149,7 @@ public class QRT97DatasetSample : AbstractDatasetSample
 
 
     public override string[] CategoricalFeatures { get; } = {  "DAY_ID", "COUNTRY" };
-    public override string[] IdColumns { get; } = { "ID" };
+    public override string IdColumn => "ID";
     public override string[] TargetLabels { get; } = { "TARGET" };
     public override Objective_enum GetObjective()
     {
@@ -215,8 +217,8 @@ public class QRT97DatasetSample : AbstractDatasetSample
         var yTrain_Encoded = DatasetEncoder.Transform(y_training_raw[TargetLabels]);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, false);
-        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, y_training_raw.StringColumnContent(IdColumn), false);
+        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, y_test_random_raw.StringColumnContent(IdColumn), false);
 
         Log.Debug($"{nameof(LoadAndEncodeDataset_If_Needed)} for key {key} took {sw.Elapsed.Seconds} s");
         return (fullTrainingAndValidation, testDataset);

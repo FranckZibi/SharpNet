@@ -38,15 +38,31 @@ public sealed class MappedDataSet : WrappedDataSet
     {
         return _original.ElementIdToCategoryIndex(_elementIdToOriginalElementId[elementId]);
     }
-
-    public override string ElementIdToDescription(int elementId)
-    {
-        return _original.ElementIdToDescription(_elementIdToOriginalElementId[elementId]);
-    }
     public override string ElementIdToPathIfAny(int elementId)
     {
         return _original.ElementIdToPathIfAny(_elementIdToOriginalElementId[elementId]);
     }
+    public override string ID_Y_row_InTargetFormat(int Y_row_InTargetFormat)
+    {
+        if (_original.Y_IDs != null && _original.Y_IDs.Length != _original.Count)
+        {
+            int mod = _original.Y_IDs.Length % _original.Count;
+            if (mod != 0)
+            {
+                throw new ArgumentException($"RowInTargetFormatPredictionToId.Length={_original.Y_IDs.Length} is not a multiple of Count={_original.Count}");
+            }
+            int mult = _original.Y_IDs.Length / _original.Count;
+            var elementId = Y_row_InTargetFormat/ mult;
+            var originalElementId = _elementIdToOriginalElementId[elementId];
+            var originalRowInTargetFormatPrediction = originalElementId * mult + Y_row_InTargetFormat % mult;
+            return _original.ID_Y_row_InTargetFormat(originalRowInTargetFormatPrediction);
+        }
+
+        return _original.ID_Y_row_InTargetFormat(_elementIdToOriginalElementId[Y_row_InTargetFormat]);
+    }
+
+
+
 
     public override CpuTensor<float> Y { get; }
 

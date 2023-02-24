@@ -584,6 +584,10 @@ namespace SharpNet
             return CharToBeRemovedInStartOrEnd(c)&&(c!= ' ');
         }
 
+        public static List<T> Intersect<T>(IList<T> a, T b)
+        {
+            return Intersect(a, new List<T> { b });
+        }
 
         /// <summary>
         /// return the intersection of list a and b
@@ -610,6 +614,12 @@ namespace SharpNet
             }
             return result;
         }
+
+        public static List<T> Without<T>(IEnumerable<T> a, T b)
+        {
+            return Without(a, new List<T> { b });
+        }
+
         public static List<T> Without<T>(IEnumerable<T> a, IEnumerable<T> b)
         {
             var result = new List<T>();

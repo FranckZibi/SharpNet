@@ -35,6 +35,10 @@ public static class PlumeLabs88Utils
 
     public static readonly int[] Raw_Shape_CHW = { 4, 128, 128};
 
+
+
+    public const string ID_COLUMN_NAME = "ID";
+
     public static int RawValuesByElement => Utils.Product(Raw_Shape_CHW);
 
     public static DataFrame Load_YTrainPath()
@@ -42,13 +46,19 @@ public static class PlumeLabs88Utils
         return DataFrame.read_csv(YTrainPath, true, ColumnNameToType, true);
     }
 
+    public static DataFrame Load_OutputTestRandomPath()
+    {
+        return DataFrame.read_csv(OutputTestRandomPath, true, ColumnNameToType, true);
+    }
+    
+
     public static void TransformPandasZipFiles(bool isTraining)
     {
         var maxValue = 0f;
         var minValue = float.MaxValue;
-        for (int i = 0; i <= MaxId(isTraining); i += ROWS_BY_FILE)
+        for (int i = 0; i <= RawMaxId(isTraining); i += ROWS_BY_FILE)
         {
-            var path = GetFileName(i, isTraining);
+            var path = GetRawFileName(i, isTraining);
             Console.WriteLine($"Processing file {path}");
             var content = LoadZipFileContent(path);
             int rows = content.Length;
@@ -83,11 +93,11 @@ public static class PlumeLabs88Utils
     public static void MeasureTimeToLoadAllRawData(bool isTraining)
     {
         var sw = Stopwatch.StartNew();
-        for (int elementId = 0; elementId < MaxId(isTraining); ++elementId)
+        for (int elementId = 0; elementId < RawMaxId(isTraining); ++elementId)
         {
             LoadRawElementId(elementId, isTraining);
         }
-        ISample.Log.Info($"Loading all {MaxId(isTraining)} elements took {sw.ElapsedMilliseconds}ms");
+        ISample.Log.Info($"Loading all {RawMaxId(isTraining)} elements took {sw.ElapsedMilliseconds}ms");
     }
 
     public static void MakeLazyPredictions(bool isTraining)
@@ -101,7 +111,7 @@ public static class PlumeLabs88Utils
         var elementShape = datasetSample.GetInputShapeOfSingleElement();
         var tensor = new CpuTensor<float>(elementShape);
         var span = tensor.SpanContent;
-        for (int elementId = 0; elementId <= MaxId(isTraining); ++elementId)
+        for (int elementId = 0; elementId <= RawMaxId(isTraining); ++elementId)
         {
             datasetSample.LoadElementIdIntoSpan(elementId, span, isTraining);
             var avgLastChannel = tensor.RowSpanSlice(3, 1).ToArray().Select(datasetSample.UnNormalizeFeature).Average();
@@ -111,7 +121,7 @@ public static class PlumeLabs88Utils
                 sb.Append($"{id++},{avgLastChannel.ToString(CultureInfo.InvariantCulture)}" + Environment.NewLine);
             }
         }
-        ISample.Log.Info($"Making Lazy Predictions for {MaxId(isTraining)} elements took {sw.ElapsedMilliseconds}ms");
+        ISample.Log.Info($"Making Lazy Predictions for {RawMaxId(isTraining)} elements took {sw.ElapsedMilliseconds}ms");
         var path = Path.Combine(WorkingDirectory, "dump", "lazy_pred_"+isTraining+".csv");
         File.WriteAllText(path, sb.ToString());
     }
@@ -119,7 +129,7 @@ public static class PlumeLabs88Utils
 
     public static short[] LoadRawElementId(int elementId, bool isTraining)
     {
-        var path = GetBinFileName(elementId, isTraining);
+        var path = GetRawBinFileName(elementId, isTraining);
         var valuesByElement = RawValuesByElement;
         int firstElementId = FirstElementInFileContainingElementId(elementId);
         int positionInFile = (elementId - firstElementId) * valuesByElement;
@@ -153,20 +163,24 @@ public static class PlumeLabs88Utils
         return res;
     }
 
-    //!D public static int MaxId(bool isTrain) { return isTrain ? 99999 : 18148; }
-    public static int MaxId(bool isTrain) { return isTrain ? 19999: 18148; }
+
+    public const int RawMaxIdTraining = 99999;
+    public const int RawMaxIdTest = 18148;
+    public static int RawMaxId(bool isTrain) { return isTrain ? RawMaxIdTraining : RawMaxIdTest; }
+    //public static int RawMaxId(bool isTrain) { return isTrain ? 19999: 18148; }
     
     public static void Run()
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
 
-        ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "D6B19DF4CE", null, 0.9, false);
+        ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "543E24B90E", null, 0.9, false);
 
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\PlumeLabs88\dump", "C8C8A2D3E2", true);
         //(_, _, DataFrame predictionsInTargetFormat, _, _) =  m.DatasetSample.ComputePredictionsAndRankingScoreV2(m.DatasetSample.TestDataset(), m.Model, false, true);
         //predictionsInTargetFormat.to_csv("c:/temp/toto.csv");
 
+        //Misc.AdjustPlumeLabs88(@"C:\Projects\Challenges\PlumeLabs88\submit\84CBF5E063_predict_test_.csv");
 
 
         //ChallengeTools.ComputeAndSaveFeatureImportance(@"C:\Projects\Challenges\PlumeLabs88\Submit", "9B9DFA97F2_KFOLD_FULL");
@@ -205,7 +219,7 @@ public static class PlumeLabs88Utils
             var logAcc = new DoubleAccumulator();
             for (int i = 0; i <= 2000 /*MaxId(isTrain)*/; i+= ROWS_BY_FILE)
             {
-                var path = GetFileName(i, isTrain);
+                var path = GetRawFileName(i, isTrain);
                 var content = LoadZipFileContent(path);
                 void ProcessLine(int row)
                 {
@@ -239,16 +253,16 @@ public static class PlumeLabs88Utils
         Console.WriteLine($"FULL, accTotal={accTotal}, logAccTotal={logAccTotal}");
     }
 
-    public static string GetFileName(int elementId, bool isTraining)
+    public static string GetRawFileName(int elementId, bool isTraining)
     {
-        int start_id = elementId - elementId % PlumeLabs88Utils.ROWS_BY_FILE;
-        int end_id = Math.Min(start_id + PlumeLabs88Utils.ROWS_BY_FILE - 1, PlumeLabs88Utils.MaxId(isTraining));
+        int start_id = elementId - elementId % ROWS_BY_FILE;
+        int end_id = Math.Min(start_id + ROWS_BY_FILE - 1, RawMaxId(isTraining));
         return Path.Combine(GetDataDirectory(isTraining), $"{start_id}_{end_id}.csv.zip");
     }
-    public static string GetBinFileName(int elementId, bool isTraining)
+    public static string GetRawBinFileName(int elementId, bool isTraining)
     {
         int start_id = FirstElementInFileContainingElementId(elementId);
-        int end_id = Math.Min(start_id + PlumeLabs88Utils.ROWS_BY_FILE - 1, PlumeLabs88Utils.MaxId(isTraining));
+        int end_id = Math.Min(start_id + PlumeLabs88Utils.ROWS_BY_FILE - 1, PlumeLabs88Utils.RawMaxId(isTraining));
         return Path.Combine(GetDataDirectory(isTraining), $"{start_id}_{end_id}.bin");
     }
     public static int FirstElementInFileContainingElementId(int elementId)

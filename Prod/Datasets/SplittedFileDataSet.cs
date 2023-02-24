@@ -27,7 +27,8 @@ namespace SharpNet.Datasets
                 ResizeStrategyEnum.None,
                 new string[0],
                 new string[0],
-                new string[0],
+                "",
+                null, //TODO
                 true,
                 ',')
         {

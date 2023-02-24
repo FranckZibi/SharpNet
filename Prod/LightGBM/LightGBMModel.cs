@@ -103,7 +103,7 @@ namespace SharpNet.LightGBM
                     return null;
                 }
                 var columns = Utils.ReadCsv(datasetPath).First();
-                columns = Utils.Without(columns, datasetSample.IdColumns).ToArray();
+                columns = Utils.Without(columns, datasetSample.IdColumn).ToArray();
                 columns = Utils.Without(columns, datasetSample.TargetLabels).ToArray();
 
                 var contribPath = Path.Combine(TempPath, ModelName + "_contrib_" + Path.GetFileNameWithoutExtension(datasetPath) + ".txt");

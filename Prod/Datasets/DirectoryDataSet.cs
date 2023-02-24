@@ -23,7 +23,6 @@ namespace SharpNet.Datasets
         ///     we'll need to stack all those channels to build the element id
         /// </summary>
         private readonly List<List<string>> _elementIdToPaths = new List<List<string>>();
-        private readonly List<string> _elementIdToDescription = new List<string>();
         private readonly List<int> _elementIdToCategoryIndex;
         private readonly Random _rand = new Random(0);
         #endregion
@@ -37,17 +36,16 @@ namespace SharpNet.Datasets
             ResizeStrategyEnum resizeStrategy)
         {
             var elementIdToPaths = new List<List<string>>();
-            var elementIdToDescription  = new List<string>();
+            var rowInTargetFormatPredictionToID = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
             foreach (var p in picturePaths)
             {
                 elementIdToPaths.Add( new List<string> {p});
-                elementIdToDescription.Add(p);
+                rowInTargetFormatPredictionToID.Add(p);
                 elementIdToCategoryIndex.Add(-1);
             }
             return new DirectoryDataSet(
                 elementIdToPaths,
-                elementIdToDescription,
                 elementIdToCategoryIndex,
                 null,
                 "FromFiles", 
@@ -56,23 +54,23 @@ namespace SharpNet.Datasets
                 Enumerable.Range(0, categoryCount).Select(i=>i.ToString()).ToArray(),
                 meanAndVolatilityForEachChannel,
                 resizeStrategy,
-                null);
+                null,
+                rowInTargetFormatPredictionToID.ToArray());
         }
 
         #region constructor
         public DirectoryDataSet(
-            List<List<string>> elementIdToPaths, 
-            List<string> elementIdToDescription, 
+            List<List<string>> elementIdToPaths,
             List<int> elementIdToCategoryIndex,
             CpuTensor<float> expectedYIfAny,
             string name,
             Objective_enum objective,
-            int channels, 
+            int channels,
             string[] categoryDescriptions,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
-            string[] featureNames
-            )
+            string[] featureNames,
+            string[] elementIdToID)
             : base(name,
                 objective, 
                 channels, 
@@ -80,12 +78,12 @@ namespace SharpNet.Datasets
                 resizeStrategy,
                 featureNames?? new string[0],
                 new string[0],
-                new string[0],
+                "",
+                elementIdToID,
                 true,
                 ',')
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
-            _elementIdToDescription.AddRange(elementIdToDescription);
             _elementIdToCategoryIndex = elementIdToCategoryIndex?.ToList();
 
             if (meanAndVolatilityForEachChannel == null)
@@ -141,14 +139,10 @@ namespace SharpNet.Datasets
             }
         }
         public override bool CanBeSavedInCSV => false;
-        public override int Count => _elementIdToCategoryIndex.Count;
+        public override int Count => _elementIdToPaths.Count;
         public override int ElementIdToCategoryIndex(int elementId)
         {
             return _elementIdToCategoryIndex[elementId];
-        }
-        public override string ElementIdToDescription(int elementId)
-        {
-            return _elementIdToDescription[elementId];
         }
         public override string ElementIdToPathIfAny(int elementId)
         {

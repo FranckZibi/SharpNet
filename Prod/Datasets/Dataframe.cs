@@ -63,7 +63,6 @@ public sealed class DataFrame
     public List<Tuple<string, int, int>> ColumnsDesc => _columns;
     #endregion
 
-
     public void SetColumnNames(string[] newColumnNames)
     {
         if (newColumnNames.Length != Columns.Length)
@@ -903,10 +902,7 @@ public sealed class DataFrame
 
     public DataFrame ReorderRows(int[] orderedRows)
     {
-        if (orderedRows.Length != Shape[0])
-        {
-            throw new ArgumentException($"invalid orderedRows length {orderedRows.Length} (expected {Shape[0]})");
-        }
+        CloneIfNeeded();
         return new DataFrame(
             _columns.ToList(),
             FloatTensor?.ApplyRowOrder(orderedRows),

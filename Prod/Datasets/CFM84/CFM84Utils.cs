@@ -29,8 +29,8 @@ public static class CFM84Utils
     public static string XTrainPath => Path.Combine(DataDirectory, "input_training.csv");
     public static string YTrainPath => Path.Combine(DataDirectory, "output_training_gmEd6Zt.csv");
     public static string XTestPath => Path.Combine(DataDirectory, "input_test.csv");
+    public static string YTestRandomPath => Path.Combine(DataDirectory, "output_test_random.csv");
     public static string StatPath => Path.Combine(DataDirectory, "cfm84_stats.csv");
-    public static string OutputTestRandomPath => Path.Combine(DataDirectory, "output_test_random.csv");
     public static readonly string[] TargetLabelDistinctValues = new[] { "0", "-1", "1" };
 
 
@@ -38,7 +38,7 @@ public static class CFM84Utils
 
     public static void AverageTestPredictions(double[] weights, params string[] predictionsPaths)
     {
-        var outputTestRandom_df = DataFrame.read_float_csv(OutputTestRandomPath);
+        var outputTestRandom_df = DataFrame.read_float_csv(YTestRandomPath);
         var id_df = outputTestRandom_df["ID"].Clone();
         var avg = DataFrame.WeightedSum(weights, predictionsPaths.Select(p => DataFrame.read_float_csv(p)).ToArray());
         Debug.Assert(id_df.Shape[0] == avg.Shape[0]);
@@ -101,14 +101,14 @@ public static class CFM84Utils
     public static void Run()
     {
         //Misc.CreateAllFiles(); return;
-        Misc.FitDistribution();
+        Misc.YCNG();
         //BuildStatNormalizeFile();
         //Misc.BuildStatFile();
 
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);
         //m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
 
-        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "dump"), "26A5D7BA9E", null, 0.8, false);
+        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "dump"), "26A5D7BA9E", null, 0.1, false);
 
 
         //AverageTestPredictions(new []{0.5,0.5}, @"C:\Projects\Challenges\CFM84\submit\9DE295AB09_modelformat_predict_test_.csv",  @"C:\Projects\Challenges\CFM84\submit\CF37BAB198_modelformat_predict_test_.csv");

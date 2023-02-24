@@ -15,6 +15,8 @@ namespace SharpNet.Datasets;
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 {
+    protected readonly List<IDisposable> toDispose = new();
+
 
     #region Hyper-Parameters
     //For numerical features:
@@ -64,11 +66,10 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 
     public virtual bool PredictionsMustBeOrderedByIdColumn => false;
     /// <summary>
-    /// features used to identify a row in the dataset
+    /// feature used to identify a row in the dataset
     /// such features should be ignored during the training
     /// </summary>
-    /// <returns>list of id features </returns>
-    public abstract string[] IdColumns { get; }
+    public abstract string IdColumn { get; }
 
     // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
     protected DatasetEncoder DatasetEncoder { get; set; }
@@ -172,6 +173,11 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         return columnStats.GetDistinctCategoricalValues().Count;
     }
 
+    public bool IsIdColumn(string columnName)
+    {
+        return !string.IsNullOrEmpty(IdColumn) && Equals(columnName, IdColumn);
+    }
+
     /// <summary>
     /// VocabularySizes : for each categorical feature, the number of distinct value it has
     /// EmbeddingDims: the default embedding for each categorical feature
@@ -192,7 +198,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         {
             var column = columnNames[i];
 
-            if (Array.IndexOf(IdColumns, column) >= 0)
+            if (IsIdColumn(column))
             {
                 //we'll discard Id columns
                 indexesInLastDimensionToUse.Add(i);
@@ -244,14 +250,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             return cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
         }
     }
-
-    //public virtual List<TrainingAndTestDataset> KFoldSplit(DataSet dataset, int kfold, int countMustBeMultipleOf)
-    //{
-    //    return dataset.KFoldSplit(kfold, countMustBeMultipleOf);
-    //}
-
-
-
 
     public enum DatasetType
     {
@@ -375,18 +373,18 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             return;
         }
         AssertNoIdColumns(y_pred_Encoded_InTargetFormat);
-        y_pred_Encoded_InTargetFormat = xDataset.AddIdColumnsAtLeftIfNeeded(y_pred_Encoded_InTargetFormat);
-        if (DatasetEncoder != null)
+
+        var y_pred_Decoded_InTargetFormat = (DatasetEncoder != null)
+                ?DatasetEncoder.Inverse_Transform(y_pred_Encoded_InTargetFormat)
+                : y_pred_Encoded_InTargetFormat;
+        y_pred_Decoded_InTargetFormat = xDataset.AddIdColumnsAtLeftIfNeeded(y_pred_Decoded_InTargetFormat);
+    
+        if (PredictionsMustBeOrderedByIdColumn && !string.IsNullOrEmpty(IdColumn))
         {
-            y_pred_Encoded_InTargetFormat = DatasetEncoder.Inverse_Transform(y_pred_Encoded_InTargetFormat);
+            y_pred_Decoded_InTargetFormat = y_pred_Decoded_InTargetFormat.sort_values(IdColumn);
         }
 
-        if (PredictionsMustBeOrderedByIdColumn && IdColumns.Length != 0)
-        {
-            y_pred_Encoded_InTargetFormat = y_pred_Encoded_InTargetFormat.sort_values(IdColumns[0]);
-        }
-
-        y_pred_Encoded_InTargetFormat.to_csv(path, GetSeparator());
+        y_pred_Decoded_InTargetFormat.to_csv(path, GetSeparator());
     }
 
     public virtual void SavePredictionsInModelFormat(DataFrame predictionsInModelFormat, string path)
@@ -442,39 +440,17 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// <exception cref="Exception"></exception>
     protected void AssertNoIdColumns(DataFrame df)
     {
-        if (df == null)
+        if (df == null || string.IsNullOrEmpty(IdColumn))
         {
             return;
         }
-        var idCol = Utils.Intersect(df.Columns, IdColumns);
-        if (idCol.Count != 0)
+        var indexIdCol = Array.IndexOf(df.Columns, IdColumn);
+        if (indexIdCol >= 0)
         {
-            throw new Exception($"The DataFrame is not allowed to contain Id Columns : {string.Join(' ', idCol)}");
+            throw new Exception($"The DataFrame is not allowed to contain Id Columns : {string.Join(' ', indexIdCol)}");
         }
 
     }
-
-
-    ///// <summary>
-    ///// ensure that the DataFrame 'df' has all Id Columns
-    ///// throw an exception if it contains Id Columns
-    ///// </summary>
-    ///// <param name="df"></param>
-    ///// <exception cref="Exception"></exception>
-    //private void AssertAllIdColumns(DataFrame df)
-    //{
-    //    if (df == null || IdColumns.Length == 0)
-    //    {
-    //        return;
-    //    }
-    //    var idCol = Utils.Intersect(df.Columns, IdColumns);
-    //    if (idCol.Count != IdColumns.Length)
-    //    {
-    //        var missingIdColumn = Utils.Without(IdColumns, idCol);
-    //        throw new Exception($"The DataFrame has {missingIdColumn.Count} missing Id Columns : {string.Join(' ', missingIdColumn)}");
-    //    }
-    //}
-    
 
     public override bool FixErrors()
     {
@@ -558,31 +534,16 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             var yTensor = CpuTensor<float>.FromClassIndexToProba(y.FloatTensor, NumClass);
             y = DataFrame.New(yTensor);
         }
-        return new DataFrameDataSet(this, x, y, false);
+        return new DataFrameDataSet(this, x, y, null, false);
     }
-    //private DataFrame DropIdColumnsIfFound(DataFrame df)
-    //{
-    //    if (df == null || IdColumns.Length == 0)
-    //    {
-    //        return df;
-    //    }
-    //    var intersection = Utils.Intersect(df.Columns, IdColumns);
-    //    if (intersection.Count == 0)
-    //    {
-    //        return df;
-    //    }
-
-    //    if (intersection.Count != IdColumns.Length)
-    //    {
-    //        throw new Exception($"found only a part {string.Join(' ', intersection)} of Id Columns ({string.Join(' ', IdColumns)})");
-    //    }
-    //    return df.Drop(IdColumns);
-    //}
 
     #region Dispose pattern
     protected bool disposed = false;
     protected virtual void Dispose(bool disposing)
     {
+        toDispose.ForEach(d=>d?.Dispose());
+        toDispose.Clear();
+
         if (disposed)
         {
             return;

@@ -20,7 +20,7 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
     {
     }
     public override string[] CategoricalFeatures => new string[0];
-    public override string[] IdColumns => new[] { "index" };
+    public override string IdColumn => "index";
     public override string[] TargetLabels => new []{"labels"};
     public override Objective_enum GetObjective()
     {

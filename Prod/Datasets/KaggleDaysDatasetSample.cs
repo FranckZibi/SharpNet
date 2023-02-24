@@ -55,9 +55,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     public static void Enrich(string predictions)
     {
         var preds = File.ReadAllLines(predictions).Skip(1).Select(float.Parse).ToArray();
-
         var idFile = Utils.ReadCsv(Path.Combine(DataDirectory, "search_test_v2.csv")).Skip(1).ToArray();
-
 
         Dictionary<string, List<Tuple<string,float>>> losses = new ();
         for (int i = 0; i < idFile.Length; i++)
@@ -71,7 +69,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             }
             losses[sessionId].Add(Tuple.Create(productId, pred));
         }
-
 
         var session_ids = DataFrame.read_string_csv(Path.Combine(DataDirectory, "sample_submission.csv")).StringColumnContent("session_id");
         var linePred =new List<string>();
@@ -299,7 +296,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     public override Objective_enum GetObjective() => Objective_enum.Classification;
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.BinaryCrossentropy;
     public override string[] CategoricalFeatures => new[] { "channel_grouping", "country", "region", "device_category", "category", "name", "market" };
-    public override string[] IdColumns => new[] { "session_id" };
+    public override string IdColumn => "session_id";
     public override string[] TargetLabels => new[] { "y" };
     public override DataSet TestDataset()
     {
@@ -337,8 +334,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             var xTrain_Encoded = DatasetEncoder.Transform(xyTrain.Drop(TargetLabels));
             var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
             var xtest_Encoded = DatasetEncoder.Transform(xtest);
-            var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, false);
-            var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, false);
+            var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, xytrain_string_df.StringColumnContent(IdColumn),  false);
+            var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, xtest_string_df.StringColumnContent(IdColumn), false);
             CacheDataset[key] = Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder);
             ISample.Log.Debug($"Loading Encoded Dataset for key '{key}' took {sw.Elapsed.TotalSeconds}s");
             return (fullTrainingAndValidation, testDataset);

@@ -13,6 +13,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
     private static readonly DataFrame x_training_raw;
     private static readonly DataFrame y_training_raw;
     private static readonly DataFrame x_test_raw;
+    private static readonly DataFrame y_test_random_raw;
     private static readonly DataFrame stats_raw;
     //private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Tuple<DataFrameDataSet, DataFrameDataSet, DatasetEncoder>> CacheDataset = new();
     #endregion
@@ -48,6 +49,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
         x_training_raw = DataFrame.read_csv_normalized(CFM84Utils.XTrainPath, ',', true, CFM84Utils.ColumnNameToType);
         y_training_raw = DataFrame.read_csv_normalized(CFM84Utils.YTrainPath, ',', true, CFM84Utils.ColumnNameToType);
         x_test_raw = DataFrame.read_csv_normalized(CFM84Utils.XTestPath, ',', true, CFM84Utils.ColumnNameToType);
+        y_test_random_raw = DataFrame.read_csv_normalized(CFM84Utils.YTestRandomPath, ',', true, CFM84Utils.ColumnNameToType);
         stats_raw = DataFrame.read_csv_normalized(CFM84Utils.StatPath, ',', true, CFM84Utils.ColumnNameToType);
         Log.Debug($"Loading of raw files took {sw.Elapsed.Seconds}s");
     }
@@ -63,7 +65,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
 
 
     public override string[] CategoricalFeatures { get; } = {  "equity", "reod" };
-    public override string[] IdColumns { get; } = { "ID" };
+    public override string IdColumn => "ID";
     public override string[] TargetLabels { get; } = { "reod" };
     public override Objective_enum GetObjective()
     {
@@ -192,8 +194,8 @@ public class CFM84DatasetSample : AbstractDatasetSample
         var yTrain_Encoded = DatasetEncoder.Transform(y_training_raw[TargetLabels]);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, false);
-        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, y_training_raw.StringColumnContent(IdColumn), false);
+        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, y_test_random_raw.StringColumnContent(IdColumn), false);
 
         //CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         Log.Debug($"{nameof(LoadAndEncodeDataset_If_Needed)} for key {key} took {sw.Elapsed.Seconds} s");

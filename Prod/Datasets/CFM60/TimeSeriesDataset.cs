@@ -42,7 +42,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
     public override DataFrame ExtractIdDataFrame(int rows)
     {
         var ids = Enumerable.Range(0, _elementIdToLastAssociateEntry.Count).Select(i => _elementIdToLastAssociateEntry[i].UniqueId).ToArray();
-        return DataFrame.New(ids, IdColumns);
+        return DataFrame.New(ids, new List<string>{IdColumn});
     }
 
 
@@ -179,7 +179,8 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
             ResizeStrategyEnum.None,
             datasetSample.GetColumnNames(),
             datasetSample.CategoricalFeatures,
-            datasetSample.IdColumns,
+            datasetSample.IdColumn,
+            null, //TODO
             UseBackgroundThreadToLoadNextMiniBatchV2(trainingDataSetOldIfAny),
             ',')
     {

@@ -28,7 +28,7 @@ public static class QRT97Utils
     public static string XTrainPath => Path.Combine(DataDirectory, "X_train_NHkHMNU.csv");
     public static string YTrainPath => Path.Combine(DataDirectory, "y_train_ZAN5mwg.csv");
     public static string XTestPath => Path.Combine(DataDirectory, "X_test_final.csv");
-    //public static string OutputTestRandomPath => Path.Combine(DataDirectory, "y_test_random_final.csv");
+    public static string YTestRandomPath => Path.Combine(DataDirectory, "y_test_random_final.csv");
 
     public static Dictionary<string, double> IdToPrediction(string path)
     {

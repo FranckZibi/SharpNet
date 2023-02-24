@@ -21,7 +21,7 @@ public class TestISample
         public TestClass() : base(new HashSet<string>()) { }
         public override Objective_enum GetObjective() => Objective_enum.Regression;
         public override string[] CategoricalFeatures => Array.Empty<string>();
-        public override string[] IdColumns => throw new NotImplementedException();
+        public override string IdColumn => throw new NotImplementedException();
         public override string[] TargetLabels => throw new NotImplementedException();
         public override DataSet TestDataset() => throw new NotImplementedException();
         public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();

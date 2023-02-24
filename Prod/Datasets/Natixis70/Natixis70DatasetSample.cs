@@ -211,7 +211,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
     }
-    public override string[] IdColumns => new[] { "" };
+    public override string IdColumn => "" ;
     public override string[] TargetLabels => PredictionHeader.Trim(',').Split(',');
 
     public string[] TargetLabelsInModelFormat
@@ -284,8 +284,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
         DatasetEncoder.FitMissingCategoricalColumns(xTrain_Encoded_InModelFormat, xTest_Encoded_InModelFormat);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded_InModelFormat, yTrain_Encoded_InModelFormat, false);
-        var testDataset = new DataFrameDataSet(this, xTest_Encoded_InModelFormat, null, false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded_InModelFormat, yTrain_Encoded_InModelFormat, xTrain_InTargetFormat.StringColumnContent(IdColumn), false);
+        var testDataset = new DataFrameDataSet(this, xTest_Encoded_InModelFormat, null, xTest_InTargetFormat.StringColumnContent(IdColumn), false);
         CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         return (fullTrainingAndValidation, testDataset);
     }
@@ -388,18 +388,18 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             return result.ToArray();
         }
     }
-    public override void SavePredictionsInTargetFormat(DataFrame y_pred_InTargetFormat, DataSet xDataset, string path)
+    public override void SavePredictionsInTargetFormat(DataFrame y_pred_Encoded_InTargetFormat, DataSet xDataset, string path)
     {
-        if (y_pred_InTargetFormat == null)
+        if (y_pred_Encoded_InTargetFormat == null)
         {
             return;
         }
 
         //we add the Id Column as 1st column
-        var id_df = DataFrame.New(Enumerable.Range(0, y_pred_InTargetFormat.Shape[0]).ToArray(), IdColumns);
-        y_pred_InTargetFormat = DataFrame.MergeHorizontally(id_df, y_pred_InTargetFormat);
+        var id_df = DataFrame.New(Enumerable.Range(0, y_pred_Encoded_InTargetFormat.Shape[0]).ToArray(), new List<string>{ IdColumn});
+        y_pred_Encoded_InTargetFormat = DataFrame.MergeHorizontally(id_df, y_pred_Encoded_InTargetFormat);
 
-        y_pred_InTargetFormat.to_csv(path, GetSeparator());
+        y_pred_Encoded_InTargetFormat.to_csv(path, GetSeparator());
     }
 
     #region load of datasets

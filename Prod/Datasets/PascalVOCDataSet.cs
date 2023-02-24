@@ -30,14 +30,15 @@ namespace SharpNet.Datasets
                 resizeStrategy,
                 new string[0],
                 new string[0],
-                new string[0],
+                "",
+                null, //TODO
                 true,
                 ',')
         {
             var annotationsDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
             var dataDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
             var elementIdToCategoryIndex = new List<int>();
-            var elementIdToDescription = new List<string>();
+            var elementIdToId = new List<string>();
             var elementIdToPaths = new List<List<string>>();
             _annotations  = new List<PascalVOCImageDescription>();
             var missingAnnotations = new List<string>();
@@ -74,14 +75,14 @@ namespace SharpNet.Datasets
                     continue;
                 }
                 elementIdToPaths.Add(new List<string> { allFiles[i].FullName });
-                elementIdToDescription.Add(Path.GetFileNameWithoutExtension(allFiles[i].Name));
+                elementIdToId.Add(Path.GetFileNameWithoutExtension(allFiles[i].Name));
                 _annotations.Add(pascalVOCImageDescriptionsArray[i]);
                 elementIdToCategoryIndex.Add(-1); //the category index of each object in the image can be found in the 'annotation' above
             }
 
             _directoryDataSet = new DirectoryDataSet(
-                    elementIdToPaths, elementIdToDescription, elementIdToCategoryIndex, null
-                    , subDirectory, Objective_enum.Classification, Channels, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null);
+                    elementIdToPaths, elementIdToCategoryIndex, null
+                    , subDirectory, Objective_enum.Classification, Channels, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, elementIdToId.ToArray());
         }
 
         public static PascalVOCDataSet PascalVOC2007()

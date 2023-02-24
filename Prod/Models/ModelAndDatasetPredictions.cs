@@ -223,7 +223,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         var stemmingColumnNameToColumnNames = new Dictionary<string, List<string>>();
         foreach (var c in dataset.ColumnNames)
         {
-            if (dataset.IdColumns.Contains(c))
+            if (Equals(dataset.IdColumn, c))
             {
                 continue;
             }

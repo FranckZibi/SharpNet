@@ -262,7 +262,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
     public static readonly HashSet<int> Christmas = new(new[] { 14, 264, 514, 765, 1016 });
 
     public override string[] CategoricalFeatures => new[] { "pid" };
-    public override string[] IdColumns => new[] { "ID" };
+    public override string IdColumn => "ID";
     public override string[] TargetLabels => new[] { "target" };
     public override Objective_enum GetObjective()
     {

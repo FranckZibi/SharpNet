@@ -7,23 +7,18 @@ namespace SharpNet.Datasets.PlumeLabs88;
 
 public class PlumeLabs88DirectoryDataSet : DataSet
 {
-
-    static PlumeLabs88DirectoryDataSet()
-    {
-        //var count = 1+ PlumeLabs88Utils.Shape_CHW[0] * PlumeLabs88Utils.Shape_CHW[1] * PlumeLabs88Utils.Shape_CHW[2];
-    }
-
     private readonly PlumeLabs88DatasetSample _datasetSample;
     private readonly bool _isTrainingDataset;
-
-
    
     public override int[] YMiniBatch_Shape(int miniBatchSize)
     {
         return new[] { miniBatchSize, _datasetSample.NumClass };
     }
+
+
+
     public PlumeLabs88DirectoryDataSet(PlumeLabs88DatasetSample datasetSample,  bool isTrainingDataset)
-        : base(PlumeLabs88Utils.NAME, datasetSample.GetObjective(), datasetSample.GetInputShapeOfSingleElement()[0], null, ResizeStrategyEnum.None, Array.Empty<string>(), datasetSample.CategoricalFeatures, datasetSample.IdColumns, isTrainingDataset, ',')
+        : base(PlumeLabs88Utils.NAME, datasetSample.GetObjective(), datasetSample.GetInputShapeOfSingleElement()[0], null, ResizeStrategyEnum.None, Array.Empty<string>(), datasetSample.CategoricalFeatures, datasetSample.IdColumn, datasetSample.RowInTargetFormatPredictionToID(isTrainingDataset), isTrainingDataset, ',')
     {
         _datasetSample = datasetSample;
         _isTrainingDataset = isTrainingDataset;
@@ -51,7 +46,7 @@ public class PlumeLabs88DirectoryDataSet : DataSet
         }
     }
 
-    public override int Count => 1+PlumeLabs88Utils.MaxId(_isTrainingDataset);
+    public override int Count => 1+_datasetSample.DatasetMaxId(_isTrainingDataset);
     public override int ElementIdToCategoryIndex(int elementId)
     {
         throw new NotImplementedException();

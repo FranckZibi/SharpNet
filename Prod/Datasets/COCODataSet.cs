@@ -20,7 +20,8 @@ namespace SharpNet.Datasets
             resizeStrategy,
             new string[0],
             new string[0],
-            new string[0],
+            "",
+            null, //TODO
             true, 
             ',')
         {

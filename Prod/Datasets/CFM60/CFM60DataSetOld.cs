@@ -55,8 +55,9 @@ public class CFM60DataSetOld : DataSet, ITimeSeriesDataSet
             null,
             ResizeStrategyEnum.None,
             cfm60NetworkSampleOld.ComputeFeatureNames(),
-            new string[0],
-            new string[0],
+            Array.Empty<string>(),
+            "",
+            null, //TODO
             UseBackgroundThreadToLoadNextMiniBatch(trainingDataSetOldIfAny),
             ',')
     {

@@ -23,8 +23,9 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
     /// it must be among:  (2, 4, 8, 16, 32, 64, 128)
     /// </summary>
     public int TargetHeightAndWidth = 128;
+    public int MaxIdTraining = PlumeLabs88Utils.RawMaxIdTraining;
+    public int MaxIdTest = PlumeLabs88Utils.RawMaxIdTest;
     #endregion
-
 
 
 
@@ -42,16 +43,26 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
         return res;
     }
 
+    public int DatasetMaxId(bool isTrainingDataset) { return isTrainingDataset ? MaxIdTraining : MaxIdTest; }
+
     public override string[] CategoricalFeatures { get; } = {  };
-    public override string[] IdColumns { get; } = { "ID" };
+    public override string IdColumn { get; } = PlumeLabs88Utils.ID_COLUMN_NAME;
     public override string[] TargetLabels { get; } = { "TARGET" };
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Regression;
     }
-    
 
 
+
+
+    public string[] RowInTargetFormatPredictionToID(bool isTrainingDataset)
+    {
+        var df = isTrainingDataset ? PlumeLabs88Utils.Load_YTrainPath() : PlumeLabs88Utils.Load_OutputTestRandomPath();
+        var y_IDs = df.StringColumnContent(PlumeLabs88Utils.ID_COLUMN_NAME);
+        var y_ID_count = NumClass * (1 + DatasetMaxId(isTrainingDataset));
+        return y_IDs.Take(y_ID_count).ToArray();
+    }
     public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
     {
         AssertNoIdColumns(predictionsInModelFormat);
@@ -67,7 +78,9 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
 
     public override DataSet FullTrainingAndValidation()
     {
-        return new PlumeLabs88DirectoryDataSet(this, true);
+        var res = new PlumeLabs88DirectoryDataSet(this, true);
+        toDispose.Add(res);
+        return res;
     }
 
 

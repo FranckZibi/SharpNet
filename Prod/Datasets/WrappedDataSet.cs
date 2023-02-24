@@ -16,7 +16,8 @@ public abstract class WrappedDataSet : DataSet
             original.ResizeStrategy,
             original.ColumnNames,
             original.CategoricalFeatures,
-            original.IdColumns,
+            original.IdColumn,
+            original.Y_IDs,
             useBackgroundThreadToLoadNextMiniBatch,
             original.Separator)
     {
@@ -37,8 +38,6 @@ public abstract class WrappedDataSet : DataSet
     public override int ElementIdToCategoryIndex(int elementId) { return _original.ElementIdToCategoryIndex(elementId); }
     public override bool CanBeSavedInCSV => _original.CanBeSavedInCSV;
     public override bool UseRowIndexAsId => _original.UseRowIndexAsId;
-    
-    public override string ElementIdToDescription(int elementId) { return _original.ElementIdToDescription(elementId); }
     public override string ElementIdToPathIfAny(int elementId) { return _original.ElementIdToPathIfAny(elementId); }
     public override List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
     {

@@ -35,7 +35,8 @@ public sealed class RandomizeColumnDataSet : DataSet
             original.ResizeStrategy,
             original.ColumnNames,
             original.CategoricalFeatures,
-            original.IdColumns,
+            original.IdColumn,
+            original.Y_IDs,
             false,
             original.Separator)
     {
@@ -79,7 +80,6 @@ public sealed class RandomizeColumnDataSet : DataSet
     }
     public override int Count => _original.Count;
     public override int ElementIdToCategoryIndex(int elementId) { return _original.ElementIdToCategoryIndex(elementId); }
-    public override string ElementIdToDescription(int elementId) { return _original.ElementIdToDescription(elementId); }
     public override string ElementIdToPathIfAny(int elementId) { return _original.ElementIdToPathIfAny(elementId); }
 
     public override CpuTensor<float> Y => _original.Y;

@@ -23,6 +23,7 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         AbstractDatasetSample datasetSample,
         [NotNull] DataFrame x_df,
         [CanBeNull] DataFrame y_df,
+        [CanBeNull] string[] y_IDs,
         bool useBackgroundThreadToLoadNextMiniBatch = false)
         : base(datasetSample.Name,
             datasetSample.GetObjective(),
@@ -31,7 +32,8 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
             ResizeStrategyEnum.None,
             x_df.Columns,
             Utils.Intersect(x_df.Columns, datasetSample.CategoricalFeatures).ToArray(),
-            Utils.Intersect(x_df.Columns, datasetSample.IdColumns).ToArray(),
+            datasetSample.IdColumn,
+            y_IDs,
             useBackgroundThreadToLoadNextMiniBatch,
             datasetSample.GetSeparator())
     {

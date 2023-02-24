@@ -103,7 +103,6 @@ namespace SharpNetTests.Datasets
         {
             Debug.Assert(hierarchy != null);
             var allFiles = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories).Where(PictureTools.IsPicture).ToList();
-            var elementIdToDescription = allFiles.ToList();
             var elementIdToPaths = new List<List<string>>();
             var elementIdToCategoryIndex = new List<int>();
             foreach (var f in allFiles)
@@ -117,7 +116,6 @@ namespace SharpNetTests.Datasets
 
             return new DirectoryDataSet(
                 elementIdToPaths,
-                elementIdToDescription,
                 elementIdToCategoryIndex,
                 null,
                 path,
@@ -126,6 +124,7 @@ namespace SharpNetTests.Datasets
                 categoryDescriptions,
                 CancelDatabase.CancelMeanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion,
+                null,
                 null);
         }
 

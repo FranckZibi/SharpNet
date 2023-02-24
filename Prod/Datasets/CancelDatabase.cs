@@ -203,7 +203,7 @@ namespace SharpNet.Datasets
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1);
-                var sha1 = dataSet.ElementIdToDescription(elementId);
+                var sha1 = dataSet.ID_Y_row_InTargetFormat(elementId);
                 var predictionWithProba = Hierarchy.ExtractPredictionWithProba(rowWithPrediction.AsReadonlyFloatCpuContent);
                 var predictedCancelName = predictionWithProba.Item1;
                 var predictedCancelProba = predictionWithProba.Item2;
@@ -392,7 +392,7 @@ namespace SharpNet.Datasets
         {
             var categoryNameToCount = new ConcurrentDictionary<string,int>();
             var elementIdToPaths = new List<List<string>>();
-            var elementIdToDescription = new List<string>();
+            var rowInTargetFormatPredictionToID = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
             var entries = _database.Values.Where(e => !e.IsRemoved && accept(e))
                 .OrderBy(e => e.SHA1).ToArray();
@@ -400,7 +400,7 @@ namespace SharpNet.Datasets
             while (elementIdToPaths.Count < entries.Length)
             {
                 elementIdToPaths.Add(null);
-                elementIdToDescription.Add(null);
+                rowInTargetFormatPredictionToID.Add(null);
                 elementIdToCategoryIndex.Add(-1);
             }
 
@@ -420,7 +420,7 @@ namespace SharpNet.Datasets
                     categoryNameToCount[categoryName] = 1;
                 }
                 elementIdToPaths[elementId] = new List<string> {entry.Path(_rootPath)};
-                elementIdToDescription[elementId] = entry.SHA1;
+                rowInTargetFormatPredictionToID[elementId] = entry.SHA1;
                 elementIdToCategoryIndex[elementId] = -1;
                 var elementPrediction = Hierarchy.ExpectedPrediction(categoryPath);
                 Debug.Assert(elementPrediction != null);
@@ -432,12 +432,11 @@ namespace SharpNet.Datasets
             }
             Parallel.For(0, entries.Length, Process);
 
-            Log.Debug("found "+ elementIdToDescription.Count+" elements");
+            Log.Debug("found "+ rowInTargetFormatPredictionToID.Count+" elements");
             //Log.Info(string.Join(Environment.NewLine, categoryNameToCount.OrderBy(e=>e.Key).Select(e=>e.Key +" : "+e.Value)));
             var categoryDescription = Enumerable.Range(0, yExpected.Shape[1]).Select(i=>i.ToString()).ToArray();
             return new DirectoryDataSet(
                 elementIdToPaths, 
-                elementIdToDescription, 
                 elementIdToCategoryIndex, 
                 yExpected, 
                 "Cancel", 
@@ -446,7 +445,8 @@ namespace SharpNet.Datasets
                 categoryDescription,
                 CancelMeanAndVolatilityForEachChannel,
                 resizeStrategy,
-                null);
+                null,
+                rowInTargetFormatPredictionToID.ToArray());
         }
         
         public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };

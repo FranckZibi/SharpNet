@@ -23,7 +23,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         var idToTextLabel = isLabeled?EffiSciences95Utils.IdToTextTarget(isLabeled):null;
         
         List<List<string>> elementIdToPaths = new();
-        List<string> elementIdToDescription = new();
+        List<string> elementIdToId = new();
         List<int> elementIdToCategoryIndex = new();
         List<EffiSciences95Row> boxes = new();
 
@@ -50,7 +50,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             }
 
             elementIdToPaths.Add(new List<string> { EffiSciences95Utils.IdToPath(id, isLabeled) });
-            elementIdToDescription.Add(id.ToString());
+            elementIdToId.Add(id.ToString());
             elementIdToCategoryIndex.Add(textLabel);
             boxes.Add(box);
             if (maxElementCount != -1 && elementIdToPaths.Count >= maxElementCount)
@@ -63,7 +63,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             datasetSample,
             boxes,
             elementIdToPaths,
-            elementIdToDescription,
+            elementIdToId,
             elementIdToCategoryIndex,
             null
         );
@@ -80,12 +80,11 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         EffiSciences95DatasetSample datasetSample,
         List<EffiSciences95Row> boxes,
         List<List<string>> elementIdToPaths,
-        List<string> elementIdToDescription,
+        List<string> elementIdToID,
         List<int> elementIdToCategoryIndex,
         CpuTensor<float> expectedYIfAny
     )
         : base(elementIdToPaths, 
-            elementIdToDescription, 
             elementIdToCategoryIndex, 
             expectedYIfAny,
             EffiSciences95Utils.NAME, 
@@ -94,7 +93,8 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             new []{"old", "young"},
             PrecomputedMeanAndVolatilityForEachChannel,
             ResizeStrategyEnum.None, 
-            null)
+            null,
+            elementIdToID.ToArray())
     {
         _datasetSample = datasetSample;
         _boxes = boxes;

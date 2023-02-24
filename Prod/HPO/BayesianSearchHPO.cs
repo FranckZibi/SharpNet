@@ -263,7 +263,7 @@ public class BayesianSearchHPO : AbstractHpo
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
         //using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature(), useBackgroundThreadToLoadNextMiniBatch: false);
-        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), Array.Empty<string>(), false, ',');
+        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), "", null, false, ',');
         
         // we compute the estimate score associated with each random sample (using the surrogate model)
         var y = _samplesUsedForModelTraining == 0 
@@ -385,7 +385,7 @@ public class BayesianSearchHPO : AbstractHpo
         //var x = df1.FloatCpuTensor();
         //var y_true = df2.FloatCpuTensor();
         
-        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), Array.Empty<string>(), false, ',');
+        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), "", null, false, ',');
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
         Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.train_YDatasetPath);

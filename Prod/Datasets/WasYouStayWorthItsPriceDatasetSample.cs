@@ -242,7 +242,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.F1Micro;
     public override  IScore MinimumScoreToSaveModel => new Score(0.32f, GetRankingEvaluationMetric());
     public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
-    public override string[] IdColumns => new [] { "id" };
+    public override string IdColumn => "id";
     public override string[] TargetLabels => new[] { "max_rating_class" };
     public override DataSet TestDataset()
     {
@@ -273,8 +273,8 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, false);
-        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, xytrain_string_df.StringColumnContent(IdColumn), false);
+        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, xtest_string_df.StringColumnContent(IdColumn), false);
 
         CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         return (fullTrainingAndValidation, testDataset);

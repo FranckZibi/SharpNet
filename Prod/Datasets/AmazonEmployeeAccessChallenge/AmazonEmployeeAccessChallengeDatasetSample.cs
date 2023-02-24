@@ -62,7 +62,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
     public override Objective_enum GetObjective() => Objective_enum.Classification;
 
     public override string[] CategoricalFeatures => new[] { "RESOURCE", "MGR_ID", "ROLE_ROLLUP_1", "ROLE_ROLLUP_2", "ROLE_DEPTNAME", "ROLE_TITLE", "ROLE_FAMILY_DESC", "ROLE_FAMILY", "ROLE_CODE" };
-    public override string[] IdColumns => new[] { "id" };
+    public override string IdColumn => "id";
     public override string[] TargetLabels => new[] { "ACTION" };
     public override DataSet TestDataset()
     {

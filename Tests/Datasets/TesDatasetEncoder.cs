@@ -24,7 +24,7 @@ public class TesDatasetEncoder
     [TestCase(false)]
     public void TestEncodingDecoding(bool standardizeDoubleValues)
     {
-        var testDatasetSample = new TestDatasetSample(new [] { "cat2" }, new[] { "id" }, new [] { "y" });
+        var testDatasetSample = new TestDatasetSample(new [] { "cat2" }, "id", new [] { "y" });
         var encoder = new DatasetEncoder(testDatasetSample, standardizeDoubleValues, true);
 
         var df_raw = SimpleTestDataFrame();
@@ -37,16 +37,16 @@ public class TesDatasetEncoder
 
     public class TestDatasetSample : AbstractDatasetSample
     {
-        public TestDatasetSample(string[] categoricalFeatures, string[] idColumns, string[] targetLabels) : base(new HashSet<string>())
+        public TestDatasetSample(string[] categoricalFeatures, string idColumn, string[] targetLabels) : base(new HashSet<string>())
         {
             CategoricalFeatures = categoricalFeatures;
-            IdColumns = idColumns;
+            IdColumn = idColumn;
             TargetLabels = targetLabels;
         }
 
         public override Objective_enum GetObjective() => Objective_enum.Regression;
         public override string[] CategoricalFeatures { get; }
-        public override string[] IdColumns { get; }
+        public override string IdColumn { get; }
         public override string[] TargetLabels { get; }
         public override DataSet TestDataset() { throw new NotImplementedException(); }
         public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();

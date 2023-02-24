@@ -41,7 +41,7 @@ public class QRT72DatasetSample : AbstractDatasetSample
     }
 
     public override string[] CategoricalFeatures => Array.Empty<string>();
-    public override string[] IdColumns => new[] { "" };
+    public override string IdColumn => "";
     public override string[] TargetLabels => new[] { "0" };
     public override int DatasetRowsInModelFormatMustBeMultipleOf() => Tensor.CosineSimilarity504_TimeSeries_Length;
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.CosineSimilarity504;
