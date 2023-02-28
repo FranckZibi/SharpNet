@@ -73,7 +73,7 @@ namespace SharpNet.Data
         public static string ToCsv(this CpuTensor<float> t, char separator, bool prefixWithRowIndex = false)
         {
             var sb = new StringBuilder();
-            var tSpan = t.AsReadonlyFloatCpuContent;
+            var tSpan = t.AsReadonlyFloatCpuSpan;
             int index = 0;
             if (t.Shape.Length != 2)
             {
@@ -292,7 +292,7 @@ namespace SharpNet.Data
             {
                 return true;
             }
-            return Utils.SameContent(a.ContentAsFloatArray(), b.ContentAsFloatArray(), epsilon);
+            return Utils.SameContent(a.ContentAsFloatArray(), b.ContentAsFloatArray(), epsilon, out difference);
         }
 
         private static bool SameShapeContent(Tensor a, Tensor b, out string difference)

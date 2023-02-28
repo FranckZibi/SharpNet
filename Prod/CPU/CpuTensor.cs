@@ -102,9 +102,9 @@ namespace SharpNet.CPU
 
             void ProcessBatch(int batchIndex)
             {
-                var xSpan = x.AsReadonlyFloatCpuContent;
+                var xSpan = x.AsReadonlyFloatCpuSpan;
                 var ySpan = y.AsFloatCpuSpan;
-                var wordEmbeddingSpan = wordEmbedding.AsReadonlyFloatCpuContent;
+                var wordEmbeddingSpan = wordEmbedding.AsReadonlyFloatCpuSpan;
 
                 for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
@@ -155,10 +155,10 @@ namespace SharpNet.CPU
             var timeSteps = x.Shape[1];
             var embeddingDim = dW.Shape[1];
 
-            var xSpan = x.AsReadonlyFloatCpuContent;
+            var xSpan = x.AsReadonlyFloatCpuSpan;
             var dxSpan = dx.AsFloatCpuSpan;
             var dWSpan = dW.AsFloatCpuSpan;
-            var dySpan = dy.AsReadonlyFloatCpuContent;
+            var dySpan = dy.AsReadonlyFloatCpuSpan;
 
             for (int batchIndex = 0; batchIndex < batchSize; ++batchIndex)
             {
@@ -259,7 +259,7 @@ namespace SharpNet.CPU
             int bLength = Shape[1];
             int cLength = MultDim1;
             int multDim0 = bLength * cLength;
-            var srcContent = AsReadonlyFloatCpuContent;
+            var srcContent = AsReadonlyFloatCpuSpan;
             var targetContent = target.AsFloatCpuSpan;
 
             for (int idx_src = 0; idx_src < Count; ++idx_src)
@@ -281,7 +281,7 @@ namespace SharpNet.CPU
         public override void SwitchSecondAndThirdDimension(Tensor target)
         {
             Debug.Assert(Shape.Length == 3 || (Shape.Length==4&&Shape[3] == 1));
-            var srcContent = AsReadonlyFloatCpuContent;
+            var srcContent = AsReadonlyFloatCpuSpan;
             var targetContent = target.AsFloatCpuSpan;
             for (int n = 0; n < Shape[0]; ++n)
             {
@@ -574,6 +574,168 @@ namespace SharpNet.CPU
                 }
             }
         }
+
+
+        public override void StandardizeInPlace(Tensor mean, Tensor variance, int axis, float epsilon)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean, variance}));
+            Debug.Assert(mean.SameShape(variance));
+            if (axis == 1)
+            {
+                //we'll standardize each row
+                int rows = mean.Count;
+                if (x.Count % rows != 0)
+                {
+                    throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
+                }
+                int cols = x.Count / rows;
+                void ProcessRow(int row)
+                {
+                    var xSpan = x.AsFloatCpuSpan;
+                    var row_mean = mean.AsFloatCpuSpan[row];
+                    var row_variance = variance.AsFloatCpuSpan[row];
+                    int startIndex = row * cols;
+                    int endIndex = startIndex + cols - 1;
+                    for (int i = startIndex; i <= endIndex; ++i)
+                    {
+                        xSpan[i] = (xSpan[i] - row_mean) / MathF.Sqrt(row_variance + epsilon);
+                    }
+                }
+                Parallel.For(0, rows, ProcessRow);
+                return;
+            }
+            throw new NotSupportedException("Only axis=1 is supported");
+        }
+
+        public override void numpy_sum(Tensor sum_result, int axis)
+        {
+            var a = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { a, sum_result}));
+            sum_result.ZeroMemory();
+            var sum_result_as_span = sum_result.AsFloatCpuSpan;
+            var aSpan = a.AsReadonlyFloatCpuSpan;
+            if (axis == 1)
+            {
+                int rows = sum_result.Count;
+                if (a.Count % rows != 0)
+                {
+                    throw new ArgumentException("x.Count % rows != 0");
+                }
+                int cols = a.Count / rows;
+                for (int row = 0; row < rows; ++row)
+                {
+                    var row_sum = 0.0f;
+                    for (int col = 0; col < cols; ++col)
+                    {
+                        row_sum += aSpan[row * cols + col];
+                    }
+                    sum_result_as_span[row] = row_sum;
+                }
+
+                return;
+            }
+            if (axis == 0)
+            {
+                int cols = sum_result.Count;
+                if (a.Count % cols != 0)
+                {
+                    throw new ArgumentException("x.Count % cols != 0");
+                }
+                int rows = a.Count / cols;
+                for (int row = 0; row < rows; ++row)
+                {
+                    for (int col = 0; col < cols; ++col)
+                    {
+                        sum_result_as_span[col] += aSpan[row * cols + col];
+                    }
+                }
+                return;
+            }
+            throw new ArgumentException("axis != 0 && axis != 1");
+        }
+        
+
+        public override void Compute_Row_Mean_Variance(Tensor mean, Tensor variance, bool unbiasedVariance)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean, variance}));
+            Debug.Assert(mean.SameShape(variance));
+            int rows = mean.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("x.Count % rows != 0");
+            }
+            int cols = x.Count / rows;
+
+            void ProcessBlock(int rowId)
+            {
+                var xSpan = x.AsFloatCpuSpan;
+                int startIndex = rowId * cols;
+                int endIndex = startIndex + cols - 1;
+                double sum = 0.0;
+                double sumSquare = 0.0;
+                for (int i = startIndex; i <= endIndex; ++i)
+                {
+                    double xValue = xSpan[i];
+                    sum += xValue;
+                    sumSquare += xValue * xValue;
+                }
+                var row_mean = (sum / cols);
+                var divider = unbiasedVariance ? (cols - 1) : cols;
+                var row_variance = Math.Abs(sumSquare - cols * row_mean * row_mean) / divider;
+                mean.AsFloatCpuSpan[rowId] = (float)row_mean;
+                variance.AsFloatCpuSpan[rowId] = (float)row_variance;
+            }
+            Parallel.For(0, rows, ProcessBlock);
+        }
+
+        public override void LayerNormalizationBackward(Tensor dy, Tensor dx, Tensor gammas, Tensor mean, Tensor variance, float epsilon)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, gammas, mean, variance}));
+            Debug.Assert(x.SameShape(dy, dx));
+            Debug.Assert(mean.SameShape(variance));
+            int rows = mean.Count;
+            int cols= gammas.Count;
+            if (x.Count != rows * cols)
+            {
+                throw new ArgumentException("x.Count != rows * cols");
+            }
+
+            void ComputeDxForRow(int row)
+            {
+                var gammaSpan = gammas.AsFloatCpuSpan;
+                var mean_row = mean.AsFloatCpuSpan[row];
+                var variance_row = variance.AsFloatCpuSpan[row];
+                var volatility_row = MathF.Sqrt(variance_row + epsilon);
+                var x_row = x.AsFloatCpu.SpanSlice(row * cols, cols);
+                var dy_row = dy.AsFloatCpu.SpanSlice(row * cols, cols);
+                var dvariance_row = 0f;
+                var dmean_row = 0f;
+                for (int col = 0; col < cols; ++col)
+                {
+                    var tmp0 = (dy_row[col] * gammaSpan[col]);
+                    dvariance_row += tmp0 * (x_row[col]-mean_row);
+                    dmean_row -= tmp0;
+                }
+                dvariance_row *= (-0.5f * MathF.Pow(variance_row + epsilon, -1.5f));
+                dmean_row /= volatility_row;
+                for (int col = 0; col < cols; ++col)
+                {
+                    dmean_row += dvariance_row*(x_row[col] -mean_row) * (-2f/cols);
+                }
+                var dx_row = dx.AsFloatCpu.SpanSlice(row * cols, cols);
+                for (int col = 0; col < cols; ++col)
+                {
+                    dx_row[col] = (dy_row[col] * gammaSpan[col]) /volatility_row
+                                + dvariance_row * (2f / cols) * (x_row[col] - mean_row)
+                                + dmean_row / cols;
+                }
+            }
+            Parallel.For(0, rows, ComputeDxForRow);
+        }
+
         public override void DropoutForward(Tensor y, double dropoutRate, bool isTraining, Random dropoutRandom, Tensor dropoutReservedSpaceForTraining)
         {
             var x = this;
@@ -607,7 +769,7 @@ namespace SharpNet.CPU
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
                     Debug.Assert(activationParameter.Dimension == 1);
                     Debug.Assert(activationParameter.Count == 1);
-                    CpuTensorActivationFunctions.LeakyRelu(x, y, activationParameter.AsReadonlyFloatCpuContent[0]);
+                    CpuTensorActivationFunctions.LeakyRelu(x, y, activationParameter.AsReadonlyFloatCpuSpan[0]);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
                     CpuTensorActivationFunctions.Elu(x, y, 1.0);
@@ -631,6 +793,9 @@ namespace SharpNet.CPU
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LN:
                     CpuTensorActivationFunctions.Ln(x, y);
                     return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY:
+                    x.CopyTo(y);
+                    return;
                 default:
                     throw new ArgumentException("invalid activation mode " + activationType);
             }
@@ -647,7 +812,7 @@ namespace SharpNet.CPU
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
                     Debug.Assert(activationParameter.Dimension == 1);
                     Debug.Assert(activationParameter.Count == 1);
-                    CpuTensorActivationFunctions.LeakyReluGradient(y, dy, dx, activationParameter.AsReadonlyFloatCpuContent[0]);
+                    CpuTensorActivationFunctions.LeakyReluGradient(y, dy, dx, activationParameter.AsReadonlyFloatCpuSpan[0]);
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_ELU:
                     CpuTensorActivationFunctions.EluGradient(y, dy, x, dx, 1f);
@@ -670,6 +835,9 @@ namespace SharpNet.CPU
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LN:
                     CpuTensorActivationFunctions.LnGradient(dy, x, dx);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_IDENTITY:
+                    dy.CopyTo(dx);
                     return;
                 default:
                     throw new ArgumentException("invalid activation mode " + activationType);
@@ -697,7 +865,7 @@ namespace SharpNet.CPU
         {
             Debug.Assert(this.SameShape(x));
             var yAsSpan = AsFloatCpuSpan;
-            var xAsSpan = x.AsReadonlyFloatCpuContent;
+            var xAsSpan = x.AsReadonlyFloatCpuSpan;
             for (int i = 0; i < xAsSpan.Length; ++i)
             {
                 yAsSpan[i] = slope * xAsSpan[i] + intercept;
@@ -1130,6 +1298,65 @@ namespace SharpNet.CPU
                     var idx = y.Idx(n, colIndex);
                     yContent[idx] += valueToAddToColumn;
                 }
+            }
+        }
+
+
+        public override void BroadcastColByCol(Tensor row_multiplier, float mult_to_row_multiplier, Tensor row_adder, float mult_to_row_adder, float constant_to_add)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, row_multiplier, row_adder }));
+            var rows = (row_multiplier ?? row_adder).Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("The number of rows in the multiplier or adder must be a divisor of the number of columns in the matrix");
+            }
+            var cols = x.Count / rows;
+            var rowMultiplierSpan = (row_multiplier == null) ? null : row_multiplier.AsReadonlyFloatCpuSpan;
+            var rowAdderSpan = (row_adder == null) ? null : row_adder.AsReadonlyFloatCpuSpan;
+            var xContent = x.AsFloatCpuSpan;
+            int xIndex = 0;
+            for (int row = 0; row < rows; ++row)
+            {
+                var multiplier = (rowMultiplierSpan == null) ? 1.0f : rowMultiplierSpan[row];
+                multiplier *= mult_to_row_multiplier;
+                var adder = (rowAdderSpan == null) ? 0.0f : rowAdderSpan[row];
+                adder = mult_to_row_adder*adder+constant_to_add;
+                for (int col = 0; col < cols; ++col)
+                {
+                    var xValue = xContent[xIndex];
+                    xValue = multiplier * xValue + adder;
+                    xContent[xIndex] = xValue;
+                    ++xIndex;
+                }
+            }
+        }
+
+        public override void BroadcastRowByRow(Tensor col_multiplier, float mult_to_col_multiplier, Tensor col_adder, float mult_to_col_adder, float constant_to_add)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, col_multiplier, col_adder }));
+            var cols= (col_multiplier ?? col_adder).Count;
+            if (x.Count % cols != 0)
+            {
+                throw new ArgumentException("The number of cols in the multiplier or adder must be a divisor of the number of elements in the matrix");
+            }
+            var rows= x.Count / cols;
+            var colMultiplierSpan = (col_multiplier == null) ? null : col_multiplier.AsReadonlyFloatCpuSpan;
+            var colAdderSpan = (col_adder == null) ? null : col_adder.AsReadonlyFloatCpuSpan;
+            var xContent = x.AsFloatCpuSpan;
+            int xIndex = 0;
+            for (int row = 0; row < rows; ++row)
+            for (int col = 0; col < cols; ++col)
+            {
+                var multiplier = (colMultiplierSpan == null) ? 1.0f : colMultiplierSpan[col];
+                multiplier *= mult_to_col_multiplier;
+                var adder = (colAdderSpan == null) ? 0.0f : colAdderSpan[col];
+                adder = mult_to_col_adder * adder + constant_to_add;
+                var xValue = xContent[xIndex];
+                xValue = multiplier * xValue + adder;
+                xContent[xIndex] = xValue;
+                ++xIndex;
             }
         }
 
@@ -1573,13 +1800,13 @@ namespace SharpNet.CPU
                     cost = (-1.0 / (batchSize)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(expected * Math.Log(prediction))).NaNSum();
                     break;
                 case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
-                    Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = CategoricalCrossentropyWithHierarchyLoss(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
-                    cost = buffer.AsReadonlyFloatCpuContent.Average();
+                    Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = CategoricalCrossentropyWithHierarchyLoss(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
+                    cost = buffer.AsReadonlyFloatCpuSpan.Average();
                     break;
                 case EvaluationMetricEnum.Huber:
                     const float huberDelta = 1.0f;
                     buffer.HuberLoss(yExpected, yPredicted, huberDelta);
-                    cost = buffer.AsReadonlyFloatCpuContent.Average();
+                    cost = buffer.AsReadonlyFloatCpuSpan.Average();
                     break;
                 case EvaluationMetricEnum.F1Micro:
                     cost = buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
@@ -1598,7 +1825,7 @@ namespace SharpNet.CPU
                 case EvaluationMetricEnum.CosineSimilarity504:
                     Debug.Assert(yPredicted.Count%CosineSimilarity504_TimeSeries_Length == 0);
                     buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
-                    cost = buffer.AsReadonlyFloatCpuContent.Average();
+                    cost = buffer.AsReadonlyFloatCpuSpan.Average();
                     break;
                 case EvaluationMetricEnum.MeanSquaredLogError:
                     cost = (1.0f / (batchSize * yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float) Math.Pow(Math.Log(1 + expected) - Math.Log(1 + prediction), 2f)).NaNSum();
@@ -1618,8 +1845,8 @@ namespace SharpNet.CPU
             Debug.Assert(y_true.Shape[1] == 1);
             Debug.Assert(y_true.SameShape(y_pred));
             Debug.Assert(!y_true.UseGPU);
-            var y_true_span = y_true.AsReadonlyFloatCpuContent;
-            var y_pred_span = y_pred.AsReadonlyFloatCpuContent;
+            var y_true_span = y_true.AsReadonlyFloatCpuSpan;
+            var y_pred_span = y_pred.AsReadonlyFloatCpuSpan;
 
             var lr = new LinearRegression();
             for (int i = 0; i < y_true_span.Length; i++)
@@ -1653,8 +1880,8 @@ namespace SharpNet.CPU
             Debug.Assert(y_true.Shape[1] == 1);
             Debug.Assert(y_true.SameShape(y_pred));
             Debug.Assert(!y_true.UseGPU);
-            var y_true_rank = CreateRankForSpearmanCorrelation(y_true.AsReadonlyFloatCpuContent);
-            var y_pred_rank = CreateRankForSpearmanCorrelation(y_pred.AsReadonlyFloatCpuContent);
+            var y_true_rank = CreateRankForSpearmanCorrelation(y_true.AsReadonlyFloatCpuSpan);
+            var y_pred_rank = CreateRankForSpearmanCorrelation(y_pred.AsReadonlyFloatCpuSpan);
 
             double sum_delta_rank_square = 0;
             for (int i = 0; i < y_true_rank.Length; i++)
@@ -1686,7 +1913,7 @@ namespace SharpNet.CPU
             var yExpectedCpu = yExpected.AsFloatCpu;
             var yPredictedCpu = yPredicted.AsFloatCpu;
             Parallel.For(0, batchSize, row => bufferPointer[row] = ComputeSingleAccuracy(yExpectedCpu, yPredictedCpu, row, out _));
-            return buffer.AsReadonlyFloatCpuContent.Average();
+            return buffer.AsReadonlyFloatCpuSpan.Average();
         }
         
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
@@ -1709,7 +1936,7 @@ namespace SharpNet.CPU
                 int nexIndexToCheck = 0;
                 bufferPointer[i] = IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(expected + i * nbCols, predicted + i * nbCols, nbCols, &nexIndexToCheck, int.MaxValue, new List<int>()) ? 1f : 0f;
             });
-            return buffer.AsReadonlyFloatCpuContent.Average();
+            return buffer.AsReadonlyFloatCpuSpan.Average();
         }
         private static float ComputeSingleAccuracy(CpuTensor<float> yExpected, CpuTensor<float> yPredicted, int row, out int maxIndexPredicted)
         {
@@ -1746,7 +1973,7 @@ namespace SharpNet.CPU
             int batchSize = yExpected.Shape[0];
             Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            Parallel.For(0, batchSize, batchId => { MseOfLogLoss(batchId, mseLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, epsilon); });
+            Parallel.For(0, batchSize, batchId => { MseOfLogLoss(batchId, mseLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuSpan, epsilon); });
         }
 
 
@@ -1765,8 +1992,8 @@ namespace SharpNet.CPU
         public override (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted)
         {
             Debug.Assert(yExpected.SameShape(yPredicted));
-            var y_true_span = yExpected.AsReadonlyFloatCpuContent;
-            var y_pred_span = yPredicted.AsReadonlyFloatCpuContent;
+            var y_true_span = yExpected.AsReadonlyFloatCpuSpan;
+            var y_pred_span = yPredicted.AsReadonlyFloatCpuSpan;
             int true_count = 0;
 
             var rows = yExpected.Shape[0];
@@ -1822,7 +2049,7 @@ namespace SharpNet.CPU
             Debug.Assert(yExpected.SameShape(yPredicted));
             Debug.Assert(cosineSimilarityLoss.Count == timeSeriesLength);
             Debug.Assert(yPredicted.Count%timeSeriesLength == 0);
-            Parallel.For(0, timeSeriesLength, t => { CosineSimilarityLoss(t, cosineSimilarityLoss.AsFloatCpuSpan, yExpected.AsReadonlyFloatCpuContent, yPredicted.AsReadonlyFloatCpuContent, timeSeriesLength); });
+            Parallel.For(0, timeSeriesLength, t => { CosineSimilarityLoss(t, cosineSimilarityLoss.AsFloatCpuSpan, yExpected.AsReadonlyFloatCpuSpan, yPredicted.AsReadonlyFloatCpuSpan, timeSeriesLength); });
         }
         private static void CosineSimilarityLoss(int day, Span<float> cosineSimilarityLoss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, int timeSeriesLength)
         {
@@ -1850,7 +2077,7 @@ namespace SharpNet.CPU
             int batchSize = yExpected.Shape[0];
             Debug.Assert(huberLoss.SameShape(new[] { batchSize }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            Parallel.For(0, batchSize, batchId => { HuberLoss(batchId, huberLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuContent, huberDelta); });
+            Parallel.For(0, batchSize, batchId => { HuberLoss(batchId, huberLoss.AsFloatCpuSpan, yExpected.RowSlice(batchId, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(batchId, 1).AsReadonlyFloatCpuSpan, huberDelta); });
         }
         private static void HuberLoss(int batchId, Span<float> huberLoss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
         {
@@ -1879,7 +2106,7 @@ namespace SharpNet.CPU
             var cosineSimilarityGradient = this;
             Debug.Assert(yExpected.SameShape(yPredicted));
             Debug.Assert(cosineSimilarityGradient.Count == yExpected.Count);
-            Parallel.For(0, timeSeriesLength, t => { CosineSimilarityGradient(t, cosineSimilarityGradient.AsFloatCpuSpan, yExpected.AsReadonlyFloatCpuContent, yPredicted.AsReadonlyFloatCpuContent, timeSeriesLength); });
+            Parallel.For(0, timeSeriesLength, t => { CosineSimilarityGradient(t, cosineSimilarityGradient.AsFloatCpuSpan, yExpected.AsReadonlyFloatCpuSpan, yPredicted.AsReadonlyFloatCpuSpan, timeSeriesLength); });
         }
         private static void CosineSimilarityGradient(int day, Span<float> cosineSimilarityGradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, int timeSeriesLength)
         {
@@ -1911,7 +2138,7 @@ namespace SharpNet.CPU
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { HuberGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, huberDelta); });
+            Parallel.For(0, loss.Shape[0], m => { HuberGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan, huberDelta); });
         }
         private static void HuberGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
         {
@@ -1930,7 +2157,7 @@ namespace SharpNet.CPU
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { MseGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+            Parallel.For(0, loss.Shape[0], m => { MseGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
         }
         private static void MseGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
@@ -1948,7 +2175,7 @@ namespace SharpNet.CPU
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { MaeGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+            Parallel.For(0, loss.Shape[0], m => { MaeGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
         }
         private static void MaeGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
@@ -1966,7 +2193,7 @@ namespace SharpNet.CPU
             var loss = this;
             Debug.Assert(loss.SameShape(yExpected));
             Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { MseOfLogGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent, epsilon); });
+            Parallel.For(0, loss.Shape[0], m => { MseOfLogGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan, epsilon); });
         }
         private static void MseOfLogGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float epsilon)
         {
@@ -1987,7 +2214,7 @@ namespace SharpNet.CPU
             Debug.Assert(loss.SameShape(yPredicted));
             Debug.Assert(loss.Dimension == 2);
             loss.ZeroMemory();
-            Parallel.For(0, loss.Shape[0], m => { CategoricalCrossentropyWithHierarchyGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuContent, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuContent); });
+            Parallel.For(0, loss.Shape[0], m => { CategoricalCrossentropyWithHierarchyGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
         }
         private static void CategoricalCrossentropyWithHierarchyGradient(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
@@ -2590,11 +2817,16 @@ namespace SharpNet.CPU
         public override void Transpose(Tensor transposed)
         {
             Debug.Assert(Dimension == 2);
+            if (transposed.CapacityInBytes < ReallyNeededMemoryInBytesForShape(Shape))
+            {
+                throw new ArgumentException("Can't transpose to tensor: not enough capacity");
+            }
+            transposed.Reshape(new[] { Shape[1], Shape[0] });
             Debug.Assert(transposed.Dimension == Dimension);
             Debug.Assert(transposed.Shape[0] == Shape[1]);
             Debug.Assert(transposed.Shape[1] == Shape[0]);
 
-            var inputSpan = AsReadonlyFloatCpuContent;
+            var inputSpan = AsReadonlyFloatCpuSpan;
             var outputSpan = transposed.AsFloatCpuSpan;
             for (int row = 0; row < Shape[0]; ++row)
             for (int col = 0; col < Shape[1]; ++col)
@@ -2692,7 +2924,7 @@ namespace SharpNet.CPU
         }
         private double NaNSum()
         {
-            return AsReadonlyFloatCpuContent.Select(x => float.IsNaN(x) ? 0 : x).Sum();
+            return AsReadonlyFloatCpuSpan.Select(x => float.IsNaN(x) ? 0 : x).Sum();
         }
         private void Update(Tensor a, Tensor b, Func<T, T, T, T> funcInput)
         {
@@ -2839,6 +3071,8 @@ namespace SharpNet.CPU
                 varianceContent[i] = (meanDivider <= 1) ? 1f : (varianceContent[i] - meanDivider * meanContent[i] * meanContent[i]) / (meanDivider - 1);
             }
         }
+
+
 
         public void Save(string filePath, Func<int, bool> shouldSaveRow, bool addColumnWithRowIndex, string header = null)
         {

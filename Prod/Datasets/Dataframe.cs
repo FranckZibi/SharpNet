@@ -1417,7 +1417,7 @@ public sealed class DataFrame
         var newCols = totalReviewsEmbeddingDim;
         var newContent = new float[rows * newCols];
 
-        var srcContent = FloatTensor.AsReadonlyFloatCpuContent;
+        var srcContent = FloatTensor.AsReadonlyFloatCpuSpan;
         for (int row = 0; row < rows; ++row)
         {
             for (int oldCol = 0; oldCol < oldCols; ++oldCol)

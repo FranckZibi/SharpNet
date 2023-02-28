@@ -231,6 +231,7 @@ namespace SharpNet.Layers
                 case nameof(ActivationLayer): return ActivationLayer.Deserialize(serialized, network);
                 case nameof(AddLayer): return AddLayer.Deserialize(serialized, network);
                 case nameof(BatchNormalizationLayer): return BatchNormalizationLayer.Deserialize(serialized, network);
+                case nameof(LayerNormalizationLayer): return LayerNormalizationLayer.Deserialize(serialized, network);
                 case nameof(ConcatenateLayer): return ConcatenateLayer.Deserialize(serialized, network);
                 case nameof(ConvolutionLayer): return ConvolutionLayer.Deserialize(serialized, network);
                 case nameof(DenseLayer): return DenseLayer.Deserialize(serialized, network);
@@ -412,7 +413,7 @@ namespace SharpNet.Layers
         {
             return Utils.ShapeToStringWithBatchSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBatchSize(OutputShape(1));
         }
-        protected Layer PrevLayer => (PreviousLayerIndexes.Count == 0) ? null : Layers[PreviousLayerIndexes[0]];
+        public Layer PrevLayer => (PreviousLayerIndexes.Count == 0) ? null : Layers[PreviousLayerIndexes[0]];
         #region memory management
         protected void GetFloatTensor(ref Tensor bufferIfAny, int[] shape)
         {

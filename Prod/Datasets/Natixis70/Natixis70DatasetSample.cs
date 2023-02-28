@@ -73,7 +73,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             return null;
         }
         var predictionsInModelFormat = new CpuTensor<float>(YShapeInModelFormat(predictionsInTargetFormat.Shape[0]));
-        var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsReadonlyFloatCpuContent;
+        var predictionsInTargetFormatSpan = predictionsInTargetFormat.AsReadonlyFloatCpuSpan;
         var predictionsInModelFormatSpan = predictionsInModelFormat.AsFloatCpuSpan;
         int predictionsInModelFormatSpanIndex = 0;
         var divider = RowsInTargetFormatToRowsInModelFormat(1);
@@ -122,7 +122,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             return predictionsInModelFormat;
         }
 
-        var predictionsInModelFormatSpan = predictionsInModelFormat.FloatCpuTensor().AsReadonlyFloatCpuContent;
+        var predictionsInModelFormatSpan = predictionsInModelFormat.FloatCpuTensor().AsReadonlyFloatCpuSpan;
         var predictionsInModelFormatSpanIndex = 0;
 
         // the predictions in the target format for the Natixis70 Challenge
@@ -299,7 +299,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         var xInTargetFormat = xInTargetFormatDataFrame.FloatCpuTensor();
         Debug.Assert(xInTargetFormat.Shape[1] == EmbeddingDimension);
         int rowsInTargetFormat = xInTargetFormat.Shape[0];
-        var xInTargetFormatSpan = xInTargetFormat.AsReadonlyFloatCpuContent;
+        var xInTargetFormatSpan = xInTargetFormat.AsReadonlyFloatCpuSpan;
         var xInModelFormat = new CpuTensor<float>(XShapeInModelFormat(rowsInTargetFormat));
         var xInModelFormatSpan = xInModelFormat.AsFloatCpuSpan;
         int xInModelFormatSpanIndex = 0;
@@ -491,7 +491,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     private static DoubleAccumulator[] ExtractColumnStatistic(CpuTensor<float> y, bool useAbsValues)
     {
         Debug.Assert(y.Shape.Length == 2); //only works for matrices
-        var ySpan = y.AsReadonlyFloatCpuContent;
+        var ySpan = y.AsReadonlyFloatCpuSpan;
 
         var result = new List<DoubleAccumulator>();
         while (result.Count < y.Shape[1])

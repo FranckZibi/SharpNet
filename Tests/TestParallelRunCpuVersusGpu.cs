@@ -71,6 +71,97 @@ namespace SharpNetTests
             TestAll(new[] { dx, convolutionBackwardBias }, tensors => tensors[0].ConvolutionBackwardBias(tensors[1]));
         }
 
+
+
+
+        [Test]
+        public void Test_Compute_Row_Mean_Variance()
+        {
+            foreach (var unbiasedVariance in new[] { true, false })
+            {
+                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                var x = RandomTensor(xShape);
+                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                {
+                    var mean = RandomTensor(new[] { rows, 1});
+                    var variance = RandomTensor(mean.Shape);
+                    TestAll(new[] { x, mean, variance }, tensors => tensors[0].Compute_Row_Mean_Variance(tensors[1], tensors[2], unbiasedVariance));
+                }
+            }
+        }
+
+        [Test]
+        public void Test_numpy_sum()
+        {
+            foreach (var axis in new[] { 0, 1})
+            {
+                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                {
+                    var a = RandomTensor(xShape);
+                    var cols = Utils.Product(xShape) / rows;
+                    var sum_shape = (axis == 1) ? new[] { rows, 1 } : new[] { 1, cols };
+                    var sum_buffer = RandomTensor(sum_shape);
+                    TestAll(new[] { a, sum_buffer }, tensors => tensors[0].numpy_sum(tensors[1], axis));
+                }
+            }
+        }
+
+        [Test]
+        public void Test_StandardizeInPlace()
+        {
+            foreach (var unbiasedVariance in new[] { true, false })
+            foreach (var epsilon in new[] {0.1f, 0.001f, 1e-8f})
+            {
+                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                var x = RandomTensor(xShape);
+                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                {
+                    var mean = RandomTensor(new[] { rows, 1 });
+                    var variance = RandomTensor(mean.Shape);
+                    x.Compute_Row_Mean_Variance(mean, variance, unbiasedVariance);
+                    TestAll(new[] { x, mean, variance }, tensors => tensors[0].StandardizeInPlace(tensors[1], tensors[2], 1, epsilon));
+                }
+            }
+        }
+
+
+        [Test]
+        public void Test_BroadcastRowByRow()
+        {
+            foreach (float mult_to_col_multiplier in new[] { 0.0f, 1f, -0.5f })
+            foreach (float mult_to_col_adder in new[] { 0.0f, 1f, -0.5f })
+            foreach (float constant_to_add in new[] { 0.0f, 1f, -0.5f })
+            {
+                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                var x = RandomTensor(xShape);
+                foreach (var cols in new[] { Width, Width * Height, Width * Height * FiltersCount })
+                {
+                    var col_multiplier = RandomTensor(new[] { 1, cols });
+                    var col_adder = RandomTensor(col_multiplier.Shape);
+                    TestAll(new[] { x, col_multiplier, col_adder }, tensors => tensors[0].BroadcastRowByRow(tensors[1], mult_to_col_multiplier, tensors[2], mult_to_col_adder, constant_to_add));
+                }
+            }
+        }
+
+        [Test]
+        public void Test_BroadcastColByCol()
+        {
+            foreach (float mult_to_row_multiplier in new[] { 0.0f, 1f, -0.5f })
+            foreach (float mult_to_row_adder in new[] { 0.0f, 1f, -0.5f })
+            foreach (float constant_to_add in new[] { 0.0f, 1f, -0.5f })
+            {
+                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                var x = RandomTensor(xShape);
+                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                {
+                    var row_multiplier = RandomTensor(new[] { rows, 1 });
+                    var row_adder = RandomTensor(row_multiplier.Shape);
+                    TestAll(new[] { x, row_multiplier, row_adder }, tensors => tensors[0].BroadcastColByCol(tensors[1], mult_to_row_multiplier, tensors[2], mult_to_row_adder, constant_to_add));
+                }
+            }
+        }
+
         [Test]
         public void TestConvolutionGradient()
         {
@@ -205,6 +296,56 @@ namespace SharpNetTests
                 TestAll(new[] { x, dy, dx, scale, scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer }, tensors => tensors[0].BatchNormalizationBackward(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], mode, epsilon, tensors[6], tensors[7]));
             } 
         }
+
+
+
+        [Test]
+        public void TestLayerNormalization()
+        {
+            foreach (var unbiasedVariance in new[] { true, false })
+            foreach (var epsilon in new[] { 1e-3f, 1e-5f })
+            foreach (var batchSize in new[] { 1, 4, 9 })
+            {
+                var xShape = new[] { batchSize, ChannelsCount, Height, Width };
+                foreach (var cols in new[] { Width, Width * Height, Width * Height * ChannelsCount })
+                {
+                    var rows = Utils.Product(xShape) / cols;
+                    var x = RandomTensor(xShape);
+                    var y = RandomTensor(xShape);
+                    var gammas = RandomTensor(new[] { 1, cols });
+                    var betas = RandomTensor(gammas.Shape);
+                    var mean = RandomTensor(new[] { rows, 1 });
+                    var variance = RandomTensor(mean.Shape);
+                    x.Compute_Row_Mean_Variance(mean, variance, unbiasedVariance);
+                    TestAll(new[] { x, y, gammas, betas, mean, variance }, tensors => tensors[0].LayerNormalization(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], epsilon));
+                }
+            }
+        }
+
+
+        [Test]
+        public void Test_LayerNormalizationBackward()
+        {
+            foreach (var unbiasedVariance in new[] { true, false })
+            foreach (var epsilon in new[] { 1e-3f, 1e-5f })
+            foreach (var batchSize in new[] { 1, 4, 9 })
+            {
+                var xShape = new[] { batchSize, ChannelsCount, Height, Width };
+                foreach (var cols in new[] { Width, Width * Height, Width * Height * ChannelsCount })
+                {
+                    var rows = Utils.Product(xShape) / cols;
+                    var x = RandomTensor(xShape);
+                    var dy = RandomTensor(xShape);
+                    var dx = RandomTensor(xShape);
+                    var gammas = RandomTensor(new[] { 1, cols });
+                    var mean = RandomTensor(new[] { rows, 1 });
+                    var variance = RandomTensor(mean.Shape);
+                    x.Compute_Row_Mean_Variance(mean, variance, unbiasedVariance);
+                    TestAll(new[] { x, dy, dx, gammas, mean, variance }, tensors => tensors[0].LayerNormalizationBackward(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], epsilon));
+                }
+            }
+        }
+
         [Test]
 	    public void TestZeroMemory()
 	    {
@@ -980,7 +1121,10 @@ namespace SharpNetTests
         private static void AreEquals(CpuTensor<float> floatCpu, GPUTensor<float> floatGpu)
 	    {
 	        Assert.IsTrue(floatCpu.SameShape(floatGpu));
-            Assert.IsTrue(TensorExtensions.SameFloatContent(floatCpu, floatGpu, 1e-2), floatCpu + Environment.NewLine + floatGpu);
+            if (!TensorExtensions.SameFloatContent(floatCpu, floatGpu, 1e-2, out var difference))
+            {
+                Assert.IsTrue(false, floatCpu + Environment.NewLine + floatGpu+Environment.NewLine+ difference);
+            }
         }
 	    [SuppressMessage("ReSharper", "CoVariantArrayConversion")]
 	    private void TestAll(CpuTensor<float>[] data, Action<Tensor[]> work, List<int> tensorIdsToIgnore = null)

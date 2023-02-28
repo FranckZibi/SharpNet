@@ -92,7 +92,7 @@ namespace SharpNetTests.Datasets
             var p = network.Predict(dataSet, System.Math.Min(32, dataSet.Count));
             for (int row = 0; row < p.Shape[0]; ++row)
             {
-                var rowPrediction = p.RowSlice(row, 1).AsReadonlyFloatCpuContent;
+                var rowPrediction = p.RowSlice(row, 1).AsReadonlyFloatCpuSpan;
                 var predictionWithProba = root.ExtractPredictionWithProba(rowPrediction);
                 Model.Log.Error(predictionWithProba);
             }

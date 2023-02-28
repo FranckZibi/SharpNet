@@ -897,10 +897,18 @@ namespace SharpNet
         {
             return (int)Math.Round(d);
         }
+
         public static bool SameContent(float[] a, float[] b, double epsilon)
         {
+            return SameContent(a, b, epsilon, out _);
+        }
+
+        public static bool SameContent(float[] a, float[] b, double epsilon, out string difference)
+        {
+            difference = "";
             if (a.Length != b.Length)
             {
+                difference = $"different length: {a.Length} vs {b.Length}";
                 return false;
             }
 
@@ -908,11 +916,13 @@ namespace SharpNet
             {
                 if (double.IsNaN(a[i]) != double.IsNaN(b[i]))
                 {
+                    difference = $"different NaN at index {i}: {a[i]} vs {b[i]}";
                     return false;
                 }
 
                 if (Math.Abs(a[i] - b[i]) > epsilon)
                 {
+                    difference = $"different value at index {i}: {a[i]} vs {b[i]}";
                     return false;
                 }
             }

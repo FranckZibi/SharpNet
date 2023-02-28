@@ -177,6 +177,86 @@ namespace SharpNet.GPU
                 invertOfUnbiasedVolatilityBuffer);
             CheckStatus(res);
         }
+
+        public override void Compute_Row_Mean_Variance(Tensor mean, Tensor variance, bool unbiasedVariance)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean, variance }));
+            Debug.Assert(mean.SameShape(variance));
+            int rows = mean.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("x.Count % rows != 0");
+            }
+            int cols = x.Count / rows;
+            _wrapper.RunKernel("Compute_Row_Mean_Variance", rows, new object[] { cols, x, mean, variance, unbiasedVariance });
+        }
+
+        public override void StandardizeInPlace(Tensor mean, Tensor variance, int axis, float epsilon)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean, variance }));
+            Debug.Assert(mean.SameShape(variance));
+            if (axis == 1)
+            {
+                //we'll standardize each row
+                int rows = mean.Count;
+                if (x.Count % rows != 0)
+                {
+                    throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
+                }
+                int cols = x.Count / rows;
+                _wrapper.RunKernel("StandardizeInPlaceByRow", rows, new object[] { cols, x, mean, variance, epsilon });
+                return;
+            }
+            throw new NotSupportedException("Only axis=1 is supported");
+        }
+
+        public override void LayerNormalizationBackward(Tensor dy, Tensor dx, Tensor gammas, Tensor mean, Tensor variance, float epsilon)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, gammas, mean, variance }));
+            Debug.Assert(x.SameShape(dy, dx));
+            Debug.Assert(mean.SameShape(variance));
+            int rows = mean.Count;
+            int cols = gammas.Count;
+            if (x.Count != rows * cols)
+            {
+                throw new ArgumentException("x.Count != rows * cols");
+            }
+            _wrapper.RunKernel("LayerNormalizationBackward", rows, new object[] { cols, x, dy, dx, gammas, mean, variance, epsilon });
+        }
+
+        public override void numpy_sum(Tensor sum_result, int axis)
+        {
+            var a = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { a, sum_result }));
+            sum_result.ZeroMemory();
+            if (axis == 1)
+            {
+                int rows = sum_result.Count;
+                if (a.Count % rows != 0)
+                {
+                    throw new ArgumentException("x.Count % rows != 0");
+                }
+                int cols = a.Count / rows;
+                _wrapper.RunKernel("numpy_sum_RowByRow", rows, new object[] { cols, a, sum_result });
+                return;
+            }
+            if (axis == 0)
+            {
+                int cols = sum_result.Count;
+                if (a.Count % cols != 0)
+                {
+                    throw new ArgumentException("x.Count % cols != 0");
+                }
+                int rows = a.Count / cols;
+                _wrapper.RunKernel("numpy_sum_ColByCol", cols, new object[] { rows, a, sum_result });
+                return;
+            }
+            throw new ArgumentException("axis != 0 && axis != 1");
+        }
+
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor activationParameter, Tensor y)
         {
             AssertIsNotDisposed();
@@ -429,6 +509,33 @@ namespace SharpNet.GPU
             Debug.Assert(y.Dimension >= 2);
             Debug.Assert(y.MultDim0 == Count);
             y.Update_Adding_Alpha_X(1, bias);
+        }
+
+        public override void BroadcastRowByRow(Tensor col_multiplier, float mult_to_col_multiplier, Tensor col_adder, float mult_to_col_adder, float constant_to_add)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, col_multiplier, col_adder }));
+            var cols = (col_multiplier ?? col_adder).Count;
+            if (x.Count % cols != 0)
+            {
+                throw new ArgumentException("The number of cols in the multiplier or adder must be a divisor of the number of elements in the matrix");
+            }
+            var rows = x.Count / cols;
+            _wrapper.RunKernel("BroadcastRowByRow", rows, new object[] { cols, x, col_multiplier, mult_to_col_multiplier, col_adder, mult_to_col_adder, constant_to_add });
+        }
+
+
+        public override void BroadcastColByCol(Tensor row_multiplier, float mult_to_row_multiplier, Tensor row_adder, float mult_to_row_adder, float constant_to_add)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, row_multiplier, row_adder }));
+            var rows = (row_multiplier ?? row_adder).Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("The number of rows in the multiplier or adder must be a divisor of the number of elements in the matrix");
+            }
+            var cols = x.Count / rows;
+            _wrapper.RunKernel("BroadcastColByCol", cols, new object[] { rows, x, row_multiplier, mult_to_row_multiplier, row_adder, mult_to_row_adder, constant_to_add });
         }
 
         public override void Switch_First_2_axis(Tensor target)
@@ -886,6 +993,11 @@ namespace SharpNet.GPU
             transposed.AssertIsNotDisposed();
             Debug.Assert(AreCompatible(new List<Tensor> { this, transposed }));
             Debug.Assert(Dimension == 2);
+            if (transposed.CapacityInBytes < ReallyNeededMemoryInBytesForShape(Shape))
+            {
+                throw new ArgumentException("Can't transpose to tensor: not enough capacity");
+            }
+            transposed.Reshape(new[]{ Shape[1] , Shape[0] });
             Debug.Assert(transposed.Dimension == Dimension);
             Debug.Assert(transposed.Shape[0] == Shape[1]);
             Debug.Assert(transposed.Shape[1] == Shape[0]);

@@ -101,7 +101,7 @@ namespace SharpNet.Data
             //var aTranspose = new CpuTensor<float>(new [] { n, m });
             var multResult =  new CpuTensor<float>(new [] { n, n });
             multResult.Dot(a, true, a, false, 1.0f, 0.0f);
-            var spanResult = multResult.AsReadonlyFloatCpuContent;
+            var spanResult = multResult.AsReadonlyFloatCpuSpan;
             float maxError = 0.0f;
             for(int row=0;row<n;++row )
             for (int col = 0; col < n; ++col)
@@ -177,7 +177,7 @@ namespace SharpNet.Data
         public Span<float> AsFloatCpuSpan => AsFloatCpu.SpanContent;
         public float*  AsFloatPointer => (float*)AsFloatCpu.Pointer;
 
-        public ReadOnlySpan<float> AsReadonlyFloatCpuContent => AsCpu<float>().ReadonlyContent;
+        public ReadOnlySpan<float> AsReadonlyFloatCpuSpan => AsCpu<float>().ReadonlyContent;
         public string ContentStats()
         {
             int naNCount = 0;
@@ -445,7 +445,22 @@ namespace SharpNet.Data
 
         public abstract void BroadcastAddVectorToOutput(Tensor y);
 
+        public abstract void BroadcastColByCol(Tensor row_multiplier, float mult_to_row_multiplier, Tensor row_adder, float mult_to_row_adder, float constant_to_add);
 
+
+        /// <summary>
+        /// this = x [in/out] of shape (rows, cols)
+        /// update each row of x using the following formula:
+        ///    x[row,col] =  mult_to_col_multiplier* col_multiplier[col] * x[row,col] + mult_to_col_adder*col_adder[col] + constant_to_add
+        /// </summary>
+        /// <param name="col_multiplier">[in] tensor of shape (1, cols) </param>
+        /// <param name="mult_to_col_multiplier"></param>
+        /// <param name="col_adder">[in] tensor of shape (1, cols)</param>
+        /// <param name="mult_to_col_adder"></param>
+        /// <param name="constant_to_add"></param>
+        public abstract void BroadcastRowByRow(Tensor col_multiplier, float mult_to_col_multiplier, Tensor col_adder, float mult_to_col_adder, float constant_to_add);
+        
+        
         /// <summary>
         /// transform the content of the 'this' tensor from shape (a,b,...) to shape (b,a,...)
         /// </summary>
@@ -756,6 +771,70 @@ namespace SharpNet.Data
         /// <param name="meanBuffer">[in] mean of the input 'x' tensor</param>
         /// <param name="invertOfUnbiasedVolatilityBuffer">[in] invert of the unbiased volatility of the input 'x' tensor</param>
         public abstract void BatchNormalizationBackward(Tensor dy, Tensor dx, Tensor scale, Tensor scaleGradient, Tensor biasGradient, cudnnBatchNormMode_t mode, double epsilon, Tensor meanBuffer, Tensor invertOfUnbiasedVolatilityBuffer);
+
+        public abstract void Compute_Row_Mean_Variance(Tensor mean, Tensor variance, bool unbiasedVariance);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="mean"></param>
+        /// <param name="variance"></param>
+        /// <param name="axis">
+        ///if 0 : we'll standardize each column (each column will have a mean of 0 and a variance of 1)
+        ///if 1 : we'll standardize each row (each row will have a mean of 0 and a variance of 1)
+        /// </param>
+        /// <param name="epsilon"></param>
+        public abstract void StandardizeInPlace(Tensor mean, Tensor variance, int axis, float epsilon);
+
+
+        /// <summary>
+        /// this = x [in] unnormalized input
+        /// </summary>
+        /// <param name="dy">[in] gradient of the output 'y' tensor</param>
+        /// <param name="dx">[out] gradient of the input</param>
+        /// <param name="gammas">[in] scale (=gammas) tensor</param>
+        /// <param name="mean"></param>
+        /// <param name="variance"></param>
+        /// <param name="epsilon"></param>
+        public abstract void LayerNormalizationBackward(/* in */ Tensor dy, /* out */ Tensor dx, /* in */ Tensor gammas, /* in */ Tensor mean, /* in */ Tensor variance, float epsilon);
+
+
+
+        /// <summary>
+        /// perform the forward propagation for Normalization Layer
+        ///  this = [in] x : the tensor to normalize, of shape (rows, cols)
+        /// </summary>
+        /// <param name="y">the normalized version of input tensor 'x'
+        /// y = gammas *  (x - mean ) / sqrt(variance+epsilon) + betas
+        /// </param>
+        /// <param name="gammas">a tensor of shape (1,cols)</param>
+        /// <param name="betas">a tensor of shape (1,cols)</param>
+        /// <param name="mean">the mean for each row of tensor 'x' , with shape (rows,1)</param>
+        /// <param name="variance">the variance for each row of tensor 'x' , with shape (rows,1)</param>
+        /// <param name="epsilon">used for numerical stability</param>
+        public void LayerNormalization(/* out */ Tensor y, /* in */ Tensor gammas, /* in */ Tensor betas, /* in */  Tensor mean, /* in */ Tensor variance, float epsilon)
+        {
+            var x = this;
+            x.CopyTo(y);
+            y.StandardizeInPlace(mean, variance, 1, epsilon);
+            y.BroadcastRowByRow(gammas, 1f, betas, 1f, 0f);
+        }
+
+
+        /// <summary>
+        /// this = [in] x , a tensor of shape (rows,cols)
+        /// if axis == 1
+        ///     copy the sum of each row of 'x' into tensor 'sum_result' of shape (rows,1)
+        /// if axis == 0
+        ///     copy the sum of each col of 'x' into tensor 'sum_result' of shape (1,cols)
+        /// </summary>
+        /// <param name="sum_result">a tensor to store the result of sum</param>
+        /// <param name="axis">
+        /// 1 to sum row by row
+        /// 0 to sum column by column
+        /// </param>
+        public abstract void numpy_sum(Tensor sum_result, int axis);
+
 
         /// <summary>
         /// this = x

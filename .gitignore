@@ -82,6 +82,8 @@ SGOlympicGames/
 /VSCode/*
 NUnit*/
 saved_models/
+__pycache__/
+.ipynb_checkpoints/
 
 
 ImageScanSplitter/Install/Dump/*

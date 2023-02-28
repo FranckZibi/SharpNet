@@ -76,7 +76,14 @@ namespace SharpNet.GPU
                     "LnGradient",
                     "Clip",
                     "SetToZeroAllElementsBelowMainDiagonal",
-                    "Set1InMainDiagonal"
+                    "Set1InMainDiagonal",
+                    "Compute_Row_Mean_Variance",
+                    "StandardizeInPlaceByRow",
+                    "BroadcastColByCol",
+                    "BroadcastRowByRow",
+                    "numpy_sum_RowByRow",
+                    "numpy_sum_ColByCol",
+                    "LayerNormalizationBackward"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

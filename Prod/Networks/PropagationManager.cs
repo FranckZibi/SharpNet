@@ -77,6 +77,7 @@ namespace SharpNet.Networks
                 var allLayerInput = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
                 referenceCountToLayer.Add(layer.NextLayerIndexes.Count);
 
+                Tensor yBuffer = null;
                 if (layer.IsInputLayer)
                 {
                     var X = allXForInputLayers[inputLayerProcessed++];
@@ -87,7 +88,6 @@ namespace SharpNet.Networks
                 }
                 else
                 {
-                    Tensor yBuffer;
                     if (layerIndex == lastLayerIndex)
                     {
                         yBuffer = yPredicted;
@@ -108,8 +108,8 @@ namespace SharpNet.Networks
                                    + layer);
                     layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + " " + v.Item1.ToShapeAndNumpy()));
                     //layer.Parameters.ForEach(v=> layer.LogDebug(v.Item2 + ": " + v.Item1.ContentStats()));
-                    //layer.LogDebug("output: " + yBuffer.ToShapeAndNumpy());
-                    //layer.LogDebug("output:" + yBuffer.ContentStats());
+                    layer.LogDebug("output: " + yBuffer?.ToShapeAndNumpy());
+                    layer.LogDebug("output:" + yBuffer?.ContentStats());
                     if (layerIndex == lastLayerIndex)
                     {
                         layer.LogDebug(Environment.NewLine + "--------------------------------------------------------------------");

@@ -19,7 +19,6 @@ namespace SharpNet.Networks
 {
     public class NetworkSample : AbstractSample, IModelSample
     {
-
         #region constructors
         public NetworkSample() : base(new HashSet<string>())
         {
@@ -414,7 +413,7 @@ namespace SharpNet.Networks
 
         public virtual void BuildLayers(Network network, AbstractDatasetSample datasetSample)
         {
-            throw new NotImplementedException();
+            ISample.Log.Warn($"{nameof(BuildLayers)} is not overriden and will do nothing");
         }
 
         public virtual void SaveExtraModelInfos(Model model, string workingDirectory, string modelName)

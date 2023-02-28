@@ -204,7 +204,7 @@ namespace SharpNet.Datasets
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1);
                 var sha1 = dataSet.ID_Y_row_InTargetFormat(elementId);
-                var predictionWithProba = Hierarchy.ExtractPredictionWithProba(rowWithPrediction.AsReadonlyFloatCpuContent);
+                var predictionWithProba = Hierarchy.ExtractPredictionWithProba(rowWithPrediction.AsReadonlyFloatCpuSpan);
                 var predictedCancelName = predictionWithProba.Item1;
                 var predictedCancelProba = predictionWithProba.Item2;
                 var e = _database[sha1];
@@ -233,7 +233,7 @@ namespace SharpNet.Datasets
             var p = network.Predict(dataSet, Math.Min(32, dataSet.Count));
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
             {
-                var rowWithPrediction = p.RowSlice(elementId, 1).AsReadonlyFloatCpuContent;
+                var rowWithPrediction = p.RowSlice(elementId, 1).AsReadonlyFloatCpuSpan;
                 result.Add(Hierarchy.ExtractPredictionWithProba(rowWithPrediction));
             }
             return result;

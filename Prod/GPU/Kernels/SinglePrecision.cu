@@ -20,6 +20,148 @@
 		}
 	}
 
+
+	// for each row of tensor 'x' (of shape (N, cols), normalize the value
+	//  y = (x-mean)/volatility
+	__global__ void StandardizeInPlaceByRow(int N, int cols, float* __restrict x, float* __restrict mean, float* __restrict variance, float epsilon) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < N) {
+			float row_mean = mean[row];
+            float row_variance = variance[row];
+            int startIndex = row * cols;
+            int endIndex = startIndex + cols - 1;
+            for (int i = startIndex; i <= endIndex; ++i)
+            {
+                x[i] = (x[i] - row_mean) / sqrtf(row_variance + epsilon);
+            }
+		}
+	}
+
+	__global__ void BroadcastRowByRow(int rows, int cols, float* __restrict x, float* __restrict col_multiplier, float mult_to_col_multiplier,  float* __restrict col_adder, float mult_to_col_adder, float constant_to_add) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < rows) {
+
+			int xIndex = row * cols;
+	        for (int col = 0; col < cols; ++col)
+	        {
+				float multiplier = (col_multiplier == NULL) ? 1.0f : col_multiplier[col];
+		        multiplier *= mult_to_col_multiplier;
+		        float adder = (col_adder == NULL) ? 0.0f : col_adder[col];
+		        adder = mult_to_col_adder*adder+constant_to_add;
+	            x[xIndex] = multiplier * x[xIndex] + adder;
+	            ++xIndex;
+	        }
+		}
+	}
+
+	__global__ void BroadcastColByCol(int cols, int rows, float* __restrict x, float* __restrict row_multiplier, float mult_to_row_multiplier,  float* __restrict row_adder, float mult_to_row_adder, float constant_to_add) 
+	{
+		int col = blockIdx.x * blockDim.x + threadIdx.x;
+		if (col < cols) {
+
+			int xIndex = col;
+	        for (int row = 0; row < rows; ++row)
+	        {
+				float multiplier = (row_multiplier == NULL) ? 1.0f : row_multiplier[row];
+		        multiplier *= mult_to_row_multiplier;
+		        float adder = (row_adder == NULL) ? 0.0f : row_adder[row];
+		        adder = mult_to_row_adder*adder+constant_to_add;
+	            x[xIndex] = multiplier * x[xIndex] + adder;
+	            xIndex += cols;
+	        }
+		}
+	}
+
+
+	__global__ void numpy_sum_ColByCol(int cols, int rows, const float* __restrict x, float* __restrict sum_buffer) 
+	{
+		int col = blockIdx.x * blockDim.x + threadIdx.x;
+		if (col < cols) {
+
+			float col_sum = 0.0f;
+            for (int row = 0; row< rows; ++row)
+            {
+				col_sum += x[row * cols + col];
+            }
+			sum_buffer[col] = col_sum;
+		}
+	}
+
+	__global__ void numpy_sum_RowByRow(int rows, int cols, const float* __restrict x, float* __restrict sum_buffer) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < rows) {
+
+			float row_sum = 0.0f;
+			int index = row * cols;
+            for (int col = 0; col< cols; ++col)
+            {
+				row_sum += x[index];
+				++index;
+            }
+			sum_buffer[row] = row_sum;
+		}
+	}
+
+	__global__ void LayerNormalizationBackward(int rows, int cols, const float* __restrict x,  const float* __restrict dy,  float* __restrict dx,  const float* __restrict gammas,  const float* __restrict mean,  const float* __restrict variance, float epsilon) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < rows) {
+			float mean_row = mean[row];
+			float variance_row = variance[row];
+			float volatility_row = sqrtf(variance_row + epsilon);
+			float dvariance_row = 0;
+			float dmean_row = 0;
+			int index =row*cols;
+			for (int col = 0; col < cols; ++col)
+			{
+			    float tmp0 = (dy[index+col] * gammas[col]);
+			    dvariance_row += tmp0 * (x[index+col]-mean_row);
+			    dmean_row -= tmp0;
+			}
+			dvariance_row *= (-0.5f * powf(variance_row + epsilon, -1.5f));
+			dmean_row /= volatility_row;
+			for (int col = 0; col < cols; ++col)
+			{
+			    dmean_row += dvariance_row*(x[index+col] -mean_row) * (-2.0f/cols);
+			}
+			for (int col = 0; col < cols; ++col)
+			{
+			    dx[index+col] = (dy[index+col] * gammas[col]) /volatility_row
+			                + dvariance_row * (2.0f / cols) * (x[index+col] - mean_row)
+			                + dmean_row / cols;
+			}
+		}
+	}
+
+
+	// for each row of tensor 'x' (of shape (rows, cols), compute the associate mean and variance
+	// and stores it in tensor mean and variance (both of shape (rows,1))
+	__global__ void Compute_Row_Mean_Variance(int N, int cols, const float* __restrict x, float* __restrict mean, float* __restrict variance, bool unbiasedVariance) 
+	{
+		int rowId = blockIdx.x * blockDim.x + threadIdx.x;
+		if (rowId < N) {
+				int startIndex = rowId * cols;
+                int endIndex = startIndex + cols - 1;
+                double sum = 0.0;
+                double sumSquare = 0.0;
+                for (int i = startIndex; i <= endIndex; ++i)
+                {
+					double x_i = x[i];
+                    sum += x_i;
+                    sumSquare += x_i * x_i;
+                }
+                float row_mean = (float)(sum / cols);
+                mean[rowId] = row_mean;
+                int divider = unbiasedVariance ? (cols - 1) : cols;
+                float row_variance = (float) abs(sumSquare - cols * row_mean * row_mean) / divider;
+                variance[rowId] = row_variance;
+		}
+	}
+
+
 	__global__ void ComputeAccuracy(int N, int categoryCount, float *countOk, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted) 
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;

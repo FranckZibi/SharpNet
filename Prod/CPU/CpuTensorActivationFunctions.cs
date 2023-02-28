@@ -14,7 +14,7 @@ namespace SharpNet.CPU
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {X, Y}));
             var batchSize = X.Shape[0];
-            var xContent = X.AsReadonlyFloatCpuContent;
+            var xContent = X.AsReadonlyFloatCpuSpan;
             var yContent = Y.AsFloatCpuSpan;
             for (int row = 0; row < batchSize; ++row)
             {

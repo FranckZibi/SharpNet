@@ -472,6 +472,14 @@ namespace SharpNet.Networks
             return this;
         }
 
+        public Network LayerNorm(int last_D_dimension = 1, double epsilon = LayerNormalizationLayer.epsilon_default_value, string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Debug.Assert(last_D_dimension >= 1);
+            Layers.Add(new LayerNormalizationLayer(last_D_dimension, epsilon, true, this, layerName));
+            return this;
+        }
+
         public Network Flatten()
         {
             Debug.Assert(Layers.Count >= 1);

@@ -73,7 +73,7 @@ public class InMemoryDataSet : DataSet
         else
         {
             _elementIdToCategoryIndex = new int[y.Shape[0]];
-            var ySpan = y.AsReadonlyFloatCpuContent;
+            var ySpan = y.AsReadonlyFloatCpuSpan;
             for (int elementId = 0; elementId < y.Shape[0]; ++elementId)
             {
                 int startIndex = elementId * y.Shape[1];

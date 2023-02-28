@@ -744,7 +744,7 @@ namespace SharpNet.Datasets
 
                 var sb = new StringBuilder();
                 using var singleRow = new CpuTensor<float>(new[] { 1, ColumnNames.Length });
-                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
+                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuSpan;
                 int idx = 0;
                 for (int row = 0; row < Count; ++row)
                 {
@@ -848,7 +848,7 @@ namespace SharpNet.Datasets
                 using var floatTensor = new CpuTensor<float>(new[] { rows, cols });
                 using var singleRow = new CpuTensor<float>(new[] { 1, ColumnNames.Length });
                 var floatTensorSpan = floatTensor.SpanContent;
-                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
+                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuSpan;
                 int idx = 0;
                 for (int row = 0; row < Count; ++row)
                 {
@@ -966,7 +966,7 @@ namespace SharpNet.Datasets
                 return "";
             }
             Debug.Assert(tensor.Shape.Length == 2);
-            var xDataSpan = tensor.AsReadonlyFloatCpuContent;
+            var xDataSpan = tensor.AsReadonlyFloatCpuSpan;
             var desc = string.Join('_', tensor.Shape);
             for (int col = 0; col < tensor.Shape[1]; ++col)
             {
@@ -986,7 +986,7 @@ namespace SharpNet.Datasets
             int cols = dataset.ColumnNames.Length;
             var desc = rows + "_" + cols;
             using CpuTensor<float> xBuffer = new(new[] { 1, cols });
-            var xDataSpan = xBuffer.AsReadonlyFloatCpuContent;
+            var xDataSpan = xBuffer.AsReadonlyFloatCpuSpan;
             for (int col = 0; col < cols; ++col)
             {
                 int row = ((rows - 1) * col) / Math.Max(1, cols - 1);
