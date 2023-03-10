@@ -705,11 +705,23 @@ namespace SharpNetTests
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LN, 0)]
 	    public void TestActivationForward(cudnnActivationMode_t activationMode, double alphaActivation)
 	    {
-            var x = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
-	        var y = RandomTensor(x.Shape);
-            var alphaActivationAsTensor = Tensor.SingleFloat((float) alphaActivation);
-            TestAll(new[] { x, alphaActivationAsTensor, y }, tensors => tensors[0].ActivationForward(activationMode, tensors[1], tensors[2]));
+            foreach (var shape in new[]
+                     {
+                         new[] { BatchSize, ChannelsCount, Height, Width },
+                         new[] { BatchSize, 1, 1, Width },
+                         new[] { BatchSize, ChannelsCount, Height},
+                         new[] { BatchSize, 1, Height},
+                         new[] { BatchSize, ChannelsCount },
+                         new[] { BatchSize, 1 }
+                     })
+            {
+                var x = RandomTensor(shape);
+	            var y = RandomTensor(shape);
+                var alphaActivationAsTensor = Tensor.SingleFloat((float) alphaActivation);
+                TestAll(new[] { x, alphaActivationAsTensor, y }, tensors => tensors[0].ActivationForward(activationMode, tensors[1], tensors[2]));
+	        }
 	    }
+
 
 
         [Test]
@@ -742,15 +754,35 @@ namespace SharpNetTests
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LN, 0)]
 	    public void TestActivationBackward(cudnnActivationMode_t activationMode, double alphaActivation)
 	    {
-            var y = RandomTensor(new[] { BatchSize, ChannelsCount, Height, Width });
-            var dy = RandomTensor(y.Shape);
-            var x = RandomTensor(y.Shape);
-            var dx = RandomTensor(x.Shape);
-
-            var activationParameter = Tensor.SingleFloat((float)alphaActivation);
-            x.ActivationForward(activationMode, activationParameter, y);
-            TestAll(new[] { dx, dy, x, y }, tensors => tensors[0].ActivationBackward(activationMode, activationParameter, tensors[1], tensors[2], tensors[3]));
+            foreach(var shape in new[]
+                    {
+                        new[] { BatchSize, ChannelsCount, Height, Width },
+                        new[] { BatchSize, ChannelsCount, Height},
+                        new[] { BatchSize, ChannelsCount }
+                    })
+            {
+                var y = RandomTensor(shape);
+                var dy = RandomTensor(shape);
+                var x = RandomTensor(shape);
+                var dx = RandomTensor(shape);
+                var activationParameter = Tensor.SingleFloat((float)alphaActivation);
+                x.ActivationForward(activationMode, activationParameter, y);
+                TestAll(new[] { dx, dy, x, y }, tensors => tensors[0].ActivationBackward(activationMode, activationParameter, tensors[1], tensors[2], tensors[3]));
+	        }
 	    }
+
+        [Test]
+        public void TestSoftmaxActivationBackward()
+        {
+            var y = RandomTensor(new[] { 1, 3});
+            var dy = RandomTensor(y.Shape);
+            //dy = new CpuTensor<float>(dy.Shape, new[] { 0, 100, 10f });
+            var x = RandomTensor(y.Shape);
+            var dx = RandomTensor(y.Shape);
+            const cudnnActivationMode_t activationMode = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
+            x.ActivationForward(activationMode, null, y);
+            TestAll(new[] { dx, dy,x,  y }, tensors => tensors[0].ActivationBackward(activationMode, null, tensors[1], tensors[2], tensors[3]));
+        }
 
         [Test]
         public void TestActivationBackwardSoftmaxWithHierarchyActivation()

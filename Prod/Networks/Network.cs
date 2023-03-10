@@ -372,11 +372,27 @@ namespace SharpNet.Networks
             return this;
         }
 
+        public Network ScaledDotProductAttention(bool use_scale, string layerName = "")
+        {
+            var previousLayerIndex = Layers.Count - 1;
+            int queriesLayerIndex = previousLayerIndex;
+            int valuesLayerIndex = previousLayerIndex;
+            int keysLayerIndex = previousLayerIndex;
+            return ScaledDotProductAttention(use_scale, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, layerName);
+        }
+        public Network ScaledDotProductAttention(bool use_scale, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex, string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Layers.Add(new ScaledDotProductAttentionLayer(use_scale, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
+            return this;
+        }
+
+
         public Network Conv1D(int filtersCount, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
             return Conv1D(filtersCount, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
         }
-        private Network Conv1D(int filtersCount, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
+        public Network Conv1D(int filtersCount, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
             Layers.Add(new ConvolutionLayer(false, true, filtersCount, -1, 1, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));

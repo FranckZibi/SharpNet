@@ -364,6 +364,40 @@ namespace SharpNet.Data
         /// <param name="beta"></param>
         public abstract void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta);
 
+
+        /// <summary>
+        /// Given 2 lists of 2D matrices (contained in the 3D tensors a_3D and b_3D)
+        /// compute the dot product of each matrix in a_3D & b_3D
+        ///     this[i] = alpha a[i]*b|i] + beta*this[i] 
+        /// </summary>
+        /// <param name="a_3D">a 3D tensor containing 'a_3D.Shape[0]' 2D matrices
+        /// the first dimension of this tensor (a_3D.Shape[0]) must be the same as the first dimension of b_3D
+        /// </param>
+        /// <param name="transposeA">if we should transpose each 2D matrices contained in a_3D</param>
+        /// <param name="b_3D">a 3D tensor containing 'b_3D.Shape[0]' 2D matrices
+        /// the first dimension of this tensor (b_3D.Shape[0]) must be the same as the first dimension of a_3D
+        /// </param>
+        /// <param name="transposeB">if we should transpose each 2D matrices contained in b_3D</param>
+        /// <param name="alpha"></param>
+        /// <param name="beta"></param>
+        public void BatchMatrixMultiplication(Tensor a_3D, bool transposeA, Tensor b_3D, bool transposeB, float alpha, float beta)
+        {
+            var c_3D = this;
+            Debug.Assert(a_3D.Shape.Length == 3);
+            Debug.Assert(b_3D.Shape.Length == 3);
+            Debug.Assert(c_3D.Shape.Length == 3);
+            Debug.Assert(a_3D.Shape[0] == b_3D.Shape[0]);
+            Debug.Assert(a_3D.Shape[0] == c_3D.Shape[0]);
+            int nbMatrices = a_3D.Shape[0];
+            for (int i = 0; i < nbMatrices; ++i)
+            {
+                var a = a_3D.GetSubTensor(i);
+                var b = b_3D.GetSubTensor(i);
+                var c = c_3D.GetSubTensor(i);
+                c.Dot(a, transposeA, b, transposeB, alpha, beta);
+            }
+        }
+
         /// <summary>
         /// Compute the element wise multiplication:
         ///     [out] this = a (element_wise_multiplication) Diag(diagonalMatrix)
@@ -679,6 +713,14 @@ namespace SharpNet.Data
             var extractedShape = (int[])Shape.Clone();
             extractedShape[0] = nbRows; //new number of rows
             return Slice(Idx(startRowIndex), extractedShape);
+        }
+        public Tensor GetSubTensor(int startRowIndex)
+        {
+            Debug.Assert(Shape.Length >= 2);
+            Debug.Assert(startRowIndex >= 0);
+            Debug.Assert(startRowIndex < Shape[0]);
+            var subTensorShape = Shape.Skip(1).ToArray();
+            return Slice(Idx(startRowIndex), subTensorShape);
         }
         public static List<Tensor> RowSlice(List<CpuTensor<float>> d, int startRowIndex, int nbRows)
         {
