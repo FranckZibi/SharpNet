@@ -379,6 +379,19 @@
 		}
 	}
 
+	__global__ void SetAllElementsAboveMainDiagonal(int N, int rows_by_matrix, int cols_by_matrix, float valueForElementsAboveMainDiagonal, float *result) 
+	{
+		int current = blockIdx.x * blockDim.x + threadIdx.x;
+		if (current<N) {
+			int matrixId = current/rows_by_matrix;
+			int row = current%rows_by_matrix;
+			int idx = matrixId*rows_by_matrix*cols_by_matrix+row*cols_by_matrix;
+			for(int col = row+1; col<cols_by_matrix; ++col) {
+				result[idx+col] = valueForElementsAboveMainDiagonal;
+			}
+		}
+	}
+
 	__global__ void SetToZeroAllElementsBelowMainDiagonal(int nbRows, int nbCols, float *result) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;

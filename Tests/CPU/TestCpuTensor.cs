@@ -135,6 +135,43 @@ namespace SharpNetTests.CPU
         }
 
         [Test]
+        public void TestSetAllElementsAboveMainDiagonal()
+        {
+            const float valueForElementsAboveMainDiagonal = -666;
+            var src = new CpuTensor<float>(new[] { 1, 1 }, new[] { 1f });
+            src.SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal);
+            var expected = new CpuTensor<float>(src.Shape, new[] { 1f });
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
+
+            var data = new[] { 0.5f, 1f, 2f, 3f, 4f, 5f };
+            src = new CpuTensor<float>(new[] { 1, 6 }, (float[])data.Clone());
+            src.SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal);
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, valueForElementsAboveMainDiagonal, valueForElementsAboveMainDiagonal, valueForElementsAboveMainDiagonal, valueForElementsAboveMainDiagonal, valueForElementsAboveMainDiagonal });
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 6, 1 }, (float[])data.Clone());
+            src.SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal);
+            expected = new CpuTensor<float>(src.Shape, (float[])data.Clone());
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 2, 3 }, (float[])data.Clone());
+            src.SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal);
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, valueForElementsAboveMainDiagonal, valueForElementsAboveMainDiagonal, 3f, 4f, valueForElementsAboveMainDiagonal });
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 3, 2 }, (float[])data.Clone());
+            src.SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal);
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, valueForElementsAboveMainDiagonal, 2f, 3f, 4f, 5f });
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
+
+            src = new CpuTensor<float>(new[] { 3, 3 }, new[] { 0.5f, 1, 2, 3, 4, 5, 6, 7, 8 });
+            src.SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal);
+            expected = new CpuTensor<float>(src.Shape, new[] { 0.5f, valueForElementsAboveMainDiagonal, valueForElementsAboveMainDiagonal, 3, 4, valueForElementsAboveMainDiagonal, 6, 7, 8 });
+            Assert.IsTrue(TensorExtensions.SameFloatContent(src, expected, 1e-6));
+        }
+
+
+        [Test]
         public void TestSetIdentityMatrix()
         {
             var rand = new Random(0);

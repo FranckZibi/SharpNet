@@ -372,18 +372,18 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network ScaledDotProductAttention(bool use_scale, string layerName = "")
+        public Network ScaledDotProductAttention(bool use_scale, bool use_causal_mask = false, string layerName = "")
         {
             var previousLayerIndex = Layers.Count - 1;
             int queriesLayerIndex = previousLayerIndex;
             int valuesLayerIndex = previousLayerIndex;
             int keysLayerIndex = previousLayerIndex;
-            return ScaledDotProductAttention(use_scale, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, layerName);
+            return ScaledDotProductAttention(use_scale, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, layerName);
         }
-        public Network ScaledDotProductAttention(bool use_scale, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex, string layerName = "")
+        public Network ScaledDotProductAttention(bool use_scale, bool use_causal_mask, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ScaledDotProductAttentionLayer(use_scale, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
+            Layers.Add(new ScaledDotProductAttentionLayer(use_scale, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
             return this;
         }
 

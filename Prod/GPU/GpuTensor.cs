@@ -969,6 +969,15 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res);
         }
 
+        public override void SetAllElementsAboveMainDiagonal(float valueForElementsAboveMainDiagonal)
+        {
+            Debug.Assert(Shape.Length == 2 || Shape.Length == 3);
+            (int matrices_count, int rows_by_matrix, int cols_by_matrix) = Shape.Length == 3
+                ? (Shape[0], Shape[1], Shape[2])
+                : (1, Shape[0], Shape[1]);
+            _wrapper.RunKernel("SetAllElementsAboveMainDiagonal", matrices_count* rows_by_matrix, new object[] { rows_by_matrix, cols_by_matrix, valueForElementsAboveMainDiagonal, this });
+        }
+
         public override void SetIdentityMatrix()
         {
             Debug.Assert(Shape.Length == 2);

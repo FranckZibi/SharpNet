@@ -2731,6 +2731,23 @@ namespace SharpNet.CPU
                 }
         }
 
+        public override void SetAllElementsAboveMainDiagonal(float valueForElementsAboveMainDiagonal)
+        {
+            Debug.Assert(Shape.Length == 2 || Shape.Length == 3);
+            (int matrices_count,int rows_by_matrix,int cols_by_matrix) = Shape.Length == 3
+                ? (Shape[0], Shape[1], Shape[2])
+                : (1, Shape[0], Shape[1]);
+            for (int matrixId = 0; matrixId < matrices_count; ++matrixId)
+            {
+                var spanContent = Shape.Length == 3 ?ElementSlice(matrixId).AsFloatCpuSpan : AsFloatCpuSpan;
+                for (int row = 0; row < rows_by_matrix; ++row)
+                    for (int col = row + 1; col < cols_by_matrix; ++col)
+                    {
+                        spanContent[row * cols_by_matrix + col] = valueForElementsAboveMainDiagonal;
+                    }
+            }
+        }
+
         public override void SetIdentityMatrix()
         {
             Debug.Assert(Shape.Length == 2);

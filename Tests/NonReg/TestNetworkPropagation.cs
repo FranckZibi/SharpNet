@@ -480,6 +480,8 @@ namespace SharpNetTests.NonReg
             const int numEpochs = 10;
             const double learningRate = 0.001;
             const double lambdaL2Regularization = 0.00;
+            const bool use_scale = false;
+            const bool use_causal_mask = false;
 
             var X = FromNumpyArray(X_3_4_5);
             var Y = FromNumpyArray(Y_3_3);
@@ -491,7 +493,7 @@ namespace SharpNetTests.NonReg
             var conv1D_Q = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_Q").Layers.Last();
             var conv1D_V = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_V").Layers.Last();
             var conv1D_K = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_K").Layers.Last();
-            network.ScaledDotProductAttention(false, conv1D_Q.LayerIndex, conv1D_V.LayerIndex, conv1D_K.LayerIndex);
+            network.ScaledDotProductAttention(use_scale, use_causal_mask, conv1D_Q.LayerIndex, conv1D_V.LayerIndex, conv1D_K.LayerIndex);
             network.Flatten()
                 .Dense(Y.Shape[1], lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -511,6 +513,48 @@ namespace SharpNetTests.NonReg
             //predictions after training
             TestPredict(network, X, "[[0.9340755939483643, 0.05543544515967369, 0.010488937608897686], [0.017293784767389297, 0.1411501169204712, 0.8415561318397522], [0.1500280350446701, 0.11353480070829391, 0.736437201499939]]");
             TestLossAccuracy(network, X, Y, 0.8054487705230713, 2.0 / 3);
+        }
+
+        [Test, TestCaseSource(nameof(GetTestCases))]
+        public void Test_ScaledDotProductAttention_with_Causal_Mask(List<int> resourceIds)
+        {
+            const int numEpochs = 10;
+            const double learningRate = 0.001;
+            const double lambdaL2Regularization = 0.00;
+            const bool use_scale = false;
+            const bool use_causal_mask = true;
+
+            var X = FromNumpyArray(X_3_4_5);
+            var Y = FromNumpyArray(Y_3_3);
+
+            var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, resourceIds);
+            network.Sample.WithSGD(0.9, false);
+            network.Input(X.Shape[1], X.Shape[2], -1);
+            var lastLayerIndex = network.LastLayerIndex;
+            var conv1D_Q = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_Q").Layers.Last();
+            var conv1D_V = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_V").Layers.Last();
+            var conv1D_K = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_K").Layers.Last();
+            network.ScaledDotProductAttention(use_scale, use_causal_mask, conv1D_Q.LayerIndex, conv1D_V.LayerIndex, conv1D_K.LayerIndex);
+            network.Flatten()
+                .Dense(Y.Shape[1], lambdaL2Regularization, false)
+                .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
+
+            // Weights initialization
+            FromConvNumpyArray("[[[0.7163782119750977, 0.3252570629119873], [-0.2825784683227539, 0.8999791145324707], [-0.8438777923583984, 0.30466461181640625], [0.9409997463226318, -0.6641757488250732]]]").CopyTo(network.Layers[1].Weights);
+            FromConvNumpyArray("[[[0.9583117961883545, -0.035964250564575195], [0.5321958065032959, 0.4857454299926758], [0.6319985389709473, -0.7626423835754395], [0.40629100799560547, 0.058797597885131836]]]").CopyTo(network.Layers[2].Weights);
+            FromConvNumpyArray("[[[0.6856975555419922, -0.04618430137634277], [-0.23545622825622559, -0.6273543834686279], [-0.21123051643371582, 0.7190308570861816], [-0.8074820041656494, -0.12452530860900879]]]").CopyTo(network.Layers[3].Weights);
+            FromNumpyArray("[[0.429288387298584, 0.18538278341293335, 0.0015860199928283691], [0.24896937608718872, 0.48841190338134766, 0.25818514823913574], [0.4999527931213379, 0.5358568429946899, -0.41722971200942993], [0.24402379989624023, -0.3547265827655792, 0.3244849443435669], [-0.149910569190979, -0.19321483373641968, -0.03135275840759277], [-0.5615183115005493, -0.34524819254875183, -0.028048932552337646], [0.5381102561950684, -0.18948909640312195, 0.07540792226791382], [-0.11106348037719727, 0.6106008291244507, 0.4515535831451416], [-0.5627211332321167, -0.09199190139770508, 0.6016560792922974], [-0.6248162984848022, 0.653769850730896, 0.04975825548171997]]").CopyTo(network.Layers[6].Weights);
+
+
+            //predictions before training
+            TestPredict(network, X, "[[0.4659056067466736, 0.25839540362358093, 0.27569904923439026], [0.1900789886713028, 0.7325394153594971, 0.07738161832094193], [0.49776023626327515, 0.30060192942619324, 0.2016378790140152]]");
+            TestLossAccuracy(network, X, Y, 1.5082489252090454, 1.0 / 3);
+
+            TestNetwork.Fit(network, X, Y, learningRate, numEpochs, X.Shape[0]);
+
+            //predictions after training
+            TestPredict(network, X, "[[0.48619595170021057, 0.23469090461730957, 0.27911317348480225], [0.2003786265850067, 0.702436625957489, 0.0971846729516983], [0.48299941420555115, 0.3075787127017975, 0.20942188799381256]]");
+            TestLossAccuracy(network, X, Y, 1.4104366302490234, 1.0 / 3);
         }
 
         [Test, TestCaseSource(nameof(GetTestCases))]

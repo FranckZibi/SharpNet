@@ -497,17 +497,40 @@ namespace SharpNetTests
         [Test]
         public void TestSetToZeroAllElementsBelowMainDiagonal()
         {
-            foreach (int height in new[] { 1, 2, 5, 10 })
+            foreach (int rows in new[] { 1, 2, 5, 10 })
             {
-                foreach (int weight in new[] { 1, 2, 5, 10 })
+                foreach (int cols in new[] { 1, 2, 5, 10 })
                 {
-                    var a = RandomTensor(new[] { height, weight });
+                    var a = RandomTensor(new[] { rows, cols });
                     TestAll(new[] { a }, tensors => tensors[0].SetToZeroAllElementsBelowMainDiagonal());
                 }
             }
         }
 
-
+        [Test]
+        public void TestSetAllElementsAboveMainDiagonal_2D()
+        {
+            foreach (int rows in new[] { 1, 2, 5, 10 })
+            foreach (int cols in new[] { 1, 2, 5, 10 })
+            foreach (var valueForElementsAboveMainDiagonal in new[] { 0f, 1.12345f, -1000000000 })
+            {
+                var a = RandomTensor(new[] { rows, cols });
+                TestAll(new[] { a }, tensors => tensors[0].SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal));
+            }
+        }
+        
+        [Test]
+        public void TestSetAllElementsAboveMainDiagonal_3D()
+        {
+            foreach (int matrices_count in new[] { 1, 2, 5, 10 })
+            foreach (int rows in new[] { 1, 2, 5, 10 })
+            foreach (int cols in new[] { 1, 2, 5, 10 })
+            foreach (var valueForElementsAboveMainDiagonal in new[] { 0f, 1.12345f, -1000000000})
+            {
+                var a = RandomTensor(new[] { matrices_count, rows, cols });
+                TestAll(new[] { a }, tensors => tensors[0].SetAllElementsAboveMainDiagonal(valueForElementsAboveMainDiagonal));
+            }
+        }
 
         [Test]
         public void TestSetIdentityMatrix()

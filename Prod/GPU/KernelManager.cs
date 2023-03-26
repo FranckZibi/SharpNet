@@ -83,7 +83,8 @@ namespace SharpNet.GPU
                     "BroadcastRowByRow",
                     "numpy_sum_RowByRow",
                     "numpy_sum_ColByCol",
-                    "LayerNormalizationBackward"
+                    "LayerNormalizationBackward",
+                    "SetAllElementsAboveMainDiagonal"
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

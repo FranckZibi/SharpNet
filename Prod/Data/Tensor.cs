@@ -115,15 +115,30 @@ namespace SharpNet.Data
 
         /// <summary>
         /// set to 0 all the elements below the main diagonal of the matrix
-        /// (all elements with row index strictly les then column index)
+        /// (all elements with row index strictly less then column index)
         /// </summary>
         public abstract void SetToZeroAllElementsBelowMainDiagonal();
+
+
+        /// <summary>
+        /// set to 'valueForElementsAboveMainDiagonal' all the elements strictly above the main diagonal
+        /// (all elements with row index strictly higher then column index)
+        /// if 'this' if a 2D Tensor of shape (rows_by_matrix, cols_by_matrix)
+        ///     each element above the main diagonal will be set to 'valueForElementsAboveMainDiagonal'
+        /// if 'this' if a 3D Tensor of shape (matrices_count, rows_by_matrix, cols_by_matrix)
+        ///     it will be considered as a list of 'matrices_count' matrices each with shape (rows_by_matrix, cols_by_matrix)
+        ///     each individual matrix will be updated
+        /// </summary>
+        public abstract void SetAllElementsAboveMainDiagonal(float valueForElementsAboveMainDiagonal);
 
         /// <summary>
         /// set the 'this' square matrix to an identity matrix (1 on diagonals, 0 everywhere else)
         /// constraints: 'this must be a squared matrix (rows == cols)
         /// </summary>
         public abstract void SetIdentityMatrix();
+
+
+
 
         /// <summary>
         /// this (= 'y') shape :
