@@ -203,7 +203,7 @@ namespace SharpNet.CPU
         /// resize the current Cpu tensor to a different shape (both bigger or smaller)
         /// </summary>
         /// <param name="newShape"></param>
-        public override void ReshapeInPlace(int[] newShape)
+        public override void ReshapeInPlace(params int[] newShape)
         {
             newShape = FillMinusOneIfAny(Shape, newShape);
             if (SameShape(newShape))
@@ -230,7 +230,7 @@ namespace SharpNet.CPU
             }
             RecomputeMultDim();
         }
-        public override Tensor WithNewShape(int[] newShape)
+        public override Tensor WithNewShape(params int[] newShape)
         {
             AssertIsNotDisposed();
             newShape = FillMinusOneIfAny(Shape, newShape);
@@ -296,6 +296,30 @@ namespace SharpNet.CPU
                 }
             }
         }
+
+        public override void TransposeSecondAndThirdDimension(Tensor target)
+        {
+            Debug.Assert(Shape.Length >= 3);
+            var targetShape = (int[])Shape.Clone();
+            (targetShape[1], targetShape[2]) = (targetShape[2], targetShape[1]);
+            target.ReshapeInPlace(targetShape);
+            var src = WithNewShape(Shape[0], Shape[1], Shape[2], -1);
+            var srcSpan = src.AsFloatCpuSpan;
+            var targetSpan = target.AsFloatCpuSpan;
+
+            int A = Shape[0];
+            int B = Shape[1];
+            int C = Shape[2];
+            int D = Count/(A*B*C);
+            for (int a=0;a<A;++a)
+            for(int b=0;b<B;++b)
+            for(int c=0;c<C;++c)
+            for (int d = 0; d < D; ++d)
+            {
+                targetSpan[target.Idx(a, c, b, d)] = srcSpan[src.Idx(a, b, c, d)];
+            }
+        }
+        
 
         public override Tensor ChangeAxis(int[] targetAxisToSrcAxis)
         {

@@ -99,6 +99,18 @@ namespace SharpNetTests.CPU
             Assert.IsTrue(TensorExtensions.SameFloatContent(expectedTranspose, output, 1e-6));
         }
 
+
+        [Test]
+        public void TestTransposeSecondAndThirdDimension()
+        {
+            var data = Enumerable.Range(0, 2*3*4*5).Select(x => (float)x).ToArray();
+            var X = new CpuTensor<float>(new[] { 2, 3, 4, 5 }, data);
+            var observedTarget = X.Clone();
+            X.TransposeSecondAndThirdDimension(observedTarget);
+            var expectedTarget  = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[[[0,1,2,3,4],[20,21,22,23,24],[40,41,42,43,44]],[[5,6,7,8,9],[25,26,27,28,29],[45,46,47,48,49]],[[10,11,12,13,14],[30,31,32,33,34],[50,51,52,53,54]],[[15,16,17,18,19],[35,36,37,38,39],[55,56,57,58,59]]],[[[60,61,62,63,64],[80,81,82,83,84],[100,101,102,103,104]],[[65,66,67,68,69],[85,86,87,88,89],[105,106,107,108,109]],[[70,71,72,73,74],[90,91,92,93,94],[110,111,112,113,114]],[[75,76,77,78,79],[95,96,97,98,99],[115,116,117,118,119]]]], numpy.float)");
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedTarget, observedTarget, 1e-6));
+        }
+
         [Test]
         public void TestSetToZeroAllElementsBelowMainDiagonal()
         {

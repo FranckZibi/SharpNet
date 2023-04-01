@@ -283,14 +283,14 @@ namespace SharpNet.Data
             }
             return new CpuTensor<float>(Shape, ContentAsFloatArray());
         }
-        public abstract void ReshapeInPlace(int[] newShape);
+        public abstract void ReshapeInPlace(params int[] newShape);
 
         /// <summary>
         /// return a reference of the this Tensor changing only its shape
         /// </summary>
         /// <param name="newShape"></param>
         /// <returns></returns>
-        public abstract Tensor WithNewShape(int[] newShape);
+        public abstract Tensor WithNewShape(params int[] newShape);
 
         public static string ShapeToString(int[] shape)
         {
@@ -522,7 +522,16 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="target"></param>
         public abstract void SwitchSecondAndThirdDimension(/*[OUT]*/ Tensor target);
-        
+
+
+        /// <summary>
+        /// transform the content of the 'this' tensor from shape [A, B, C, *] to shape [A, C, B, *]
+        /// and stores it in target
+        /// 'this' tensor must be at least a 3D tensor 
+        /// </summary>
+        /// <param name="target"></param>
+        public abstract void TransposeSecondAndThirdDimension(/*[OUT]*/ Tensor target);
+
 
         /// <summary>
         /// create a copy of the 'this' tensor with the axis updated

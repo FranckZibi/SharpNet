@@ -1137,6 +1137,24 @@ namespace SharpNetTests
             TestAll(new[] { src, target }, tensors => tensors[0].SwitchSecondAndThirdDimension(tensors[1]));
         }
 
+        [Test]
+        public void TestTransposeSecondAndThirdDimension()
+        {
+            foreach(var a in new[]{1,2,3})
+            foreach(var b in new[]{1,2,3})
+            foreach(var c in new[]{1,2,3})
+            foreach(var d in new[]{1,2,3})
+            {
+                foreach (var length in new[] { 3, 4})
+                {
+                    var srcShape = new int[] { a, b, c, d}.Take(length).ToArray();
+                    var src = RandomTensor(srcShape);
+                    var target = RandomTensor(srcShape);
+                    TestAll(new[] { src, target }, tensors => tensors[0].TransposeSecondAndThirdDimension(tensors[1]));
+                }
+            }
+        }
+
         [TestCase(10)]
         [TestCase(1)]
         public void TestComputeAccuracyOneHot(int categoryCount)

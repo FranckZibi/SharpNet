@@ -999,5 +999,57 @@
 			target[target_index] = src[src_index];
 		}
 	}
+
+	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 
+	__global__ void TransposeSecondAndThirdDimension_V1(int N, int B, int C, int D, const float* __restrict src, float* target)
+	{
+
+		int src_index = blockIdx.x * blockDim.x + threadIdx.x;
+		if (src_index >= N)
+			return;
+		int a = src_index / (B*C*D);
+		int bcd = src_index % (B*C*D);
+
+		int b = bcd / (C*D);
+		int cd = bcd %(C*D);
+		int c = cd / D;
+
+		int target_index= src_index+D*(  c*(B-1)-b*(C-1) );
+		target[target_index] = src[src_index];
+	}
+
+	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 
+	__global__ void TransposeSecondAndThirdDimension_V2(int N, int B, int C, int D, const float* __restrict src, float* target)
+	{
+		int abc = blockIdx.x * blockDim.x + threadIdx.x;
+		if (abc >= N)
+			return;
+		int bc = abc % (B*C);
+		int b = bc / C;
+		int c = bc %C;
+		int src_index = abc*D;
+		int target_index= src_index+D*(  c*(B-1)-b*(C-1) );
+		for(int d=0;d<D;++d)
+		{
+			target[target_index+d] = src[src_index+d];
+		}
+	}
+
+	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 
+	__global__ void TransposeSecondAndThirdDimension_V3(int N, int B, int C, int D, const float* __restrict src, float* target)
+	{
+		int ab = blockIdx.x * blockDim.x + threadIdx.x;
+		if (ab >= N)
+			return;
+		int b = ab % (B);
+		for(int cd=0;cd<C*D;++cd)
+		{
+			int src_index = ab*C*D+cd;
+			int c = cd/D;
+			int target_index= src_index+D*(  c*(B-1)-b*(C-1) );
+			target[target_index] = src[src_index];
+		}
+	}
+
 }
 

@@ -456,7 +456,7 @@ namespace SharpNet.GPU
         /// resize the current GPU tensor to a different shape
         /// </summary>
         /// <param name="newShape"></param>
-        public override void ReshapeInPlace(int[] newShape)
+        public override void ReshapeInPlace(params int[] newShape)
         {
             AssertIsNotDisposed();
             newShape = FillMinusOneIfAny(Shape, newShape);
@@ -477,7 +477,7 @@ namespace SharpNet.GPU
             }
         }
 
-        public override Tensor WithNewShape(int[] newShape)
+        public override Tensor WithNewShape(params int[] newShape)
         {
             AssertIsNotDisposed();
             newShape = FillMinusOneIfAny(Shape, newShape);
@@ -564,6 +564,22 @@ namespace SharpNet.GPU
             int c = Shape[1];
             int h = Shape[2];
             _wrapper.RunKernel("SwitchSecondAndThirdDimension", n*c, new object[] { n, c, h, this, target });
+        }
+
+        public override void TransposeSecondAndThirdDimension(Tensor target)
+        {
+            Debug.Assert(Shape.Length >= 3);
+            var targetShape = (int[])Shape.Clone();
+            (targetShape[1], targetShape[2]) = (targetShape[2], targetShape[1]);
+            target.ReshapeInPlace(targetShape);
+            int A = Shape[0];
+            int B = Shape[1];
+            int C = Shape[2];
+            int D = Count / (A*B*C);
+            //TODO: there are 3 distinct CUDA implementation , select the fastest one
+            //_wrapper.RunKernel("TransposeSecondAndThirdDimension_V1", A*B*C*D, new object[] { B, C, D, this, target });
+            //_wrapper.RunKernel("TransposeSecondAndThirdDimension_V2", A*B*C, new object[] { B, C, D, this, target });
+            _wrapper.RunKernel("TransposeSecondAndThirdDimension_V3", A*B, new object[] { B, C, D, this, target });
         }
 
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient)

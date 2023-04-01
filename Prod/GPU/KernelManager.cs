@@ -84,7 +84,10 @@ namespace SharpNet.GPU
                     "numpy_sum_RowByRow",
                     "numpy_sum_ColByCol",
                     "LayerNormalizationBackward",
-                    "SetAllElementsAboveMainDiagonal"
+                    "SetAllElementsAboveMainDiagonal",
+                    "TransposeSecondAndThirdDimension_V1",
+                    "TransposeSecondAndThirdDimension_V2",
+                    "TransposeSecondAndThirdDimension_V3",
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);
