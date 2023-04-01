@@ -456,9 +456,10 @@ namespace SharpNet.GPU
         /// resize the current GPU tensor to a different shape
         /// </summary>
         /// <param name="newShape"></param>
-        public override void Reshape(int[] newShape)
+        public override void ReshapeInPlace(int[] newShape)
         {
             AssertIsNotDisposed();
+            newShape = FillMinusOneIfAny(Shape, newShape);
             if (SameShape(newShape))
             {
                 //nothing to do
@@ -479,6 +480,7 @@ namespace SharpNet.GPU
         public override Tensor WithNewShape(int[] newShape)
         {
             AssertIsNotDisposed();
+            newShape = FillMinusOneIfAny(Shape, newShape);
             if (SameShape(newShape))
             {
                 return this;
@@ -548,7 +550,7 @@ namespace SharpNet.GPU
             var targetShape = (int[])Shape.Clone();
             targetShape[0] = bLength;
             targetShape[1] = aLength;
-            target.Reshape(targetShape);
+            target.ReshapeInPlace(targetShape);
         }
 
         public override void SwitchSecondAndThirdDimension(Tensor target)
@@ -1006,7 +1008,7 @@ namespace SharpNet.GPU
             {
                 throw new ArgumentException("Can't transpose to tensor: not enough capacity");
             }
-            transposed.Reshape(new[]{ Shape[1] , Shape[0] });
+            transposed.ReshapeInPlace(new[]{ Shape[1] , Shape[0] });
             Debug.Assert(transposed.Dimension == Dimension);
             Debug.Assert(transposed.Shape[0] == Shape[1]);
             Debug.Assert(transposed.Shape[1] == Shape[0]);

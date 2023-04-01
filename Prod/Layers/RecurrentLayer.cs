@@ -343,9 +343,9 @@ namespace SharpNet.Layers
                 var yShape = y.Shape;
                 const int K = 2;
                 y.CopyTo(yCopy);
-                yCopy.Reshape(new[] { K, batchSize, HiddenSize });
+                yCopy.ReshapeInPlace(new[] { K, batchSize, HiddenSize });
                 yCopy.Switch_First_2_axis(y);
-                y.Reshape(yShape);
+                y.ReshapeInPlace(yShape);
                 FreeFloatTensor(yCopy);
             }
 

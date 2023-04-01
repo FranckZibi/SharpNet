@@ -283,7 +283,7 @@ namespace SharpNet.Data
             }
             return new CpuTensor<float>(Shape, ContentAsFloatArray());
         }
-        public abstract void Reshape(int[] newShape);
+        public abstract void ReshapeInPlace(int[] newShape);
 
         /// <summary>
         /// return a reference of the this Tensor changing only its shape
@@ -319,7 +319,7 @@ namespace SharpNet.Data
             {
                 if (!SameShape(newShape))
                 {
-                    Reshape(newShape);
+                    ReshapeInPlace(newShape);
                 }
             }
         }
@@ -1095,15 +1095,48 @@ namespace SharpNet.Data
             MultDim0 = Shape.Length >= 2 ? Shape[1] * MultDim1 : 1;
         }
 
-        public void ReshapeInPlace(int[] newShapeOfSameCount)
+
+        /// <summary>
+        /// We want to reshape a tensor to another shape (with the same number of elements)
+        /// The original tensor shape is 'originalShape'
+        /// The target shape is 'newShapeWithPossibleMinusOne'
+        /// If the target shape contains a -1, it will replace this -1 by the valid value for this dimension
+        /// to keep the same number of elements
+        /// </summary>
+        /// <param name="originalShape">the original shape of the tensor</param>
+        /// <param name="newShapeWithPossibleMinusOne">the tatget shape of the tensor
+        /// this array may contain (at most) one -1</param>
+        /// <returns>the target shape of the tensor without -1, so that it has the same number of elements as in the original shape</returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static int[] FillMinusOneIfAny(int[] originalShape, int[] newShapeWithPossibleMinusOne)
         {
-            if (Utils.Product(newShapeOfSameCount) != Utils.Product(Shape))
+            int indexMinusOne = -1;
+            for (int i = 0; i < newShapeWithPossibleMinusOne.Length; i++)
             {
-                throw new ArgumentException($"new shape and previous shape must have same count {ShapeToString(Shape)} vs {ShapeToString(newShapeOfSameCount)}");
+                if (newShapeWithPossibleMinusOne[i] == -1)
+                {
+                    if (indexMinusOne != -1)
+                    {
+                        throw new ArgumentException("Only one -1 is allowed in the new shape");
+                    }
+                    indexMinusOne = i;
+                }
             }
-            Shape = newShapeOfSameCount;
-            RecomputeMultDim();
+            if (indexMinusOne == -1)
+            {
+                return newShapeWithPossibleMinusOne;
+            }
+            int oldShapeCount = Utils.Product(originalShape);
+            int newShapeCount = -Utils.Product(newShapeWithPossibleMinusOne);
+            if (oldShapeCount % newShapeCount != 0)
+            {
+                throw new ArgumentException("The new shape is not compatible with the old shape");
+            }
+            var newShapeWithoutMinusOne = (int[])newShapeWithPossibleMinusOne.Clone();
+            newShapeWithoutMinusOne[indexMinusOne] = oldShapeCount / newShapeCount;
+            return newShapeWithoutMinusOne;
         }
+
 
         private bool IsCompatible(Tensor a)
         {

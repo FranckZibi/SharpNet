@@ -21,7 +21,7 @@ public sealed class RandomizeColumnDataSet : DataSet
         }
         else
         {
-            tmp.Reshape(expectedShape);
+            tmp.ReshapeInPlace(expectedShape);
         }
         return tmp;
     }

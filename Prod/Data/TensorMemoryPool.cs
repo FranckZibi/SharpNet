@@ -80,7 +80,7 @@ namespace SharpNet.Data
                     }
 
                     _availableTensorOrderedByCount.RemoveAt(i);
-                    availableTensor.Reshape(shape);
+                    availableTensor.ReshapeInPlace(shape);
 #if PROFILE_MEMORY_POOL
                     _sw.Stop();
 #endif
@@ -110,7 +110,7 @@ namespace SharpNet.Data
             }
             if (bufferIfAny.HasEnoughCapacityForTensor(shape))
             {
-                bufferIfAny.Reshape(shape);
+                bufferIfAny.ReshapeInPlace(shape);
                 return;
             }
             FreeFloatTensor(ref bufferIfAny);

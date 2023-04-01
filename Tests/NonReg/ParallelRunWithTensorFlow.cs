@@ -95,7 +95,7 @@ namespace SharpNetTests.NonReg
                 var resizedOriginalBitmap = PictureTools.ResizeImage(originalBmp, resizedWidth, resizedHeight, InterpolationMode.Bicubic);
                 var content = BitmapContent.ValueFomSingleRgbBitmap(resizedOriginalBitmap);
                 var X = content.Select((_, _, b) => b / 255f);
-                X.Reshape(new []{1, content.Shape[0], content.Shape[1], content.Shape[2]});
+                X.ReshapeInPlace(new []{1, content.Shape[0], content.Shape[1], content.Shape[2]});
                 var yPredicted = network.Predict(X, false);
                 var predictions = NonMaxSuppressionLayer.ExtractSelectedAfterNonMaxSuppression(yPredicted.ToCpuFloat(), 0, int.MaxValue, int.MaxValue, 0.5, 0.5);
                 predictions.ForEach(p=>p.Box.UpSampling(imageSize.Height/ (double)resizedHeight, imageSize.Width/ (double)resizedWidth).Draw(originalBmp, p.CaptionFor(COCODataSet.CategoryIndexToDescription)));

@@ -30,6 +30,21 @@ namespace SharpNetTests.Data
         }
 
         [Test]
+        public void TestFillMinusOneIfAny()
+        {
+            int[] originalShape = { 4, 3, 5};
+            Assert.AreEqual(new[] { 4, 3, 5 }, Tensor.FillMinusOneIfAny(originalShape, new[] { 4, 3, 5 }));
+            Assert.AreEqual(new[] { 2, 2, 3, 5 }, Tensor.FillMinusOneIfAny(originalShape, new[] { 2, 2, 3, 5 }));
+            Assert.AreEqual(new[]{4*3*5} ,Tensor.FillMinusOneIfAny(originalShape, new[]{-1}));
+            Assert.AreEqual(new[] { 30, 2}, Tensor.FillMinusOneIfAny(originalShape, new[] { 30, -1 }));
+            Assert.AreEqual(new[] { 2, 3, 10}, Tensor.FillMinusOneIfAny(originalShape, new[] { 2, 3, -1 }));
+
+            Assert.Throws<ArgumentException>(() => Tensor.FillMinusOneIfAny(originalShape, new[] { -1,7 }));
+            Assert.Throws<ArgumentException>(() => Tensor.FillMinusOneIfAny(originalShape, new[] { -1,-1,5}));
+        }
+
+
+        [Test]
         public void TestStandardConvolutionOutputShape()
         {
             const int batchSize = 666;

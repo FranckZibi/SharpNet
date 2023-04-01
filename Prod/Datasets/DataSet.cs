@@ -288,7 +288,7 @@ namespace SharpNet.Datasets
 
             var inputShape_CHW = new[]{Channels, targetHeight, targetWidth};
 
-            xBuffer.Reshape(inputShape_CHW); //from (1,c,h,w) shape to (c,h,w) shape
+            xBuffer.ReshapeInPlace(inputShape_CHW); //from (1,c,h,w) shape to (c,h,w) shape
             var bufferContent = xBuffer.ReadonlyContent;
 
 
@@ -661,12 +661,12 @@ namespace SharpNet.Datasets
                     }
                     else
                     {
-                        l[x].Reshape(all_xMiniBatchShape[x]);
+                        l[x].ReshapeInPlace(all_xMiniBatchShape[x]);
                     }
                 }
             }
 
-            yDataAugmentedMiniBatch.Reshape(yMiniBatchShape);
+            yDataAugmentedMiniBatch.ReshapeInPlace(yMiniBatchShape);
             yDataAugmentedMiniBatch.ZeroMemory();
 
             int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[ (firstIndexInShuffledElementId+miniBatchIdx)%shuffledElementId.Length ];

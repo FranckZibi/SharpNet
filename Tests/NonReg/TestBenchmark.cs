@@ -238,8 +238,8 @@ namespace SharpNetTests.NonReg
             foreach (var byteCount in chunkSize)
             { 
                 ulong loopId = 0;
-                src.Reshape(new[] { byteCount });
-                dest.Reshape(new[] { byteCount });
+                src.ReshapeInPlace(new[] { byteCount });
+                dest.ReshapeInPlace(new[] { byteCount });
                 var sw = Stopwatch.StartNew();
                 while (sw.ElapsedMilliseconds < 5000)
                 {

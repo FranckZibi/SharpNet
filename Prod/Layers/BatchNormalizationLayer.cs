@@ -205,10 +205,10 @@ namespace SharpNet.Layers
             {
                 Debug.Assert(_scale.Count == _scale.Shape[1]);
                 var tensorFlowShape = new[] { _scale.Shape[1]};
-                result[ScaleDatasetPath].Reshape(tensorFlowShape);
-                result[BiasDatasetPath].Reshape(tensorFlowShape);
-                result[RunningMeanDatasetPath].Reshape(tensorFlowShape);
-                result[RunningVarianceDatasetPath].Reshape(tensorFlowShape);
+                result[ScaleDatasetPath].ReshapeInPlace(tensorFlowShape);
+                result[BiasDatasetPath].ReshapeInPlace(tensorFlowShape);
+                result[RunningMeanDatasetPath].ReshapeInPlace(tensorFlowShape);
+                result[RunningVarianceDatasetPath].ReshapeInPlace(tensorFlowShape);
             }
 
             return result;

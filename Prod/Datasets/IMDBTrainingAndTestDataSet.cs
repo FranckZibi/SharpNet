@@ -38,7 +38,7 @@ namespace SharpNet.Datasets
         {
             var x = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText(xFilePath)) ;
             var y = (CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText(yFilePath));
-            y.Reshape(new[] { y.Count, 1 });
+            y.ReshapeInPlace(new[] { y.Count, 1 });
 
             //var yTmpAsSpan = ((CpuTensor<float>)TensorExtensions.FromNumpyArray(File.ReadAllText(yFilePath))).AsReadonlyFloatCpuContent;
             //var y = new CpuTensor<float>(new []{ yTmpAsSpan.Length, 2});

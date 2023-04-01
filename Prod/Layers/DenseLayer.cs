@@ -290,7 +290,7 @@ namespace SharpNet.Layers
                     // ReSharper disable once PossibleNullReferenceException
                     Debug.Assert(_bias.Count == _bias.Shape[1]);
                     var tensorFlowShape = new[] { _bias.Shape[1] };
-                    result[BiasDatasetPath].Reshape(tensorFlowShape);
+                    result[BiasDatasetPath].ReshapeInPlace(tensorFlowShape);
                 }
             }
             return result;

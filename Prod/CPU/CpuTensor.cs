@@ -203,8 +203,9 @@ namespace SharpNet.CPU
         /// resize the current Cpu tensor to a different shape (both bigger or smaller)
         /// </summary>
         /// <param name="newShape"></param>
-        public override void Reshape(int[] newShape)
+        public override void ReshapeInPlace(int[] newShape)
         {
+            newShape = FillMinusOneIfAny(Shape, newShape);
             if (SameShape(newShape))
             {
                 return;
@@ -232,6 +233,7 @@ namespace SharpNet.CPU
         public override Tensor WithNewShape(int[] newShape)
         {
             AssertIsNotDisposed();
+            newShape = FillMinusOneIfAny(Shape, newShape);
             if (SameShape(newShape))
             {
                 return this;
@@ -275,7 +277,7 @@ namespace SharpNet.CPU
             var targetShape = (int[]) Shape.Clone();
             targetShape[0] = bLength;
             targetShape[1] = aLength;
-            target.Reshape(targetShape);
+            target.ReshapeInPlace(targetShape);
         }
 
         public override void SwitchSecondAndThirdDimension(Tensor target)
@@ -2838,7 +2840,7 @@ namespace SharpNet.CPU
             {
                 throw new ArgumentException("Can't transpose to tensor: not enough capacity");
             }
-            transposed.Reshape(new[] { Shape[1], Shape[0] });
+            transposed.ReshapeInPlace(new[] { Shape[1], Shape[0] });
             Debug.Assert(transposed.Dimension == Dimension);
             Debug.Assert(transposed.Shape[0] == Shape[1]);
             Debug.Assert(transposed.Shape[1] == Shape[0]);

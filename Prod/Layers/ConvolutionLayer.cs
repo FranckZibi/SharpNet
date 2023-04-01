@@ -308,7 +308,7 @@ namespace SharpNet.Layers
                 Debug.Assert(_convolutionBias.Count == _convolutionBias.Shape[1]);
                 // ReSharper disable once PossibleNullReferenceException
                 var tensorFlowShape = new[] { _convolutionBias.Shape[1] };
-                result[ConvolutionBiasDatasetPath].Reshape(tensorFlowShape);
+                result[ConvolutionBiasDatasetPath].ReshapeInPlace(tensorFlowShape);
             }
 
             return result;

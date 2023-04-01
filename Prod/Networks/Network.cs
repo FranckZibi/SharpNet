@@ -1099,8 +1099,8 @@ namespace SharpNet.Networks
 
             // ReSharper disable once PossibleNullReferenceException
             var y_shape = dataSet.YMiniBatch_Shape(dataSet.Count);
-            _yPredictedForEpoch.Reshape(y_shape);
-            _yExpectedForEpoch.Reshape(y_shape);
+            _yPredictedForEpoch.ReshapeInPlace(y_shape);
+            _yExpectedForEpoch.ReshapeInPlace(y_shape);
             return _yPredictedForEpoch;
         }
         public int LastLayerIndex => Layers.Last().LayerIndex;
